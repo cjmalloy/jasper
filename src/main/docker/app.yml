@@ -1,0 +1,27 @@
+# This configuration is intended for development purpose, it's **your** responsibility to harden it for production
+version: '3.8'
+services:
+  jasper-app:
+    image: jasper
+    environment:
+      - _JAVA_OPTIONS=-Xmx512m -Xms256m
+      - SPRING_PROFILES_ACTIVE=prod,api-docs
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://jasper-postgresql:5432/jasper
+      - SPRING_LIQUIBASE_URL=jdbc:postgresql://jasper-postgresql:5432/jasper
+      - SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI=http://keycloak:9080/auth/realms/jhipster
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID=internal
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET=internal
+      - JHIPSTER_SLEEP=30 # gives time for other services to boot before the application
+  jasper-postgresql:
+    image: postgres:14.2
+    # volumes:
+    #   - ~/volumes/jhipster/jasper/postgresql/:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=jasper
+      - POSTGRES_PASSWORD=
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    # If you want to expose these ports outside your dev PC,
+    # remove the "127.0.0.1:" prefix
+    ports:
+      - 127.0.0.1:5432:5432

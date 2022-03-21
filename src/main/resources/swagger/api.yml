@@ -1,0 +1,40 @@
+# API-first development with OpenAPI
+# This file will be used at compile time to generate Spring-MVC endpoint stubs using openapi-generator
+openapi: '3.0.1'
+info:
+  title: 'jasper'
+  version: 0.0.1
+servers:
+  - url: http://localhost:8081/api
+    description: Development server
+  - url: https://localhost:8081/api
+    description: Development server with TLS Profile
+paths: {}
+components:
+  responses:
+    Problem:
+      description: error occurred - see status code and problem object for more information.
+      content:
+        'application/problem+json':
+          schema:
+            $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+
+  securitySchemes:
+    oauth:
+      type: oauth2
+      description: OAuth2 authentication with KeyCloak
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:9080/auth/realms/jhipster/protocol/openid-connect/auth
+          tokenUrl: http://localhost:9080/auth/realms/jhipster/protocol/openid-connect/token
+          scopes:
+            jhipster: Jhipster specific claims
+            email: Email claims
+            profile: Profile claims
+    openId:
+      type: openIdConnect
+      description: OpenID Connect authentication with KeyCloak
+      openIdConnectUrl: http://localhost:9080/auth/realms/jhipster/.well-known/openid-configuration
+security:
+  - oauth: [jhipster, email, profile]
+  - openId: [jhipster, email, profile]
