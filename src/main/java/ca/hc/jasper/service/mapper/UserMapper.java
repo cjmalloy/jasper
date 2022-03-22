@@ -1,14 +1,13 @@
 package ca.hc.jasper.service.mapper;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
 import ca.hc.jasper.domain.Authority;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.service.dto.AdminUserDTO;
 import ca.hc.jasper.service.dto.UserDTO;
-import java.util.*;
-import java.util.stream.Collectors;
-import org.mapstruct.BeanMapping;
-import org.mapstruct.Mapping;
-import org.mapstruct.Named;
+import org.mapstruct.*;
 import org.springframework.stereotype.Service;
 
 /**

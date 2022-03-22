@@ -2,9 +2,6 @@
 # Spring Boot configuration.
 #
 # This configuration is used for unit/integration tests.
-#
-# More information on profiles: https://www.jhipster.tech/profiles/
-# More information on configuration properties: https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
 # ===================================================================
@@ -17,18 +14,19 @@ spring:
   application:
     name: jasper
   datasource:
-    type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:h2:mem:jasper;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    name:
-    username:
-    password:
-    hikari:
-      auto-commit: false
+      type: com.zaxxer.hikari.HikariDataSource
+      driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+      url: jdbc:tc:postgresql:14.2:///jasper?TC_TMPFS=/testtmpfs:rw
+      username: jasper
+      password:
+      hikari:
+          poolName: Hikari
+          auto-commit: false
   jackson:
     serialization:
       write-durations-as-timestamps: false
   jpa:
-    database-platform: tech.jhipster.domain.util.FixedH2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQL95Dialect
     open-in-view: false
     hibernate:
       ddl-auto: none
@@ -46,6 +44,7 @@ spring:
       hibernate.query.fail_on_pagination_over_collection_fetch: true
   liquibase:
     contexts: test
+    change-log: classpath:config/liquibase/master.xml
   mail:
     host: localhost
   main:
@@ -67,8 +66,6 @@ spring:
       thread-name-prefix: jasper-scheduling-
       pool:
         size: 1
-  thymeleaf:
-    mode: HTML
   # Allow SecurityConfiguration to initialize w/o specifying an empty issuer-uri is OK
   security:
     oauth2:
@@ -81,13 +78,7 @@ server:
   port: 10344
   address: localhost
 
-# ===================================================================
-# JHipster specific properties
-#
-# Full reference is available at: https://www.jhipster.tech/common-application-properties/
-# ===================================================================
-
-jhipster:
+application:
   clientApp:
     name: 'jasperApp'
   logging:
@@ -101,13 +92,3 @@ jhipster:
   mail:
     from: test@localhost
     base-url: http://127.0.0.1:8080
-# ===================================================================
-# Application specific properties
-# Add your own application properties here, see the ApplicationProperties class
-# to have type-safe configuration, like in the JHipsterProperties above
-#
-# More documentation is available at:
-# https://www.jhipster.tech/common-application-properties/
-# ===================================================================
-
-# application:

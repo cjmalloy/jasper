@@ -1,12 +1,13 @@
 package ca.hc.jasper.service.dto;
 
-import ca.hc.jasper.config.Constants;
-import ca.hc.jasper.domain.Authority;
-import ca.hc.jasper.domain.User;
 import java.time.Instant;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.validation.constraints.*;
+
+import ca.hc.jasper.config.Constants;
+import ca.hc.jasper.domain.Authority;
+import ca.hc.jasper.domain.User;
 
 /**
  * A DTO representing a user, with his authorities.

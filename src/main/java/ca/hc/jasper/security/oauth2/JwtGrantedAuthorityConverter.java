@@ -1,7 +1,8 @@
 package ca.hc.jasper.security.oauth2;
 
-import ca.hc.jasper.security.SecurityUtils;
 import java.util.Collection;
+
+import ca.hc.jasper.security.SecurityUtils;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;

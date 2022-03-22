@@ -2,15 +2,10 @@ package ca.hc.jasper.config;
 
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import tech.jhipster.config.JHipsterConstants;
-import tech.jhipster.config.JHipsterProperties;
-import tech.jhipster.config.apidoc.customizer.JHipsterOpenApiCustomizer;
+import org.springframework.context.annotation.*;
 
 @Configuration
-@Profile(JHipsterConstants.SPRING_PROFILE_API_DOCS)
+@Profile("api-docs")
 public class OpenApiConfiguration {
 
     public static final String API_FIRST_PACKAGE = "ca.hc.jasper.web.api";
@@ -18,14 +13,12 @@ public class OpenApiConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = "apiFirstGroupedOpenAPI")
     public GroupedOpenApi apiFirstGroupedOpenAPI(
-        JHipsterOpenApiCustomizer jhipsterOpenApiCustomizer,
-        JHipsterProperties jHipsterProperties
+        ApplicationProperties applicationProperties
     ) {
-        JHipsterProperties.ApiDocs properties = jHipsterProperties.getApiDocs();
+        ApplicationProperties.ApiDocs properties = applicationProperties.getApiDocs();
         return GroupedOpenApi
             .builder()
             .group("openapi")
-            .addOpenApiCustomiser(jhipsterOpenApiCustomizer)
             .packagesToScan(API_FIRST_PACKAGE)
             .pathsToMatch(properties.getDefaultIncludePattern())
             .build();

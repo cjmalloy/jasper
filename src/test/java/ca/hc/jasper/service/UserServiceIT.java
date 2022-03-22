@@ -2,21 +2,17 @@ package ca.hc.jasper.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.*;
+
 import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.config.Constants;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.security.AuthoritiesConstants;
 import ca.hc.jasper.service.dto.AdminUserDTO;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

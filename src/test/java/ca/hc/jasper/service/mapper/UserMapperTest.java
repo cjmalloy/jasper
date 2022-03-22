@@ -2,13 +2,11 @@ package ca.hc.jasper.service.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.*;
+
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.service.dto.AdminUserDTO;
 import ca.hc.jasper.service.dto.UserDTO;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

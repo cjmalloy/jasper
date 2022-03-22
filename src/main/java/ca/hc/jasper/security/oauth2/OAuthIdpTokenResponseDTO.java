@@ -1,8 +1,9 @@
 package ca.hc.jasper.security.oauth2;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import java.util.UUID;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class OAuthIdpTokenResponseDTO implements Serializable {
 

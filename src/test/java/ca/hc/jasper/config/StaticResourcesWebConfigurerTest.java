@@ -1,10 +1,12 @@
 package ca.hc.jasper.config;
 
-import static ca.hc.jasper.config.StaticResourcesWebConfiguration.*;
+import static ca.hc.jasper.config.StaticResourcesWebConfiguration.RESOURCE_LOCATIONS;
+import static ca.hc.jasper.config.StaticResourcesWebConfiguration.RESOURCE_PATHS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.CacheControl;
@@ -13,7 +15,6 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import tech.jhipster.config.JHipsterDefaults;
-import tech.jhipster.config.JHipsterProperties;
 
 class StaticResourcesWebConfigurerTest {
 
@@ -22,14 +23,14 @@ class StaticResourcesWebConfigurerTest {
     private ResourceHandlerRegistry resourceHandlerRegistry;
     private MockServletContext servletContext;
     private WebApplicationContext applicationContext;
-    private JHipsterProperties props;
+    private ApplicationProperties props;
 
     @BeforeEach
     void setUp() {
         servletContext = spy(new MockServletContext());
         applicationContext = mock(WebApplicationContext.class);
         resourceHandlerRegistry = spy(new ResourceHandlerRegistry(applicationContext, servletContext));
-        props = new JHipsterProperties();
+        props = new ApplicationProperties();
         staticResourcesWebConfiguration = spy(new StaticResourcesWebConfiguration(props));
     }
 

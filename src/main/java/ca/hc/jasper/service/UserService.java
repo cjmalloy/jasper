@@ -1,5 +1,9 @@
 package ca.hc.jasper.service;
 
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import ca.hc.jasper.config.Constants;
 import ca.hc.jasper.domain.Authority;
 import ca.hc.jasper.domain.User;
@@ -8,9 +12,6 @@ import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.security.SecurityUtils;
 import ca.hc.jasper.service.dto.AdminUserDTO;
 import ca.hc.jasper.service.dto.UserDTO;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;

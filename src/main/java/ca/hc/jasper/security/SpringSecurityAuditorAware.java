@@ -1,7 +1,8 @@
 package ca.hc.jasper.security;
 
-import ca.hc.jasper.config.Constants;
 import java.util.Optional;
+
+import ca.hc.jasper.config.Constants;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Component;
 
