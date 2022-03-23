@@ -26,10 +26,10 @@ public class StaticResourcesWebConfiguration implements WebMvcConfigurer {
         "/i18n/*",
     };
 
-    private final ApplicationProperties jhipsterProperties;
+    private final ApplicationProperties applicationProperties;
 
     public StaticResourcesWebConfiguration(ApplicationProperties applicationProperties) {
-        this.jhipsterProperties = applicationProperties;
+        this.applicationProperties = applicationProperties;
     }
 
     @Override
@@ -51,6 +51,6 @@ public class StaticResourcesWebConfiguration implements WebMvcConfigurer {
     }
 
     private int getJHipsterHttpCacheProperty() {
-        return jhipsterProperties.getHttp().getCache().getTimeToLiveInDays();
+        return applicationProperties.getHttp().getCache().getTimeToLiveInDays();
     }
 }

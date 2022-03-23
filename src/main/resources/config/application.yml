@@ -46,7 +46,6 @@ management:
             'loggers',
             'prometheus',
             'threaddump',
-            'caches',
             'liquibase',
           ]
   endpoint:
@@ -121,7 +120,7 @@ spring:
       hibernate.jdbc.time_zone: UTC
       hibernate.id.new_generator_mappings: true
       hibernate.connection.provider_disables_autocommit: true
-      hibernate.cache.use_second_level_cache: true
+      hibernate.cache.use_second_level_cache: false
       hibernate.cache.use_query_cache: false
       hibernate.generate_statistics: false
       # modify batch size as necessary
@@ -159,17 +158,6 @@ spring:
   output:
     ansi:
       console-available: true
-  security:
-    oauth2:
-      client:
-        provider:
-          oidc:
-            issuer-uri: http://localhost:9080/auth/realms/jhipster
-        registration:
-          oidc:
-            client-id: internal
-            client-secret: internal
-            scope: openid,profile,email
 
 server:
   servlet:
@@ -213,11 +201,7 @@ application:
     contact-name:
     contact-url:
     contact-email:
-    license: unlicensed
+    license: MIT
     license-url:
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
-    oauth2:
-      audience:
-        - account
-        - api://default

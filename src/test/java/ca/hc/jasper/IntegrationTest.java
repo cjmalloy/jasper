@@ -2,7 +2,6 @@ package ca.hc.jasper;
 
 import java.lang.annotation.*;
 
-import ca.hc.jasper.config.TestSecurityConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
@@ -10,6 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(classes = { JasperApplication.class, TestSecurityConfiguration.class })
+@SpringBootTest(classes = JasperApplication.class)
 public @interface IntegrationTest {
 }

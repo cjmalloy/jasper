@@ -9,8 +9,102 @@ servers:
     description: Development server
   - url: https://localhost:8081/api
     description: Development server with TLS Profile
-paths: {}
+paths:
+  /ref:
+    get:
+      summary: List all refs
+      operationId: listRefs
+      tags:
+        - ref
+      parameters:
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: An paged array of refs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refs"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a ref
+      operationId: createRef
+      tags:
+        - ref
+      responses:
+        201:
+          description: Null response
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /ref/{url}:
+    get:
+      summary: Info for a specific ref
+      operationId: showRefByUrl
+      tags:
+        - ref
+      parameters:
+        - name: url
+          in: path
+          required: true
+          description: The url of the ref to retrieve
+          schema:
+            type: string
+      responses:
+        200:
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refs"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
+  schemas:
+    Ref:
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tag:
+          type: string
+    Refs:
+      type: array
+      items:
+        $ref: "#/components/schemas/Ref"
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
   responses:
     Problem:
       description: error occurred - see status code and problem object for more information.
@@ -20,21 +114,10 @@ components:
             $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
 
   securitySchemes:
-    oauth:
-      type: oauth2
-      description: OAuth2 authentication with KeyCloak
-      flows:
-        authorizationCode:
-          authorizationUrl: http://localhost:9080/auth/realms/jhipster/protocol/openid-connect/auth
-          tokenUrl: http://localhost:9080/auth/realms/jhipster/protocol/openid-connect/token
-          scopes:
-            jhipster: Jhipster specific claims
-            email: Email claims
-            profile: Profile claims
-    openId:
-      type: openIdConnect
-      description: OpenID Connect authentication with KeyCloak
-      openIdConnectUrl: http://localhost:9080/auth/realms/jhipster/.well-known/openid-configuration
+    jwt:
+      type: http
+      description: JWT Authentication
+      scheme: bearer
+      bearerFormat: JWT
 security:
-  - oauth: [jhipster, email, profile]
-  - openId: [jhipster, email, profile]
+  - jwt: []

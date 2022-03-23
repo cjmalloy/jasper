@@ -1,21 +1,18 @@
 package ca.hc.jasper.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames.ID_TOKEN;
 
-import java.time.Instant;
-import java.util.*;
-
-import org.junit.jupiter.api.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 /**
  * Test class for the {@link SecurityUtils} utility class.
@@ -38,53 +35,12 @@ class SecurityUtilsUnitTest {
     }
 
     @Test
-    void testGetCurrentUserLoginForOAuth2() {
+    void testGetCurrentUserJWT() {
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("groups", AuthoritiesConstants.USER);
-        claims.put("sub", 123);
-        claims.put("preferred_username", "admin");
-        OidcIdToken idToken = new OidcIdToken(ID_TOKEN, Instant.now(), Instant.now().plusSeconds(60), claims);
-        Collection<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority(AuthoritiesConstants.USER));
-        OidcUser user = new DefaultOidcUser(authorities, idToken);
-        OAuth2AuthenticationToken auth2AuthenticationToken = new OAuth2AuthenticationToken(user, authorities, "oidc");
-        securityContext.setAuthentication(auth2AuthenticationToken);
+        securityContext.setAuthentication(new UsernamePasswordAuthenticationToken("admin", "token"));
         SecurityContextHolder.setContext(securityContext);
-
-        Optional<String> login = SecurityUtils.getCurrentUserLogin();
-
-        assertThat(login).contains("admin");
-    }
-
-    @Test
-    void testExtractAuthorityFromClaims() {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("groups", Arrays.asList(AuthoritiesConstants.ADMIN, AuthoritiesConstants.USER));
-
-        List<GrantedAuthority> expectedAuthorities = Arrays.asList(
-            new SimpleGrantedAuthority(AuthoritiesConstants.ADMIN),
-            new SimpleGrantedAuthority(AuthoritiesConstants.USER)
-        );
-
-        List<GrantedAuthority> authorities = SecurityUtils.extractAuthorityFromClaims(claims);
-
-        assertThat(authorities).isNotNull().isNotEmpty().hasSize(2).containsAll(expectedAuthorities);
-    }
-
-    @Test
-    void testExtractAuthorityFromClaims_NamespacedRoles() {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(SecurityUtils.CLAIMS_NAMESPACE + "roles", Arrays.asList(AuthoritiesConstants.ADMIN, AuthoritiesConstants.USER));
-
-        List<GrantedAuthority> expectedAuthorities = Arrays.asList(
-            new SimpleGrantedAuthority(AuthoritiesConstants.ADMIN),
-            new SimpleGrantedAuthority(AuthoritiesConstants.USER)
-        );
-
-        List<GrantedAuthority> authorities = SecurityUtils.extractAuthorityFromClaims(claims);
-
-        assertThat(authorities).isNotNull().isNotEmpty().hasSize(2).containsAll(expectedAuthorities);
+        Optional<String> jwt = SecurityUtils.getCurrentUserJWT();
+        assertThat(jwt).contains("token");
     }
 
     @Test
