@@ -1,13 +1,13 @@
+openapi: 3.0.3
 # API-first development with OpenAPI
 # This file will be used at compile time to generate Spring-MVC endpoint stubs using openapi-generator
-openapi: '3.0.1'
 info:
   title: 'jasper'
   version: 0.0.1
 servers:
-  - url: http://localhost:8081/api
+  - url: http://localhost:8081/api/v1
     description: Development server
-  - url: https://localhost:8081/api
+  - url: https://localhost:8081/api/v1
     description: Development server with TLS Profile
 paths:
   /ref:
@@ -19,7 +19,7 @@ paths:
       parameters:
         - name: limit
           in: query
-          description: How many items to return at one time (max 100)
+          description: How many items to return at one time
           required: false
           schema:
             type: integer
@@ -36,7 +36,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/responses/Problem"
     post:
       summary: Create a ref
       operationId: createRef
@@ -50,7 +50,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/responses/Problem"
   /ref/{url}:
     get:
       summary: Info for a specific ref
@@ -76,7 +76,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/responses/Problem"
 components:
   schemas:
     Ref:
@@ -95,16 +95,6 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Ref"
-    Error:
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
   responses:
     Problem:
       description: error occurred - see status code and problem object for more information.
