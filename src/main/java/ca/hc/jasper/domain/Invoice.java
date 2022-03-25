@@ -9,6 +9,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Getter
@@ -39,6 +40,7 @@ public class Invoice {
 
 	private boolean disputed;
 
+	@LastModifiedDate
 	private Instant modified = Instant.now();
 
 	@Override

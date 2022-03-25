@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.*;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.validator.constraints.URL;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Getter
@@ -22,10 +25,12 @@ import org.hibernate.annotations.*;
 public class Tag {
 
 	@Id
-	@NotNull
+	@NotBlank
+	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	@Id
+	@URL
 	private String origin = "";
 
 	private String name;
@@ -38,12 +43,15 @@ public class Tag {
 
 	private int textColor;
 
+	@LastModifiedDate
 	private Instant modified = Instant.now();
 
+	@JsonIgnore
 	public TagId getId() {
 		return new TagId(tag, origin);
 	}
 
+	@JsonIgnore
 	public boolean local() {
 		return origin == null || origin.isBlank();
 	}

@@ -7,6 +7,7 @@ import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.repository.QueueRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +26,7 @@ public class QueueService {
 		return queueRepository.findById(id).orElseThrow(NotFoundException::new);
 	}
 
-	public List<Queue> getAll(String tag) {
+	public List<Queue> getAllOrigins(String tag) {
 		return queueRepository.findAllByTag(tag);
 	}
 
@@ -36,6 +37,10 @@ public class QueueService {
 	}
 
 	public void delete(String url) {
-		queueRepository.deleteById(new TagId(url, ""));
+		try {
+			queueRepository.deleteById(new TagId(url, ""));
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }

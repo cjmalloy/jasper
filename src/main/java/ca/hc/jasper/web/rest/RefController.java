@@ -3,6 +3,7 @@ package ca.hc.jasper.web.rest;
 import javax.validation.Valid;
 
 import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.RefId;
 import ca.hc.jasper.service.RefService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -19,17 +20,38 @@ public class RefController {
 	RefService refService;
 
 	@PostMapping
-	void createRef(@Valid @RequestBody Ref ref) {
+	void createRef(
+		@Valid @RequestBody Ref ref
+	) {
 		refService.create(ref);
 	}
 
 	@GetMapping
-	Ref getRef(@RequestParam String url) {
-		return refService.get(url);
+	Ref getRef(
+		@RequestParam String url,
+		@RequestParam(defaultValue = "") String origin
+	) {
+		return refService.get(new RefId(url, origin));
 	}
 
 	@GetMapping("list")
-	Page<Ref> getRefs(@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable) {
+	Page<Ref> getRefs(
+		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable
+	) {
 		return refService.page(pageable);
+	}
+
+	@PutMapping
+	void updateRef(
+		@Valid @RequestBody Ref ref
+	) {
+		refService.update(ref);
+	}
+
+	@DeleteMapping
+	void deleteRef(
+		@RequestParam String url
+	) {
+		refService.delete(url);
 	}
 }

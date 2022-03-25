@@ -4,6 +4,7 @@ import ca.hc.jasper.domain.Feed;
 import ca.hc.jasper.repository.FeedRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,6 +28,10 @@ public class FeedService {
 	}
 
 	public void delete(String origin) {
-		feedRepository.deleteById(origin);
+		try {
+			feedRepository.deleteById(origin);
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }

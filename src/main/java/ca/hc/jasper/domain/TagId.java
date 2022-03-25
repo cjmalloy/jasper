@@ -10,6 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TagId implements Serializable {
+	public static final String REGEX = "[a-z]+(/[a-z]+)*";
 	private String tag;
 	private String origin;
 

@@ -6,6 +6,7 @@ import ca.hc.jasper.domain.Invoice;
 import ca.hc.jasper.repository.InvoiceRepository;
 import ca.hc.jasper.service.errors.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,6 +30,10 @@ public class InvoiceService {
 	}
 
 	public void delete(UUID id) {
-		invoiceRepository.deleteById(id);
+		try {
+			invoiceRepository.deleteById(id);
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }

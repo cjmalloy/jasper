@@ -4,10 +4,11 @@ import java.time.Instant;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.*;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Getter
@@ -15,7 +16,8 @@ import lombok.Setter;
 public class Script {
 
 	@Id
-	@NotNull
+	@NotBlank
+	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	private String name;
@@ -28,6 +30,7 @@ public class Script {
 
 	private boolean error;
 
+	@LastModifiedDate
 	private Instant modified = Instant.now();
 
 	@Override

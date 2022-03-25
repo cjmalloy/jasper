@@ -7,6 +7,7 @@ import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +26,7 @@ public class UserService {
 		return userRepository.findById(id).orElseThrow(NotFoundException::new);
 	}
 
-	public List<User> getAll(String tag) {
+	public List<User> getAllOrigins(String tag) {
 		return userRepository.findAllByTag(tag);
 	}
 
@@ -36,6 +37,10 @@ public class UserService {
 	}
 
 	public void delete(String url) {
-		userRepository.deleteById(new TagId(url, ""));
+		try {
+			userRepository.deleteById(new TagId(url, ""));
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }

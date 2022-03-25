@@ -7,6 +7,9 @@ import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.repository.TagRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,8 +28,12 @@ public class TagService {
 		return tagRepository.findById(id).orElseThrow(NotFoundException::new);
 	}
 
-	public List<Tag> getAll(String tag) {
+	public List<Tag> getAllOrigins(String tag) {
 		return tagRepository.findAllByTag(tag);
+	}
+
+	public Page<Tag> page(Pageable pageable) {
+		return tagRepository.findAll(pageable);
 	}
 
 	public void update(Tag tag) {
@@ -36,6 +43,10 @@ public class TagService {
 	}
 
 	public void delete(String url) {
-		tagRepository.deleteById(new TagId(url, ""));
+		try {
+			tagRepository.deleteById(new TagId(url, ""));
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }

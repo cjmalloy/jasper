@@ -3,11 +3,11 @@ package ca.hc.jasper.service;
 import java.time.Instant;
 import java.util.List;
 
-import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.domain.RefId;
+import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
@@ -25,11 +25,11 @@ public class RefService {
 		refRepository.save(ref);
 	}
 
-	public Ref get(String url) {
-		return refRepository.findById(new RefId(url, "")).orElseThrow(NotFoundException::new);
+	public Ref get(RefId id) {
+		return refRepository.findById(id).orElseThrow(NotFoundException::new);
 	}
 
-	public List<Ref> getAll(String url) {
+	public List<Ref> getAllOrigins(String url) {
 		return refRepository.findAllByUrl(url);
 	}
 
@@ -45,6 +45,10 @@ public class RefService {
 	}
 
 	public void delete(String url) {
-		refRepository.deleteById(new RefId(url, ""));
+		try {
+			refRepository.deleteById(new RefId(url, ""));
+		} catch (EmptyResultDataAccessException e) {
+			// Delete is idempotent
+		}
 	}
 }
