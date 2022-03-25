@@ -31,4 +31,147 @@
             <column name="local_date" type="date"/>
         </createTable>
     </changeSet>
+
+	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+		<createTable tableName="ref">
+			<column name="url" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
+				<constraints primaryKey="true" nullable="true"/>
+			</column>
+			<column name="sources" type="JSONB"/>
+			<column name="title" type="TEXT"/>
+			<column name="tags" type="JSONB"/>
+			<column name="comment" type="TEXT"/>
+			<column name="alternate_urls" type="JSONB"/>
+			<column name="created" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+			<column name="published" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+
+		<createTable tableName="tag">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
+				<constraints primaryKey="true" nullable="true"/>
+			</column>
+			<column name="name" type="TEXT"/>
+			<column name="pinned" type="JSONB"/>
+			<column name="color" type="INT"/>
+			<column name="text_color" type="INT"/>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+
+		<createTable tableName="user">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
+				<constraints primaryKey="true" nullable="true"/>
+			</column>
+			<column name="name" type="TEXT"/>
+			<column name="watches" type="JSONB"/>
+			<column name="subscriptions" type="JSONB"/>
+			<column name="read_access" type="JSONB"/>
+			<column name="write_access" type="JSONB"/>
+			<column name="last_login" type="TIMESTAMP"/>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+			<column name="pubKey" type="BYTEA"/>
+		</createTable>
+
+		<createTable tableName="queue">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
+				<constraints primaryKey="true" nullable="true"/>
+			</column>
+			<column name="name" type="TEXT"/>
+			<column name="comment" type="TEXT"/>
+			<column name="bounty" type="TEXT"/>
+			<column name="max_age" type="INTERVAL"/>
+			<column name="approvers" type="JSONB">
+				<constraints nullable="false"/>
+			</column>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+
+		<createTable tableName="feed">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
+				<constraints primaryKey="true" nullable="true"/>
+			</column>
+			<column name="name" type="TEXT"/>
+			<column name="proxy" type="TEXT"/>
+			<column name="tags" type="JSONB"/>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+			<column name="last_scrape" type="TIMESTAMP"/>
+		</createTable>
+
+		<createTable tableName="script">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="name" type="TEXT"/>
+			<column name="source" type="TEXT">
+				<constraints nullable="false"/>
+			</column>
+			<column name="language" type="TEXT">
+				<constraints nullable="false"/>
+			</column>
+			<column name="error" type="BOOLEAN">
+				<constraints nullable="false"/>
+			</column>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+
+		<createTable tableName="invoice">
+			<column name="id" type="UUID">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="submitter" type="TEXT">
+				<constraints nullable="false"/>
+			</column>
+			<column name="comment" type="TEXT"/>
+			<column name="queue" type="TEXT">
+				<constraints nullable="false"/>
+			</column>
+			<column name="response" type="JSONB">
+				<constraints nullable="false"/>
+			</column>
+			<column name="qr" type="TEXT"/>
+			<column name="paid" type="BOOLEAN">
+				<constraints nullable="false"/>
+			</column>
+			<column name="rejected" type="BOOLEAN">
+				<constraints nullable="false"/>
+			</column>
+			<column name="disputed" type="BOOLEAN">
+				<constraints nullable="false"/>
+			</column>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+	</changeSet>
 </databaseChangeLog>

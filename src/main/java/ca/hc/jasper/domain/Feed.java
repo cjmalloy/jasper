@@ -14,54 +14,36 @@ import org.hibernate.annotations.*;
 @Entity
 @Getter
 @Setter
-@IdClass(RefId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Ref {
-
-	@Id
-	private String url;
+public class Feed {
 
 	@Id
 	private String origin;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<String> sources;
+	private String name;
 
-	private String title;
+	private String proxy;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private List<String> tags;
 
-	private String comment;
-
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<String> alternateUrls;
-
-	private Instant created;
-
 	private Instant modified;
 
-	private Instant published;
-
-	public RefId getId() {
-		return new RefId(url, origin);
-	}
+	private Instant lastScrape;
 
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Ref ref = (Ref) o;
-		return url.equals(ref.url) && Objects.equals(origin, ref.origin);
+		Feed feed = (Feed) o;
+		return origin.equals(feed.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url);
+		return Objects.hash(origin);
 	}
 }

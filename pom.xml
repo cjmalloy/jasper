@@ -33,6 +33,13 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.22</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>tech.jhipster</groupId>
 			<artifactId>jhipster-framework</artifactId>
 			<version>${jhipster-framework.version}</version>
@@ -107,6 +114,11 @@
 		<dependency>
 			<groupId>org.hibernate.validator</groupId>
 			<artifactId>hibernate-validator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.vladmihalcea</groupId>
+			<artifactId>hibernate-types-55</artifactId>
+			<version>2.14.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.liquibase</groupId>
@@ -265,12 +277,13 @@
 		</dependencies>
 	</dependencyManagement>
 
-    <build>
-        <defaultGoal>spring-boot:run</defaultGoal>
-        <plugins>
+	<build>
+		<defaultGoal>spring-boot:run</defaultGoal>
+		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>${project.parent.version}</version>
 				<configuration>
 					<layers>
 						<enabled>true</enabled>
@@ -278,6 +291,6 @@
 					</layers>
 				</configuration>
 			</plugin>
-        </plugins>
-    </build>
+		</plugins>
+	</build>
 </project>

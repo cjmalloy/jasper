@@ -12,7 +12,7 @@
 
 logging:
   level:
-    ROOT: DEBUG
+    ROOT: INFO
     org.hibernate.SQL: DEBUG
     ca.hc.jasper: DEBUG
 

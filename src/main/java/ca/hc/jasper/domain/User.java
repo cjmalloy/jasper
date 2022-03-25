@@ -14,54 +14,56 @@ import org.hibernate.annotations.*;
 @Entity
 @Getter
 @Setter
-@IdClass(RefId.class)
+@IdClass(TagId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Ref {
+public class User {
 
 	@Id
-	private String url;
+	private String tag;
 
 	@Id
 	private String origin;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<String> sources;
-
-	private String title;
+	private String name;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> tags;
-
-	private String comment;
+	private List<String> watches;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> alternateUrls;
+	private List<String> subscriptions;
 
-	private Instant created;
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private List<String> readAccess;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private List<String> writeAccess;
+
+	private Instant lastLogin;
 
 	private Instant modified;
 
-	private Instant published;
+	private byte[] pubkey;
 
-	public RefId getId() {
-		return new RefId(url, origin);
+	public TagId getId() {
+		return new TagId(tag, origin);
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Ref ref = (Ref) o;
-		return url.equals(ref.url) && Objects.equals(origin, ref.origin);
+		User ref = (User) o;
+		return tag.equals(ref.tag) && Objects.equals(origin, ref.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url);
+		return Objects.hash(tag);
 	}
 }
