@@ -37,8 +37,8 @@
 			<column name="url" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="true"/>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="sources" type="JSONB"/>
 			<column name="title" type="TEXT"/>
@@ -60,8 +60,8 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="true"/>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="pinned" type="JSONB"/>
@@ -76,8 +76,8 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="true"/>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="watches" type="JSONB"/>
@@ -95,8 +95,8 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="true"/>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="comment" type="TEXT"/>
@@ -114,8 +114,8 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="true"/>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="proxy" type="TEXT"/>

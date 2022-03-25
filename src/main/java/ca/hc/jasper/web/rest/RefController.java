@@ -1,8 +1,14 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
+
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.service.RefService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,7 +19,17 @@ public class RefController {
 	RefService refService;
 
 	@PostMapping
-	void createRef(Ref ref) {
+	void createRef(@Valid @RequestBody Ref ref) {
 		refService.create(ref);
+	}
+
+	@GetMapping
+	Ref getRef(@RequestParam String url) {
+		return refService.get(url);
+	}
+
+	@GetMapping("list")
+	Page<Ref> getRefs(@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable) {
+		return refService.page(pageable);
 	}
 }

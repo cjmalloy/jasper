@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -21,10 +22,11 @@ import org.hibernate.annotations.*;
 public class User {
 
 	@Id
+	@NotNull
 	private String tag;
 
 	@Id
-	private String origin;
+	private String origin = "";
 
 	private String name;
 
@@ -46,7 +48,7 @@ public class User {
 
 	private Instant lastLogin;
 
-	private Instant modified;
+	private Instant modified = Instant.now();
 
 	private byte[] pubkey;
 
@@ -54,16 +56,20 @@ public class User {
 		return new TagId(tag, origin);
 	}
 
+	public boolean local() {
+		return origin == null || origin.isBlank();
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		User ref = (User) o;
-		return tag.equals(ref.tag) && Objects.equals(origin, ref.origin);
+		User user = (User) o;
+		return tag.equals(user.tag) && origin.equals(user.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag);
+		return Objects.hash(tag, origin);
 	}
 }

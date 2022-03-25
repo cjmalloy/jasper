@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -21,10 +22,11 @@ import org.hibernate.annotations.*;
 public class Ref {
 
 	@Id
+	@NotNull
 	private String url;
 
 	@Id
-	private String origin;
+	private String origin = "";
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
@@ -42,14 +44,19 @@ public class Ref {
 	@Column(columnDefinition = "jsonb")
 	private List<String> alternateUrls;
 
+	@NotNull
+	private Instant published;
+
 	private Instant created;
 
-	private Instant modified;
-
-	private Instant published;
+	private Instant modified = Instant.now();
 
 	public RefId getId() {
 		return new RefId(url, origin);
+	}
+
+	public boolean local() {
+		return origin == null || origin.isBlank();
 	}
 
 	@Override
@@ -57,11 +64,11 @@ public class Ref {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Ref ref = (Ref) o;
-		return url.equals(ref.url) && Objects.equals(origin, ref.origin);
+		return url.equals(ref.url) && origin.equals(ref.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url);
+		return Objects.hash(url, origin);
 	}
 }

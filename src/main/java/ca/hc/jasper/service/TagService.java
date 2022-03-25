@@ -16,7 +16,7 @@ public class TagService {
 	TagRepository tagRepository;
 
 	public void create(Tag tag) {
-		if (tag.getOrigin() != null) throw new ForeignWriteException();
+		if (!tag.local()) throw new ForeignWriteException();
 		if (tagRepository.existsById(tag.getId())) throw new AlreadyExistsException();
 		tagRepository.save(tag);
 	}
@@ -30,12 +30,12 @@ public class TagService {
 	}
 
 	public void update(Tag tag) {
-		if (tag.getOrigin() != null) throw new ForeignWriteException();
+		if (!tag.local()) throw new ForeignWriteException();
 		if (!tagRepository.existsById(tag.getId())) throw new NotFoundException();
 		tagRepository.save(tag);
 	}
 
 	public void delete(String url) {
-		tagRepository.deleteById(new TagId(url, null));
+		tagRepository.deleteById(new TagId(url, ""));
 	}
 }

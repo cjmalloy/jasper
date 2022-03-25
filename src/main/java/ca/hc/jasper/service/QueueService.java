@@ -16,7 +16,7 @@ public class QueueService {
 	QueueRepository queueRepository;
 
 	public void create(Queue queue) {
-		if (queue.getOrigin() != null) throw new ForeignWriteException();
+		if (!queue.local()) throw new ForeignWriteException();
 		if (queueRepository.existsById(queue.getId())) throw new AlreadyExistsException();
 		queueRepository.save(queue);
 	}
@@ -30,12 +30,12 @@ public class QueueService {
 	}
 
 	public void update(Queue queue) {
-		if (queue.getOrigin() != null) throw new ForeignWriteException();
+		if (!queue.local()) throw new ForeignWriteException();
 		if (!queueRepository.existsById(queue.getId())) throw new NotFoundException();
 		queueRepository.save(queue);
 	}
 
 	public void delete(String url) {
-		queueRepository.deleteById(new TagId(url, null));
+		queueRepository.deleteById(new TagId(url, ""));
 	}
 }

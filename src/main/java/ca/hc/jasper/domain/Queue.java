@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 
 import com.vladmihalcea.hibernate.type.interval.PostgreSQLIntervalType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
@@ -27,10 +28,11 @@ import org.hibernate.annotations.*;
 public class Queue {
 
 	@Id
+	@NotNull
 	private String tag;
 
 	@Id
-	private String origin;
+	private String origin = "";
 
 	private String name;
 
@@ -43,24 +45,29 @@ public class Queue {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@NotNull
 	private List<String> approvers;
 
-	private Instant modified;
+	private Instant modified = Instant.now();
 
 	public TagId getId() {
 		return new TagId(tag, origin);
+	}
+
+	public boolean local() {
+		return origin == null || origin.isBlank();
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Queue ref = (Queue) o;
-		return tag.equals(ref.tag) && Objects.equals(origin, ref.origin);
+		Queue queue = (Queue) o;
+		return tag.equals(queue.tag) && origin.equals(queue.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag);
+		return Objects.hash(tag, origin);
 	}
 }

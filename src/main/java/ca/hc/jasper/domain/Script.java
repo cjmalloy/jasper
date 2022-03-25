@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.validation.constraints.NotNull;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -14,17 +15,20 @@ import lombok.Setter;
 public class Script {
 
 	@Id
+	@NotNull
 	private String tag;
 
 	private String name;
 
+	@NotNull
 	private String source;
 
+	@NotNull
 	private String language;
 
 	private boolean error;
 
-	private Instant modified;
+	private Instant modified = Instant.now();
 
 	@Override
 	public boolean equals(Object o) {

@@ -39,7 +39,7 @@ public class Invoice {
 
 	private boolean disputed;
 
-	private Instant modified;
+	private Instant modified = Instant.now();
 
 	@Override
 	public boolean equals(Object o) {

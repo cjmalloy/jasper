@@ -18,11 +18,11 @@ public class RefId implements Serializable {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		RefId refId = (RefId) o;
-		return url.equals(refId.url) && Objects.equals(origin, refId.origin);
+		return url.equals(refId.url) && origin.equals(refId.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url);
+		return Objects.hash(url, origin);
 	}
 }

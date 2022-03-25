@@ -17,12 +17,12 @@ public class TagId implements Serializable {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		TagId refId = (TagId) o;
-		return tag.equals(refId.tag) && Objects.equals(origin, refId.origin);
+		TagId tagId = (TagId) o;
+		return tag.equals(tagId.tag) && origin.equals(tagId.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag);
+		return Objects.hash(tag, origin);
 	}
 }

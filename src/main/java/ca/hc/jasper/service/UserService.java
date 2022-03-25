@@ -16,7 +16,7 @@ public class UserService {
 	UserRepository userRepository;
 
 	public void create(User user) {
-		if (user.getOrigin() != null) throw new ForeignWriteException();
+		if (!user.local()) throw new ForeignWriteException();
 		if (userRepository.existsById(user.getId())) throw new AlreadyExistsException();
 		userRepository.save(user);
 	}
@@ -30,12 +30,12 @@ public class UserService {
 	}
 
 	public void update(User user) {
-		if (user.getOrigin() != null) throw new ForeignWriteException();
+		if (!user.local()) throw new ForeignWriteException();
 		if (!userRepository.existsById(user.getId())) throw new NotFoundException();
 		userRepository.save(user);
 	}
 
 	public void delete(String url) {
-		userRepository.deleteById(new TagId(url, null));
+		userRepository.deleteById(new TagId(url, ""));
 	}
 }
