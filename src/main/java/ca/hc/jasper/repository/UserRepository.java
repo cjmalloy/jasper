@@ -5,6 +5,6 @@ import java.util.List;
 import ca.hc.jasper.domain.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends JpaRepository<User, TagId> {
+public interface UserRepository extends TagOriginMixin<User>, JpaRepository<User, TagId> {
 	List<User> findAllByTag(String tag);
 }

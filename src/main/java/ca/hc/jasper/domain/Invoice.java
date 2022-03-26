@@ -20,18 +20,23 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Invoice {
 
 	@Id
+	@Column(updatable = false)
 	private UUID id;
 
+	@Column(updatable = false)
 	private String submitter;
 
+	@Column(updatable = false)
 	private String comment;
 
+	@Column(updatable = false)
 	private String queue;
 
 	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@Column(columnDefinition = "jsonb", updatable = false)
 	private List<String> response;
 
+	@Column(updatable = false)
 	private String qr;
 
 	private boolean paid;

@@ -3,7 +3,6 @@ package ca.hc.jasper.web.rest;
 import javax.validation.Valid;
 
 import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.domain.RefId;
 import ca.hc.jasper.service.RefService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -31,7 +30,7 @@ public class RefController {
 		@RequestParam String url,
 		@RequestParam(defaultValue = "") String origin
 	) {
-		return refService.get(new RefId(url, origin));
+		return refService.get(url, origin);
 	}
 
 	@GetMapping("list")

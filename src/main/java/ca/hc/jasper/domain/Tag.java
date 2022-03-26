@@ -25,11 +25,13 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Tag {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	@Id
+	@Column(updatable = false)
 	@URL
 	private String origin = "";
 
@@ -45,11 +47,6 @@ public class Tag {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
-
-	@JsonIgnore
-	public TagId getId() {
-		return new TagId(tag, origin);
-	}
 
 	@JsonIgnore
 	public boolean local() {

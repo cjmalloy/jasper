@@ -31,11 +31,13 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Queue {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	@Id
+	@Column(updatable = false)
 	@URL
 	private String origin = "";
 
@@ -55,11 +57,6 @@ public class Queue {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
-
-	@JsonIgnore
-	public TagId getId() {
-		return new TagId(tag, origin);
-	}
 
 	@JsonIgnore
 	public boolean local() {

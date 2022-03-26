@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
+import javax.persistence.Table;
 import javax.validation.constraints.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -19,17 +20,20 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Getter
 @Setter
 @IdClass(TagId.class)
+@Table(name = "users")
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class User {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	@Id
+	@Column(name = "origin", updatable = false)
 	@URL
 	private String origin = "";
 
@@ -56,12 +60,7 @@ public class User {
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
-	private byte[] pubkey;
-
-	@JsonIgnore
-	public TagId getId() {
-		return new TagId(tag, origin);
-	}
+	private byte[] pubKey;
 
 	@JsonIgnore
 	public boolean local() {

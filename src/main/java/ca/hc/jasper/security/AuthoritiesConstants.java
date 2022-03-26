@@ -5,11 +5,13 @@ package ca.hc.jasper.security;
  */
 public final class AuthoritiesConstants {
 
-    public static final String ADMIN = "ROLE_ADMIN";
+	public static final String ADMIN = "ROLE_ADMIN";
 
-    public static final String USER = "ROLE_USER";
+	public static final String MOD = "ROLE_MOD";
 
-    public static final String ANONYMOUS = "ROLE_ANONYMOUS";
+	public static final String USER = "ROLE_USER";
 
-    private AuthoritiesConstants() {}
+	public static final String ANONYMOUS = "ROLE_ANONYMOUS";
+
+	private AuthoritiesConstants() {}
 }

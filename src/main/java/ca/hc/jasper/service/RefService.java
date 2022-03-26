@@ -1,14 +1,18 @@
 package ca.hc.jasper.service;
 
-import java.time.Instant;
-import java.util.List;
+import static ca.hc.jasper.repository.spec.RefSpec.readAccess;
 
-import ca.hc.jasper.domain.*;
+import java.time.Instant;
+
+import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,36 +21,36 @@ public class RefService {
 	@Autowired
 	RefRepository refRepository;
 
+	@PreAuthorize("hasPermission(#ref, create)")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
-		if (refRepository.existsById(ref.getId())) throw new AlreadyExistsException();
+		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}
 
-	public Ref get(RefId id) {
-		return refRepository.findById(id).orElseThrow(NotFoundException::new);
-	}
-
-	public List<Ref> getAllOrigins(String url) {
-		return refRepository.findAllByUrl(url);
+	@PostAuthorize("hasPermission(returnObject, read)")
+	public Ref get(String url, String origin) {
+		return refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(NotFoundException::new);
 	}
 
 	public Page<Ref> page(Pageable pageable) {
-		return refRepository.findAll(pageable);
+		return refRepository.findAll(readAccess(), pageable);
 	}
 
+	@PreAuthorize("hasPermission(#ref.url, 'Ref', write)")
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
-		if (!refRepository.existsById(ref.getId())) throw new NotFoundException();
+		if (!refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new NotFoundException();
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}
 
+	@PreAuthorize("hasPermission(#url, 'Ref', delete)")
 	public void delete(String url) {
 		try {
-			refRepository.deleteById(new RefId(url, ""));
+			refRepository.deleteByUrlAndOrigin(url, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

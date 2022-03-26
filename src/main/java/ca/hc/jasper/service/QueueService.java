@@ -1,9 +1,6 @@
 package ca.hc.jasper.service;
 
-import java.util.List;
-
 import ca.hc.jasper.domain.Queue;
-import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.repository.QueueRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,27 +15,23 @@ public class QueueService {
 
 	public void create(Queue queue) {
 		if (!queue.local()) throw new ForeignWriteException();
-		if (queueRepository.existsById(queue.getId())) throw new AlreadyExistsException();
+		if (queueRepository.existsByTagAndOrigin(queue.getTag(), queue.getOrigin())) throw new AlreadyExistsException();
 		queueRepository.save(queue);
 	}
 
-	public Queue get(TagId id) {
-		return queueRepository.findById(id).orElseThrow(NotFoundException::new);
-	}
-
-	public List<Queue> getAllOrigins(String tag) {
-		return queueRepository.findAllByTag(tag);
+	public Queue get(String tag, String origin) {
+		return queueRepository.findOneByTagAndOrigin(tag, origin).orElseThrow(NotFoundException::new);
 	}
 
 	public void update(Queue queue) {
 		if (!queue.local()) throw new ForeignWriteException();
-		if (!queueRepository.existsById(queue.getId())) throw new NotFoundException();
+		if (!queueRepository.existsByTagAndOrigin(queue.getTag(), queue.getOrigin())) throw new NotFoundException();
 		queueRepository.save(queue);
 	}
 
-	public void delete(String url) {
+	public void delete(String tag) {
 		try {
-			queueRepository.deleteById(new TagId(url, ""));
+			queueRepository.deleteByTagAndOrigin(tag, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

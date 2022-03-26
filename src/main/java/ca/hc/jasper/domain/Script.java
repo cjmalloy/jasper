@@ -2,8 +2,7 @@ package ca.hc.jasper.domain;
 
 import java.time.Instant;
 import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import javax.persistence.*;
 import javax.validation.constraints.*;
 
 import lombok.Getter;
@@ -16,6 +15,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Script {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@Pattern(regexp = TagId.REGEX)
 	private String tag;

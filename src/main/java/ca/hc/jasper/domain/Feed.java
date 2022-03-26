@@ -24,12 +24,14 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Feed {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@URL
 	private String origin;
 
 	private String name;
 
+	@Column(updatable = false)
 	private String proxy;
 
 	@Type(type = "json")

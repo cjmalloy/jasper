@@ -1,8 +1,5 @@
 package ca.hc.jasper.service;
 
-import java.util.List;
-
-import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.service.errors.*;
@@ -18,27 +15,23 @@ public class UserService {
 
 	public void create(User user) {
 		if (!user.local()) throw new ForeignWriteException();
-		if (userRepository.existsById(user.getId())) throw new AlreadyExistsException();
+		if (userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new AlreadyExistsException();
 		userRepository.save(user);
 	}
 
-	public User get(TagId id) {
-		return userRepository.findById(id).orElseThrow(NotFoundException::new);
-	}
-
-	public List<User> getAllOrigins(String tag) {
-		return userRepository.findAllByTag(tag);
+	public User get(String tag, String origin) {
+		return userRepository.findOneByTagAndOrigin(tag, origin).orElseThrow(NotFoundException::new);
 	}
 
 	public void update(User user) {
 		if (!user.local()) throw new ForeignWriteException();
-		if (!userRepository.existsById(user.getId())) throw new NotFoundException();
+		if (!userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new NotFoundException();
 		userRepository.save(user);
 	}
 
-	public void delete(String url) {
+	public void delete(String tag) {
 		try {
-			userRepository.deleteById(new TagId(url, ""));
+			userRepository.deleteByTagAndOrigin(tag, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

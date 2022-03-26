@@ -10,8 +10,7 @@ import javax.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.*;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.CreatedDate;
@@ -27,11 +26,13 @@ import org.springframework.data.annotation.LastModifiedDate;
 public class Ref {
 
 	@Id
+	@Column(updatable = false)
 	@NotBlank
 	@URL
 	private String url;
 
 	@Id
+	@Column(updatable = false)
 	@URL
 	private String origin = "";
 
@@ -60,11 +61,6 @@ public class Ref {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
-
-	@JsonIgnore
-	public RefId getId() {
-		return new RefId(url, origin);
-	}
 
 	@JsonIgnore
 	public boolean local() {
