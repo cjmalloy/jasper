@@ -1,17 +1,16 @@
 package ca.hc.jasper.security.method;
 
 import java.util.List;
-import java.util.Optional;
 
+import ca.hc.jasper.component.UserManager;
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.RefRepository;
-import ca.hc.jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
 import org.springframework.security.access.expression.SecurityExpressionRoot;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionOperations;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 
 public class CustomMethodSecurityExpressionRoot extends SecurityExpressionRoot implements MethodSecurityExpressionOperations {
 	private final Logger logger = LoggerFactory.getLogger(CustomMethodSecurityExpressionRoot.class);
@@ -24,13 +23,13 @@ public class CustomMethodSecurityExpressionRoot extends SecurityExpressionRoot i
 
 	private Object target;
 
-	private final UserRepository userRepository;
+	private final UserManager userManager;
 
 	private final RefRepository refRepository;
 
-	CustomMethodSecurityExpressionRoot(Authentication a, UserRepository userRepository, RefRepository refRepository) {
+	CustomMethodSecurityExpressionRoot(Authentication a, UserManager userManager, RefRepository refRepository) {
 		super(a);
-		this.userRepository = userRepository;
+		this.userManager = userManager;
 		this.refRepository = refRepository;
 	}
 
@@ -83,24 +82,20 @@ public class CustomMethodSecurityExpressionRoot extends SecurityExpressionRoot i
 		throw new UnsupportedOperationException();
 	}
 
-	public org.springframework.security.core.userdetails.User getPrincipal() {
-		return (org.springframework.security.core.userdetails.User) super.getPrincipal();
+	public UserDetails getPrincipal() {
+		return (UserDetails) super.getPrincipal();
 	}
 
 	public String getUserTag() {
 		return getPrincipal().getUsername();
 	}
 
-	Optional<User> getUser() {
-		return userRepository.findOneByTagAndOrigin(getUserTag(), "");
+	public List<String> getReadAccess() {
+		return userManager.getReadAccess(getUserTag());
 	}
 
-	List<String> getReadAccess() {
-		return getUser().map(User::getReadAccess).orElse(null);
-	}
-
-	List<String> getWriteAccess() {
-		return getUser().map(User::getWriteAccess).orElse(null);
+	public List<String> getWriteAccess() {
+		return userManager.getReadAccess(getUserTag());
 	}
 
 	public boolean canReadRef(Ref ref) {
@@ -112,10 +107,6 @@ public class CustomMethodSecurityExpressionRoot extends SecurityExpressionRoot i
 			}
 		}
 		return false;
-	}
-
-	public boolean canReadRefs(Page<Ref> refs) {
-		return refs.stream().allMatch(this::canReadRef);
 	}
 
 	public boolean canWriteRef(Ref ref) {
@@ -134,10 +125,6 @@ public class CustomMethodSecurityExpressionRoot extends SecurityExpressionRoot i
 			return readAccess.contains(tag);
 		}
 		return false;
-	}
-
-	public boolean canReadTags(Page<Tag> tags) {
-		return tags.stream().allMatch(t -> canReadTag(t.getTag()));
 	}
 
 	public boolean canWriteTag(String tag) {

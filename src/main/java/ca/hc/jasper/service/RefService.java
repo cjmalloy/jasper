@@ -4,8 +4,10 @@ import static ca.hc.jasper.repository.spec.RefSpec.readAccess;
 
 import java.time.Instant;
 
+import ca.hc.jasper.component.UserManager;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.RefRepository;
+import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -21,6 +23,9 @@ public class RefService {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	UserManager userManager;
+
 	@PreAuthorize("hasPermission(#ref, create)")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
@@ -35,8 +40,11 @@ public class RefService {
 		return refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(NotFoundException::new);
 	}
 
-	public Page<Ref> page(Pageable pageable) {
-		return refRepository.findAll(readAccess(), pageable);
+	public Page<Ref> page(RefFilter filter, Pageable pageable) {
+		return refRepository.findAll(
+			filter.spec().and(
+				readAccess(userManager.getReadAccess())),
+			pageable);
 	}
 
 	@PreAuthorize("hasPermission(#ref.url, 'Ref', write)")
