@@ -2,9 +2,14 @@ package ca.hc.jasper.service;
 
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.security.Auth;
+import ca.hc.jasper.service.dto.DtoMapper;
+import ca.hc.jasper.service.dto.UserDto;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -17,6 +22,12 @@ public class UserService {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
+
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
 		if (!user.local()) throw new ForeignWriteException();
@@ -25,8 +36,18 @@ public class UserService {
 	}
 
 	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public User get(String tag, String origin) {
-		return userRepository.findOneByTagAndOrigin(tag, origin).orElseThrow(NotFoundException::new);
+	public UserDto get(String tag, String origin) {
+		var result = userRepository.findOneByTagAndOrigin(tag, origin)
+								   .orElseThrow(NotFoundException::new);
+		return mapper.domainToDto(result);
+	}
+
+	public Page<UserDto> page(Pageable pageable) {
+		return userRepository
+			.findAll(
+				auth.tagReadSpec(),
+				pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
