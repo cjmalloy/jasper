@@ -56,7 +56,7 @@ public class Auth {
 		if (hasRole("MOD")) return true;
 		if (!canWriteRef(ref.getUrl())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
-		if (!newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canReadTag)) return false;
 		return true;
 	}
 
