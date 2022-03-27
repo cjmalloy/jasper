@@ -4,7 +4,8 @@ import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 
-import ca.hc.jasper.domain.*;
+import ca.hc.jasper.domain.Tag;
+import ca.hc.jasper.domain.Tag_;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagSpec {

@@ -2,7 +2,8 @@ package ca.hc.jasper.service;
 
 import ca.hc.jasper.domain.Feed;
 import ca.hc.jasper.repository.FeedRepository;
-import ca.hc.jasper.service.errors.*;
+import ca.hc.jasper.service.errors.AlreadyExistsException;
+import ca.hc.jasper.service.errors.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.security.access.prepost.PreAuthorize;

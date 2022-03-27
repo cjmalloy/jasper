@@ -2,7 +2,7 @@ package ca.hc.jasper.web.rest;
 
 import javax.validation.Valid;
 
-import ca.hc.jasper.domain.*;
+import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.service.TagService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

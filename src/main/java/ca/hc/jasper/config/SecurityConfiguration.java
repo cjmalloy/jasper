@@ -2,7 +2,6 @@ package ca.hc.jasper.config;
 
 import java.util.List;
 
-import ca.hc.jasper.security.AuthoritiesConstants;
 import ca.hc.jasper.security.jwt.JWTConfigurer;
 import ca.hc.jasper.security.jwt.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,13 +54,13 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasAuthority(AuthoritiesConstants.ADMIN)
+            .antMatchers("/api/admin/**").hasRole("ADMIN")
             .antMatchers("/api/**").authenticated()
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()
             .antMatchers("/management/prometheus").permitAll()
-            .antMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
+            .antMatchers("/management/**").hasRole("ADMIN")
         .and()
 			.apply(securityConfigurerAdapter());
         // @formatter:on
