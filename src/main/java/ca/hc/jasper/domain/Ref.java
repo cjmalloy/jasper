@@ -57,7 +57,7 @@ public class Ref {
 
 	@CreatedDate
 	@Column(updatable = false)
-	private Instant created;
+	private Instant created = Instant.now();
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
@@ -65,6 +65,21 @@ public class Ref {
 	@JsonIgnore
 	public boolean local() {
 		return origin == null || origin.isBlank();
+	}
+
+	@JsonIgnore
+	public Ref addTags(List<String> toAdd) {
+		if (toAdd == null) return this;
+		if (tags == null) {
+			tags = toAdd;
+		} else {
+			for (var t : tags) {
+				if (!tags.contains(t)) {
+					tags.add(t);
+				}
+			}
+		}
+		return this;
 	}
 
 	@Override

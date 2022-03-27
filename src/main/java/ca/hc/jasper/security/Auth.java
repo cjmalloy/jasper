@@ -117,7 +117,8 @@ public class Auth {
 	}
 
 	public List<String> hiddenTags(List<String> tags) {
-		if (hasRole("MOD")) return List.of();
+		if (hasRole("MOD")) return null;
+		if (tags == null) return null;
 		return tags.stream().filter(tag -> !canReadTag(tag)).toList();
 	}
 

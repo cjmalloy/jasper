@@ -51,7 +51,7 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.PRIVATE) String> readAccess;
+	private List<@Pattern(regexp = TagId.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
