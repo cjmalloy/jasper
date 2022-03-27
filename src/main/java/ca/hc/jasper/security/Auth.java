@@ -1,4 +1,4 @@
-package ca.hc.jasper.component;
+package ca.hc.jasper.security;
 
 import java.util.*;
 import java.util.stream.Stream;

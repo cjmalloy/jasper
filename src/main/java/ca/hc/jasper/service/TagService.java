@@ -1,6 +1,6 @@
 package ca.hc.jasper.service;
 
-import ca.hc.jasper.component.Auth;
+import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.repository.TagRepository;
 import ca.hc.jasper.service.errors.*;

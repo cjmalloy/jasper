@@ -2,7 +2,7 @@ package ca.hc.jasper.service;
 
 import java.time.Instant;
 
-import ca.hc.jasper.component.Auth;
+import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
