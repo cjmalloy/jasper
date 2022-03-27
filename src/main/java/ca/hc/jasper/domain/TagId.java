@@ -11,6 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 public class TagId implements Serializable {
 	public static final String REGEX = "_?[a-z]+(/[a-z]+)*";
+	public static final String PRIVATE = "_[a-z]+(/[a-z]+)*";
 	private String tag;
 	private String origin;
 
