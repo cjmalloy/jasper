@@ -6,11 +6,13 @@ import static ca.hc.jasper.repository.spec.RefSpec.hasAnyTag;
 import java.util.*;
 
 import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.TagId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
+	public static final String REGEX = TagId.REGEX + "([ +|:&]" + TagId.REGEX + ")*";
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 
 	private final List<List<String>> orGroups = new ArrayList<>();
@@ -34,9 +36,9 @@ public class TagQuery {
 
 	private void parse(String query) {
 		// TODO: Allow parentheses?
-		var ors = query.split("[:|]");
+		var ors = query.split("[ +|]");
 		for (var orGroup : ors) {
-			var ands = orGroup.split("[ +]");
+			var ands = orGroup.split("[:&]");
 			if (ands.length == 0) continue;;
 			if (ands.length == 1) {
 				orTags.add(ands[0]);

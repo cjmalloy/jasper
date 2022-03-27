@@ -1,9 +1,10 @@
 package ca.hc.jasper.web.rest;
 
-import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.filter.RefFilter;
+import ca.hc.jasper.repository.filter.TagQuery;
 import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +13,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("api/v1/ref")
+@Validated
 public class RefController {
 
 	@Autowired
@@ -24,7 +27,7 @@ public class RefController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createRef(
-		@Valid @RequestBody Ref ref
+		@RequestBody Ref ref
 	) {
 		refService.create(ref);
 	}
@@ -40,7 +43,7 @@ public class RefController {
 	@GetMapping("list")
 	Page<RefDto> getRefs(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
-		@RequestParam(required = false) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
 	) {
 		return refService.page(
 			RefFilter.builder()
@@ -52,7 +55,7 @@ public class RefController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(
-		@Valid @RequestBody Ref ref
+		@RequestBody Ref ref
 	) {
 		refService.update(ref);
 	}
