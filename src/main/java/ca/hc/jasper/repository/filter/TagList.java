@@ -1,11 +1,12 @@
 package ca.hc.jasper.repository.filter;
 
-import static ca.hc.jasper.repository.spec.TagSpec.isAny;
+import static ca.hc.jasper.repository.spec.TagSpec.isAnyTag;
 
 import java.util.Arrays;
 import java.util.List;
 
 import ca.hc.jasper.domain.TagId;
+import ca.hc.jasper.domain.proj.IsTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
@@ -21,8 +22,8 @@ public class TagList {
 		tags = Arrays.asList(query.split("[ +|]"));
 	}
 
-	public <T> Specification<T> spec() {
-		return isAny(tags);
+	public <T extends IsTag> Specification<T> spec() {
+		return isAnyTag(tags);
 	}
 
 }

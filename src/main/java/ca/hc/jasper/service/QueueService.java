@@ -1,8 +1,11 @@
 package ca.hc.jasper.service;
 
+import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Queue;
 import ca.hc.jasper.repository.QueueRepository;
+import ca.hc.jasper.service.dto.DtoMapper;
+import ca.hc.jasper.service.dto.QueueDto;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -23,6 +26,9 @@ public class QueueService {
 	@Autowired
 	Auth auth;
 
+	@Autowired
+	DtoMapper mapper;
+
 	@PreAuthorize("hasRole('MOD')")
 	public void create(Queue queue) {
 		if (!queue.local()) throw new ForeignWriteException();
@@ -31,14 +37,18 @@ public class QueueService {
 	}
 
 	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Queue get(String tag, String origin) {
-		return queueRepository.findOneByTagAndOrigin(tag, origin).orElseThrow(NotFoundException::new);
+	public QueueDto get(String tag, String origin) {
+		var result = queueRepository.findOneByTagAndOrigin(tag, origin)
+							  .orElseThrow(NotFoundException::new);
+		return mapper.domainToDto(result);
 	}
 
-	public Page<Queue> page(Pageable pageable) {
+	public Page<QueueDto> page(TagFilter filter, Pageable pageable) {
 		return queueRepository.findAll(
-			auth.tagReadSpec(),
-			pageable);
+			auth.<Queue>tagReadSpec()
+				.and(filter.spec()),
+			pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#queue.tag)")

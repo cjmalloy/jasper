@@ -4,34 +4,33 @@ import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 
-import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.domain.Ref_;
+import ca.hc.jasper.domain.proj.HasTags;
 import org.springframework.data.jpa.domain.Specification;
 
 public class RefSpec {
 
-	public static Specification<Ref> hasTag(String tag) {
+	public static <T extends HasTags> Specification<T> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				root.get(Ref_.tags),
+				root.get("tags"),
 				cb.literal(tag)));
 	}
 
-	public static Specification<Ref> hasAnyTag(List<String> tags) {
+	public static <T extends HasTags> Specification<T> hasAnyTag(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return hasTag(tags.get(0));
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists_any", Boolean.class,
-				root.get(Ref_.tags),
+				root.get("tags"),
 				literal(cb, tags)));
 	}
 
-	public static Specification<Ref> hasAllTags(List<String> tags) {
+	public static <T extends HasTags> Specification<T> hasAllTags(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return hasTag(tags.get(0));
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists_all", Boolean.class,
-				root.get(Ref_.tags),
+				root.get("tags"),
 				literal(cb, tags)));
 	}
 

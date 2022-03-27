@@ -8,6 +8,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
+import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -22,7 +23,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Feed {
+public class Feed implements HasTags {
 
 	@Id
 	@Column(updatable = false)

@@ -2,6 +2,7 @@ package ca.hc.jasper.service;
 
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.UserDto;
@@ -42,10 +43,10 @@ public class UserService {
 		return mapper.domainToDto(result);
 	}
 
-	public Page<UserDto> page(Pageable pageable) {
-		return userRepository
-			.findAll(
-				auth.tagReadSpec(),
+	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
+		return userRepository.findAll(
+				auth.<User>tagReadSpec()
+					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
 	}

@@ -1,6 +1,6 @@
 package ca.hc.jasper.repository.filter;
 
-import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.proj.HasTags;
 import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +12,8 @@ public class RefFilter {
 
 	private TagQuery tagQuery;
 
-	public Specification<Ref> spec() {
-		Specification<Ref> result = Specification.where(null);
+	public <T extends HasTags> Specification<T> spec() {
+		var result = Specification.<T>where(null);
 		if (tagQuery != null) {
 			result = result.and(tagQuery.spec());
 		}

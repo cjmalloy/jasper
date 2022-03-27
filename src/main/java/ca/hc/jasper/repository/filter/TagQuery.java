@@ -7,6 +7,7 @@ import java.util.*;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.TagId;
+import ca.hc.jasper.domain.proj.HasTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,8 +24,8 @@ public class TagQuery {
 		parse(query);
 	}
 
-	public Specification<Ref> spec() {
-		var result = Specification.<Ref>where(null);
+	public <T extends HasTags> Specification<T> spec() {
+		var result = Specification.<T>where(null);
 		if (orTags.size() > 0) {
 			result = result.or(hasAnyTag(orTags));
 		}

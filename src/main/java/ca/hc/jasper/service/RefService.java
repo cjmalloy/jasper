@@ -48,10 +48,11 @@ public class RefService {
 	}
 
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
-		return refRepository.findAll(
-			auth.refReadSpec()
-				.and(filter.spec()),
-			pageable)
+		return refRepository
+			.findAll(
+				auth.<Ref>refReadSpec()
+					.and(filter.spec()),
+				pageable)
 			.map(mapper::domainToDto);
 	}
 

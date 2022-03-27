@@ -12,12 +12,18 @@ public abstract class DtoMapper {
 	Auth auth;
 
 	public abstract RefDto domainToDto(Ref ref);
+	public abstract FeedDto domainToDto(Feed ref);
 	public abstract QueueDto domainToDto(Queue queue);
 	public abstract UserDto domainToDto(User user);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {
 		refDto.setTags(auth.filterTags(refDto.getTags()));
+	}
+
+	@AfterMapping
+	protected void filterTags(@MappingTarget FeedDto feedDto) {
+		feedDto.setTags(auth.filterTags(feedDto.getTags()));
 	}
 
 	@AfterMapping

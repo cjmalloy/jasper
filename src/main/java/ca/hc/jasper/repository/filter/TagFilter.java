@@ -1,5 +1,6 @@
 package ca.hc.jasper.repository.filter;
 
+import ca.hc.jasper.domain.proj.IsTag;
 import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ public class TagFilter {
 
 	private TagList tagList;
 
-	public <T> Specification<T> spec() {
+	public <T extends IsTag> Specification<T> spec() {
 		var result = Specification.<T>where(null);
 		if (tagList != null) {
 			result = result.and(tagList.spec());

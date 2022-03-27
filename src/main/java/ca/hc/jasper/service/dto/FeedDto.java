@@ -10,17 +10,13 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RefDto implements HasTags {
-	private String url;
+public class FeedDto implements HasTags {
 	private String origin;
-	private List<String> sources;
-	private String title;
+	private String name;
+	private String proxy;
 	private List<String> tags;
-	private String comment;
-	private List<String> alternateUrls;
-	private Instant published;
-	private Instant created;
 	private Instant modified;
+	private Instant lastScrape;
 
 	@JsonIgnore
 	public boolean local() {

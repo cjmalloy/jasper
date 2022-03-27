@@ -9,10 +9,10 @@ import java.util.stream.Stream;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.User;
+import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
-import ca.hc.jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +43,7 @@ public class Auth {
 	private Set<String> roles;
 	private Optional<User> user;
 
-	public boolean canReadRef(RefDto ref) {
+	public boolean canReadRef(HasTags ref) {
 		if (!ref.local()) return true;
 		if (hasRole("MOD")) return true;
 		if (ref.getTags() != null) {
@@ -126,10 +126,10 @@ public class Auth {
 		return tags.stream().filter(tag -> !canReadTag(tag)).toList();
 	}
 
-	public Specification<Ref> refReadSpec() {
+	public <T extends HasTags> Specification<T> refReadSpec() {
 		if (hasRole("MOD")) return null;
 		var spec = Specification
-			.where(hasTag("public"));
+			.<T>where(hasTag("public"));
 		if (hasRole("USER")) {
 			spec = spec.or(hasTag(getUserTag()))
 					   .or(hasAnyTag(getReadAccess()));
@@ -137,13 +137,13 @@ public class Auth {
 		return spec;
 	}
 
-	public <T> Specification<T> tagReadSpec() {
+	public <T extends IsTag> Specification<T> tagReadSpec() {
 		if (hasRole("MOD")) return null;
 		var spec = Specification
 			.<T>where(publicTag());
 		if (hasRole("USER")) {
 			spec = spec.or(isTag(getUserTag()))
-					   .or(isAny(getReadAccess()));
+					   .or(isAnyTag(getReadAccess()));
 		}
 		return spec;
 	}

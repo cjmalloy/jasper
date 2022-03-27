@@ -9,6 +9,7 @@ import java.util.List;
 import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.service.errors.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -326,7 +327,9 @@ public class UserServiceIT {
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -343,7 +346,9 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -361,7 +366,9 @@ public class UserServiceIT {
 		other.setName("Secret");
 		userRepository.save(other);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -389,7 +396,9 @@ public class UserServiceIT {
 		other.setWriteAccess(List.of("custom", "_secret"));
 		userRepository.save(other);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -417,7 +426,9 @@ public class UserServiceIT {
 		other.setWriteAccess(List.of("_secret"));
 		userRepository.save(other);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -439,7 +450,9 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		var page = userService.page(PageRequest.of(0, 10, Sort.by("tag")));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10, Sort.by("tag")));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -457,7 +470,9 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		var page = userService.page(PageRequest.of(0, 10));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -470,7 +485,9 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		var page = userService.page(PageRequest.of(0, 10));
+		var page = userService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
