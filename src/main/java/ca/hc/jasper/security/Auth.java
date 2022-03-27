@@ -94,7 +94,6 @@ public class Auth {
 	public boolean canWriteTag(String tag) {
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
-			if ("public".equals(tag)) return true;
 			if (tag.equals(getUserTag())) return true;
 			var writeAccess = getWriteAccess();
 			if (writeAccess == null) return false;

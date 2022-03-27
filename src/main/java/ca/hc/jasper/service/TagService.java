@@ -23,7 +23,7 @@ public class TagService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("@auth.canWriteTag(#tag.tag)")
 	public void create(Tag tag) {
 		if (!tag.local()) throw new ForeignWriteException();
 		if (tagRepository.existsByTagAndOrigin(tag.getTag(), tag.getOrigin())) throw new AlreadyExistsException();
