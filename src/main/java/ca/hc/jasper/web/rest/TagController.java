@@ -1,6 +1,10 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.constraints.Pattern;
+
 import ca.hc.jasper.domain.Tag;
+import ca.hc.jasper.repository.filter.TagFilter;
+import ca.hc.jasper.repository.filter.TagList;
 import ca.hc.jasper.service.TagService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -34,9 +38,13 @@ public class TagController {
 
 	@GetMapping("list")
 	Page<Tag> getTags(
-		@PageableDefault(sort = "tag") Pageable pageable
+		@PageableDefault(sort = "tag") Pageable pageable,
+		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
 	) {
-		return tagService.page(pageable);
+		return tagService.page(
+			TagFilter.builder()
+				.query(query).build(),
+			pageable);
 	}
 
 	@PutMapping

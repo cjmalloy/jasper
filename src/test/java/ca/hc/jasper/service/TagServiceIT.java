@@ -10,6 +10,7 @@ import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.TagRepository;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.service.errors.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -194,7 +195,9 @@ public class TagServiceIT {
 		tag.setName("Custom");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -211,7 +214,9 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -228,7 +233,9 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -246,7 +253,9 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -264,7 +273,9 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -277,7 +288,9 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var page = tagService.page(PageRequest.of(0, 10));
+		var page = tagService.page(
+			TagFilter.builder().build(),
+			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);

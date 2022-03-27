@@ -1,8 +1,9 @@
 package ca.hc.jasper.service;
 
-import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.repository.TagRepository;
+import ca.hc.jasper.repository.filter.TagFilter;
+import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -36,9 +37,10 @@ public class TagService {
 							.orElseThrow(NotFoundException::new);
 	}
 
-	public Page<Tag> page(Pageable pageable) {
+	public Page<Tag> page(TagFilter filter, Pageable pageable) {
 		return tagRepository.findAll(
-			auth.tagReadSpec(),
+			auth.<Tag>tagReadSpec()
+				.and(filter.spec()),
 			pageable);
 	}
 

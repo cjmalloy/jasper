@@ -24,7 +24,7 @@ public class TagQuery {
 	}
 
 	public Specification<Ref> spec() {
-		Specification<Ref> result = Specification.where(null);
+		var result = Specification.<Ref>where(null);
 		if (orTags.size() > 0) {
 			result = result.or(hasAnyTag(orTags));
 		}
