@@ -7,6 +7,7 @@ import javax.persistence.Entity;
 import javax.persistence.*;
 import javax.validation.constraints.*;
 
+import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -22,7 +23,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Tag {
+public class Tag implements IsTag {
 
 	@Id
 	@Column(updatable = false)

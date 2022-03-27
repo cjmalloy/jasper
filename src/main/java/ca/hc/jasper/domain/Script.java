@@ -5,6 +5,7 @@ import java.util.Objects;
 import javax.persistence.*;
 import javax.validation.constraints.*;
 
+import ca.hc.jasper.domain.proj.IsTag;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -12,7 +13,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Entity
 @Getter
 @Setter
-public class Script {
+public class Script implements IsTag {
 
 	@Id
 	@Column(updatable = false)

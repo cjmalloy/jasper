@@ -4,11 +4,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
-import javax.persistence.*;
 import javax.persistence.Table;
-import javax.validation.constraints.*;
+import javax.persistence.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 
+import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,7 +27,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class User {
+public class User implements IsTag {
 
 	@Id
 	@Column(updatable = false)
@@ -41,18 +44,22 @@ public class User {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> watches;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> subscriptions;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> writeAccess;
 
 	private Instant lastLogin;

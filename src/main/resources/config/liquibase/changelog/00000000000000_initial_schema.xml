@@ -102,9 +102,7 @@
 			<column name="comment" type="TEXT"/>
 			<column name="bounty" type="TEXT"/>
 			<column name="max_age" type="INTERVAL"/>
-			<column name="approvers" type="JSONB">
-				<constraints nullable="false"/>
-			</column>
+			<column name="approvers" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>

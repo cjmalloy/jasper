@@ -5,9 +5,13 @@ import ca.hc.jasper.repository.FeedRepository;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
+@PreAuthorize("hasRole('MOD')")
 public class FeedService {
 
 	@Autowired

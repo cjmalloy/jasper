@@ -9,8 +9,10 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.json.JsonType;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.*;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.CreatedDate;
@@ -44,6 +46,7 @@ public class Ref {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> tags;
 
 	private String comment;

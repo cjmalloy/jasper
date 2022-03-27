@@ -6,9 +6,13 @@ import ca.hc.jasper.service.errors.AlreadyExistsException;
 import ca.hc.jasper.service.errors.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
+@PreAuthorize("hasRole('ADMIN')")
 public class ScriptService {
 
 	@Autowired
@@ -20,7 +24,8 @@ public class ScriptService {
 	}
 
 	public Script get(String tag) {
-		return scriptRepository.findById(tag).orElseThrow(NotFoundException::new);
+		return scriptRepository.findById(tag)
+							   .orElseThrow(NotFoundException::new);
 	}
 
 	public void update(Script script) {

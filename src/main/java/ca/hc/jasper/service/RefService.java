@@ -1,10 +1,8 @@
 package ca.hc.jasper.service;
 
-import static ca.hc.jasper.repository.spec.RefSpec.readAccess;
-
 import java.time.Instant;
 
-import ca.hc.jasper.component.UserManager;
+import ca.hc.jasper.component.Auth;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
@@ -16,17 +14,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class RefService {
 
 	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
-	UserManager userManager;
+	Auth auth;
 
-	@PreAuthorize("hasPermission(#ref, create)")
+	@PreAuthorize("hasRole('USER')")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -35,19 +35,20 @@ public class RefService {
 		refRepository.save(ref);
 	}
 
-	@PostAuthorize("hasPermission(returnObject, read)")
+	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public Ref get(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(NotFoundException::new);
+		return refRepository.findOneByUrlAndOrigin(url, origin)
+							.orElseThrow(NotFoundException::new);
 	}
 
 	public Page<Ref> page(RefFilter filter, Pageable pageable) {
 		return refRepository.findAll(
 			filter.spec().and(
-				readAccess(userManager.getReadAccess())),
+				auth.refReadSpec()),
 			pageable);
 	}
 
-	@PreAuthorize("hasPermission(#ref.url, 'Ref', write)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (!refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new NotFoundException();
@@ -55,7 +56,7 @@ public class RefService {
 		refRepository.save(ref);
 	}
 
-	@PreAuthorize("hasPermission(#url, 'Ref', delete)")
+	@PreAuthorize("@auth.canWriteRef(#url)")
 	public void delete(String url) {
 		try {
 			refRepository.deleteByUrlAndOrigin(url, "");

@@ -6,9 +6,12 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 
+import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.interval.PostgreSQLIntervalType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -28,7 +31,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 	typeClass = PostgreSQLIntervalType.class,
 	defaultForType = Duration.class
 )
-public class Queue {
+public class Queue implements IsTag {
 
 	@Id
 	@Column(updatable = false)
@@ -52,7 +55,7 @@ public class Queue {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@NotNull
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> approvers;
 
 	@LastModifiedDate
