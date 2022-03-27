@@ -3,6 +3,7 @@ package ca.hc.jasper.service.dto;
 import java.time.Instant;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,4 +20,9 @@ public class RefDto {
 	private Instant published;
 	private Instant created;
 	private Instant modified;
+
+	@JsonIgnore
+	public boolean local() {
+		return origin == null || origin.isBlank();
+	}
 }

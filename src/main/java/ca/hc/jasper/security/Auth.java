@@ -1,6 +1,7 @@
 package ca.hc.jasper.security;
 
-import static ca.hc.jasper.repository.spec.RefSpec.*;
+import static ca.hc.jasper.repository.spec.RefSpec.hasAnyTag;
+import static ca.hc.jasper.repository.spec.RefSpec.hasTag;
 import static ca.hc.jasper.repository.spec.TagSpec.*;
 
 import java.util.*;
@@ -11,6 +12,7 @@ import ca.hc.jasper.domain.User;
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +43,7 @@ public class Auth {
 	private Set<String> roles;
 	private Optional<User> user;
 
-	public boolean canReadRef(Ref ref) {
+	public boolean canReadRef(RefDto ref) {
 		if (!ref.local()) return true;
 		if (hasRole("MOD")) return true;
 		if (ref.getTags() != null) {
@@ -113,6 +115,7 @@ public class Auth {
 	}
 
 	public List<String> filterTags(List<String> tags) {
+		if (tags == null) return null;
 		if (hasRole("MOD")) return tags;
 		return tags.stream().filter(this::canReadTag).toList();
 	}

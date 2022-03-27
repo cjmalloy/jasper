@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import ca.hc.jasper.IntegrationTest;
@@ -404,6 +405,31 @@ public class RefServiceIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
+	}
+
+	@Test
+	void testUpdateRefWithLoosingHiddenTags() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "_secret"));
+		ref.setPublished(Instant.now());
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(new ArrayList<>(List.of("user/tester", "custom")));
+		update.setPublished(Instant.now());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getTags())
+			.contains("user/tester", "custom", "_secret");
 	}
 
 	@Test

@@ -80,6 +80,12 @@ public class TagServiceIT {
 	}
 
 	@Test
+	void testReadNonExistentPrivateTag() {
+		assertThatThrownBy(() -> tagService.get("_secret", ""))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
 	void testReadPublicTag() {
 		var tag = new Tag();
 		tag.setTag("public");
@@ -125,7 +131,7 @@ public class TagServiceIT {
 	}
 
 	@Test
-	void testReadPrivateTagFail() {
+	void testReadPrivateTagFailed() {
 		var tag = new Tag();
 		tag.setTag("_secret");
 		tag.setName("Secret");
@@ -171,7 +177,6 @@ public class TagServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
 	void testReadPrivateUserTagFailed() {
 		var tag = new Tag();
 		tag.setTag("_user/other");

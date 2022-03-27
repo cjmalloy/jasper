@@ -53,7 +53,11 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void update(User user) {
 		if (!user.local()) throw new ForeignWriteException();
-		if (!userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new NotFoundException();
+		var maybeExisting = userRepository.findOneByTagAndOrigin(user.getTag(), user.getOrigin());
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
+		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
+		user.addSubscriptions(auth.hiddenTags(maybeExisting.get().getSubscriptions()));
 		userRepository.save(user);
 	}
 

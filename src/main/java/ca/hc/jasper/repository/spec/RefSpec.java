@@ -1,8 +1,8 @@
 package ca.hc.jasper.repository.spec;
 
-import static ca.hc.jasper.repository.spec.TagSpec.literal;
-
 import java.util.List;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.Expression;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.Ref_;
@@ -33,5 +33,11 @@ public class RefSpec {
 			cb.function("jsonb_exists_all", Boolean.class,
 				root.get(Ref_.tags),
 				literal(cb, tags)));
+	}
+
+	public static Expression<String[]> literal(CriteriaBuilder cb, List<String> tags) {
+		return cb.function("string_to_array", String[].class,
+			cb.literal(String.join(",", tags)),
+			cb.literal(","));
 	}
 }

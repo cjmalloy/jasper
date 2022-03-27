@@ -69,6 +69,51 @@ public class User implements IsTag {
 		return origin == null || origin.isBlank();
 	}
 
+	@JsonIgnore
+	public User addReadAccess(List<String> toAdd) {
+		if (toAdd == null) return this;
+		if (readAccess == null) {
+			readAccess = toAdd;
+		} else {
+			for (var t : toAdd) {
+				if (!readAccess.contains(t)) {
+					readAccess.add(t);
+				}
+			}
+		}
+		return this;
+	}
+
+	@JsonIgnore
+	public User addWriteAccess(List<String> toAdd) {
+		if (toAdd == null) return this;
+		if (writeAccess == null) {
+			writeAccess = toAdd;
+		} else {
+			for (var t : toAdd) {
+				if (!writeAccess.contains(t)) {
+					writeAccess.add(t);
+				}
+			}
+		}
+		return this;
+	}
+
+	@JsonIgnore
+	public User addSubscriptions(List<String> toAdd) {
+		if (toAdd == null) return this;
+		if (subscriptions == null) {
+			subscriptions = toAdd;
+		} else {
+			for (var t : toAdd) {
+				if (!subscriptions.contains(t)) {
+					subscriptions.add(t);
+				}
+			}
+		}
+		return this;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

@@ -1,8 +1,6 @@
 package ca.hc.jasper.repository.spec;
 
 import java.util.List;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
 
 import org.springframework.data.jpa.domain.Specification;
 
@@ -28,12 +26,6 @@ public class TagSpec {
 		if (tags.size() == 1) return isTag(tags.get(0));
 		return (root, query, cb) ->
 			root.get("tag")
-				.in(literal(cb, tags));
-	}
-
-	public static Expression<String[]> literal(CriteriaBuilder cb, List<String> tags) {
-		return cb.function("string_to_array", String[].class,
-			cb.literal(String.join(",", tags)),
-			cb.literal(","));
+				.in(tags);
 	}
 }

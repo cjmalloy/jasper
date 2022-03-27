@@ -73,7 +73,7 @@ public class Ref {
 		if (tags == null) {
 			tags = toAdd;
 		} else {
-			for (var t : tags) {
+			for (var t : toAdd) {
 				if (!tags.contains(t)) {
 					tags.add(t);
 				}
