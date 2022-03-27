@@ -1,6 +1,7 @@
 package ca.hc.jasper.component;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import ca.hc.jasper.domain.Queue;
 import ca.hc.jasper.domain.*;
@@ -65,13 +66,17 @@ public class Auth {
 
 	public boolean canReadTag(IsTag tag) {
 		if (!tag.local()) return true;
-		if (!tag.getTag().startsWith("_")) return true;
+		return canReadTag(tag.getTag());
+	}
+
+	public boolean canReadTag(String tag) {
+		if (!tag.startsWith("_")) return true;
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
-			if (tag.getTag().equals(getUserTag())) return true;
+			if (tag.equals(getUserTag())) return true;
 			var readAccess = getReadAccess();
 			if (readAccess == null) return false;
-			return readAccess.contains(tag.getTag());
+			return readAccess.contains(tag);
 		}
 		return false;
 	}
@@ -79,12 +84,29 @@ public class Auth {
 	public boolean canWriteTag(String tag) {
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
+			if ("public".equals(tag)) return true;
 			if (tag.equals(getUserTag())) return true;
 			var writeAccess = getWriteAccess();
 			if (writeAccess == null) return false;
 			return writeAccess.contains(tag);
 		}
 		return false;
+	}
+
+	public boolean canWriteUser(User user) {
+		if (hasRole("MOD")) return true;
+		if (!canWriteTag(user.getTag())) return false;
+		var maybeExisting = userRepository.findOneByTagAndOrigin(user.getTag(), "");
+		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(user.getSubscriptions(), maybeExisting.map(User::getSubscriptions)).allMatch(this::canReadTag)) return false;
+		return true;
+	}
+
+	private Stream<String> newTags(List<String> changes, Optional<List<String>> existing) {
+		if (changes == null) return Stream.empty();
+		if (existing.isEmpty()) return changes.stream();
+		return changes.stream().filter(tag -> !existing.get().contains(tag));
 	}
 
 	public Specification<Ref> refReadSpec() {

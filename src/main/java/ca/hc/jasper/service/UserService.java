@@ -17,8 +17,7 @@ public class UserService {
 	@Autowired
 	UserRepository userRepository;
 
-	// TODO: prevent setting permissions
-	@PreAuthorize("@auth.canWriteTag(#user.tag)")
+	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
 		if (!user.local()) throw new ForeignWriteException();
 		if (userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new AlreadyExistsException();
@@ -30,7 +29,7 @@ public class UserService {
 		return userRepository.findOneByTagAndOrigin(tag, origin).orElseThrow(NotFoundException::new);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#user.tag)")
+	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void update(User user) {
 		if (!user.local()) throw new ForeignWriteException();
 		if (!userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new NotFoundException();
