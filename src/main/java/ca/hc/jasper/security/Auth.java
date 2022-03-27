@@ -1,14 +1,16 @@
 package ca.hc.jasper.security;
 
+import static ca.hc.jasper.repository.spec.RefSpec.*;
+import static ca.hc.jasper.repository.spec.TagSpec.*;
+
 import java.util.*;
 import java.util.stream.Stream;
 
-import ca.hc.jasper.domain.Queue;
-import ca.hc.jasper.domain.*;
+import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.User;
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
-import ca.hc.jasper.repository.spec.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,32 +127,21 @@ public class Auth {
 	public Specification<Ref> refReadSpec() {
 		if (hasRole("MOD")) return null;
 		var spec = Specification
-			.where(RefSpec.hasTag("public"));
+			.where(hasTag("public"));
 		if (hasRole("USER")) {
-			spec = spec.or(RefSpec.hasTag(getUserTag()))
-					   .or(RefSpec.hasAnyTag(getReadAccess()));
+			spec = spec.or(hasTag(getUserTag()))
+					   .or(hasAnyTag(getReadAccess()));
 		}
 		return spec;
 	}
 
-	public Specification<Tag> tagReadSpec() {
+	public <T> Specification<T> tagReadSpec() {
 		if (hasRole("MOD")) return null;
 		var spec = Specification
-			.where(TagSpec.publicTag());
+			.<T>where(publicTag());
 		if (hasRole("USER")) {
-			spec = spec.or(TagSpec.isTag(getUserTag()))
-					   .or(TagSpec.isAny(getReadAccess()));
-		}
-		return spec;
-	}
-
-	public Specification<Queue> queueReadSpec() {
-		if (hasRole("MOD")) return null;
-		var spec = Specification
-			.where(QueueSpec.publicQueue());
-		if (hasRole("USER")) {
-			spec = spec.or(QueueSpec.isTag(getUserTag()))
-					   .or(QueueSpec.isAny(getReadAccess()));
+			spec = spec.or(isTag(getUserTag()))
+					   .or(isAny(getReadAccess()));
 		}
 		return spec;
 	}

@@ -37,7 +37,7 @@ public class QueueService {
 
 	public Page<Queue> page(Pageable pageable) {
 		return queueRepository.findAll(
-			auth.queueReadSpec(),
+			auth.tagReadSpec(),
 			pageable);
 	}
 

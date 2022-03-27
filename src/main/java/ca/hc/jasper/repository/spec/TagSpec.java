@@ -4,32 +4,30 @@ import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 
-import ca.hc.jasper.domain.Tag;
-import ca.hc.jasper.domain.Tag_;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagSpec {
 
-	public static Specification<Tag> publicTag() {
+	public static <T> Specification<T> publicTag() {
 		return (root, query, cb) ->
 			cb.not(
 				cb.like(
-					root.get(Tag_.TAG),
+					root.get("tag"),
 					"\\_%"));
 	}
 
-	public static Specification<Tag> isTag(String tag) {
+	public static <T> Specification<T> isTag(String tag) {
 		return (root, query, cb) ->
 			cb.equal(
-				root.get(Tag_.TAG),
+				root.get("tag"),
 				tag);
 	}
 
-	public static Specification<Tag> isAny(List<String> tags) {
+	public static <T> Specification<T> isAny(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return isTag(tags.get(0));
 		return (root, query, cb) ->
-			root.get(Tag_.TAG)
+			root.get("tag")
 				.in(literal(cb, tags));
 	}
 

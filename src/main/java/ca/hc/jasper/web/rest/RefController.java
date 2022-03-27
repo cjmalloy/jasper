@@ -47,8 +47,7 @@ public class RefController {
 	) {
 		return refService.page(
 			RefFilter.builder()
-					 .query(query)
-					 .build(),
+					 .query(query).build(),
 			pageable);
 	}
 
