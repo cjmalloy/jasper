@@ -6,6 +6,8 @@ import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
+import ca.hc.jasper.service.dto.DtoMapper;
+import ca.hc.jasper.service.dto.RefDto;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -26,7 +28,10 @@ public class RefService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('USER')")
+	@Autowired
+	DtoMapper mapper;
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -36,22 +41,26 @@ public class RefService {
 	}
 
 	@PostAuthorize("@auth.canReadRef(returnObject)")
-	public Ref get(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin)
-							.orElseThrow(NotFoundException::new);
+	public RefDto get(String url, String origin) {
+		var result = refRepository.findOneByUrlAndOrigin(url, origin)
+								  .orElseThrow(NotFoundException::new);
+		return mapper.domainToDto(result);
 	}
 
-	public Page<Ref> page(RefFilter filter, Pageable pageable) {
+	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository.findAll(
 			filter.spec().and(
 				auth.refReadSpec()),
-			pageable);
+			pageable)
+			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
-		if (!refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new NotFoundException();
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		ref.getTags().addAll(auth.hiddenTags(maybeExisting.get().getTags()));
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}

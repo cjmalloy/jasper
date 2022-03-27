@@ -5,6 +5,7 @@ import javax.validation.Valid;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.RefService;
+import ca.hc.jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,7 @@ public class RefController {
 	}
 
 	@GetMapping
-	Ref getRef(
+	RefDto getRef(
 		@RequestParam String url,
 		@RequestParam(defaultValue = "") String origin
 	) {
@@ -37,7 +38,7 @@ public class RefController {
 	}
 
 	@GetMapping("list")
-	Page<Ref> getRefs(
+	Page<RefDto> getRefs(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
 		@RequestParam(required = false) String query
 	) {

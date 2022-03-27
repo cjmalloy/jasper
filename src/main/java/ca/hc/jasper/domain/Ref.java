@@ -5,11 +5,9 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,20 +38,19 @@ public class Ref {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> sources;
+	private List<@URL String> sources;
 
 	private String title;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> tags;
+	private List<@Pattern(regexp = TagId.REGEX) String> tags;
 
 	private String comment;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> alternateUrls;
+	private List<@URL String> alternateUrls;
 
 	@NotNull
 	private Instant published;

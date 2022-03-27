@@ -11,7 +11,6 @@ import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.interval.PostgreSQLIntervalType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -55,8 +54,7 @@ public class Queue implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> approvers;
+	private List<@Pattern(regexp = TagId.REGEX) String> approvers;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

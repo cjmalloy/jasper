@@ -11,7 +11,6 @@ import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -44,23 +43,19 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> watches;
+	private List<@URL String> watches;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> subscriptions;
+	private List<@Pattern(regexp = TagId.REGEX) String> subscriptions;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> readAccess;
+	private List<@Pattern(regexp = TagId.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-	private List<String> writeAccess;
+	private List<@Pattern(regexp = TagId.REGEX) String> writeAccess;
 
 	private Instant lastLogin;
 

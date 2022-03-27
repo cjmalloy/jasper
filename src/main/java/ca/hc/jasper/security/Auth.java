@@ -52,14 +52,22 @@ public class Auth {
 		return false;
 	}
 
+	public boolean canWriteRef(Ref ref) {
+		if (hasRole("MOD")) return true;
+		if (!canWriteRef(ref.getUrl())) return false;
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
+		if (!newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canWriteTag)) return false;
+		return true;
+	}
+
 	public boolean canWriteRef(String url) {
 		if (hasRole("MOD")) return true;
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, "");
-		if (maybeRef.isEmpty()) return true; // Idempotent deletes
-		var ref = maybeRef.get();
-		if (ref.getTags() != null && hasRole("USER")) {
-			if (ref.getTags().contains(getUserTag())) return true;
-			return anyMatch(getWriteAccess(), ref.getTags());
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
+		if (maybeExisting.isEmpty()) return true; // Idempotent deletes
+		var existing = maybeExisting.get();
+		if (existing.getTags() != null && hasRole("USER")) {
+			if (existing.getTags().contains(getUserTag())) return true;
+			return anyMatch(getWriteAccess(), existing.getTags());
 		}
 		return false;
 	}
@@ -103,10 +111,14 @@ public class Auth {
 		return true;
 	}
 
-	private Stream<String> newTags(List<String> changes, Optional<List<String>> existing) {
-		if (changes == null) return Stream.empty();
-		if (existing.isEmpty()) return changes.stream();
-		return changes.stream().filter(tag -> !existing.get().contains(tag));
+	public List<String> filterTags(List<String> tags) {
+		if (hasRole("MOD")) return tags;
+		return tags.stream().filter(this::canReadTag).toList();
+	}
+
+	public List<String> hiddenTags(List<String> tags) {
+		if (hasRole("MOD")) return List.of();
+		return tags.stream().filter(tag -> !canReadTag(tag)).toList();
 	}
 
 	public Specification<Ref> refReadSpec() {
@@ -153,6 +165,12 @@ public class Auth {
 			}
 		}
 		return false;
+	}
+
+	private static Stream<String> newTags(List<String> changes, Optional<List<String>> existing) {
+		if (changes == null) return Stream.empty();
+		if (existing.isEmpty()) return changes.stream();
+		return changes.stream().filter(tag -> !existing.get().contains(tag));
 	}
 
 	public String getUserTag() {

@@ -41,7 +41,7 @@ public class Tag implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> pinned;
+	private List<@URL String> pinned;
 
 	private int color;
 

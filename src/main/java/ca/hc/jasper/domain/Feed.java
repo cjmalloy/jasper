@@ -6,6 +6,7 @@ import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
@@ -32,11 +33,12 @@ public class Feed {
 	private String name;
 
 	@Column(updatable = false)
+	@URL
 	private String proxy;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> tags;
+	private List<@Pattern(regexp = TagId.REGEX) String> tags;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

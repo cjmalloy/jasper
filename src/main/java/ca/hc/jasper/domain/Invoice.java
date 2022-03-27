@@ -4,11 +4,13 @@ import java.time.Instant;
 import java.util.*;
 import javax.persistence.Entity;
 import javax.persistence.*;
+import javax.validation.constraints.Pattern;
 
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
@@ -24,17 +26,19 @@ public class Invoice {
 	private UUID id;
 
 	@Column(updatable = false)
+	@Pattern(regexp = TagId.REGEX)
 	private String submitter;
 
 	@Column(updatable = false)
 	private String comment;
 
 	@Column(updatable = false)
+	@Pattern(regexp = TagId.REGEX)
 	private String queue;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb", updatable = false)
-	private List<String> response;
+	private List<@URL String> response;
 
 	@Column(updatable = false)
 	private String qr;
