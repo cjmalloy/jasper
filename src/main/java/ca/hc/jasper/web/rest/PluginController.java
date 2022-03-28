@@ -2,11 +2,10 @@ package ca.hc.jasper.web.rest;
 
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.Queue;
+import ca.hc.jasper.domain.Plugin;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.repository.filter.TagList;
-import ca.hc.jasper.service.QueueService;
-import ca.hc.jasper.service.dto.QueueDto;
+import ca.hc.jasper.service.PluginService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,50 +14,49 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("api/v1/queue")
+@RequestMapping("api/v1/plugin")
 @Validated
-public class QueueController {
+public class PluginController {
 
 	@Autowired
-	QueueService queueService;
+	PluginService pluginService;
 
 	@PostMapping
-	void createQueue(
-		@RequestBody Queue queue
+	void createTag(
+		@RequestBody Plugin plugin
 	) {
-		queueService.create(queue);
+		pluginService.create(plugin);
 	}
 
 	@GetMapping
-	QueueDto getQueue(
-		@RequestParam String tag,
-		@RequestParam(defaultValue = "") String origin
+	Plugin getTag(
+		@RequestParam String tag
 	) {
-		return queueService.get(tag, origin);
+		return pluginService.get(tag);
 	}
 
 	@GetMapping("list")
-	Page<QueueDto> getQueues(
+	Page<Plugin> getTags(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
 	) {
-		return queueService.page(
+		return pluginService.page(
 			TagFilter.builder()
 				.query(query).build(),
 			pageable);
 	}
 
 	@PutMapping
-	void updateQueue(
-		@RequestBody Queue queue
+	void updateTag(
+		@RequestBody Plugin plugin
 	) {
-		queueService.update(queue);
+		pluginService.update(plugin);
 	}
 
 	@DeleteMapping
-	void deleteQueue(
+	void deleteTag(
 		@RequestParam String tag
 	) {
-		queueService.delete(tag);
+		pluginService.delete(tag);
 	}
 }

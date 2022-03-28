@@ -5,10 +5,12 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,27 +36,28 @@ public class Ref implements HasTags {
 
 	@Id
 	@Column(updatable = false)
-	@URL
+	@Pattern(regexp = Origin.REGEX_OR_BLANK)
 	private String origin = "";
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<@URL String> sources;
-
 	private String title;
-
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.REGEX) String> tags;
 
 	private String comment;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	private List<@Pattern(regexp = Tag.REGEX) String> tags;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private List<@URL String> sources;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
 	private List<@URL String> alternateUrls;
 
-	@NotNull
-	private Instant published;
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private ObjectNode plugins;
 
 	@CreatedDate
 	@Column(updatable = false)

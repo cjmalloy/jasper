@@ -27,16 +27,17 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class User implements IsTag {
+	public static final String REGEX = "_?user/[a-z]+(/[a-z]+)*";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = TagId.REGEX)
+	@Pattern(regexp = REGEX)
 	private String tag;
 
 	@Id
-	@Column(name = "origin", updatable = false)
-	@URL
+	@Column(updatable = false)
+	@Pattern(regexp = Origin.REGEX_OR_BLANK)
 	private String origin = "";
 
 	private String name;
@@ -47,15 +48,15 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.REGEX) String> subscriptions;
+	private List<@Pattern(regexp = Tag.REGEX) String> subscriptions;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.REGEX) String> readAccess;
+	private List<@Pattern(regexp = Tag.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.REGEX) String> writeAccess;
+	private List<@Pattern(regexp = Tag.REGEX) String> writeAccess;
 
 	private Instant lastLogin;
 

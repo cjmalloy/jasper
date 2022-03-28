@@ -3,7 +3,6 @@ package ca.hc.jasper.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +12,7 @@ import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
+import ca.hc.jasper.service.errors.ModifiedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -40,7 +40,6 @@ public class RefServiceIT {
 	void testCreateUntaggedRef() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -53,7 +52,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("public"));
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -66,7 +64,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("public", "custom", "tags"));
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -79,7 +76,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AccessDeniedException.class);
@@ -97,7 +93,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -112,7 +107,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("user/tester"));
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -128,7 +122,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_user/tester"));
-		ref.setPublished(Instant.now());
 
 		refService.create(ref);
 
@@ -144,7 +137,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_user/other"));
-		ref.setPublished(Instant.now());
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AccessDeniedException.class);
@@ -157,7 +149,6 @@ public class RefServiceIT {
 	void testGetPageUntaggedRef() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -173,7 +164,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("public"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -193,7 +183,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("custom"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -213,7 +202,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -231,7 +219,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -247,7 +234,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("public", "_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -261,16 +247,15 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testUpdateUntaggedRef() {
+	void testUpdateUntaggedRefFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
@@ -283,18 +268,17 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testUpdateRefWithPublicTag() {
+	void testUpdateRefWithPublicTagFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("public"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(List.of("public"));
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
@@ -312,13 +296,12 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		ref.setTags(List.of("user/tester"));
-		update.setPublished(Instant.now());
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
 
 		refService.update(update);
 
@@ -327,6 +310,99 @@ public class RefServiceIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
+	}
+
+	@Test
+	void testUpdateLockedRefFailed() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("locked", "user/tester"));
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
+
+		assertThatThrownBy(() -> refService.update(update))
+			.isInstanceOf(AccessDeniedException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("First");
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = "MOD")
+	void testModUpdateLockedRefFailed() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("locked", "user/tester"));
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
+
+		assertThatThrownBy(() -> refService.update(update))
+			.isInstanceOf(AccessDeniedException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("First");
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = "ADMIN")
+	void testAdminUpdateLockedRefFailed() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("locked", "user/tester"));
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testUpdateModifiedRefFailed() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester"));
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified().minusSeconds(60));
+
+		assertThatThrownBy(() -> refService.update(update))
+			.isInstanceOf(ModifiedException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("First");
 	}
 
 	@Test
@@ -339,13 +415,12 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("custom"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(List.of("custom"));
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
@@ -367,13 +442,12 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("custom"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(List.of("custom"));
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		refService.update(update);
 
@@ -390,12 +464,11 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
@@ -413,13 +486,12 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester", "_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("user/tester", "custom")));
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		refService.update(update);
 
@@ -442,12 +514,11 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
@@ -469,12 +540,11 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setPublished(Instant.now());
+		update.setModified(ref.getModified());
 
 		refService.update(update);
 
@@ -490,7 +560,6 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		assertThatThrownBy(() -> refService.delete(ref.getUrl()))
@@ -509,7 +578,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("public"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		assertThatThrownBy(() -> refService.delete(ref.getUrl()))
@@ -528,7 +596,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		refService.delete(ref.getUrl());
@@ -547,7 +614,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("custom"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		assertThatThrownBy(() -> refService.delete(ref.getUrl()))
@@ -570,7 +636,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("custom"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		refService.delete(ref.getUrl());
@@ -585,7 +650,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		assertThatThrownBy(() -> refService.delete(ref.getUrl()))
@@ -608,7 +672,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		assertThatThrownBy(() -> refService.delete(ref.getUrl()))
@@ -631,7 +694,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("_secret"));
-		ref.setPublished(Instant.now());
 		refRepository.save(ref);
 
 		refService.delete(ref.getUrl());

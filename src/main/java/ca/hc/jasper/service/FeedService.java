@@ -32,13 +32,14 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void create(Feed feed) {
-		if (feedRepository.existsById(feed.getOrigin())) throw new AlreadyExistsException();
+		if (feedRepository.existsById(feed.getUrl())) throw new AlreadyExistsException();
 		feedRepository.save(feed);
 	}
 
 	@PostAuthorize("@auth.canReadRef(returnObject)")
-	public FeedDto get(String origin) {
-		var result = feedRepository.findById(origin).orElseThrow(NotFoundException::new);
+	public FeedDto get(String url) {
+		var result = feedRepository.findById(url)
+								   .orElseThrow(NotFoundException::new);
 		return mapper.domainToDto(result);
 	}
 
@@ -54,14 +55,14 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void update(Feed feed) {
-		if (!feedRepository.existsById(feed.getOrigin())) throw new NotFoundException();
+		if (!feedRepository.existsById(feed.getUrl())) throw new NotFoundException();
 		feedRepository.save(feed);
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	public void delete(String origin) {
+	public void delete(String url) {
 		try {
-			feedRepository.deleteById(origin);
+			feedRepository.deleteById(url);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

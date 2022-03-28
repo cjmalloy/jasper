@@ -5,6 +5,7 @@ import java.util.List;
 
 import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,11 +14,12 @@ import lombok.Setter;
 public class RefDto implements HasTags {
 	private String url;
 	private String origin;
-	private List<String> sources;
 	private String title;
-	private List<String> tags;
 	private String comment;
+	private List<String> sources;
+	private List<String> tags;
 	private List<String> alternateUrls;
+	private ObjectNode plugins;
 	private Instant published;
 	private Instant created;
 	private Instant modified;

@@ -1,16 +1,17 @@
 package ca.hc.jasper.domain;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.Pattern;
+import javax.validation.constraints.*;
 
+import ca.hc.jasper.domain.proj.IsTag;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
-import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
@@ -19,35 +20,21 @@ import org.springframework.data.annotation.LastModifiedDate;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Invoice {
+public class Plugin implements IsTag {
 
 	@Id
 	@Column(updatable = false)
-	private UUID id;
-
-	@Column(updatable = false)
-	@Pattern(regexp = TagId.REGEX)
-	private String submitter;
-
-	@Column(updatable = false)
-	private String comment;
-
-	@Column(updatable = false)
-	@Pattern(regexp = TagId.REGEX)
-	private String queue;
+	@NotBlank
+	@Pattern(regexp = Tag.REGEX)
+	private String tag;
 
 	@Type(type = "json")
-	@Column(columnDefinition = "jsonb", updatable = false)
-	private List<@URL String> response;
+	@Column(columnDefinition = "jsonb")
+	private JsonNode config;
 
-	@Column(updatable = false)
-	private String qr;
-
-	private boolean paid;
-
-	private boolean rejected;
-
-	private boolean disputed;
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private JsonNode schema;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
@@ -56,12 +43,12 @@ public class Invoice {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Invoice invoice = (Invoice) o;
-		return id.equals(invoice.id);
+		Plugin plugin = (Plugin) o;
+		return tag.equals(plugin.tag);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id);
+		return Objects.hash(tag);
 	}
 }

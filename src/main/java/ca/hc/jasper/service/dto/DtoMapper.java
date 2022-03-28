@@ -13,7 +13,6 @@ public abstract class DtoMapper {
 
 	public abstract RefDto domainToDto(Ref ref);
 	public abstract FeedDto domainToDto(Feed ref);
-	public abstract QueueDto domainToDto(Queue queue);
 	public abstract UserDto domainToDto(User user);
 
 	@AfterMapping
@@ -24,11 +23,6 @@ public abstract class DtoMapper {
 	@AfterMapping
 	protected void filterTags(@MappingTarget FeedDto feedDto) {
 		feedDto.setTags(auth.filterTags(feedDto.getTags()));
-	}
-
-	@AfterMapping
-	protected void filterTags(@MappingTarget QueueDto queueDto) {
-		queueDto.setApprovers(auth.filterTags(queueDto.getApprovers()));
 	}
 
 	@AfterMapping

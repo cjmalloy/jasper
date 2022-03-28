@@ -40,18 +40,16 @@
 			<column name="origin" type="TEXT" defaultValue="">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="sources" type="JSONB"/>
 			<column name="title" type="TEXT"/>
-			<column name="tags" type="JSONB"/>
 			<column name="comment" type="TEXT"/>
+			<column name="tags" type="JSONB"/>
+			<column name="sources" type="JSONB"/>
 			<column name="alternate_urls" type="JSONB"/>
+			<column name="plugins" type="JSONB"/>
 			<column name="created" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
-			</column>
-			<column name="published" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
 		</createTable>
@@ -91,85 +89,42 @@
 			<column name="pub_key" type="BYTEA"/>
 		</createTable>
 
-		<createTable tableName="queue">
+		<createTable tableName="plugin">
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT" defaultValue="">
-				<constraints primaryKey="true" nullable="false"/>
-			</column>
-			<column name="name" type="TEXT"/>
-			<column name="comment" type="TEXT"/>
-			<column name="bounty" type="TEXT"/>
-			<column name="max_age" type="INTERVAL"/>
-			<column name="approvers" type="JSONB"/>
+			<column name="config" type="JSONB"/>
+			<column name="schema" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
 		</createTable>
 
-		<createTable tableName="feed">
+		<createTable tableName="origin">
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
-			<column name="origin" type="TEXT" defaultValue="">
+			<column name="url" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="proxy" type="TEXT"/>
-			<column name="tags" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
 			<column name="last_scrape" type="TIMESTAMP"/>
 		</createTable>
 
-		<createTable tableName="script">
-			<column name="tag" type="TEXT">
+		<createTable tableName="feed">
+			<column name="url" type="TEXT" defaultValue="">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
-			<column name="source" type="TEXT">
-				<constraints nullable="false"/>
-			</column>
-			<column name="language" type="TEXT">
-				<constraints nullable="false"/>
-			</column>
-			<column name="error" type="BOOLEAN">
-				<constraints nullable="false"/>
-			</column>
+			<column name="tags" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
-		</createTable>
-
-		<createTable tableName="invoice">
-			<column name="id" type="UUID">
-				<constraints primaryKey="true" nullable="false"/>
-			</column>
-			<column name="submitter" type="TEXT">
-				<constraints nullable="false"/>
-			</column>
-			<column name="comment" type="TEXT"/>
-			<column name="queue" type="TEXT">
-				<constraints nullable="false"/>
-			</column>
-			<column name="response" type="JSONB">
-				<constraints nullable="false"/>
-			</column>
-			<column name="qr" type="TEXT"/>
-			<column name="paid" type="BOOLEAN">
-				<constraints nullable="false"/>
-			</column>
-			<column name="rejected" type="BOOLEAN">
-				<constraints nullable="false"/>
-			</column>
-			<column name="disputed" type="BOOLEAN">
-				<constraints nullable="false"/>
-			</column>
-			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
-			</column>
+			<column name="last_scrape" type="TIMESTAMP"/>
 		</createTable>
 	</changeSet>
 </databaseChangeLog>

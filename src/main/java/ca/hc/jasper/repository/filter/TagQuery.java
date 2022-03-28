@@ -5,15 +5,14 @@ import static ca.hc.jasper.repository.spec.RefSpec.hasAnyTag;
 
 import java.util.*;
 
-import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.domain.TagId;
+import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.proj.HasTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
-	public static final String REGEX = TagId.REGEX + "([ +|:&]" + TagId.REGEX + ")*";
+	public static final String REGEX = Tag.REGEX + "([ +|:&]" + Tag.REGEX + ")*";
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 
 	private final List<List<String>> orGroups = new ArrayList<>();

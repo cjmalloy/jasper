@@ -1,79 +1,61 @@
 package ca.hc.jasper.domain;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
-import javax.persistence.Entity;
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.vladmihalcea.hibernate.type.interval.PostgreSQLIntervalType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Getter
 @Setter
-@IdClass(TagId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-@TypeDef(
-	typeClass = PostgreSQLIntervalType.class,
-	defaultForType = Duration.class
-)
-public class Queue implements IsTag {
+public class Origin implements IsTag {
+	public static final String REGEX = "_?origin/[a-z]+(/[a-z]+)*";
+	public static final String REGEX_OR_BLANK = "(" + REGEX + ")?";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = TagId.REGEX)
+	@Pattern(regexp = REGEX)
 	private String tag;
 
-	@Id
 	@Column(updatable = false)
+	@NotBlank
 	@URL
-	private String origin = "";
+	private String url;
 
 	private String name;
 
-	private String comment;
-
-	private String bounty;
-
-	@Column(columnDefinition = "interval")
-	private Duration maxAge;
-
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = TagId.REGEX) String> approvers;
+	@URL
+	private String proxy;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
+	private Instant lastScrape;
 
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Queue queue = (Queue) o;
-		return tag.equals(queue.tag) && origin.equals(queue.origin);
+		Origin origin = (Origin) o;
+		return tag.equals(origin.tag);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag, origin);
+		return Objects.hash(tag);
 	}
 }

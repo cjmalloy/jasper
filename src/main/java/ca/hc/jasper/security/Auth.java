@@ -57,7 +57,6 @@ public class Auth {
 	}
 
 	public boolean canWriteRef(Ref ref) {
-		if (hasRole("MOD")) return true;
 		if (!canWriteRef(ref.getUrl())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
 		if (!newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canReadTag)) return false;
@@ -65,11 +64,13 @@ public class Auth {
 	}
 
 	public boolean canWriteRef(String url) {
-		if (hasRole("MOD")) return true;
+		if (hasRole("ADMIN")) return true;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
 		if (maybeExisting.isEmpty()) return true; // Idempotent deletes
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null && hasRole("USER")) {
+			if (existing.getTags().contains("locked")) return false;
+			if (hasRole("MOD")) return true;
 			if (existing.getTags().contains(getUserTag())) return true;
 			return anyMatch(getWriteAccess(), existing.getTags());
 		}

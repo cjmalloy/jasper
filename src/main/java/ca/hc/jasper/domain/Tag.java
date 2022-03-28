@@ -25,16 +25,17 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Tag implements IsTag {
+	public static final String REGEX = "_?[a-z]+(/[a-z]+)*";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = TagId.REGEX)
+	@Pattern(regexp = REGEX)
 	private String tag;
 
 	@Id
 	@Column(updatable = false)
-	@URL
+	@Pattern(regexp = Origin.REGEX_OR_BLANK)
 	private String origin = "";
 
 	private String name;
@@ -59,8 +60,8 @@ public class Tag implements IsTag {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		Tag tag1 = (Tag) o;
-		return tag.equals(tag1.tag) && origin.equals(tag1.origin);
+		Tag tag = (Tag) o;
+		return this.tag.equals(tag.tag) && origin.equals(tag.origin);
 	}
 
 	@Override

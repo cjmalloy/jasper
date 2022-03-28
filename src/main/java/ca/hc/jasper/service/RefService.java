@@ -61,7 +61,9 @@ public class RefService {
 		if (!ref.local()) throw new ForeignWriteException();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
-		ref.addTags(auth.hiddenTags(maybeExisting.get().getTags()));
+		var existing = maybeExisting.get();
+		if (!ref.getModified().equals(existing.getModified())) throw new ModifiedException();
+		ref.addTags(auth.hiddenTags(existing.getTags()));
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}
