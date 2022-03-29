@@ -94,6 +94,19 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="config" type="JSONB"/>
+			<column name="defaults" type="JSONB"/>
+			<column name="schema" type="JSONB"/>
+			<column name="modified" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+
+		<createTable tableName="template">
+			<column name="tag" type="TEXT">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="config" type="JSONB"/>
+			<column name="defaults" type="JSONB"/>
 			<column name="schema" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>

@@ -2,8 +2,8 @@ package ca.hc.jasper.service;
 
 import java.time.Instant;
 
-import ca.hc.jasper.domain.Plugin;
-import ca.hc.jasper.repository.PluginRepository;
+import ca.hc.jasper.domain.Template;
+import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
@@ -18,47 +18,47 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PluginService {
+public class TemplateService {
 
 	@Autowired
-	PluginRepository pluginRepository;
+	TemplateRepository templateRepository;
 
 	@Autowired
 	Auth auth;
 
 	@PreAuthorize("hasRole('ADMIN')")
-	public void create(Plugin plugin) {
-		if (pluginRepository.existsById(plugin.getTag())) throw new AlreadyExistsException();
-		pluginRepository.save(plugin);
+	public void create(Template template) {
+		if (templateRepository.existsById(template.getTag())) throw new AlreadyExistsException();
+		templateRepository.save(template);
 	}
 
 	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Plugin get(String tag) {
-		return pluginRepository.findById(tag)
-							   .orElseThrow(NotFoundException::new);
+	public Template get(String tag) {
+		return templateRepository.findById(tag)
+								 .orElseThrow(NotFoundException::new);
 	}
 
-	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
-		return pluginRepository.findAll(
-			auth.<Plugin>tagReadSpec()
+	public Page<Template> page(TagFilter filter, Pageable pageable) {
+		return templateRepository.findAll(
+			auth.<Template>tagReadSpec()
 				.and(filter.spec()),
 			pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#plugin.tag)")
-	public void update(Plugin plugin) {
-		var maybeExisting = pluginRepository.findById(plugin.getTag());
+	@PreAuthorize("@auth.canWriteTag(#template.tag)")
+	public void update(Template template) {
+		var maybeExisting = templateRepository.findById(template.getTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!plugin.getModified().equals(existing.getModified())) throw new ModifiedException();
-		plugin.setModified(Instant.now());
-		pluginRepository.save(plugin);
+		if (!template.getModified().equals(existing.getModified())) throw new ModifiedException();
+		template.setModified(Instant.now());
+		templateRepository.save(template);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			pluginRepository.deleteById(tag);
+			templateRepository.deleteById(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

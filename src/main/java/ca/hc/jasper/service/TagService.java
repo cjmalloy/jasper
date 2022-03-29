@@ -1,10 +1,15 @@
 package ca.hc.jasper.service;
 
+import java.time.Instant;
+
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.repository.TagRepository;
+import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jsontypedef.jtd.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -22,12 +27,23 @@ public class TagService {
 	TagRepository tagRepository;
 
 	@Autowired
+	TemplateRepository templateRepository;
+
+	@Autowired
 	Auth auth;
+
+	@Autowired
+	Validator validator;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteTag(#tag.tag)")
 	public void create(Tag tag) {
 		if (!tag.local()) throw new ForeignWriteException();
 		if (tagRepository.existsByTagAndOrigin(tag.getTag(), tag.getOrigin())) throw new AlreadyExistsException();
+		validate(tag);
+		tag.setModified(Instant.now());
 		tagRepository.save(tag);
 	}
 
@@ -48,6 +64,8 @@ public class TagService {
 	public void update(Tag tag) {
 		if (!tag.local()) throw new ForeignWriteException();
 		if (!tagRepository.existsByTagAndOrigin(tag.getTag(), tag.getOrigin())) throw new NotFoundException();
+		validate(tag);
+		tag.setModified(Instant.now());
 		tagRepository.save(tag);
 	}
 
@@ -57,6 +75,21 @@ public class TagService {
 			tagRepository.deleteByTagAndOrigin(tag, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#tag.tag)")
+	public void validate(Tag tag) {
+		var templates = templateRepository.findAllForTagWithSchema(tag.getTag());
+		for (var template : templates) {
+			if (tag.getConfig() == null) throw new InvalidTemplateException(template.getTag());
+			var tagConfig = new JacksonAdapter(tag.getConfig());
+			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
+			try {
+				if (validator.validate(schema, tagConfig).size() > 0) throw new InvalidTemplateException(template.getTag());
+			} catch (MaxDepthExceededException e) {
+				throw new InvalidTemplateException(template.getTag());
+			}
 		}
 	}
 }
