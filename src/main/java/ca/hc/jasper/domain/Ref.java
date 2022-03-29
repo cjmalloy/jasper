@@ -59,6 +59,9 @@ public class Ref implements HasTags {
 	@Column(columnDefinition = "jsonb")
 	private ObjectNode plugins;
 
+	@Column(updatable = false)
+	private Instant published = Instant.now();
+
 	@CreatedDate
 	@Column(updatable = false)
 	private Instant created = Instant.now();

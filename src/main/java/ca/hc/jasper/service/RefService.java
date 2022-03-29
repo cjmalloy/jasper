@@ -93,12 +93,18 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validate(Ref ref) {
+		validatePlugins(ref);
+		validateSources(ref);
+		validateResponses(ref);
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	public void validatePlugins(Ref ref) {
 		if (ref.getTags() == null) return;
 		for (var tag : ref.getTags()) {
-			var maybePlugin = pluginRepository.findById(tag);
+			var maybePlugin = pluginRepository.findByTagAndSchemaIsNotNull(tag);
 			if (maybePlugin.isEmpty()) continue;
 			var plugin = maybePlugin.get();
-			if (plugin.getSchema() == null) continue;
 			if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
 			if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 			var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
@@ -108,6 +114,27 @@ public class RefService {
 			} catch (MaxDepthExceededException e) {
 				throw new InvalidPluginException(tag);
 			}
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	public void validateSources(Ref ref) {
+		if (ref.getSources() == null) return;
+		for (var sourceUrl : ref.getSources()) {
+			// TODO: should we only validate local refs?
+			var sources = refRepository.findAllByUrlAndPublishedAfter(sourceUrl, ref.getPublished());
+			for (var source : sources) {
+				throw new PublishDateException(ref.getUrl(), source.getUrl());
+			}
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	public void validateResponses(Ref ref) {
+		// TODO: should we only validate local refs?
+		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
+		for (var response : responses) {
+			throw new PublishDateException(response.getUrl(), ref.getUrl());
 		}
 	}
 }
