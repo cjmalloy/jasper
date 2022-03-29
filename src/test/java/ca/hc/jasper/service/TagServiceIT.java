@@ -581,4 +581,130 @@ public class TagServiceIT {
 
 		tagService.validate(tag);
 	}
+
+	@Test
+	void testValidatePrivateTag() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_slug/custom"));
+		user.setWriteAccess(List.of("_slug/custom"));
+		userRepository.save(user);
+		var tag = new Tag();
+		tag.setTag("_slug/custom");
+		tag.setName("First");
+
+		tagService.validate(tag);
+	}
+
+	@Test
+	void testValidatePrivateTagWithInvalidTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_slug/custom"));
+		user.setWriteAccess(List.of("_slug/custom"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("_slug/custom");
+		tag.setName("First");
+
+		assertThatThrownBy(() -> tagService.validate(tag))
+			.isInstanceOf(InvalidTemplateException.class);
+	}
+
+	@Test
+	void testValidatePrivateTagWithTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_slug/custom"));
+		user.setWriteAccess(List.of("_slug/custom"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("_slug/custom");
+		tag.setName("First");
+		tag.setConfig(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+
+		tagService.validate(tag);
+	}
+
+	@Test
+	void testValidatePrivateTagWithInvalidPrivateTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_slug/custom"));
+		user.setWriteAccess(List.of("_slug/custom"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("_slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("_slug/custom");
+		tag.setName("First");
+
+		assertThatThrownBy(() -> tagService.validate(tag))
+			.isInstanceOf(InvalidTemplateException.class);
+	}
+
+	@Test
+	void testValidatePrivateTagWithPrivateTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_slug/custom"));
+		user.setWriteAccess(List.of("_slug/custom"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("_slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("_slug/custom");
+		tag.setName("First");
+		tag.setConfig(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+
+		tagService.validate(tag);
+	}
 }

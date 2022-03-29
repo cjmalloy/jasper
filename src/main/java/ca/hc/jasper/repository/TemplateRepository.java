@@ -12,6 +12,7 @@ public interface TemplateRepository extends JpaRepository<Template, String>, Jpa
 	@Query(nativeQuery = true, value = """
 		SELECT * FROM template
 		WHERE template.schema IS NOT NULL
-			AND position(template.tag in tag) = 1""")
+			AND (position(template.tag in :tag) = 1
+				OR (:tag LIKE '\\_%' AND position(template.tag in :tag) = 2))""")
 	List<Template> findAllForTagWithSchema(String tag);
 }
