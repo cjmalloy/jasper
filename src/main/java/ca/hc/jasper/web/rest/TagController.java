@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Tag;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,8 +24,9 @@ public class TagController {
 	TagService tagService;
 
 	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
 	void createTag(
-		@RequestBody Tag tag
+		@Valid @RequestBody Tag tag
 	) {
 		tagService.create(tag);
 	}
@@ -48,13 +51,15 @@ public class TagController {
 	}
 
 	@PutMapping
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateTag(
-		@RequestBody Tag tag
+		@Valid @RequestBody Tag tag
 	) {
 		tagService.update(tag);
 	}
 
 	@DeleteMapping
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTag(
 		@RequestParam String tag
 	) {

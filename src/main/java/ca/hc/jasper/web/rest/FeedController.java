@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Feed;
@@ -27,7 +28,7 @@ public class FeedController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createFeed(
-		@RequestBody Feed feed
+		@Valid @RequestBody Feed feed
 	) {
 		feedService.create(feed);
 	}
@@ -53,7 +54,7 @@ public class FeedController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateFeed(
-		@RequestBody Feed feed
+		@Valid @RequestBody Feed feed
 	) {
 		feedService.update(feed);
 	}

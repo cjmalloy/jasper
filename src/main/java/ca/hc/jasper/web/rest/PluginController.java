@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Plugin;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,21 +24,22 @@ public class PluginController {
 	PluginService pluginService;
 
 	@PostMapping
-	void createTag(
-		@RequestBody Plugin plugin
+	@ResponseStatus(HttpStatus.CREATED)
+	void createPlugin(
+		@Valid @RequestBody Plugin plugin
 	) {
 		pluginService.create(plugin);
 	}
 
 	@GetMapping
-	Plugin getTag(
+	Plugin getPlugin(
 		@RequestParam String tag
 	) {
 		return pluginService.get(tag);
 	}
 
 	@GetMapping("list")
-	Page<Plugin> getTags(
+	Page<Plugin> getPlugins(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
 	) {
@@ -47,15 +50,17 @@ public class PluginController {
 	}
 
 	@PutMapping
-	void updateTag(
-		@RequestBody Plugin plugin
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void updatePlugin(
+		@Valid @RequestBody Plugin plugin
 	) {
 		pluginService.update(plugin);
 	}
 
 	@DeleteMapping
-	void deleteTag(
-		@RequestParam String tag
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void deletePlugin(
+		@Valid @RequestParam String tag
 	) {
 		pluginService.delete(tag);
 	}

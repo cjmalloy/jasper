@@ -4,10 +4,13 @@ import java.time.Instant;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.domain.validator.SchemaValid;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,11 +24,12 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Plugin implements IsTag {
+	public static final String REGEX = "_?plugin/[a-z]+(/[a-z]+)*";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = Tag.REGEX)
+	@Pattern(regexp = REGEX)
 	private String tag;
 
 	@Type(type = "json")
@@ -34,7 +38,8 @@ public class Plugin implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private JsonNode schema;
+	@SchemaValid
+	private ObjectNode schema;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

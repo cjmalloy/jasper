@@ -1,7 +1,6 @@
 package ca.hc.jasper.domain;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
@@ -10,11 +9,11 @@ import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
-import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
@@ -40,13 +39,13 @@ public class Tag implements IsTag {
 
 	private String name;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<@URL String> pinned;
-
 	private int color;
 
 	private int textColor;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private JsonNode config;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

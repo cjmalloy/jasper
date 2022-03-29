@@ -3,16 +3,18 @@ package ca.hc.jasper.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import ca.hc.jasper.IntegrationTest;
-import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.domain.User;
-import ca.hc.jasper.repository.RefRepository;
-import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.domain.*;
+import ca.hc.jasper.repository.*;
 import ca.hc.jasper.repository.filter.RefFilter;
+import ca.hc.jasper.service.errors.InvalidPluginException;
 import ca.hc.jasper.service.errors.ModifiedException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +32,9 @@ public class RefServiceIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	PluginRepository pluginRepository;
 
 	@Autowired
 	UserRepository userRepository;
@@ -700,5 +705,67 @@ public class RefServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isFalse();
+	}
+
+	@Test
+	void testValidateRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester"));
+		refRepository.save(ref);
+
+		refService.validate(ref);
+	}
+
+	@Test
+	void testValidateRefWithInvalidPlugin() throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/test"));
+
+		assertThatThrownBy(() -> refService.validate(ref))
+			.isInstanceOf(InvalidPluginException.class);
+	}
+
+	@Test
+	void testValidateRefWithPlugin() throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+
+		assertThatThrownBy(() -> refService.validate(ref))
+			.isInstanceOf(InvalidPluginException.class);
 	}
 }

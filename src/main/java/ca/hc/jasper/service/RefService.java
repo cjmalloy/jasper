@@ -2,13 +2,16 @@ package ca.hc.jasper.service;
 
 import java.time.Instant;
 
-import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.repository.PluginRepository;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
+import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.RefDto;
 import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jsontypedef.jtd.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -26,15 +29,25 @@ public class RefService {
 	RefRepository refRepository;
 
 	@Autowired
+	PluginRepository pluginRepository;
+
+	@Autowired
 	Auth auth;
 
 	@Autowired
 	DtoMapper mapper;
 
+	@Autowired
+	Validator validator;
+
+	@Autowired
+	ObjectMapper objectMapper;
+
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
+		validate(ref);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
@@ -64,6 +77,7 @@ public class RefService {
 		var existing = maybeExisting.get();
 		if (!ref.getModified().equals(existing.getModified())) throw new ModifiedException();
 		ref.addTags(auth.hiddenTags(existing.getTags()));
+		validate(ref);
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}
@@ -74,6 +88,26 @@ public class RefService {
 			refRepository.deleteByUrlAndOrigin(url, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	public void validate(Ref ref) {
+		if (ref.getTags() == null) return;
+		for (var tag : ref.getTags()) {
+			var maybePlugin = pluginRepository.findById(tag);
+			if (maybePlugin.isEmpty()) continue;
+			var plugin = maybePlugin.get();
+			if (plugin.getSchema() == null) continue;
+			if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
+			if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
+			var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
+			var schema = objectMapper.convertValue(plugin.getSchema(), Schema.class);
+			try {
+				if (validator.validate(schema, pluginData).size() > 0) throw new InvalidPluginException(tag);
+			} catch (MaxDepthExceededException e) {
+				throw new InvalidPluginException(tag);
+			}
 		}
 	}
 }

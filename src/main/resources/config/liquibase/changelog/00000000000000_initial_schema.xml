@@ -62,9 +62,9 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
-			<column name="pinned" type="JSONB"/>
 			<column name="color" type="INT"/>
 			<column name="text_color" type="INT"/>
+			<column name="config" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>

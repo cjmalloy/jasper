@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.User;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,8 +25,9 @@ public class UserController {
 	UserService userService;
 
 	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
 	void createUser(
-		@RequestBody User user
+		@Valid @RequestBody User user
 	) {
 		userService.create(user);
 	}
@@ -49,16 +52,26 @@ public class UserController {
 	}
 
 	@PutMapping
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateUser(
-		@RequestBody User user
+		@Valid @RequestBody User user
 	) {
 		userService.update(user);
 	}
 
 	@DeleteMapping
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteUser(
 		@RequestParam String tag
 	) {
 		userService.delete(tag);
+	}
+
+	@PostMapping("clear")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void clearNotifications(
+		@RequestParam String tag
+	) {
+		userService.clearNotifications(tag);
 	}
 }

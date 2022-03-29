@@ -23,6 +23,7 @@
 		<liquibase.version>4.6.1</liquibase.version>
 		<mapstruct.version>1.4.2.Final</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.2</jackson-databind-nullable.version>
+		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<jjwt.version>0.11.2</jjwt.version>
 		<spring-cloud.version>2021.0.1</spring-cloud.version>
 		<springdoc-openapi.version>1.6.6</springdoc-openapi.version>
@@ -101,6 +102,11 @@
 			<groupId>org.openapitools</groupId>
 			<artifactId>jackson-databind-nullable</artifactId>
 			<version>${jackson-databind-nullable.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.jsontypedef.jtd</groupId>
+			<artifactId>jtd</artifactId>
+			<version>${jsontypedef.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hibernate</groupId>

@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Ref;
@@ -27,7 +28,7 @@ public class RefController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createRef(
-		@RequestBody Ref ref
+		@Valid @RequestBody Ref ref
 	) {
 		refService.create(ref);
 	}
@@ -54,7 +55,7 @@ public class RefController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(
-		@RequestBody Ref ref
+		@Valid @RequestBody Ref ref
 	) {
 		refService.update(ref);
 	}

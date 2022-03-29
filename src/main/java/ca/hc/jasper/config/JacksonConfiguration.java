@@ -3,6 +3,7 @@ package ca.hc.jasper.config;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.jsontypedef.jtd.Validator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zalando.problem.jackson.ProblemModule;
@@ -48,4 +49,12 @@ public class JacksonConfiguration {
     public ConstraintViolationProblemModule constraintViolationProblemModule() {
         return new ConstraintViolationProblemModule();
     }
+
+	@Bean
+	public Validator validator() {
+		var validator = new Validator();
+		validator.setMaxDepth(32);
+		validator.setMaxErrors(5);
+		return validator;
+	}
 }
