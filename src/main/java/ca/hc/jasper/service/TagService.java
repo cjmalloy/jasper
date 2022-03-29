@@ -10,6 +10,8 @@ import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jsontypedef.jtd.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class TagService {
+	private static final Logger logger = LoggerFactory.getLogger(TagService.class);
 
 	@Autowired
 	TagRepository tagRepository;
@@ -86,9 +89,13 @@ public class TagService {
 			var tagConfig = new JacksonAdapter(tag.getConfig());
 			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
 			try {
-				if (validator.validate(schema, tagConfig).size() > 0) throw new InvalidTemplateException(template.getTag());
+				var errors = validator.validate(schema, tagConfig);
+				for (var error : errors) {
+					logger.debug("Error validating template {}: {}", template.getTag(), error);
+				}
+				if (errors.size() > 0) throw new InvalidTemplateException(template.getTag());
 			} catch (MaxDepthExceededException e) {
-				throw new InvalidTemplateException(template.getTag());
+				throw new InvalidTemplateException(template.getTag(), e);
 			}
 		}
 	}

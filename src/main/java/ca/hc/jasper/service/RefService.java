@@ -12,6 +12,8 @@ import ca.hc.jasper.service.dto.RefDto;
 import ca.hc.jasper.service.errors.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jsontypedef.jtd.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class RefService {
+	private static final Logger logger = LoggerFactory.getLogger(RefService.class);
 
 	@Autowired
 	RefRepository refRepository;
@@ -110,9 +113,13 @@ public class RefService {
 			var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
 			var schema = objectMapper.convertValue(plugin.getSchema(), Schema.class);
 			try {
-				if (validator.validate(schema, pluginData).size() > 0) throw new InvalidPluginException(tag);
+				var errors = validator.validate(schema, pluginData);
+				for (var error : errors) {
+					logger.debug("Error validating plugin {}: {}", plugin.getTag(), error);
+				}
+				if (errors.size() > 0) throw new InvalidPluginException(tag);
 			} catch (MaxDepthExceededException e) {
-				throw new InvalidPluginException(tag);
+				throw new InvalidPluginException(tag, e);
 			}
 		}
 	}

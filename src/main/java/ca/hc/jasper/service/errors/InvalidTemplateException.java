@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class InvalidTemplateException extends RuntimeException {
 
 	public InvalidTemplateException(String template) {
-		super("Invalid " + template + " template.");
+		this(template, null);
+	}
+
+	public InvalidTemplateException(String template, Throwable cause) {
+		super("Invalid " + template + " template.", cause);
 	}
 }

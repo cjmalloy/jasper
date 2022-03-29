@@ -3,15 +3,16 @@ package ca.hc.jasper.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.util.List;
 
 import ca.hc.jasper.IntegrationTest;
-import ca.hc.jasper.domain.Tag;
-import ca.hc.jasper.domain.User;
-import ca.hc.jasper.repository.TagRepository;
-import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.domain.*;
+import ca.hc.jasper.repository.*;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.service.errors.NotFoundException;
+import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,9 @@ public class TagServiceIT {
 
 	@Autowired
 	TagRepository tagRepository;
+
+	@Autowired
+	TemplateRepository templateRepository;
 
 	@Autowired
 	UserRepository userRepository;
@@ -521,5 +525,60 @@ public class TagServiceIT {
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
+	}
+
+	@Test
+	void testValidateTag() {
+		var tag = new Tag();
+		tag.setTag("user/tester");
+		tag.setName("First");
+
+		tagService.validate(tag);
+	}
+
+	@Test
+	void testValidateTagWithInvalidTemplate() throws IOException {
+		var template = new Template();
+		template.setTag("user");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("user/tester");
+		tag.setName("First");
+
+		assertThatThrownBy(() -> tagService.validate(tag))
+			.isInstanceOf(InvalidTemplateException.class);
+	}
+
+	@Test
+	void testValidateTagWithTemplate() throws IOException {
+		var template = new Template();
+		template.setTag("user");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var tag = new Tag();
+		tag.setTag("user/tester");
+		tag.setName("First");
+		tag.setConfig(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+
+		tagService.validate(tag);
 	}
 }

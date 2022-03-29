@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class InvalidPluginException extends RuntimeException {
 
 	public InvalidPluginException(String plugin) {
-		super("Invalid " + plugin + " plugin.");
+		this(plugin, null);
+	}
+
+	public InvalidPluginException(String plugin, Throwable cause) {
+		super("Invalid " + plugin + " plugin.", cause);
 	}
 }

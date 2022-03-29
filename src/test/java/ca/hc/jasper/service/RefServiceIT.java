@@ -760,12 +760,11 @@ public class RefServiceIT {
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
+				"name": "Alice",
+				"age": 100
 			}
 		}"""));
 
-		assertThatThrownBy(() -> refService.validate(ref))
-			.isInstanceOf(InvalidPluginException.class);
+		refService.validate(ref);
 	}
 }
