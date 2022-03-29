@@ -58,6 +58,8 @@ public class User implements IsTag {
 	@Column(columnDefinition = "jsonb")
 	private List<@Pattern(regexp = Tag.REGEX) String> writeAccess;
 
+	private Instant lastNotified;
+
 	private Instant lastLogin;
 
 	@LastModifiedDate

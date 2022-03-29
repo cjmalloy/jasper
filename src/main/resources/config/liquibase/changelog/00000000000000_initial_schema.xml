@@ -82,6 +82,7 @@
 			<column name="subscriptions" type="JSONB"/>
 			<column name="read_access" type="JSONB"/>
 			<column name="write_access" type="JSONB"/>
+			<column name="last_notified" type="TIMESTAMP"/>
 			<column name="last_login" type="TIMESTAMP"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>

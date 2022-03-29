@@ -1,5 +1,7 @@
 package ca.hc.jasper.service;
 
+import java.time.Instant;
+
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
@@ -69,5 +71,14 @@ public class UserService {
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
+	}
+
+	@PreAuthorize("@auth.canWriteUser(#user)")
+	public void clearNotifications(String tag) {
+		var maybeExisting = userRepository.findOneByTagAndOrigin(tag, "");
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		var user = maybeExisting.get();
+		user.setLastNotified(Instant.now());
+		userRepository.save(user);
 	}
 }
