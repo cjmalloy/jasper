@@ -60,8 +60,6 @@ public class User implements IsTag {
 
 	private Instant lastNotified;
 
-	private Instant lastLogin;
-
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
