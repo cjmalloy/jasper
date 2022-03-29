@@ -38,6 +38,10 @@ public class Plugin implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
+	private JsonNode defaults;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
 	@SchemaValid
 	private ObjectNode schema;
 
