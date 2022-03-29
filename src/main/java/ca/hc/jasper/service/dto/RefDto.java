@@ -16,8 +16,8 @@ public class RefDto implements HasTags {
 	private String origin;
 	private String title;
 	private String comment;
-	private List<String> sources;
 	private List<String> tags;
+	private List<String> sources;
 	private List<String> alternateUrls;
 	private ObjectNode plugins;
 	private Instant published;

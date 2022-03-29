@@ -18,7 +18,6 @@ public class UserDto implements IsTag {
 	private List<String> subscriptions;
 	private List<String> readAccess;
 	private List<String> writeAccess;
-	private Instant lastLogin;
 	private Instant modified;
 	private byte[] pubKey;
 
