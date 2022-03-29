@@ -60,7 +60,7 @@ public class TemplateController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deletePlugin(
-		@Valid @RequestParam String tag
+		@RequestParam String tag
 	) {
 		templateService.delete(tag);
 	}

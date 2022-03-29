@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import javax.validation.constraints.*;
 
 import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -60,6 +59,7 @@ public class Ref implements HasTags {
 	private ObjectNode plugins;
 
 	@Column(updatable = false)
+	@NotNull
 	private Instant published = Instant.now();
 
 	@CreatedDate

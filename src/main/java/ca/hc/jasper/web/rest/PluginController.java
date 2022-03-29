@@ -60,7 +60,7 @@ public class PluginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deletePlugin(
-		@Valid @RequestParam String tag
+		@RequestParam String tag
 	) {
 		pluginService.delete(tag);
 	}

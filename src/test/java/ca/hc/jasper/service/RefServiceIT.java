@@ -192,7 +192,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(0);
 	}
 
@@ -207,7 +207,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 	}
 
@@ -226,7 +226,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 	}
 
@@ -245,7 +245,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTags())
 			.containsExactly("_secret");
@@ -262,7 +262,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(0);
 	}
 
@@ -277,7 +277,7 @@ public class RefServiceIT {
 			RefFilter.builder().build(),
 			PageRequest.of(0, 10));
 
-		assertThat(page.getNumberOfElements())
+		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTags())
 			.containsExactly("public");
