@@ -50,6 +50,7 @@ public class RefService {
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
+		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
 		validate(ref);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());

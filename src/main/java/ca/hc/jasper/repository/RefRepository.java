@@ -20,4 +20,8 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE ref.published < :date
 			AND jsonb_exists(ref.sources, :url)""")
 	List<Ref> findAllResponsesPublishedBefore(String url, Instant date);
+	@Query(nativeQuery = true, value = """
+		SELECT count(*) > 0 FROM ref
+		WHERE jsonb_exists(ref.alternate_urls, :url)""")
+	boolean existsByAlternateUrl(String url);
 }

@@ -11,8 +11,7 @@ import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.*;
 import ca.hc.jasper.repository.filter.RefFilter;
-import ca.hc.jasper.service.errors.InvalidPluginException;
-import ca.hc.jasper.service.errors.ModifiedException;
+import ca.hc.jasper.service.errors.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
@@ -49,6 +48,39 @@ public class RefServiceIT {
 		refService.create(ref);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDuplicateRefFails() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTags(List.of("user/tester"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+
+		assertThatThrownBy(() -> refService.create(ref))
+			.isInstanceOf(AlreadyExistsException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDuplicateAltRefFails() {
+		var existing = new Ref();
+		existing.setUrl("https://www.different.com/");
+		existing.setTags(List.of("user/tester"));
+		existing.setAlternateUrls(List.of(URL));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+
+		assertThatThrownBy(() -> refService.create(ref))
+			.isInstanceOf(AlreadyExistsException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin("https://www.different.com/", ""))
 			.isTrue();
 	}
 
