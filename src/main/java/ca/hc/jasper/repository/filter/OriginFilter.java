@@ -1,5 +1,9 @@
 package ca.hc.jasper.repository.filter;
 
+import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+
+import java.time.Instant;
+
 import ca.hc.jasper.domain.proj.HasOrigin;
 import lombok.Builder;
 import org.slf4j.Logger;
@@ -11,9 +15,13 @@ public class OriginFilter {
 	private static final Logger logger = LoggerFactory.getLogger(OriginFilter.class);
 
 	private OriginList originList;
+	private Instant modifiedAfter;
 
 	public <T extends HasOrigin> Specification<T> spec() {
 		var result = Specification.<T>where(null);
+		if (modifiedAfter != null) {
+			result = result.and(isModifiedAfter(modifiedAfter));
+		}
 		if (originList != null) {
 			result = result.and(originList.spec());
 		}

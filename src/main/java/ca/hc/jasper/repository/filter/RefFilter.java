@@ -1,5 +1,9 @@
 package ca.hc.jasper.repository.filter;
 
+import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+
+import java.time.Instant;
+
 import ca.hc.jasper.domain.proj.HasTags;
 import lombok.Builder;
 import org.slf4j.Logger;
@@ -11,9 +15,13 @@ public class RefFilter {
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private TagQuery tagQuery;
+	private Instant modifiedAfter;
 
 	public <T extends HasTags> Specification<T> spec() {
 		var result = Specification.<T>where(null);
+		if (modifiedAfter != null) {
+			result = result.and(isModifiedAfter(modifiedAfter));
+		}
 		if (tagQuery != null) {
 			result = result.and(tagQuery.spec());
 		}

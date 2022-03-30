@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import java.time.Instant;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
@@ -44,60 +45,86 @@ public class RefController {
 	@GetMapping("list")
 	Page<RefDto> getRefs(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.page(
 			RefFilter.builder()
+					 .modifiedAfter(modifiedAfter)
 					 .query(query).build(),
 			pageable);
+	}
+
+	@GetMapping("count")
+	long countRefs(
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
+	) {
+		return refService.count(
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build());
 	}
 
 	@GetMapping("responses")
 	Page<RefDto> getResponses(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.responses(
 			url,
-			RefFilter.builder()
-					 .query(query).build(),
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build(),
 			pageable);
 	}
 
 	@GetMapping("responses/count")
 	long countResponses(
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.countResponses(
 			url,
-			RefFilter.builder()
-					 .query(query).build());
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build());
 	}
 
 	@GetMapping("sources")
 	Page<RefDto> getSources(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.sources(
 			url,
-			RefFilter.builder()
-					 .query(query).build(),
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build(),
 			pageable);
 	}
 
 	@GetMapping("sources/count")
 	long countSources(
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.countSources(
 			url,
-			RefFilter.builder()
-					 .query(query).build());
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build());
 	}
 
 	@PutMapping

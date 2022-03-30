@@ -9,7 +9,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.proj.*;
+import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.filter.QualifiedTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;

@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import java.time.Instant;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
@@ -42,10 +43,13 @@ public class TemplateController {
 	@GetMapping("list")
 	Page<Template> getTemplates(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return templateService.page(
-			TagFilter.builder()
+			TagFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);
 	}

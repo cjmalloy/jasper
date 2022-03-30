@@ -74,7 +74,7 @@ public class UserService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteUser(#user)")
+	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void clearNotifications(String tag) {
 		var maybeExisting = userRepository.findOneByTagAndOrigin(tag, "");
 		if (maybeExisting.isEmpty()) throw new NotFoundException();

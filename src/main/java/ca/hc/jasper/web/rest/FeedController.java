@@ -1,5 +1,6 @@
 package ca.hc.jasper.web.rest;
 
+import java.time.Instant;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
@@ -44,10 +45,12 @@ public class FeedController {
 	@GetMapping("list")
 	Page<FeedDto> getFeeds(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return feedService.page(
 			RefFilter.builder()
+					 .modifiedAfter(modifiedAfter)
 					 .query(query).build(),
 			pageable);
 	}

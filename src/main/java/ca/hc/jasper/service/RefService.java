@@ -77,6 +77,13 @@ public class RefService {
 			.map(mapper::domainToDto);
 	}
 
+	public long count(RefFilter filter) {
+		return refRepository
+			.count(
+				auth.<Ref>refReadSpec()
+					.and(filter.spec()));
+	}
+
 	public Page<RefDto> responses(String url, RefFilter filter, Pageable pageable) {
 		return refRepository
 			.findAll(
@@ -115,8 +122,6 @@ public class RefService {
 		return refRepository.count(
 			auth.<Ref>refReadSpec()
 				.and(isUrls(result.getSources()))
-				// TODO: work across origins
-//				.and(hasResponse(url))
 				.and(filter.spec()));
 	}
 
