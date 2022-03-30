@@ -4,8 +4,10 @@ import java.time.Instant;
 
 import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.repository.OriginRepository;
-import ca.hc.jasper.repository.filter.TagFilter;
+import ca.hc.jasper.repository.filter.OriginFilter;
 import ca.hc.jasper.security.Auth;
+import ca.hc.jasper.service.dto.DtoMapper;
+import ca.hc.jasper.service.dto.OriginNameDto;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -26,28 +28,40 @@ public class OriginService {
 	@Autowired
 	Auth auth;
 
+	@Autowired
+	DtoMapper mapper;
+
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Origin origin) {
-		if (originRepository.existsById(origin.getTag())) throw new AlreadyExistsException();
+		if (originRepository.existsById(origin.getOrigin())) throw new AlreadyExistsException();
 		originRepository.save(origin);
 	}
 
+	@PreAuthorize("hasRole('ADMIN')")
 	@PostAuthorize("@auth.canReadTag(returnObject)")
 	public Origin get(String tag) {
 		return originRepository.findById(tag)
 							   .orElseThrow(NotFoundException::new);
 	}
 
-	public Page<Origin> page(TagFilter filter, Pageable pageable) {
-		return originRepository.findAll(
-			auth.<Origin>tagReadSpec()
-				.and(filter.spec()),
-			pageable);
+	@PreAuthorize("hasRole('USER')")
+	public Page<Origin> page(OriginFilter filter, Pageable pageable) {
+		return originRepository
+			.findAll(filter.spec(),
+				pageable);
+	}
+
+	@PreAuthorize("hasRole('USER')")
+	public Page<OriginNameDto> pageNames(OriginFilter filter, Pageable pageable) {
+		return originRepository
+			.findAll(filter.spec(),
+				pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Origin origin) {
-		var maybeExisting = originRepository.findById(origin.getTag());
+		var maybeExisting = originRepository.findById(origin.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!origin.getModified().equals(existing.getModified())) throw new ModifiedException();

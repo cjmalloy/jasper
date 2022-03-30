@@ -1,22 +1,21 @@
 package ca.hc.jasper.repository.filter;
 
-import static ca.hc.jasper.repository.spec.RefSpec.hasAllTags;
-import static ca.hc.jasper.repository.spec.RefSpec.hasAnyTag;
+import static ca.hc.jasper.repository.spec.RefSpec.hasAllQualifiedTags;
+import static ca.hc.jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 
 import java.util.*;
 
-import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.proj.HasTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
-	public static final String REGEX = Tag.REGEX + "([ +|:&]" + Tag.REGEX + ")*";
+	public static final String REGEX = QualifiedTag.REGEX + "([ +|:&]" + QualifiedTag.REGEX + ")*";
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 
-	private final List<List<String>> orGroups = new ArrayList<>();
-	private final List<String> orTags = new ArrayList<>();
+	private final List<List<QualifiedTag>> orGroups = new ArrayList<>();
+	private final List<QualifiedTag> orTags = new ArrayList<>();
 
 	public TagQuery(String query) {
 		logger.debug(query);
@@ -26,10 +25,10 @@ public class TagQuery {
 	public <T extends HasTags> Specification<T> spec() {
 		var result = Specification.<T>where(null);
 		if (orTags.size() > 0) {
-			result = result.or(hasAnyTag(orTags));
+			result = result.or(hasAnyQualifiedTag(orTags));
 		}
 		for (var andGroup : orGroups) {
-			result = result.or(hasAllTags(andGroup));
+			result = result.or(hasAllQualifiedTags(andGroup));
 		}
 		return result;
 	}
@@ -39,11 +38,11 @@ public class TagQuery {
 		var ors = query.split("[ +|]");
 		for (var orGroup : ors) {
 			var ands = orGroup.split("[:&]");
-			if (ands.length == 0) continue;;
+			if (ands.length == 0) continue;
 			if (ands.length == 1) {
-				orTags.add(ands[0]);
+				orTags.add(new QualifiedTag(ands[0]));
 			} else {
-				orGroups.add(Arrays.asList(ands));
+				orGroups.add(Arrays.stream(ands).map(QualifiedTag::new).toList());
 			}
 		}
 	}

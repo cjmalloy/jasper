@@ -35,7 +35,7 @@ public class Ref implements HasTags {
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX_OR_BLANK)
+	@Pattern(regexp = Origin.REGEX)
 	private String origin = "";
 
 	private String title;
@@ -68,11 +68,6 @@ public class Ref implements HasTags {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
-
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
 
 	@JsonIgnore
 	public Ref addTags(List<String> toAdd) {

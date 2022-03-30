@@ -317,6 +317,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("custom");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		tagService.update(updated);
 
@@ -336,6 +337,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("custom");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
@@ -356,6 +358,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("user/tester");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		tagService.update(updated);
 
@@ -375,6 +378,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("user/other");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
@@ -400,6 +404,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("_secret");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		tagService.update(updated);
 
@@ -423,6 +428,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("_secret");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
@@ -443,6 +449,7 @@ public class TagServiceIT {
 		var updated = new Tag();
 		updated.setTag("public");
 		updated.setName("Second");
+		updated.setModified(tag.getModified());
 
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);

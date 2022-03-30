@@ -57,16 +57,20 @@ public class TagService {
 	}
 
 	public Page<Tag> page(TagFilter filter, Pageable pageable) {
-		return tagRepository.findAll(
-			auth.<Tag>tagReadSpec()
-				.and(filter.spec()),
-			pageable);
+		return tagRepository
+			.findAll(
+				auth.<Tag>tagReadSpec()
+					.and(filter.spec()),
+				pageable);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag.tag)")
 	public void update(Tag tag) {
 		if (!tag.local()) throw new ForeignWriteException();
-		if (!tagRepository.existsByTagAndOrigin(tag.getTag(), tag.getOrigin())) throw new NotFoundException();
+		var maybeExisting = tagRepository.findOneByTagAndOrigin(tag.getTag(), tag.getOrigin());
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		var existing = maybeExisting.get();
+		if (!tag.getModified().equals(existing.getModified())) throw new ModifiedException();
 		validate(tag);
 		tag.setModified(Instant.now());
 		tagRepository.save(tag);
@@ -83,7 +87,8 @@ public class TagService {
 
 	@PreAuthorize("@auth.canWriteRef(#tag.tag)")
 	public void validate(Tag tag) {
-		var templates = templateRepository.findAllForTagWithSchema(tag.getTag());
+		if (!tag.local()) throw new ForeignWriteException();
+		var templates = templateRepository.findAllLocalForTagWithSchema(tag.getTag());
 		for (var template : templates) {
 			if (tag.getConfig() == null) throw new InvalidTemplateException(template.getTag());
 			var tagConfig = new JacksonAdapter(tag.getConfig());

@@ -4,8 +4,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Origin;
-import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.repository.filter.TagList;
+import ca.hc.jasper.repository.filter.*;
 import ca.hc.jasper.service.OriginService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -26,16 +25,16 @@ public class OriginController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createOrigin(
-		@Valid @RequestBody Origin origin
+		@RequestBody @Valid Origin origin
 	) {
 		originService.create(origin);
 	}
 
 	@GetMapping
 	Origin getOrigin(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Origin.REGEX_NOT_BLANK) String origin
 	) {
-		return originService.get(tag);
+		return originService.get(origin);
 	}
 
 	@GetMapping("list")
@@ -44,7 +43,7 @@ public class OriginController {
 		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
 	) {
 		return originService.page(
-			TagFilter.builder()
+			OriginFilter.builder()
 				.query(query).build(),
 			pageable);
 	}
@@ -52,7 +51,7 @@ public class OriginController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateOrigin(
-		@Valid @RequestBody Origin origin
+		@RequestBody @Valid Origin origin
 	) {
 		originService.update(origin);
 	}
@@ -60,7 +59,7 @@ public class OriginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteOrigin(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Origin.REGEX_NOT_BLANK) String tag
 	) {
 		originService.delete(tag);
 	}

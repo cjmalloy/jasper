@@ -26,16 +26,17 @@ public class TemplateController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createPlugin(
-		@Valid @RequestBody Template template
+		@RequestBody @Valid Template template
 	) {
 		templateService.create(template);
 	}
 
 	@GetMapping
 	Template getPlugin(
-		@RequestParam String tag
+		@RequestParam String tag,
+		@RequestParam(defaultValue = "") String origin
 	) {
-		return templateService.get(tag);
+		return templateService.get(tag, origin);
 	}
 
 	@GetMapping("list")
@@ -52,7 +53,7 @@ public class TemplateController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updatePlugin(
-		@Valid @RequestBody Template template
+		@RequestBody @Valid Template template
 	) {
 		templateService.update(template);
 	}

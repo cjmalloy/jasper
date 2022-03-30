@@ -11,6 +11,7 @@ import lombok.Setter;
 @Setter
 public class FeedDto implements HasTags {
 	private String url;
+	private String origin;
 	private String name;
 	private List<String> tags;
 	private Instant modified;

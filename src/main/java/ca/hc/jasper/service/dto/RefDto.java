@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.List;
 
 import ca.hc.jasper.domain.proj.HasTags;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,9 +22,4 @@ public class RefDto implements HasTags {
 	private Instant published;
 	private Instant created;
 	private Instant modified;
-
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
 }

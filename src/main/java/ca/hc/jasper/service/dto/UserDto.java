@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.List;
 
 import ca.hc.jasper.domain.proj.IsTag;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,9 +19,4 @@ public class UserDto implements IsTag {
 	private List<String> writeAccess;
 	private Instant modified;
 	private byte[] pubKey;
-
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
 }

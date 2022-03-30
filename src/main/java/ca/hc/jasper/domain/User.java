@@ -9,7 +9,8 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.domain.proj.*;
+import ca.hc.jasper.repository.filter.QualifiedTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -37,7 +38,7 @@ public class User implements IsTag {
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX_OR_BLANK)
+	@Pattern(regexp = Origin.REGEX)
 	private String origin = "";
 
 	private String name;
@@ -48,11 +49,11 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX) String> subscriptions;
+	private List<@Pattern(regexp = QualifiedTag.REGEX) String> subscriptions;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX) String> readAccess;
+	private List<@Pattern(regexp = QualifiedTag.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
@@ -64,11 +65,6 @@ public class User implements IsTag {
 	private Instant modified = Instant.now();
 
 	private byte[] pubKey;
-
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
 
 	@JsonIgnore
 	public User addReadAccess(List<String> toAdd) {

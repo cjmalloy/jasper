@@ -104,9 +104,10 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validatePlugins(Ref ref) {
+		if (!ref.local()) throw new ForeignWriteException();
 		if (ref.getTags() == null) return;
 		for (var tag : ref.getTags()) {
-			var maybePlugin = pluginRepository.findByTagAndSchemaIsNotNull(tag);
+			var maybePlugin = pluginRepository.findByTagAndOriginAndSchemaIsNotNull(tag, "");
 			if (maybePlugin.isEmpty()) continue;
 			var plugin = maybePlugin.get();
 			if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
@@ -129,7 +130,6 @@ public class RefService {
 	public void validateSources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			// TODO: should we only validate local refs?
 			var sources = refRepository.findAllByUrlAndPublishedAfter(sourceUrl, ref.getPublished());
 			for (var source : sources) {
 				throw new PublishDateException(ref.getUrl(), source.getUrl());
@@ -139,7 +139,6 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validateResponses(Ref ref) {
-		// TODO: should we only validate local refs?
 		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
 		for (var response : responses) {
 			throw new PublishDateException(response.getUrl(), ref.getUrl());

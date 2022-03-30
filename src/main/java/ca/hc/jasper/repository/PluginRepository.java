@@ -3,11 +3,11 @@ package ca.hc.jasper.repository;
 import java.util.Optional;
 
 import ca.hc.jasper.domain.Plugin;
+import ca.hc.jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface PluginRepository extends JpaRepository<Plugin, String>, JpaSpecificationExecutor<Plugin> {
-	Optional<Plugin> findByTagAndSchemaIsNotNull(String tag);
+public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin> {
+	Optional<Plugin> findByTagAndOriginAndSchemaIsNotNull(String tag, String origin);
 }

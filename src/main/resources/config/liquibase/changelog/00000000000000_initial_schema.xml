@@ -113,6 +113,9 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
 			<column name="config" type="JSONB"/>
 			<column name="defaults" type="JSONB"/>
 			<column name="schema" type="JSONB"/>
@@ -128,6 +131,9 @@
 			<column name="tag" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
+			<column name="origin" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
 			<column name="config" type="JSONB"/>
 			<column name="defaults" type="JSONB"/>
 			<column name="schema" type="JSONB"/>
@@ -140,7 +146,7 @@
 		</createIndex>
 
 		<createTable tableName="origin">
-			<column name="tag" type="TEXT">
+			<column name="origin" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="url" type="TEXT">
@@ -159,6 +165,9 @@
 
 		<createTable tableName="feed">
 			<column name="url" type="TEXT" defaultValue="">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="origin" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>

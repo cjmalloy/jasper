@@ -46,7 +46,8 @@ public class UserService {
 	}
 
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
-		return userRepository.findAll(
+		return userRepository
+			.findAll(
 				auth.<User>tagReadSpec()
 					.and(filter.spec()),
 				pageable)

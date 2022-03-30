@@ -3,9 +3,11 @@ package ca.hc.jasper.web.rest;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
+import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.repository.filter.TagList;
+import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.UserService;
 import ca.hc.jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,17 +26,20 @@ public class UserController {
 	@Autowired
 	UserService userService;
 
+	@Autowired
+	Auth auth;
+
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createUser(
-		@Valid @RequestBody User user
+		@RequestBody @Valid User user
 	) {
 		userService.create(user);
 	}
 
 	@GetMapping
 	UserDto getUser(
-		@RequestParam String tag,
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam(defaultValue = "") String origin
 	) {
 		return userService.get(tag, origin);
@@ -54,7 +59,7 @@ public class UserController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateUser(
-		@Valid @RequestBody User user
+		@RequestBody @Valid User user
 	) {
 		userService.update(user);
 	}
@@ -62,16 +67,21 @@ public class UserController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteUser(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
 	) {
 		userService.delete(tag);
 	}
 
-	@PostMapping("clear")
+	@DeleteMapping("notifications")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void clearNotifications(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
 	) {
 		userService.clearNotifications(tag);
+	}
+
+	@GetMapping("whoami")
+	String whoAmI() {
+		return auth.getUserTag();
 	}
 }

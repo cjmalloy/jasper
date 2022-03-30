@@ -28,7 +28,7 @@ public class RefController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createRef(
-		@Valid @RequestBody Ref ref
+		@RequestBody @Valid Ref ref
 	) {
 		refService.create(ref);
 	}
@@ -55,7 +55,7 @@ public class RefController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(
-		@Valid @RequestBody Ref ref
+		@RequestBody @Valid Ref ref
 	) {
 		refService.update(ref);
 	}

@@ -28,16 +28,17 @@ public class FeedController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createFeed(
-		@Valid @RequestBody Feed feed
+		@RequestBody @Valid Feed feed
 	) {
 		feedService.create(feed);
 	}
 
 	@GetMapping
 	FeedDto getFeed(
-		@RequestParam String url
+		@RequestParam String url,
+		@RequestParam(defaultValue = "") String origin
 	) {
-		return feedService.get(url);
+		return feedService.get(url, origin);
 	}
 
 	@GetMapping("list")
@@ -54,7 +55,7 @@ public class FeedController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateFeed(
-		@Valid @RequestBody Feed feed
+		@RequestBody @Valid Feed feed
 	) {
 		feedService.update(feed);
 	}

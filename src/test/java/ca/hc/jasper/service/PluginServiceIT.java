@@ -36,7 +36,7 @@ public class PluginServiceIT {
 
 		pluginService.create(tag);
 
-		var fetched = pluginService.get("plugin/test");
+		var fetched = pluginService.get("plugin/test", "");
 		assertThat(fetched.getTag())
 			.isEqualTo("plugin/test");
 	}

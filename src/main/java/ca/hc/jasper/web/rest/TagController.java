@@ -26,14 +26,14 @@ public class TagController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createTag(
-		@Valid @RequestBody Tag tag
+		@RequestBody @Valid Tag tag
 	) {
 		tagService.create(tag);
 	}
 
 	@GetMapping
 	Tag getTag(
-		@RequestParam String tag,
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam(defaultValue = "") String origin
 	) {
 		return tagService.get(tag, origin);
@@ -53,7 +53,7 @@ public class TagController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateTag(
-		@Valid @RequestBody Tag tag
+		@RequestBody @Valid Tag tag
 	) {
 		tagService.update(tag);
 	}
@@ -61,7 +61,7 @@ public class TagController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTag(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
 	) {
 		tagService.delete(tag);
 	}

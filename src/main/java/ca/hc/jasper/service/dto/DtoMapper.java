@@ -14,6 +14,7 @@ public abstract class DtoMapper {
 	public abstract RefDto domainToDto(Ref ref);
 	public abstract FeedDto domainToDto(Feed ref);
 	public abstract UserDto domainToDto(User user);
+	public abstract OriginNameDto domainToDto(Origin origin);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {

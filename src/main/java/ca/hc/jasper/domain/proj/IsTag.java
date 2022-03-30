@@ -1,8 +1,5 @@
 package ca.hc.jasper.domain.proj;
 
-public interface IsTag {
+public interface IsTag extends HasOrigin {
   String getTag();
-  default boolean local() {
-	  return true;
-  };
 }

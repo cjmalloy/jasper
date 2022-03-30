@@ -20,6 +20,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Entity
 @Getter
 @Setter
+@IdClass(TagId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
@@ -31,6 +32,11 @@ public class Plugin implements IsTag {
 	@NotBlank
 	@Pattern(regexp = REGEX)
 	private String tag;
+
+	@Id
+	@Column(updatable = false)
+	@Pattern(regexp = Origin.REGEX)
+	private String origin = "";
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
@@ -53,11 +59,11 @@ public class Plugin implements IsTag {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Plugin plugin = (Plugin) o;
-		return tag.equals(plugin.tag);
+		return tag.equals(plugin.tag) && origin.equals(plugin.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag);
+		return Objects.hash(tag, origin);
 	}
 }

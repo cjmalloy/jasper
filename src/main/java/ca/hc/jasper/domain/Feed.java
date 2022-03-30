@@ -19,6 +19,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Entity
 @Getter
 @Setter
+@IdClass(RefId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
@@ -29,6 +30,11 @@ public class Feed implements HasTags {
 	@NotBlank
 	@URL
 	private String url;
+
+	@Id
+	@Column(updatable = false)
+	@Pattern(regexp = Origin.REGEX)
+	private String origin = "";
 
 	private String name;
 
@@ -46,11 +52,11 @@ public class Feed implements HasTags {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Feed feed = (Feed) o;
-		return url.equals(feed.url);
+		return url.equals(feed.url) && origin.equals(feed.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url);
+		return Objects.hash(url, origin);
 	}
 }

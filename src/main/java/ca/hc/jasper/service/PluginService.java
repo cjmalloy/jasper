@@ -28,26 +28,29 @@ public class PluginService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Plugin plugin) {
-		if (pluginRepository.existsById(plugin.getTag())) throw new AlreadyExistsException();
+		if (!plugin.local()) throw new ForeignWriteException();
+		if (pluginRepository.existsByTagAndOrigin(plugin.getTag(), plugin.getOrigin())) throw new AlreadyExistsException();
 		pluginRepository.save(plugin);
 	}
 
 	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Plugin get(String tag) {
-		return pluginRepository.findById(tag)
+	public Plugin get(String tag, String origin) {
+		return pluginRepository.findOneByTagAndOrigin(tag, origin)
 							   .orElseThrow(NotFoundException::new);
 	}
 
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
-		return pluginRepository.findAll(
-			auth.<Plugin>tagReadSpec()
-				.and(filter.spec()),
-			pageable);
+		return pluginRepository
+			.findAll(
+				auth.<Plugin>tagReadSpec()
+					.and(filter.spec()),
+				pageable);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#plugin.tag)")
 	public void update(Plugin plugin) {
-		var maybeExisting = pluginRepository.findById(plugin.getTag());
+		if (!plugin.local()) throw new ForeignWriteException();
+		var maybeExisting = pluginRepository.findOneByTagAndOrigin(plugin.getTag(), plugin.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!plugin.getModified().equals(existing.getModified())) throw new ModifiedException();
@@ -58,7 +61,7 @@ public class PluginService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			pluginRepository.deleteById(tag);
+			pluginRepository.deleteByTagAndOrigin(tag, "");
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

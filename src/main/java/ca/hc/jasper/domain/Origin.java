@@ -6,7 +6,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.domain.proj.HasOrigin;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,15 +21,15 @@ import org.springframework.data.annotation.LastModifiedDate;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Origin implements IsTag {
-	public static final String REGEX = "_?origin/[a-z]+(/[a-z]+)*";
-	public static final String REGEX_OR_BLANK = "(" + REGEX + ")?";
+public class Origin implements HasOrigin {
+	public static final String REGEX_NOT_BLANK = "@[.a-z]+";
+	public static final String REGEX = "(" + REGEX_NOT_BLANK + ")?";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = REGEX)
-	private String tag;
+	@Pattern(regexp = REGEX_NOT_BLANK)
+	private String origin;
 
 	@Column(updatable = false)
 	@NotBlank
@@ -51,11 +51,11 @@ public class Origin implements IsTag {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Origin origin = (Origin) o;
-		return tag.equals(origin.tag);
+		return this.origin.equals(origin.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag);
+		return Objects.hash(origin);
 	}
 }

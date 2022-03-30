@@ -8,7 +8,6 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -34,7 +33,7 @@ public class Tag implements IsTag {
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX_OR_BLANK)
+	@Pattern(regexp = Origin.REGEX)
 	private String origin = "";
 
 	private String name;
@@ -49,11 +48,6 @@ public class Tag implements IsTag {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
-
-	@JsonIgnore
-	public boolean local() {
-		return origin == null || origin.isBlank();
-	}
 
 	@Override
 	public boolean equals(Object o) {
