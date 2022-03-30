@@ -39,22 +39,6 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
-	public static Specification<Ref> hasResponse(String url) {
-		return (root, query, cb) -> {
-			var subQuery = query.subquery(List.class);
-			var subRoot = subQuery.from(Ref.class);
-			subQuery.select(cb.function("jsonb_agg", List.class, subRoot.get(Ref_.sources)))
-					.where(
-						cb.equal(
-							root.get(Ref_.url),
-							url));
-			return cb.isTrue(
-				cb.function("jsonb_exists", Boolean.class,
-					subQuery,
-					root.get(Ref_.url)));
-		};
-	}
-
 	public static <T extends HasTags> Specification<T> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,

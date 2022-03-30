@@ -1,8 +1,10 @@
 package ca.hc.jasper.service;
 
-import static ca.hc.jasper.repository.spec.RefSpec.*;
+import static ca.hc.jasper.repository.spec.RefSpec.hasSource;
+import static ca.hc.jasper.repository.spec.RefSpec.isUrls;
 
 import java.time.Instant;
+import java.util.Collection;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.PluginRepository;
@@ -93,14 +95,15 @@ public class RefService {
 	}
 
 	public Page<RefDto> sources(String url, RefFilter filter, Pageable pageable) {
-		var result = refRepository.findOneByUrlAndOrigin(url, "")
-								  .orElseThrow(NotFoundException::new);
+		var refs = refRepository.findAllByUrl(url);
+		if (refs.isEmpty()) throw new NotFoundException();
+		var sources = refs.stream()
+						  .map(Ref::getSources)
+						  .flatMap(Collection::stream).toList();
 		return refRepository
 			.findAll(
 				auth.<Ref>refReadSpec()
-					.and(isUrls(result.getSources()))
-					// TODO: work across origins
-//					.and(hasResponse(url))
+					.and(isUrls(sources))
 					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
