@@ -25,14 +25,14 @@ public class TemplateController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createPlugin(
+	void createTemplate(
 		@RequestBody @Valid Template template
 	) {
 		templateService.create(template);
 	}
 
 	@GetMapping
-	Template getPlugin(
+	Template getTemplate(
 		@RequestParam String tag,
 		@RequestParam(defaultValue = "") String origin
 	) {
@@ -40,7 +40,7 @@ public class TemplateController {
 	}
 
 	@GetMapping("list")
-	Page<Template> getPlugins(
+	Page<Template> getTemplates(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query
 	) {
@@ -52,7 +52,7 @@ public class TemplateController {
 
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updatePlugin(
+	void updateTemplate(
 		@RequestBody @Valid Template template
 	) {
 		templateService.update(template);
@@ -60,7 +60,7 @@ public class TemplateController {
 
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void deletePlugin(
+	void deleteTemplate(
 		@RequestParam String tag
 	) {
 		templateService.delete(tag);

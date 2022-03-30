@@ -1,5 +1,7 @@
 package ca.hc.jasper.service;
 
+import static ca.hc.jasper.repository.spec.RefSpec.*;
+
 import java.time.Instant;
 
 import ca.hc.jasper.domain.Ref;
@@ -71,6 +73,48 @@ public class RefService {
 					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
+	}
+
+	public Page<RefDto> responses(String url, RefFilter filter, Pageable pageable) {
+		return refRepository
+			.findAll(
+				auth.<Ref>refReadSpec()
+					.and(hasSource(url))
+					.and(filter.spec()),
+				pageable)
+			.map(mapper::domainToDto);
+	}
+
+	public long countResponses(String url, RefFilter filter) {
+		return refRepository.count(
+			auth.<Ref>refReadSpec()
+				.and(hasSource(url))
+				.and(filter.spec()));
+	}
+
+	public Page<RefDto> sources(String url, RefFilter filter, Pageable pageable) {
+		var result = refRepository.findOneByUrlAndOrigin(url, "")
+								  .orElseThrow(NotFoundException::new);
+		return refRepository
+			.findAll(
+				auth.<Ref>refReadSpec()
+					.and(isUrls(result.getSources()))
+					// TODO: work across origins
+//					.and(hasResponse(url))
+					.and(filter.spec()),
+				pageable)
+			.map(mapper::domainToDto);
+	}
+
+	public long countSources(String url, RefFilter filter) {
+		var result = refRepository.findOneByUrlAndOrigin(url, "")
+								  .orElseThrow(NotFoundException::new);
+		return refRepository.count(
+			auth.<Ref>refReadSpec()
+				.and(isUrls(result.getSources()))
+				// TODO: work across origins
+//				.and(hasResponse(url))
+				.and(filter.spec()));
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")

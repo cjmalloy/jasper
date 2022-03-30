@@ -52,6 +52,54 @@ public class RefController {
 			pageable);
 	}
 
+	@GetMapping("responses")
+	Page<RefDto> getResponses(
+		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
+		@RequestParam String url,
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+	) {
+		return refService.responses(
+			url,
+			RefFilter.builder()
+					 .query(query).build(),
+			pageable);
+	}
+
+	@GetMapping("responses/count")
+	long countResponses(
+		@RequestParam String url,
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+	) {
+		return refService.countResponses(
+			url,
+			RefFilter.builder()
+					 .query(query).build());
+	}
+
+	@GetMapping("sources")
+	Page<RefDto> getSources(
+		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
+		@RequestParam String url,
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+	) {
+		return refService.sources(
+			url,
+			RefFilter.builder()
+					 .query(query).build(),
+			pageable);
+	}
+
+	@GetMapping("sources/count")
+	long countSources(
+		@RequestParam String url,
+		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query
+	) {
+		return refService.countSources(
+			url,
+			RefFilter.builder()
+					 .query(query).build());
+	}
+
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(

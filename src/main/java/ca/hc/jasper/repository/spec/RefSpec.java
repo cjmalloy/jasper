@@ -6,11 +6,54 @@ import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 
+import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.Ref_;
 import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.repository.filter.QualifiedTag;
 import org.springframework.data.jpa.domain.Specification;
 
 public class RefSpec {
+
+	public static Specification<Ref> none() {
+		return (root, query, cb) -> cb.disjunction();
+	}
+
+	public static Specification<Ref> isUrl(String url) {
+		return (root, query, cb) ->
+			cb.equal(
+				root.get(Ref_.url),
+				url);
+	}
+
+	public static Specification<Ref> isUrls(List<String> urls) {
+		if (urls == null || urls.isEmpty()) return none();
+		return (root, query, cb) ->
+			root.get(Ref_.url)
+				.in(urls);
+	}
+
+	public static Specification<Ref> hasSource(String url) {
+		return (root, query, cb) -> cb.isTrue(
+			cb.function("jsonb_exists", Boolean.class,
+				root.get(Ref_.sources),
+				cb.literal(url)));
+	}
+
+	public static Specification<Ref> hasResponse(String url) {
+		return (root, query, cb) -> {
+			var subQuery = query.subquery(List.class);
+			var subRoot = subQuery.from(Ref.class);
+			subQuery.select(cb.function("jsonb_agg", List.class, subRoot.get(Ref_.sources)))
+					.where(
+						cb.equal(
+							root.get(Ref_.url),
+							url));
+			return cb.isTrue(
+				cb.function("jsonb_exists", Boolean.class,
+					subQuery,
+					root.get(Ref_.url)));
+		};
+	}
 
 	public static <T extends HasTags> Specification<T> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
