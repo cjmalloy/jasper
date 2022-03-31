@@ -169,10 +169,12 @@ public class Auth {
 	}
 
 	public String getUserTag() {
+		var user = getPrincipal();
+		if (user == null) return null;
 		if (hasRole("PRIVATE")) {
-			return "_user/" + getPrincipal().getUsername();
+			return "_user/" + user.getUsername();
 		} else {
-			return "user/" + getPrincipal().getUsername();
+			return "user/" + user.getUsername();
 		}
 	}
 
@@ -223,7 +225,9 @@ public class Auth {
 	}
 
 	public UserDetails getPrincipal() {
-		return (UserDetails) getAuthentication().getPrincipal();
+		var principal = getAuthentication().getPrincipal();
+		if (principal instanceof UserDetails) return (UserDetails) principal;
+		return null;
 	}
 
 	private Set<String> getAuthoritySet() {
