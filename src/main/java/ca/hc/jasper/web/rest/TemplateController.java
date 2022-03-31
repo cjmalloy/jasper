@@ -6,7 +6,6 @@ import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Template;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.repository.filter.TagList;
 import ca.hc.jasper.service.TemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -34,16 +33,15 @@ public class TemplateController {
 
 	@GetMapping
 	Template getTemplate(
-		@RequestParam String tag,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam String tag
 	) {
-		return templateService.get(tag, origin);
+		return templateService.get(tag);
 	}
 
 	@GetMapping("list")
 	Page<Template> getTemplates(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return templateService.page(

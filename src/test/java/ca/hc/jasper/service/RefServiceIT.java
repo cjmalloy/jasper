@@ -234,11 +234,11 @@ public class RefServiceIT {
 	void testGetPageRefWithReadablePrivateTags() {
 		var user = new User();
 		user.setTag("user/tester");
-		user.setReadAccess(List.of("_secret"));
+		user.setReadAccess(List.of("_secret", "_hot", "sauce"));
 		userRepository.save(user);
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(List.of("_secret"));
+		ref.setTags(List.of("_secret", "_other"));
 		refRepository.save(ref);
 
 		var page = refService.page(

@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin> {
-	Optional<Plugin> findByTagAndOriginAndSchemaIsNotNull(String tag, String origin);
+	Optional<Plugin> findByQualifiedTagAndSchemaIsNotNull(String tag);
 }

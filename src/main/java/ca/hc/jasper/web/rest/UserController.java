@@ -7,7 +7,6 @@ import javax.validation.constraints.Pattern;
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.repository.filter.TagList;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.UserService;
 import ca.hc.jasper.service.dto.UserDto;
@@ -40,16 +39,15 @@ public class UserController {
 
 	@GetMapping
 	UserDto getUser(
-		@RequestParam @Pattern(regexp = Tag.REGEX) String tag,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
 	) {
-		return userService.get(tag, origin);
+		return userService.get(tag);
 	}
 
 	@GetMapping("list")
 	Page<UserDto> getUsers(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return userService.page(

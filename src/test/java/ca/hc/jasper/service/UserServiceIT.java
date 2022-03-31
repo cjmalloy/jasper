@@ -38,11 +38,12 @@ public class UserServiceIT {
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/tester", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/tester"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/tester", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/tester").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
-		assertThat(userRepository.findOneByTagAndOrigin("user/tester", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
 
@@ -55,7 +56,7 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.create(user))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/tester"))
 			.isFalse();
 	}
 
@@ -68,11 +69,12 @@ public class UserServiceIT {
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
 
@@ -87,15 +89,16 @@ public class UserServiceIT {
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getReadAccess())
+		assertThat(fetched.getReadAccess())
 			.containsExactly("custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getWriteAccess())
+		assertThat(fetched.getWriteAccess())
 			.containsExactly("custom");
 	}
 
@@ -110,15 +113,16 @@ public class UserServiceIT {
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getReadAccess())
+		assertThat(fetched.getReadAccess())
 			.containsExactly("_custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getWriteAccess())
+		assertThat(fetched.getWriteAccess())
 			.containsExactly("_custom");
 	}
 
@@ -137,15 +141,16 @@ public class UserServiceIT {
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getReadAccess())
+		assertThat(fetched.getReadAccess())
 			.containsExactly("custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getWriteAccess())
+		assertThat(fetched.getWriteAccess())
 			.containsExactly("custom");
 	}
 
@@ -164,15 +169,16 @@ public class UserServiceIT {
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isTrue();
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getTag())
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getName())
+		assertThat(fetched.getName())
 			.isEqualTo("Custom");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getReadAccess())
+		assertThat(fetched.getReadAccess())
 			.containsExactly("_secret");
-		assertThat(userRepository.findOneByTagAndOrigin("user/other", "").get().getWriteAccess())
+		assertThat(fetched.getWriteAccess())
 			.containsExactly("_secret");
 	}
 
@@ -187,7 +193,7 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.create(other))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isFalse();
 	}
 
@@ -202,19 +208,19 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.create(other))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByTagAndOrigin("user/other", ""))
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
 			.isFalse();
 	}
 
 	@Test
 	void testReadNonExistentUser() {
-		assertThatThrownBy(() -> userService.get("user/other", ""))
+		assertThatThrownBy(() -> userService.get("user/other"))
 			.isInstanceOf(NotFoundException.class);
 	}
 
 	@Test
 	void testReadNonExistentPrivateUser() {
-		assertThatThrownBy(() -> userService.get("_user/other", ""))
+		assertThatThrownBy(() -> userService.get("_user/other"))
 			.isInstanceOf(NotFoundException.class);
 	}
 
@@ -225,7 +231,7 @@ public class UserServiceIT {
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/other", "");
+		var fetched = userService.get("user/other");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
@@ -240,7 +246,7 @@ public class UserServiceIT {
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/other", "");
+		var fetched = userService.get("user/other");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
@@ -255,7 +261,7 @@ public class UserServiceIT {
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/tester", "");
+		var fetched = userService.get("user/tester");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
@@ -270,7 +276,7 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		assertThatThrownBy(() -> userService.get("_user/other", ""))
+		assertThatThrownBy(() -> userService.get("_user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
@@ -285,7 +291,7 @@ public class UserServiceIT {
 		other.setName("Secret");
 		userRepository.save(other);
 
-		var fetched = userService.get("_user/other", "");
+		var fetched = userService.get("_user/other");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
@@ -301,7 +307,7 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		var fetched = userService.get("_user/tester", "");
+		var fetched = userService.get("_user/tester");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/tester");
@@ -316,7 +322,7 @@ public class UserServiceIT {
 		user.setName("Secret");
 		userRepository.save(user);
 
-		assertThatThrownBy(() -> userService.get("_user/other", ""))
+		assertThatThrownBy(() -> userService.get("_user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
@@ -514,7 +520,9 @@ public class UserServiceIT {
 
 		userService.update(updated);
 
-		var fetched = userRepository.findOneByTagAndOrigin("user/other", "").get();
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -541,7 +549,9 @@ public class UserServiceIT {
 
 		userService.update(updated);
 
-		var fetched = userRepository.findOneByTagAndOrigin("user/other", "").get();
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -566,7 +576,9 @@ public class UserServiceIT {
 
 		userService.update(updated);
 
-		var fetched = userService.get("user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -590,7 +602,9 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = userService.get("user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -609,7 +623,9 @@ public class UserServiceIT {
 
 		userService.update(updated);
 
-		var fetched = userService.get("user/tester", "");
+		assertThat(userRepository.existsByQualifiedTag("user/tester"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
 		assertThat(fetched.getName())
@@ -629,7 +645,9 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = userService.get("user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -653,7 +671,9 @@ public class UserServiceIT {
 
 		userService.update(updated);
 
-		var fetched = userService.get("_user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("_user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -677,7 +697,9 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = userService.get("_user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("_user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -697,8 +719,8 @@ public class UserServiceIT {
 
 		userService.delete("user/other");
 
-		assertThatThrownBy(() -> userService.get("user/other", ""))
-			.isInstanceOf(NotFoundException.class);
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isFalse();
 	}
 
 	@Test
@@ -715,7 +737,9 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.delete("user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = userService.get("user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -736,8 +760,8 @@ public class UserServiceIT {
 
 		userService.delete("user/other");
 
-		assertThatThrownBy(() -> userService.get("user/other", ""))
-			.isInstanceOf(NotFoundException.class);
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isFalse();
 	}
 
 	@Test
@@ -754,7 +778,9 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.delete("_user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = userService.get("_user/other", "");
+		assertThat(userRepository.existsByQualifiedTag("_user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())

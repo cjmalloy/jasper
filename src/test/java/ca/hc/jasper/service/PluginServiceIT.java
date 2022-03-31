@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.Plugin;
+import ca.hc.jasper.repository.PluginRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,9 @@ public class PluginServiceIT {
 
 	@Autowired
 	PluginService pluginService;
+
+	@Autowired
+	PluginRepository pluginRepository;
 
 	@Test
 	void testCreateUserTagWithSchema() throws IOException {
@@ -36,7 +40,9 @@ public class PluginServiceIT {
 
 		pluginService.create(tag);
 
-		var fetched = pluginService.get("plugin/test", "");
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
+			.isTrue();
+		var fetched = pluginRepository.findOneByQualifiedTag("plugin/test").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("plugin/test");
 	}

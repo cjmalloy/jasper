@@ -9,6 +9,7 @@ import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.domain.validator.SchemaValid;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
@@ -38,6 +39,9 @@ public class Plugin implements IsTag {
 	@Pattern(regexp = Origin.REGEX)
 	private String origin = "";
 
+	@Formula("tag || origin")
+	private String qualifiedTag;
+
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private JsonNode config;
@@ -53,6 +57,11 @@ public class Plugin implements IsTag {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
+
+	@JsonIgnore
+	public String getQualifiedTag() {
+		return getTag() + getOrigin();
+	}
 
 	@Override
 	public boolean equals(Object o) {

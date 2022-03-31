@@ -29,13 +29,13 @@ public class TemplateService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Template template) {
 		if (!template.local()) throw new ForeignWriteException();
-		if (templateRepository.existsByTagAndOrigin(template.getTag(), template.getOrigin())) throw new AlreadyExistsException();
+		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		templateRepository.save(template);
 	}
 
-	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Template get(String tag, String origin) {
-		return templateRepository.findOneByTagAndOrigin(tag, origin)
+	@PostAuthorize("@auth.canReadTag(#tag)")
+	public Template get(String tag) {
+		return templateRepository.findOneByQualifiedTag(tag)
 								 .orElseThrow(NotFoundException::new);
 	}
 
@@ -47,10 +47,10 @@ public class TemplateService {
 				pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#template.tag)")
+	@PreAuthorize("@auth.canWriteTag(#template.qualifiedTag)")
 	public void update(Template template) {
 		if (!template.local()) throw new ForeignWriteException();
-		var maybeExisting = templateRepository.findOneByTagAndOrigin(template.getTag(), template.getOrigin());
+		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!template.getModified().equals(existing.getModified())) throw new ModifiedException();
@@ -61,7 +61,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			templateRepository.deleteByTagAndOrigin(tag, "");
+			templateRepository.deleteByQualifiedTag(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

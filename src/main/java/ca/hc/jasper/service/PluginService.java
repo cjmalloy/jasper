@@ -29,13 +29,13 @@ public class PluginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Plugin plugin) {
 		if (!plugin.local()) throw new ForeignWriteException();
-		if (pluginRepository.existsByTagAndOrigin(plugin.getTag(), plugin.getOrigin())) throw new AlreadyExistsException();
+		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		pluginRepository.save(plugin);
 	}
 
-	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Plugin get(String tag, String origin) {
-		return pluginRepository.findOneByTagAndOrigin(tag, origin)
+	@PostAuthorize("@auth.canReadTag(#tag)")
+	public Plugin get(String tag) {
+		return pluginRepository.findOneByQualifiedTag(tag)
 							   .orElseThrow(NotFoundException::new);
 	}
 
@@ -47,10 +47,10 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#plugin.tag)")
+	@PreAuthorize("@auth.canWriteTag(#plugin.qualifiedTag)")
 	public void update(Plugin plugin) {
 		if (!plugin.local()) throw new ForeignWriteException();
-		var maybeExisting = pluginRepository.findOneByTagAndOrigin(plugin.getTag(), plugin.getOrigin());
+		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!plugin.getModified().equals(existing.getModified())) throw new ModifiedException();
@@ -61,7 +61,7 @@ public class PluginService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			pluginRepository.deleteByTagAndOrigin(tag, "");
+			pluginRepository.deleteByQualifiedTag(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

@@ -4,7 +4,7 @@ import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 
 import java.time.Instant;
 
-import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.domain.proj.*;
 import lombok.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,9 +12,10 @@ import org.springframework.data.jpa.domain.Specification;
 
 @Builder
 public class TagFilter {
+	public static final String QUERY = TagQuery.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
-	private TagList tagList;
+	private String query;
 	private Instant modifiedAfter;
 
 	public <T extends IsTag> Specification<T> spec() {
@@ -22,22 +23,9 @@ public class TagFilter {
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
-		if (tagList != null) {
-			result = result.and(tagList.spec());
+		if (query != null) {
+			result = result.and(new TagQuery(query).spec());
 		}
 		return result;
-	}
-
-	public static class TagFilterBuilder {
-		private TagList tagList;
-
-		public TagFilterBuilder query(String query) {
-			if (query == null) {
-				tagList = null;
-			} else {
-				tagList = new TagList(query);
-			}
-			return this;
-		}
 	}
 }

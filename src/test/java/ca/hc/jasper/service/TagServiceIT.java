@@ -55,7 +55,9 @@ public class TagServiceIT {
 
 		tagService.create(tag);
 
-		var fetched = tagService.get("user/tester", "");
+		assertThat(tagRepository.existsByQualifiedTag("user/tester"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
 		assertThat(fetched.getName())
@@ -71,7 +73,9 @@ public class TagServiceIT {
 
 		tagService.create(tag);
 
-		var fetched = tagService.get("custom", "");
+		assertThat(tagRepository.existsByQualifiedTag("custom"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -80,13 +84,13 @@ public class TagServiceIT {
 
 	@Test
 	void testReadNonExistentTag() {
-		assertThatThrownBy(() -> tagService.get("custom", ""))
+		assertThatThrownBy(() -> tagService.get("custom"))
 			.isInstanceOf(NotFoundException.class);
 	}
 
 	@Test
 	void testReadNonExistentPrivateTag() {
-		assertThatThrownBy(() -> tagService.get("_secret", ""))
+		assertThatThrownBy(() -> tagService.get("_secret"))
 			.isInstanceOf(NotFoundException.class);
 	}
 
@@ -97,7 +101,7 @@ public class TagServiceIT {
 		tag.setName("Custom");
 		tagRepository.save(tag);
 
-		var fetched = tagService.get("public", "");
+		var fetched = tagService.get("public");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("public");
@@ -112,7 +116,7 @@ public class TagServiceIT {
 		tag.setName("Custom");
 		tagRepository.save(tag);
 
-		var fetched = tagService.get("user/tester", "");
+		var fetched = tagService.get("user/tester");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
@@ -127,7 +131,7 @@ public class TagServiceIT {
 		tag.setName("Custom");
 		tagRepository.save(tag);
 
-		var fetched = tagService.get("custom", "");
+		var fetched = tagService.get("custom");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
@@ -142,7 +146,7 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		assertThatThrownBy(() -> tagService.get("_secret", ""))
+		assertThatThrownBy(() -> tagService.get("_secret"))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
@@ -157,7 +161,7 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var fetched = tagService.get("_secret", "");
+		var fetched = tagService.get("_secret");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
@@ -173,7 +177,7 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		var fetched = tagService.get("_user/tester", "");
+		var fetched = tagService.get("_user/tester");
 
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/tester");
@@ -188,7 +192,7 @@ public class TagServiceIT {
 		tag.setName("Secret");
 		tagRepository.save(tag);
 
-		assertThatThrownBy(() -> tagService.get("_user/other", ""))
+		assertThatThrownBy(() -> tagService.get("_user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
@@ -321,7 +325,9 @@ public class TagServiceIT {
 
 		tagService.update(updated);
 
-		var fetched = tagService.get("custom", "");
+		assertThat(tagRepository.existsByQualifiedTag("custom"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -342,7 +348,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("custom", "");
+		assertThat(tagRepository.existsByQualifiedTag("custom"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -362,7 +370,9 @@ public class TagServiceIT {
 
 		tagService.update(updated);
 
-		var fetched = tagService.get("user/tester", "");
+		assertThat(tagRepository.existsByQualifiedTag("user/tester"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
 		assertThat(fetched.getName())
@@ -383,7 +393,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("user/other", "");
+		assertThat(tagRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/other");
 		assertThat(fetched.getName())
@@ -408,7 +420,9 @@ public class TagServiceIT {
 
 		tagService.update(updated);
 
-		var fetched = tagService.get("_secret", "");
+		assertThat(tagRepository.existsByQualifiedTag("_secret"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
@@ -433,7 +447,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("_secret", "");
+		assertThat(tagRepository.existsByQualifiedTag("_secret"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
@@ -454,7 +470,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("public", "");
+		assertThat(tagRepository.existsByQualifiedTag("public"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("public").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("public");
 		assertThat(fetched.getName())
@@ -474,8 +492,8 @@ public class TagServiceIT {
 
 		tagService.delete("custom");
 
-		assertThatThrownBy(() -> tagService.get("custom", ""))
-			.isInstanceOf(NotFoundException.class);
+		assertThat(tagRepository.existsByQualifiedTag("custom"))
+			.isFalse();
 	}
 
 	@Test
@@ -488,7 +506,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.delete("custom"))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("custom", "");
+		assertThat(tagRepository.existsByQualifiedTag("custom"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -509,8 +529,8 @@ public class TagServiceIT {
 
 		tagService.delete("_secret");
 
-		assertThatThrownBy(() -> tagService.get("_secret", ""))
-			.isInstanceOf(NotFoundException.class);
+		assertThat(tagRepository.existsByQualifiedTag("_secret"))
+			.isFalse();
 	}
 
 	@Test
@@ -527,7 +547,9 @@ public class TagServiceIT {
 		assertThatThrownBy(() -> tagService.delete("_secret"))
 			.isInstanceOf(AccessDeniedException.class);
 
-		var fetched = tagService.get("_secret", "");
+		assertThat(tagRepository.existsByQualifiedTag("_secret"))
+			.isTrue();
+		var fetched = tagRepository.findOneByQualifiedTag("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())

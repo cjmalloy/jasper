@@ -5,8 +5,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Ref;
-import ca.hc.jasper.repository.filter.RefFilter;
-import ca.hc.jasper.repository.filter.TagQuery;
+import ca.hc.jasper.repository.filter.*;
 import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +44,7 @@ public class RefController {
 	@GetMapping("list")
 	Page<RefDto> getRefs(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.page(
@@ -57,7 +56,7 @@ public class RefController {
 
 	@GetMapping("count")
 	long countRefs(
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.count(
@@ -71,7 +70,7 @@ public class RefController {
 	Page<RefDto> getResponses(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.responses(
@@ -86,7 +85,7 @@ public class RefController {
 	@GetMapping("responses/count")
 	long countResponses(
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.countResponses(
@@ -101,7 +100,7 @@ public class RefController {
 	Page<RefDto> getSources(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.sources(
@@ -116,7 +115,7 @@ public class RefController {
 	@GetMapping("sources/count")
 	long countSources(
 		@RequestParam String url,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return refService.countSources(

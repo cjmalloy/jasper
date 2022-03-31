@@ -12,9 +12,10 @@ import org.springframework.data.jpa.domain.Specification;
 
 @Builder
 public class RefFilter {
+	public static final String QUERY = TagQuery.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
-	private TagQuery tagQuery;
+	private String query;
 	private Instant modifiedAfter;
 
 	public <T extends HasTags> Specification<T> spec() {
@@ -22,22 +23,9 @@ public class RefFilter {
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
-		if (tagQuery != null) {
-			result = result.and(tagQuery.spec());
+		if (query != null) {
+			result = result.and(new TagQuery(query).refSpec());
 		}
 		return result;
-	}
-
-	public static class RefFilterBuilder {
-		private TagQuery tagQuery;
-
-		public RefFilterBuilder query(String query) {
-			if (query == null) {
-				tagQuery = null;
-			} else {
-				tagQuery = new TagQuery(query);
-			}
-			return this;
-		}
 	}
 }

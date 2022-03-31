@@ -1,11 +1,15 @@
 package ca.hc.jasper.repository.filter;
 
+import static ca.hc.jasper.repository.spec.OriginSpec.hasAllOrigins;
+import static ca.hc.jasper.repository.spec.OriginSpec.hasAnyOrigin;
 import static ca.hc.jasper.repository.spec.RefSpec.hasAllQualifiedTags;
 import static ca.hc.jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
+import static ca.hc.jasper.repository.spec.TagSpec.isAllQualifiedTag;
+import static ca.hc.jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 
 import java.util.*;
 
-import ca.hc.jasper.domain.proj.HasTags;
+import ca.hc.jasper.domain.proj.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,13 +26,35 @@ public class TagQuery {
 		parse(query);
 	}
 
-	public <T extends HasTags> Specification<T> spec() {
+	public <T extends HasTags> Specification<T> refSpec() {
 		var result = Specification.<T>where(null);
 		if (orTags.size() > 0) {
 			result = result.or(hasAnyQualifiedTag(orTags));
 		}
 		for (var andGroup : orGroups) {
 			result = result.or(hasAllQualifiedTags(andGroup));
+		}
+		return result;
+	}
+
+	public <T extends IsTag> Specification<T> spec() {
+		var result = Specification.<T>where(null);
+		if (orTags.size() > 0) {
+			result = result.or(isAnyQualifiedTag(orTags));
+		}
+		for (var andGroup : orGroups) {
+			result = result.or(isAllQualifiedTag(andGroup));
+		}
+		return result;
+	}
+
+	public <T extends HasOrigin> Specification<T> originSpec() {
+		var result = Specification.<T>where(null);
+		if (orTags.size() > 0) {
+			result = result.or(hasAnyOrigin(orTags));
+		}
+		for (var andGroup : orGroups) {
+			result = result.or(hasAllOrigins(andGroup));
 		}
 		return result;
 	}

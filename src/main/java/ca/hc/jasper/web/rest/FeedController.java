@@ -5,8 +5,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Feed;
-import ca.hc.jasper.repository.filter.RefFilter;
-import ca.hc.jasper.repository.filter.TagQuery;
+import ca.hc.jasper.repository.filter.*;
 import ca.hc.jasper.service.FeedService;
 import ca.hc.jasper.service.dto.FeedDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,13 +44,14 @@ public class FeedController {
 	@GetMapping("list")
 	Page<FeedDto> getFeeds(
 		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagQuery.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return feedService.page(
-			RefFilter.builder()
-					 .modifiedAfter(modifiedAfter)
-					 .query(query).build(),
+			RefFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build(),
 			pageable);
 	}
 

@@ -5,6 +5,7 @@ import java.time.Instant;
 import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.repository.OriginRepository;
 import ca.hc.jasper.repository.filter.OriginFilter;
+import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.OriginNameDto;
@@ -13,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,20 +38,18 @@ public class OriginService {
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
-	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public Origin get(String tag) {
-		return originRepository.findById(tag)
+	public Origin get(String origin) {
+		return originRepository.findById(origin)
 							   .orElseThrow(NotFoundException::new);
 	}
 
-	@PreAuthorize("hasRole('USER')")
+	@PreAuthorize("hasRole('ADMIN')")
 	public Page<Origin> page(OriginFilter filter, Pageable pageable) {
 		return originRepository
 			.findAll(filter.spec(),
 				pageable);
 	}
 
-	@PreAuthorize("hasRole('USER')")
 	public Page<OriginNameDto> pageNames(OriginFilter filter, Pageable pageable) {
 		return originRepository
 			.findAll(filter.spec(),

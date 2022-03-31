@@ -34,13 +34,13 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
 		if (!user.local()) throw new ForeignWriteException();
-		if (userRepository.existsByTagAndOrigin(user.getTag(), user.getOrigin())) throw new AlreadyExistsException();
+		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		userRepository.save(user);
 	}
 
-	@PostAuthorize("@auth.canReadTag(returnObject)")
-	public UserDto get(String tag, String origin) {
-		var result = userRepository.findOneByTagAndOrigin(tag, origin)
+	@PostAuthorize("@auth.canReadTag(#tag)")
+	public UserDto get(String tag) {
+		var result = userRepository.findOneByQualifiedTag(tag)
 								   .orElseThrow(NotFoundException::new);
 		return mapper.domainToDto(result);
 	}
@@ -57,7 +57,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void update(User user) {
 		if (!user.local()) throw new ForeignWriteException();
-		var maybeExisting = userRepository.findOneByTagAndOrigin(user.getTag(), user.getOrigin());
+		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
@@ -68,7 +68,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			userRepository.deleteByTagAndOrigin(tag, "");
+			userRepository.deleteByQualifiedTag(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
@@ -76,7 +76,7 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void clearNotifications(String tag) {
-		var maybeExisting = userRepository.findOneByTagAndOrigin(tag, "");
+		var maybeExisting = userRepository.findOneByQualifiedTag(tag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var user = maybeExisting.get();
 		user.setLastNotified(Instant.now());

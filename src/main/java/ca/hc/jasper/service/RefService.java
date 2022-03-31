@@ -158,8 +158,8 @@ public class RefService {
 	public void validatePlugins(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (ref.getTags() == null) return;
-		for (var tag : ref.getTags()) {
-			var maybePlugin = pluginRepository.findByTagAndOriginAndSchemaIsNotNull(tag, "");
+		for (var tag : ref.getQualifiedTags()) {
+			var maybePlugin = pluginRepository.findByQualifiedTagAndSchemaIsNotNull(tag);
 			if (maybePlugin.isEmpty()) continue;
 			var plugin = maybePlugin.get();
 			if (ref.getPlugins() == null) throw new InvalidPluginException(tag);

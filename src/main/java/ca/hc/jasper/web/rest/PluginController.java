@@ -7,7 +7,6 @@ import javax.validation.constraints.Pattern;
 import ca.hc.jasper.domain.Plugin;
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.repository.filter.TagList;
 import ca.hc.jasper.service.PluginService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,16 +34,15 @@ public class PluginController {
 
 	@GetMapping
 	Plugin getPlugin(
-		@RequestParam @Pattern(regexp = Tag.REGEX) String tag,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
 	) {
-		return pluginService.get(tag, origin);
+		return pluginService.get(tag);
 	}
 
 	@GetMapping("list")
 	Page<Plugin> getPlugins(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return pluginService.page(

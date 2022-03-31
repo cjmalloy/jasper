@@ -1,7 +1,5 @@
 package ca.hc.jasper.repository.spec;
 
-import static ca.hc.jasper.repository.spec.OriginSpec.isOrigin;
-
 import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
@@ -64,30 +62,20 @@ public class RefSpec {
 				literal(cb, tags)));
 	}
 
-	public static <T extends HasTags> Specification<T> hasQualifiedTag(QualifiedTag tag) {
-		if (tag.getOrigin().equals("*")) return hasTag(tag.getTag());
-		if (tag.getTag().equals("*")) return isOrigin(tag.getOrigin());
-		return Specification
-			.<T>where(hasTag(tag.getTag()))
-			.and(isOrigin(tag.getOrigin()));
-	}
-
 	public static <T extends HasTags> Specification<T> hasAnyQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
-		if (tags.size() == 1) return hasQualifiedTag(tags.get(0));
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.or(hasQualifiedTag(t));
+			spec.or(t.refSpec());
 		}
 		return spec;
 	}
 
 	public static <T extends HasTags> Specification<T> hasAllQualifiedTags(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
-		if (tags.size() == 1) return hasQualifiedTag(tags.get(0));
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.and(hasQualifiedTag(t));
+			spec.and(t.refSpec());
 		}
 		return spec;
 	}

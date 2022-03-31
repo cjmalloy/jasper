@@ -5,8 +5,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Origin;
-import ca.hc.jasper.repository.filter.*;
-import ca.hc.jasper.repository.filter.TagList;
+import ca.hc.jasper.repository.filter.OriginFilter;
 import ca.hc.jasper.service.OriginService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -42,7 +41,7 @@ public class OriginController {
 	@GetMapping("list")
 	Page<Origin> getOrigins(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagList.REGEX) String query,
+		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return originService.page(
