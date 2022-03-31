@@ -31,7 +31,6 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void create(Feed feed) {
-		if (!feed.local()) throw new ForeignWriteException();
 		if (feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new AlreadyExistsException();
 		feedRepository.save(feed);
 	}
@@ -55,7 +54,6 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void update(Feed feed) {
-		if (!feed.local()) throw new ForeignWriteException();
 		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException();
 		feedRepository.save(feed);
 	}

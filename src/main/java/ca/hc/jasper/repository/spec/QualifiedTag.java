@@ -1,4 +1,4 @@
-package ca.hc.jasper.repository.filter;
+package ca.hc.jasper.repository.spec;
 
 import static ca.hc.jasper.repository.spec.OriginSpec.isOrigin;
 import static ca.hc.jasper.repository.spec.RefSpec.hasTag;
@@ -30,6 +30,13 @@ public class QualifiedTag {
 			tag = qt.substring(0, index);
 			origin = qt.substring(index);
 		}
+	}
+
+	public boolean captures(String capture) {
+		var c = new QualifiedTag(capture);
+		if (!tag.isEmpty() && !tag.equals(c.tag)) return not;
+		if (!origin.equals("@*") && !origin.equals(c.origin)) return not;
+		return !not;
 	}
 
 	public <T extends HasTags> Specification<T> refSpec() {

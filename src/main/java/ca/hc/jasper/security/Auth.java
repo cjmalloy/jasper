@@ -13,6 +13,7 @@ import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,8 +51,7 @@ public class Auth {
 			if (hasRole("USER")) {
 				var qualifiedTags = ref.getQualifiedTags();
 				if (qualifiedTags.contains(getUserTag())) return true;
-				// TODO: allow tag queries
-				return anyMatch(getReadAccess(), qualifiedTags);
+				return captures(getReadAccess(), qualifiedTags);
 			}
 		}
 		return false;
@@ -74,8 +74,7 @@ public class Auth {
 			if (hasRole("MOD")) return true;
 			var qualifiedTags = existing.getQualifiedTags();
 			if (qualifiedTags.contains(getUserTag())) return true;
-			// TODO: allow tag queries
-			return anyMatch(getWriteAccess(), qualifiedTags);
+			return captures(getWriteAccess(), qualifiedTags);
 		}
 		return false;
 	}
@@ -87,8 +86,7 @@ public class Auth {
 			if (tag.equals(getUserTag())) return true;
 			var readAccess = getReadAccess();
 			if (readAccess == null) return false;
-			// TODO: allow tag queries
-			return readAccess.contains(tag);
+			return captures(readAccess, List.of(tag));
 		}
 		return false;
 	}
@@ -99,7 +97,7 @@ public class Auth {
 			if (tag.equals(getUserTag())) return true;
 			var writeAccess = getWriteAccess();
 			if (writeAccess == null) return false;
-			return writeAccess.contains(tag);
+			return captures(writeAccess, List.of(tag));
 		}
 		return false;
 	}
@@ -148,14 +146,15 @@ public class Auth {
 		return spec;
 	}
 
-	private static boolean anyMatch(List<String> xs, List<String> ys) {
-		if (xs == null) return false;
-		if (xs.isEmpty()) return false;
-		if (ys == null) return false;
-		if (ys.isEmpty()) return false;
-		for (String x : xs) {
-			for (String y : ys) {
-				if (x.equals(y)) return true;
+	private static boolean captures(List<String> selectors, List<String> target) {
+		if (selectors == null) return false;
+		if (selectors.isEmpty()) return false;
+		if (target == null) return false;
+		if (target.isEmpty()) return false;
+		for (String selector : selectors) {
+			var s = new QualifiedTag(selector);
+			for (String t : target) {
+				if (s.captures(t)) return true;
 			}
 		}
 		return false;

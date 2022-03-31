@@ -28,7 +28,6 @@ public class PluginService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Plugin plugin) {
-		if (!plugin.local()) throw new ForeignWriteException();
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		pluginRepository.save(plugin);
 	}
@@ -49,7 +48,6 @@ public class PluginService {
 
 	@PreAuthorize("@auth.canWriteTag(#plugin.qualifiedTag)")
 	public void update(Plugin plugin) {
-		if (!plugin.local()) throw new ForeignWriteException();
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();

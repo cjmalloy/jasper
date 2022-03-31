@@ -10,6 +10,7 @@ import static ca.hc.jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import java.util.*;
 
 import ca.hc.jasper.domain.proj.*;
+import ca.hc.jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;

@@ -43,7 +43,6 @@ public class TagService {
 
 	@PreAuthorize("@auth.canWriteTag(#tag.qualifiedTag)")
 	public void create(Tag tag) {
-		if (!tag.local()) throw new ForeignWriteException();
 		if (tagRepository.existsByQualifiedTag(tag.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(tag);
 		tag.setModified(Instant.now());
@@ -66,7 +65,6 @@ public class TagService {
 
 	@PreAuthorize("@auth.canWriteTag(#tag.qualifiedTag)")
 	public void update(Tag tag) {
-		if (!tag.local()) throw new ForeignWriteException();
 		var maybeExisting = tagRepository.findOneByQualifiedTag(tag.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
@@ -87,7 +85,6 @@ public class TagService {
 
 	@PreAuthorize("@auth.canWriteRef(#tag.qualifiedTag)")
 	public void validate(Tag tag) {
-		if (!tag.local()) throw new ForeignWriteException();
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(tag.getTag(), tag.getOrigin());
 		for (var template : templates) {
 			if (tag.getConfig() == null) throw new InvalidTemplateException(template.getTag());

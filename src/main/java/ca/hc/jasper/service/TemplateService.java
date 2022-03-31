@@ -28,7 +28,6 @@ public class TemplateService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Template template) {
-		if (!template.local()) throw new ForeignWriteException();
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		templateRepository.save(template);
 	}
@@ -49,7 +48,6 @@ public class TemplateService {
 
 	@PreAuthorize("@auth.canWriteTag(#template.qualifiedTag)")
 	public void update(Template template) {
-		if (!template.local()) throw new ForeignWriteException();
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();

@@ -7,7 +7,6 @@ import javax.persistence.criteria.Expression;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.Ref_;
 import ca.hc.jasper.domain.proj.HasTags;
-import ca.hc.jasper.repository.filter.QualifiedTag;
 import org.springframework.data.jpa.domain.Specification;
 
 public class RefSpec {

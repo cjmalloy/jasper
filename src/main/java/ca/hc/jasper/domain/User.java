@@ -10,6 +10,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.repository.spec.QualifiedTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -51,15 +52,15 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX + Origin.REGEX) String> subscriptions;
+	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> subscriptions;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX + Origin.REGEX) String> readAccess;
+	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX) String> writeAccess;
+	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> writeAccess;
 
 	private Instant lastNotified;
 

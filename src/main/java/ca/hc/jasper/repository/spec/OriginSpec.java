@@ -3,7 +3,6 @@ package ca.hc.jasper.repository.spec;
 import java.util.List;
 
 import ca.hc.jasper.domain.proj.HasOrigin;
-import ca.hc.jasper.repository.filter.QualifiedTag;
 import org.springframework.data.jpa.domain.Specification;
 
 public class OriginSpec {

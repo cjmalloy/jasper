@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.validation.ConstraintViolationException;
+
 import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
@@ -43,6 +45,48 @@ public class UserServiceIT {
 		var fetched = userRepository.findOneByQualifiedTag("user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("user/tester");
+		assertThat(fetched.getName())
+			.isEqualTo("Custom");
+	}
+
+	@Test
+	void testCreateUserWithAllSelector() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setWriteAccess(List.of("@*"));
+		userRepository.save(user);
+		var other = new User();
+		other.setTag("user/other");
+		other.setName("Custom");
+
+		userService.create(other);
+
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
+			.isEqualTo("user/other");
+		assertThat(fetched.getName())
+			.isEqualTo("Custom");
+	}
+
+	@Test
+	void testCreateUserWithAllOriginSelector() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setWriteAccess(List.of("user/other@*"));
+		userRepository.save(user);
+		var other = new User();
+		other.setTag("user/other");
+		other.setName("Custom");
+
+		userService.create(other);
+
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
+			.isEqualTo("user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -100,6 +144,43 @@ public class UserServiceIT {
 			.containsExactly("custom");
 		assertThat(fetched.getWriteAccess())
 			.containsExactly("custom");
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = "MOD")
+	void testModCreateUserWithTagSelectors() {
+		var user = new User();
+		user.setTag("user/other");
+		user.setName("Custom");
+		user.setReadAccess(List.of("@*"));
+		user.setWriteAccess(List.of("custom", "custom@other"));
+
+		userService.create(user);
+
+		assertThat(userRepository.existsByQualifiedTag("user/other"))
+			.isTrue();
+		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		assertThat(fetched.getTag())
+			.isEqualTo("user/other");
+		assertThat(fetched.getName())
+			.isEqualTo("Custom");
+		assertThat(fetched.getReadAccess())
+			.containsExactly("@*");
+		assertThat(fetched.getWriteAccess())
+			.containsExactly("custom", "custom@other");
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = "MOD")
+	void testModCreateUserWithNotTagSelectorsFailed() {
+		var user = new User();
+		user.setTag("user/other");
+		user.setWriteAccess(List.of("!@excluded"));
+
+		userService.create(user);
+
+		assertThatThrownBy(() -> userRepository.existsByQualifiedTag("user/other"))
+			.isInstanceOf(ConstraintViolationException.class);
 	}
 
 	@Test
@@ -324,6 +405,44 @@ public class UserServiceIT {
 
 		assertThatThrownBy(() -> userService.get("_user/other"))
 			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	void testReadOtherUserWithAllSelector() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("@*"));
+		userRepository.save(user);
+		var other = new User();
+		other.setTag("_user/other");
+		other.setName("Secret");
+		userRepository.save(other);
+
+		var fetched = userService.get("_user/other");
+
+		assertThat(fetched.getTag())
+			.isEqualTo("_user/other");
+		assertThat(fetched.getName())
+			.isEqualTo("Secret");
+	}
+
+	@Test
+	void testReadOtherUserWithAllOriginSelector() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_user/other@*"));
+		userRepository.save(user);
+		var other = new User();
+		other.setTag("_user/other");
+		other.setName("Secret");
+		userRepository.save(other);
+
+		var fetched = userService.get("_user/other");
+
+		assertThat(fetched.getTag())
+			.isEqualTo("_user/other");
+		assertThat(fetched.getName())
+			.isEqualTo("Secret");
 	}
 
 	@Test

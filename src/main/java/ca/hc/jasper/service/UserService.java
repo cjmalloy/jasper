@@ -33,7 +33,6 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
-		if (!user.local()) throw new ForeignWriteException();
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		userRepository.save(user);
 	}
@@ -56,7 +55,6 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void update(User user) {
-		if (!user.local()) throw new ForeignWriteException();
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
