@@ -7,9 +7,15 @@ import static ca.hc.jasper.repository.spec.TagSpec.isTag;
 import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.domain.Tag;
 import ca.hc.jasper.domain.proj.*;
+import ca.hc.jasper.repository.filter.TagQuery;
+import liquibase.pro.packaged.T;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 public class QualifiedTag {
+	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
+
 	public static final String TAG_OR_WILDCARD = "(" + Tag.REGEX + ")?";
 	public static final String ORIGIN_OR_WILDCARD = "(" + Origin.REGEX_NOT_BLANK + "|@\\*)";
 	public static final String SELECTOR = "(" + Tag.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
@@ -20,15 +26,18 @@ public class QualifiedTag {
 	private final String origin;
 
 	public QualifiedTag(String qt) {
+		logger.debug(qt);
 		not = qt.startsWith("!");
 		if (not) qt = qt.substring(1);
 		var index = qt.indexOf("@");
 		if (index == -1) {
 			tag = qt;
 			origin = "";
+			if (tag.isEmpty()) throw new UnsupportedOperationException();
 		} else {
 			tag = qt.substring(0, index);
 			origin = qt.substring(index);
+			if (origin.isEmpty()) throw new UnsupportedOperationException();
 		}
 	}
 

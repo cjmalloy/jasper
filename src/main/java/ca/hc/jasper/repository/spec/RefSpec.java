@@ -65,7 +65,7 @@ public class RefSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.or(t.refSpec());
+			spec = spec.or(t.refSpec());
 		}
 		return spec;
 	}
@@ -74,7 +74,7 @@ public class RefSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.and(t.refSpec());
+			spec = spec.and(t.refSpec());
 		}
 		return spec;
 	}

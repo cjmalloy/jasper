@@ -18,7 +18,7 @@ public class OriginSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.or(t.originSpec());
+			spec = spec.or(t.originSpec());
 		}
 		return spec;
 	}
@@ -27,7 +27,7 @@ public class OriginSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.and(t.originSpec());
+			spec = spec.and(t.originSpec());
 		}
 		return spec;
 	}

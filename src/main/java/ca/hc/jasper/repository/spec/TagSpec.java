@@ -34,7 +34,7 @@ public class TagSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.or(t.spec());
+			spec = spec.or(t.spec());
 		}
 		return spec;
 	}
@@ -43,7 +43,7 @@ public class TagSpec {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
-			spec.and(t.spec());
+			spec = spec.and(t.spec());
 		}
 		return spec;
 	}

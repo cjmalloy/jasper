@@ -4,8 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.*;
@@ -190,6 +189,139 @@ public class RefServiceIT {
 
 		var page = refService.page(
 			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	Ref refWithTags(String... tags) {
+		var ref = new Ref();
+		ref.setUrl(URL + UUID.randomUUID());
+		ref.setTags(List.of(tags));
+		refRepository.save(ref);
+		return ref;
+	}
+
+	@Test
+	void testGetPageRefWithQuery() {
+		refWithTags("public");
+		refWithTags("public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetPageRefWithNotQuery() {
+		refWithTags("public", "custom");
+		refWithTags("public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!custom extra")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	Ref refWithOriginTags(String origin, String... tags) {
+		var ref = new Ref();
+		ref.setOrigin(origin);
+		ref.setUrl(URL + UUID.randomUUID());
+		ref.setTags(List.of(tags));
+		refRepository.save(ref);
+		return ref;
+	}
+
+	@Test
+	void testGetPageRefWithOriginQuery() {
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@a")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetPageRefWithOriginOrQuery() {
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+		refWithOriginTags("@c", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@a custom@b")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testGetPageRefWithOriginOrExtraSpacesQuery() {
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+		refWithOriginTags("@c", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("  custom@a  +  custom@b  : extra@b  ")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testGetPageRefWithNotOriginQuery() {
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+		refWithOriginTags("@c", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!custom@c:extra@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetPageRefWithImpossibleOriginQuery() {
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+		refWithOriginTags("@c", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@a:custom@b")
+				.build(),
 			PageRequest.of(0, 10));
 
 		assertThat(page.getTotalElements())

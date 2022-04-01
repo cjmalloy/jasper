@@ -16,15 +16,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
-	public static final String REGEX = QualifiedTag.REGEX + "([ +|:&]" + QualifiedTag.REGEX + ")*";
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
+
+	public static final String REGEX = QualifiedTag.REGEX + "([ +|:&]" + QualifiedTag.REGEX + ")*";
 
 	private final List<List<QualifiedTag>> orGroups = new ArrayList<>();
 	private final List<QualifiedTag> orTags = new ArrayList<>();
 
 	public TagQuery(String query) {
-		logger.debug(query);
-		parse(query);
+		parse(sanitize(query));
 	}
 
 	public <T extends HasTags> Specification<T> refSpec() {
@@ -61,6 +61,7 @@ public class TagQuery {
 	}
 
 	private void parse(String query) {
+		logger.debug(query);
 		// TODO: Allow parentheses?
 		var ors = query.split("[ +|]");
 		for (var orGroup : ors) {
@@ -72,6 +73,12 @@ public class TagQuery {
 				orGroups.add(Arrays.stream(ands).map(QualifiedTag::new).toList());
 			}
 		}
+	}
+
+	private String sanitize(String query) {
+		return query
+			.replaceAll("\\s*([ +|:&])\\s*", "$1")
+			.trim();
 	}
 
 }
