@@ -6,6 +6,7 @@ import javax.validation.constraints.Pattern;
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.service.ExtService;
+import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,21 +25,21 @@ public class ExtController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createTag(
+	void createExt(
 		@RequestBody @Valid Ext ext
 	) {
 		extService.create(ext);
 	}
 
 	@GetMapping
-	Ext getTag(
+	Ext getExt(
 		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
 	) {
 		return extService.get(tag);
 	}
 
 	@GetMapping("list")
-	Page<Ext> getTags(
+	Page<Ext> getExts(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query
 	) {
@@ -51,15 +52,24 @@ public class ExtController {
 
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateTag(
+	void updateExt(
 		@RequestBody @Valid Ext ext
 	) {
 		extService.update(ext);
 	}
 
+	@PatchMapping(consumes = "application/json-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchExt(
+		@RequestParam @Pattern(regexp = TagId.REGEX) String tag,
+		@RequestBody JsonPatch patch
+	) {
+		extService.patch(tag, patch);
+	}
+
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void deleteTag(
+	void deleteExt(
 		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
 	) {
 		extService.delete(tag);

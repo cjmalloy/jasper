@@ -9,7 +9,11 @@ import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.JsonPatchException;
 import com.jsontypedef.jtd.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +77,18 @@ public class ExtService {
 		validate(ext);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);
+	}
+
+	@PreAuthorize("@auth.canWriteTag(#tag)")
+	public void patch(String tag, JsonPatch patch) {
+		var maybeExisting = extRepository.findOneByQualifiedTag(tag);
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		try {
+			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
+			update(objectMapper.treeToValue(patched, Ext.class));
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException(e);
+		}
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
