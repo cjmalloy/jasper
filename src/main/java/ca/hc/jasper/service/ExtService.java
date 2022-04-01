@@ -2,8 +2,8 @@ package ca.hc.jasper.service;
 
 import java.time.Instant;
 
-import ca.hc.jasper.domain.Tag;
-import ca.hc.jasper.repository.TagRepository;
+import ca.hc.jasper.domain.Ext;
+import ca.hc.jasper.repository.ExtRepository;
 import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
@@ -23,11 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class TagService {
-	private static final Logger logger = LoggerFactory.getLogger(TagService.class);
+public class ExtService {
+	private static final Logger logger = LoggerFactory.getLogger(ExtService.class);
 
 	@Autowired
-	TagRepository tagRepository;
+	ExtRepository extRepository;
 
 	@Autowired
 	TemplateRepository templateRepository;
@@ -41,54 +41,54 @@ public class TagService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@PreAuthorize("@auth.canWriteTag(#tag.qualifiedTag)")
-	public void create(Tag tag) {
-		if (tagRepository.existsByQualifiedTag(tag.getQualifiedTag())) throw new AlreadyExistsException();
-		validate(tag);
-		tag.setModified(Instant.now());
-		tagRepository.save(tag);
+	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	public void create(Ext ext) {
+		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
+		validate(ext);
+		ext.setModified(Instant.now());
+		extRepository.save(ext);
 	}
 
 	@PostAuthorize("@auth.canReadTag(#tag)")
-	public Tag get(String tag) {
-		return tagRepository.findOneByQualifiedTag(tag)
+	public Ext get(String tag) {
+		return extRepository.findOneByQualifiedTag(tag)
 							.orElseThrow(NotFoundException::new);
 	}
 
-	public Page<Tag> page(TagFilter filter, Pageable pageable) {
-		return tagRepository
+	public Page<Ext> page(TagFilter filter, Pageable pageable) {
+		return extRepository
 			.findAll(
-				auth.<Tag>tagReadSpec()
+				auth.<Ext>tagReadSpec()
 					.and(filter.spec()),
 				pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#tag.qualifiedTag)")
-	public void update(Tag tag) {
-		var maybeExisting = tagRepository.findOneByQualifiedTag(tag.getQualifiedTag());
+	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	public void update(Ext ext) {
+		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!tag.getModified().equals(existing.getModified())) throw new ModifiedException();
-		validate(tag);
-		tag.setModified(Instant.now());
-		tagRepository.save(tag);
+		if (!ext.getModified().equals(existing.getModified())) throw new ModifiedException();
+		validate(ext);
+		ext.setModified(Instant.now());
+		extRepository.save(ext);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			tagRepository.deleteByQualifiedTag(tag);
+			extRepository.deleteByQualifiedTag(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#tag.qualifiedTag)")
-	public void validate(Tag tag) {
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(tag.getTag(), tag.getOrigin());
+	@PreAuthorize("@auth.canWriteRef(#ext.qualifiedTag)")
+	public void validate(Ext ext) {
+		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		for (var template : templates) {
-			if (tag.getConfig() == null) throw new InvalidTemplateException(template.getTag());
-			var tagConfig = new JacksonAdapter(tag.getConfig());
+			if (ext.getConfig() == null) throw new InvalidTemplateException(template.getTag());
+			var tagConfig = new JacksonAdapter(ext.getConfig());
 			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
 			try {
 				var errors = validator.validate(schema, tagConfig);

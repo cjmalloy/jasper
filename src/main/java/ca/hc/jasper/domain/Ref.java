@@ -43,7 +43,7 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX) String> tags;
+	private List<@Pattern(regexp = TagId.REGEX) String> tags;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

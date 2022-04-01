@@ -3,9 +3,9 @@ package ca.hc.jasper.web.rest;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.Tag;
+import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.service.TagService;
+import ca.hc.jasper.service.ExtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,34 +15,34 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("api/v1/tag")
+@RequestMapping("api/v1/ext")
 @Validated
-public class TagController {
+public class ExtController {
 
 	@Autowired
-	TagService tagService;
+	ExtService extService;
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createTag(
-		@RequestBody @Valid Tag tag
+		@RequestBody @Valid Ext ext
 	) {
-		tagService.create(tag);
+		extService.create(ext);
 	}
 
 	@GetMapping
-	Tag getTag(
-		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
+	Ext getTag(
+		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
 	) {
-		return tagService.get(tag);
+		return extService.get(tag);
 	}
 
 	@GetMapping("list")
-	Page<Tag> getTags(
+	Page<Ext> getTags(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query
 	) {
-		return tagService.page(
+		return extService.page(
 			TagFilter
 				.builder()
 				.query(query).build(),
@@ -52,16 +52,16 @@ public class TagController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateTag(
-		@RequestBody @Valid Tag tag
+		@RequestBody @Valid Ext ext
 	) {
-		tagService.update(tag);
+		extService.update(ext);
 	}
 
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTag(
-		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
+		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
 	) {
-		tagService.delete(tag);
+		extService.delete(tag);
 	}
 }

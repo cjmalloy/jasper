@@ -5,10 +5,9 @@ import static ca.hc.jasper.repository.spec.RefSpec.hasTag;
 import static ca.hc.jasper.repository.spec.TagSpec.isTag;
 
 import ca.hc.jasper.domain.Origin;
-import ca.hc.jasper.domain.Tag;
+import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.domain.proj.*;
 import ca.hc.jasper.repository.filter.TagQuery;
-import liquibase.pro.packaged.T;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,9 +15,9 @@ import org.springframework.data.jpa.domain.Specification;
 public class QualifiedTag {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 
-	public static final String TAG_OR_WILDCARD = "(" + Tag.REGEX + ")?";
+	public static final String TAG_OR_WILDCARD = "(" + TagId.REGEX + ")?";
 	public static final String ORIGIN_OR_WILDCARD = "(" + Origin.REGEX_NOT_BLANK + "|@\\*)";
-	public static final String SELECTOR = "(" + Tag.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
+	public static final String SELECTOR = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
 	public static final String REGEX = "!?" + SELECTOR;
 
 	private final boolean not;

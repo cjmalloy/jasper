@@ -30,7 +30,7 @@ public class Template implements IsTag {
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = Tag.REGEX)
+	@Pattern(regexp = TagId.REGEX)
 	private String tag;
 
 	@Id

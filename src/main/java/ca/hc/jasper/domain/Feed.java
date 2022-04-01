@@ -39,7 +39,7 @@ public class Feed implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = Tag.REGEX) String> tags;
+	private List<@Pattern(regexp = TagId.REGEX) String> tags;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
