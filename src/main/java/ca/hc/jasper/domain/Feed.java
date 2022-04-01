@@ -28,7 +28,6 @@ public class Feed implements HasTags {
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@URL
 	private String url;
 
 	@Id

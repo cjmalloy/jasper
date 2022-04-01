@@ -33,7 +33,6 @@ public class Origin implements HasOrigin {
 
 	@Column(updatable = false)
 	@NotBlank
-	@URL
 	private String url;
 
 	private String name;

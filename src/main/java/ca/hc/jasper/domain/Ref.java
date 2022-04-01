@@ -30,7 +30,6 @@ public class Ref implements HasTags {
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@URL
 	private String url;
 
 	@Id
@@ -48,11 +47,11 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@URL String> sources;
+	private List<String> sources;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@URL String> alternateUrls;
+	private List<String> alternateUrls;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

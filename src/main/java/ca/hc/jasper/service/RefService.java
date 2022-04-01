@@ -1,10 +1,7 @@
 package ca.hc.jasper.service;
 
-import static ca.hc.jasper.repository.spec.RefSpec.hasSource;
-import static ca.hc.jasper.repository.spec.RefSpec.isUrls;
-
 import java.time.Instant;
-import java.util.Collection;
+import java.util.*;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.PluginRepository;
@@ -71,7 +68,7 @@ public class RefService {
 		return refRepository
 			.findAll(
 				auth.<Ref>refReadSpec()
-					.and(filter.spec()),
+					.and(filter.spec(this::getSources)),
 				pageable)
 			.map(mapper::domainToDto);
 	}
@@ -80,49 +77,18 @@ public class RefService {
 		return refRepository
 			.count(
 				auth.<Ref>refReadSpec()
-					.and(filter.spec()));
+					.and(filter.spec(this::getSources)));
 	}
 
-	public Page<RefDto> responses(String url, RefFilter filter, Pageable pageable) {
-		return refRepository
-			.findAll(
-				auth.<Ref>refReadSpec()
-					.and(hasSource(url))
-					.and(filter.spec()),
-				pageable)
-			.map(mapper::domainToDto);
-	}
-
-	public long countResponses(String url, RefFilter filter) {
-		return refRepository.count(
-			auth.<Ref>refReadSpec()
-				.and(hasSource(url))
-				.and(filter.spec()));
-	}
-
-	public Page<RefDto> sources(String url, RefFilter filter, Pageable pageable) {
+	private List<String> getSources(String url) {
 		var refs = refRepository.findAllByUrl(url);
 		if (refs.isEmpty()) throw new NotFoundException();
-		var sources = refs.stream()
-						  .map(Ref::getSources)
-						  .flatMap(Collection::stream).toList();
-		return refRepository
-			.findAll(
-				auth.<Ref>refReadSpec()
-					.and(isUrls(sources))
-					.and(filter.spec()),
-				pageable)
-			.map(mapper::domainToDto);
+		return refs.stream()
+				   .map(Ref::getSources)
+				   .filter(Objects::nonNull)
+				   .flatMap(Collection::stream).toList();
 	}
 
-	public long countSources(String url, RefFilter filter) {
-		var result = refRepository.findOneByUrlAndOrigin(url, "")
-								  .orElseThrow(NotFoundException::new);
-		return refRepository.count(
-			auth.<Ref>refReadSpec()
-				.and(isUrls(result.getSources()))
-				.and(filter.spec()));
-	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {

@@ -36,6 +36,15 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
+	public static Specification<Ref> hasNoSources() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.sources)),
+				cb.equal(
+					cb.function("jsonb_array_length", Long.class, root.get(Ref_.sources)),
+					cb.literal(0)));
+	}
+
 	public static <T extends HasTags> Specification<T> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,

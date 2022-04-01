@@ -47,7 +47,7 @@ public class FeedService {
 		return feedRepository
 			.findAll(
 				auth.<Feed>refReadSpec()
-					.and(filter.spec()),
+					.and(filter.feedSpec()),
 				pageable)
 			.map(mapper::domainToDto);
 	}
