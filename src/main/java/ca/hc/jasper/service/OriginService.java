@@ -1,6 +1,7 @@
 package ca.hc.jasper.service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.repository.OriginRepository;
@@ -62,7 +63,7 @@ public class OriginService {
 		var maybeExisting = originRepository.findById(origin.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!origin.getModified().equals(existing.getModified())) throw new ModifiedException();
+		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		origin.setModified(Instant.now());
 		originRepository.save(origin);
 	}

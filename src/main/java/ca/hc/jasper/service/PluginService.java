@@ -1,6 +1,7 @@
 package ca.hc.jasper.service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import ca.hc.jasper.domain.Plugin;
 import ca.hc.jasper.repository.PluginRepository;
@@ -51,7 +52,7 @@ public class PluginService {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!plugin.getModified().equals(existing.getModified())) throw new ModifiedException();
+		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		plugin.setModified(Instant.now());
 		pluginRepository.save(plugin);
 	}

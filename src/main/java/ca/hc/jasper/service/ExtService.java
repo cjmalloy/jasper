@@ -1,6 +1,7 @@
 package ca.hc.jasper.service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import ca.hc.jasper.domain.Ext;
 import ca.hc.jasper.repository.ExtRepository;
@@ -68,7 +69,7 @@ public class ExtService {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!ext.getModified().equals(existing.getModified())) throw new ModifiedException();
+		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		validate(ext);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);

@@ -1,6 +1,7 @@
 package ca.hc.jasper.service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import ca.hc.jasper.domain.Template;
 import ca.hc.jasper.repository.TemplateRepository;
@@ -51,7 +52,7 @@ public class TemplateService {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!template.getModified().equals(existing.getModified())) throw new ModifiedException();
+		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		template.setModified(Instant.now());
 		templateRepository.save(template);
 	}

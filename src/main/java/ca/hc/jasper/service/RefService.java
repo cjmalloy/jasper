@@ -1,6 +1,7 @@
 package ca.hc.jasper.service;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import ca.hc.jasper.domain.Ref;
@@ -95,7 +96,7 @@ public class RefService {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
-		if (!ref.getModified().equals(existing.getModified())) throw new ModifiedException();
+		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		ref.addTags(auth.hiddenTags(existing.getTags()));
 		validate(ref);
 		ref.setModified(Instant.now());
