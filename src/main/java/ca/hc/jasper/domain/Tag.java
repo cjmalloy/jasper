@@ -42,10 +42,6 @@ public class Tag implements IsTag {
 
 	private String name;
 
-	private int color;
-
-	private int textColor;
-
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private JsonNode config;

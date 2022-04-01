@@ -74,14 +74,6 @@ public class UserController {
 		userService.delete(tag);
 	}
 
-	@DeleteMapping("notifications")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void clearNotifications(
-		@RequestParam @Pattern(regexp = Tag.REGEX) String tag
-	) {
-		userService.clearNotifications(tag);
-	}
-
 	@GetMapping("whoami")
 	String whoAmI() {
 		return auth.getUserTag();

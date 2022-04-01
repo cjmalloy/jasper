@@ -47,21 +47,11 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> watches;
-
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> subscriptions;
-
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
 	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> writeAccess;
-
-	private Instant lastNotified;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
@@ -97,21 +87,6 @@ public class User implements IsTag {
 			for (var t : toAdd) {
 				if (!writeAccess.contains(t)) {
 					writeAccess.add(t);
-				}
-			}
-		}
-		return this;
-	}
-
-	@JsonIgnore
-	public User addSubscriptions(List<String> toAdd) {
-		if (toAdd == null) return this;
-		if (subscriptions == null) {
-			subscriptions = toAdd;
-		} else {
-			for (var t : toAdd) {
-				if (!subscriptions.contains(t)) {
-					subscriptions.add(t);
 				}
 			}
 		}

@@ -1,14 +1,13 @@
 package ca.hc.jasper.service;
 
-import java.time.Instant;
-
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.UserDto;
-import ca.hc.jasper.service.errors.*;
+import ca.hc.jasper.service.errors.AlreadyExistsException;
+import ca.hc.jasper.service.errors.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -59,7 +58,6 @@ public class UserService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
-		user.addSubscriptions(auth.hiddenTags(maybeExisting.get().getSubscriptions()));
 		userRepository.save(user);
 	}
 
@@ -70,14 +68,5 @@ public class UserService {
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
-	}
-
-	@PreAuthorize("@auth.canWriteTag(#tag)")
-	public void clearNotifications(String tag) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(tag);
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
-		var user = maybeExisting.get();
-		user.setLastNotified(Instant.now());
-		userRepository.save(user);
 	}
 }

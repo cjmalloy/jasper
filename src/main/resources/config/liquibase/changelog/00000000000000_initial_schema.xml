@@ -6,18 +6,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd
                         http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
 
-    <changeSet id="00000000000000" author="jhipster">
-        <createSequence sequenceName="sequence_generator" startValue="1050" incrementBy="50"/>
-    </changeSet>
-
-    <!--
-        JHipster core tables.
-        The initial schema has the '00000000000001' id, so that it is over-written if we re-generate it.
-    -->
-    <changeSet id="00000000000001" author="jhipster">
-    </changeSet>
-
-    <changeSet author="jhipster" id="00000000000002" context="test">
+    <changeSet author="jhipster" id="00000000000000" context="test">
         <createTable tableName="jhi_date_time_wrapper">
             <column  name="id" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="jhi_date_time_wrapperPK"/>
@@ -32,7 +21,7 @@
         </createTable>
     </changeSet>
 
-	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+	<changeSet author="chris" id="00000000000001" dbms="postgresql">
 		<createTable tableName="ref">
 			<column name="url" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
@@ -76,8 +65,6 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
-			<column name="color" type="INT"/>
-			<column name="text_color" type="INT"/>
 			<column name="config" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
@@ -95,11 +82,8 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
-			<column name="watches" type="JSONB"/>
-			<column name="subscriptions" type="JSONB"/>
 			<column name="read_access" type="JSONB"/>
 			<column name="write_access" type="JSONB"/>
-			<column name="last_notified" type="TIMESTAMP"/>
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>

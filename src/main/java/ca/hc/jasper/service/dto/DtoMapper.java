@@ -31,7 +31,6 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget UserDto userDto) {
-		userDto.setSubscriptions(auth.filterTags(userDto.getSubscriptions()));
 		userDto.setReadAccess(auth.filterTags(userDto.getReadAccess()));
 		userDto.setWriteAccess(auth.filterTags(userDto.getWriteAccess()));
 	}

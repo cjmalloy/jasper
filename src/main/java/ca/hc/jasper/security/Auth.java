@@ -108,7 +108,6 @@ public class Auth {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
 		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
-		if (!newTags(user.getSubscriptions(), maybeExisting.map(User::getSubscriptions)).allMatch(this::canReadTag)) return false;
 		return true;
 	}
 
