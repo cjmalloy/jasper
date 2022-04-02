@@ -12,7 +12,11 @@ import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.RefDto;
 import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.JsonPatchException;
 import com.jsontypedef.jtd.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +105,18 @@ public class RefService {
 		validate(ref);
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#url)")
+	public void patch(String url, String origin, JsonPatch patch) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		try {
+			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
+			update(objectMapper.treeToValue(patched, Ref.class));
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException(e);
+		}
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#url)")

@@ -8,6 +8,7 @@ import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
+import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -88,6 +89,16 @@ public class RefController {
 		@RequestBody @Valid Ref ref
 	) {
 		refService.update(ref);
+	}
+
+	@PatchMapping(consumes = "application/json-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchExt(
+		@RequestParam String url,
+		@RequestParam(defaultValue = "") String origin,
+		@RequestBody JsonPatch patch
+	) {
+		refService.patch(url, origin, patch);
 	}
 
 	@DeleteMapping
