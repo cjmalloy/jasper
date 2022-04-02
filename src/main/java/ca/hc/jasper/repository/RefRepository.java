@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref> {
-	List<Ref> findAllByUrlAndPublishedAfter(String url, Instant date);
+	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
 	@Query(nativeQuery = true, value = """
 		SELECT * FROM ref
 		WHERE ref.published < :date

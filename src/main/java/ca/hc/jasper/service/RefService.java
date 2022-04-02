@@ -163,7 +163,7 @@ public class RefService {
 	public void validateSources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sources = refRepository.findAllByUrlAndPublishedAfter(sourceUrl, ref.getPublished());
+			var sources = refRepository.findAllByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getPublished());
 			for (var source : sources) {
 				throw new PublishDateException(ref.getUrl(), source.getUrl());
 			}
