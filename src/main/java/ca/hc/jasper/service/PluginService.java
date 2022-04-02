@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,7 @@ public class PluginService {
 		pluginRepository.save(plugin);
 	}
 
-	@PostAuthorize("@auth.canReadTag(#tag)")
+	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Plugin get(String tag) {
 		return pluginRepository.findOneByQualifiedTag(tag)
 							   .orElseThrow(NotFoundException::new);
