@@ -59,6 +59,7 @@ public class ExtService {
 							.orElseThrow(NotFoundException::new);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Ext> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(

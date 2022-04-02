@@ -38,6 +38,7 @@ public class PluginService {
 							   .orElseThrow(NotFoundException::new);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(

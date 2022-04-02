@@ -6,13 +6,15 @@ import java.time.Instant;
 
 import ca.hc.jasper.domain.proj.*;
 import lombok.Builder;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 @Builder
-public class TagFilter {
-	public static final String QUERY = TagQuery.REGEX;
+@Getter
+public class TagFilter implements Query {
+	public static final String QUERY = Query.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
 	private String query;

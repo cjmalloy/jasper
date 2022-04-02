@@ -9,13 +9,15 @@ import java.util.List;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.proj.HasTags;
 import lombok.Builder;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 @Builder
-public class RefFilter {
-	public static final String QUERY = TagQuery.REGEX;
+@Getter
+public class RefFilter implements Query {
+	public static final String QUERY = Query.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String query;

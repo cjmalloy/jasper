@@ -13,6 +13,7 @@ import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.domain.proj.IsTag;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.UserRepository;
+import ca.hc.jasper.repository.filter.Query;
 import ca.hc.jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +100,22 @@ public class Auth {
 			var writeAccess = getWriteAccess();
 			if (writeAccess == null) return false;
 			return captures(writeAccess, List.of(tag));
+		}
+		return false;
+	}
+
+	public boolean canReadQuery(Query filter) {
+		if (filter.getQuery() == null) return true;
+		if (hasRole("MOD")) return true;
+		var tagList = Arrays.stream(filter.getQuery().split(Query.DELIMS + "+"))
+							.filter((t) -> t.startsWith("_"))
+							.filter((t) -> !t.equals(getUserTag()))
+							.toList();
+		if (tagList.isEmpty()) return true;
+		if (hasRole("USER")) {
+			var readAccess = getReadAccess();
+			if (readAccess == null) return false;
+			return readAccess.containsAll(tagList);
 		}
 		return false;
 	}

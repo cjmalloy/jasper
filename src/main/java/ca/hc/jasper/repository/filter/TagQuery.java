@@ -1,5 +1,6 @@
 package ca.hc.jasper.repository.filter;
 
+import static ca.hc.jasper.repository.filter.Query.*;
 import static ca.hc.jasper.repository.spec.OriginSpec.hasAllOrigins;
 import static ca.hc.jasper.repository.spec.OriginSpec.hasAnyOrigin;
 import static ca.hc.jasper.repository.spec.RefSpec.hasAllQualifiedTags;
@@ -17,8 +18,6 @@ import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-
-	public static final String REGEX = QualifiedTag.REGEX + "([ +|:&]" + QualifiedTag.REGEX + ")*";
 
 	private final List<List<QualifiedTag>> orGroups = new ArrayList<>();
 	private final List<QualifiedTag> orTags = new ArrayList<>();
@@ -63,9 +62,9 @@ public class TagQuery {
 	private void parse(String query) {
 		logger.debug(query);
 		// TODO: Allow parentheses?
-		var ors = query.split("[ +|]");
+		var ors = query.split(OR_REGEX);
 		for (var orGroup : ors) {
-			var ands = orGroup.split("[:&]");
+			var ands = orGroup.split(AND_REGEX);
 			if (ands.length == 0) continue;
 			if (ands.length == 1) {
 				orTags.add(new QualifiedTag(ands[0]));
@@ -77,7 +76,7 @@ public class TagQuery {
 
 	private String sanitize(String query) {
 		return query
-			.replaceAll("\\s*([ +|:&])\\s*", "$1")
+			.replaceAll("\\s*(" + DELIMS + ")\\s*", "$1")
 			.trim();
 	}
 

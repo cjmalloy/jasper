@@ -38,6 +38,7 @@ public class TemplateService {
 								 .orElseThrow(NotFoundException::new);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Template> page(TagFilter filter, Pageable pageable) {
 		return templateRepository
 			.findAll(

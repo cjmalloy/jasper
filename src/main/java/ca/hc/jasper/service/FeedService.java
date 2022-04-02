@@ -42,7 +42,7 @@ public class FeedService {
 		return mapper.domainToDto(result);
 	}
 
-	@PreAuthorize("hasRole('USER')")
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<FeedDto> page(RefFilter filter, Pageable pageable) {
 		return feedRepository
 			.findAll(

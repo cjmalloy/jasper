@@ -90,8 +90,19 @@ public class ExtServiceIT {
 
 	@Test
 	void testReadNonExistentPrivateExt() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_secret"));
+		userRepository.save(user);
+
 		assertThatThrownBy(() -> extService.get("_secret"))
 			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testReadPrivateExtDenied() {
+		assertThatThrownBy(() -> extService.get("_secret"))
+			.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test

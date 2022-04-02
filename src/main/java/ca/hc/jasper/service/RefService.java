@@ -69,6 +69,7 @@ public class RefService {
 		return mapper.domainToDto(result);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
 			.findAll(
@@ -78,6 +79,7 @@ public class RefService {
 			.map(mapper::domainToDto);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public long count(RefFilter filter) {
 		return refRepository
 			.count(
@@ -93,7 +95,6 @@ public class RefService {
 				   .filter(Objects::nonNull)
 				   .flatMap(Collection::stream).toList();
 	}
-
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {

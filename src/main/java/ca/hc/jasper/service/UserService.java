@@ -42,6 +42,7 @@ public class UserService {
 		return mapper.domainToDto(result);
 	}
 
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(

@@ -220,6 +220,20 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageRefWithQueryPrivateTagFailed() {
+		refWithTags("public");
+		refWithTags("public", "_custom", "extra");
+
+		assertThatThrownBy(() -> refService.page(
+			RefFilter
+				.builder()
+				.query("_custom")
+				.build(),
+			PageRequest.of(0, 10)))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
 	void testGetPageRefWithNotQuery() {
 		refWithTags("public", "custom");
 		refWithTags("public", "custom", "extra");

@@ -301,8 +301,19 @@ public class UserServiceIT {
 
 	@Test
 	void testReadNonExistentPrivateUser() {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("_user/other"));
+		userRepository.save(user);
+
 		assertThatThrownBy(() -> userService.get("_user/other"))
 			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testReadPrivateUserDenied() {
+		assertThatThrownBy(() -> userService.get("_user/other"))
+			.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test
