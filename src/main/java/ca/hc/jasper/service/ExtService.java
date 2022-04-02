@@ -49,7 +49,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void create(Ext ext) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
-		validate(ext);
+		validate(ext, true);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);
 	}
@@ -74,7 +74,7 @@ public class ExtService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
-		validate(ext);
+		validate(ext, false);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);
 	}
@@ -101,10 +101,13 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ext.qualifiedTag)")
-	public void validate(Ext ext) {
+	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		for (var template : templates) {
-			if (ext.getConfig() == null) throw new InvalidTemplateException(template.getTag());
+			if (ext.getConfig() == null) {
+				if (!useDefaults) throw new InvalidTemplateException(template.getTag());
+				ext.setConfig(template.getDefaults());
+			}
 			var tagConfig = new JacksonAdapter(ext.getConfig());
 			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
 			try {

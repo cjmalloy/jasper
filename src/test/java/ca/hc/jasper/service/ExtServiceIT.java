@@ -562,7 +562,7 @@ public class ExtServiceIT {
 		ext.setTag("user/tester");
 		ext.setName("First");
 
-		extService.validate(ext);
+		extService.validate(ext, false);
 	}
 
 	@Test
@@ -582,7 +582,7 @@ public class ExtServiceIT {
 		ext.setTag("user/tester");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> extService.validate(ext))
+		assertThatThrownBy(() -> extService.validate(ext, false))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -608,7 +608,7 @@ public class ExtServiceIT {
 			"age": 100
 		}"""));
 
-		extService.validate(ext);
+		extService.validate(ext, false);
 	}
 
 	@Test
@@ -622,7 +622,7 @@ public class ExtServiceIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		extService.validate(ext);
+		extService.validate(ext, false);
 	}
 
 	@Test
@@ -647,7 +647,7 @@ public class ExtServiceIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> extService.validate(ext))
+		assertThatThrownBy(() -> extService.validate(ext, false))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -678,7 +678,7 @@ public class ExtServiceIT {
 			"age": 100
 		}"""));
 
-		extService.validate(ext);
+		extService.validate(ext, false);
 	}
 
 	@Test
@@ -703,7 +703,7 @@ public class ExtServiceIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> extService.validate(ext))
+		assertThatThrownBy(() -> extService.validate(ext, false))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -734,6 +734,6 @@ public class ExtServiceIT {
 			"age": 100
 		}"""));
 
-		extService.validate(ext);
+		extService.validate(ext, false);
 	}
 }
