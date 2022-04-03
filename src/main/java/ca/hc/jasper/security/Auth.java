@@ -7,7 +7,6 @@ import static ca.hc.jasper.repository.spec.TagSpec.*;
 import java.util.*;
 import java.util.stream.Stream;
 
-import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.domain.proj.IsTag;
@@ -56,13 +55,6 @@ public class Auth {
 			}
 		}
 		return false;
-	}
-
-	public boolean canWriteRef(Ref ref) {
-		if (!canWriteRef(ref.getUrl())) return false;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
-		if (!newTags(ref.getQualifiedTags(), maybeExisting.map(Ref::getQualifiedTags)).allMatch(this::canReadTag)) return false;
-		return true;
 	}
 
 	public boolean canWriteRef(String url) {

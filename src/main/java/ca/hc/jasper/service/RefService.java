@@ -52,7 +52,7 @@ public class RefService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void create(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
@@ -96,7 +96,7 @@ public class RefService {
 				   .flatMap(Collection::stream).toList();
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
@@ -129,14 +129,14 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void validate(Ref ref) {
 		validatePlugins(ref);
 		validateSources(ref);
 		validateResponses(ref);
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void validatePlugins(Ref ref) {
 		if (ref.getTags() == null) return;
 		for (var tag : ref.getQualifiedTags()) {
@@ -159,7 +159,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void validateSources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
@@ -170,7 +170,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void validateResponses(Ref ref) {
 		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
 		for (var response : responses) {
