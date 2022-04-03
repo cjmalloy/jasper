@@ -142,7 +142,7 @@ public class Auth {
 	}
 
 	public <T extends HasTags> Specification<T> refReadSpec() {
-		if (hasRole("MOD")) return null;
+		if (hasRole("MOD")) return Specification.where(null);
 		var spec = Specification
 			.<T>where(hasTag("public"));
 		if (hasRole("USER")) {
@@ -153,7 +153,7 @@ public class Auth {
 	}
 
 	public <T extends IsTag> Specification<T> tagReadSpec() {
-		if (hasRole("MOD")) return null;
+		if (hasRole("MOD")) return Specification.where(null);
 		var spec = Specification
 			.<T>where(publicTag());
 		if (hasRole("USER")) {
