@@ -78,4 +78,14 @@ public class UserController {
 	String whoAmI() {
 		return auth.getUserTag();
 	}
+
+	@GetMapping("whoami/admin")
+	boolean amIAdmin() {
+		return auth.hasRole("ADMIN");
+	}
+
+	@GetMapping("whoami/mod")
+	boolean amIMod() {
+		return auth.hasRole("MOD");
+	}
 }
