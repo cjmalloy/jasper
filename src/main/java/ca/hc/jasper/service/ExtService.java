@@ -100,7 +100,7 @@ public class ExtService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ext.qualifiedTag)")
+	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		for (var template : templates) {
