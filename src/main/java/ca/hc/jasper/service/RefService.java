@@ -69,6 +69,10 @@ public class RefService {
 		return mapper.domainToDto(result);
 	}
 
+	public boolean exists(String url, String origin) {
+		return refRepository.existsByUrlAndOrigin(url, origin);
+	}
+
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
