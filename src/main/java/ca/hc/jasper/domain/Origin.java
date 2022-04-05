@@ -22,7 +22,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Origin implements HasOrigin {
-	public static final String REGEX_NOT_BLANK = "@[a-z]+(.[a-z])*";
+	public static final String REGEX_NOT_BLANK = "@[a-z]+(\\.[a-z])*";
 	public static final String REGEX = "(" + REGEX_NOT_BLANK + ")?";
 
 	@Id
