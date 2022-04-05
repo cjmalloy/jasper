@@ -47,11 +47,11 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> readAccess;
+	private List<@Pattern(regexp = QualifiedTag.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Pattern(regexp = QualifiedTag.SELECTOR) String> writeAccess;
+	private List<@Pattern(regexp = QualifiedTag.REGEX) String> writeAccess;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

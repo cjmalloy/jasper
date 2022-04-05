@@ -17,8 +17,7 @@ public class QualifiedTag {
 
 	public static final String TAG_OR_WILDCARD = "(" + TagId.REGEX + ")?";
 	public static final String ORIGIN_OR_WILDCARD = "(" + Origin.REGEX_NOT_BLANK + "|@\\*)";
-	public static final String SELECTOR = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
-	public static final String REGEX = "!?" + SELECTOR;
+	public static final String REGEX = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
 
 	private final boolean not;
 	private final String tag;
