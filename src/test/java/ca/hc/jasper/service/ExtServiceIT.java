@@ -579,7 +579,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithInvalidTemplate() throws IOException {
 		var template = new Template();
-		template.setTag("user");
+		template.setPrefix("user");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -600,7 +600,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithTemplate() throws IOException {
 		var template = new Template();
-		template.setTag("user");
+		template.setPrefix("user");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -644,7 +644,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setTag("slug");
+		template.setPrefix("slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -670,7 +670,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setTag("slug");
+		template.setPrefix("slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -700,7 +700,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setTag("_slug");
+		template.setPrefix("_slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -726,7 +726,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setTag("_slug");
+		template.setPrefix("_slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{

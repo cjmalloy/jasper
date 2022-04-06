@@ -114,7 +114,7 @@
 		</createIndex>
 
 		<createTable tableName="template">
-			<column name="tag" type="TEXT">
+			<column name="prefix" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="origin" type="TEXT" defaultValue="">

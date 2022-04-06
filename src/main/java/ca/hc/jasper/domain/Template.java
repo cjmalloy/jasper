@@ -6,7 +6,7 @@ import javax.persistence.Entity;
 import javax.persistence.*;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.proj.IsTag;
+import ca.hc.jasper.domain.proj.HasOrigin;
 import ca.hc.jasper.domain.validator.SchemaValid;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,25 +20,25 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Entity
 @Getter
 @Setter
-@IdClass(TagId.class)
+@IdClass(TemplateId.class)
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Template implements IsTag {
+public class Template implements HasOrigin {
 	public static final String REGEX = "(_?[a-z]+(/[a-z]+)*)?";
 
 	@Id
 	@Column(updatable = false)
 	@Pattern(regexp = REGEX)
-	private String tag;
+	private String prefix;
 
 	@Id
 	@Column(updatable = false)
 	@Pattern(regexp = Origin.REGEX)
 	private String origin = "";
 
-	@Formula("tag || origin")
-	private String qualifiedTag;
+	@Formula("prefix || origin")
+	private String qualifiedPrefix;
 
 	private String name;
 
@@ -59,8 +59,8 @@ public class Template implements IsTag {
 	private Instant modified = Instant.now();
 
 	@JsonIgnore
-	public String getQualifiedTag() {
-		return getTag() + getOrigin();
+	public String getQualifiedPrefix() {
+		return getPrefix() + getOrigin();
 	}
 
 	@Override
@@ -68,11 +68,11 @@ public class Template implements IsTag {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Template template = (Template) o;
-		return tag.equals(template.tag) && origin.equals(template.origin);
+		return prefix.equals(template.prefix) && origin.equals(template.origin);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(tag, origin);
+		return Objects.hash(prefix, origin);
 	}
 }

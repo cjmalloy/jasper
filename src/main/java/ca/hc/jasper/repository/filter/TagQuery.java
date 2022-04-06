@@ -7,9 +7,12 @@ import static ca.hc.jasper.repository.spec.RefSpec.hasAllQualifiedTags;
 import static ca.hc.jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static ca.hc.jasper.repository.spec.TagSpec.isAllQualifiedTag;
 import static ca.hc.jasper.repository.spec.TagSpec.isAnyQualifiedTag;
+import static ca.hc.jasper.repository.spec.TemplateSpec.matchesAllQualifiedTag;
+import static ca.hc.jasper.repository.spec.TemplateSpec.matchesAnyQualifiedTag;
 
 import java.util.*;
 
+import ca.hc.jasper.domain.Template;
 import ca.hc.jasper.domain.proj.*;
 import ca.hc.jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
@@ -55,6 +58,17 @@ public class TagQuery {
 		}
 		for (var andGroup : orGroups) {
 			result = result.or(hasAllOrigins(andGroup));
+		}
+		return result;
+	}
+
+	public Specification<Template> templateSpec() {
+		var result = Specification.<Template>where(null);
+		if (orTags.size() > 0) {
+			result = result.or(matchesAnyQualifiedTag(orTags));
+		}
+		for (var andGroup : orGroups) {
+			result = result.or(matchesAllQualifiedTag(andGroup));
 		}
 		return result;
 	}

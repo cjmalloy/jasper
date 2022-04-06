@@ -5,7 +5,7 @@ import java.time.temporal.ChronoUnit;
 
 import ca.hc.jasper.domain.Template;
 import ca.hc.jasper.repository.TemplateRepository;
-import ca.hc.jasper.repository.filter.TagFilter;
+import ca.hc.jasper.repository.filter.TemplateFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,28 +28,24 @@ public class TemplateService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Template template) {
-		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
+		if (templateRepository.existsByQualifiedPrefix(template.getQualifiedPrefix())) throw new AlreadyExistsException();
 		templateRepository.save(template);
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Template get(String tag) {
-		return templateRepository.findOneByQualifiedTag(tag)
+		return templateRepository.findOneByQualifiedPrefix(tag)
 								 .orElseThrow(NotFoundException::new);
 	}
 
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	public Page<Template> page(TagFilter filter, Pageable pageable) {
-		return templateRepository
-			.findAll(
-				auth.<Template>tagReadSpec()
-					.and(filter.spec()),
-				pageable);
+	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
+		return templateRepository.findAll(filter.spec(), pageable);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#template.qualifiedTag)")
 	public void update(Template template) {
-		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+		var maybeExisting = templateRepository.findOneByQualifiedPrefix(template.getQualifiedPrefix());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
@@ -60,7 +56,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {
-			templateRepository.deleteByQualifiedTag(tag);
+			templateRepository.deleteByQualifiedPrefix(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

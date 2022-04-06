@@ -105,7 +105,7 @@ public class ExtService {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		for (var template : templates) {
 			if (ext.getConfig() == null) {
-				if (!useDefaults) throw new InvalidTemplateException(template.getTag());
+				if (!useDefaults) throw new InvalidTemplateException(template.getPrefix());
 				ext.setConfig(template.getDefaults());
 			}
 			var tagConfig = new JacksonAdapter(ext.getConfig());
@@ -113,11 +113,11 @@ public class ExtService {
 			try {
 				var errors = validator.validate(schema, tagConfig);
 				for (var error : errors) {
-					logger.debug("Error validating template {}: {}", template.getTag(), error);
+					logger.debug("Error validating template {}: {}", template.getPrefix(), error);
 				}
-				if (errors.size() > 0) throw new InvalidTemplateException(template.getTag());
+				if (errors.size() > 0) throw new InvalidTemplateException(template.getPrefix());
 			} catch (MaxDepthExceededException e) {
-				throw new InvalidTemplateException(template.getTag(), e);
+				throw new InvalidTemplateException(template.getPrefix(), e);
 			}
 		}
 	}
