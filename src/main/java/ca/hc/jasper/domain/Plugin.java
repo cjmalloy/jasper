@@ -42,6 +42,8 @@ public class Plugin implements IsTag {
 	@Formula("tag || origin")
 	private String qualifiedTag;
 
+	private String name;
+
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private JsonNode config;
