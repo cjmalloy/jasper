@@ -2,16 +2,17 @@ package ca.hc.jasper.service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
 import ca.hc.jasper.domain.Ext;
+import ca.hc.jasper.domain.Template;
 import ca.hc.jasper.repository.ExtRepository;
 import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.errors.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.*;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.jsontypedef.jtd.*;
@@ -100,14 +101,31 @@ public class ExtService {
 		}
 	}
 
+	private JsonNode merge(JsonNode a, JsonNode b) {
+		try {
+			return objectMapper.updateValue(a, b);
+		} catch (JsonMappingException e) {
+			throw new InvalidTemplateException("Merging defaults", e);
+		}
+	}
+
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
-		for (var template : templates) {
+		if (templates.isEmpty()) return;
+		if (useDefaults) {
+			var mergedDefaults = templates
+				.stream()
+				.map(Template::getDefaults)
+				.filter(Objects::nonNull)
+				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 			if (ext.getConfig() == null) {
-				if (!useDefaults) throw new InvalidTemplateException(template.getPrefix());
-				ext.setConfig(template.getDefaults());
+				ext.setConfig(mergedDefaults);
+			} else {
+				ext.setConfig(merge(ext.getConfig(), mergedDefaults));
 			}
+		}
+		for (var template : templates) {
 			var tagConfig = new JacksonAdapter(ext.getConfig());
 			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
 			try {
