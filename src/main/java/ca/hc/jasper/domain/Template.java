@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.proj.IsTag;
@@ -26,11 +25,11 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Template implements IsTag {
+	public static final String REGEX = "(_?[a-z]+(/[a-z]+)*)?";
 
 	@Id
 	@Column(updatable = false)
-	@NotBlank
-	@Pattern(regexp = TagId.REGEX)
+	@Pattern(regexp = REGEX)
 	private String tag;
 
 	@Id

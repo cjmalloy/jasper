@@ -14,7 +14,8 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
-			AND (locate(concat(t.tag, '/'), :tag) = 1
+			AND (t.tag = ''
+				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' AND locate(concat(t.tag, '/'), :tag) = 2))""")
 	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
 }
