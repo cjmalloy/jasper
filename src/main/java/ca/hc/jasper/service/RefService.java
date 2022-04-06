@@ -54,6 +54,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void create(Ref ref) {
+		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
 		validate(ref);
@@ -102,6 +103,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void update(Ref ref) {
+		if (!ref.local()) throw new ForeignWriteException();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
