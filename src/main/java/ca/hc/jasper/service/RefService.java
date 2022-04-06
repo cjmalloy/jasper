@@ -137,9 +137,18 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
 	public void validate(Ref ref) {
+		validateTags(ref);
 		validatePlugins(ref);
 		validateSources(ref);
 		validateResponses(ref);
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	public void validateTags(Ref ref) {
+		if (ref.getTags() == null) return;
+		if (!ref.getTags().stream().allMatch(new HashSet<>()::add)) {
+			throw new DuplicateTagException();
+		}
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
