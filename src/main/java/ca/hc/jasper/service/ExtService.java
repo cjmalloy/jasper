@@ -111,7 +111,11 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
-		if (templates.isEmpty()) return;
+		if (templates.isEmpty()) {
+			// If an ext has no template, or the template is schemaless, no config is allowed
+			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
+			return;
+		}
 		if (useDefaults && ext.getConfig() == null) {
 			var mergedDefaults = templates
 				.stream()
@@ -120,12 +124,12 @@ public class ExtService {
 				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 			ext.setConfig(mergedDefaults);
 		}
+		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
 		var mergedSchemas = templates
 			.stream()
 			.map(Template::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
 		var tagConfig = new JacksonAdapter(ext.getConfig());
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		try {

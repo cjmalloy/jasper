@@ -194,12 +194,12 @@ public class RefService {
 			ref.getPlugins().set(tag, mergedDefaults);
 		}
 		if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
+		if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 		var mergedSchemas = plugins
 			.stream()
 			.map(Plugin::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 		var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		try {
