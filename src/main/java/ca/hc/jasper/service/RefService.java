@@ -16,8 +16,7 @@ import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.RefDto;
 import ca.hc.jasper.service.errors.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.*;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.jsontypedef.jtd.*;
@@ -60,7 +59,7 @@ public class RefService {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
-		validate(ref);
+		validate(ref, true);
 		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
@@ -103,7 +102,7 @@ public class RefService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
-		validate(ref);
+		validate(ref, false);
 		updateMetadata(ref, existing);
 		ref.addTags(auth.hiddenTags(existing.getTags()));
 		ref.setModified(Instant.now());
@@ -135,9 +134,9 @@ public class RefService {
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
-	public void validate(Ref ref) {
+	public void validate(Ref ref, boolean useDefaults) {
 		validateTags(ref);
-		validatePlugins(ref);
+		validatePlugins(ref, useDefaults);
 		validateSources(ref);
 		validateResponses(ref);
 	}
@@ -151,25 +150,66 @@ public class RefService {
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
-	public void validatePlugins(Ref ref) {
+	public void validatePlugins(Ref ref, boolean useDefaults) {
 		if (ref.getTags() == null) return;
-		for (var tag : ref.getQualifiedTags()) {
-			var maybePlugin = pluginRepository.findByQualifiedTagAndSchemaIsNotNull(tag);
-			if (maybePlugin.isEmpty()) continue;
-			var plugin = maybePlugin.get();
-			if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
-			if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
-			var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
-			var schema = objectMapper.convertValue(plugin.getSchema(), Schema.class);
-			try {
-				var errors = validator.validate(schema, pluginData);
-				for (var error : errors) {
-					logger.debug("Error validating plugin {}: {}", plugin.getTag(), error);
+		if (ref.getPlugins() != null) {
+			// Plugin fields must be tagged
+			ref.getPlugins().fieldNames().forEachRemaining(field -> {
+				if (field.equals("")) return;
+				if (!ref.getTags().contains(field)) {
+					throw new InvalidPluginException(field);
 				}
-				if (errors.size() > 0) throw new InvalidPluginException(tag);
-			} catch (MaxDepthExceededException e) {
-				throw new InvalidPluginException(tag, e);
+			});
+		}
+		for (var tag : ref.getTags()) {
+			validatePlugin(ref, tag, useDefaults);
+		}
+	}
+
+	private <T extends JsonNode> T merge(T a, JsonNode b) {
+		try {
+			return objectMapper.updateValue(a, b);
+		} catch (JsonMappingException e) {
+			throw new InvalidPluginException("Merging", e);
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	public void validatePlugin(Ref ref, String tag, boolean useDefaults) {
+		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, ref.getOrigin());
+		if (plugins.isEmpty()) {
+			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
+			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
+			return;
+		}
+		if (useDefaults && (ref.getPlugins() == null || !ref.getPlugins().has(tag))) {
+			if (ref.getPlugins() == null) {
+				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
 			}
+			var mergedDefaults = plugins
+				.stream()
+				.map(Plugin::getDefaults)
+				.filter(Objects::nonNull)
+				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			ref.getPlugins().set(tag, mergedDefaults);
+		}
+		if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
+		var mergedSchemas = plugins
+			.stream()
+			.map(Plugin::getSchema)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+		if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
+		var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
+		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		try {
+			var errors = validator.validate(schema, pluginData);
+			for (var error : errors) {
+				logger.debug("Error validating plugin {}: {}", tag, error);
+			}
+			if (errors.size() > 0) throw new InvalidPluginException(tag);
+		} catch (MaxDepthExceededException e) {
+			throw new InvalidPluginException(tag, e);
 		}
 	}
 
@@ -205,7 +245,7 @@ public class RefService {
 			);
 
 			// Update sources
-			var comment = ref.getTags().contains("plugin/comment");
+			var comment = ref.getTags() != null && ref.getTags().contains("plugin/comment");
 			List<Ref> sources = refRepository.findAll(
 				isUrls(ref.getSources())
 					.and(isOrigin(ref.getOrigin())));
@@ -238,7 +278,7 @@ public class RefService {
 			}
 		}
 
-		if (existing != null) {
+		if (existing != null && existing.getSources() != null) {
 			var removedSources = ref == null
 				? existing.getSources()
 				: existing.getSources()

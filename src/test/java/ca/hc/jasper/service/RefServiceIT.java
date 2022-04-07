@@ -894,7 +894,7 @@ public class RefServiceIT {
 		ref.setTags(List.of("user/tester"));
 		refRepository.save(ref);
 
-		refService.validate(ref);
+		refService.validate(ref, false);
 	}
 
 	@Test
@@ -915,15 +915,15 @@ public class RefServiceIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester", "plugin/test"));
 
-		assertThatThrownBy(() -> refService.validate(ref))
+		assertThatThrownBy(() -> refService.validate(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
 	@Test
 	void testValidateRefWithPlugin() throws IOException {
+		var mapper = new ObjectMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -944,6 +944,87 @@ public class RefServiceIT {
 			}
 		}"""));
 
-		refService.validate(ref);
+		refService.validate(ref, false);
+	}
+
+	@Test
+	void testValidateRefWithPluginExtraFailed() throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": {
+				"name": "Alice",
+				"age": 100
+			},
+			"extraStuff": {
+				"is": "not allowed"
+			}
+		}"""));
+
+
+		assertThatThrownBy(() -> refService.validate(ref, false))
+			.isInstanceOf(InvalidPluginException.class);
+	}
+
+	@Test
+	void testValidateRefWithSchemalessPluginFailed() throws IOException {
+		var mapper = new ObjectMapper();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": {
+				"name": "Alice",
+				"age": 100
+			}
+		}"""));
+
+		assertThatThrownBy(() -> refService.validate(ref, false))
+			.isInstanceOf(InvalidPluginException.class);
+	}
+
+	@Test
+	void testValidateRefWithPluginDefaults() throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setDefaults(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/test"));
+
+		refService.validate(ref, true);
 	}
 }

@@ -663,6 +663,97 @@ public class ExtServiceIT {
 	}
 
 	@Test
+	void testValidateTagWithMergedTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("slug/more/custom"));
+		user.setWriteAccess(List.of("slug/more/custom"));
+		userRepository.save(user);
+		var mapper = new ObjectMapper();
+		var template1 = new Template();
+		template1.setPrefix("slug");
+		template1.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template1);
+		var template2 = new Template();
+		template2.setPrefix("slug/more");
+		template2.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"location": { "type": "string" },
+				"lat": { "type": "uint32" },
+				"lng": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template2);
+		var ext = new Ext();
+		ext.setTag("slug/more/custom");
+		ext.setName("First");
+		ext.setConfig(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100,
+			"location": "Paris",
+			"lat": 123,
+			"lng": 456
+		}"""));
+
+		extService.validate(ext, false);
+	}
+
+	@Test
+	void testValidateTagWithMergedDefaultsTemplate() throws IOException {
+		var user = new User();
+		user.setTag("user/tester");
+		user.setReadAccess(List.of("slug/more/custom"));
+		user.setWriteAccess(List.of("slug/more/custom"));
+		userRepository.save(user);
+		var mapper = new ObjectMapper();
+		var template1 = new Template();
+		template1.setPrefix("slug");
+		template1.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		template1.setDefaults(mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+		templateRepository.save(template1);
+		var template2 = new Template();
+		template2.setPrefix("slug/more");
+		template2.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"location": { "type": "string" },
+				"lat": { "type": "uint32" },
+				"lng": { "type": "uint32" }
+			}
+		}"""));
+		template2.setDefaults(mapper.readTree("""
+		{
+			"location": "Paris",
+			"lat": 123,
+			"lng": 456
+		}"""));
+		templateRepository.save(template2);
+		var ext = new Ext();
+		ext.setTag("slug/more/custom");
+		ext.setName("First");
+
+		extService.validate(ext, true);
+	}
+
+	@Test
 	void testValidatePrivateTagWithTemplate() throws IOException {
 		var user = new User();
 		user.setTag("user/tester");

@@ -4,8 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
-import ca.hc.jasper.domain.Ext;
-import ca.hc.jasper.domain.Template;
+import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.ExtRepository;
 import ca.hc.jasper.repository.TemplateRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
@@ -101,11 +100,11 @@ public class ExtService {
 		}
 	}
 
-	private JsonNode merge(JsonNode a, JsonNode b) {
+	private <T extends JsonNode> T merge(T a, JsonNode b) {
 		try {
 			return objectMapper.updateValue(a, b);
 		} catch (JsonMappingException e) {
-			throw new InvalidTemplateException("Merging defaults", e);
+			throw new InvalidTemplateException("Merging", e);
 		}
 	}
 
@@ -113,30 +112,30 @@ public class ExtService {
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		if (templates.isEmpty()) return;
-		if (useDefaults) {
+		if (useDefaults && ext.getConfig() == null) {
 			var mergedDefaults = templates
 				.stream()
 				.map(Template::getDefaults)
 				.filter(Objects::nonNull)
 				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-			if (ext.getConfig() == null) {
-				ext.setConfig(mergedDefaults);
-			} else {
-				ext.setConfig(merge(ext.getConfig(), mergedDefaults));
-			}
+			ext.setConfig(mergedDefaults);
 		}
-		for (var template : templates) {
-			var tagConfig = new JacksonAdapter(ext.getConfig());
-			var schema = objectMapper.convertValue(template.getSchema(), Schema.class);
-			try {
-				var errors = validator.validate(schema, tagConfig);
-				for (var error : errors) {
-					logger.debug("Error validating template {}: {}", template.getPrefix(), error);
-				}
-				if (errors.size() > 0) throw new InvalidTemplateException(template.getPrefix());
-			} catch (MaxDepthExceededException e) {
-				throw new InvalidTemplateException(template.getPrefix(), e);
+		var mergedSchemas = templates
+			.stream()
+			.map(Template::getSchema)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
+		var tagConfig = new JacksonAdapter(ext.getConfig());
+		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		try {
+			var errors = validator.validate(schema, tagConfig);
+			for (var error : errors) {
+				logger.debug("Error validating template {}: {}", ext.getTag(), error);
 			}
+			if (errors.size() > 0) throw new InvalidTemplateException(ext.getTag());
+		} catch (MaxDepthExceededException e) {
+			throw new InvalidTemplateException(ext.getTag(), e);
 		}
 	}
 }
