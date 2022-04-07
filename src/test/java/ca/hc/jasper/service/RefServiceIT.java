@@ -108,15 +108,16 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testCreateRefWithUnreadableTags() {
+	void testCreateRefWithUnreadableTagsFails() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_secret"));
 
-		refService.create(ref);
+		assertThatThrownBy(() -> refService.create(ref))
+			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
-			.isTrue();
+			.isFalse();
 	}
 
 	@Test
@@ -168,18 +169,16 @@ public class RefServiceIT {
 
 	@Test
 	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
-	void testCreateRefWithPrivateOtherUserTags() {
+	void testCreateRefWithPrivateUserTagsFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(List.of("_user/other"));
 
-
-		refService.create(ref);
+		assertThatThrownBy(() -> refService.create(ref))
+			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
-			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
-			.containsExactly("_user/other");
+			.isFalse();
 	}
 
 	@Test

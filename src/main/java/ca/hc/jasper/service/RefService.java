@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -54,7 +55,7 @@ public class RefService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void create(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -95,7 +96,7 @@ public class RefService {
 					.and(filter.spec()));
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
@@ -115,7 +116,10 @@ public class RefService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
-			update(objectMapper.treeToValue(patched, Ref.class));
+			var updated = objectMapper.treeToValue(patched, Ref.class);
+			// @PreAuthorize annotations are not triggered for calls within the same class
+			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't read new tags");
+			update(updated);
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException(e);
 		}
@@ -133,7 +137,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validate(Ref ref, boolean useDefaults) {
 		validateTags(ref);
 		validatePlugins(ref, useDefaults);
@@ -141,7 +145,7 @@ public class RefService {
 		validateResponses(ref);
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validateTags(Ref ref) {
 		if (ref.getTags() == null) return;
 		if (!ref.getTags().stream().allMatch(new HashSet<>()::add)) {
@@ -149,7 +153,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validatePlugins(Ref ref, boolean useDefaults) {
 		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
@@ -174,7 +178,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validatePlugin(Ref ref, String tag, boolean useDefaults) {
 		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, ref.getOrigin());
 		if (plugins.isEmpty()) {
@@ -213,7 +217,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validateSources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
@@ -224,7 +228,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void validateResponses(Ref ref) {
 		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
 		for (var response : responses) {
@@ -232,7 +236,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void updateMetadata(Ref ref, Ref existing) {
 		if (ref != null) {
 			ref.setMetadata(Metadata

@@ -7,6 +7,7 @@ import static ca.hc.jasper.repository.spec.TagSpec.*;
 import java.util.*;
 import java.util.stream.Stream;
 
+import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.domain.proj.HasTags;
 import ca.hc.jasper.domain.proj.IsTag;
@@ -55,6 +56,13 @@ public class Auth {
 			}
 		}
 		return false;
+	}
+
+	public boolean canWriteRef(Ref ref) {
+		if (!canWriteRef(ref.getUrl())) return false;
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
+		// Only allow tagging refs with tags you can read
+		return newTags(ref.getQualifiedTags(), maybeExisting.map(Ref::getQualifiedTags)).allMatch(this::canReadTag);
 	}
 
 	public boolean canWriteRef(String url) {
@@ -116,6 +124,7 @@ public class Auth {
 		if (hasRole("MOD")) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
 		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
 		return true;
