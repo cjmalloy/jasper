@@ -36,12 +36,33 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
+	public static Specification<Ref> hasResponse(String url) {
+		return (root, query, cb) -> cb.isTrue(
+			cb.function("jsonb_exists", Boolean.class,
+				cb.function("jsonb_object_field", List.class,
+					root.get(Ref_.metadata),
+					cb.literal("responses")),
+				cb.literal(url)));
+	}
+
 	public static Specification<Ref> hasNoSources() {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.sources)),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class, root.get(Ref_.sources)),
+					cb.literal(0)));
+	}
+
+	public static Specification<Ref> hasNoResponses() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.equal(
+					cb.function("jsonb_array_length", Long.class,
+						cb.function("jsonb_object_field", List.class,
+							root.get(Ref_.metadata),
+							cb.literal("responses"))),
 					cb.literal(0)));
 	}
 

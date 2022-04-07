@@ -4,7 +4,6 @@ import static ca.hc.jasper.repository.spec.RefSpec.*;
 import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 
 import java.time.Instant;
-import java.util.List;
 
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.domain.proj.HasTags;
@@ -27,29 +26,25 @@ public class RefFilter implements Query {
 	private boolean unsourced;
 	private Instant modifiedAfter;
 
-	public interface GetSources { List<String> getSources(String url);}
-
 	public Specification<Ref> spec() {
-		return spec(null);
-	}
-
-	public Specification<Ref> spec(GetSources getSources) {
 		var result = Specification.<Ref>where(null);
 		if (query != null) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
 		if (sources != null) {
-			// TODO: subquery
-			result = result.and(isUrls(getSources.getSources(sources)));
+			// TODO: query across origins
+			result = result.and(hasResponse(sources));
 		}
 		if (responses != null) {
+			// TODO: query across origins
 			result = result.and(hasSource(responses));
 		}
 		if (uncited) {
-			// TODO: pre-processing
-			throw new UnsupportedOperationException();
+			// TODO: query across origins
+			result = result.and(hasNoResponses());
 		}
 		if (unsourced) {
+			// TODO: query across origins
 			result = result.and(hasNoSources());
 		}
 		if (modifiedAfter != null) {
