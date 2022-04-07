@@ -11,14 +11,14 @@ public class TemplateSpec {
 	public static Specification<Template> defaultTemplate() {
 		return (root, query, cb) ->
 			cb.equal(
-				root.get(Template_.prefix),
+				root.get(Template_.tag),
 				"");
 	}
 
 	public static Specification<Template> isTag(String tag) {
 		return (root, query, cb) ->
 			cb.equal(
-				root.get(Template_.prefix),
+				root.get(Template_.tag),
 				tag);
 	}
 
@@ -26,7 +26,7 @@ public class TemplateSpec {
 		return (root, query, cb) ->
 			cb.not(
 				cb.like(
-					root.get(Template_.prefix),
+					root.get(Template_.tag),
 					tag + "/%"));
 	}
 

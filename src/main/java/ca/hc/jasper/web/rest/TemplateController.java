@@ -34,14 +34,14 @@ public class TemplateController {
 
 	@GetMapping
 	Template getTemplate(
-		@RequestParam String prefix
+		@RequestParam String tag
 	) {
-		return templateService.get(prefix);
+		return templateService.get(tag);
 	}
 
 	@GetMapping("list")
 	Page<Template> getTemplates(
-		@PageableDefault(sort = "prefix") Pageable pageable,
+		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
@@ -64,8 +64,8 @@ public class TemplateController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTemplate(
-		@RequestParam String prefix
+		@RequestParam String tag
 	) {
-		templateService.delete(prefix);
+		templateService.delete(tag);
 	}
 }

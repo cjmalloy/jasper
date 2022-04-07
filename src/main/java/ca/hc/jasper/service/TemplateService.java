@@ -28,13 +28,13 @@ public class TemplateService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Template template) {
-		if (templateRepository.existsByQualifiedPrefix(template.getQualifiedPrefix())) throw new AlreadyExistsException();
+		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		templateRepository.save(template);
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Template get(String tag) {
-		return templateRepository.findOneByQualifiedPrefix(tag)
+		return templateRepository.findOneByQualifiedTag(tag)
 								 .orElseThrow(NotFoundException::new);
 	}
 
@@ -43,9 +43,9 @@ public class TemplateService {
 		return templateRepository.findAll(filter.spec(), pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#template.qualifiedTag)")
+	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Template template) {
-		var maybeExisting = templateRepository.findOneByQualifiedPrefix(template.getQualifiedPrefix());
+		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
@@ -53,10 +53,10 @@ public class TemplateService {
 		templateRepository.save(template);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@PreAuthorize("hasRole('ADMIN')")
 	public void delete(String tag) {
 		try {
-			templateRepository.deleteByQualifiedPrefix(tag);
+			templateRepository.deleteByQualifiedTag(tag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

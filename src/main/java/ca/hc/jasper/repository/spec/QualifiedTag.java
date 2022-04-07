@@ -3,6 +3,7 @@ package ca.hc.jasper.repository.spec;
 import static ca.hc.jasper.repository.spec.OriginSpec.isOrigin;
 import static ca.hc.jasper.repository.spec.RefSpec.hasTag;
 import static ca.hc.jasper.repository.spec.TagSpec.isTag;
+import static ca.hc.jasper.repository.spec.TemplateSpec.defaultTemplate;
 import static ca.hc.jasper.repository.spec.TemplateSpec.matchesTag;
 
 import ca.hc.jasper.domain.*;
@@ -62,6 +63,7 @@ public class QualifiedTag {
 
 	public Specification<Template> templateSpec() {
 		var spec = Specification.<Template>where(null);
+		if (tag.equals("")) spec = spec.and(defaultTemplate());
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;

@@ -579,7 +579,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithInvalidTemplate() throws IOException {
 		var template = new Template();
-		template.setPrefix("user");
+		template.setTag("user");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -600,7 +600,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithTemplate() throws IOException {
 		var template = new Template();
-		template.setPrefix("user");
+		template.setTag("user");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -644,7 +644,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setPrefix("slug");
+		template.setTag("slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -671,7 +671,7 @@ public class ExtServiceIT {
 		userRepository.save(user);
 		var mapper = new ObjectMapper();
 		var template1 = new Template();
-		template1.setPrefix("slug");
+		template1.setTag("slug");
 		template1.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -681,7 +681,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template1);
 		var template2 = new Template();
-		template2.setPrefix("slug/more");
+		template2.setTag("slug/more");
 		template2.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -715,7 +715,7 @@ public class ExtServiceIT {
 		userRepository.save(user);
 		var mapper = new ObjectMapper();
 		var template1 = new Template();
-		template1.setPrefix("slug");
+		template1.setTag("slug");
 		template1.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -730,7 +730,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template1);
 		var template2 = new Template();
-		template2.setPrefix("slug/more");
+		template2.setTag("slug/more");
 		template2.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -761,7 +761,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setPrefix("slug");
+		template.setTag("slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -791,7 +791,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setPrefix("_slug");
+		template.setTag("_slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
@@ -817,7 +817,7 @@ public class ExtServiceIT {
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
 		var template = new Template();
-		template.setPrefix("_slug");
+		template.setTag("_slug");
 		var mapper = new ObjectMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
