@@ -14,7 +14,6 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
-import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
@@ -56,6 +55,10 @@ public class Ref implements HasTags {
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
 	private ObjectNode plugins;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private Metadata metadata;
 
 	@Column(updatable = false)
 	@NotNull

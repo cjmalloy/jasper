@@ -36,6 +36,7 @@
 			<column name="sources" type="JSONB"/>
 			<column name="alternate_urls" type="JSONB"/>
 			<column name="plugins" type="JSONB"/>
+			<column name="metadata" type="JSONB"/>
 			<column name="published" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>

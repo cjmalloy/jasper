@@ -1,10 +1,13 @@
 package ca.hc.jasper.service;
 
+import static ca.hc.jasper.repository.spec.OriginSpec.isOrigin;
+import static ca.hc.jasper.repository.spec.RefSpec.isUrls;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.PluginRepository;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
@@ -58,6 +61,7 @@ public class RefService {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
 		validate(ref);
+		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
@@ -79,7 +83,7 @@ public class RefService {
 		return refRepository
 			.findAll(
 				auth.<Ref>refReadSpec()
-					.and(filter.spec(this::getSources)),
+					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
 	}
@@ -89,16 +93,7 @@ public class RefService {
 		return refRepository
 			.count(
 				auth.<Ref>refReadSpec()
-					.and(filter.spec(this::getSources)));
-	}
-
-	private List<String> getSources(String url) {
-		var refs = refRepository.findAllByUrl(url);
-		if (refs.isEmpty()) throw new NotFoundException();
-		return refs.stream()
-				   .map(Ref::getSources)
-				   .filter(Objects::nonNull)
-				   .flatMap(Collection::stream).toList();
+					.and(filter.spec()));
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref.url)")
@@ -108,8 +103,9 @@ public class RefService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
-		ref.addTags(auth.hiddenTags(existing.getTags()));
 		validate(ref);
+		updateMetadata(ref, existing);
+		ref.addTags(auth.hiddenTags(existing.getTags()));
 		ref.setModified(Instant.now());
 		refRepository.save(ref);
 	}
@@ -128,6 +124,9 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#url)")
 	public void delete(String url) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
+		if (maybeExisting.isEmpty()) return;
+		updateMetadata(null, maybeExisting.get());
 		try {
 			refRepository.deleteByUrlAndOrigin(url, "");
 		} catch (EmptyResultDataAccessException e) {
@@ -189,7 +188,90 @@ public class RefService {
 	public void validateResponses(Ref ref) {
 		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
 		for (var response : responses) {
-			throw new PublishDateException(response.getUrl(), ref.getUrl());
+			throw new PublishDateException(response, ref.getUrl());
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref.url)")
+	public void updateMetadata(Ref ref, Ref existing) {
+		if (ref != null) {
+			ref.setMetadata(Metadata
+				.builder()
+				.responses(refRepository
+					.findAllResponsesByOrigin(ref.getUrl(), ref.getOrigin()))
+				.comments(refRepository
+					.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "plugin/comment"))
+				.build()
+			);
+
+			// Update sources
+			var comment = ref.getTags().contains("plugin/comment");
+			List<Ref> sources = refRepository.findAll(
+				isUrls(ref.getSources())
+					.and(isOrigin(ref.getOrigin())));
+			for (var source : sources) {
+				var old = source.getMetadata();
+				if (old == null) {
+					logger.warn("Ref missing metadata: {}", ref.getUrl());
+					source.setMetadata(Metadata
+						.builder()
+						.responses(List.of(ref.getUrl()))
+						.comments(comment ? List.of(ref.getUrl()) : List.of())
+						.build());
+					refRepository.save(source);
+					continue;
+				}
+				if (!old.getResponses().contains(ref.getUrl())) {
+					old.getResponses().add(ref.getUrl());
+				}
+				if (comment) {
+					if (!old.getComments().contains(ref.getUrl())) {
+						old.getComments().add(ref.getUrl());
+					}
+				}
+				source.setMetadata(Metadata
+					.builder()
+					.responses(old.getResponses())
+					.comments(old.getComments())
+					.build());
+				refRepository.save(source);
+			}
+		}
+
+		if (existing != null) {
+			var removedSources = ref == null
+				? existing.getSources()
+				: existing.getSources()
+						.stream()
+						.filter(s -> !ref.getSources().contains(s))
+						.toList();
+			List<Ref> removed = refRepository.findAll(
+				isUrls(removedSources)
+					.and(isOrigin(existing.getOrigin())));
+			for (var source : removed) {
+				var old = source.getMetadata();
+				if (old == null) {
+					logger.warn("Ref missing metadata: {}", existing.getUrl());
+					continue;
+				}
+				old.getResponses().remove(existing.getUrl());
+				old.getComments().remove(existing.getUrl());
+				source.setMetadata(Metadata
+					.builder()
+					.responses(old.getResponses())
+					.comments(old.getComments())
+					.build());
+				refRepository.save(source);
+			}
+		}
+	}
+
+	@PreAuthorize("hasRole('ADMIN')")
+	void backfillMetadata() {
+		List<Ref> all = refRepository.findAll(((root, query, cb) -> cb.isNull(root.get(Ref_.metadata))));
+		for (var ref : all) {
+			updateMetadata(ref, null);
+			refRepository.save(ref);
 		}
 	}
 }

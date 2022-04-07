@@ -3,6 +3,7 @@ package ca.hc.jasper.service.dto;
 import java.time.Instant;
 import java.util.List;
 
+import ca.hc.jasper.domain.Metadata;
 import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -22,6 +23,7 @@ public class RefDto implements HasTags {
 	private List<String> sources;
 	private List<String> alternateUrls;
 	private ObjectNode plugins;
+	private Metadata metadata;
 	private Instant published;
 	private Instant created;
 	private Instant modified;
