@@ -43,7 +43,7 @@ public class FeedController {
 
 	@GetMapping("list")
 	Page<FeedDto> getFeeds(
-		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
+		@PageableDefault(sort = "url") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {

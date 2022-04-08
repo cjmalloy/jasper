@@ -40,7 +40,7 @@ public class OriginController {
 
 	@GetMapping("list")
 	Page<Origin> getOrigins(
-		@PageableDefault(sort = "tag") Pageable pageable,
+		@PageableDefault(sort = "origin") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
