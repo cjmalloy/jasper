@@ -242,7 +242,7 @@ public class RefService {
 			ref.setMetadata(Metadata
 				.builder()
 				.responses(refRepository
-					.findAllResponsesByOrigin(ref.getUrl(), ref.getOrigin()))
+					.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
 				.comments(refRepository
 					.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "plugin/comment"))
 				.build()
