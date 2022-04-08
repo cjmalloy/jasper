@@ -519,8 +519,8 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
-	void testModUpdateLockedRefFailed() {
+	@WithMockUser(value = "tester", roles = "Admin")
+	void testAdminUpdateLockedRefFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
@@ -540,29 +540,6 @@ public class RefServiceIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
-	}
-
-	@Test
-	@WithMockUser(value = "tester", roles = "ADMIN")
-	void testAdminUpdateLockedRefFailed() {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("locked", "user/tester"));
-		refRepository.save(ref);
-		var update = new Ref();
-		update.setUrl(URL);
-		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
-		update.setModified(ref.getModified());
-
-		refService.update(update);
-
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
-			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
-		assertThat(fetched.getTitle())
-			.isEqualTo("Second");
 	}
 
 	@Test

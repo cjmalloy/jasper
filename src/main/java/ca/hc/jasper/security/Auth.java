@@ -66,12 +66,11 @@ public class Auth {
 	}
 
 	public boolean canWriteRef(String url) {
-		if (hasRole("ADMIN")) return true;
 		if (!hasRole("USER")) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
-		if (existing.getTags() != null && hasRole("USER")) {
+		if (existing.getTags() != null) {
 			if (existing.getTags().contains("locked")) return false;
 			if (hasRole("MOD")) return true;
 			var qualifiedTags = existing.getQualifiedTags();
