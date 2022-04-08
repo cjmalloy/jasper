@@ -39,6 +39,13 @@ public class PluginController {
 		return pluginService.get(tag);
 	}
 
+	@GetMapping("exists")
+	boolean pluginExists(
+		@RequestParam String tag
+	) {
+		return pluginService.exists(tag);
+	}
+
 	@GetMapping("list")
 	Page<Plugin> getPlugins(
 		@PageableDefault(sort = "tag") Pageable pageable,

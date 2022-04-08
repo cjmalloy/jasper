@@ -8,7 +8,6 @@ import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
-import ca.hc.jasper.service.errors.NotFoundException;
 import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -43,14 +42,12 @@ public class RefController {
 		return refService.get(url, origin);
 	}
 
-	@RequestMapping(method = RequestMethod.HEAD)
-	void refExists(
+	@GetMapping("exists")
+	boolean refExists(
 		@RequestParam String url,
 		@RequestParam(defaultValue = "") String origin
 	) {
-		if (!refService.exists(url, origin)) {
-			throw new NotFoundException();
-		}
+		return refService.exists(url, origin);
 	}
 
 	@GetMapping("list")

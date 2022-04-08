@@ -38,6 +38,11 @@ public class PluginService {
 							   .orElseThrow(NotFoundException::new);
 	}
 
+	@PreAuthorize("@auth.canReadTag(#tag)")
+	public boolean exists(String tag) {
+		return pluginRepository.existsByQualifiedTag(tag);
+	}
+
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository

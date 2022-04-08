@@ -38,6 +38,11 @@ public class TemplateService {
 								 .orElseThrow(NotFoundException::new);
 	}
 
+	@PreAuthorize("@auth.canReadTag(#tag)")
+	public boolean exists(String tag) {
+		return templateRepository.existsByQualifiedTag(tag);
+	}
+
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(filter.spec(), pageable);

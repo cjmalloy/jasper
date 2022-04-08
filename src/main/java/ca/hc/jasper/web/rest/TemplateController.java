@@ -39,6 +39,13 @@ public class TemplateController {
 		return templateService.get(tag);
 	}
 
+	@GetMapping("exists")
+	boolean templateExists(
+		@RequestParam String tag
+	) {
+		return templateService.exists(tag);
+	}
+
 	@GetMapping("list")
 	Page<Template> getTemplates(
 		@PageableDefault(sort = "tag") Pageable pageable,
