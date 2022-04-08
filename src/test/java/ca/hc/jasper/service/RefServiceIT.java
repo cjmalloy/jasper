@@ -716,6 +716,178 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testUpdateRefCreatesMetadata() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTitle("Source");
+		source.setTags(List.of("user/tester"));
+		refService.updateMetadata(source, null);
+		refRepository.save(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester"));
+		refService.updateMetadata(ref, null);
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "source"));
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Source");
+		assertThat(fetched.getMetadata().getResponses())
+			.containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateRefCreatesMetadataWithoutInternal() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTitle("Source");
+		source.setTags(List.of("user/tester"));
+		refService.updateMetadata(source, null);
+		refRepository.save(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "internal"));
+		refService.updateMetadata(ref, null);
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "source"));
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester", "internal"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Source");
+		assertThat(fetched.getMetadata().getResponses())
+			.isEmpty();
+	}
+
+	@Test
+	void testUpdateRefUpdatesMetadata() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTitle("Source");
+		source.setTags(List.of("user/tester"));
+		refService.updateMetadata(source, null);
+		refRepository.save(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "source"));
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester"));
+		refService.updateMetadata(ref, null);
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Source");
+		assertThat(fetched.getMetadata().getResponses())
+			.isEmpty();
+	}
+
+	@Test
+	void testUpdateRefCreatesPluginMetadata() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setGenerateMetadata(true);
+		pluginRepository.save(plugin);
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTitle("Source");
+		source.setTags(List.of("user/tester"));
+		refService.updateMetadata(source, null);
+		refRepository.save(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/comment"));
+		refService.updateMetadata(ref, null);
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "source"));
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester", "plugin/comment"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Source");
+		assertThat(fetched.getMetadata().getResponses())
+			.containsExactly(URL);
+		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
+			.containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateRefUpdatesPluginMetadata() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setGenerateMetadata(true);
+		pluginRepository.save(plugin);
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTitle("Source");
+		source.setTags(List.of("user/tester"));
+		refService.updateMetadata(source, null);
+		refRepository.save(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "source"));
+		ref.setTitle("First");
+		ref.setTags(List.of("user/tester", "plugin/comment"));
+		refService.updateMetadata(ref, null);
+		refRepository.save(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(List.of("user/tester", "plugin/comment"));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Source");
+		assertThat(fetched.getMetadata().getResponses())
+			.isEmpty();
+		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
+			.isEmpty();
+	}
+
+	@Test
 	void testDeleteUntaggedRef() {
 		var ref = new Ref();
 		ref.setUrl(URL);

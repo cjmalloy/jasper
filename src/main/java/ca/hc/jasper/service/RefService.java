@@ -6,6 +6,7 @@ import static ca.hc.jasper.repository.spec.RefSpec.isUrls;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.PluginRepository;
@@ -20,6 +21,7 @@ import com.fasterxml.jackson.databind.*;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.jsontypedef.jtd.*;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -243,42 +245,41 @@ public class RefService {
 				.builder()
 				.responses(refRepository
 					.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
-				.comments(refRepository
-					.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "plugin/comment"))
+				.plugins(pluginRepository
+					.findAllByGenerateMetadata()
+					.stream()
+					.map(tag -> new Pair<>(
+						tag,
+						refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), tag)))
+					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);
 
-			// Update sources
-			var comment = ref.getTags() != null && ref.getTags().contains("plugin/comment");
-			List<Ref> sources = refRepository.findAll(
-				isUrls(ref.getSources())
-					.and(isOrigin(ref.getOrigin())));
-			for (var source : sources) {
-				var old = source.getMetadata();
-				if (old == null) {
-					logger.warn("Ref missing metadata: {}", ref.getUrl());
-					source.setMetadata(Metadata
-						.builder()
-						.responses(List.of(ref.getUrl()))
-						.comments(comment ? List.of(ref.getUrl()) : List.of())
-						.build());
-					refRepository.save(source);
-					continue;
-				}
-				if (!old.getResponses().contains(ref.getUrl())) {
-					old.getResponses().add(ref.getUrl());
-				}
-				if (comment) {
-					if (!old.getComments().contains(ref.getUrl())) {
-						old.getComments().add(ref.getUrl());
+			if (ref.getTags() != null && !ref.getTags().contains("internal")) {
+				// Update sources
+				Map<String, String> plugins = pluginRepository
+					.findAllByGenerateMetadata()
+					.stream()
+					.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
+					.collect(Collectors.toMap(tag -> tag, tag -> ref.getUrl()));
+				List<Ref> sources = refRepository.findAll(
+					isUrls(ref.getSources())
+						.and(isOrigin(ref.getOrigin())));
+				for (var source : sources) {
+					var old = source.getMetadata();
+					if (old == null) {
+						logger.warn("Ref missing metadata: {}", ref.getUrl());
+						old = Metadata
+							.builder()
+							.responses(new ArrayList<>())
+							.plugins(new HashMap<>())
+							.build();
 					}
+					old.addResponse(ref.getUrl());
+					old.addPlugins(plugins);
+					source.setMetadata(old);
+					refRepository.save(source);
 				}
-				source.setMetadata(Metadata
-					.builder()
-					.responses(old.getResponses())
-					.comments(old.getComments())
-					.build());
-				refRepository.save(source);
 			}
 		}
 
@@ -287,7 +288,7 @@ public class RefService {
 				? existing.getSources()
 				: existing.getSources()
 						.stream()
-						.filter(s -> !ref.getSources().contains(s))
+						.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 						.toList();
 			List<Ref> removed = refRepository.findAll(
 				isUrls(removedSources)
@@ -298,13 +299,8 @@ public class RefService {
 					logger.warn("Ref missing metadata: {}", existing.getUrl());
 					continue;
 				}
-				old.getResponses().remove(existing.getUrl());
-				old.getComments().remove(existing.getUrl());
-				source.setMetadata(Metadata
-					.builder()
-					.responses(old.getResponses())
-					.comments(old.getComments())
-					.build());
+				old.remove(existing.getUrl());
+				source.setMetadata(old);
 				refRepository.save(source);
 			}
 		}

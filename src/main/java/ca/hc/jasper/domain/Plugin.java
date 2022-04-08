@@ -57,6 +57,8 @@ public class Plugin implements IsTag {
 	@SchemaValid
 	private ObjectNode schema;
 
+	private boolean generateMetadata = false;
+
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
