@@ -7,6 +7,11 @@ import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.FeedDto;
 import ca.hc.jasper.service.errors.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.JsonPatchException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -28,6 +33,9 @@ public class FeedService {
 
 	@Autowired
 	DtoMapper mapper;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("hasRole('MOD')")
 	public void create(Feed feed) {
@@ -58,6 +66,19 @@ public class FeedService {
 		if (!feed.local()) throw new ForeignWriteException();
 		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException();
 		feedRepository.save(feed);
+	}
+
+	@PreAuthorize("hasRole('MOD')")
+	public void patch(String url, String origin, JsonPatch patch) {
+		var maybeExisting = feedRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		try {
+			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
+			var updated = objectMapper.treeToValue(patched, Feed.class);
+			update(updated);
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException(e);
+		}
 	}
 
 	@PreAuthorize("hasRole('MOD')")

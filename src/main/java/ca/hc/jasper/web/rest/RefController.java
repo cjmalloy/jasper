@@ -101,7 +101,7 @@ public class RefController {
 
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchExt(
+	void patchRef(
 		@RequestParam String url,
 		@RequestParam(defaultValue = "") String origin,
 		@RequestBody JsonPatch patch

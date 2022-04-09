@@ -8,6 +8,7 @@ import ca.hc.jasper.domain.Feed;
 import ca.hc.jasper.repository.filter.*;
 import ca.hc.jasper.service.FeedService;
 import ca.hc.jasper.service.dto.FeedDto;
+import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +62,16 @@ public class FeedController {
 		@RequestBody @Valid Feed feed
 	) {
 		feedService.update(feed);
+	}
+
+	@PatchMapping(consumes = "application/json-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchFeed(
+		@RequestParam String url,
+		@RequestParam(defaultValue = "") String origin,
+		@RequestBody JsonPatch patch
+	) {
+		feedService.patch(url, origin, patch);
 	}
 
 	@DeleteMapping

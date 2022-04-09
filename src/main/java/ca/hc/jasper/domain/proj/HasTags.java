@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public interface HasTags extends HasOrigin {
+	String getUrl();
 	List<String> getTags();
 
 	@JsonIgnore

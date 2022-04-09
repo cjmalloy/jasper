@@ -7,6 +7,7 @@ import javax.validation.constraints.Pattern;
 import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.repository.filter.OriginFilter;
 import ca.hc.jasper.service.OriginService;
+import ca.hc.jasper.service.dto.OriginNameDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +46,20 @@ public class OriginController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return originService.page(
+			OriginFilter
+				.builder()
+				.modifiedAfter(modifiedAfter)
+				.query(query).build(),
+			pageable);
+	}
+
+	@GetMapping("list/names")
+	Page<OriginNameDto> getOriginNames(
+		@PageableDefault(sort = "origin") Pageable pageable,
+		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
+		@RequestParam(required = false) Instant modifiedAfter
+	) {
+		return originService.pageNames(
 			OriginFilter
 				.builder()
 				.modifiedAfter(modifiedAfter)
