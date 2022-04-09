@@ -33,7 +33,8 @@ public class RefFilter implements Query {
 		}
 		if (sources != null) {
 			// TODO: query across origins
-			result = result.and(hasResponse(sources));
+			result = result.and(hasResponse(sources)
+				.or(hasInternalResponse(sources)));
 		}
 		if (responses != null) {
 			// TODO: query across origins

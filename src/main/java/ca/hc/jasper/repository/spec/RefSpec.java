@@ -45,6 +45,15 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
+	public static Specification<Ref> hasInternalResponse(String url) {
+		return (root, query, cb) -> cb.isTrue(
+			cb.function("jsonb_exists", Boolean.class,
+				cb.function("jsonb_object_field", List.class,
+					root.get(Ref_.metadata),
+					cb.literal("internalResponses")),
+				cb.literal(url)));
+	}
+
 	public static Specification<Ref> hasNoSources() {
 		return (root, query, cb) ->
 			cb.or(

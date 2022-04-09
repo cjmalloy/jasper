@@ -8,6 +8,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
+
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.PluginRepository;
 import ca.hc.jasper.repository.RefRepository;
@@ -243,8 +245,8 @@ public class RefService {
 		if (ref != null) {
 			ref.setMetadata(Metadata
 				.builder()
-				.responses(refRepository
-					.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
+				.responses(refRepository.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
+				.internalResponses(refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
 				.plugins(pluginRepository
 					.findAllByGenerateMetadata()
 					.stream()
@@ -255,8 +257,9 @@ public class RefService {
 				.build()
 			);
 
-			if (ref.getTags() != null && !ref.getTags().contains("internal")) {
+			if (ref.getTags() != null) {
 				// Update sources
+				var internal = ref.getTags().contains("internal");
 				Map<String, String> plugins = pluginRepository
 					.findAllByGenerateMetadata()
 					.stream()
@@ -272,10 +275,15 @@ public class RefService {
 						old = Metadata
 							.builder()
 							.responses(new ArrayList<>())
+							.internalResponses(new ArrayList<>())
 							.plugins(new HashMap<>())
 							.build();
 					}
-					old.addResponse(ref.getUrl());
+					if (internal) {
+						old.addInternalResponse(ref.getUrl());
+					} else {
+						old.addResponse(ref.getUrl());
+					}
 					old.addPlugins(plugins);
 					source.setMetadata(old);
 					refRepository.save(source);

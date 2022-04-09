@@ -10,6 +10,7 @@ import lombok.*;
 @Builder
 public class Metadata {
 	private List<String> responses;
+	private List<String> internalResponses;
 	private Map<String, List<String>> plugins;
 
 	// TODO: remote stats
@@ -26,6 +27,12 @@ public class Metadata {
 	public void addResponse(String url) {
 		if (!responses.contains(url)) {
 			responses.add(url);
+		}
+	}
+
+	public void addInternalResponse(String url) {
+		if (!internalResponses.contains(url)) {
+			internalResponses.add(url);
 		}
 	}
 
@@ -46,6 +53,7 @@ public class Metadata {
 
 	public void remove(String url) {
 		responses.remove(url);
+		internalResponses.remove(url);
 		for (var list : plugins.values()) {
 			list.remove(url);
 		}
