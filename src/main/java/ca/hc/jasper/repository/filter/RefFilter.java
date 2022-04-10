@@ -20,6 +20,7 @@ public class RefFilter implements Query {
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String query;
+	private String search;
 	private String sources;
 	private String responses;
 	private boolean uncited;
@@ -30,6 +31,9 @@ public class RefFilter implements Query {
 		var result = Specification.<Ref>where(null);
 		if (query != null) {
 			result = result.and(new TagQuery(query).refSpec());
+		}
+		if (search != null) {
+			result = result.and(fulltextEn(search));
 		}
 		if (sources != null) {
 			// TODO: query across origins

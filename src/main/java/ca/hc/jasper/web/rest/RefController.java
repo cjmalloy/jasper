@@ -13,8 +13,7 @@ import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
 import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -70,17 +69,19 @@ public class RefController {
 
 	@GetMapping("page")
 	Page<RefDto> getPage(
-		@PageableDefault(direction = Direction.DESC, sort = "created") Pageable pageable,
+		@PageableDefault(direction = Direction.DESC) Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) String sources,
 		@RequestParam(required = false) String responses,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) String search
 	) {
 		return refService.page(
 			RefFilter.builder()
 					 .query(query)
+					 .search(search)
 					 .sources(sources)
 					 .responses(responses)
 					 .uncited(uncited)

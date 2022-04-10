@@ -11,6 +11,7 @@ import ca.hc.jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
+import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
@@ -22,7 +23,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Setter
 @IdClass(RefId.class)
 @TypeDefs({
-	@TypeDef(name = "json", typeClass = JsonType.class)
+	@TypeDef(name = "json", typeClass = JsonType.class),
+	@TypeDef(name = "tsvector", typeClass = PostgreSQLTSVectorType.class)
 })
 public class Ref implements HasTags {
 
@@ -70,6 +72,10 @@ public class Ref implements HasTags {
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();
+
+	@Type(type = "tsvector")
+	@Column(updatable = false, insertable = false)
+	private String textsearchEn;
 
 	@JsonIgnore
 	public Ref addTags(List<String> toAdd) {

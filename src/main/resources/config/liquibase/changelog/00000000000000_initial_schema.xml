@@ -51,6 +51,12 @@
 			CREATE INDEX ref_tags_index ON ref USING GIN(tags);
 			CREATE INDEX ref_sources_index ON ref USING GIN(sources);
 			CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls);
+			ALTER TABLE ref
+				ADD COLUMN textsearch_en tsvector
+					GENERATED ALWAYS AS (setweight(to_tsvector('english', title),'A') ||
+										 setweight(to_tsvector('english', comment), 'B') ||
+										 setweight(to_tsvector('english', url), 'C')) STORED;
+			CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en);
 		</sql>
 		<createIndex tableName="ref" indexName="ref_published_index">
 			<column name="published"/>
