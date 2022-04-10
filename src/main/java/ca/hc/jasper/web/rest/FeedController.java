@@ -1,18 +1,19 @@
 package ca.hc.jasper.web.rest;
 
+import java.io.IOException;
 import java.time.Instant;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Feed;
-import ca.hc.jasper.repository.filter.*;
+import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.FeedService;
 import ca.hc.jasper.service.dto.FeedDto;
 import com.github.fge.jsonpatch.JsonPatch;
+import com.sun.syndication.io.FeedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -80,5 +81,13 @@ public class FeedController {
 		@RequestParam String url
 	) {
 		feedService.delete(url);
+	}
+
+	@GetMapping("scrape")
+	void scrape(
+		@RequestParam String url,
+		@RequestParam(defaultValue = "") String origin
+	) throws FeedException, IOException {
+		feedService.scrape(url, origin);
 	}
 }

@@ -32,6 +32,7 @@
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>0.22.0</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
+		<rome.version>1.0</rome.version>
 	</properties>
 
 	<dependencies>
@@ -202,6 +203,11 @@
 			<groupId>org.javatuples</groupId>
 			<artifactId>javatuples</artifactId>
 			<version>${javatuples.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>rome</groupId>
+			<artifactId>rome</artifactId>
+			<version>${rome.version}</version>
 		</dependency>
 		<!-- Spring Cloud -->
 		<dependency>

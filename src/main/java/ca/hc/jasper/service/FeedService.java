@@ -1,5 +1,8 @@
 package ca.hc.jasper.service;
 
+import java.io.IOException;
+
+import ca.hc.jasper.component.FeedScraper;
 import ca.hc.jasper.domain.Feed;
 import ca.hc.jasper.repository.FeedRepository;
 import ca.hc.jasper.repository.filter.RefFilter;
@@ -12,6 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
+import com.sun.syndication.io.FeedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -36,6 +40,9 @@ public class FeedService {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	FeedScraper feedScraper;
 
 	@PreAuthorize("hasRole('MOD')")
 	public void create(Feed feed) {
@@ -88,5 +95,12 @@ public class FeedService {
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
+	}
+
+	@PreAuthorize("hasRole('MOD')")
+	public void scrape(String url, String origin) throws IOException, FeedException {
+		var feed = feedRepository.findOneByUrlAndOrigin(url, origin)
+								   .orElseThrow(NotFoundException::new);
+		feedScraper.scrape(feed);
 	}
 }

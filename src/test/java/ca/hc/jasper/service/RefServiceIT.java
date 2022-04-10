@@ -3,7 +3,6 @@ package ca.hc.jasper.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.util.*;
 
 import ca.hc.jasper.IntegrationTest;
@@ -11,8 +10,6 @@ import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.*;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.errors.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -721,14 +718,12 @@ public class RefServiceIT {
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(List.of("user/tester"));
-		refService.updateMetadata(source, null);
-		refRepository.save(source);
+		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester"));
-		refService.updateMetadata(ref, null);
-		refRepository.save(ref);
+		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
@@ -753,14 +748,12 @@ public class RefServiceIT {
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(List.of("user/tester"));
-		refService.updateMetadata(source, null);
-		refRepository.save(source);
+		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester", "internal"));
-		refService.updateMetadata(ref, null);
-		refRepository.save(ref);
+		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
@@ -785,15 +778,13 @@ public class RefServiceIT {
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(List.of("user/tester"));
-		refService.updateMetadata(source, null);
-		refRepository.save(source);
+		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester"));
-		refService.updateMetadata(ref, null);
-		refRepository.save(ref);
+		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
@@ -821,14 +812,12 @@ public class RefServiceIT {
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(List.of("user/tester"));
-		refService.updateMetadata(source, null);
-		refRepository.save(source);
+		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester", "plugin/comment"));
-		refService.updateMetadata(ref, null);
-		refRepository.save(ref);
+		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
@@ -859,15 +848,13 @@ public class RefServiceIT {
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(List.of("user/tester"));
-		refService.updateMetadata(source, null);
-		refRepository.save(source);
+		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
 		ref.setTags(List.of("user/tester", "plugin/comment"));
-		refService.updateMetadata(ref, null);
-		refRepository.save(ref);
+		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
@@ -1034,145 +1021,4 @@ public class RefServiceIT {
 			.isFalse();
 	}
 
-	@Test
-	void testValidateRef() {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
-		refRepository.save(ref);
-
-		refService.validate(ref, false);
-	}
-
-	@Test
-	void testValidateRefWithInvalidPlugin() throws IOException {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
-		plugin.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		pluginRepository.save(plugin);
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
-
-		assertThatThrownBy(() -> refService.validate(ref, false))
-			.isInstanceOf(InvalidPluginException.class);
-	}
-
-	@Test
-	void testValidateRefWithPlugin() throws IOException {
-		var mapper = new ObjectMapper();
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		plugin.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		pluginRepository.save(plugin);
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
-		ref.setPlugins((ObjectNode) mapper.readTree("""
-		{
-			"plugin/test": {
-				"name": "Alice",
-				"age": 100
-			}
-		}"""));
-
-		refService.validate(ref, false);
-	}
-
-	@Test
-	void testValidateRefWithPluginExtraFailed() throws IOException {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
-		plugin.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		pluginRepository.save(plugin);
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
-		ref.setPlugins((ObjectNode) mapper.readTree("""
-		{
-			"plugin/test": {
-				"name": "Alice",
-				"age": 100
-			},
-			"extraStuff": {
-				"is": "not allowed"
-			}
-		}"""));
-
-
-		assertThatThrownBy(() -> refService.validate(ref, false))
-			.isInstanceOf(InvalidPluginException.class);
-	}
-
-	@Test
-	void testValidateRefWithSchemalessPluginFailed() throws IOException {
-		var mapper = new ObjectMapper();
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		pluginRepository.save(plugin);
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
-		ref.setPlugins((ObjectNode) mapper.readTree("""
-		{
-			"plugin/test": {
-				"name": "Alice",
-				"age": 100
-			}
-		}"""));
-
-		assertThatThrownBy(() -> refService.validate(ref, false))
-			.isInstanceOf(InvalidPluginException.class);
-	}
-
-	@Test
-	void testValidateRefWithPluginDefaults() throws IOException {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
-		plugin.setDefaults(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100
-		}"""));
-		plugin.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		pluginRepository.save(plugin);
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
-
-		refService.validate(ref, true);
-	}
 }
