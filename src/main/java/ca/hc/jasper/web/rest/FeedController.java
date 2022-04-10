@@ -10,7 +10,7 @@ import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.FeedService;
 import ca.hc.jasper.service.dto.FeedDto;
 import com.github.fge.jsonpatch.JsonPatch;
-import com.sun.syndication.io.FeedException;
+import com.rometools.rome.io.FeedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

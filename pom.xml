@@ -32,7 +32,8 @@
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>0.22.0</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
-		<rome.version>1.0</rome.version>
+		<rome.version>1.18.0</rome.version>
+		<apache-httpclient.version>4.5.2</apache-httpclient.version>
 	</properties>
 
 	<dependencies>
@@ -205,9 +206,14 @@
 			<version>${javatuples.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>rome</groupId>
+			<groupId>com.rometools</groupId>
 			<artifactId>rome</artifactId>
 			<version>${rome.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${apache-httpclient.version}</version>
 		</dependency>
 		<!-- Spring Cloud -->
 		<dependency>

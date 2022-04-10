@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
-import com.sun.syndication.io.FeedException;
+import com.rometools.rome.io.FeedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -98,7 +98,7 @@ public class FeedService {
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	public void scrape(String url, String origin) throws IOException, FeedException {
+	public void scrape(String url, String origin) throws FeedException, IOException {
 		var feed = feedRepository.findOneByUrlAndOrigin(url, origin)
 								   .orElseThrow(NotFoundException::new);
 		feedScraper.scrape(feed);
