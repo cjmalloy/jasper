@@ -21,6 +21,7 @@ public class RefFilter implements Query {
 
 	private String query;
 	private String search;
+	private boolean rankedOrder;
 	private String sources;
 	private String responses;
 	private boolean uncited;
@@ -29,18 +30,18 @@ public class RefFilter implements Query {
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
-		if (query != null) {
+		if (query != null && !query.isBlank()) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
-		if (search != null) {
-			result = result.and(fulltextEn(search));
+		if (search != null && !search.isBlank()) {
+			result = result.and(fulltextEn(search, rankedOrder));
 		}
-		if (sources != null) {
+		if (sources != null && !sources.isBlank()) {
 			// TODO: query across origins
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
-		if (responses != null) {
+		if (responses != null && !responses.isBlank()) {
 			// TODO: query across origins
 			result = result.and(hasSource(responses));
 		}

@@ -69,7 +69,7 @@ public class RefController {
 
 	@GetMapping("page")
 	Page<RefDto> getPage(
-		@PageableDefault(direction = Direction.DESC) Pageable pageable,
+		@PageableDefault Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) String sources,
 		@RequestParam(required = false) String responses,
@@ -78,10 +78,27 @@ public class RefController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) String search
 	) {
+		var rankedSort = false;
+		if (pageable.getSort().isUnsorted() || pageable.getSort().getOrderFor("rank") != null) {
+			if (search != null && !search.isBlank()) {
+				rankedSort = true;
+				pageable = PageRequest.of(
+					pageable.getPageNumber(),
+					pageable.getPageSize());
+			} else {
+				pageable = PageRequest.of(
+					pageable.getPageNumber(),
+					pageable.getPageSize(),
+					Sort.by(
+						Direction.DESC,
+						"created"));
+			}
+		}
 		return refService.page(
 			RefFilter.builder()
 					 .query(query)
 					 .search(search)
+					 .rankedOrder(rankedSort)
 					 .sources(sources)
 					 .responses(responses)
 					 .uncited(uncited)

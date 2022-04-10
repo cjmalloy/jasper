@@ -15,11 +15,13 @@ public class RefSpec {
 		return (root, query, cb) -> cb.disjunction();
 	}
 
-	public static Specification<Ref> fulltextEn(String search) {
+	public static Specification<Ref> fulltextEn(String search, boolean rankedOrder) {
 		return (root, query, cb) -> {
 			var searchQuery = cb.function("websearch_to_tsquery", Object.class, cb.literal(search));
-			query.orderBy(cb.desc(cb.function("ts_rank_cd", Object.class,
-				root.get(Ref_.textsearchEn), searchQuery)));
+			if (rankedOrder) {
+				query.orderBy(cb.desc(cb.function("ts_rank_cd", Object.class,
+					root.get(Ref_.textsearchEn), searchQuery)));
+			}
 			return cb.isTrue(
 				cb.function("ts_match_vq", Boolean.class,
 					root.get(Ref_.textsearchEn),
