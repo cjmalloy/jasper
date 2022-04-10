@@ -44,8 +44,8 @@ public class UserController {
 		return userService.get(tag);
 	}
 
-	@GetMapping("list")
-	Page<UserDto> getUsers(
+	@GetMapping("page")
+	Page<UserDto> getPage(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter

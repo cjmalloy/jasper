@@ -46,8 +46,8 @@ public class PluginController {
 		return pluginService.exists(tag);
 	}
 
-	@GetMapping("list")
-	Page<Plugin> getPlugins(
+	@GetMapping("page")
+	Page<Plugin> getPage(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter

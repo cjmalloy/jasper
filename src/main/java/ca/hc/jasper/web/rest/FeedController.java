@@ -42,8 +42,8 @@ public class FeedController {
 		return feedService.get(url, origin);
 	}
 
-	@GetMapping("list")
-	Page<FeedDto> getFeeds(
+	@GetMapping("page")
+	Page<FeedDto> getPage(
 		@PageableDefault(sort = "url") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter

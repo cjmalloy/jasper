@@ -38,8 +38,8 @@ public class ExtController {
 		return extService.get(tag);
 	}
 
-	@GetMapping("list")
-	Page<Ext> getExts(
+	@GetMapping("page")
+	Page<Ext> getPage(
 		@PageableDefault(sort = "tag") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query
 	) {

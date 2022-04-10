@@ -39,8 +39,8 @@ public class OriginController {
 		return originService.get(origin);
 	}
 
-	@GetMapping("list")
-	Page<Origin> getOrigins(
+	@GetMapping("page")
+	Page<Origin> getPage(
 		@PageableDefault(sort = "origin") Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
