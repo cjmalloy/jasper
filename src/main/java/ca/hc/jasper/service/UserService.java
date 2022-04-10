@@ -1,13 +1,13 @@
 package ca.hc.jasper.service;
 
 import ca.hc.jasper.domain.User;
+import ca.hc.jasper.errors.AlreadyExistsException;
+import ca.hc.jasper.errors.NotFoundException;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.dto.DtoMapper;
 import ca.hc.jasper.service.dto.UserDto;
-import ca.hc.jasper.service.errors.AlreadyExistsException;
-import ca.hc.jasper.service.errors.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;

@@ -10,7 +10,7 @@ import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.*;
 import ca.hc.jasper.repository.*;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.service.errors.*;
+import ca.hc.jasper.errors.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;

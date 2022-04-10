@@ -12,7 +12,7 @@ import ca.hc.jasper.IntegrationTest;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.UserRepository;
 import ca.hc.jasper.repository.filter.TagFilter;
-import ca.hc.jasper.service.errors.NotFoundException;
+import ca.hc.jasper.errors.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;

@@ -7,10 +7,10 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Ref;
+import ca.hc.jasper.errors.NotFoundException;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.RefService;
 import ca.hc.jasper.service.dto.RefDto;
-import ca.hc.jasper.service.errors.NotFoundException;
 import com.github.fge.jsonpatch.JsonPatch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

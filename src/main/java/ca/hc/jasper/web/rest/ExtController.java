@@ -3,7 +3,8 @@ package ca.hc.jasper.web.rest;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.*;
+import ca.hc.jasper.domain.Ext;
+import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.service.ExtService;
 import com.github.fge.jsonpatch.JsonPatch;

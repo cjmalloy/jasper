@@ -4,7 +4,7 @@ import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 
 import java.time.Instant;
 
-import ca.hc.jasper.domain.proj.*;
+import ca.hc.jasper.domain.proj.IsTag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;

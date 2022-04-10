@@ -18,7 +18,8 @@ class TechnicalStructureTest {
         .layer("Config").definedBy("..config..")
         .layer("Client").definedBy("..client..")
         .layer("Web").definedBy("..web..")
-        .optionalLayer("Service").definedBy("..service..")
+        .layer("Component").definedBy("..component..")
+        .layer("Service").definedBy("..service..")
         .layer("Security").definedBy("..security..")
         .layer("Persistence").definedBy("..repository..")
         .layer("Domain").definedBy("..domain..")
@@ -26,10 +27,11 @@ class TechnicalStructureTest {
         .whereLayer("Config").mayNotBeAccessedByAnyLayer()
         .whereLayer("Client").mayNotBeAccessedByAnyLayer()
         .whereLayer("Web").mayOnlyBeAccessedByLayers("Config")
+        .whereLayer("Component").mayOnlyBeAccessedByLayers("Service")
         .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Config", "Security")
         .whereLayer("Security").mayOnlyBeAccessedByLayers("Config", "Client", "Service", "Web")
-        .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Security", "Web", "Config")
-        .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Service", "Security", "Web", "Config")
+        .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config")
+        .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Service", "Component", "Security", "Web", "Config")
 
         .ignoreDependency(belongToAnyOf(JasperApplication.class), alwaysTrue())
         .ignoreDependency(alwaysTrue(), belongToAnyOf(
