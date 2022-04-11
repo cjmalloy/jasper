@@ -84,14 +84,6 @@ public class Ingest {
 		if (!ref.getTags().stream().allMatch(new HashSet<>()::add)) {
 			throw new DuplicateTagException();
 		}
-		var symmetricTags = ref.getTags()
-							   .stream()
-							   .filter(t -> t.startsWith("+"))
-							   .map(t -> '_' + t.substring(1))
-							   .toList();
-		if (!ref.getTags().containsAll(symmetricTags)) {
-			throw new SymmetricTagMissingException();
-		}
 	}
 
 	public void validatePlugins(Ref ref, boolean useDefaults) {

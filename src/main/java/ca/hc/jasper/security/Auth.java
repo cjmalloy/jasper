@@ -61,8 +61,7 @@ public class Auth {
 	public boolean canWriteRef(Ref ref) {
 		if (!canWriteRef(ref.getUrl())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
-		// Only allow tagging refs with tags you can read
-		return newTags(ref.getQualifiedTags(), maybeExisting.map(Ref::getQualifiedTags)).allMatch(this::canReadTag);
+		return newTags(ref.getQualifiedTags(), maybeExisting.map(Ref::getQualifiedTags)).allMatch(this::canAddTag);
 	}
 
 	public boolean canWriteRef(String url) {
@@ -80,12 +79,11 @@ public class Auth {
 		return false;
 	}
 
-	public boolean canReadTag(String tag) {
-		if (!tag.startsWith("_")) return true;
+	public boolean canAddTag(String tag) {
+		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
 			if (tag.equals(getUserTag())) return true;
-			if (tag.equals(getUserPrivateTag())) return true;
 			var readAccess = getReadAccess();
 			if (readAccess == null) return false;
 			return captures(readAccess, List.of(tag));
@@ -93,11 +91,15 @@ public class Auth {
 		return false;
 	}
 
+	public boolean canReadTag(String tag) {
+		if (!tag.startsWith("_")) return true;
+		return canAddTag(tag);
+	}
+
 	public boolean canWriteTag(String tag) {
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
 			if (tag.equals(getUserTag())) return true;
-			if (tag.equals(getUserPrivateTag())) return true;
 			var writeAccess = getWriteAccess();
 			if (writeAccess == null) return false;
 			return captures(writeAccess, List.of(tag));
@@ -111,7 +113,6 @@ public class Auth {
 		var tagList = Arrays.stream(filter.getQuery().split(Query.DELIMS + "+"))
 							.filter((t) -> t.startsWith("_"))
 							.filter((t) -> !t.equals(getUserTag()))
-							.filter((t) -> !t.equals(getUserPrivateTag()))
 							.toList();
 		if (tagList.isEmpty()) return true;
 		if (hasRole("USER")) {
@@ -184,10 +185,6 @@ public class Auth {
 		if (changes == null) return Stream.empty();
 		if (existing.isEmpty()) return changes.stream();
 		return changes.stream().filter(tag -> !existing.get().contains(tag));
-	}
-
-	public String getUserPrivateTag() {
-		return '_' + getUserTag().substring(1);
 	}
 
 	public String getUserTag() {

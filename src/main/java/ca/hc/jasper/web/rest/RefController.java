@@ -34,7 +34,7 @@ public class RefController {
 	void createRef(
 		@RequestBody @Valid Ref ref
 	) {
-		refService.create(ref.addSymmetric());
+		refService.create(ref);
 	}
 
 	@GetMapping
@@ -132,7 +132,7 @@ public class RefController {
 	void updateRef(
 		@RequestBody @Valid Ref ref
 	) {
-		refService.update(ref.addSymmetric());
+		refService.update(ref);
 	}
 
 	@PatchMapping(consumes = "application/json-patch+json")

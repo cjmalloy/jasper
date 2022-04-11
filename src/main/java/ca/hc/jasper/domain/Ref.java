@@ -92,15 +92,6 @@ public class Ref implements HasTags {
 		return this;
 	}
 
-	public Ref addSymmetric() {
-		addTags(getTags()
-			.stream()
-			.filter(t -> t.startsWith("+"))
-			.map(t -> '_' + t.substring(1))
-			.toList());
-		return this;
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
