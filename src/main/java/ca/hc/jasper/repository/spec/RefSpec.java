@@ -89,6 +89,34 @@ public class RefSpec {
 					cb.literal(0)));
 	}
 
+	public static Specification<Ref> hasNoPluginResponses(String plugin) {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.equal(
+					cb.function("jsonb_array_length", Long.class,
+						cb.function("jsonb_object_field", List.class,
+							cb.function("jsonb_object_field", List.class,
+								root.get(Ref_.metadata),
+								cb.literal("plugins")),
+							cb.literal(plugin))),
+					cb.literal(0)));
+	}
+
+	public static Specification<Ref> hasPluginResponses(String plugin) {
+		return (root, query, cb) ->
+			cb.and(
+				cb.isNotNull(root.get(Ref_.metadata)),
+				cb.gt(
+					cb.function("jsonb_array_length", Long.class,
+						cb.function("jsonb_object_field", List.class,
+							cb.function("jsonb_object_field", List.class,
+								root.get(Ref_.metadata),
+								cb.literal("plugins")),
+							cb.literal(plugin))),
+					cb.literal(0)));
+	}
+
 	public static <T extends HasTags> Specification<T> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,

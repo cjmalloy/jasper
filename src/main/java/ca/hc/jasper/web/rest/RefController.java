@@ -76,6 +76,8 @@ public class RefController {
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) String pluginResponse,
+		@RequestParam(required = false) String noPluginResponse,
 		@RequestParam(required = false) String search
 	) {
 		var rankedSort = false;
@@ -103,6 +105,8 @@ public class RefController {
 					 .responses(responses)
 					 .uncited(uncited)
 					 .unsourced(unsourced)
+					 .pluginResponse(pluginResponse)
+					 .noPluginResponse(noPluginResponse)
 					 .modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}
@@ -114,16 +118,22 @@ public class RefController {
 		@RequestParam(required = false) String responses,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) String pluginResponse,
+		@RequestParam(required = false) String noPluginResponse,
+		@RequestParam(required = false) String search
 	) {
 		return refService.count(
 			RefFilter
 				.builder()
 				.query(query)
+				.search(search)
 				.sources(sources)
 				.responses(responses)
 				.uncited(uncited)
 				.unsourced(unsourced)
+				.pluginResponse(pluginResponse)
+				.noPluginResponse(noPluginResponse)
 				.modifiedAfter(modifiedAfter).build());
 	}
 

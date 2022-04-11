@@ -27,6 +27,8 @@ public class RefFilter implements Query {
 	private String responses;
 	private boolean uncited;
 	private boolean unsourced;
+	private String pluginResponse;
+	private String noPluginResponse;
 	private Instant modifiedAfter;
 
 	public Specification<Ref> spec() {
@@ -53,6 +55,14 @@ public class RefFilter implements Query {
 		if (unsourced) {
 			// TODO: query across origins
 			result = result.and(hasNoSources());
+		}
+		if (isNotBlank(pluginResponse)) {
+			// TODO: query across origins
+			result = result.and(hasPluginResponses(pluginResponse));
+		}
+		if (isNotBlank(noPluginResponse)) {
+			// TODO: query across origins
+			result = result.and(hasNoPluginResponses(pluginResponse));
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
