@@ -27,10 +27,12 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "tsvector", typeClass = PostgreSQLTSVectorType.class)
 })
 public class Ref implements HasTags {
+	public static final String REGEX = "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?";
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
+	@Pattern(regexp = REGEX)
 	private String url;
 
 	@Id
@@ -48,11 +50,11 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> sources;
+	private List<@Pattern(regexp = REGEX) String> sources;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<String> alternateUrls;
+	private List<@Pattern(regexp = REGEX) String> alternateUrls;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

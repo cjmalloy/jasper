@@ -1,11 +1,11 @@
 package ca.hc.jasper.web.rest;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
+import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.domain.Ref;
 import ca.hc.jasper.errors.NotFoundException;
 import ca.hc.jasper.repository.filter.RefFilter;
@@ -39,18 +39,18 @@ public class RefController {
 
 	@GetMapping
 	RefDto getRef(
-		@RequestParam String url,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
 	) {
 		return refService.get(url, origin);
 	}
 
 	@GetMapping("list")
 	List<RefDto> getList(
-		@RequestParam String[] urls,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @Pattern(regexp = Ref.REGEX) List<String> urls,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return Arrays.stream(urls).map(url -> {
+		return urls.stream().map(url -> {
 			try {
 				return refService.get(url, origin);
 			} catch (NotFoundException | AccessDeniedException e) {
@@ -61,8 +61,8 @@ public class RefController {
 
 	@GetMapping("exists")
 	boolean refExists(
-		@RequestParam String url,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
 	) {
 		return refService.exists(url, origin);
 	}
@@ -148,8 +148,8 @@ public class RefController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchRef(
-		@RequestParam String url,
-		@RequestParam(defaultValue = "") String origin,
+		@RequestParam @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin,
 		@RequestBody JsonPatch patch
 	) {
 		refService.patch(url, origin, patch);
@@ -158,7 +158,7 @@ public class RefController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteRef(
-		@RequestParam String url
+		@RequestParam @Pattern(regexp = Ref.REGEX) String url
 	) {
 		refService.delete(url);
 	}

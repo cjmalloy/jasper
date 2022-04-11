@@ -13,6 +13,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.validator.constraints.URL;
 import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
@@ -27,6 +28,7 @@ public class Feed implements HasTags {
 	@Id
 	@Column(updatable = false)
 	@NotBlank
+	@URL
 	private String url;
 
 	@Id

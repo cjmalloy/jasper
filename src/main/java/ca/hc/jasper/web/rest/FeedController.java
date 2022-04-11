@@ -6,11 +6,13 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Feed;
+import ca.hc.jasper.domain.Origin;
 import ca.hc.jasper.repository.filter.RefFilter;
 import ca.hc.jasper.service.FeedService;
 import ca.hc.jasper.service.dto.FeedDto;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.rometools.rome.io.FeedException;
+import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +39,7 @@ public class FeedController {
 
 	@GetMapping
 	FeedDto getFeed(
-		@RequestParam String url,
+		@RequestParam @URL String url,
 		@RequestParam(defaultValue = "") String origin
 	) {
 		return feedService.get(url, origin);
@@ -68,8 +70,8 @@ public class FeedController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchFeed(
-		@RequestParam String url,
-		@RequestParam(defaultValue = "") String origin,
+		@RequestParam @URL String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin,
 		@RequestBody JsonPatch patch
 	) {
 		feedService.patch(url, origin, patch);
@@ -78,15 +80,15 @@ public class FeedController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteFeed(
-		@RequestParam String url
+		@RequestParam @URL String url
 	) {
 		feedService.delete(url);
 	}
 
 	@GetMapping("scrape")
 	void scrape(
-		@RequestParam String url,
-		@RequestParam(defaultValue = "") String origin
+		@RequestParam @URL String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
 	) throws FeedException, IOException {
 		feedService.scrape(url, origin);
 	}
