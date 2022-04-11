@@ -115,11 +115,11 @@ public class TagQuery {
 					// Useless parentheses around ors
 					orTags.addAll(Arrays.stream(orGroup.split("[()|]")).map(QualifiedTag::new).toList());
 				} else {
-					orTags.add(new QualifiedTag(orGroup));
+					orTags.add(new QualifiedTag(orGroup.replaceAll("[()]", "")));
 				}
 			} else {
 				if (!orGroup.contains("|")) {
-					orGroups.add(Arrays.stream(orGroup.split(":")).map(QualifiedTag::new).toList());
+					orGroups.add(Arrays.stream(orGroup.replaceAll("[()]", "").split(":")).map(QualifiedTag::new).toList());
 				} else {
 					var andGroups = orGroup.split("[():]");
 					var nested = new ArrayList<List<QualifiedTag>>();
@@ -139,9 +139,9 @@ public class TagQuery {
 
 	private String markInnerOuterOrs(String query) {
 		if (!query.contains("(")) return query.replaceAll(OR_REGEX, " ");
-		var parens = query.startsWith("(");
 		var groups = query.split("[()]");
 		var result = new StringBuilder();
+		var parens = false;
 		for (String group : groups) {
 			if (parens) {
 				result.append("(");
