@@ -23,6 +23,7 @@ public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 
 	private final List<List<QualifiedTag>> orGroups = new ArrayList<>();
+	private final List<List<List<QualifiedTag>>> nestedGroups = new ArrayList<>();
 	private final List<QualifiedTag> orTags = new ArrayList<>();
 
 	public TagQuery(String query) {
@@ -37,6 +38,13 @@ public class TagQuery {
 		for (var andGroup : orGroups) {
 			result = result.or(hasAllQualifiedTags(andGroup));
 		}
+		for (var andGroup : nestedGroups) {
+			var subExpression = Specification.<T>where(null);
+			for (var innerOrGroup : andGroup) {
+				subExpression = subExpression.and(hasAnyQualifiedTag(innerOrGroup));
+			}
+			result = result.or(subExpression);
+		}
 		return result;
 	}
 
@@ -47,6 +55,13 @@ public class TagQuery {
 		}
 		for (var andGroup : orGroups) {
 			result = result.or(isAllQualifiedTag(andGroup));
+		}
+		for (var andGroup : nestedGroups) {
+			var subExpression = Specification.<T>where(null);
+			for (var innerOrGroup : andGroup) {
+				subExpression = subExpression.and(isAnyQualifiedTag(innerOrGroup));
+			}
+			result = result.or(subExpression);
 		}
 		return result;
 	}
@@ -59,6 +74,13 @@ public class TagQuery {
 		for (var andGroup : orGroups) {
 			result = result.or(hasAllOrigins(andGroup));
 		}
+		for (var andGroup : nestedGroups) {
+			var subExpression = Specification.<T>where(null);
+			for (var innerOrGroup : andGroup) {
+				subExpression = subExpression.and(hasAnyOrigin(innerOrGroup));
+			}
+			result = result.or(subExpression);
+		}
 		return result;
 	}
 
@@ -70,22 +92,66 @@ public class TagQuery {
 		for (var andGroup : orGroups) {
 			result = result.or(matchesAllQualifiedTag(andGroup));
 		}
+		for (var andGroup : nestedGroups) {
+			var subExpression = Specification.<Template>where(null);
+			for (var innerOrGroup : andGroup) {
+				subExpression = subExpression.and(matchesAnyQualifiedTag(innerOrGroup));
+			}
+			result = result.or(subExpression);
+		}
 		return result;
 	}
 
 	private void parse(String query) {
 		logger.debug(query);
-		// TODO: Allow parentheses?
-		var ors = query.split(OR_REGEX);
+		query = markInnerOuterOrs(query);
+		query = query.replaceAll(AND_REGEX, ":");
+		var ors = query.split(" ");
 		for (var orGroup : ors) {
-			var ands = orGroup.split(AND_REGEX);
-			if (ands.length == 0) continue;
-			if (ands.length == 1) {
-				orTags.add(new QualifiedTag(ands[0]));
+			if (orGroup.length() == 0) continue;
+			if (!orGroup.contains(":")) {
+				if (orGroup.contains("|")) {
+					// Useless parentheses around ors
+					orTags.addAll(Arrays.stream(orGroup.split("[()|]")).map(QualifiedTag::new).toList());
+				} else {
+					orTags.add(new QualifiedTag(orGroup));
+				}
 			} else {
-				orGroups.add(Arrays.stream(ands).map(QualifiedTag::new).toList());
+				if (!orGroup.contains("|")) {
+					orGroups.add(Arrays.stream(orGroup.split(":")).map(QualifiedTag::new).toList());
+				} else {
+					var andGroups = orGroup.split("[():]");
+					var nested = new ArrayList<List<QualifiedTag>>();
+					for (var andGroup : andGroups) {
+						if (andGroup.length() == 0) continue;
+						if (!andGroup.contains("|")) {
+							nested.add(List.of(new QualifiedTag(andGroup)));
+						} else {
+							nested.add(Arrays.stream(andGroup.split("\\|")).map(QualifiedTag::new).toList());
+						}
+					}
+					nestedGroups.add(nested);
+				}
 			}
 		}
+	}
+
+	private String markInnerOuterOrs(String query) {
+		if (!query.contains("(")) return query.replaceAll(OR_REGEX, " ");
+		var parens = query.startsWith("(");
+		var groups = query.split("[()]");
+		var result = new StringBuilder();
+		for (String group : groups) {
+			if (parens) {
+				result.append("(");
+				result.append(group.replaceAll(OR_REGEX, " "));
+				result.append(")");
+			} else {
+				result.append(group.replaceAll(OR_REGEX, "|"));
+			}
+			parens = !parens;
+		}
+		return result.toString();
 	}
 
 	private String sanitize(String query) {

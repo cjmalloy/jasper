@@ -7,6 +7,8 @@ public interface Query {
 	String OR_REGEX = "[ |]";
 	String DELIMS = "[ |:&]";
 	String SELECTOR = "!?" + QualifiedTag.REGEX;
-	String REGEX = SELECTOR + "([ |:&]" + SELECTOR + ")*";
+	String OR_GROUP = "\\(" + SELECTOR + "([ |]" + SELECTOR + ")*\\)";
+	String SELECTOR_OR_GROUP = "(" + SELECTOR + "|" + OR_GROUP + ")";
+	String REGEX = SELECTOR_OR_GROUP + "([ |:&]" + SELECTOR_OR_GROUP + ")*";
 	String getQuery();
 }
