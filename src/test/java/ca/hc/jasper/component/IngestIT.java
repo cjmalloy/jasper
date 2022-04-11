@@ -37,7 +37,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 
 		ingest.validate(ref, false);
@@ -59,7 +59,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setTags(List.of("+user/tester", "plugin/test"));
 
 		assertThatThrownBy(() -> ingest.validate(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
@@ -81,7 +81,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setTags(List.of("+user/tester", "plugin/test"));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -109,7 +109,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setTags(List.of("+user/tester", "plugin/test"));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -135,7 +135,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setTags(List.of("+user/tester", "plugin/test"));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -169,7 +169,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/test"));
+		ref.setTags(List.of("+user/tester", "plugin/test"));
 
 		ingest.validate(ref, true);
 	}

@@ -35,16 +35,16 @@ public class UserServiceIT {
 	@Test
 	void testCreateUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Custom");
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByQualifiedTag("user/tester"))
+		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/tester").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -52,20 +52,20 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserWithAllSelector() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("@*"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -73,20 +73,20 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserWithAllOriginSelector() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setWriteAccess(List.of("user/other@*"));
+		user.setTag("+user/tester");
+		user.setWriteAccess(List.of("+user/other@*"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -94,13 +94,13 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserFailed() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 
 		assertThatThrownBy(() -> userService.create(user))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/tester"))
+		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isFalse();
 	}
 
@@ -108,16 +108,16 @@ public class UserServiceIT {
 	@WithMockUser(value = "tester", roles = "MOD")
 	void testModCreateUser() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -126,18 +126,18 @@ public class UserServiceIT {
 	@WithMockUser(value = "tester", roles = "MOD")
 	void testModCreateUserWithTags() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		user.setReadAccess(List.of("custom"));
 		user.setWriteAccess(List.of("custom"));
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
@@ -150,18 +150,18 @@ public class UserServiceIT {
 	@WithMockUser(value = "tester", roles = "MOD")
 	void testModCreateUserWithTagSelectors() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		user.setReadAccess(List.of("@*"));
 		user.setWriteAccess(List.of("custom", "custom@other"));
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
@@ -174,12 +174,12 @@ public class UserServiceIT {
 	@WithMockUser(value = "tester", roles = "MOD")
 	void testModCreateUserWithNotTagSelectorsFailed() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setWriteAccess(List.of("!@excluded"));
 
 		userService.create(user);
 
-		assertThatThrownBy(() -> userRepository.existsByQualifiedTag("user/other"))
+		assertThatThrownBy(() -> userRepository.existsByQualifiedTag("+user/other"))
 			.isInstanceOf(ConstraintViolationException.class);
 	}
 
@@ -187,18 +187,18 @@ public class UserServiceIT {
 	@WithMockUser(value = "tester", roles = "MOD")
 	void testModCreateUserWithPrivateTags() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		user.setReadAccess(List.of("_custom"));
 		user.setWriteAccess(List.of("_custom"));
 
 		userService.create(user);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
@@ -210,23 +210,23 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserWithTags() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setReadAccess(List.of("custom", "user/other"));
-		user.setWriteAccess(List.of("custom", "user/other"));
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("custom", "+user/other"));
+		user.setWriteAccess(List.of("custom", "+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 		other.setReadAccess(List.of("custom"));
 		other.setWriteAccess(List.of("custom"));
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
@@ -238,23 +238,23 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserWithPrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setReadAccess(List.of("_secret", "user/other"));
-		user.setWriteAccess(List.of("_secret", "user/other"));
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("_secret", "+user/other"));
+		user.setWriteAccess(List.of("_secret", "+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 		other.setReadAccess(List.of("_secret"));
 		other.setWriteAccess(List.of("_secret"));
 
 		userService.create(other);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
@@ -266,7 +266,7 @@ public class UserServiceIT {
 	@Test
 	void testCreateUserWithTagsFailed() {
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 		other.setReadAccess(List.of("custom"));
 		other.setWriteAccess(List.of("custom"));
@@ -274,14 +274,14 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.create(other))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isFalse();
 	}
 
 	@Test
 	void testCreateUserWithPrivateTagsFailed() {
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("Custom");
 		other.setReadAccess(List.of("_custom"));
 		other.setWriteAccess(List.of("_custom"));
@@ -289,20 +289,20 @@ public class UserServiceIT {
 		assertThatThrownBy(() -> userService.create(other))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isFalse();
 	}
 
 	@Test
 	void testReadNonExistentUser() {
-		assertThatThrownBy(() -> userService.get("user/other"))
+		assertThatThrownBy(() -> userService.get("+user/other"))
 			.isInstanceOf(NotFoundException.class);
 	}
 
 	@Test
 	void testReadNonExistentPrivateUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
 
@@ -319,14 +319,14 @@ public class UserServiceIT {
 	@Test
 	void testReadPublicUser() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/other");
+		var fetched = userService.get("+user/other");
 
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -334,14 +334,14 @@ public class UserServiceIT {
 	@Test
 	void testReadUser() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/other");
+		var fetched = userService.get("+user/other");
 
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -349,14 +349,14 @@ public class UserServiceIT {
 	@Test
 	void testReadUserSelf() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Custom");
 		userRepository.save(user);
 
-		var fetched = userService.get("user/tester");
+		var fetched = userService.get("+user/tester");
 
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -375,7 +375,7 @@ public class UserServiceIT {
 	@Test
 	void testReadPrivateOtherUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
 		var other = new User();
@@ -421,7 +421,7 @@ public class UserServiceIT {
 	@Test
 	void testReadOtherUserWithAllSelector() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("@*"));
 		userRepository.save(user);
 		var other = new User();
@@ -440,7 +440,7 @@ public class UserServiceIT {
 	@Test
 	void testReadOtherUserWithAllOriginSelector() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other@*"));
 		userRepository.save(user);
 		var other = new User();
@@ -459,7 +459,7 @@ public class UserServiceIT {
 	@Test
 	void testPagePublicUser() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("Custom");
 		userRepository.save(user);
 
@@ -470,7 +470,7 @@ public class UserServiceIT {
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(page.getContent().get(0).getName())
 			.isEqualTo("Custom");
 	}
@@ -493,7 +493,7 @@ public class UserServiceIT {
 	@Test
 	void testPagePrivateUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Custom");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
@@ -509,11 +509,11 @@ public class UserServiceIT {
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
 		assertThat(page.getContent().get(0).getTag())
-			.isIn("user/tester", "_user/other");
+			.isIn("+user/tester", "_user/other");
 		assertThat(page.getContent().get(0).getName())
 			.isIn("Custom", "Secret");
 		assertThat(page.getContent().get(1).getTag())
-			.isIn("user/tester", "_user/other");
+			.isIn("+user/tester", "_user/other");
 		assertThat(page.getContent().get(1).getName())
 			.isIn("Custom", "Secret");
 	}
@@ -521,7 +521,7 @@ public class UserServiceIT {
 	@Test
 	void testPagePrivateUserWithoutHiddenTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Custom");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
@@ -551,7 +551,7 @@ public class UserServiceIT {
 	@Test
 	void testPagePrivateUserWithHiddenTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Custom");
 		user.setReadAccess(List.of("_secret", "_user/other"));
 		userRepository.save(user);
@@ -617,7 +617,7 @@ public class UserServiceIT {
 	@Test
 	void testPageUserUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("Secret");
 		userRepository.save(user);
 
@@ -628,7 +628,7 @@ public class UserServiceIT {
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(page.getContent().get(0).getName())
 			.isEqualTo("Secret");
 	}
@@ -636,25 +636,25 @@ public class UserServiceIT {
 	@Test
 	void testUpdateOtherUserWithoutRemovingHiddenTags() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setWriteAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setWriteAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		other.setReadAccess(List.of("_secret"));
 		userRepository.save(other);
 		var updated = new User();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 
 		userService.update(updated);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 		assertThat(fetched.getReadAccess())
@@ -664,26 +664,26 @@ public class UserServiceIT {
 	@Test
 	void testUpdateOtherUserAddingTags() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setWriteAccess(List.of("user/other", "custom"));
+		user.setTag("+user/tester");
+		user.setWriteAccess(List.of("+user/other", "custom"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		other.setReadAccess(List.of("_secret"));
 		userRepository.save(other);
 		var updated = new User();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 		updated.setReadAccess(new ArrayList<>(List.of("custom")));
 
 		userService.update(updated);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 		assertThat(fetched.getReadAccess())
@@ -693,24 +693,24 @@ public class UserServiceIT {
 	@Test
 	void testUpdateOtherUser() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setWriteAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setWriteAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		userRepository.save(other);
 		var updated = new User();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 
 		userService.update(updated);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -718,25 +718,25 @@ public class UserServiceIT {
 	@Test
 	void testUpdateOtherUserFailed() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setReadAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		userRepository.save(other);
 		var updated = new User();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 
 		assertThatThrownBy(() -> userService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
 	}
@@ -744,20 +744,20 @@ public class UserServiceIT {
 	@Test
 	void testUpdateUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setName("First");
 		userRepository.save(user);
 		var updated = new User();
-		updated.setTag("user/tester");
+		updated.setTag("+user/tester");
 		updated.setName("Second");
 
 		userService.update(updated);
 
-		assertThat(userRepository.existsByQualifiedTag("user/tester"))
+		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/tester").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -765,21 +765,21 @@ public class UserServiceIT {
 	@Test
 	void testUpdateUserFailed() {
 		var user = new User();
-		user.setTag("user/other");
+		user.setTag("+user/other");
 		user.setName("First");
 		userRepository.save(user);
 		var updated = new User();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 
 		assertThatThrownBy(() -> userService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
 	}
@@ -787,7 +787,7 @@ public class UserServiceIT {
 	@Test
 	void testUpdatePrivateUser() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other"));
 		user.setWriteAccess(List.of("_user/other"));
 		userRepository.save(user);
@@ -813,7 +813,7 @@ public class UserServiceIT {
 	@Test
 	void testUpdatePrivateUserFailed() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
 		var other = new User();
@@ -839,39 +839,39 @@ public class UserServiceIT {
 	@Test
 	void testDeleteUser() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setWriteAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setWriteAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		userRepository.save(other);
 
-		userService.delete("user/other");
+		userService.delete("+user/other");
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isFalse();
 	}
 
 	@Test
 	void testDeleteUserFailed() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setReadAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		userRepository.save(other);
 
-		assertThatThrownBy(() -> userService.delete("user/other"))
+		assertThatThrownBy(() -> userService.delete("+user/other"))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
 	}
@@ -879,25 +879,25 @@ public class UserServiceIT {
 	@Test
 	void testDeletePrivateUser() {
 		var user = new User();
-		user.setTag("user/tester");
-		user.setReadAccess(List.of("user/other"));
-		user.setWriteAccess(List.of("user/other"));
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("+user/other"));
+		user.setWriteAccess(List.of("+user/other"));
 		userRepository.save(user);
 		var other = new User();
-		other.setTag("user/other");
+		other.setTag("+user/other");
 		other.setName("First");
 		userRepository.save(other);
 
-		userService.delete("user/other");
+		userService.delete("+user/other");
 
-		assertThat(userRepository.existsByQualifiedTag("user/other"))
+		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isFalse();
 	}
 
 	@Test
 	void testDeletePrivateUserFailed() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
 		var other = new User();

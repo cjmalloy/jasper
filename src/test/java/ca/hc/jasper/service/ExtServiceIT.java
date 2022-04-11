@@ -50,16 +50,16 @@ public class ExtServiceIT {
 	@Test
 	void testCreateUserExt() {
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("Custom");
 
 		extService.create(ext);
 
-		assertThat(extRepository.existsByQualifiedTag("user/tester"))
+		assertThat(extRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("user/tester").get();
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -91,7 +91,7 @@ public class ExtServiceIT {
 	@Test
 	void testReadNonExistentPrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 
@@ -123,14 +123,14 @@ public class ExtServiceIT {
 	@Test
 	void testReadUserExt() {
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("Custom");
 		extRepository.save(ext);
 
-		var fetched = extService.get("user/tester");
+		var fetched = extService.get("+user/tester");
 
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -164,7 +164,7 @@ public class ExtServiceIT {
 	@Test
 	void testReadPrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -244,7 +244,7 @@ public class ExtServiceIT {
 	@Test
 	void testPagePrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -303,7 +303,7 @@ public class ExtServiceIT {
 	@Test
 	void testPageUserExt() {
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("Secret");
 		extRepository.save(ext);
 
@@ -314,7 +314,7 @@ public class ExtServiceIT {
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(page.getContent().get(0).getName())
 			.isEqualTo("Secret");
 	}
@@ -322,7 +322,7 @@ public class ExtServiceIT {
 	@Test
 	void testUpdateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("custom"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -371,21 +371,21 @@ public class ExtServiceIT {
 	@Test
 	void testUpdateUserExt() {
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("First");
 		extRepository.save(ext);
 		var updated = new Ext();
-		updated.setTag("user/tester");
+		updated.setTag("+user/tester");
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
 		extService.update(updated);
 
-		assertThat(extRepository.existsByQualifiedTag("user/tester"))
+		assertThat(extRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("user/tester").get();
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/tester");
+			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -393,22 +393,22 @@ public class ExtServiceIT {
 	@Test
 	void testUpdateUserExtFailed() {
 		var ext = new Ext();
-		ext.setTag("user/other");
+		ext.setTag("+user/other");
 		ext.setName("First");
 		extRepository.save(ext);
 		var updated = new Ext();
-		updated.setTag("user/other");
+		updated.setTag("+user/other");
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
 		assertThatThrownBy(() -> extService.update(updated))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(extRepository.existsByQualifiedTag("user/other"))
+		assertThat(extRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("user/other").get();
+		var fetched = extRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("user/other");
+			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
 	}
@@ -416,7 +416,7 @@ public class ExtServiceIT {
 	@Test
 	void testUpdatePrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
@@ -443,7 +443,7 @@ public class ExtServiceIT {
 	@Test
 	void testUpdatePrivateExtFailed() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -493,7 +493,7 @@ public class ExtServiceIT {
 	@Test
 	void testDeleteExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("custom"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -529,7 +529,7 @@ public class ExtServiceIT {
 	@Test
 	void testDeletePrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
@@ -547,7 +547,7 @@ public class ExtServiceIT {
 	@Test
 	void testDeletePrivateExtFailed() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ext = new Ext();
@@ -570,7 +570,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateExt() {
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("First");
 
 		extService.validate(ext, false);
@@ -590,7 +590,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template);
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("First");
 
 		assertThatThrownBy(() -> extService.validate(ext, false))
@@ -611,7 +611,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template);
 		var ext = new Ext();
-		ext.setTag("user/tester");
+		ext.setTag("+user/tester");
 		ext.setName("First");
 		ext.setConfig(mapper.readTree("""
 		{
@@ -625,7 +625,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidatePrivateExt() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_slug/custom"));
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
@@ -639,7 +639,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidatePrivateTagWithInvalidTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_slug/custom"));
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
@@ -665,7 +665,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithMergedTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("slug/more/custom"));
 		user.setWriteAccess(List.of("slug/more/custom"));
 		userRepository.save(user);
@@ -709,7 +709,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidateTagWithMergedDefaultsTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("slug/more/custom"));
 		user.setWriteAccess(List.of("slug/more/custom"));
 		userRepository.save(user);
@@ -756,7 +756,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidatePrivateTagWithTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_slug/custom"));
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
@@ -786,7 +786,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidatePrivateTagWithInvalidPrivateTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_slug/custom"));
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);
@@ -812,7 +812,7 @@ public class ExtServiceIT {
 	@Test
 	void testValidatePrivateTagWithPrivateTemplate() throws IOException {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_slug/custom"));
 		user.setWriteAccess(List.of("_slug/custom"));
 		userRepository.save(user);

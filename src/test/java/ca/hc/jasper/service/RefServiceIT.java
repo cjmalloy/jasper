@@ -52,7 +52,7 @@ public class RefServiceIT {
 	void testCreateDuplicateRefFails() {
 		var existing = new Ref();
 		existing.setUrl(URL);
-		existing.setTags(List.of("user/tester"));
+		existing.setTags(List.of("+user/tester"));
 		refRepository.save(existing);
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -68,7 +68,7 @@ public class RefServiceIT {
 	void testCreateDuplicateAltRefFails() {
 		var existing = new Ref();
 		existing.setUrl("https://www.different.com/");
-		existing.setTags(List.of("user/tester"));
+		existing.setTags(List.of("+user/tester"));
 		existing.setAlternateUrls(List.of(URL));
 		refRepository.save(existing);
 		var ref = new Ref();
@@ -121,7 +121,7 @@ public class RefServiceIT {
 	@Test
 	void testCreateRefWithPrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -140,14 +140,14 @@ public class RefServiceIT {
 	void testCreateRefWithUserTags() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 
 		refService.create(ref);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
-			.containsExactly("user/tester");
+			.containsExactly("+user/tester");
 	}
 
 	@Test
@@ -358,7 +358,7 @@ public class RefServiceIT {
 	@Test
 	void testGetPageRefWithReadableTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -377,7 +377,7 @@ public class RefServiceIT {
 	@Test
 	void testGetPageRefWithReadablePrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret", "_hot", "sauce"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -476,12 +476,12 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -498,12 +498,12 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("locked", "user/tester"));
+		ref.setTags(List.of("locked", "+user/tester"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
@@ -522,12 +522,12 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("locked", "user/tester"));
+		ref.setTags(List.of("locked", "+user/tester"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified());
 
 		assertThatThrownBy(() -> refService.update(update))
@@ -545,12 +545,12 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified().minusSeconds(60));
 
 		assertThatThrownBy(() -> refService.update(update))
@@ -566,7 +566,7 @@ public class RefServiceIT {
 	@Test
 	void testUpdateRefWithReadableTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -593,7 +593,7 @@ public class RefServiceIT {
 	@Test
 	void testUpdateRefWithWritableTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("custom"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -643,12 +643,12 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "_secret"));
+		ref.setTags(List.of("+user/tester", "_secret"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(new ArrayList<>(List.of("user/tester", "custom")));
+		update.setTags(new ArrayList<>(List.of("+user/tester", "custom")));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -659,13 +659,13 @@ public class RefServiceIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 		assertThat(fetched.getTags())
-			.contains("user/tester", "custom", "_secret");
+			.contains("+user/tester", "custom", "_secret");
 	}
 
 	@Test
 	void testUpdateRefWithReadablePrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -691,7 +691,7 @@ public class RefServiceIT {
 	@Test
 	void testUpdateRefWithWritablePrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -718,18 +718,18 @@ public class RefServiceIT {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
-		source.setTags(List.of("user/tester"));
+		source.setTags(List.of("+user/tester"));
 		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -748,18 +748,18 @@ public class RefServiceIT {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
-		source.setTags(List.of("user/tester"));
+		source.setTags(List.of("+user/tester"));
 		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "internal"));
+		ref.setTags(List.of("+user/tester", "internal"));
 		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester", "internal"));
+		update.setTags(List.of("+user/tester", "internal"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -778,18 +778,18 @@ public class RefServiceIT {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
-		source.setTags(List.of("user/tester"));
+		source.setTags(List.of("+user/tester"));
 		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester"));
+		update.setTags(List.of("+user/tester"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -812,18 +812,18 @@ public class RefServiceIT {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
-		source.setTags(List.of("user/tester"));
+		source.setTags(List.of("+user/tester"));
 		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/comment"));
+		ref.setTags(List.of("+user/tester", "plugin/comment"));
 		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester", "plugin/comment"));
+		update.setTags(List.of("+user/tester", "plugin/comment"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -848,18 +848,18 @@ public class RefServiceIT {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
-		source.setTags(List.of("user/tester"));
+		source.setTags(List.of("+user/tester"));
 		refService.create(source);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester", "plugin/comment"));
+		ref.setTags(List.of("+user/tester", "plugin/comment"));
 		refService.create(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("user/tester", "plugin/comment"));
+		update.setTags(List.of("+user/tester", "plugin/comment"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -915,7 +915,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("user/tester"));
+		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 
 		refService.delete(ref.getUrl());
@@ -927,7 +927,7 @@ public class RefServiceIT {
 	@Test
 	void testDeleteRefWithReadableTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -949,7 +949,7 @@ public class RefServiceIT {
 	@Test
 	void testDeleteRefWithWritableTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("custom"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -985,7 +985,7 @@ public class RefServiceIT {
 	@Test
 	void testDeleteRefWithReadablePrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ref = new Ref();
@@ -1007,7 +1007,7 @@ public class RefServiceIT {
 	@Test
 	void testDeleteRefWithWritablePrivateTags() {
 		var user = new User();
-		user.setTag("user/tester");
+		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
 		var ref = new Ref();
