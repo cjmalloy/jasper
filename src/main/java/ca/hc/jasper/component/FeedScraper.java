@@ -13,6 +13,7 @@ import ca.hc.jasper.repository.FeedRepository;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.*;
 import org.apache.http.HttpHeaders;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -36,7 +37,14 @@ public class FeedScraper {
 		source.setLastScrape(Instant.now());
 		feedRepository.save(source);
 
-		try (CloseableHttpClient client = HttpClients.createMinimal()) {
+		int timeout = 30 * 1000; // 30 seconds
+		RequestConfig requestConfig = RequestConfig
+			.custom()
+			.setConnectTimeout(timeout)
+			.setConnectionRequestTimeout(timeout)
+			.setSocketTimeout(timeout).build();
+		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
+		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(source.getUrl());;
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request);
