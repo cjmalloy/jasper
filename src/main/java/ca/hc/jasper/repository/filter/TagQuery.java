@@ -104,6 +104,7 @@ public class TagQuery {
 
 	private void parse(String query) {
 		logger.debug(query);
+		// TODO: allow unlimited parentheses https://en.wikipedia.org/wiki/Shunting-yard_algorithm
 		query = markInnerOuterOrs(query);
 		query = query.replaceAll(AND_REGEX, ":");
 		var ors = query.split(" ");
