@@ -13,7 +13,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 @Builder
 public class OriginFilter {
-	public static final String QUERY = "!?" + Origin.REGEX_NOT_BLANK + "([ +|:&]!?" + Origin.REGEX_NOT_BLANK + ")*";
+	public static final String QUERY = "!?" + Origin.REGEX_NOT_BLANK + "([ |:&]!?" + Origin.REGEX_NOT_BLANK + ")*";
 	private static final Logger logger = LoggerFactory.getLogger(OriginFilter.class);
 
 	private String query;

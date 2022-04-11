@@ -34,7 +34,7 @@ public class TemplateController {
 
 	@GetMapping
 	Template getTemplate(
-		@RequestParam String tag
+		@RequestParam(defaultValue = "") @Pattern(regexp = Template.REGEX) String tag
 	) {
 		return templateService.get(tag);
 	}
@@ -71,7 +71,7 @@ public class TemplateController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTemplate(
-		@RequestParam String tag
+		@RequestParam @Pattern(regexp = Template.REGEX) String tag
 	) {
 		templateService.delete(tag);
 	}

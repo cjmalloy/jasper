@@ -5,7 +5,6 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import ca.hc.jasper.domain.Plugin;
-import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.service.PluginService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +33,7 @@ public class PluginController {
 
 	@GetMapping
 	Plugin getPlugin(
-		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Pattern(regexp = Plugin.REGEX) String tag
 	) {
 		return pluginService.get(tag);
 	}
@@ -71,7 +70,7 @@ public class PluginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deletePlugin(
-		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Pattern(regexp = Plugin.REGEX) String tag
 	) {
 		pluginService.delete(tag);
 	}

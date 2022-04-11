@@ -4,7 +4,6 @@ import java.time.Instant;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
-import ca.hc.jasper.domain.TagId;
 import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
@@ -39,7 +38,7 @@ public class UserController {
 
 	@GetMapping
 	UserDto getUser(
-		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Pattern(regexp = User.REGEX) String tag
 	) {
 		return userService.get(tag);
 	}
@@ -69,7 +68,7 @@ public class UserController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteUser(
-		@RequestParam @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Pattern(regexp = User.REGEX) String tag
 	) {
 		userService.delete(tag);
 	}

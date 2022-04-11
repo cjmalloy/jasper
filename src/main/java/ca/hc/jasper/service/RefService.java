@@ -100,6 +100,7 @@ public class RefService {
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
+			updated.addSymmetric();
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't read new tags");
 			update(updated);

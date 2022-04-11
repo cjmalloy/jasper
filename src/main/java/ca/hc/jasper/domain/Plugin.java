@@ -26,7 +26,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Plugin implements IsTag {
-	public static final String REGEX = "_?plugin/[a-z]+(/[a-z]+)*";
+	public static final String REGEX = "[_+]?plugin/[a-z]+(/[a-z]+)*";
 
 	@Id
 	@Column(updatable = false)

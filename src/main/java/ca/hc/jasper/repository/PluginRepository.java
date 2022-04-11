@@ -18,7 +18,8 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND (p.tag = ''
 				OR p.tag = :tag
 				OR locate(concat(p.tag, '/'), :tag) = 1
-				OR (:tag LIKE '\\_%' AND locate(concat(p.tag, '/'), :tag) = 2))""")
+				OR (:tag LIKE '\\_%' AND locate(concat(p.tag, '/'), :tag) = 2)
+				OR (:tag LIKE '+%' AND locate(concat(p.tag, '/'), :tag) = 2))""")
 	List<Plugin> findAllForTagAndOriginWithSchema(String tag, String origin);
 
 	@Query("""
