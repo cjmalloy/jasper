@@ -2,6 +2,7 @@ package ca.hc.jasper.repository.filter;
 
 import static ca.hc.jasper.repository.spec.RefSpec.*;
 import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.time.Instant;
 
@@ -30,18 +31,18 @@ public class RefFilter implements Query {
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
-		if (query != null && !query.isBlank()) {
+		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
-		if (search != null && !search.isBlank()) {
+		if (isNotBlank(search)) {
 			result = result.and(fulltextEn(search, rankedOrder));
 		}
-		if (sources != null && !sources.isBlank()) {
+		if (isNotBlank(sources)) {
 			// TODO: query across origins
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
-		if (responses != null && !responses.isBlank()) {
+		if (isNotBlank(responses)) {
 			// TODO: query across origins
 			result = result.and(hasSource(responses));
 		}

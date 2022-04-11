@@ -1,6 +1,7 @@
 package ca.hc.jasper.repository.filter;
 
 import static ca.hc.jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.time.Instant;
 
@@ -25,7 +26,7 @@ public class TemplateFilter implements Query {
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
-		if (query != null) {
+		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).templateSpec());
 		}
 		return result;
