@@ -71,7 +71,7 @@ public class FeedScraper {
 		}
 	}
 
-	@Scheduled(fixedRate = 1, timeUnit = TimeUnit.MINUTES)
+	@Scheduled(fixedRate = 1, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
 		var fourMinAgo = Instant.now().minus(5, ChronoUnit.MINUTES);
