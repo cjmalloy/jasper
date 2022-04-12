@@ -64,6 +64,12 @@ public class Ref implements HasTags {
 	@Column(columnDefinition = "jsonb")
 	private Metadata metadata;
 
+	@Formula("COALESCE(jsonb_array_length(sources), 0)")
+	private String sourceCount;
+
+	@Formula("COALESCE(jsonb_array_length(metadata -> 'responses'), 0)")
+	private String responseCount;
+
 	@Column(updatable = false)
 	@NotNull
 	private Instant published = Instant.now();
