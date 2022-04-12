@@ -75,7 +75,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
 		String hierarchy = String.join("\n", List.of(
 			"ROLE_ADMIN > ROLE_MOD",
-			"ROLE_MOD > ROLE_USER",
+			"ROLE_MOD > ROLE_EDITOR",
+			"ROLE_EDITOR > ROLE_USER",
 			"ROLE_USER > ROLE_ANONYMOUS"
 		));
 		roleHierarchy.setHierarchy(hierarchy);

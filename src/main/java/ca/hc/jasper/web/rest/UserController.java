@@ -87,4 +87,9 @@ public class UserController {
 	boolean amIMod() {
 		return auth.hasRole("MOD");
 	}
+
+	@GetMapping("whoami/editor")
+	boolean amIEditor() {
+		return auth.hasRole("EDITOR");
+	}
 }
