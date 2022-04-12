@@ -41,7 +41,7 @@ public class TemplateController {
 
 	@GetMapping("exists")
 	boolean templateExists(
-		@RequestParam String tag
+		@RequestParam(defaultValue = "") String tag
 	) {
 		return templateService.exists(tag);
 	}
@@ -71,7 +71,7 @@ public class TemplateController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTemplate(
-		@RequestParam @Pattern(regexp = Template.REGEX) String tag
+		@RequestParam(defaultValue = "") @Pattern(regexp = Template.REGEX) String tag
 	) {
 		templateService.delete(tag);
 	}

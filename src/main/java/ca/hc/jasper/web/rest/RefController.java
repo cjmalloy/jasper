@@ -1,6 +1,7 @@
 package ca.hc.jasper.web.rest;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
@@ -47,10 +48,10 @@ public class RefController {
 
 	@GetMapping("list")
 	List<RefDto> getList(
-		@RequestParam @Pattern(regexp = Ref.REGEX) List<String> urls,
+		@RequestParam String[] urls, //TODO validate
 		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return urls.stream().map(url -> {
+		return Arrays.stream(urls).map(url -> {
 			try {
 				return refService.get(url, origin);
 			} catch (NotFoundException | AccessDeniedException e) {
