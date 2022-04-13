@@ -8,6 +8,7 @@ import ca.hc.jasper.domain.User;
 import ca.hc.jasper.repository.filter.TagFilter;
 import ca.hc.jasper.security.Auth;
 import ca.hc.jasper.service.UserService;
+import ca.hc.jasper.service.dto.RolesDto;
 import ca.hc.jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -74,22 +75,13 @@ public class UserController {
 	}
 
 	@GetMapping("whoami")
-	String whoAmI() {
-		return auth.getUserTag();
-	}
-
-	@GetMapping("whoami/admin")
-	boolean amIAdmin() {
-		return auth.hasRole("ADMIN");
-	}
-
-	@GetMapping("whoami/mod")
-	boolean amIMod() {
-		return auth.hasRole("MOD");
-	}
-
-	@GetMapping("whoami/editor")
-	boolean amIEditor() {
-		return auth.hasRole("EDITOR");
+	RolesDto whoAmI() {
+		return RolesDto
+			.builder()
+			.tag(auth.getUserTag())
+			.admin(auth.hasRole("ADMIN"))
+			.mod(auth.hasRole("MOD"))
+			.editor(auth.hasRole("EDITOR"))
+			.build();
 	}
 }
