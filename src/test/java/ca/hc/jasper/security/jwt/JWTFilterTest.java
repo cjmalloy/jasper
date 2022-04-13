@@ -21,7 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class JWTFilterTest {
 
-    private TokenProvider tokenProvider;
+    private TokenProviderImpl tokenProvider;
 
     private JWTFilter jwtFilter;
 
@@ -33,7 +33,7 @@ class JWTFilterTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProvider(applicationProperties, securityMetersService);
+        tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
         ReflectionTestUtils.setField(tokenProvider, "key", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));
 
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", 60000);

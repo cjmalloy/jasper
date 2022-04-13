@@ -22,12 +22,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class TokenProviderTest {
+class TokenProviderImplTest {
 
     private static final long ONE_MINUTE = 60000;
 
     private Key key;
-    private TokenProvider tokenProvider;
+    private TokenProviderImpl tokenProvider;
 
     @BeforeEach
     public void setup() {
@@ -37,7 +37,7 @@ class TokenProviderTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProvider(applicationProperties, securityMetersService);
+        tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
         key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
         ReflectionTestUtils.setField(tokenProvider, "key", key);
@@ -97,7 +97,7 @@ class TokenProviderTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        TokenProvider tokenProvider = new TokenProvider(applicationProperties, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));
@@ -111,7 +111,7 @@ class TokenProviderTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        TokenProvider tokenProvider = new TokenProvider(applicationProperties, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));

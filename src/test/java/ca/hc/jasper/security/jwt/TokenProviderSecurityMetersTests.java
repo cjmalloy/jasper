@@ -30,7 +30,7 @@ class TokenProviderSecurityMetersTests {
 
     private MeterRegistry meterRegistry;
 
-    private TokenProvider tokenProvider;
+    private TokenProviderImpl tokenProvider;
 
     @BeforeEach
     public void setup() {
@@ -42,7 +42,7 @@ class TokenProviderSecurityMetersTests {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(meterRegistry);
 
-        tokenProvider = new TokenProvider(applicationProperties, securityMetersService);
+        tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
         Key key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
         ReflectionTestUtils.setField(tokenProvider, "key", key);
