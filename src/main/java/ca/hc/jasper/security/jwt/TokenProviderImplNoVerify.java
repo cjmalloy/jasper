@@ -38,17 +38,22 @@ public class TokenProviderImplNoVerify implements TokenProvider {
     public Authentication getAuthentication(String token) {
         Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
 
-        Collection<? extends GrantedAuthority> authorities = Arrays
-            .stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-            .filter(auth -> !auth.trim().isEmpty())
-            .map(SimpleGrantedAuthority::new)
-            .collect(Collectors.toList());
+		Collection<? extends GrantedAuthority> authorities = List.of();
+		if (claims.containsKey(AUTHORITIES_KEY)) {
+			authorities = Arrays
+				.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+				.filter(auth -> !auth.trim().isEmpty())
+				.map(SimpleGrantedAuthority::new)
+				.collect(Collectors.toList());
+		} else {
+			authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+		}
 
-		if (claims.getSubject().equals("chris")) {
+		if (claims.get("preferred_username").toString().equals("chris")) {
 			authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
 		}
 
-        User principal = new User(claims.getSubject(), "", authorities);
+        User principal = new User(claims.get("preferred_username").toString(), "", authorities);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
