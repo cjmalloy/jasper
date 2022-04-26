@@ -9,9 +9,12 @@ public interface HasTags extends HasOrigin {
 	List<String> getTags();
 
 	@JsonIgnore
-	default List<String> getQualifiedTags() {
+	default List<String> getQualifiedNonPublicTags() {
 		if (getTags() == null) return null;
-		if (local()) return getTags();
-		return getTags().stream().map(t -> t + getOrigin()).toList();
+		return getTags()
+			.stream()
+			.filter(t -> t.startsWith("_") || t.startsWith("+"))
+			.map(t -> t + getOrigin())
+			.toList();
 	}
 }

@@ -44,7 +44,7 @@ public class FeedService {
 	@Autowired
 	FeedScraper feedScraper;
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("hasRole('EDITOR')")
 	public void create(Feed feed) {
 		if (!feed.local()) throw new ForeignWriteException();
 		if (feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new AlreadyExistsException();
@@ -68,14 +68,14 @@ public class FeedService {
 			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("hasRole('EDITOR')")
 	public void update(Feed feed) {
 		if (!feed.local()) throw new ForeignWriteException();
 		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException();
 		feedRepository.save(feed);
 	}
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("hasRole('EDITOR')")
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = feedRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
@@ -88,7 +88,7 @@ public class FeedService {
 		}
 	}
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("hasRole('EDITOR')")
 	public void delete(String url) {
 		try {
 			feedRepository.deleteByUrlAndOrigin(url, "");

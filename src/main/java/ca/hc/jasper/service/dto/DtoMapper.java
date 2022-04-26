@@ -11,7 +11,7 @@ public abstract class DtoMapper {
 	@Autowired
 	Auth auth;
 
-	@Mapping(target = "qualifiedTags", ignore = true)
+	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
 	@AfterMapping
@@ -19,7 +19,7 @@ public abstract class DtoMapper {
 		refDto.setTags(auth.filterTags(refDto.getTags()));
 	}
 
-	@Mapping(target = "qualifiedTags", ignore = true)
+	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
 	public abstract FeedDto domainToDto(Feed ref);
 
 	@AfterMapping

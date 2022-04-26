@@ -52,7 +52,7 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#plugin.qualifiedTag)")
+	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
@@ -62,7 +62,7 @@ public class PluginService {
 		pluginRepository.save(plugin);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@PreAuthorize("hasRole('ADMIN')")
 	public void delete(String tag) {
 		try {
 			pluginRepository.deleteByQualifiedTag(tag);

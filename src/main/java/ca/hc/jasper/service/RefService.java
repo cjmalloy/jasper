@@ -108,7 +108,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#url)")
+	@PreAuthorize("hasRole('MOD') or @auth.canWriteRef(#url)")
 	public void delete(String url) {
 		try {
 			ingest.delete(url, "");

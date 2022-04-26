@@ -3,8 +3,7 @@ package ca.hc.jasper.service;
 import java.util.List;
 
 import ca.hc.jasper.component.Ingest;
-import ca.hc.jasper.errors.DuplicateTagException;
-import ca.hc.jasper.errors.NotFoundException;
+import ca.hc.jasper.errors.*;
 import ca.hc.jasper.repository.RefRepository;
 import ca.hc.jasper.security.Auth;
 import org.slf4j.Logger;
@@ -28,8 +27,9 @@ public class TaggingService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('EDITOR') && @auth.canReadTag(#tag)")
+	@PreAuthorize("@auth.canTag(#tag, #url)")
 	public void create(String tag, String url, String origin) {
+		if (!origin.isEmpty()) throw new ForeignWriteException();
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException();
 		var ref = maybeRef.get();
@@ -38,8 +38,9 @@ public class TaggingService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("hasRole('EDITOR') && @auth.canReadTag(#tag)")
+	@PreAuthorize("@auth.canTag(#tag, #url)")
 	public void delete(String tag, String url, String origin) {
+		if (!origin.isEmpty()) throw new ForeignWriteException();
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException();
 		var ref = maybeRef.get();

@@ -50,7 +50,7 @@ public class Auth {
 		if (ref.getTags() != null) {
 			if (ref.getTags().contains("public")) return true;
 			if (hasRole("USER")) {
-				var qualifiedTags = ref.getQualifiedTags();
+				var qualifiedTags = ref.getQualifiedNonPublicTags();
 				if (qualifiedTags.contains(getUserTag())) return true;
 				return captures(getReadAccess(), qualifiedTags);
 			}
@@ -58,10 +58,17 @@ public class Auth {
 		return false;
 	}
 
+	public boolean canReadRef(String url) {
+		if (hasRole("MOD")) return true;
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
+		if (maybeExisting.isEmpty()) return false;
+		return canReadRef(maybeExisting.get());
+	}
+
 	public boolean canWriteRef(Ref ref) {
 		if (!canWriteRef(ref.getUrl())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
-		return newTags(ref.getQualifiedTags(), maybeExisting.map(Ref::getQualifiedTags)).allMatch(this::canAddTag);
+		return newTags(ref.getQualifiedNonPublicTags(), maybeExisting.map(Ref::getQualifiedNonPublicTags)).allMatch(this::canAddTag);
 	}
 
 	public boolean canWriteRef(String url) {
@@ -72,7 +79,7 @@ public class Auth {
 		if (existing.getTags() != null) {
 			if (existing.getTags().contains("locked")) return false;
 			if (hasRole("MOD")) return true;
-			var qualifiedTags = existing.getQualifiedTags();
+			var qualifiedTags = existing.getQualifiedNonPublicTags();
 			if (qualifiedTags.contains(getUserTag())) return true;
 			return captures(getWriteAccess(), qualifiedTags);
 		}
@@ -91,6 +98,17 @@ public class Auth {
 		return false;
 	}
 
+	public boolean canTag(String tag, String url) {
+		if (hasRole("EDITOR") && isPublicTag(tag) && canReadRef(url)) return true;
+		return canReadTag(tag) && canWriteRef(url);
+	}
+
+	public boolean isPublicTag(String tag) {
+		if (tag.startsWith("_")) return false;
+		if (tag.startsWith("+")) return false;
+		return true;
+	}
+
 	public boolean canReadTag(String tag) {
 		if (!tag.startsWith("_")) return true;
 		return canAddTag(tag);
@@ -98,6 +116,7 @@ public class Auth {
 
 	public boolean canWriteTag(String tag) {
 		if (hasRole("MOD")) return true;
+		if (isPublicTag(tag)) return hasRole("EDITOR") ;
 		if (hasRole("USER")) {
 			if (tag.equals(getUserTag())) return true;
 			var writeAccess = getWriteAccess();
@@ -118,7 +137,7 @@ public class Auth {
 		if (hasRole("USER")) {
 			var readAccess = getReadAccess();
 			if (readAccess == null) return false;
-			return readAccess.containsAll(tagList);
+			return new HashSet<>(readAccess).containsAll(tagList);
 		}
 		return false;
 	}
@@ -127,6 +146,9 @@ public class Auth {
 		if (hasRole("MOD")) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		// No public tags in permission lists
+		if (user.getReadAccess().stream().anyMatch(this::isPublicTag)) return false;
+		if (user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
 		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
