@@ -44,7 +44,7 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException();
 		var ref = maybeRef.get();
-		if (ref.getTags() != null || !ref.getTags().contains(tag)) return;
+		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.getTags().remove(tag);
 		ingest.update(ref);
 	}
