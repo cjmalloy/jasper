@@ -594,17 +594,17 @@ public class RefServiceIT {
 	void testUpdateRefWithWritableTags() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("custom"));
+		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("custom"));
+		ref.setTags(List.of("+custom"));
 		refRepository.save(ref);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
-		update.setTags(List.of("custom"));
+		update.setTags(List.of("+custom"));
 		update.setModified(ref.getModified());
 
 		refService.update(update);
@@ -950,12 +950,12 @@ public class RefServiceIT {
 	void testDeleteRefWithWritableTags() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("custom"));
+		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("custom"));
+		ref.setTags(List.of("+custom"));
 		refRepository.save(ref);
 
 		refService.delete(ref.getUrl());

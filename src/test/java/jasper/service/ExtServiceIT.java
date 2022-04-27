@@ -323,24 +323,24 @@ public class ExtServiceIT {
 	void testUpdateExt() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("custom"));
+		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
 		var ext = new Ext();
-		ext.setTag("custom");
+		ext.setTag("+custom");
 		ext.setName("First");
 		extRepository.save(ext);
 		var updated = new Ext();
-		updated.setTag("custom");
+		updated.setTag("+custom");
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
 		extService.update(updated);
 
-		assertThat(extRepository.existsByQualifiedTag("custom"))
+		assertThat(extRepository.existsByQualifiedTag("+custom"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("custom").get();
+		var fetched = extRepository.findOneByQualifiedTag("+custom").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("custom");
+			.isEqualTo("+custom");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -494,16 +494,16 @@ public class ExtServiceIT {
 	void testDeleteExt() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("custom"));
+		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
 		var ext = new Ext();
-		ext.setTag("custom");
+		ext.setTag("+custom");
 		ext.setName("First");
 		extRepository.save(ext);
 
-		extService.delete("custom");
+		extService.delete("+custom");
 
-		assertThat(extRepository.existsByQualifiedTag("custom"))
+		assertThat(extRepository.existsByQualifiedTag("+custom"))
 			.isFalse();
 	}
 
@@ -666,8 +666,8 @@ public class ExtServiceIT {
 	void testValidateTagWithMergedTemplate() throws IOException {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setReadAccess(List.of("slug/more/custom"));
-		user.setWriteAccess(List.of("slug/more/custom"));
+		user.setReadAccess(List.of("+slug/more/custom"));
+		user.setWriteAccess(List.of("+slug/more/custom"));
 		userRepository.save(user);
 		var mapper = new ObjectMapper();
 		var template1 = new Template();
@@ -692,7 +692,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template2);
 		var ext = new Ext();
-		ext.setTag("slug/more/custom");
+		ext.setTag("+slug/more/custom");
 		ext.setName("First");
 		ext.setConfig(mapper.readTree("""
 		{
@@ -710,8 +710,8 @@ public class ExtServiceIT {
 	void testValidateTagWithMergedDefaultsTemplate() throws IOException {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setReadAccess(List.of("slug/more/custom"));
-		user.setWriteAccess(List.of("slug/more/custom"));
+		user.setReadAccess(List.of("+slug/more/custom"));
+		user.setWriteAccess(List.of("+slug/more/custom"));
 		userRepository.save(user);
 		var mapper = new ObjectMapper();
 		var template1 = new Template();
@@ -747,7 +747,7 @@ public class ExtServiceIT {
 		}"""));
 		templateRepository.save(template2);
 		var ext = new Ext();
-		ext.setTag("slug/more/custom");
+		ext.setTag("+slug/more/custom");
 		ext.setName("First");
 
 		extService.validate(ext, true);

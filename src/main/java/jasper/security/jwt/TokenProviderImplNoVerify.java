@@ -38,7 +38,7 @@ public class TokenProviderImplNoVerify implements TokenProvider {
     public Authentication getAuthentication(String token) {
         Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
 
-		Collection<? extends GrantedAuthority> authorities = List.of();
+		Collection<? extends GrantedAuthority> authorities;
 		if (claims.containsKey(AUTHORITIES_KEY)) {
 			authorities = Arrays
 				.stream(claims.get(AUTHORITIES_KEY).toString().split(","))

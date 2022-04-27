@@ -211,14 +211,14 @@ public class UserServiceIT {
 	void testCreateUserWithTags() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setReadAccess(List.of("custom", "+user/other"));
-		user.setWriteAccess(List.of("custom", "+user/other"));
+		user.setReadAccess(List.of("+custom", "+user/other"));
+		user.setWriteAccess(List.of("+custom", "+user/other"));
 		userRepository.save(user);
 		var other = new User();
 		other.setTag("+user/other");
 		other.setName("Custom");
-		other.setReadAccess(List.of("custom"));
-		other.setWriteAccess(List.of("custom"));
+		other.setReadAccess(List.of("+custom"));
+		other.setWriteAccess(List.of("+custom"));
 
 		userService.create(other);
 
@@ -230,9 +230,9 @@ public class UserServiceIT {
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 		assertThat(fetched.getReadAccess())
-			.containsExactly("custom");
+			.containsExactly("+custom");
 		assertThat(fetched.getWriteAccess())
-			.containsExactly("custom");
+			.containsExactly("+custom");
 	}
 
 	@Test
@@ -665,7 +665,7 @@ public class UserServiceIT {
 	void testUpdateOtherUserAddingTags() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("+user/other", "custom"));
+		user.setWriteAccess(List.of("+user/other", "+custom"));
 		userRepository.save(user);
 		var other = new User();
 		other.setTag("+user/other");
@@ -675,7 +675,7 @@ public class UserServiceIT {
 		var updated = new User();
 		updated.setTag("+user/other");
 		updated.setName("Second");
-		updated.setReadAccess(new ArrayList<>(List.of("custom")));
+		updated.setReadAccess(new ArrayList<>(List.of("+custom")));
 
 		userService.update(updated);
 
@@ -687,7 +687,7 @@ public class UserServiceIT {
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 		assertThat(fetched.getReadAccess())
-			.contains("custom", "_secret");
+			.contains("+custom", "_secret");
 	}
 
 	@Test

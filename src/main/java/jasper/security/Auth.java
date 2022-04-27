@@ -147,8 +147,8 @@ public class Auth {
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in permission lists
-		if (user.getReadAccess().stream().anyMatch(this::isPublicTag)) return false;
-		if (user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
+		if (user.getReadAccess() != null && user.getReadAccess().stream().anyMatch(this::isPublicTag)) return false;
+		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
 		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
