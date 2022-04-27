@@ -4,6 +4,8 @@ package jasper.config;
 import java.util.*;
 import javax.validation.constraints.NotNull;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 import tech.jhipster.config.JHipsterDefaults;
@@ -16,1135 +18,1100 @@ import tech.jhipster.config.JHipsterDefaults;
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
 public class ApplicationProperties {
 
-    private final Async async = new Async();
-
-    private final Http http = new Http();
-
-    private final Database database = new Database();
-
-    private final Cache cache = new Cache();
-
-    private final Mail mail = new Mail();
-
-    private final Security security = new Security();
-
-    private final ApiDocs apiDocs = new ApiDocs();
-
-    private final Logging logging = new Logging();
-
-    private final CorsConfiguration cors = new CorsConfiguration();
-
-    private final Social social = new Social();
-
-    private final Gateway gateway = new Gateway();
-
-    private final Registry registry = new Registry();
-
-    private final ClientApp clientApp = new ClientApp();
-
-    private final AuditEvents auditEvents = new AuditEvents();
-
-    /**
-     * <p>Getter for the field <code>async</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Async} object.
-     */
-    public Async getAsync() {
-        return async;
-    }
-
-    /**
-     * <p>Getter for the field <code>http</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Http} object.
-     */
-    public Http getHttp() {
-        return http;
-    }
-
-    /**
-     * <p>Getter for the field <code>database</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Database} object.
-     */
-    public Database getDatabase() {
-        return database;
-    }
-
-    /**
-     * <p>Getter for the field <code>cache</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Cache} object.
-     */
-    public Cache getCache() {
-        return cache;
-    }
-
-    /**
-     * <p>Getter for the field <code>mail</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Mail} object.
-     */
-    public Mail getMail() {
-        return mail;
-    }
-
-    /**
-     * <p>Getter for the field <code>registry</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Registry} object.
-     */
-    public Registry getRegistry() {
-        return registry;
-    }
-
-    /**
-     * <p>Getter for the field <code>security</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Security} object.
-     */
-    public Security getSecurity() {
-        return security;
-    }
-
-    /**
-     * <p>Getter for the field <code>api-docs</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.ApiDocs} object.
-     */
-    public ApiDocs getApiDocs() {
-        return apiDocs;
-    }
-
-    /**
-     * <p>Getter for the field <code>logging</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Logging} object.
-     */
-    public Logging getLogging() {
-        return logging;
-    }
-
-    /**
-     * <p>Getter for the field <code>cors</code>.</p>
-     *
-     * @return a {@link org.springframework.web.cors.CorsConfiguration} object.
-     */
-    public CorsConfiguration getCors() {
-        return cors;
-    }
-
-    /**
-     * <p>Getter for the field <code>social</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Social} object.
-     */
-    public Social getSocial() {
-        return social;
-    }
-
-    /**
-     * <p>Getter for the field <code>gateway</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.Gateway} object.
-     */
-    public Gateway getGateway() {
-        return gateway;
-    }
-
-    /**
-     * <p>Getter for the field <code>clientApp</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.ClientApp} object.
-     */
-    public ClientApp getClientApp() {
-        return clientApp;
-    }
-
-    /**
-     * <p>Getter for the field <code>auditEvents</code>.</p>
-     *
-     * @return a {@link ApplicationProperties.AuditEvents} object.
-     */
-    public AuditEvents getAuditEvents() {
-        return auditEvents;
-    }
-
-    public static class Async {
+	private final Async async = new Async();
+
+	private final Http http = new Http();
+
+	private final Database database = new Database();
+
+	private final Cache cache = new Cache();
+
+	private final Mail mail = new Mail();
+
+	private final Security security = new Security();
+
+	private final ApiDocs apiDocs = new ApiDocs();
+
+	private final Logging logging = new Logging();
+
+	private final CorsConfiguration cors = new CorsConfiguration();
+
+	private final Social social = new Social();
+
+	private final Gateway gateway = new Gateway();
+
+	private final Registry registry = new Registry();
+
+	private final ClientApp clientApp = new ClientApp();
+
+	private final AuditEvents auditEvents = new AuditEvents();
+
+	/**
+	 * <p>Getter for the field <code>async</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Async} object.
+	 */
+	public Async getAsync() {
+		return async;
+	}
+
+	/**
+	 * <p>Getter for the field <code>http</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Http} object.
+	 */
+	public Http getHttp() {
+		return http;
+	}
+
+	/**
+	 * <p>Getter for the field <code>database</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Database} object.
+	 */
+	public Database getDatabase() {
+		return database;
+	}
+
+	/**
+	 * <p>Getter for the field <code>cache</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Cache} object.
+	 */
+	public Cache getCache() {
+		return cache;
+	}
+
+	/**
+	 * <p>Getter for the field <code>mail</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Mail} object.
+	 */
+	public Mail getMail() {
+		return mail;
+	}
+
+	/**
+	 * <p>Getter for the field <code>registry</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Registry} object.
+	 */
+	public Registry getRegistry() {
+		return registry;
+	}
+
+	/**
+	 * <p>Getter for the field <code>security</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Security} object.
+	 */
+	public Security getSecurity() {
+		return security;
+	}
+
+	/**
+	 * <p>Getter for the field <code>api-docs</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.ApiDocs} object.
+	 */
+	public ApiDocs getApiDocs() {
+		return apiDocs;
+	}
+
+	/**
+	 * <p>Getter for the field <code>logging</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Logging} object.
+	 */
+	public Logging getLogging() {
+		return logging;
+	}
+
+	/**
+	 * <p>Getter for the field <code>cors</code>.</p>
+	 *
+	 * @return a {@link org.springframework.web.cors.CorsConfiguration} object.
+	 */
+	public CorsConfiguration getCors() {
+		return cors;
+	}
+
+	/**
+	 * <p>Getter for the field <code>social</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Social} object.
+	 */
+	public Social getSocial() {
+		return social;
+	}
+
+	/**
+	 * <p>Getter for the field <code>gateway</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.Gateway} object.
+	 */
+	public Gateway getGateway() {
+		return gateway;
+	}
+
+	/**
+	 * <p>Getter for the field <code>clientApp</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.ClientApp} object.
+	 */
+	public ClientApp getClientApp() {
+		return clientApp;
+	}
+
+	/**
+	 * <p>Getter for the field <code>auditEvents</code>.</p>
+	 *
+	 * @return a {@link ApplicationProperties.AuditEvents} object.
+	 */
+	public AuditEvents getAuditEvents() {
+		return auditEvents;
+	}
+
+	public static class Async {
 
-        private int corePoolSize = JHipsterDefaults.Async.corePoolSize;
+		private int corePoolSize = JHipsterDefaults.Async.corePoolSize;
 
-        private int maxPoolSize = JHipsterDefaults.Async.maxPoolSize;
+		private int maxPoolSize = JHipsterDefaults.Async.maxPoolSize;
 
-        private int queueCapacity = JHipsterDefaults.Async.queueCapacity;
+		private int queueCapacity = JHipsterDefaults.Async.queueCapacity;
 
-        public int getCorePoolSize() {
-            return corePoolSize;
-        }
+		public int getCorePoolSize() {
+			return corePoolSize;
+		}
 
-        public void setCorePoolSize(int corePoolSize) {
-            this.corePoolSize = corePoolSize;
-        }
+		public void setCorePoolSize(int corePoolSize) {
+			this.corePoolSize = corePoolSize;
+		}
 
-        public int getMaxPoolSize() {
-            return maxPoolSize;
-        }
+		public int getMaxPoolSize() {
+			return maxPoolSize;
+		}
 
-        public void setMaxPoolSize(int maxPoolSize) {
-            this.maxPoolSize = maxPoolSize;
-        }
+		public void setMaxPoolSize(int maxPoolSize) {
+			this.maxPoolSize = maxPoolSize;
+		}
 
-        public int getQueueCapacity() {
-            return queueCapacity;
-        }
+		public int getQueueCapacity() {
+			return queueCapacity;
+		}
 
-        public void setQueueCapacity(int queueCapacity) {
-            this.queueCapacity = queueCapacity;
-        }
-    }
+		public void setQueueCapacity(int queueCapacity) {
+			this.queueCapacity = queueCapacity;
+		}
+	}
 
-    public static class Http {
+	public static class Http {
 
-        private final Cache cache = new Cache();
+		private final Cache cache = new Cache();
 
-        public Cache getCache() {
-            return cache;
-        }
+		public Cache getCache() {
+			return cache;
+		}
 
-        public static class Cache {
+		public static class Cache {
 
-            private int timeToLiveInDays = JHipsterDefaults.Http.Cache.timeToLiveInDays;
+			private int timeToLiveInDays = JHipsterDefaults.Http.Cache.timeToLiveInDays;
 
-            public int getTimeToLiveInDays() {
-                return timeToLiveInDays;
-            }
+			public int getTimeToLiveInDays() {
+				return timeToLiveInDays;
+			}
 
-            public void setTimeToLiveInDays(int timeToLiveInDays) {
-                this.timeToLiveInDays = timeToLiveInDays;
-            }
-        }
-    }
+			public void setTimeToLiveInDays(int timeToLiveInDays) {
+				this.timeToLiveInDays = timeToLiveInDays;
+			}
+		}
+	}
 
-    public static class Database {
+	public static class Database {
 
-        private final Couchbase couchbase = new Couchbase();
+		private final Couchbase couchbase = new Couchbase();
 
-        public Couchbase getCouchbase() {
-            return couchbase;
-        }
+		public Couchbase getCouchbase() {
+			return couchbase;
+		}
 
-        public static class Couchbase {
+		public static class Couchbase {
 
-            private String bucketName;
+			private String bucketName;
 
-            private String scopeName;
+			private String scopeName;
 
-            public String getBucketName() {
-                return bucketName;
-            }
+			public String getBucketName() {
+				return bucketName;
+			}
 
-            public Couchbase setBucketName(String bucketName) {
-                this.bucketName = bucketName;
-                return this;
-            }
+			public Couchbase setBucketName(String bucketName) {
+				this.bucketName = bucketName;
+				return this;
+			}
 
-            public String getScopeName() {
-                return scopeName;
-            }
+			public String getScopeName() {
+				return scopeName;
+			}
 
-            public Couchbase setScopeName(String scopeName) {
-                this.scopeName = scopeName;
-                return this;
-            }
-        }
-    }
+			public Couchbase setScopeName(String scopeName) {
+				this.scopeName = scopeName;
+				return this;
+			}
+		}
+	}
 
-    public static class Cache {
+	public static class Cache {
 
-        private final Hazelcast hazelcast = new Hazelcast();
+		private final Hazelcast hazelcast = new Hazelcast();
 
-        private final Caffeine caffeine = new Caffeine();
+		private final Caffeine caffeine = new Caffeine();
 
-        private final Ehcache ehcache = new Ehcache();
+		private final Ehcache ehcache = new Ehcache();
 
-        private final Infinispan infinispan = new Infinispan();
+		private final Infinispan infinispan = new Infinispan();
 
-        private final Memcached memcached = new Memcached();
+		private final Memcached memcached = new Memcached();
 
-        private final Redis redis = new Redis();
+		private final Redis redis = new Redis();
 
-        public Hazelcast getHazelcast() {
-            return hazelcast;
-        }
+		public Hazelcast getHazelcast() {
+			return hazelcast;
+		}
 
-        public Caffeine getCaffeine() {
-            return caffeine;
-        }
+		public Caffeine getCaffeine() {
+			return caffeine;
+		}
 
-        public Ehcache getEhcache() {
-            return ehcache;
-        }
+		public Ehcache getEhcache() {
+			return ehcache;
+		}
 
-        public Infinispan getInfinispan() {
-            return infinispan;
-        }
+		public Infinispan getInfinispan() {
+			return infinispan;
+		}
 
-        public Memcached getMemcached() {
-            return memcached;
-        }
+		public Memcached getMemcached() {
+			return memcached;
+		}
 
-        public Redis getRedis() {
-            return redis;
-        }
+		public Redis getRedis() {
+			return redis;
+		}
 
-        public static class Hazelcast {
+		public static class Hazelcast {
 
-            private int timeToLiveSeconds = JHipsterDefaults.Cache.Hazelcast.timeToLiveSeconds;
+			private int timeToLiveSeconds = JHipsterDefaults.Cache.Hazelcast.timeToLiveSeconds;
 
-            private int backupCount = JHipsterDefaults.Cache.Hazelcast.backupCount;
+			private int backupCount = JHipsterDefaults.Cache.Hazelcast.backupCount;
 
-            public int getTimeToLiveSeconds() {
-                return timeToLiveSeconds;
-            }
+			public int getTimeToLiveSeconds() {
+				return timeToLiveSeconds;
+			}
 
-            public void setTimeToLiveSeconds(int timeToLiveSeconds) {
-                this.timeToLiveSeconds = timeToLiveSeconds;
-            }
+			public void setTimeToLiveSeconds(int timeToLiveSeconds) {
+				this.timeToLiveSeconds = timeToLiveSeconds;
+			}
 
-            public int getBackupCount() {
-                return backupCount;
-            }
+			public int getBackupCount() {
+				return backupCount;
+			}
 
-            public void setBackupCount(int backupCount) {
-                this.backupCount = backupCount;
-            }
-        }
+			public void setBackupCount(int backupCount) {
+				this.backupCount = backupCount;
+			}
+		}
 
-        public static class Caffeine {
+		public static class Caffeine {
 
-            private int timeToLiveSeconds = JHipsterDefaults.Cache.Caffeine.timeToLiveSeconds;
+			private int timeToLiveSeconds = JHipsterDefaults.Cache.Caffeine.timeToLiveSeconds;
 
-            private long maxEntries = JHipsterDefaults.Cache.Caffeine.maxEntries;
+			private long maxEntries = JHipsterDefaults.Cache.Caffeine.maxEntries;
 
-            public int getTimeToLiveSeconds() {
-                return timeToLiveSeconds;
-            }
+			public int getTimeToLiveSeconds() {
+				return timeToLiveSeconds;
+			}
 
-            public void setTimeToLiveSeconds(int timeToLiveSeconds) {
-                this.timeToLiveSeconds = timeToLiveSeconds;
-            }
+			public void setTimeToLiveSeconds(int timeToLiveSeconds) {
+				this.timeToLiveSeconds = timeToLiveSeconds;
+			}
 
-            public long getMaxEntries() {
-                return maxEntries;
-            }
+			public long getMaxEntries() {
+				return maxEntries;
+			}
 
-            public void setMaxEntries(long maxEntries) {
-                this.maxEntries = maxEntries;
-            }
-        }
+			public void setMaxEntries(long maxEntries) {
+				this.maxEntries = maxEntries;
+			}
+		}
 
-        public static class Ehcache {
+		public static class Ehcache {
 
-            private int timeToLiveSeconds = JHipsterDefaults.Cache.Ehcache.timeToLiveSeconds;
+			private int timeToLiveSeconds = JHipsterDefaults.Cache.Ehcache.timeToLiveSeconds;
 
-            private long maxEntries = JHipsterDefaults.Cache.Ehcache.maxEntries;
+			private long maxEntries = JHipsterDefaults.Cache.Ehcache.maxEntries;
 
-            public int getTimeToLiveSeconds() {
-                return timeToLiveSeconds;
-            }
+			public int getTimeToLiveSeconds() {
+				return timeToLiveSeconds;
+			}
 
-            public void setTimeToLiveSeconds(int timeToLiveSeconds) {
-                this.timeToLiveSeconds = timeToLiveSeconds;
-            }
+			public void setTimeToLiveSeconds(int timeToLiveSeconds) {
+				this.timeToLiveSeconds = timeToLiveSeconds;
+			}
 
-            public long getMaxEntries() {
-                return maxEntries;
-            }
+			public long getMaxEntries() {
+				return maxEntries;
+			}
 
-            public void setMaxEntries(long maxEntries) {
-                this.maxEntries = maxEntries;
-            }
-        }
+			public void setMaxEntries(long maxEntries) {
+				this.maxEntries = maxEntries;
+			}
+		}
 
-        public static class Infinispan {
+		public static class Infinispan {
 
-            private String configFile = JHipsterDefaults.Cache.Infinispan.configFile;
+			private String configFile = JHipsterDefaults.Cache.Infinispan.configFile;
 
-            private boolean statsEnabled = JHipsterDefaults.Cache.Infinispan.statsEnabled;
+			private boolean statsEnabled = JHipsterDefaults.Cache.Infinispan.statsEnabled;
 
-            private final Local local = new Local();
+			private final Local local = new Local();
 
-            private final Distributed distributed = new Distributed();
+			private final Distributed distributed = new Distributed();
 
-            private final Replicated replicated = new Replicated();
+			private final Replicated replicated = new Replicated();
 
-            public String getConfigFile() {
-                return configFile;
-            }
+			public String getConfigFile() {
+				return configFile;
+			}
 
-            public void setConfigFile(String configFile) {
-                this.configFile = configFile;
-            }
+			public void setConfigFile(String configFile) {
+				this.configFile = configFile;
+			}
 
-            public boolean isStatsEnabled() {
-                return statsEnabled;
-            }
+			public boolean isStatsEnabled() {
+				return statsEnabled;
+			}
 
-            public void setStatsEnabled(boolean statsEnabled) {
-                this.statsEnabled = statsEnabled;
-            }
+			public void setStatsEnabled(boolean statsEnabled) {
+				this.statsEnabled = statsEnabled;
+			}
 
-            public Local getLocal() {
-                return local;
-            }
+			public Local getLocal() {
+				return local;
+			}
 
-            public Distributed getDistributed() {
-                return distributed;
-            }
+			public Distributed getDistributed() {
+				return distributed;
+			}
 
-            public Replicated getReplicated() {
-                return replicated;
-            }
+			public Replicated getReplicated() {
+				return replicated;
+			}
 
-            public static class Local {
+			public static class Local {
 
-                private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Local.timeToLiveSeconds;
+				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Local.timeToLiveSeconds;
 
-                private long maxEntries = JHipsterDefaults.Cache.Infinispan.Local.maxEntries;
+				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Local.maxEntries;
 
-                public long getTimeToLiveSeconds() {
-                    return timeToLiveSeconds;
-                }
+				public long getTimeToLiveSeconds() {
+					return timeToLiveSeconds;
+				}
 
-                public void setTimeToLiveSeconds(long timeToLiveSeconds) {
-                    this.timeToLiveSeconds = timeToLiveSeconds;
-                }
+				public void setTimeToLiveSeconds(long timeToLiveSeconds) {
+					this.timeToLiveSeconds = timeToLiveSeconds;
+				}
 
-                public long getMaxEntries() {
-                    return maxEntries;
-                }
+				public long getMaxEntries() {
+					return maxEntries;
+				}
 
-                public void setMaxEntries(long maxEntries) {
-                    this.maxEntries = maxEntries;
-                }
+				public void setMaxEntries(long maxEntries) {
+					this.maxEntries = maxEntries;
+				}
 
-            }
+			}
 
-            public static class Distributed {
+			public static class Distributed {
 
-                private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Distributed.timeToLiveSeconds;
+				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Distributed.timeToLiveSeconds;
 
-                private long maxEntries = JHipsterDefaults.Cache.Infinispan.Distributed.maxEntries;
+				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Distributed.maxEntries;
 
-                private int instanceCount = JHipsterDefaults.Cache.Infinispan.Distributed.instanceCount;
+				private int instanceCount = JHipsterDefaults.Cache.Infinispan.Distributed.instanceCount;
 
-                public long getTimeToLiveSeconds() {
-                    return timeToLiveSeconds;
-                }
+				public long getTimeToLiveSeconds() {
+					return timeToLiveSeconds;
+				}
 
-                public void setTimeToLiveSeconds(long timeToLiveSeconds) {
-                    this.timeToLiveSeconds = timeToLiveSeconds;
-                }
+				public void setTimeToLiveSeconds(long timeToLiveSeconds) {
+					this.timeToLiveSeconds = timeToLiveSeconds;
+				}
 
-                public long getMaxEntries() {
-                    return maxEntries;
-                }
+				public long getMaxEntries() {
+					return maxEntries;
+				}
 
-                public void setMaxEntries(long maxEntries) {
-                    this.maxEntries = maxEntries;
-                }
+				public void setMaxEntries(long maxEntries) {
+					this.maxEntries = maxEntries;
+				}
 
-                public int getInstanceCount() {
-                    return instanceCount;
-                }
+				public int getInstanceCount() {
+					return instanceCount;
+				}
 
-                public void setInstanceCount(int instanceCount) {
-                    this.instanceCount = instanceCount;
-                }
-            }
+				public void setInstanceCount(int instanceCount) {
+					this.instanceCount = instanceCount;
+				}
+			}
 
-            public static class Replicated {
+			public static class Replicated {
 
-                private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Replicated.timeToLiveSeconds;
+				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Replicated.timeToLiveSeconds;
 
-                private long maxEntries = JHipsterDefaults.Cache.Infinispan.Replicated.maxEntries;
+				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Replicated.maxEntries;
 
-                public long getTimeToLiveSeconds() {
-                    return timeToLiveSeconds;
-                }
+				public long getTimeToLiveSeconds() {
+					return timeToLiveSeconds;
+				}
 
-                public void setTimeToLiveSeconds(long timeToLiveSeconds) {
-                    this.timeToLiveSeconds = timeToLiveSeconds;
-                }
+				public void setTimeToLiveSeconds(long timeToLiveSeconds) {
+					this.timeToLiveSeconds = timeToLiveSeconds;
+				}
 
-                public long getMaxEntries() {
-                    return maxEntries;
-                }
+				public long getMaxEntries() {
+					return maxEntries;
+				}
 
-                public void setMaxEntries(long maxEntries) {
-                    this.maxEntries = maxEntries;
-                }
+				public void setMaxEntries(long maxEntries) {
+					this.maxEntries = maxEntries;
+				}
 
-            }
-        }
+			}
+		}
 
-        public static class Memcached {
+		public static class Memcached {
 
-            private boolean enabled = JHipsterDefaults.Cache.Memcached.enabled;
+			private boolean enabled = JHipsterDefaults.Cache.Memcached.enabled;
 
-            /**
-             * Comma or whitespace separated list of servers' addresses.
-             */
-            private String servers = JHipsterDefaults.Cache.Memcached.servers;
+			/**
+			 * Comma or whitespace separated list of servers' addresses.
+			 */
+			private String servers = JHipsterDefaults.Cache.Memcached.servers;
 
-            private int expiration = JHipsterDefaults.Cache.Memcached.expiration;
+			private int expiration = JHipsterDefaults.Cache.Memcached.expiration;
 
-            private boolean useBinaryProtocol = JHipsterDefaults.Cache.Memcached.useBinaryProtocol;
+			private boolean useBinaryProtocol = JHipsterDefaults.Cache.Memcached.useBinaryProtocol;
 
-            private Authentication authentication = new Authentication();
+			private Authentication authentication = new Authentication();
 
-            public boolean isEnabled() {
-                return enabled;
-            }
+			public boolean isEnabled() {
+				return enabled;
+			}
 
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
 
-            public String getServers() {
-                return servers;
-            }
+			public String getServers() {
+				return servers;
+			}
 
-            public void setServers(String servers) {
-                this.servers = servers;
-            }
+			public void setServers(String servers) {
+				this.servers = servers;
+			}
 
-            public int getExpiration() {
-                return expiration;
-            }
+			public int getExpiration() {
+				return expiration;
+			}
 
-            public void setExpiration(int expiration) {
-                this.expiration = expiration;
-            }
+			public void setExpiration(int expiration) {
+				this.expiration = expiration;
+			}
 
-            public boolean isUseBinaryProtocol() {
-                return useBinaryProtocol;
-            }
+			public boolean isUseBinaryProtocol() {
+				return useBinaryProtocol;
+			}
 
-            public void setUseBinaryProtocol(boolean useBinaryProtocol) {
-                this.useBinaryProtocol = useBinaryProtocol;
-            }
+			public void setUseBinaryProtocol(boolean useBinaryProtocol) {
+				this.useBinaryProtocol = useBinaryProtocol;
+			}
 
-            public Authentication getAuthentication() {
-                return authentication;
-            }
+			public Authentication getAuthentication() {
+				return authentication;
+			}
 
-            public static class Authentication {
+			public static class Authentication {
 
-                private boolean enabled = JHipsterDefaults.Cache.Memcached.Authentication.enabled;
-                private String username;
-                private String password;
+				private boolean enabled = JHipsterDefaults.Cache.Memcached.Authentication.enabled;
+				private String username;
+				private String password;
 
-                public boolean isEnabled() {
-                    return enabled;
-                }
+				public boolean isEnabled() {
+					return enabled;
+				}
 
-                public Authentication setEnabled(boolean enabled) {
-                    this.enabled = enabled;
-                    return this;
-                }
+				public Authentication setEnabled(boolean enabled) {
+					this.enabled = enabled;
+					return this;
+				}
 
-                public String getUsername() {
-                    return username;
-                }
+				public String getUsername() {
+					return username;
+				}
 
-                public Authentication setUsername(String username) {
-                    this.username = username;
-                    return this;
-                }
+				public Authentication setUsername(String username) {
+					this.username = username;
+					return this;
+				}
 
-                public String getPassword() {
-                    return password;
-                }
+				public String getPassword() {
+					return password;
+				}
 
-                public Authentication setPassword(String password) {
-                    this.password = password;
-                    return this;
-                }
-            }
-        }
+				public Authentication setPassword(String password) {
+					this.password = password;
+					return this;
+				}
+			}
+		}
 
-        public static class Redis {
-            private String[] server = JHipsterDefaults.Cache.Redis.server;
-            private int expiration = JHipsterDefaults.Cache.Redis.expiration;
-            private boolean cluster = JHipsterDefaults.Cache.Redis.cluster;
-            private int connectionPoolSize = JHipsterDefaults.Cache.Redis.connectionPoolSize;
-            private int connectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.connectionMinimumIdleSize;
-            private int subscriptionConnectionPoolSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionPoolSize;
-            private int subscriptionConnectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionMinimumIdleSize;
+		public static class Redis {
+			private String[] server = JHipsterDefaults.Cache.Redis.server;
+			private int expiration = JHipsterDefaults.Cache.Redis.expiration;
+			private boolean cluster = JHipsterDefaults.Cache.Redis.cluster;
+			private int connectionPoolSize = JHipsterDefaults.Cache.Redis.connectionPoolSize;
+			private int connectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.connectionMinimumIdleSize;
+			private int subscriptionConnectionPoolSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionPoolSize;
+			private int subscriptionConnectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionMinimumIdleSize;
 
-            public String[] getServer() {
-                return server;
-            }
+			public String[] getServer() {
+				return server;
+			}
 
-            public void setServer(String[] server) {
-                this.server = server;
-            }
+			public void setServer(String[] server) {
+				this.server = server;
+			}
 
-            public int getExpiration() {
-                return expiration;
-            }
+			public int getExpiration() {
+				return expiration;
+			}
 
-            public void setExpiration(int expiration) {
-                this.expiration = expiration;
-            }
+			public void setExpiration(int expiration) {
+				this.expiration = expiration;
+			}
 
-            public boolean isCluster() {
-                return cluster;
-            }
+			public boolean isCluster() {
+				return cluster;
+			}
 
-            public void setCluster(boolean cluster) {
-                this.cluster = cluster;
-            }
+			public void setCluster(boolean cluster) {
+				this.cluster = cluster;
+			}
 
-            public int getConnectionPoolSize() {
-                return connectionPoolSize;
-            }
+			public int getConnectionPoolSize() {
+				return connectionPoolSize;
+			}
 
-            public Redis setConnectionPoolSize(int connectionPoolSize) {
-                this.connectionPoolSize = connectionPoolSize;
-                return this;
-            }
+			public Redis setConnectionPoolSize(int connectionPoolSize) {
+				this.connectionPoolSize = connectionPoolSize;
+				return this;
+			}
 
-            public int getConnectionMinimumIdleSize() {
-                return connectionMinimumIdleSize;
-            }
+			public int getConnectionMinimumIdleSize() {
+				return connectionMinimumIdleSize;
+			}
 
-            public Redis setConnectionMinimumIdleSize(int connectionMinimumIdleSize) {
-                this.connectionMinimumIdleSize = connectionMinimumIdleSize;
-                return this;
-            }
+			public Redis setConnectionMinimumIdleSize(int connectionMinimumIdleSize) {
+				this.connectionMinimumIdleSize = connectionMinimumIdleSize;
+				return this;
+			}
 
-            public int getSubscriptionConnectionPoolSize() {
-                return subscriptionConnectionPoolSize;
-            }
+			public int getSubscriptionConnectionPoolSize() {
+				return subscriptionConnectionPoolSize;
+			}
 
-            public Redis setSubscriptionConnectionPoolSize(int subscriptionConnectionPoolSize) {
-                this.subscriptionConnectionPoolSize = subscriptionConnectionPoolSize;
-                return this;
-            }
+			public Redis setSubscriptionConnectionPoolSize(int subscriptionConnectionPoolSize) {
+				this.subscriptionConnectionPoolSize = subscriptionConnectionPoolSize;
+				return this;
+			}
 
-            public int getSubscriptionConnectionMinimumIdleSize() {
-                return subscriptionConnectionMinimumIdleSize;
-            }
+			public int getSubscriptionConnectionMinimumIdleSize() {
+				return subscriptionConnectionMinimumIdleSize;
+			}
 
-            public Redis setSubscriptionConnectionMinimumIdleSize(int subscriptionConnectionMinimumIdleSize) {
-                this.subscriptionConnectionMinimumIdleSize = subscriptionConnectionMinimumIdleSize;
-                return this;
-            }
-        }
-    }
+			public Redis setSubscriptionConnectionMinimumIdleSize(int subscriptionConnectionMinimumIdleSize) {
+				this.subscriptionConnectionMinimumIdleSize = subscriptionConnectionMinimumIdleSize;
+				return this;
+			}
+		}
+	}
 
-    public static class Mail {
+	public static class Mail {
 
-        private boolean enabled = JHipsterDefaults.Mail.enabled;
+		private boolean enabled = JHipsterDefaults.Mail.enabled;
 
-        private String from = JHipsterDefaults.Mail.from;
+		private String from = JHipsterDefaults.Mail.from;
 
-        private String baseUrl = JHipsterDefaults.Mail.baseUrl;
+		private String baseUrl = JHipsterDefaults.Mail.baseUrl;
 
-        public boolean isEnabled() {
-            return enabled;
-        }
+		public boolean isEnabled() {
+			return enabled;
+		}
 
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
 
-        public String getFrom() {
-            return from;
-        }
+		public String getFrom() {
+			return from;
+		}
 
-        public void setFrom(String from) {
-            this.from = from;
-        }
+		public void setFrom(String from) {
+			this.from = from;
+		}
 
-        public String getBaseUrl() {
-            return baseUrl;
-        }
+		public String getBaseUrl() {
+			return baseUrl;
+		}
 
-        public void setBaseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
-        }
-    }
+		public void setBaseUrl(String baseUrl) {
+			this.baseUrl = baseUrl;
+		}
+	}
 
-    public static class Security {
+	public static class Security {
 
-        private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
+		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
 
-        private final ClientAuthorization clientAuthorization = new ClientAuthorization();
+		private final ClientAuthorization clientAuthorization = new ClientAuthorization();
 
-        private final Authentication authentication = new Authentication();
+		private final Authentication authentication = new Authentication();
 
-        private final RememberMe rememberMe = new RememberMe();
+		private final RememberMe rememberMe = new RememberMe();
 
-        private final OAuth2 oauth2 = new OAuth2();
+		private final OAuth2 oauth2 = new OAuth2();
 
-        public ClientAuthorization getClientAuthorization() {
-            return clientAuthorization;
-        }
+		public ClientAuthorization getClientAuthorization() {
+			return clientAuthorization;
+		}
 
-        public Authentication getAuthentication() {
-            return authentication;
-        }
+		public Authentication getAuthentication() {
+			return authentication;
+		}
 
-        public RememberMe getRememberMe() {
-            return rememberMe;
-        }
+		public RememberMe getRememberMe() {
+			return rememberMe;
+		}
 
-        public OAuth2 getOauth2() {
-            return oauth2;
-        }
+		public OAuth2 getOauth2() {
+			return oauth2;
+		}
 
-        public String getContentSecurityPolicy() {
-            return contentSecurityPolicy;
-        }
+		public String getContentSecurityPolicy() {
+			return contentSecurityPolicy;
+		}
 
-        public void setContentSecurityPolicy(String contentSecurityPolicy) {
-            this.contentSecurityPolicy = contentSecurityPolicy;
-        }
+		public void setContentSecurityPolicy(String contentSecurityPolicy) {
+			this.contentSecurityPolicy = contentSecurityPolicy;
+		}
 
-        public static class ClientAuthorization {
+		public static class ClientAuthorization {
 
-            private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
+			private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
 
-            private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
+			private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
 
-            private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
+			private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
 
-            private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
+			private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
 
-            public String getAccessTokenUri() {
-                return accessTokenUri;
-            }
+			public String getAccessTokenUri() {
+				return accessTokenUri;
+			}
 
-            public void setAccessTokenUri(String accessTokenUri) {
-                this.accessTokenUri = accessTokenUri;
-            }
+			public void setAccessTokenUri(String accessTokenUri) {
+				this.accessTokenUri = accessTokenUri;
+			}
 
-            public String getTokenServiceId() {
-                return tokenServiceId;
-            }
+			public String getTokenServiceId() {
+				return tokenServiceId;
+			}
 
-            public void setTokenServiceId(String tokenServiceId) {
-                this.tokenServiceId = tokenServiceId;
-            }
+			public void setTokenServiceId(String tokenServiceId) {
+				this.tokenServiceId = tokenServiceId;
+			}
 
-            public String getClientId() {
-                return clientId;
-            }
+			public String getClientId() {
+				return clientId;
+			}
 
-            public void setClientId(String clientId) {
-                this.clientId = clientId;
-            }
+			public void setClientId(String clientId) {
+				this.clientId = clientId;
+			}
 
-            public String getClientSecret() {
-                return clientSecret;
-            }
+			public String getClientSecret() {
+				return clientSecret;
+			}
 
-            public void setClientSecret(String clientSecret) {
-                this.clientSecret = clientSecret;
-            }
-        }
+			public void setClientSecret(String clientSecret) {
+				this.clientSecret = clientSecret;
+			}
+		}
 
-        public static class Authentication {
+		public static class Authentication {
 
-            private final Jwt jwt = new Jwt();
+			private final Jwt jwt = new Jwt();
 
-            public Jwt getJwt() {
-                return jwt;
-            }
+			public Jwt getJwt() {
+				return jwt;
+			}
 
-            public static class Jwt {
+			@Getter
+			@Setter
+			public static class Jwt {
+				private String secret = JHipsterDefaults.Security.Authentication.Jwt.secret;
+				private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
+				private String jwksUri = null;
+				private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
+				private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
+			}
+		}
 
-                private String secret = JHipsterDefaults.Security.Authentication.Jwt.secret;
+		public static class RememberMe {
 
-                private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
+			@NotNull
+			private String key = JHipsterDefaults.Security.RememberMe.key;
 
-                private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt
-                    .tokenValidityInSeconds;
+			public String getKey() {
+				return key;
+			}
 
-                private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt
-                    .tokenValidityInSecondsForRememberMe;
+			public void setKey(String key) {
+				this.key = key;
+			}
+		}
 
-                public String getSecret() {
-                    return secret;
-                }
+		public static class OAuth2 {
+			private List<String> audience = new ArrayList<>();
 
-                public void setSecret(String secret) {
-                    this.secret = secret;
-                }
+			public List<String> getAudience() {
+				return Collections.unmodifiableList(audience);
+			}
 
-                public String getBase64Secret() {
-                    return base64Secret;
-                }
+			public void setAudience(@NotNull List<String> audience) {
+				this.audience.addAll(audience);
+			}
+		}
+	}
 
-                public void setBase64Secret(String base64Secret) {
-                    this.base64Secret = base64Secret;
-                }
+	public static class ApiDocs {
 
-                public long getTokenValidityInSeconds() {
-                    return tokenValidityInSeconds;
-                }
+		private String title = JHipsterDefaults.ApiDocs.title;
 
-                public void setTokenValidityInSeconds(long tokenValidityInSeconds) {
-                    this.tokenValidityInSeconds = tokenValidityInSeconds;
-                }
+		private String description = JHipsterDefaults.ApiDocs.description;
 
-                public long getTokenValidityInSecondsForRememberMe() {
-                    return tokenValidityInSecondsForRememberMe;
-                }
+		private String version = JHipsterDefaults.ApiDocs.version;
 
-                public void setTokenValidityInSecondsForRememberMe(long tokenValidityInSecondsForRememberMe) {
-                    this.tokenValidityInSecondsForRememberMe = tokenValidityInSecondsForRememberMe;
-                }
-            }
-        }
+		private String termsOfServiceUrl = JHipsterDefaults.ApiDocs.termsOfServiceUrl;
 
-        public static class RememberMe {
+		private String contactName = JHipsterDefaults.ApiDocs.contactName;
 
-            @NotNull
-            private String key = JHipsterDefaults.Security.RememberMe.key;
+		private String contactUrl = JHipsterDefaults.ApiDocs.contactUrl;
 
-            public String getKey() {
-                return key;
-            }
+		private String contactEmail = JHipsterDefaults.ApiDocs.contactEmail;
 
-            public void setKey(String key) {
-                this.key = key;
-            }
-        }
+		private String license = JHipsterDefaults.ApiDocs.license;
 
-        public static class OAuth2 {
-            private List<String> audience = new ArrayList<>();
+		private String licenseUrl = JHipsterDefaults.ApiDocs.licenseUrl;
 
-            public List<String> getAudience() {
-                return Collections.unmodifiableList(audience);
-            }
+		private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
 
-            public void setAudience(@NotNull List<String> audience) {
-                this.audience.addAll(audience);
-            }
-        }
-    }
+		private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
 
-    public static class ApiDocs {
+		private Server[] servers = {};
 
-        private String title = JHipsterDefaults.ApiDocs.title;
+		public String getTitle() {
+			return title;
+		}
 
-        private String description = JHipsterDefaults.ApiDocs.description;
+		public void setTitle(String title) {
+			this.title = title;
+		}
 
-        private String version = JHipsterDefaults.ApiDocs.version;
+		public String getDescription() {
+			return description;
+		}
 
-        private String termsOfServiceUrl = JHipsterDefaults.ApiDocs.termsOfServiceUrl;
+		public void setDescription(String description) {
+			this.description = description;
+		}
 
-        private String contactName = JHipsterDefaults.ApiDocs.contactName;
+		public String getVersion() {
+			return version;
+		}
 
-        private String contactUrl = JHipsterDefaults.ApiDocs.contactUrl;
+		public void setVersion(String version) {
+			this.version = version;
+		}
 
-        private String contactEmail = JHipsterDefaults.ApiDocs.contactEmail;
+		public String getTermsOfServiceUrl() {
+			return termsOfServiceUrl;
+		}
 
-        private String license = JHipsterDefaults.ApiDocs.license;
+		public void setTermsOfServiceUrl(String termsOfServiceUrl) {
+			this.termsOfServiceUrl = termsOfServiceUrl;
+		}
 
-        private String licenseUrl = JHipsterDefaults.ApiDocs.licenseUrl;
+		public String getContactName() {
+			return contactName;
+		}
 
-        private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
+		public void setContactName(String contactName) {
+			this.contactName = contactName;
+		}
 
-        private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
+		public String getContactUrl() {
+			return contactUrl;
+		}
 
-        private Server[] servers = {};
+		public void setContactUrl(String contactUrl) {
+			this.contactUrl = contactUrl;
+		}
 
-        public String getTitle() {
-            return title;
-        }
+		public String getContactEmail() {
+			return contactEmail;
+		}
 
-        public void setTitle(String title) {
-            this.title = title;
-        }
+		public void setContactEmail(String contactEmail) {
+			this.contactEmail = contactEmail;
+		}
 
-        public String getDescription() {
-            return description;
-        }
+		public String getLicense() {
+			return license;
+		}
 
-        public void setDescription(String description) {
-            this.description = description;
-        }
+		public void setLicense(String license) {
+			this.license = license;
+		}
 
-        public String getVersion() {
-            return version;
-        }
+		public String getLicenseUrl() {
+			return licenseUrl;
+		}
 
-        public void setVersion(String version) {
-            this.version = version;
-        }
+		public void setLicenseUrl(String licenseUrl) {
+			this.licenseUrl = licenseUrl;
+		}
 
-        public String getTermsOfServiceUrl() {
-            return termsOfServiceUrl;
-        }
+		public String getDefaultIncludePattern() {
+			return defaultIncludePattern;
+		}
 
-        public void setTermsOfServiceUrl(String termsOfServiceUrl) {
-            this.termsOfServiceUrl = termsOfServiceUrl;
-        }
+		public void setDefaultIncludePattern(String defaultIncludePattern) {
+			this.defaultIncludePattern = defaultIncludePattern;
+		}
 
-        public String getContactName() {
-            return contactName;
-        }
+		public String getManagementIncludePattern() {
+			return managementIncludePattern;
+		}
 
-        public void setContactName(String contactName) {
-            this.contactName = contactName;
-        }
+		public void setManagementIncludePattern(String managementIncludePattern) {
+			this.managementIncludePattern = managementIncludePattern;
+		}
 
-        public String getContactUrl() {
-            return contactUrl;
-        }
+		public Server[] getServers() {
+			return servers;
+		}
 
-        public void setContactUrl(String contactUrl) {
-            this.contactUrl = contactUrl;
-        }
+		public void setServers(final Server[] servers) {
+			this.servers = servers;
+		}
 
-        public String getContactEmail() {
-            return contactEmail;
-        }
+		public static class Server {
+			private String url;
+			private String description;
 
-        public void setContactEmail(String contactEmail) {
-            this.contactEmail = contactEmail;
-        }
+			public String getUrl() {
+				return url;
+			}
 
-        public String getLicense() {
-            return license;
-        }
+			public void setUrl(String url) {
+				this.url = url;
+			}
 
-        public void setLicense(String license) {
-            this.license = license;
-        }
+			public String getDescription() {
+				return description;
+			}
 
-        public String getLicenseUrl() {
-            return licenseUrl;
-        }
+			public void setDescription(String description) {
+				this.description = description;
+			}
+		}
+	}
 
-        public void setLicenseUrl(String licenseUrl) {
-            this.licenseUrl = licenseUrl;
-        }
+	public static class Logging {
 
-        public String getDefaultIncludePattern() {
-            return defaultIncludePattern;
-        }
+		private boolean useJsonFormat = JHipsterDefaults.Logging.useJsonFormat;
 
-        public void setDefaultIncludePattern(String defaultIncludePattern) {
-            this.defaultIncludePattern = defaultIncludePattern;
-        }
+		private final Logstash logstash = new Logstash();
 
-        public String getManagementIncludePattern() {
-            return managementIncludePattern;
-        }
+		public boolean isUseJsonFormat() {
+			return useJsonFormat;
+		}
 
-        public void setManagementIncludePattern(String managementIncludePattern) {
-            this.managementIncludePattern = managementIncludePattern;
-        }
+		public void setUseJsonFormat(boolean useJsonFormat) {
+			this.useJsonFormat = useJsonFormat;
+		}
 
-        public Server[] getServers() {
-            return servers;
-        }
+		public Logstash getLogstash() {
+			return logstash;
+		}
 
-        public void setServers(final Server[] servers) {
-            this.servers = servers;
-        }
+		public static class Logstash {
 
-        public static class Server {
-            private String url;
-            private String description;
+			private boolean enabled = JHipsterDefaults.Logging.Logstash.enabled;
 
-            public String getUrl() {
-                return url;
-            }
+			private String host = JHipsterDefaults.Logging.Logstash.host;
 
-            public void setUrl(String url) {
-                this.url = url;
-            }
+			private int port = JHipsterDefaults.Logging.Logstash.port;
 
-            public String getDescription() {
-                return description;
-            }
+			private int queueSize = JHipsterDefaults.Logging.Logstash.queueSize;
 
-            public void setDescription(String description) {
-                this.description = description;
-            }
-        }
-    }
+			public boolean isEnabled() {
+				return enabled;
+			}
 
-    public static class Logging {
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
 
-        private boolean useJsonFormat = JHipsterDefaults.Logging.useJsonFormat;
+			public String getHost() {
+				return host;
+			}
 
-        private final Logstash logstash = new Logstash();
+			public void setHost(String host) {
+				this.host = host;
+			}
 
-        public boolean isUseJsonFormat() {
-            return useJsonFormat;
-        }
+			public int getPort() {
+				return port;
+			}
 
-        public void setUseJsonFormat(boolean useJsonFormat) {
-            this.useJsonFormat = useJsonFormat;
-        }
+			public void setPort(int port) {
+				this.port = port;
+			}
 
-        public Logstash getLogstash() {
-            return logstash;
-        }
+			public int getQueueSize() {
+				return queueSize;
+			}
 
-        public static class Logstash {
+			public void setQueueSize(int queueSize) {
+				this.queueSize = queueSize;
+			}
+		}
+	}
 
-            private boolean enabled = JHipsterDefaults.Logging.Logstash.enabled;
+	public static class Social {
 
-            private String host = JHipsterDefaults.Logging.Logstash.host;
+		private String redirectAfterSignIn = JHipsterDefaults.Social.redirectAfterSignIn;
 
-            private int port = JHipsterDefaults.Logging.Logstash.port;
+		public String getRedirectAfterSignIn() {
+			return redirectAfterSignIn;
+		}
 
-            private int queueSize = JHipsterDefaults.Logging.Logstash.queueSize;
+		public void setRedirectAfterSignIn(String redirectAfterSignIn) {
+			this.redirectAfterSignIn = redirectAfterSignIn;
+		}
+	}
 
-            public boolean isEnabled() {
-                return enabled;
-            }
+	public static class Gateway {
 
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
+		private final RateLimiting rateLimiting = new RateLimiting();
 
-            public String getHost() {
-                return host;
-            }
+		public RateLimiting getRateLimiting() {
+			return rateLimiting;
+		}
 
-            public void setHost(String host) {
-                this.host = host;
-            }
+		private Map<String, List<String>> authorizedMicroservicesEndpoints = JHipsterDefaults.Gateway
+			.authorizedMicroservicesEndpoints;
 
-            public int getPort() {
-                return port;
-            }
+		public Map<String, List<String>> getAuthorizedMicroservicesEndpoints() {
+			return authorizedMicroservicesEndpoints;
+		}
 
-            public void setPort(int port) {
-                this.port = port;
-            }
+		public void setAuthorizedMicroservicesEndpoints(Map<String, List<String>> authorizedMicroservicesEndpoints) {
+			this.authorizedMicroservicesEndpoints = authorizedMicroservicesEndpoints;
+		}
 
-            public int getQueueSize() {
-                return queueSize;
-            }
+		public static class RateLimiting {
 
-            public void setQueueSize(int queueSize) {
-                this.queueSize = queueSize;
-            }
-        }
-    }
+			private boolean enabled = JHipsterDefaults.Gateway.RateLimiting.enabled;
 
-    public static class Social {
+			private long limit = JHipsterDefaults.Gateway.RateLimiting.limit;
 
-        private String redirectAfterSignIn = JHipsterDefaults.Social.redirectAfterSignIn;
+			private int durationInSeconds = JHipsterDefaults.Gateway.RateLimiting.durationInSeconds;
 
-        public String getRedirectAfterSignIn() {
-            return redirectAfterSignIn;
-        }
+			public boolean isEnabled() {
+				return enabled;
+			}
 
-        public void setRedirectAfterSignIn(String redirectAfterSignIn) {
-            this.redirectAfterSignIn = redirectAfterSignIn;
-        }
-    }
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
 
-    public static class Gateway {
+			public long getLimit() {
+				return this.limit;
+			}
 
-        private final RateLimiting rateLimiting = new RateLimiting();
+			public void setLimit(long limit) {
+				this.limit = limit;
+			}
 
-        public RateLimiting getRateLimiting() {
-            return rateLimiting;
-        }
+			public int getDurationInSeconds() {
+				return durationInSeconds;
+			}
 
-        private Map<String, List<String>> authorizedMicroservicesEndpoints = JHipsterDefaults.Gateway
-            .authorizedMicroservicesEndpoints;
+			public void setDurationInSeconds(int durationInSeconds) {
+				this.durationInSeconds = durationInSeconds;
+			}
+		}
+	}
 
-        public Map<String, List<String>> getAuthorizedMicroservicesEndpoints() {
-            return authorizedMicroservicesEndpoints;
-        }
+	public static class Registry {
 
-        public void setAuthorizedMicroservicesEndpoints(Map<String, List<String>> authorizedMicroservicesEndpoints) {
-            this.authorizedMicroservicesEndpoints = authorizedMicroservicesEndpoints;
-        }
+		private String password = JHipsterDefaults.Registry.password;
 
-        public static class RateLimiting {
+		public String getPassword() {
+			return password;
+		}
 
-            private boolean enabled = JHipsterDefaults.Gateway.RateLimiting.enabled;
+		public void setPassword(String password) {
+			this.password = password;
+		}
+	}
 
-            private long limit = JHipsterDefaults.Gateway.RateLimiting.limit;
+	public static class ClientApp {
 
-            private int durationInSeconds = JHipsterDefaults.Gateway.RateLimiting.durationInSeconds;
+		private String name = JHipsterDefaults.ClientApp.name;
 
-            public boolean isEnabled() {
-                return enabled;
-            }
+		public String getName() {
+			return name;
+		}
 
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
+		public void setName(String name) {
+			this.name = name;
+		}
+	}
 
-            public long getLimit() {
-                return this.limit;
-            }
+	public static class AuditEvents {
+		private int retentionPeriod = JHipsterDefaults.AuditEvents.retentionPeriod;
 
-            public void setLimit(long limit) {
-                this.limit = limit;
-            }
+		public int getRetentionPeriod() {
+			return retentionPeriod;
+		}
 
-            public int getDurationInSeconds() {
-                return durationInSeconds;
-            }
-
-            public void setDurationInSeconds(int durationInSeconds) {
-                this.durationInSeconds = durationInSeconds;
-            }
-        }
-    }
-
-    public static class Registry {
-
-        private String password = JHipsterDefaults.Registry.password;
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-    }
-
-    public static class ClientApp {
-
-        private String name = JHipsterDefaults.ClientApp.name;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
-
-    public static class AuditEvents {
-        private int retentionPeriod = JHipsterDefaults.AuditEvents.retentionPeriod;
-
-        public int getRetentionPeriod() {
-            return retentionPeriod;
-        }
-
-        public void setRetentionPeriod(int retentionPeriod) {
-            this.retentionPeriod = retentionPeriod;
-        }
-    }
+		public void setRetentionPeriod(int retentionPeriod) {
+			this.retentionPeriod = retentionPeriod;
+		}
+	}
 }

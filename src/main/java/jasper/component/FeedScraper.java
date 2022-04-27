@@ -45,7 +45,7 @@ public class FeedScraper {
 			.setSocketTimeout(timeout).build();
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
-			HttpUriRequest request = new HttpGet(source.getUrl());;
+			HttpUriRequest request = new HttpGet(source.getUrl());
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request);
 				InputStream stream = response.getEntity().getContent()) {
