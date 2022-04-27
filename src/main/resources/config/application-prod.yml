@@ -16,7 +16,7 @@
 logging:
   level:
     ROOT: INFO
-    ca.hc.jasper: INFO
+    jasper: INFO
 
 management:
   metrics:

@@ -11,7 +11,7 @@
 # ===================================================================
 logging:
   level:
-    ca.hc.jasper: DEBUG
+    jasper: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 

@@ -1,0 +1,46 @@
+package jasper.repository;
+
+import java.time.Instant;
+import java.util.List;
+
+import jasper.domain.Ref;
+import jasper.domain.RefId;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref> {
+	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url FROM ref
+		WHERE ref.published < :date
+			AND jsonb_exists(ref.sources, :url)""")
+	List<String> findAllResponsesPublishedBefore(String url, Instant date);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.sources, :url)""")
+	List<String> findAllResponsesByOrigin(String url, String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.sources, :url)
+			AND jsonb_exists(ref.tags, :tag)""")
+	List<String> findAllResponsesByOriginWithTag(String url, String origin, String tag);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.sources, :url)
+			AND jsonb_exists(ref.tags, :tag) = false""")
+	List<String> findAllResponsesByOriginWithoutTag(String url, String origin, String tag);
+
+	@Query(nativeQuery = true, value = """
+		SELECT count(*) > 0 FROM ref
+		WHERE jsonb_exists(ref.alternate_urls, :url)""")
+	boolean existsByAlternateUrl(String url);
+}

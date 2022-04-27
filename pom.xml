@@ -16,7 +16,7 @@
 
 	<properties>
 		<java.version>17</java.version>
-		<start-class>ca.hc.jasper.JasperApplication</start-class>
+		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
 		<testcontainers.version>1.16.2</testcontainers.version>
