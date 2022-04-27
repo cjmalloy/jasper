@@ -107,28 +107,31 @@ public class TagQuery {
 		// TODO: allow unlimited parentheses https://en.wikipedia.org/wiki/Shunting-yard_algorithm
 		query = markInnerOuterOrs(query);
 		query = query.replaceAll(AND_REGEX, ":");
-		var ors = query.split(" ");
+		var ors = query.split("[|]");
 		for (var orGroup : ors) {
 			if (orGroup.length() == 0) continue;
 			if (!orGroup.contains(":")) {
-				if (orGroup.contains("|")) {
+				if (orGroup.contains(" ")) {
 					// Useless parentheses around ors
-					orTags.addAll(Arrays.stream(orGroup.split("[()|]")).map(QualifiedTag::new).toList());
+					orTags.addAll(Arrays.stream(orGroup.split("[() ]")).map(QualifiedTag::new).toList());
 				} else {
 					orTags.add(new QualifiedTag(orGroup.replaceAll("[()]", "")));
 				}
 			} else {
-				if (!orGroup.contains("|")) {
+				if (!orGroup.contains(" ")) {
 					orGroups.add(Arrays.stream(orGroup.replaceAll("[()]", "").split(":")).map(QualifiedTag::new).toList());
 				} else {
-					var andGroups = orGroup.split("[():]");
+					var andGroups = orGroup.split(":");
 					var nested = new ArrayList<List<QualifiedTag>>();
 					for (var andGroup : andGroups) {
 						if (andGroup.length() == 0) continue;
-						if (!andGroup.contains("|")) {
-							nested.add(List.of(new QualifiedTag(andGroup)));
+						if (!andGroup.contains(" ")) {
+							nested.add(List.of(new QualifiedTag(andGroup.replaceAll("[()]", ""))));
 						} else {
-							nested.add(Arrays.stream(andGroup.split("\\|")).map(QualifiedTag::new).toList());
+							nested.add(Arrays.stream(andGroup.split(" "))
+											 .map(s -> s.replaceAll("[()]", ""))
+											 .map(QualifiedTag::new)
+											 .toList());
 						}
 					}
 					nestedGroups.add(nested);
