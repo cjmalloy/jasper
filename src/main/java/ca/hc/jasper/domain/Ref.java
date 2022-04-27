@@ -70,6 +70,9 @@ public class Ref implements HasTags {
 	@Formula("COALESCE(jsonb_array_length(metadata -> 'responses'), 0)")
 	private String responseCount;
 
+	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/comment'), 0)")
+	private String commentCount;
+
 	@Column(updatable = false)
 	@NotNull
 	private Instant published = Instant.now();
