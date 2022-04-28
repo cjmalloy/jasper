@@ -1,5 +1,6 @@
 package jasper.service.dto;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -19,4 +20,7 @@ public class FeedDto implements HasTags {
 	private List<String> tags;
 	private Instant modified;
 	private Instant lastScrape;
+	private Duration scrapeInterval;
+	private boolean scrapeDescription;
+	private boolean removeDescriptionIndent;
 }

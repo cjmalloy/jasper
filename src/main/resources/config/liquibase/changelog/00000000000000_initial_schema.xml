@@ -173,6 +173,15 @@
 				<constraints nullable="false"/>
 			</column>
 			<column name="last_scrape" type="TIMESTAMP"/>
+			<column name="scrape_interval" type="INTERVAL" defaultValue="00:15:00">
+				<constraints nullable="false"/>
+			</column>
+			<column name="scrape_description" type="BOOLEAN" defaultValue="true">
+				<constraints nullable="false"/>
+			</column>
+			<column name="remove_description_indent" type="BOOLEAN" defaultValue="false">
+				<constraints nullable="false"/>
+			</column>
 		</createTable>
 		<sql>
 			CREATE INDEX feed_tags_index ON feed USING GIN(tags);

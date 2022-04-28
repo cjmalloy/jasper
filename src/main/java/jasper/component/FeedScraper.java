@@ -3,15 +3,14 @@ package jasper.component;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.*;
 import jasper.domain.Feed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.repository.FeedRepository;
-import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.*;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
@@ -57,8 +56,12 @@ public class FeedScraper {
 					ref.setTitle(entry.getTitle());
 					ref.setTags(source.getTags());
 					ref.setPublished(entry.getPublishedDate().toInstant());
-					if (entry.getDescription() != null) {
-						ref.setComment(entry.getDescription().getValue());
+					if (source.isScrapeDescription() && entry.getDescription() != null) {
+						String desc = entry.getDescription().getValue();
+						if (source.isRemoveDescriptionIndent()) {
+							desc = desc.replaceAll("(?m)^\\s+", "");
+						}
+						ref.setComment(desc);
 					}
 					try {
 						ingest.ingest(ref);
@@ -74,8 +77,7 @@ public class FeedScraper {
 	@Scheduled(fixedRate = 1, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
-		var fourMinAgo = Instant.now().minus(5, ChronoUnit.MINUTES);
-		var maybeFeed = feedRepository.findFirstByLastScrapeBeforeOrLastScrapeIsNullOrderByLastScrapeAsc(fourMinAgo);
+		var maybeFeed = feedRepository.oldestNeedsScrape();
 		if (maybeFeed.isEmpty()) {
 			logger.info("All feeds up to date.");
 			return;

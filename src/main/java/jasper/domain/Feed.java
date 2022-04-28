@@ -1,5 +1,6 @@
 package jasper.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -8,8 +9,9 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
-import jasper.domain.proj.HasTags;
+import com.vladmihalcea.hibernate.type.interval.PostgreSQLIntervalType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
+import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
@@ -21,7 +23,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 @Setter
 @IdClass(RefId.class)
 @TypeDefs({
-	@TypeDef(name = "json", typeClass = JsonType.class)
+	@TypeDef(name = "json", typeClass = JsonType.class),
+	@TypeDef(typeClass = PostgreSQLIntervalType.class, defaultForType = Duration.class)
 })
 public class Feed implements HasTags {
 
@@ -46,6 +49,13 @@ public class Feed implements HasTags {
 	private Instant modified = Instant.now();
 
 	private Instant lastScrape;
+
+	@Column(columnDefinition = "interval")
+	private Duration scrapeInterval;
+
+	private boolean scrapeDescription = true;
+
+	private boolean removeDescriptionIndent = false;
 
 	@Override
 	public boolean equals(Object o) {
