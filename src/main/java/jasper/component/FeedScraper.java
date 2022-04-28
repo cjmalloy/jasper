@@ -63,7 +63,7 @@ public class FeedScraper {
 					try {
 						ingest.ingest(ref);
 					} catch (AlreadyExistsException e) {
-						logger.info("Skipping RSS entry in feed {} which already exists. {} {}",
+						logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
 							source.getName(), ref.getTitle(), ref.getUrl());
 					}
 				}
