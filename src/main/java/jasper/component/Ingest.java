@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@Transactional
+@Transactional(noRollbackFor = AlreadyExistsException.class)
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
 

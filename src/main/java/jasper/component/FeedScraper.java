@@ -34,7 +34,6 @@ public class FeedScraper {
 
 	public void scrape(Feed source) throws IOException, FeedException {
 		source.setLastScrape(Instant.now());
-		feedRepository.save(source);
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
