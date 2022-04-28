@@ -141,7 +141,7 @@ public class TagQuery {
 	}
 
 	private String markInnerOuterOrs(String query) {
-		if (!query.contains("(")) return query.replaceAll(OR_REGEX, " ");
+		if (!query.contains("(")) return query.replaceAll(OR_REGEX, "|");
 		var groups = query.split("[()]");
 		var result = new StringBuilder();
 		var parens = false;

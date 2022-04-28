@@ -298,7 +298,7 @@ public class RefServiceIT {
 		var page = refService.page(
 			RefFilter
 				.builder()
-				.query("  custom@a  +  custom@b  : extra@b  ")
+				.query("  custom@a  |  custom@b  : extra@b  ")
 				.build(),
 			PageRequest.of(0, 10));
 
