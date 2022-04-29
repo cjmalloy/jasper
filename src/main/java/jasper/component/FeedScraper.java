@@ -96,7 +96,7 @@ public class FeedScraper {
 		var ref = new Ref();
 		ref.setUrl(entry.getLink());
 		ref.setTitle(entry.getTitle());
-		ref.setTags(source.getTags());
+		ref.setTags(new ArrayList<>(source.getTags()));
 		ref.setPublished(entry.getPublishedDate().toInstant());
 		if (source.isScrapeDescription() && entry.getDescription() != null) {
 			String desc = entry.getDescription().getValue();
@@ -107,7 +107,12 @@ public class FeedScraper {
 		}
 		if (!tagSet.isEmpty()) {
 			var plugins = new HashMap<String, Object>();
-			if (tagSet.contains("plugin/thumbnail")) parseThumbnail(entry, plugins);
+			if (tagSet.contains("plugin/thumbnail")) {
+				parseThumbnail(entry, plugins);
+				if (!plugins.containsKey("plugin/thumbnail")) {
+					ref.getTags().remove("plugin/thumbnail");
+				}
+			}
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
@@ -120,6 +125,14 @@ public class FeedScraper {
 	}
 
 	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {
+		if (entry.getEnclosures() != null) {
+			for (var e : entry.getEnclosures()) {
+				if ("image/jpg".equals(e.getType()) || "image/png".equals(e.getType())) {
+					plugins.put("plugin/thumbnail",  Map.of("url", e.getUrl()));
+					return;
+				}
+			}
+		}
 		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
 		if (media == null) return;
 		if (media.getMetadata() != null &&
@@ -127,6 +140,15 @@ public class FeedScraper {
 			media.getMetadata().getThumbnail().length != 0) {
 			plugins.put("plugin/thumbnail", media.getMetadata().getThumbnail()[0]);
 			return;
+		}
+		if (media.getMetadata() != null &&
+			media.getMediaContents() != null) {
+			for (var c : media.getMediaContents()) {
+				if ("image".equals(c.getMedium())) {
+					plugins.put("plugin/thumbnail", c.getReference());
+					return;
+				}
+			}
 		}
 		if (media.getMediaGroups().length == 0) return;
 		var group = media.getMediaGroups()[0];
