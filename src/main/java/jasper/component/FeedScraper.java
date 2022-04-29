@@ -75,7 +75,7 @@ public class FeedScraper {
 		}
 	}
 
-	@Scheduled(fixedRate = 1, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
+	@Scheduled(fixedRate = 1, initialDelayString = "${application.scrape-delay-min}", timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
 		var maybeFeed = feedRepository.oldestNeedsScrape(PageRequest.of(0, 1));

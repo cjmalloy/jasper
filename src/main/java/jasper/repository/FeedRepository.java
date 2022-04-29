@@ -16,6 +16,6 @@ public interface FeedRepository extends JpaRepository<Feed, RefId>, RefMixin<Fee
 		FROM Feed as f
 		WHERE f.lastScrape IS NULL
 			OR age(f.lastScrape) > f.scrapeInterval
-		ORDER BY f.lastScrape DESC""")
+		ORDER BY f.lastScrape ASC""")
 	List<Feed> oldestNeedsScrape(Pageable pageable);
 }
