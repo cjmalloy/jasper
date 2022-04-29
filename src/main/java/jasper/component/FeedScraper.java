@@ -19,6 +19,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -76,12 +77,12 @@ public class FeedScraper {
 	@Scheduled(fixedRate = 1, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
-		var maybeFeed = feedRepository.oldestNeedsScrape();
+		var maybeFeed = feedRepository.oldestNeedsScrape(PageRequest.of(0, 1));
 		if (maybeFeed.isEmpty()) {
 			logger.info("All feeds up to date.");
 			return;
 		}
-		var feed = maybeFeed.get();
+		var feed = maybeFeed.get(0);
 		try {
 			scrape(feed);
 			logger.info("Finished scraping {} feed: {}.", feed.getName(), feed.getUrl());
