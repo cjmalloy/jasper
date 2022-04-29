@@ -7,7 +7,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
 import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.synd.SyndEntry;
@@ -97,7 +96,7 @@ public class FeedScraper {
 		var ref = new Ref();
 		ref.setUrl(entry.getLink());
 		ref.setTitle(entry.getTitle());
-		ref.setTags(new ArrayList<>(source.getTags()));
+		ref.setTags(source.getTags());
 		ref.setPublished(entry.getPublishedDate().toInstant());
 		if (source.isScrapeDescription() && entry.getDescription() != null) {
 			String desc = entry.getDescription().getValue();
@@ -108,11 +107,7 @@ public class FeedScraper {
 		}
 		if (!tagSet.isEmpty()) {
 			var plugins = new HashMap<String, Object>();
-			if (tagSet.contains("plugin/thumbnail")) {
-				if (!parseThumbnail(entry, plugins)) {
-					ref.getTags().remove("plugin/thumbnail");
-				}
-			}
+			if (tagSet.contains("plugin/thumbnail")) parseThumbnail(entry, plugins);
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
@@ -124,14 +119,13 @@ public class FeedScraper {
 		}
 	}
 
-	private boolean parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {
+	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {
 		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
-		if (media == null) return false;
-		if (media.getMediaGroups().length == 0) return false;
+		if (media == null) return;
+		if (media.getMediaGroups().length == 0) return;
 		var group = media.getMediaGroups()[0];
-		if (group.getMetadata().getThumbnail().length == 0) return false;
+		if (group.getMetadata().getThumbnail().length == 0) return;
 		plugins.put("plugin/thumbnail", group.getMetadata().getThumbnail()[0]);
-		return true;
 	}
 
 	private void parseEmbed(SyndEntry entry, Map<String, Object> plugins) {
