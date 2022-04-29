@@ -85,14 +85,18 @@ public class FeedScraper {
 				InputStream stream = response.getEntity().getContent()) {
 				SyndFeedInput input = new SyndFeedInput();
 				SyndFeed syndFeed = input.build(new XmlReader(stream));
+				Map<String, Object> feedImage = null;
+				if (syndFeed.getImage() != null) {
+					feedImage = Map.of("url", syndFeed.getImage().getUrl());
+				}
 				for (var entry : syndFeed.getEntries()) {
-					parseEntry(source, tagSet, entry);
+					parseEntry(source, tagSet, entry, feedImage);
 				}
 			}
 		}
 	}
 
-	private void parseEntry(Feed source, HashSet<String> tagSet, SyndEntry entry) {
+	private void parseEntry(Feed source, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		ref.setUrl(entry.getLink());
 		ref.setTitle(entry.getTitle());
@@ -110,7 +114,11 @@ public class FeedScraper {
 			if (tagSet.contains("plugin/thumbnail")) {
 				parseThumbnail(entry, plugins);
 				if (!plugins.containsKey("plugin/thumbnail")) {
-					ref.getTags().remove("plugin/thumbnail");
+					if (defaultThumbnail != null) {
+						plugins.put("plugin/thumbnail", defaultThumbnail);
+					} else {
+						ref.getTags().remove("plugin/thumbnail");
+					}
 				}
 			}
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
