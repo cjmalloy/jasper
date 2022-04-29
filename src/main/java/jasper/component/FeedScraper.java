@@ -122,6 +122,12 @@ public class FeedScraper {
 	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {
 		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
 		if (media == null) return;
+		if (media.getMetadata() != null &&
+			media.getMetadata().getThumbnail() != null &&
+			media.getMetadata().getThumbnail().length != 0) {
+			plugins.put("plugin/thumbnail", media.getMetadata().getThumbnail()[0]);
+			return;
+		}
 		if (media.getMediaGroups().length == 0) return;
 		var group = media.getMediaGroups()[0];
 		if (group.getMetadata().getThumbnail().length == 0) return;
