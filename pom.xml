@@ -211,6 +211,11 @@
 			<version>${rome.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>com.rometools</groupId>
+			<artifactId>rome-modules</artifactId>
+			<version>${rome.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 			<version>${apache-httpclient.version}</version>

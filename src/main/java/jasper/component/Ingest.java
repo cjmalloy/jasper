@@ -128,14 +128,14 @@ public class Ingest {
 				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 			ref.getPlugins().set(tag, mergedDefaults);
 		}
-		if (ref.getPlugins() == null) throw new InvalidPluginException(tag);
-		if (!ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 		var mergedSchemas = plugins
 			.stream()
 			.map(Plugin::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		var pluginData = new JacksonAdapter(ref.getPlugins().get(tag));
+		var pluginData = new JacksonAdapter((ref.getPlugins() != null && ref.getPlugins().has(tag))
+			? ref.getPlugins().get(tag)
+			: objectMapper.getNodeFactory().objectNode());
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		try {
 			var errors = validator.validate(schema, pluginData);
