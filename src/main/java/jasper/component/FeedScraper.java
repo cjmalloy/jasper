@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
 import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.synd.SyndEntry;
@@ -146,6 +147,12 @@ public class FeedScraper {
 					return;
 				}
 			}
+		}
+		var itunes = (ITunes) entry.getModule(ITunes.URI);
+		if (itunes != null &&
+			itunes.getImageUri() != null) {
+			plugins.put("plugin/thumbnail", Map.of("url", itunes.getImageUri()));
+			return;
 		}
 		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
 		if (media == null) return;
