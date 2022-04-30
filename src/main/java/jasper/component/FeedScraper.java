@@ -2,7 +2,8 @@ package jasper.component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.*;
+import java.time.Instant;
+import java.time.Year;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -92,7 +93,11 @@ public class FeedScraper {
 					feedImage = Map.of("url", syndFeed.getImage().getUrl());
 				}
 				for (var entry : syndFeed.getEntries()) {
-					parseEntry(source, tagSet, entry, feedImage);
+					try {
+						parseEntry(source, tagSet, entry, feedImage);
+					} catch (Exception e) {
+						logger.error("Error processing entry", e);
+					}
 				}
 			}
 		}
