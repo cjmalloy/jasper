@@ -121,6 +121,12 @@ public class FeedScraper {
 					}
 				}
 			}
+			if (tagSet.contains("plugin/audio")) {
+				parseAudio(entry, plugins);
+				if (!plugins.containsKey("plugin/audio")) {
+					ref.getTags().remove("plugin/audio");
+				}
+			}
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
@@ -162,6 +168,17 @@ public class FeedScraper {
 		var group = media.getMediaGroups()[0];
 		if (group.getMetadata().getThumbnail().length == 0) return;
 		plugins.put("plugin/thumbnail", group.getMetadata().getThumbnail()[0]);
+	}
+
+	private void parseAudio(SyndEntry entry, Map<String, Object> plugins) {
+		if (entry.getEnclosures() != null) {
+			for (var e : entry.getEnclosures()) {
+				if ("audio/mpeg".equals(e.getType())) {
+					plugins.put("plugin/audio",  Map.of("url", e.getUrl()));
+					return;
+				}
+			}
+		}
 	}
 
 	private void parseEmbed(SyndEntry entry, Map<String, Object> plugins) {
