@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
 import com.rometools.modules.mediarss.MediaModule;
+import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.*;
@@ -111,12 +112,21 @@ public class FeedScraper {
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
-		if (source.isScrapeDescription() && entry.getDescription() != null) {
-			String desc = entry.getDescription().getValue();
-			if (source.isRemoveDescriptionIndent()) {
-				desc = desc.replaceAll("(?m)^\\s+", "");
+		if (source.isScrapeDescription()) {
+			String desc = "";
+			if (entry.getDescription() != null) {
+				desc = entry.getDescription().getValue();
+				if (source.isRemoveDescriptionIndent()) {
+					desc = desc.replaceAll("(?m)^\\s+", "");
+				}
+				ref.setComment(desc);
 			}
-			ref.setComment(desc);
+			var dc = (DCModule) entry.getModule(DCModule.URI);
+			if (dc.getCreator() != null) {
+				if (!desc.isBlank()) desc += "\n\n\n\n";
+				desc += dc.getCreator();
+				ref.setComment(desc);
+			}
 		}
 		if (!tagSet.isEmpty()) {
 			var plugins = new HashMap<String, Object>();
