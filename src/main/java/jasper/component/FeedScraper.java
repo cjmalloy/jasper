@@ -2,7 +2,7 @@ package jasper.component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -99,10 +99,18 @@ public class FeedScraper {
 
 	private void parseEntry(Feed source, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
-		ref.setUrl(entry.getLink());
+		var l = entry.getLink();
+		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
 		ref.setTags(new ArrayList<>(source.getTags()));
-		ref.setPublished(entry.getPublishedDate().toInstant());
+		if (entry.getPublishedDate() != null) {
+			ref.setPublished(entry.getPublishedDate().toInstant());
+		} else if (l.contains("arxiv.org")) {
+			var publishDate = l.substring(l.lastIndexOf("/") + 1, l.lastIndexOf("."));
+			var publishYear = "20" + publishDate.substring(0, 2);
+			var publishMonth = publishDate.substring(2);
+			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
+		}
 		if (source.isScrapeDescription() && entry.getDescription() != null) {
 			String desc = entry.getDescription().getValue();
 			if (source.isRemoveDescriptionIndent()) {
