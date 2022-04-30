@@ -15,6 +15,7 @@ import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -54,7 +55,7 @@ public class FeedController {
 
 	@GetMapping("page")
 	Page<FeedDto> getPage(
-		@PageableDefault(sort = "url") Pageable pageable,
+		@PageableDefault(sort = "modified", direction = Direction.DESC) Pageable pageable,
 		@RequestParam(required = false) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
