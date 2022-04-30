@@ -107,8 +107,13 @@ public class FeedScraper {
 		if (entry.getPublishedDate() != null) {
 			ref.setPublished(entry.getPublishedDate().toInstant());
 		} else if (l.contains("arxiv.org")) {
-			var publishDate = l.substring(l.lastIndexOf("/") + 1, l.lastIndexOf("."));
-			var publishYear = "20" + publishDate.substring(0, 2);
+			var publishDate = l.substring(l.lastIndexOf("/") + 1, l.lastIndexOf("/") + 5);
+			var publishYear = publishDate.substring(0, 2);
+			if (Integer.parseInt("20" + publishYear) > Year.now().getValue() + 10) {
+				publishYear = "19" + publishYear;
+			} else {
+				publishYear = "20" + publishYear;
+			}
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
