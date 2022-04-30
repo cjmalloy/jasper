@@ -7,8 +7,7 @@ import javax.validation.constraints.Pattern;
 
 import com.github.fge.jsonpatch.JsonPatch;
 import com.rometools.rome.io.FeedException;
-import jasper.domain.Feed;
-import jasper.domain.Origin;
+import jasper.domain.*;
 import jasper.repository.filter.RefFilter;
 import jasper.service.FeedService;
 import jasper.service.dto.FeedDto;
@@ -43,6 +42,14 @@ public class FeedController {
 		@RequestParam(defaultValue = "") String origin
 	) {
 		return feedService.get(url, origin);
+	}
+
+	@GetMapping("exists")
+	boolean feedExists(
+		@RequestParam @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Pattern(regexp = Origin.REGEX) String origin
+	) {
+		return feedService.exists(url, origin);
 	}
 
 	@GetMapping("page")

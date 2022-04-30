@@ -58,6 +58,10 @@ public class FeedService {
 		return mapper.domainToDto(result);
 	}
 
+	public boolean exists(String url, String origin) {
+		return feedRepository.existsByUrlAndOrigin(url, origin);
+	}
+
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<FeedDto> page(RefFilter filter, Pageable pageable) {
 		return feedRepository
