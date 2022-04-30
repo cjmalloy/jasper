@@ -165,7 +165,7 @@ public class FeedScraper {
 		if (media.getMetadata() != null &&
 			media.getMediaContents() != null) {
 			for (var c : media.getMediaContents()) {
-				if ("image".equals(c.getMedium())) {
+				if ("image".equals(c.getMedium()) || "image/jpeg".equals(c.getType()) || "application/octet-stream".equals(c.getType())) {
 					plugins.put("plugin/thumbnail", c.getReference());
 					return;
 				}
