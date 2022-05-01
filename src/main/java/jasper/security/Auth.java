@@ -1,12 +1,5 @@
 package jasper.security;
 
-import static jasper.repository.spec.RefSpec.hasAnyTag;
-import static jasper.repository.spec.RefSpec.hasTag;
-import static jasper.repository.spec.TagSpec.*;
-
-import java.util.*;
-import java.util.stream.Stream;
-
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
@@ -27,6 +20,20 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
+
+import static jasper.repository.spec.RefSpec.hasAnyTag;
+import static jasper.repository.spec.RefSpec.hasTag;
+import static jasper.repository.spec.TagSpec.isAnyTag;
+import static jasper.repository.spec.TagSpec.isTag;
+import static jasper.repository.spec.TagSpec.publicTag;
 
 @Component
 @RequestScope
@@ -50,7 +57,7 @@ public class Auth {
 		if (ref.getTags() != null) {
 			if (ref.getTags().contains("public")) return true;
 			if (hasRole("USER")) {
-				var qualifiedTags = ref.getQualifiedNonPublicTags();
+				var qualifiedTags = ref.getQualifiedTags();
 				if (qualifiedTags.contains(getUserTag())) return true;
 				return captures(getReadAccess(), qualifiedTags);
 			}
@@ -146,8 +153,7 @@ public class Auth {
 		if (hasRole("MOD")) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		// No public tags in permission lists
-		if (user.getReadAccess() != null && user.getReadAccess().stream().anyMatch(this::isPublicTag)) return false;
+		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;

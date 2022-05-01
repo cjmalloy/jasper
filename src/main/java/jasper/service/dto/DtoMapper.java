@@ -12,6 +12,7 @@ public abstract class DtoMapper {
 	Auth auth;
 
 	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
+	@Mapping(target = "qualifiedTags", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
 	@AfterMapping
@@ -20,6 +21,7 @@ public abstract class DtoMapper {
 	}
 
 	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
+	@Mapping(target = "qualifiedTags", ignore = true)
 	public abstract FeedDto domainToDto(Feed ref);
 
 	@AfterMapping
