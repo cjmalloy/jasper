@@ -81,6 +81,7 @@ server:
 application:
   clientApp:
     name: 'jasperApp'
+  scrape-delay-min: 5
   logging:
     # To test json console appender
     use-json-format: false
