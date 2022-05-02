@@ -1,20 +1,29 @@
 package jasper.domain;
 
-import java.time.Instant;
-import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
-
-import jasper.domain.proj.IsTag;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
+import jasper.domain.proj.IsTag;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.LastModifiedDate;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.IdClass;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
+import java.time.Instant;
+import java.util.Objects;
+
+import static jasper.domain.Origin.ORIGIN_LEN;
+import static jasper.domain.TagId.TAG_LEN;
 
 @Entity
 @Getter
@@ -24,21 +33,25 @@ import org.springframework.data.annotation.LastModifiedDate;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Ext implements IsTag {
+	public static final int NAME_LEN = 512;
 
 	@Id
 	@Column(updatable = false)
 	@NotBlank
 	@Pattern(regexp = TagId.REGEX)
+	@Length(max = TAG_LEN)
 	private String tag;
 
 	@Id
 	@Column(updatable = false)
 	@Pattern(regexp = Origin.REGEX)
+	@Length(max = ORIGIN_LEN)
 	private String origin = "";
 
 	@Formula("tag || origin")
 	private String qualifiedTag;
 
+	@Length(max = NAME_LEN)
 	private String name;
 
 	@Type(type = "json")

@@ -1,19 +1,31 @@
 package jasper.web.rest;
 
-import java.time.Instant;
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
-
 import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
+import java.time.Instant;
+
+import static jasper.domain.TagId.QTAG_LEN;
+import static jasper.repository.filter.Query.QUERY_LEN;
 
 @RestController
 @RequestMapping("api/v1/plugin")
@@ -33,7 +45,7 @@ public class PluginController {
 
 	@GetMapping
 	Plugin getPlugin(
-		@RequestParam @Pattern(regexp = Plugin.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String tag
 	) {
 		return pluginService.get(tag);
 	}
@@ -48,7 +60,7 @@ public class PluginController {
 	@GetMapping("page")
 	Page<Plugin> getPage(
 		@PageableDefault(sort = "tag") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return pluginService.page(
@@ -70,7 +82,7 @@ public class PluginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deletePlugin(
-		@RequestParam @Pattern(regexp = Plugin.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String tag
 	) {
 		pluginService.delete(tag);
 	}

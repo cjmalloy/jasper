@@ -10,5 +10,7 @@ public interface Query {
 	String OR_GROUP = "\\(" + SELECTOR + "([ |]" + SELECTOR + ")*\\)";
 	String SELECTOR_OR_GROUP = "(" + SELECTOR + "|" + OR_GROUP + ")";
 	String REGEX = SELECTOR_OR_GROUP + "([ |:&]" + SELECTOR_OR_GROUP + ")*";
+
+	int QUERY_LEN = 512;
 	String getQuery();
 }

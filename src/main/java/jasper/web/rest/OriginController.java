@@ -1,20 +1,32 @@
 package jasper.web.rest;
 
-import java.time.Instant;
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
-
 import jasper.domain.Origin;
 import jasper.repository.filter.OriginFilter;
 import jasper.service.OriginService;
 import jasper.service.dto.OriginNameDto;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
+import java.time.Instant;
+
+import static jasper.domain.Origin.ORIGIN_LEN;
+import static jasper.repository.filter.Query.QUERY_LEN;
 
 @RestController
 @RequestMapping("api/v1/origin")
@@ -34,7 +46,7 @@ public class OriginController {
 
 	@GetMapping
 	Origin getOrigin(
-		@RequestParam @Pattern(regexp = Origin.REGEX_NOT_BLANK) String origin
+		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX_NOT_BLANK) String origin
 	) {
 		return originService.get(origin);
 	}
@@ -42,7 +54,7 @@ public class OriginController {
 	@GetMapping("page")
 	Page<Origin> getPage(
 		@PageableDefault(sort = "origin") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return originService.page(
@@ -56,7 +68,7 @@ public class OriginController {
 	@GetMapping("list/names")
 	Page<OriginNameDto> getOriginNames(
 		@PageableDefault(sort = "origin") Pageable pageable,
-		@RequestParam(required = false) @Pattern(regexp = OriginFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return originService.pageNames(
@@ -78,7 +90,7 @@ public class OriginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteOrigin(
-		@RequestParam @Pattern(regexp = Origin.REGEX_NOT_BLANK) String tag
+		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX_NOT_BLANK) String tag
 	) {
 		originService.delete(tag);
 	}
