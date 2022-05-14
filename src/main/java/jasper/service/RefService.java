@@ -1,20 +1,21 @@
 package jasper.service;
 
-import java.time.temporal.ChronoUnit;
-
-import jasper.component.Ingest;
-import jasper.domain.Ref;
-import jasper.errors.*;
-import jasper.repository.RefRepository;
-import jasper.repository.filter.RefFilter;
-import jasper.security.Auth;
-import jasper.service.dto.DtoMapper;
-import jasper.service.dto.RefDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
+import jasper.component.Ingest;
+import jasper.domain.Ref;
+import jasper.errors.ForeignWriteException;
+import jasper.errors.InvalidPatchException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
+import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
+import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,8 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Transactional
@@ -108,7 +111,7 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("hasRole('MOD') or @auth.canWriteRef(#url)")
+	@PreAuthorize("@auth.canWriteRef(#url)")
 	public void delete(String url) {
 		try {
 			ingest.delete(url, "");
