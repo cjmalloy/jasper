@@ -1,12 +1,12 @@
 package jasper.repository;
 
-import java.util.List;
-
 import jasper.domain.Plugin;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 @Repository
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin> {
@@ -22,6 +22,7 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 				OR (:tag LIKE '+%' AND locate(concat(p.tag, '/'), :tag) = 2))""")
 	List<Plugin> findAllForTagAndOriginWithSchema(String tag, String origin);
 
+	// TODO: Cache this, it rarely changes
 	@Query("""
 		SELECT p.tag
 		FROM Plugin AS p

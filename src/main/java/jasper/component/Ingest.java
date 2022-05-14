@@ -1,24 +1,40 @@
 package jasper.component;
 
-import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.RefSpec.isUrls;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import jasper.domain.*;
-import jasper.errors.*;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jsontypedef.jtd.JacksonAdapter;
+import com.jsontypedef.jtd.MaxDepthExceededException;
+import com.jsontypedef.jtd.Schema;
+import com.jsontypedef.jtd.Validator;
+import jasper.domain.Metadata;
+import jasper.domain.Plugin;
+import jasper.domain.Ref;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.DuplicateTagException;
+import jasper.errors.InvalidPluginException;
+import jasper.errors.NotFoundException;
+import jasper.errors.PublishDateException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import com.fasterxml.jackson.databind.*;
-import com.jsontypedef.jtd.*;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.isUrls;
 
 @Component
 @Transactional(noRollbackFor = AlreadyExistsException.class)
@@ -176,7 +192,7 @@ public class Ingest {
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
-						refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), tag)))
+						refRepository.findAllResponsesByOriginWithTagPrefix(ref.getUrl(), ref.getOrigin(), tag)))
 					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);

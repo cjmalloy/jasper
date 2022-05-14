@@ -1,13 +1,13 @@
 package jasper.repository;
 
-import java.time.Instant;
-import java.util.List;
-
 import jasper.domain.Ref;
 import jasper.domain.RefId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.List;
 
 @Repository
 public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref> {
@@ -31,6 +31,16 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref> 
 			AND jsonb_exists(ref.sources, :url)
 			AND jsonb_exists(ref.tags, :tag)""")
 	List<String> findAllResponsesByOriginWithTag(String url, String origin, String tag);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url FROM ref, jsonb_array_elements_text(tags)
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.sources, :url)
+			AND (value = :tag
+				OR position(value||'/' in :tag) = 1
+				OR (:tag LIKE '\\_%' AND position(value||'/' in :tag) = 2)
+				OR (:tag LIKE '+%' AND position(value||'/' in :tag) = 2))""")
+	List<String> findAllResponsesByOriginWithTagPrefix(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
