@@ -68,6 +68,14 @@ public class User implements IsTag {
 	@Column(columnDefinition = "jsonb")
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> writeAccess;
 
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> tagReadAccess;
+
+	@Type(type = "json")
+	@Column(columnDefinition = "jsonb")
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> tagWriteAccess;
+
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

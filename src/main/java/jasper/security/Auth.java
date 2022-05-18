@@ -8,6 +8,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import liquibase.repackaged.org.apache.commons.collections4.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +73,15 @@ public class Auth {
 		return canReadRef(maybeExisting.get());
 	}
 
+	public boolean canWrite(String tag) {
+		if (hasRole("MOD")) return true;
+		if (hasRole("USER")) {
+			if (tag.equals(getUserTag())) return true;
+			return captures(getWriteAccess(), List.of(tag));
+		}
+		return false;
+	}
+
 	public boolean canWriteRef(Ref ref) {
 		if (!canWriteRef(ref.getUrl())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
@@ -98,9 +108,7 @@ public class Auth {
 		if (hasRole("MOD")) return true;
 		if (hasRole("USER")) {
 			if (tag.equals(getUserTag())) return true;
-			var readAccess = getReadAccess();
-			if (readAccess == null) return false;
-			return captures(readAccess, List.of(tag));
+			return captures(getTagReadAccess(), List.of(tag));
 		}
 		return false;
 	}
@@ -126,9 +134,7 @@ public class Auth {
 		if (isPublicTag(tag)) return hasRole("EDITOR") ;
 		if (hasRole("USER")) {
 			if (tag.equals(getUserTag())) return true;
-			var writeAccess = getWriteAccess();
-			if (writeAccess == null) return false;
-			return captures(writeAccess, List.of(tag));
+			return captures(getTagWriteAccess(), List.of(tag));
 		}
 		return false;
 	}
@@ -142,9 +148,9 @@ public class Auth {
 							.toList();
 		if (tagList.isEmpty()) return true;
 		if (hasRole("USER")) {
-			var readAccess = getReadAccess();
-			if (readAccess == null) return false;
-			return new HashSet<>(readAccess).containsAll(tagList);
+			var tagReadAccess = getTagReadAccess();
+			if (tagReadAccess == null) return false;
+			return new HashSet<>(tagReadAccess).containsAll(tagList);
 		}
 		return false;
 	}
@@ -156,8 +162,10 @@ public class Auth {
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWriteTag)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::canWriteTag)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWrite)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWrite)) return false;
 		return true;
 	}
 
@@ -238,6 +246,24 @@ public class Auth {
 
 	public List<String> getWriteAccess() {
 		return getUser().map(User::getWriteAccess).orElse(null);
+	}
+
+	public List<String> getTagReadAccess() {
+		var readAccess = getReadAccess();
+		var tagReadAccess = getUser().map(User::getTagReadAccess).orElse(null);
+		if (readAccess != null && tagReadAccess != null) {
+			return ListUtils.union(readAccess, tagReadAccess);
+		}
+		return readAccess == null ? tagReadAccess : readAccess;
+	}
+
+	public List<String> getTagWriteAccess() {
+		var writeAccess = getWriteAccess();
+		var tagWriteAccess = getUser().map(User::getTagWriteAccess).orElse(null);
+		if (writeAccess != null && tagWriteAccess != null) {
+			return ListUtils.union(writeAccess, tagWriteAccess);
+		}
+		return writeAccess == null ? tagWriteAccess : writeAccess;
 	}
 
 	public boolean hasAuthority(String authority) {
