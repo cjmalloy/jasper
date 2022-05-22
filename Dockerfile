@@ -14,7 +14,10 @@ CMD mvn test
 FROM azul/zulu-openjdk-alpine:17 as deploy
 WORKDIR app
 COPY --from=builder app/dependencies/ ./
+RUN true
 COPY --from=builder app/spring-boot-loader/ ./
+RUN true
 COPY --from=builder app/snapshot-dependencies/ ./
+RUN true
 COPY --from=builder app/application/ ./
 ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
