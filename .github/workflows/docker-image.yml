@@ -19,11 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Test the Docker image
-      run: >-
-        docker build . --file Dockerfile --target test --tag test &&
-        docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test;
-        docker cp test:/tests tests
+    - name: Build the testing image
+      run: docker build . --file Dockerfile --target test --tag test
+    - name: Run the test container
+      run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
+    - name: Copy the tests from the container
+      run: docker cp test:/tests tests
     - name: Publish Unit Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1.36
       if: always()
