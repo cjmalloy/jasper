@@ -1,18 +1,26 @@
 package jasper.security.jwt;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-import jasper.management.SecurityMetersService;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
+import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class TokenProviderImplNoVerify implements TokenProvider {
 
@@ -21,6 +29,12 @@ public class TokenProviderImplNoVerify implements TokenProvider {
     private static final String AUTHORITIES_KEY = "auth";
 
     private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
+
+	@Value("application.default-role")
+	String defaultRole;
+
+	@Value("application.username-claim")
+	String usernameClaim;
 
     private final JwtParser jwtParser;
 
@@ -46,14 +60,10 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 				.map(SimpleGrantedAuthority::new)
 				.collect(Collectors.toList());
 		} else {
-			authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
 
-		if (claims.get("preferred_username").toString().equals("chris")) {
-			authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
-		}
-
-        User principal = new User(claims.get("preferred_username").toString(), "", authorities);
+        User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }

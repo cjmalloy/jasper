@@ -185,6 +185,7 @@ application:
     name: 'jasperApp'
   scrape-delay-min: 0
   default-role: ROLE_USER
+  username-claim: sub
   # By default CORS is disabled. Uncomment to enable.
   # cors:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"

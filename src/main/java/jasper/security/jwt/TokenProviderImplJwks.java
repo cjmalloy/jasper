@@ -37,6 +37,9 @@ public class TokenProviderImplJwks implements TokenProvider {
 	@Value("application.default-role")
 	String defaultRole;
 
+	@Value("application.username-claim")
+	String usernameClaim;
+
     private final JwtParser jwtParser;
 
     private final SecurityMetersService securityMetersService;
@@ -65,11 +68,12 @@ public class TokenProviderImplJwks implements TokenProvider {
 			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
 
-		if (claims.get("preferred_username").toString().equals("chris")) {
+		// TODO: add custom claims
+		if (claims.get(usernameClaim).toString().equals("chris")) {
 			authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
 		}
 
-		User principal = new User(claims.get("preferred_username").toString(), "", authorities);
+		User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
 
 		return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }

@@ -22,6 +22,7 @@ import java.util.Map;
 public class ApplicationProperties {
 	private String scrapeDelayMin = "5";
 	private String defaultRole = "ROLE_USER";
+	private String usernameClaim = "sub";
 	private final Async async = new Async();
 	private final Http http = new Http();
 	private final Database database = new Database();
