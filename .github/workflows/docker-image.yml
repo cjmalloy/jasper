@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Test the Docker image
-      run: docker build . --file Dockerfile --target test --tag test && docker run test -v tests:/app/target/surefire-reports
+      run: docker build . --file Dockerfile --target test --tag test && docker run -v tests:/app/target/surefire-reports test
     - name: Publish Unit Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1.36
       if: always()
