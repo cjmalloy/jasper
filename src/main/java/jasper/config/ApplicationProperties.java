@@ -1,12 +1,15 @@
 package jasper.config;
 
-import java.util.*;
-import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 import tech.jhipster.config.JHipsterDefaults;
+
+import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 /**
  * Properties specific to Jasper.
  * <p>
@@ -18,6 +21,7 @@ import tech.jhipster.config.JHipsterDefaults;
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
 public class ApplicationProperties {
 	private String scrapeDelayMin = "5";
+	private String defaultRole = "ROLE_USER";
 	private final Async async = new Async();
 	private final Http http = new Http();
 	private final Database database = new Database();
