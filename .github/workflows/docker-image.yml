@@ -15,12 +15,24 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag jasperkms/jasper:$(date +%s)
 
-  test:
+  unit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Test the Docker image
       run: docker build . --file Dockerfile --target test --tag test && docker run --name test test && docker cp test:/app/target/surefire-reports tests
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v1.36
+      if: always()
+      with:
+        files: "tests/*.xml"
+
+  it:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Test the Docker image
+      run: docker build . --file Dockerfile --target test --tag test && docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test mvn test -Dtest=*IT && docker cp test:/app/target/surefire-reports tests
     - name: Publish Unit Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1.36
       if: always()
