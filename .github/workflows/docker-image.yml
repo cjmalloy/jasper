@@ -24,9 +24,12 @@ jobs:
     - name: Run the test container
       run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
     - name: Copy the tests from the container
+      if: always()
       run: docker cp test:/tests tests
     - name: Publish Unit Test Results
-      uses: EnricoMi/publish-unit-test-result-action@v1.36
+      uses: dorny/test-reporter@v1
       if: always()
       with:
-        files: "tests/*.xml"
+        name: Test Results
+        path: "tests/*.xml"
+        reporter: java-junit
