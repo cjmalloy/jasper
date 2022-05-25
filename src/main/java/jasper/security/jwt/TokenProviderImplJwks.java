@@ -34,10 +34,10 @@ public class TokenProviderImplJwks implements TokenProvider {
 
     private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
-	@Value("application.default-role")
+	@Value("${application.default-role}")
 	String defaultRole;
 
-	@Value("application.username-claim")
+	@Value("${application.username-claim}")
 	String usernameClaim;
 
     private final JwtParser jwtParser;
@@ -68,7 +68,6 @@ public class TokenProviderImplJwks implements TokenProvider {
 			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
 
-		// TODO: add custom claims
 		if (claims.get(usernameClaim).toString().equals("chris")) {
 			authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
 		}

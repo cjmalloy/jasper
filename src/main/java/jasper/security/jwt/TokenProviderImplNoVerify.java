@@ -30,10 +30,10 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 
     private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
-	@Value("application.default-role")
+	@Value("${application.default-role}")
 	String defaultRole;
 
-	@Value("application.username-claim")
+	@Value("${application.username-claim}")
 	String usernameClaim;
 
     private final JwtParser jwtParser;
