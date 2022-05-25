@@ -70,6 +70,7 @@ server:
 # ===================================================================
 
 application:
+  scrape-delay-min: 5
   username-claim: preferred_username
   # CORS is disabled by default on microservices, as you should access them through a gateway.
   # If you want to enable it, please uncomment the configuration below.
