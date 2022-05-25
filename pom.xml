@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>ca.hc</groupId>
 	<artifactId>jasper</artifactId>
-	<version>1.0.40</version>
+	<version>1.0.42</version>
 	<name>jasper</name>
 	<description>Knowledge graph server</description>
 

@@ -1,12 +1,5 @@
 package jasper.component;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Instant;
-import java.time.Year;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
@@ -14,14 +7,18 @@ import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
-import com.rometools.rome.io.*;
+import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.SyndFeedInput;
+import com.rometools.rome.io.XmlReader;
 import jasper.domain.Feed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.repository.FeedRepository;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.*;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -29,6 +26,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
+import java.time.Year;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class FeedScraper {
@@ -156,6 +163,12 @@ public class FeedScraper {
 					ref.getTags().remove("plugin/audio");
 				}
 			}
+			if (tagSet.contains("plugin/video")) {
+				parseVideo(entry, plugins);
+				if (!plugins.containsKey("plugin/video")) {
+					ref.getTags().remove("plugin/video");
+				}
+			}
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
@@ -210,6 +223,17 @@ public class FeedScraper {
 			for (var e : entry.getEnclosures()) {
 				if ("audio/mpeg".equals(e.getType())) {
 					plugins.put("plugin/audio",  Map.of("url", e.getUrl()));
+					return;
+				}
+			}
+		}
+	}
+
+	private void parseVideo(SyndEntry entry, Map<String, Object> plugins) {
+		if (entry.getEnclosures() != null) {
+			for (var e : entry.getEnclosures()) {
+				if ("video/mp4".equals(e.getType())) {
+					plugins.put("plugin/video",  Map.of("url", e.getUrl()));
 					return;
 				}
 			}
