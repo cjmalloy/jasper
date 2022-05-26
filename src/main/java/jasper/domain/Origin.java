@@ -39,7 +39,7 @@ public class Origin implements HasOrigin {
 	@Length(max = ORIGIN_LEN)
 	private String origin;
 
-	@Column(updatable = false)
+	@Column
 	@NotBlank
 	@Length(max = URL_LEN)
 	private String url;
