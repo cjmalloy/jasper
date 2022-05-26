@@ -7,6 +7,7 @@ import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -61,6 +62,7 @@ public class Ingest {
 		}
 	}
 
+	@Counted("jasper.ref.create")
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
@@ -71,6 +73,7 @@ public class Ingest {
 		refRepository.save(ref);
 	}
 
+	@Counted("jasper.ref.update")
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException();
@@ -81,6 +84,7 @@ public class Ingest {
 		refRepository.save(ref);
 	}
 
+	@Counted("jasper.ref.delete")
 	public void delete(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
@@ -88,6 +92,7 @@ public class Ingest {
 		refRepository.deleteByUrlAndOrigin(url, origin);
 	}
 
+	@Counted("jasper.ref.validate")
 	public void validate(Ref ref, boolean useDefaults) {
 		validateTags(ref);
 		validatePlugins(ref, useDefaults);
