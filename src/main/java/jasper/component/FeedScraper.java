@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.Year;
 import java.util.ArrayList;
@@ -59,9 +60,10 @@ public class FeedScraper {
 			return;
 		}
 		var feed = maybeFeed.get();
+		var age = Duration.between(feed.getLastScrape(), Instant.now());
 		try {
 			scrape(feed);
-			logger.info("Finished scraping {} feed: {}.", feed.getName(), feed.getUrl());
+			logger.info("Finished scraping {} minute old {} feed: {}.", age.toMinutes(), feed.getName(), feed.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			logger.error("Error loading feed.");
