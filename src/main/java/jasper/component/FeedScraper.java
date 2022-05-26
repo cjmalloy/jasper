@@ -63,10 +63,10 @@ public class FeedScraper {
 			return;
 		}
 		var feed = maybeFeed.get();
-		var age = Duration.between(feed.getLastScrape(), Instant.now());
+		var minutesOld = Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
 		try {
 			scrape(feed);
-			logger.info("Finished scraping {} minute old {} feed: {}.", age.toMinutes(), feed.getName(), feed.getUrl());
+			logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getName(), feed.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			logger.error("Error loading feed.");
