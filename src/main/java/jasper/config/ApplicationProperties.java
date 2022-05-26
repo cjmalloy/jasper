@@ -21,6 +21,7 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
 public class ApplicationProperties {
 	private String scrapeDelayMin = "5";
+	private String scrapeIntervalMin = "1";
 	private String defaultRole = "ROLE_USER";
 	private String usernameClaim = "sub";
 	private final Async async = new Async();

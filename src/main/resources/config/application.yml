@@ -184,6 +184,7 @@ application:
   clientApp:
     name: 'jasperApp'
   scrape-delay-min: 0
+  scrape-interval-min: 1
   default-role: ROLE_USER
   username-claim: sub
   # By default CORS is disabled. Uncomment to enable.

@@ -51,7 +51,10 @@ public class FeedScraper {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Scheduled(fixedRate = 1, initialDelayString = "${application.scrape-delay-min}", timeUnit = TimeUnit.MINUTES)
+	@Scheduled(
+		fixedRateString = "${application.scrape-interval-min}",
+		initialDelayString = "${application.scrape-delay-min}",
+		timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
 		var maybeFeed = feedRepository.oldestNeedsScrape();
