@@ -1,16 +1,17 @@
 package jasper.service;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.rometools.rome.io.FeedException;
-import jasper.component.FeedScraper;
+import jasper.component.RssParser;
 import jasper.domain.Feed;
-import jasper.errors.*;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.ForeignWriteException;
+import jasper.errors.InvalidPatchException;
+import jasper.errors.NotFoundException;
 import jasper.repository.FeedRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -24,6 +25,8 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
 
 @Service
 @Transactional
@@ -42,7 +45,7 @@ public class FeedService {
 	ObjectMapper objectMapper;
 
 	@Autowired
-	FeedScraper feedScraper;
+	RssParser rssParser;
 
 	@PreAuthorize("hasRole('EDITOR')")
 	public void create(Feed feed) {
@@ -105,6 +108,6 @@ public class FeedService {
 	public void scrape(String url, String origin) throws FeedException, IOException {
 		var feed = feedRepository.findOneByUrlAndOrigin(url, origin)
 								   .orElseThrow(NotFoundException::new);
-		feedScraper.scrape(feed);
+		rssParser.scrape(feed);
 	}
 }

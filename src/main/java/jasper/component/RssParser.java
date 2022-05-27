@@ -24,23 +24,20 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Component
-public class FeedScraper {
-	private static final Logger logger = LoggerFactory.getLogger(FeedScraper.class);
+public class RssParser {
+	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
 
 	@Autowired
 	Ingest ingest;
@@ -50,34 +47,6 @@ public class FeedScraper {
 
 	@Autowired
 	ObjectMapper objectMapper;
-
-	@Scheduled(
-		fixedRateString = "${application.scrape-interval-min}",
-		initialDelayString = "${application.scrape-delay-min}",
-		timeUnit = TimeUnit.MINUTES)
-	public void scheduleScrape() {
-		logger.info("Scraping all feeds on schedule.");
-		var maybeFeed = feedRepository.oldestNeedsScrape();
-		if (maybeFeed.isEmpty()) {
-			logger.info("All feeds up to date.");
-			return;
-		}
-		var feed = maybeFeed.get();
-		var minutesOld = Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
-		try {
-			scrape(feed);
-			logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getName(), feed.getUrl());
-		} catch (IOException e) {
-			e.printStackTrace();
-			logger.error("Error loading feed.");
-		} catch (FeedException e) {
-			e.printStackTrace();
-			logger.error("Error parsing feed.");
-		} catch (Throwable e) {
-			e.printStackTrace();
-			logger.error("Unexpected error scraping feed.");
-		}
-	}
 
 	public void scrape(Feed source) throws IOException, FeedException {
 		source.setLastScrape(Instant.now());
@@ -97,7 +66,7 @@ public class FeedScraper {
 			HttpUriRequest request = new HttpGet(source.getUrl());
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request);
-				InputStream stream = response.getEntity().getContent()) {
+				 InputStream stream = response.getEntity().getContent()) {
 				SyndFeedInput input = new SyndFeedInput();
 				SyndFeed syndFeed = input.build(new XmlReader(stream));
 				Map<String, Object> feedImage = null;
