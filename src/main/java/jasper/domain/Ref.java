@@ -105,6 +105,20 @@ public class Ref implements HasTags {
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 
+	public void addHierarchicalTags() {
+		if (tags == null) return;
+		for (var i = tags.size() - 1; i >= 0; i--) {
+			var t = tags.get(i);
+			if (t.startsWith("_") || t.startsWith("+")) continue;;
+			while (t.contains("/")) {
+				t = t.substring(0, t.lastIndexOf("/"));
+				if (!tags.contains(t)) {
+					tags.add(t);
+				}
+			}
+		}
+	}
+
 	@JsonIgnore
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;

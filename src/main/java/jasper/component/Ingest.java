@@ -70,6 +70,7 @@ public class Ingest {
 		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
+		ref.addHierarchicalTags();
 		refRepository.save(ref);
 	}
 
@@ -81,6 +82,7 @@ public class Ingest {
 		validate(ref, false);
 		updateMetadata(ref, existing);
 		ref.setModified(Instant.now());
+		ref.addHierarchicalTags();
 		refRepository.save(ref);
 	}
 
