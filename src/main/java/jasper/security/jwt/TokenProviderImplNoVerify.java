@@ -51,7 +51,6 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-
 		Collection<? extends GrantedAuthority> authorities;
 		if (claims.containsKey(AUTHORITIES_KEY)) {
 			authorities = Arrays
@@ -62,9 +61,7 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 		} else {
 			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
-
         User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
-
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

@@ -1,24 +1,32 @@
 package jasper.security.jwt;
 
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import jasper.config.ApplicationProperties;
-import jasper.management.SecurityMetersService;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import jasper.config.ApplicationProperties;
+import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.util.ObjectUtils;
+
+import java.security.Key;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class TokenProviderImpl implements TokenProvider {
 
@@ -27,6 +35,9 @@ public class TokenProviderImpl implements TokenProvider {
     private static final String AUTHORITIES_KEY = "auth";
 
     private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
+
+	@Value("${application.default-role}")
+	String defaultRole;
 
     private final Key key;
 
@@ -41,17 +52,8 @@ public class TokenProviderImpl implements TokenProvider {
     public TokenProviderImpl(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
         byte[] keyBytes;
         String secret = applicationProperties.getSecurity().getAuthentication().getJwt().getBase64Secret();
-        if (!ObjectUtils.isEmpty(secret)) {
-            log.debug("Using a Base64-encoded JWT secret key");
-            keyBytes = Decoders.BASE64.decode(secret);
-        } else {
-            log.warn(
-                "Warning: the JWT key used is not Base64-encoded. " +
-                "We recommend using the `jhipster.security.authentication.jwt.base64-secret` key for optimum security."
-            );
-            secret = applicationProperties.getSecurity().getAuthentication().getJwt().getSecret();
-            keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        }
+		log.debug("Using a Base64-encoded JWT secret key");
+		keyBytes = Decoders.BASE64.decode(secret);
         key = Keys.hmacShaKeyFor(keyBytes);
         jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
         this.tokenValidityInMilliseconds = 1000 * applicationProperties.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
@@ -83,15 +85,17 @@ public class TokenProviderImpl implements TokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = jwtParser.parseClaimsJws(token).getBody();
-
-        Collection<? extends GrantedAuthority> authorities = Arrays
-            .stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-            .filter(auth -> !auth.trim().isEmpty())
-            .map(SimpleGrantedAuthority::new)
-            .collect(Collectors.toList());
-
+		Collection<? extends GrantedAuthority> authorities;
+		if (claims.containsKey(AUTHORITIES_KEY)) {
+			authorities = Arrays
+				.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+				.filter(auth -> !auth.trim().isEmpty())
+				.map(SimpleGrantedAuthority::new)
+				.collect(Collectors.toList());
+		} else {
+			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
+		}
         User principal = new User(claims.getSubject(), "", authorities);
-
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

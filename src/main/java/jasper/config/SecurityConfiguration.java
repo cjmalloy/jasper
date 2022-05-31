@@ -1,7 +1,5 @@
 package jasper.config;
 
-import java.util.List;
-
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +15,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
+
+import java.util.List;
 
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -77,7 +77,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			"ROLE_ADMIN > ROLE_MOD",
 			"ROLE_MOD > ROLE_EDITOR",
 			"ROLE_EDITOR > ROLE_USER",
-			"ROLE_USER > ROLE_ANONYMOUS"
+			"ROLE_USER > ROLE_VIEWER",
+			"ROLE_VIEWER > ROLE_ANONYMOUS"
 		));
 		roleHierarchy.setHierarchy(hierarchy);
 		return roleHierarchy;

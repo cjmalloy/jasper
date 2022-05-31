@@ -56,7 +56,6 @@ public class TokenProviderImplJwks implements TokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = jwtParser.parseClaimsJws(token).getBody();
-
 		Collection<? extends GrantedAuthority> authorities;
 		if (claims.containsKey(AUTHORITIES_KEY)) {
 			authorities = Arrays
@@ -67,13 +66,7 @@ public class TokenProviderImplJwks implements TokenProvider {
 		} else {
 			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
-
-		if (claims.get(usernameClaim).toString().equals("chris")) {
-			authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
-		}
-
 		User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
-
 		return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

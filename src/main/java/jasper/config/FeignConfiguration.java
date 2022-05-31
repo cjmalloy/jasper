@@ -16,4 +16,14 @@ public class FeignConfiguration {
     feign.Logger.Level feignLoggerLevel() {
         return feign.Logger.Level.BASIC;
     }
+
+	@Bean
+	public feign.Contract feignContract() {
+		return new feign.Contract.Default();
+	}
+
+	@Bean
+	public feign.httpclient.ApacheHttpClient feignHttpClient() {
+		return new feign.httpclient.ApacheHttpClient();
+	}
 }
