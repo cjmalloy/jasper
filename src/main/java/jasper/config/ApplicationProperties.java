@@ -8,6 +8,7 @@ import tech.jhipster.config.JHipsterDefaults;
 
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 /**
@@ -24,6 +25,7 @@ public class ApplicationProperties {
 	private String scrapeIntervalMin = "1";
 	private String defaultRole = "ROLE_USER";
 	private String usernameClaim = "sub";
+	private String scimEndpoint;
 	private final Async async = new Async();
 	private final Http http = new Http();
 	private final Database database = new Database();
@@ -203,11 +205,20 @@ public class ApplicationProperties {
 			@Getter
 			@Setter
 			public static class Jwt {
-				private String secret = JHipsterDefaults.Security.Authentication.Jwt.secret;
+				private String clientId = null;
 				private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
+				private String secret = null;
 				private String jwksUri = null;
+				private String tokenEndpoint = null;
 				private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
 				private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
+
+				public String getSecret() {
+					if (secret == null) {
+						secret = new String(Base64.getDecoder().decode(base64Secret));
+					}
+					return secret;
+				}
 			}
 		}
 

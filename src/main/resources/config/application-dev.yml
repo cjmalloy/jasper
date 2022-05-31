@@ -73,6 +73,7 @@ application:
   scrape-delay-min: 5
   scrape-interval-min: 5
   username-claim: preferred_username
+  scim-endpoint: /test
   # CORS is disabled by default on microservices, as you should access them through a gateway.
   # If you want to enable it, please uncomment the configuration below.
   # cors:
@@ -85,6 +86,8 @@ application:
   security:
     authentication:
       jwt:
+        jwks-uri: ''
+        token-endpoint: '/test'
         # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
         base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
         # Token is valid 24 hours
