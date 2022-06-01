@@ -1,21 +1,28 @@
 package jasper.config;
 
-import java.net.URISyntaxException;
-import java.security.*;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-
 import jasper.management.SecurityMetersService;
-import jasper.security.jwt.*;
+import jasper.security.jwt.TokenProvider;
+import jasper.security.jwt.TokenProviderImpl;
+import jasper.security.jwt.TokenProviderImplJwks;
+import jasper.security.jwt.TokenProviderImplNoVerify;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 
 @Configuration
 public class AuthConfig {
@@ -28,7 +35,7 @@ public class AuthConfig {
 
 	@Bean
 	@Profile("no-ssl")
-	RestTemplate restTemplateByPassSSL()
+	RestTemplate restTemplateBypassSSL()
 		throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 		HostnameVerifier hostnameVerifier = (s, sslSession) -> true;
