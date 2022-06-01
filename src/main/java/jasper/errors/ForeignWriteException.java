@@ -5,4 +5,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.NOT_FOUND)
 public class ForeignWriteException extends RuntimeException {
+	public ForeignWriteException() {
+		super("Writing to origin unauthorized");
+	}
 }

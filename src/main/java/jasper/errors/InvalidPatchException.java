@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class InvalidPatchException extends RuntimeException {
 
 	public InvalidPatchException(Throwable cause) {
-		super(cause);
+		super("Invalid patch", cause);
 	}
 }

@@ -20,7 +20,7 @@ public class CorsBusterController {
 	TwitterClient twitterClient;
 
 	@GetMapping("twitter")
-	JsonNode getTweet(@RequestParam Map<String,String> params) {
+	JsonNode getTweet(@RequestParam Map<String, String> params) {
 		return twitterClient.oembed(params);
 	}
 }
