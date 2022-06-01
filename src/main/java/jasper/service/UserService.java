@@ -38,7 +38,7 @@ public class UserService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public UserDto get(String tag) {
 		var result = userRepository.findOneByQualifiedTag(tag)
-								   .orElseThrow(NotFoundException::new);
+								   .orElseThrow(() -> new NotFoundException("User"));
 		return mapper.domainToDto(result);
 	}
 
@@ -55,7 +55,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void update(User user) {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("User");
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
 		userRepository.save(user);

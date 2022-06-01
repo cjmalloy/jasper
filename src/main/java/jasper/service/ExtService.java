@@ -1,21 +1,26 @@
 package jasper.service;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Objects;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.JsonPatchException;
+import com.jsontypedef.jtd.JacksonAdapter;
+import com.jsontypedef.jtd.MaxDepthExceededException;
+import com.jsontypedef.jtd.Schema;
+import com.jsontypedef.jtd.Validator;
 import jasper.domain.Ext;
 import jasper.domain.Template;
-import jasper.errors.*;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidPatchException;
+import jasper.errors.InvalidTemplateException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.*;
-import com.github.fge.jsonpatch.JsonPatch;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.jsontypedef.jtd.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +30,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -57,7 +66,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Ext get(String tag) {
 		return extRepository.findOneByQualifiedTag(tag)
-							.orElseThrow(NotFoundException::new);
+							.orElseThrow(() -> new NotFoundException("Ext"));
 	}
 
 	@PreAuthorize("@auth.canReadQuery(#filter)")
@@ -72,7 +81,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void update(Ext ext) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext");
 		var existing = maybeExisting.get();
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		validate(ext, false);
@@ -83,7 +92,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void patch(String tag, JsonPatch patch) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(tag);
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext");
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			update(objectMapper.treeToValue(patched, Ext.class));

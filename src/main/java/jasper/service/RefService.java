@@ -59,7 +59,7 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public RefDto get(String url, String origin) {
 		var result = refRepository.findOneByUrlAndOrigin(url, origin)
-								  .orElseThrow(NotFoundException::new);
+								  .orElseThrow(() -> new NotFoundException("Ref"));
 		return mapper.domainToDto(result);
 	}
 
@@ -89,7 +89,7 @@ public class RefService {
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		ref.addTags(auth.hiddenTags(existing.getTags()));
@@ -99,7 +99,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url)")
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);

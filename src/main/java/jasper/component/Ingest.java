@@ -77,7 +77,7 @@ public class Ingest {
 	@Counted("jasper.ref.update")
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
 		validate(ref, false);
 		updateMetadata(ref, existing);

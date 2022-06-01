@@ -1,10 +1,9 @@
 package jasper.service;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
 import jasper.domain.Origin;
-import jasper.errors.*;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.OriginRepository;
 import jasper.repository.filter.OriginFilter;
 import jasper.security.Auth;
@@ -17,6 +16,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Transactional
@@ -40,7 +42,7 @@ public class OriginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public Origin get(String origin) {
 		return originRepository.findById(origin)
-							   .orElseThrow(NotFoundException::new);
+							   .orElseThrow(() -> new NotFoundException("Origin"));
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
@@ -60,7 +62,7 @@ public class OriginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Origin origin) {
 		var maybeExisting = originRepository.findById(origin.getOrigin());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Origin");
 		var existing = maybeExisting.get();
 		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		origin.setModified(Instant.now());

@@ -1,10 +1,9 @@
 package jasper.service;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
 import jasper.domain.Plugin;
-import jasper.errors.*;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -15,6 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Transactional
@@ -35,7 +37,7 @@ public class PluginService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Plugin get(String tag) {
 		return pluginRepository.findOneByQualifiedTag(tag)
-							   .orElseThrow(NotFoundException::new);
+							   .orElseThrow(() -> new NotFoundException("Plugin"));
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
@@ -55,7 +57,7 @@ public class PluginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin");
 		var existing = maybeExisting.get();
 		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		plugin.setModified(Instant.now());

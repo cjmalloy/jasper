@@ -57,7 +57,7 @@ public class FeedService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public FeedDto get(String url, String origin) {
 		var result = feedRepository.findOneByUrlAndOrigin(url, origin)
-								   .orElseThrow(NotFoundException::new);
+								   .orElseThrow(() -> new NotFoundException("Feed"));
 		return mapper.domainToDto(result);
 	}
 
@@ -78,14 +78,14 @@ public class FeedService {
 	@PreAuthorize("hasRole('EDITOR')")
 	public void update(Feed feed) {
 		if (!feed.local()) throw new ForeignWriteException();
-		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException();
+		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException("Feed");
 		feedRepository.save(feed);
 	}
 
 	@PreAuthorize("hasRole('EDITOR')")
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = feedRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Feed");
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Feed.class);
@@ -107,7 +107,7 @@ public class FeedService {
 	@PreAuthorize("hasRole('MOD')")
 	public void scrape(String url, String origin) throws FeedException, IOException {
 		var feed = feedRepository.findOneByUrlAndOrigin(url, origin)
-								   .orElseThrow(NotFoundException::new);
+								   .orElseThrow(() -> new NotFoundException("Feed"));
 		rssParser.scrape(feed);
 	}
 }

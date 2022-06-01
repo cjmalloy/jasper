@@ -1,9 +1,9 @@
 package jasper.service;
 
-import java.util.List;
-
 import jasper.component.Ingest;
-import jasper.errors.*;
+import jasper.errors.DuplicateTagException;
+import jasper.errors.ForeignWriteException;
+import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import org.slf4j.Logger;
@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @Transactional
@@ -31,7 +33,7 @@ public class TaggingService {
 	public void create(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException();
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isEmpty()) throw new NotFoundException();
+		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException();
 		ref.addTags(List.of(tag));
@@ -42,7 +44,7 @@ public class TaggingService {
 	public void delete(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException();
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isEmpty()) throw new NotFoundException();
+		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
 		var ref = maybeRef.get();
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.getTags().remove(tag);

@@ -1,10 +1,9 @@
 package jasper.service;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
 import jasper.domain.Template;
-import jasper.errors.*;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
 import jasper.repository.filter.TemplateFilter;
 import jasper.security.Auth;
@@ -15,6 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Transactional
@@ -35,7 +37,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Template get(String tag) {
 		return templateRepository.findOneByQualifiedTag(tag)
-								 .orElseThrow(NotFoundException::new);
+								 .orElseThrow(() -> new NotFoundException("Template"));
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
@@ -51,7 +53,7 @@ public class TemplateService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException();
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Template");
 		var existing = maybeExisting.get();
 		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
 		template.setModified(Instant.now());
