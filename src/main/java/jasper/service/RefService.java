@@ -52,7 +52,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void create(Ref ref) {
-		if (!ref.local()) throw new ForeignWriteException();
+		if (!ref.local()) throw new ForeignWriteException(ref.getOrigin());
 		ingest.ingest(ref);
 	}
 
@@ -87,11 +87,11 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {
-		if (!ref.local()) throw new ForeignWriteException();
+		if (!ref.local()) throw new ForeignWriteException(ref.getOrigin());
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
-		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
+		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
 		ref.addTags(auth.hiddenTags(existing.getTags()));
 		ingest.update(ref);
 	}
@@ -107,7 +107,7 @@ public class RefService {
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			update(updated);
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException(e);
+			throw new InvalidPatchException("Ref", e);
 		}
 	}
 

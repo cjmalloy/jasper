@@ -59,7 +59,7 @@ public class PluginService {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin");
 		var existing = maybeExisting.get();
-		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
+		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin");
 		plugin.setModified(Instant.now());
 		pluginRepository.save(plugin);
 	}

@@ -31,18 +31,18 @@ public class TaggingService {
 
 	@PreAuthorize("@auth.canTag(#tag, #url)")
 	public void create(String tag, String url, String origin) {
-		if (!origin.isEmpty()) throw new ForeignWriteException();
+		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
 		var ref = maybeRef.get();
-		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException();
+		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
 		ref.addTags(List.of(tag));
 		ingest.update(ref);
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url)")
 	public void delete(String tag, String url, String origin) {
-		if (!origin.isEmpty()) throw new ForeignWriteException();
+		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
 		var ref = maybeRef.get();

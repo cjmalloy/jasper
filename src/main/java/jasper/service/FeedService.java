@@ -49,7 +49,7 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('EDITOR')")
 	public void create(Feed feed) {
-		if (!feed.local()) throw new ForeignWriteException();
+		if (!feed.local()) throw new ForeignWriteException(feed.getOrigin());
 		if (feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new AlreadyExistsException();
 		feedRepository.save(feed);
 	}
@@ -77,7 +77,7 @@ public class FeedService {
 
 	@PreAuthorize("hasRole('EDITOR')")
 	public void update(Feed feed) {
-		if (!feed.local()) throw new ForeignWriteException();
+		if (!feed.local()) throw new ForeignWriteException(feed.getOrigin());
 		if (!feedRepository.existsByUrlAndOrigin(feed.getUrl(), feed.getOrigin())) throw new NotFoundException("Feed");
 		feedRepository.save(feed);
 	}
@@ -91,7 +91,7 @@ public class FeedService {
 			var updated = objectMapper.treeToValue(patched, Feed.class);
 			update(updated);
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException(e);
+			throw new InvalidPatchException("Feed", e);
 		}
 	}
 

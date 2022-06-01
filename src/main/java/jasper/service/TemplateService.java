@@ -55,7 +55,7 @@ public class TemplateService {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Template");
 		var existing = maybeExisting.get();
-		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
+		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Template");
 		template.setModified(Instant.now());
 		templateRepository.save(template);
 	}

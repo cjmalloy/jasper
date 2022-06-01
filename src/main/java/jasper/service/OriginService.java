@@ -64,7 +64,7 @@ public class OriginService {
 		var maybeExisting = originRepository.findById(origin.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Origin");
 		var existing = maybeExisting.get();
-		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
+		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Origin");
 		origin.setModified(Instant.now());
 		originRepository.save(origin);
 	}

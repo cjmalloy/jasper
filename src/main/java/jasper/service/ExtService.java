@@ -83,7 +83,7 @@ public class ExtService {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext");
 		var existing = maybeExisting.get();
-		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException();
+		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext");
 		validate(ext, false);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);
@@ -97,7 +97,7 @@ public class ExtService {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			update(objectMapper.treeToValue(patched, Ext.class));
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException(e);
+			throw new InvalidPatchException("Ext", e);
 		}
 	}
 

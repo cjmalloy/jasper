@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.CONFLICT)
 public class ModifiedException extends RuntimeException {
-	public ModifiedException() {
-		super("Already modified");
+	public ModifiedException(String type) {
+		super(type + " already modified");
 	}
 }
