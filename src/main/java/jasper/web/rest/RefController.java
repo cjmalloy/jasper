@@ -33,7 +33,6 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 
 import static jasper.domain.Origin.ORIGIN_LEN;
@@ -66,26 +65,26 @@ public class RefController {
 		return refService.get(url, origin);
 	}
 
-	@GetMapping("list")
-	List<RefDto> getList(
-		@RequestParam @Size(max = 100) String[] urls, //TODO validate
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
-	) {
-		return Arrays.stream(urls).map(url -> {
-			try {
-				return refService.get(url, origin);
-			} catch (NotFoundException | AccessDeniedException e) {
-				return null;
-			}
-		}).toList();
-	}
-
 	@GetMapping("exists")
 	boolean refExists(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
 		return refService.exists(url, origin);
+	}
+
+	@GetMapping("list")
+	List<RefDto> getList(
+		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
+	) {
+		return urls.stream().map(url -> {
+			try {
+				return refService.get(url, origin);
+			} catch (NotFoundException | AccessDeniedException e) {
+				return null;
+			}
+		}).toList();
 	}
 
 	@GetMapping("page")

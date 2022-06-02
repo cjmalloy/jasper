@@ -1,6 +1,7 @@
 package jasper.web.rest;
 
 import jasper.domain.Template;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.TemplateService;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 
 import static jasper.domain.TagId.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
@@ -56,6 +60,19 @@ public class TemplateController {
 		@RequestParam(defaultValue = "") @Length(max = QTAG_LEN) @Pattern(regexp = Template.REGEX) String tag
 	) {
 		return templateService.exists(tag);
+	}
+
+	@GetMapping("list")
+	List<Template> getList(
+		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Template.REGEX) String> tags
+	) {
+		return tags.stream().map(tag -> {
+			try {
+				return templateService.get(tag);
+			} catch (NotFoundException | AccessDeniedException e) {
+				return null;
+			}
+		}).toList();
 	}
 
 	@GetMapping("page")
