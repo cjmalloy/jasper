@@ -199,7 +199,7 @@ public class Ingest {
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
-						refRepository.findAllResponsesByOriginWithTagPrefix(ref.getUrl(), ref.getOrigin(), tag)))
+						refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), tag)))
 					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);
