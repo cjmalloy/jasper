@@ -1,6 +1,7 @@
 package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jasper.client.BitChuteClient;
 import jasper.client.TwitterClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -19,8 +20,16 @@ public class CorsBusterController {
 	@Autowired
 	TwitterClient twitterClient;
 
+	@Autowired
+	BitChuteClient bitChuteClient;
+
 	@GetMapping("twitter")
 	JsonNode getTweet(@RequestParam Map<String, String> params) {
 		return twitterClient.oembed(params);
+	}
+
+	@GetMapping("bitChute")
+	JsonNode getBitChute(@RequestParam Map<String, String> params) {
+		return bitChuteClient.oembed(params);
 	}
 }
