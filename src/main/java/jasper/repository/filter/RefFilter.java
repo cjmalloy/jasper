@@ -1,11 +1,5 @@
 package jasper.repository.filter;
 
-import static jasper.repository.spec.RefSpec.*;
-import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import java.time.Instant;
-
 import jasper.domain.Ref;
 import jasper.domain.proj.HasTags;
 import lombok.Builder;
@@ -13,6 +7,20 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
+
+import java.time.Instant;
+
+import static jasper.repository.spec.RefSpec.fulltextEn;
+import static jasper.repository.spec.RefSpec.hasInternalResponse;
+import static jasper.repository.spec.RefSpec.hasNoPluginResponses;
+import static jasper.repository.spec.RefSpec.hasNoResponses;
+import static jasper.repository.spec.RefSpec.hasNoSources;
+import static jasper.repository.spec.RefSpec.hasPluginResponses;
+import static jasper.repository.spec.RefSpec.hasResponse;
+import static jasper.repository.spec.RefSpec.hasSource;
+import static jasper.repository.spec.RefSpec.isUrl;
+import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Builder
 @Getter
@@ -37,7 +45,7 @@ public class RefFilter implements Query {
 			result = result.and(new TagQuery(query).refSpec());
 		}
 		if (isNotBlank(search)) {
-			result = result.and(fulltextEn(search, rankedOrder));
+			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
 		}
 		if (isNotBlank(sources)) {
 			// TODO: query across origins
