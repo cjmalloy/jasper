@@ -38,7 +38,6 @@ public class UserManagerScim implements UserManager {
 		var user = ScimUserResource.builder()
 			.userName(tag)
 			.password(password)
-			.resetPassword(true)
 			.customClaims(new CustomClaims().setRoles(roles))
 			.emails(List.of(new Email().setValue(tag + "@jasper.local")))
 			.build();
