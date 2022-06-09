@@ -22,6 +22,7 @@ public class ScimUserResource {
 	private boolean active = true;
 	private String userName;
 	private String password;
+	private boolean resetPassword;
 	private CustomClaims customClaims;
 	private List<Email> emails;
 }
