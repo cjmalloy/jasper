@@ -1,13 +1,13 @@
 package jasper;
 
-import static com.tngtech.archunit.base.DescribedPredicate.alwaysTrue;
-import static com.tngtech.archunit.core.domain.JavaClass.Predicates.belongToAnyOf;
-import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
-
 import com.tngtech.archunit.core.importer.ImportOption.DoNotIncludeTests;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+
+import static com.tngtech.archunit.base.DescribedPredicate.alwaysTrue;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.belongToAnyOf;
+import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
 @AnalyzeClasses(packagesOf = JasperApplication.class, importOptions = DoNotIncludeTests.class)
 class TechnicalStructureTest {
@@ -25,10 +25,10 @@ class TechnicalStructureTest {
         .layer("Domain").definedBy("..domain..")
 
         .whereLayer("Config").mayNotBeAccessedByAnyLayer()
-        .whereLayer("Client").mayNotBeAccessedByAnyLayer()
+        .whereLayer("Client").mayOnlyBeAccessedByLayers("Web", "Component", "Service")
         .whereLayer("Web").mayOnlyBeAccessedByLayers("Config")
-        .whereLayer("Component").mayOnlyBeAccessedByLayers("Service")
-        .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Config", "Security")
+        .whereLayer("Component").mayOnlyBeAccessedByLayers("Client", "Service")
+        .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Component", "Config", "Security")
         .whereLayer("Security").mayOnlyBeAccessedByLayers("Config", "Client", "Service", "Web")
         .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config")
         .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Service", "Component", "Security", "Web", "Config")

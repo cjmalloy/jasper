@@ -82,6 +82,9 @@ application:
   clientApp:
     name: 'jasperApp'
   scrape-delay-min: 5
+  scrape-interval-min: 1
+  default-role: ROLE_USER
+  username-claim: sub
   logging:
     # To test json console appender
     use-json-format: false

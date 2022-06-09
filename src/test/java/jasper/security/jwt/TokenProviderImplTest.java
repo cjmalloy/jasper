@@ -1,19 +1,14 @@
 package jasper.security.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
-import java.util.*;
-
-import jasper.config.ApplicationProperties;
-import jasper.management.SecurityMetersService;
-import jasper.security.AuthoritiesConstants;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import jasper.config.ApplicationProperties;
+import jasper.management.SecurityMetersService;
+import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +16,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TokenProviderImplTest {
 
@@ -93,7 +96,7 @@ class TokenProviderImplTest {
     void testKeyIsSetFromSecretWhenSecretIsNotEmpty() {
         final String secret = "NwskoUmKHZtzGRKJKVjsJF7BtQMMxNWi";
 		ApplicationProperties applicationProperties = new ApplicationProperties();
-        applicationProperties.getSecurity().getAuthentication().getJwt().setSecret(secret);
+        applicationProperties.getSecurity().getAuthentication().getJwt().setBase64Secret(Encoders.BASE64.encode(secret.getBytes()));
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
