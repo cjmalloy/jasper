@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.component.UserManager;
+import jasper.errors.DeactivateSelfException;
 import jasper.errors.InvalidUserProfileException;
 import jasper.security.Auth;
 import jasper.service.dto.ProfileDto;
@@ -76,6 +77,9 @@ public class ProfileService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void setActive(String tag, boolean active) {
+		if (!active && auth.getUserTag().equals(tag)) {
+			throw new DeactivateSelfException();
+		}
 		userManager.setActive(tag.substring("+user/".length()), active);
 	}
 
