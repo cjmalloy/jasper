@@ -61,7 +61,7 @@ public class ProfileService {
 		return userManager.getUsers(pageNumber, pageSize);
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@PreAuthorize("@auth.freshLogin() and @auth.canWriteTag(#tag)")
 	public void changePassword(String tag, String password) {
 		userManager.changePassword(tag.substring("+user/".length()), password);
 	}

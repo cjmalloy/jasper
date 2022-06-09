@@ -4,6 +4,7 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
 import jasper.domain.proj.IsTag;
+import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
@@ -14,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,8 +23,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -52,6 +57,14 @@ public class Auth {
 	// Cache
 	private Set<String> roles;
 	private Optional<User> user;
+
+	public boolean freshLogin() {
+		var iat = (Date) getAuthentication().getDetails();
+		if (iat == null || iat.toInstant().isBefore(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+			throw new FreshLoginException();
+		}
+		return true;
+	}
 
 	public boolean canReadRef(HasTags ref) {
 		if (hasRole("MOD")) return true;
@@ -293,8 +306,8 @@ public class Auth {
 		return false;
 	}
 
-	public Authentication getAuthentication() {
-		return SecurityContextHolder.getContext().getAuthentication();
+	public UsernamePasswordAuthenticationToken getAuthentication() {
+		return (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
 	}
 
 	public UserDetails getPrincipal() {

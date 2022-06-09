@@ -24,11 +24,11 @@ import java.util.stream.Collectors;
 
 public class TokenProviderImplNoVerify implements TokenProvider {
 
-    private final Logger log = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
+	private final Logger log = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
 
-    private static final String AUTHORITIES_KEY = "auth";
+	private static final String AUTHORITIES_KEY = "auth";
 
-    private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
+	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
 	@Value("${application.default-role}")
 	String defaultRole;
@@ -36,21 +36,21 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 	@Value("${application.username-claim}")
 	String usernameClaim;
 
-    private final JwtParser jwtParser;
+	private final JwtParser jwtParser;
 
-    private final SecurityMetersService securityMetersService;
+	private final SecurityMetersService securityMetersService;
 
-    public TokenProviderImplNoVerify(SecurityMetersService securityMetersService) {
+	public TokenProviderImplNoVerify(SecurityMetersService securityMetersService) {
 		jwtParser = Jwts.parserBuilder().build();
-        this.securityMetersService = securityMetersService;
-    }
+		this.securityMetersService = securityMetersService;
+	}
 
 	private String dropSig(String token) {
 		return token.substring(0, token.lastIndexOf('.') + 1);
 	}
 
-    public Authentication getAuthentication(String token) {
-        Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
+	public Authentication getAuthentication(String token) {
+		Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
 		Collection<? extends GrantedAuthority> authorities;
 		if (claims.containsKey(AUTHORITIES_KEY)) {
 			authorities = Arrays
@@ -61,35 +61,37 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 		} else {
 			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
 		}
-        User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
-        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
-    }
+		User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
+		var auth = new UsernamePasswordAuthenticationToken(principal, token, authorities);
+		auth.setDetails(claims.getIssuedAt());
+		return auth;
+	}
 
-    public boolean validateToken(String authToken) {
-        try {
-            jwtParser.parseClaimsJwt(dropSig(authToken));
+	public boolean validateToken(String authToken) {
+		try {
+			jwtParser.parseClaimsJwt(dropSig(authToken));
 
-            return true;
-        } catch (ExpiredJwtException e) {
-            this.securityMetersService.trackTokenExpired();
+			return true;
+		} catch (ExpiredJwtException e) {
+			this.securityMetersService.trackTokenExpired();
 
-            log.trace(INVALID_JWT_TOKEN, e);
-        } catch (UnsupportedJwtException e) {
-            this.securityMetersService.trackTokenUnsupported();
+			log.trace(INVALID_JWT_TOKEN, e);
+		} catch (UnsupportedJwtException e) {
+			this.securityMetersService.trackTokenUnsupported();
 
-            log.trace(INVALID_JWT_TOKEN, e);
-        } catch (MalformedJwtException e) {
-            this.securityMetersService.trackTokenMalformed();
+			log.trace(INVALID_JWT_TOKEN, e);
+		} catch (MalformedJwtException e) {
+			this.securityMetersService.trackTokenMalformed();
 
-            log.trace(INVALID_JWT_TOKEN, e);
-        } catch (SignatureException e) {
-            this.securityMetersService.trackTokenInvalidSignature();
+			log.trace(INVALID_JWT_TOKEN, e);
+		} catch (SignatureException e) {
+			this.securityMetersService.trackTokenInvalidSignature();
 
-            log.trace(INVALID_JWT_TOKEN, e);
-        } catch (IllegalArgumentException e) { // TODO: should we let it bubble (no catch), to avoid defensive programming and follow the fail-fast principle?
-            log.error("Token validation error {}", e.getMessage());
-        }
+			log.trace(INVALID_JWT_TOKEN, e);
+		} catch (IllegalArgumentException e) { // TODO: should we let it bubble (no catch), to avoid defensive programming and follow the fail-fast principle?
+			log.error("Token validation error {}", e.getMessage());
+		}
 
-        return false;
-    }
+		return false;
+	}
 }
