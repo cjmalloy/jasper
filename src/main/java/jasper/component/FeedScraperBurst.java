@@ -41,7 +41,7 @@ public class FeedScraperBurst {
 				return;
 			}
 			var feed = maybeFeed.get();
-			var minutesOld = Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
+			var minutesOld = feed.getLastScrape() == null ? 0 : Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
 			try {
 				rssParser.scrape(feed);
 				logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getName(), feed.getUrl());
