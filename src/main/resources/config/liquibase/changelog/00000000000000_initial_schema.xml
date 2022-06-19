@@ -149,7 +149,7 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="url" type="TEXT">
-				<constraints primaryKey="true" nullable="false"/>
+				<constraints nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
 			<column name="proxy" type="TEXT"/>
