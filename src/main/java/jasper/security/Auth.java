@@ -9,17 +9,16 @@ import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import jasper.security.jwt.JwtAuthentication;
 import liquibase.repackaged.org.apache.commons.collections4.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 
@@ -57,6 +56,7 @@ public class Auth {
 	// Cache
 	private Set<String> roles;
 	private Optional<User> user;
+	private String userTag;
 
 	public boolean freshLogin() {
 		var iat = (Date) getAuthentication().getDetails();
@@ -237,13 +237,16 @@ public class Auth {
 	}
 
 	public String getUserTag() {
-		var user = getPrincipal();
-		if (user == null) return null;
-		if (hasRole("PRIVATE")) {
-			return "_user/" + user.getUsername();
-		} else {
-			return "+user/" + user.getUsername();
+		if (userTag == null) {
+			var principal = getAuthentication().getPrincipal();
+			if (principal == null) return null;
+			if (hasRole("PRIVATE")) {
+				userTag = "_user/" + principal;
+			} else {
+				userTag = "+user/" + principal;
+			}
 		}
+		return userTag;
 	}
 
 	public Optional<User> getUser() {
@@ -306,14 +309,8 @@ public class Auth {
 		return false;
 	}
 
-	public UsernamePasswordAuthenticationToken getAuthentication() {
-		return (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-	}
-
-	public UserDetails getPrincipal() {
-		var principal = getAuthentication().getPrincipal();
-		if (principal instanceof UserDetails) return (UserDetails) principal;
-		return null;
+	public JwtAuthentication getAuthentication() {
+		return (JwtAuthentication) SecurityContextHolder.getContext().getAuthentication();
 	}
 
 	private Set<String> getAuthoritySet() {

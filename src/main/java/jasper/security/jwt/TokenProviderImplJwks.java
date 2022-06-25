@@ -12,25 +12,15 @@ import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class TokenProviderImplJwks implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplJwks.class);
-
-	private static final String AUTHORITIES_KEY = "auth";
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
@@ -43,6 +33,7 @@ public class TokenProviderImplJwks implements TokenProvider {
 	private final JwtParser jwtParser;
 
 	private final SecurityMetersService securityMetersService;
+	private final ApplicationProperties applicationProperties;
 
 	public TokenProviderImplJwks(
 		ApplicationProperties applicationProperties,
@@ -51,25 +42,13 @@ public class TokenProviderImplJwks implements TokenProvider {
 	) throws URISyntaxException {
 		String jwksUri = applicationProperties.getSecurity().getAuthentication().getJwt().getJwksUri();
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
+		this.applicationProperties = applicationProperties;
 		this.securityMetersService = securityMetersService;
 	}
 
 	public Authentication getAuthentication(String token) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
-		Collection<? extends GrantedAuthority> authorities;
-		if (claims.containsKey(AUTHORITIES_KEY)) {
-			authorities = Arrays
-				.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-				.filter(auth -> !auth.trim().isEmpty())
-				.map(SimpleGrantedAuthority::new)
-				.collect(Collectors.toList());
-		} else {
-			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
-		}
-		User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
-		var auth = new UsernamePasswordAuthenticationToken(principal, token, authorities);
-		auth.setDetails(claims.getIssuedAt());
-		return auth;
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -98,5 +77,10 @@ public class TokenProviderImplJwks implements TokenProvider {
 		}
 
 		return false;
+	}
+
+	@Override
+	public ApplicationProperties getApplicationProperties() {
+		return applicationProperties;
 	}
 }
