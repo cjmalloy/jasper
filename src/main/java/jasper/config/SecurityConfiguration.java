@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
 import java.util.List;
@@ -63,7 +64,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .antMatchers("/management/prometheus").permitAll()
             .antMatchers("/management/**").hasRole("ADMIN")
         .and()
-			.apply(securityConfigurerAdapter());
+			.apply(securityConfigurerAdapter())
+		.and()
+			.cors().configurationSource(request -> new CorsConfiguration().applyPermitDefaultValues());
         // @formatter:on
     }
 
