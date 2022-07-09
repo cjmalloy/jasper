@@ -13,7 +13,7 @@ docker compose file.
 Jasper KMS is an open source knowledge management system. A KMS is similar to a Content Management
 System (CMS), but it does not store any content. Instead, a KMS stores links to content. This means
 that adding a KMS to your internal tools is quick and easy. It will index all of your content in a
-single place.
+single place. Organize with hierarchical tags, track sources and citations and visualize as a graph.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
