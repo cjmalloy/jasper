@@ -66,7 +66,12 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
-			.cors().configurationSource(request -> new CorsConfiguration().applyPermitDefaultValues());
+			.cors().configurationSource(request -> {
+				var config = new CorsConfiguration();
+				config.addAllowedMethod("*");
+				config.applyPermitDefaultValues();
+				return config;
+			});
         // @formatter:on
     }
 
