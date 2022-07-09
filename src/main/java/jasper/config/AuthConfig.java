@@ -3,6 +3,7 @@ package jasper.config;
 import jasper.management.SecurityMetersService;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
+import jasper.security.jwt.TokenProviderImplAdmin;
 import jasper.security.jwt.TokenProviderImplJwks;
 import jasper.security.jwt.TokenProviderImplNoVerify;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -67,5 +68,11 @@ public class AuthConfig {
 	@Profile("jwt-no-verify")
 	TokenProvider noVerifyTokenProvider(SecurityMetersService securityMetersService) {
 		return new TokenProviderImplNoVerify(securityMetersService);
+	}
+
+	@Bean
+	@Profile("admin")
+	TokenProvider adminProvider() {
+		return new TokenProviderImplAdmin();
 	}
 }
