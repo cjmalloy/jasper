@@ -24,7 +24,9 @@ public class ApplicationProperties {
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
 	private String defaultRole = "ROLE_USER";
+	private String defaultOrigin = "";
 	private String usernameClaim = "sub";
+	private String authoritiesClaim = "auth";
 	private String scimEndpoint;
 	private final Async async = new Async();
 	private final Http http = new Http();

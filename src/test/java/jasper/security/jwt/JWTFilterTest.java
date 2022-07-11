@@ -1,23 +1,25 @@
 package jasper.security.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.Collections;
-
-import jasper.config.ApplicationProperties;
-import jasper.management.SecurityMetersService;
-import jasper.security.AuthoritiesConstants;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import jasper.config.ApplicationProperties;
+import jasper.management.SecurityMetersService;
+import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.mock.web.*;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class JWTFilterTest {
 
@@ -57,7 +59,6 @@ class JWTFilterTest {
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         assertThat(SecurityContextHolder.getContext().getAuthentication().getName()).isEqualTo("test-user");
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getCredentials()).hasToString(jwt);
     }
 
     @Test

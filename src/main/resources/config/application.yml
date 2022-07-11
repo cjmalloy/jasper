@@ -186,7 +186,9 @@ application:
   scrape-delay-min: 0
   scrape-interval-min: 1
   default-role: ROLE_USER
+  default-origin: ''
   username-claim: sub
+  authorities-claim: auth
   # By default CORS is disabled. Uncomment to enable.
   # cors:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"

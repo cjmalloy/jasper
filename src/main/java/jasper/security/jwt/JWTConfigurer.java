@@ -1,5 +1,6 @@
 package jasper.security.jwt;
 
+import jasper.config.ApplicationProperties;
 import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
@@ -8,9 +9,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class JWTConfigurer extends SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity> {
 
     private final TokenProvider tokenProvider;
+    private final ApplicationProperties applicationProperties;
 
-    public JWTConfigurer(TokenProvider tokenProvider) {
+    public JWTConfigurer(TokenProvider tokenProvider, ApplicationProperties applicationProperties) {
         this.tokenProvider = tokenProvider;
+        this.applicationProperties = applicationProperties;
     }
 
     @Override

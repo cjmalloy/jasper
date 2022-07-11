@@ -7,41 +7,26 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
+import jasper.config.ApplicationProperties;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class TokenProviderImplNoVerify implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
 
-	private static final String AUTHORITIES_KEY = "auth";
-
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
-
-	@Value("${application.default-role}")
-	String defaultRole;
-
-	@Value("${application.username-claim}")
-	String usernameClaim;
 
 	private final JwtParser jwtParser;
 
 	private final SecurityMetersService securityMetersService;
+	private final ApplicationProperties applicationProperties;
 
-	public TokenProviderImplNoVerify(SecurityMetersService securityMetersService) {
+	public TokenProviderImplNoVerify(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
 		jwtParser = Jwts.parserBuilder().build();
+		this.applicationProperties = applicationProperties;
 		this.securityMetersService = securityMetersService;
 	}
 
@@ -51,20 +36,7 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 
 	public Authentication getAuthentication(String token) {
 		Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-		Collection<? extends GrantedAuthority> authorities;
-		if (claims.containsKey(AUTHORITIES_KEY)) {
-			authorities = Arrays
-				.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-				.filter(auth -> !auth.trim().isEmpty())
-				.map(SimpleGrantedAuthority::new)
-				.collect(Collectors.toList());
-		} else {
-			authorities = List.of(new SimpleGrantedAuthority(defaultRole));
-		}
-		User principal = new User(claims.get(usernameClaim).toString(), "", authorities);
-		var auth = new UsernamePasswordAuthenticationToken(principal, token, authorities);
-		auth.setDetails(claims.getIssuedAt());
-		return auth;
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -93,5 +65,20 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 		}
 
 		return false;
+	}
+
+	@Override
+	public String getAuthoritiesClaim() {
+		return applicationProperties.getAuthoritiesClaim();
+	}
+
+	@Override
+	public String getUsernameClaim() {
+		return applicationProperties.getUsernameClaim();
+	}
+
+	@Override
+	public String getDefaultRole() {
+		return applicationProperties.getDefaultRole();
 	}
 }

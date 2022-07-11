@@ -66,8 +66,8 @@ public class AuthConfig {
 
 	@Bean
 	@Profile("jwt-no-verify")
-	TokenProvider noVerifyTokenProvider(SecurityMetersService securityMetersService) {
-		return new TokenProviderImplNoVerify(securityMetersService);
+	TokenProvider noVerifyTokenProvider(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
+		return new TokenProviderImplNoVerify(applicationProperties, securityMetersService);
 	}
 
 	@Bean
