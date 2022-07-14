@@ -12,6 +12,7 @@ import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -45,6 +46,7 @@ public class TokenProviderImplJwks implements TokenProvider {
 	}
 
 	public boolean validateToken(String authToken) {
+		if (!StringUtils.hasText(authToken)) return false;
 		try {
 			jwtParser.parseClaimsJws(authToken);
 
