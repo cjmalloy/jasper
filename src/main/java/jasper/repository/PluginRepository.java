@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin> {
+public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin> {
 
 	@Query("""
 		FROM Plugin AS p

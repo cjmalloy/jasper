@@ -1,15 +1,15 @@
 package jasper.repository;
 
-import java.util.List;
-
 import jasper.domain.TagId;
 import jasper.domain.Template;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
-public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template> {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template> {
 
 	@Query("""
 		FROM Template AS t

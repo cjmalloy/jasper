@@ -28,6 +28,7 @@ public class ApplicationProperties {
 	private String usernameClaim = "sub";
 	private String authoritiesClaim = "auth";
 	private String scimEndpoint;
+	private String storage = "/var/lib/jasper";
 	private final Async async = new Async();
 	private final Http http = new Http();
 	private final Database database = new Database();
