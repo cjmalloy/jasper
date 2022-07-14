@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref> {
+public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<Ref> {
 	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
 
 	@Query(nativeQuery = true, value = """

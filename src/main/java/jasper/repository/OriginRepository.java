@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface OriginRepository extends JpaRepository<Origin, String>, JpaSpecificationExecutor<Origin> {
+public interface OriginRepository extends JpaRepository<Origin, String>, JpaSpecificationExecutor<Origin>, StreamMixin<Origin> {
 }
