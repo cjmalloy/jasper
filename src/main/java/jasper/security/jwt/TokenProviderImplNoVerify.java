@@ -12,6 +12,7 @@ import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 
 public class TokenProviderImplNoVerify implements TokenProvider {
 
@@ -40,6 +41,7 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 	}
 
 	public boolean validateToken(String authToken) {
+		if (!StringUtils.hasText(authToken)) return false;
 		try {
 			jwtParser.parseClaimsJwt(dropSig(authToken));
 
