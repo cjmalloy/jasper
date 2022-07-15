@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jasper.domain.Ref;
 import jasper.domain.RefId;
+import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -10,7 +11,8 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<Ref> {
+public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<RefView> {
+
 	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
 
 	@Query(nativeQuery = true, value = """
