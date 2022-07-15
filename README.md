@@ -38,6 +38,32 @@ Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper’s data m
 3. Application Layer
 4. Plugin Layer
 
+## Tagging
+Jasper support hierarchical tagging of Refs. 
+* Tags are strings with regex `[_+]?[a-z]+(/[a-z]+)*`
+* Refs have a list of tags
+* Semantic ontology: `public`, `+protected`, `_private` tags
+  * Anyone can add a public tag to a ref
+  * You need a protected tag in your users tag read access to add it to a Ref
+  * You need a private tag in your users tag write access to add it to a Ref
+* Fully qualified tags: `tag@origin`
+* Use hierarchical tags to classify in depth
+  * Use forward slashes to define taxonomies
+  * I.e. `people/murray/bill`, `people/murray/anne`
+
+## Querying
+* Uses tags, origins, or fully qualified tags
+* Special origin `@*` represents any origin
+* Blank origins represent local
+* Queries allow ands `:` ors `|` and nots `!` and parentheses `()`
+
+## Extending
+Allows extensive modification with server reuse (not even server restarts)
+* Plugins
+* Templates
+* Schema Validation
+
+
 ### Entities
 There are three types of entities in Jasper:
 1. Origins
@@ -347,7 +373,7 @@ Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environ
 variable. Multiple profiles can be activated by adding them all as a comma
 separated list.
 
-For production use the prod profile should be active. For testing, the `dev` profile will
+For production use the `prod` profile should be active. For testing, the `dev` profile will
 enable additional logging.
 
 For security there are 4 profiles available:  
@@ -406,8 +432,8 @@ Some public tags have special significance:
  * `internal`: don’t show on all (@*)
  * `locked`: Only mod can edit
 
-By convention, the private _moderated tag is used to mark a Ref as approved by a mod
- * _moderated: Approved by a mod
+By convention, the private `_moderated` tag is used to mark a Ref as approved by a mod
+ * `_moderated`: Approved by a mod
 
 ## Backup / Restore
 Jasper has a built-in backup system for admin use. Non admin backups should instead replicate to a separate jasper instance.
