@@ -8,8 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Profile("storage")
 @Service
@@ -20,15 +20,13 @@ public class BackupService {
 	Backup backup;
 
 	public String createBackup(BackupOptionsDto options) throws IOException {
-		var id = UUID.randomUUID().toString();
+		var id = Instant.now().toString();
 		backup.createBackup(id, options);
 		return id;
 	}
 
-	public String uploadBackup(byte[] zipFile) throws IOException {
-		var id = UUID.randomUUID().toString();
+	public void uploadBackup(String id, byte[] zipFile) throws IOException {
 		backup.store(id, zipFile);
-		return id;
 	}
 
 	public List<String> listBackups() {

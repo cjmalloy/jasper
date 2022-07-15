@@ -46,9 +46,13 @@ public class BackupController {
 			.body(backupService.getBackup(id));
 	}
 
-	@PostMapping("upload")
-	public String upload(@RequestBody(required = false) byte[] zipFile) throws IOException {
-		return backupService.uploadBackup(zipFile);
+	@PostMapping("upload/{id}")
+	public void upload(@PathVariable String id,
+					   @RequestBody(required = false) byte[] zipFile) throws IOException {
+		if (id.endsWith(".zip")) {
+			id = id.substring(0, id.length() - 4);
+		}
+		backupService.uploadBackup(id, zipFile);
 	}
 
 	@PostMapping("restore/{id}")
