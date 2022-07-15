@@ -163,6 +163,8 @@ public class Backup {
 
 	@Async
 	public void restore(String id, BackupOptionsDto options) {
+		var start = Instant.now();
+		log.info("Restoring Backup");
 		var zipPath = Paths.get(storagePath, "backups", id + ".zip");
 		try (FileSystem zipfs = FileSystems.newFileSystem(zipPath)) {
 			if (options == null || options.isRef()) {
@@ -189,6 +191,8 @@ public class Backup {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+		log.info("Finished Restore");
+		log.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
 	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) throws IOException {
