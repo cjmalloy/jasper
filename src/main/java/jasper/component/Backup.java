@@ -123,6 +123,7 @@ public class Backup {
 		try (var list = Files.list(Paths.get(storagePath, "backups"))) {
 			return list
 				.map(f -> f.getFileName().toString())
+				.filter(n -> n.endsWith(".zip"))
 				.collect(Collectors.toList());
 		} catch (IOException e) {
 			return Collections.emptyList();
