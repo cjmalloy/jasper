@@ -64,13 +64,13 @@ Allows extensive modification with server reuse (not even server restarts)
 * Schema Validation
 
 
-### Entities
+## Entities
 There are three types of entities in Jasper:
 1. Origins
 2. Ref-like entities
 3. Tag-like entities
 
-#### Origin
+### Origin
 Origins are an optional part of the system for supporting multi-tenant behaviour and advanced
 replication. Although the origin is strictly required as part of every entity, the empty string
 is a valid origin which indicates "local Origin".  
@@ -96,7 +96,7 @@ through an intermediary server.
 **Modified:** Modified date of this Origin.  
 **Last Scrape:** The last time this Origin has been scraped.  
 
-#### Ref
+### Ref
 Refs are the main data model in Jasper. A Ref defines a URL to a remote resource. Example:
 ```json 
 {
@@ -146,7 +146,7 @@ be later than the published date of all sources.
 **Modified:** Last modified date of this Ref. If this is the same as the created date no modification
 has occurred.  
 
-#### Feed
+### Feed
 A Feed is a Ref-like resource. It represents an RSS or Atom feed.
 ```json 
 {
@@ -182,7 +182,7 @@ description is HTML, as indents will trigger a block quote in markdown.
 **Scrape Interval:** The time interval to scrape this feed. Use either time spans (HH:MM:SS) or 
 ISO 8601 durations.  
 
-#### Ext
+### Ext
 An Ext is a Tag-like entity representing a Tag extension.
 ```json 
 {
@@ -206,7 +206,7 @@ An Ext allows you to customise a Tag page. For example, you could set the sideba
 **Config:** Arbitrary JSON data defined by Templates. Must be valid according to each template's schema.
 **Modified:** Last modified date of this Ext
 
-#### User
+### User
 A User is a Tag-like entity representing a user.
 ```json 
 {
@@ -238,7 +238,7 @@ for private tags.
 **Pub Key:** Base 64 encoded public RSA key. Used for verifying signatures to validate authorship.  
 **Modified:** Last modified date of this User.  
 
-#### Plugin
+### Plugin
 A Plugin is a Tag-like entity used to extend the functionality of Refs.
 ```json 
 {
@@ -273,7 +273,7 @@ data according to the Plugin schema.
 this plugin in all Ref metadata.  
 **Modified:** Last modified date of this User.  
 
-#### Template
+### Template
 A Template is a Tag-like entity used to extend the functionality of Exts.
 ```json 
 {
@@ -309,11 +309,11 @@ string the Template matches all Exts.
 **Schema:** Json Type Def (JTD) schema used to validate Ext config.  
 **Modified:** Last modified date of this Template.  
 
-### Layers
+## Layers
 The jasper model is defined in layers. This is to facilitate lower level operations such as routing, querying
 and archiving.
 
-#### Identity Layer
+### Identity Layer
 The identity layer of the Jasper model defines how entities are stored or retrieved. A system operating
 at this layer should be extremely lenient when validating entities. Only the identity fields of the
 entity need to be considered. The identity fields are:  
@@ -321,15 +321,15 @@ entity need to be considered. The identity fields are:
 2. Ref-like entities: (URL, Origin, Modified)
 3. Origins: (Origin, Modified)
 
-#### Indexing Layer
+### Indexing Layer
 The indexing layer of the Jasper model adds tags to the Ref-like entities. A system operating at this layer
 should support tag queries.
 
-#### Application Layer
+### Application Layer
 The application layer of the Jasper model includes all entity fields. Plugins and templates are validated
 according to their schema.
 
-#### Plugin Layer
+### Plugin Layer
 The plugin layer of the Jasper model is entirely client side. No server changes are required in order to
 support new plugins or templates.
 
