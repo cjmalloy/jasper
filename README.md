@@ -447,6 +447,8 @@ In order to use the backup system, the storage profile must be active.
 ## Validation
 When ingesting entities, Jasper performs the following validation:
  * Fields must not exceed their maximum length
+ * URLS are valid according to the regex `^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?`
+ * Tags are valid according to their respective prefix and the general tag regex `[_+]?[a-z]+(/[a-z]+)*`
  * If a Ref has plugins present, any plugin data must conform to the plugin’s schema
  * If an Ext matches a template prefix, any config must conform to all matching templates merged schemas
 
