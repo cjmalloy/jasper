@@ -70,6 +70,11 @@ There are three types of entities in Jasper:
 2. Ref-like entities
 3. Tag-like entities
 
+![entities](./docs/entities.png)
+Origins are used to facilitate replication and multi-tenant operation. Each origin represents a
+jasper instance that that entity originated from.
+![origins](./docs/origins.png)
+
 ### Origin
 Origins are an optional part of the system for supporting multi-tenant behaviour and advanced
 replication. Although the origin is strictly required as part of every entity, the empty string
