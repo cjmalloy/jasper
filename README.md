@@ -32,6 +32,15 @@ Although relations exist between the entities, the data model is non-relational.
 there are foreign keys, but no foreign key constraints. For example, a Ref may refer to an Origin
 without requiring that an Origin entity exist.
 
+The main entity is the Ref, it represents a reference to external content. The main field in a Ref
+is the URL field which can be a link to a web page, or a reference to arbitrary resources predicated
+on the URL scheme. Web content will of course use the http or https scheme. To reference a book,
+one could use the [ISBN](https://en.wikipedia.org/wiki/ISBN) scheme (i.e. `isbn:978-3-16-148410-0`).
+For comments, [Jasper-UI](github.com/cjmalloy/jasper-ui) uses a `comment` scheme followed by an arbitrary ID, usually a UUID
+(i.e. `comment:75b36465-4236-4d64-8c78-027d87f3c072`). For hosting internal wikis, 
+[Jasper-UI](github.com/cjmalloy/jasper-ui) uses a `wiki` scheme followed by the
+[Wiki Page Name](https://en.wikipedia.org/wiki/Wikipedia:Page_name) (i.e. `wiki:John_Cena`).
+
 Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper’s data model is defined in layers:
 1. Identity Layer
 2. Indexing Layer
@@ -39,30 +48,73 @@ Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper’s data m
 4. Plugin Layer
 
 ## Tagging
-Jasper support hierarchical tagging of Refs. 
-* Tags are strings with regex `[_+]?[a-z]+(/[a-z]+)*`
-* Refs have a list of tags
-* Semantic ontology: `public`, `+protected`, `_private` tags
-  * Anyone can add a public tag to a ref
-  * You need a protected tag in your users tag read access to add it to a Ref
-  * You need a private tag in your users tag write access to add it to a Ref
-* Fully qualified tags: `tag@origin`
-* Use hierarchical tags to classify in depth
-  * Use forward slashes to define taxonomies
-  * I.e. `people/murray/bill`, `people/murray/anne`
+Jasper support hierarchical tagging of Refs. Tags are not entities, they are strings with
+regex `[_+]?[a-z]+(/[a-z]+)*`. Tags are part of the primary key for Tag-like entities, but no
+entities need exist to use a tag.  
+Refs have a list of tags which can be used for categorization, permissions, and plugins.  
+There are three types of tags, which the type defined as a semantic ontology:
+`public`, `+protected`, `_private` tags. The character prefix defines the type while also being
+part of the tag itself. Therefore, no lookup is ever required to determine the tag type.
+ * A public tag can be used freely by anyone. This includes tagging a Ref, or using it in a query.
+ * A protected tag can freely be used in a query, but you cannot tag a Ref with a protected tag
+unless it is in your [read access](#access-control) list.
+ * A private tag cannot be used at all unless permission is given. When fetching a Ref that includes
+private tags, they will be removed by the server prior to sending. See
+[access control](#access-control) for more.
+
+Tags may also be fully qualified by appending the origin. (i.e. `tag@origin`).  
+Use forward slashes to define hierarchical tags (i.e. `people/murray/bill` or  `people/murray/anne`)
 
 ## Querying
-* Uses tags, origins, or fully qualified tags
-* Special origin `@*` represents any origin
-* Blank origins represent local
-* Queries allow ands `:` ors `|` and nots `!` and parentheses `()`
+When fetching a page or Refs a query may be specified. The query language uses simple set-like
+operators to match Refs according to their tag list and Origin. You may use tags, origins, or
+fully qualified tags (tag + origin). There is a special origin `@*` which will match anything.
+If a tag is not fully qualified it will match the local origin `""` (the empty string).  
+Valid operators in a query are:
+1. `:` and
+2. `|` or
+3. `!` not
+4. `()` groups
+
+Note: In the current implementation, groups may not be nested.
+
+Example queries:
+ * `science`: All Refs that in include the `science` tag
+ * `science|funny`: All Refs that have either the `science` tag or the `funny` tag
+ * `science:funny`: All Refs that have both the `science` tag and the `funny` tag
+ * `science:!funny`: All Refs that have the `science` tag but do not have the `funny` tag
+ * `(science|math):funny`: All Refs that have either the `science` or `math` tags, but
+also the `funny` tag. This would match a ref with `['science', 'funny']`, `['math', 'funny']`,
+but would not match `['science', 'math']`
+ * `science:funny|math:funny`: Expended form of previous query. Would produce the exact same results.
+ * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
+match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
 ## Extending
-Allows extensive modification with server reuse (not even server restarts)
-* Plugins
-* Templates
-* Schema Validation
+Allows extensive modification with server reuse. As extensions and plugins are done by creating
+Plugin and Template entities, server restarts are not required.  
+This method of extensions means that only client changes are required. The same Jasper server,
+without any code modifications, can be used. The client can define and support its own Plugins
+and Templates. This allows for much more flexible development, as writing client code (in particular
+web clients) is much easier than writing server code. A developer with only front-end expertise 
+can extend the Jasper model to support arbitrary applications.  
+In order to extend the functionality of a Ref, a developer may choose a set of tags or URL scheme
+and a convention by which they modify the semantics of a Ref. If a custom data model is also
+required, a Plugin entity may be created which defines a
+[JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/) schema. A Plugin is a Tag-like entity. When
+a Ref is tagged with a Plugin, the Plugin may be considered active for that Ref. The Ref may then
+store data in its config field and the server will validate it according to the schema.  
+Similarly, Ext entities may be created which extend the functionality of a tag. As Plugins define
+custom data that can be stored in a ref, Templates may be created which allow custom data to be
+stored in Ext entities and similarly validated according to their schema.
 
+See [Jasper-UI](github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
+* `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/plugin/thumbnail.ts)
+allows a Ref to include a URL to a thumbnail image.
+* `user` Template: 
+[This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/template/user.ts)
+allows a user tag to customize their experience, such as subscribing to a list of tags to show
+on their home page.
 
 ## Entities
 There are three types of entities in Jasper:
