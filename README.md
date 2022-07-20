@@ -15,6 +15,8 @@ System (CMS), but it does not store any content. Instead, a KMS stores links to 
 that adding a KMS to your internal tools is quick and easy. It will index all of your content in a
 single place. Organize with hierarchical tags, track sources and citations and visualize as a graph.
 
+See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
+
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
 to other presentations, such as XML, YAML, or TOML.
@@ -36,9 +38,9 @@ The main entity is the Ref, it represents a reference to external content. The m
 is the URL field which can be a link to a web page, or a reference to arbitrary resources predicated
 on the URL scheme. Web content will of course use the http or https scheme. To reference a book,
 one could use the [ISBN](https://en.wikipedia.org/wiki/ISBN) scheme (i.e. `isbn:978-3-16-148410-0`).
-For comments, [Jasper-UI](github.com/cjmalloy/jasper-ui) uses a `comment` scheme followed by an arbitrary ID, usually a UUID
+For comments, [Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `comment` scheme followed by an arbitrary ID, usually a UUID
 (i.e. `comment:75b36465-4236-4d64-8c78-027d87f3c072`). For hosting internal wikis, 
-[Jasper-UI](github.com/cjmalloy/jasper-ui) uses a `wiki` scheme followed by the
+[Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `wiki` scheme followed by the
 [Wiki Page Name](https://en.wikipedia.org/wiki/Wikipedia:Page_name) (i.e. `wiki:John_Cena`).
 
 Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper’s data model is defined in layers:
@@ -108,7 +110,7 @@ Similarly, Ext entities may be created which extend the functionality of a tag. 
 custom data that can be stored in a ref, Templates may be created which allow custom data to be
 stored in Ext entities and similarly validated according to their schema.
 
-See [Jasper-UI](github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
+See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
 * `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/plugin/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
 * `user` Template: 
