@@ -469,10 +469,11 @@ variable to change the location of the storage folder.
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
 hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Anonymous.
+Roles are hierarchical, so they include any permissions granted to a preceding role.
  * `ROLE_ANONYMOUS`: read access to public tags and Refs.
- * `ROLE_USER`: logged in user. Can post refs. Has read/write/mod access to their user tag.
+ * `ROLE_USER`: logged in user. Can post refs. Has read/write access to their user tag.
  * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to. Can create feeds.
- * `ROLE_MOD`: can read/write and tag or ref except plugins and templates.
+ * `ROLE_MOD`: can read/write any tag or ref except plugins and templates.
  * `ROLE_ADMIN`: complete access. Can read/write plugins and templates, perform backups and restores.
 
 Tags are used to provide fine-grained access to resources. For Ref-like entities (Refs and Feeds), the
