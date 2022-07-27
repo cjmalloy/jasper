@@ -405,7 +405,13 @@ entities from the remote instance where the modified date is after the last stor
 by modified date ascending.
 
 ### Duplicate Modified Date
-Some extra care is required when replicating from a Jasper instance that does not preserve version history. When receiving a batch of entities, it’s possible that the last entity you received has a modified date that is exactly the same as another entity. If that is the case, requesting the next batch after that modified date will skip such entities. In this case the Jasper server should include extra data in the request indicating how many entities have the exact modified date as the last entity.
+Jasper instances should enforce unique modified dates for each entity type. Otherwise, when receiving
+a batch of entities, it’s possible that the last entity you received has a modified date that is
+exactly the same as another entity. If that is the case, requesting the next batch after that modified
+date will skip such entities.
+
+To prevent duplicate modified dates it's enough to add a single millisecond to the date until it
+is unique.
 
 ## Deployment
 Jasper is available as a Docker image and a Helm chart. It supports the following configuration options:
@@ -461,14 +467,17 @@ The `storage` profile enables the backup system. Use the `APPLICATION_STORAGE` e
 variable to change the location of the storage folder.
 
 ## Access Control
-Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Anonymous.
+Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
+hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Anonymous.
  * `ROLE_ANONYMOUS`: read access to public tags and Refs.
  * `ROLE_USER`: logged in user. Can post refs. Has read/write/mod access to their user tag.
  * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to. Can create feeds.
  * `ROLE_MOD`: can read/write and tag or ref except plugins and templates.
  * `ROLE_ADMIN`: complete access. Can read/write plugins and templates, perform backups and restores.
 
-Tags are used to provide fine-grained access to resources. For Ref-like entities (Refs and Feeds), the list of tags are considered. For Tag-like entities, their tag is considered. Origins may only be accessed by an admin, but any role can list the names of Origins on the server.
+Tags are used to provide fine-grained access to resources. For Ref-like entities (Refs and Feeds), the
+list of tags are considered. For Tag-like entities, their tag is considered. Origins may only be
+accessed by an admin, but any role can list the names of Origins on the server.
 
 The tag permissions are stored in the User entities:
  * Tag Read Access
