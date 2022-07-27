@@ -396,7 +396,7 @@ support new plugins or templates.
 Distributed systems must make tradeoffs according to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
 According to the CAP theorem you may only provide two of these three guarantees: consistency, availability,
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
-tolerance are guaranteed.
+tolerance are guaranteed. The modified date is used as a cursor to efficiently poll for modified records.
 
 To replicate a Jasper instance simply create an Origin entity for that instance. The jasper server will
 then poll that instance periodically to check for any new entities. The modified date of the last entity
@@ -513,3 +513,7 @@ Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+
+## Release Notes
+* [v1.0.0](./docs/release-notes/jasper-1.0.0.md)
+* [v1.1.0](./docs/release-notes/jasper-1.1.0.md)
