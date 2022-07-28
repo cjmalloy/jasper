@@ -6,10 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin> {
+public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor {
+
+	@Query(value = """
+		SELECT max(p.modified)
+		FROM Plugin p
+		WHERE p.origin = :origin""")
+	Instant getCursor(String origin);
 
 	@Query("""
 		FROM Plugin AS p
@@ -26,6 +33,7 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	@Query("""
 		SELECT p.tag
 		FROM Plugin AS p
-		WHERE p.generateMetadata = true""")
-	List<String> findAllByGenerateMetadata();
+		WHERE p.origin = :origin
+			AND p.generateMetadata = true""")
+	List<String> findAllByGenerateMetadataByOrigin(String origin);
 }

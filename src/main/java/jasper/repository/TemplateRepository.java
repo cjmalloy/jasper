@@ -6,10 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template> {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor {
+
+	@Query(value = """
+		SELECT max(t.modified)
+		FROM Template t
+		WHERE t.origin = :origin""")
+	Instant getCursor(String origin);
 
 	@Query("""
 		FROM Template AS t

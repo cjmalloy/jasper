@@ -11,7 +11,13 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<RefView> {
+public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<RefView>, ModifiedCursor {
+
+	@Query(value = """
+		SELECT max(r.modified)
+		FROM Ref r
+		WHERE r.origin = :origin""")
+	Instant getCursor(String origin);
 
 	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
 
@@ -43,6 +49,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>,
 
 	@Query(nativeQuery = true, value = """
 		SELECT count(*) > 0 FROM ref
-		WHERE jsonb_exists(ref.alternate_urls, :url)""")
-	boolean existsByAlternateUrl(String url);
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.alternate_urls, :url)""")
+	boolean existsByAlternateUrlAndOrigin(String url, String origin);
 }

@@ -34,7 +34,7 @@ public class FeedScraperSchedule {
 		timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
-		var maybeFeed = feedRepository.oldestNeedsScrape();
+		var maybeFeed = feedRepository.oldestNeedsScrapeByOrigin("");
 		if (maybeFeed.isEmpty()) {
 			logger.info("All feeds up to date.");
 			return;

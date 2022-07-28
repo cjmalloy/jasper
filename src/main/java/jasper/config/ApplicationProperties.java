@@ -23,6 +23,8 @@ import java.util.Map;
 public class ApplicationProperties {
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
+	private String replicateDelayMin = "5";
+	private String replicateIntervalMin = "1";
 	private String defaultRole = "ROLE_USER";
 	private String defaultOrigin = "";
 	private String usernameClaim = "sub";

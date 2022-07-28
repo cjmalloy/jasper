@@ -1,13 +1,13 @@
 package jasper.repository.spec;
 
-import java.util.List;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
-
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import org.springframework.data.jpa.domain.Specification;
+
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.Expression;
+import java.util.List;
 
 public class RefSpec {
 
@@ -31,22 +31,39 @@ public class RefSpec {
 
 	public static Specification<Ref> isUrl(String url) {
 		return (root, query, cb) ->
-			cb.equal(
-				root.get(Ref_.url),
-				url);
+			cb.or(
+				cb.equal(
+					root.get(Ref_.url),
+					url),
+				cb.isTrue(
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.alternateUrls),
+						cb.literal(url))));
 	}
 
 	public static Specification<Ref> isUrls(List<String> urls) {
 		if (urls == null || urls.isEmpty()) return none();
 		return (root, query, cb) ->
-			root.get(Ref_.url)
-				.in(urls);
+			cb.or(
+				root.get(Ref_.url)
+					.in(urls),
+				cb.isTrue(
+					cb.function("jsonb_exists_any", Boolean.class,
+						root.get(Ref_.alternateUrls),
+						literal(cb, urls))));
 	}
 
 	public static Specification<Ref> hasSource(String url) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
 				root.get(Ref_.sources),
+				cb.literal(url)));
+	}
+
+	public static Specification<Ref> hasAlternateUrl(String url) {
+		return (root, query, cb) -> cb.isTrue(
+			cb.function("jsonb_exists", Boolean.class,
+				root.get(Ref_.alternateUrls),
 				cb.literal(url)));
 	}
 

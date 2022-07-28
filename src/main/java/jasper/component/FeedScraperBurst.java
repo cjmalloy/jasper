@@ -35,7 +35,7 @@ public class FeedScraperBurst {
 	public void burstScrape() {
 		logger.info("Scraping all feeds in a burst.");
 		while (true) {
-			var maybeFeed = feedRepository.oldestNeedsScrape();
+			var maybeFeed = feedRepository.oldestNeedsScrapeByOrigin("");
 			if (maybeFeed.isEmpty()) {
 				logger.info("All feeds up to date.");
 				return;

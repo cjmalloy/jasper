@@ -65,7 +65,7 @@ public class Ingest {
 	@Counted("jasper.ref.create")
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
-		if (refRepository.existsByAlternateUrl(ref.getUrl())) throw new AlreadyExistsException();
+		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		validate(ref, true);
 		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
@@ -195,7 +195,7 @@ public class Ingest {
 				.responses(refRepository.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
 				.internalResponses(refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
 				.plugins(pluginRepository
-					.findAllByGenerateMetadata()
+					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
@@ -208,7 +208,7 @@ public class Ingest {
 				// Update sources
 				var internal = ref.getTags().contains("internal");
 				Map<String, String> plugins = pluginRepository
-					.findAllByGenerateMetadata()
+					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
 					.stream()
 					.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
 					.collect(Collectors.toMap(tag -> tag, tag -> ref.getUrl()));

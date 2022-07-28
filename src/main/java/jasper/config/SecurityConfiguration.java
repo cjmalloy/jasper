@@ -56,6 +56,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         .and()
             .authorizeRequests()
             .antMatchers("/api/admin/**").hasRole("ADMIN")
+            .antMatchers("/api/repl/**").hasRole("REPLICATION")
             .antMatchers("/api/cors/**").hasRole("USER")
             .antMatchers("/api/**").permitAll()
             .antMatchers("/management/health").permitAll()
@@ -85,6 +86,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		String hierarchy = String.join("\n", List.of(
 			"ROLE_ADMIN > ROLE_MOD",
 			"ROLE_MOD > ROLE_EDITOR",
+			"ROLE_MOD > ROLE_REPLICATION",
 			"ROLE_EDITOR > ROLE_USER",
 			"ROLE_USER > ROLE_VIEWER",
 			"ROLE_VIEWER > ROLE_ANONYMOUS"

@@ -46,7 +46,7 @@ public class OriginController {
 
 	@GetMapping
 	Origin getOrigin(
-		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX_NOT_BLANK) String origin
+		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
 		return originService.get(origin);
 	}
@@ -90,8 +90,8 @@ public class OriginController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteOrigin(
-		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX_NOT_BLANK) String tag
+		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		originService.delete(tag);
+		originService.delete(origin);
 	}
 }

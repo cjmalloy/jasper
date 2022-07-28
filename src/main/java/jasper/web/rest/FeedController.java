@@ -72,13 +72,16 @@ public class FeedController {
 	Page<FeedDto> getPage(
 		@PageableDefault(sort = "modified", direction = Direction.DESC) Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = URL_LEN) String url,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return feedService.page(
 			RefFilter
 				.builder()
+				.query(query)
+				.url(url)
 				.modifiedAfter(modifiedAfter)
-				.query(query).build(),
+				.build(),
 			pageable);
 	}
 

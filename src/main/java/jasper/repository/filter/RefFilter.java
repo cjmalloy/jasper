@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 
+import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.fulltextEn;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasNoPluginResponses;
@@ -28,7 +29,9 @@ public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
+	private String url;
 	private String query;
+	private boolean local;
 	private String search;
 	private boolean rankedOrder;
 	private String sources;
@@ -41,8 +44,14 @@ public class RefFilter implements Query {
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
+		if (isNotBlank(url)) {
+			result = result.and(isUrl(url));
+		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
+		}
+		if (local) {
+			result = result.and(isOrigin(""));
 		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));

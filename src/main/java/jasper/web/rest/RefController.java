@@ -91,6 +91,7 @@ public class RefController {
 	Page<RefDto> getPage(
 		@PageableDefault Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = URL_LEN) String url,
 		@RequestParam(required = false) @Length(max = URL_LEN) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) String responses,
 		@RequestParam(required = false) boolean uncited,
@@ -118,6 +119,7 @@ public class RefController {
 		}
 		return refService.page(
 			RefFilter.builder()
+					 .url(url)
 					 .query(query)
 					 .search(search)
 					 .rankedOrder(rankedSort)
