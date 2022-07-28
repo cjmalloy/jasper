@@ -11,6 +11,6 @@ import org.springframework.cloud.openfeign.FeignClient;
 public interface TokenClient {
 	@RequestLine("POST /")
 	@Headers("Content-Type: application/x-www-form-urlencoded")
-	@Body("client_id={clientId}&client_secret={clientSecret}&scope=admin&grant_type=client_credentials")
-	AuthTokenResponse tokenService(@Param("clientId") String clientId, @Param("clientSecret") String clientSecret);
+	@Body("client_id={clientId}&client_secret={clientSecret}&scope={scope}&grant_type=client_credentials")
+	AuthTokenResponse tokenService(@Param("clientId") String clientId, @Param("clientSecret") String clientSecret, @Param("scope") String scope);
 }

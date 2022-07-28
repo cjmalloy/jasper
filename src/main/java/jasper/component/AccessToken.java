@@ -15,14 +15,20 @@ public class AccessToken {
 	@Autowired
 	TokenClient tokenClient;
 
-	private String accessToken;
+	private String adminToken;
 
-	public String getAccessToken() {
-		if (accessToken == null) {
-			var clientId = applicationProperties.getSecurity().getAuthentication().getJwt().getClientId();
-			var clientSecret = applicationProperties.getSecurity().getAuthentication().getJwt().getSecret();
-			accessToken = tokenClient.tokenService(clientId, clientSecret).getAccess_token();
+	public String getAdminToken() {
+		if (adminToken == null) {
+			adminToken = tokenClient.tokenService(getClientId(), getSecret(), "admin").getAccess_token();
 		}
-		return accessToken;
+		return adminToken;
+	}
+
+	private String getSecret() {
+		return applicationProperties.getSecurity().getAuthentication().getJwt().getSecret();
+	}
+
+	private String getClientId() {
+		return applicationProperties.getSecurity().getAuthentication().getJwt().getClientId();
 	}
 }

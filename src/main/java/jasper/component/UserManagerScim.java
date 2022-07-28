@@ -41,7 +41,7 @@ public class UserManagerScim implements UserManager {
 			.customClaims(new CustomClaims().setRoles(roles))
 			.emails(List.of(new Email().setValue(tag + "@jasper.local")))
 			.build();
-		scimClient.createUser(accessToken.getAccessToken(), user);
+		scimClient.createUser(accessToken.getAdminToken(), user);
 	}
 
 	private String[] getRoles(ScimUserResource user) {
@@ -78,13 +78,13 @@ public class UserManagerScim implements UserManager {
 
 	private ScimUserResource _getUser(String tag) {
 		return objectMapper.convertValue(scimClient
-			.getUser(accessToken.getAccessToken(), tag).getResources()
+			.getUser(accessToken.getAdminToken(), tag).getResources()
 			.get(0), ScimUserResource.class);
 	}
 
 	public Page<ProfileDto> getUsers(int page, int size) {
 		var users = scimClient
-			.getUsers(accessToken.getAccessToken(), page + 1, size);
+			.getUsers(accessToken.getAdminToken(), page + 1, size);
 		return new PageImpl<>(
 			users.getResources(),
 			PageRequest.of(users.getStartIndex() - 1, users.getItemsPerPage()),
@@ -96,7 +96,7 @@ public class UserManagerScim implements UserManager {
 	@Override
 	public void changePassword(String tag, String password) {
 		var id = (String) scimClient
-			.getUser(accessToken.getAccessToken(), tag).getResources()
+			.getUser(accessToken.getAdminToken(), tag).getResources()
 			.get(0)
 			.get("id");
 		var patch = ScimPatchOp.builder().operations(List.of(
@@ -106,13 +106,13 @@ public class UserManagerScim implements UserManager {
 				.value(password)
 				.build()
 		)).build();
-		scimClient.patchUser(accessToken.getAccessToken(), id, patch);
+		scimClient.patchUser(accessToken.getAdminToken(), id, patch);
 	}
 
 	@Override
 	public void setActive(String tag, boolean active) {
 		var id = (String) scimClient
-			.getUser(accessToken.getAccessToken(), tag).getResources()
+			.getUser(accessToken.getAdminToken(), tag).getResources()
 			.get(0)
 			.get("id");
 		var patch = ScimPatchOp.builder().operations(List.of(
@@ -122,13 +122,13 @@ public class UserManagerScim implements UserManager {
 				.value(active)
 				.build()
 		)).build();
-		scimClient.patchUser(accessToken.getAccessToken(), id, patch);
+		scimClient.patchUser(accessToken.getAdminToken(), id, patch);
 	}
 
 	@Override
 	public void changeRoles(String tag, String[] roles) {
 		var id = (String) scimClient
-			.getUser(accessToken.getAccessToken(), tag).getResources()
+			.getUser(accessToken.getAdminToken(), tag).getResources()
 			.get(0)
 			.get("id");
 		var patch = ScimPatchOp.builder().operations(List.of(
@@ -138,12 +138,12 @@ public class UserManagerScim implements UserManager {
 				.value(new CustomClaims().setRoles(roles))
 				.build()
 			)).build();
-		scimClient.patchUser(accessToken.getAccessToken(), id, patch);
+		scimClient.patchUser(accessToken.getAdminToken(), id, patch);
 	}
 
 	@Override
 	public void deleteUser(String tag) {
 		var user = _getUser(tag);
-		scimClient.deleteUser(accessToken.getAccessToken(), user.getId());
+		scimClient.deleteUser(accessToken.getAdminToken(), user.getId());
 	}
 }
