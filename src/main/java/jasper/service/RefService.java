@@ -30,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.temporal.ChronoUnit;
 
+import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.isUrl;
+
 @Service
 @Transactional
 public class RefService {
@@ -59,7 +62,8 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public RefDto get(String url, String origin) {
 		var result = refRepository.findOneByUrlAndOrigin(url, origin)
-								  .orElseThrow(() -> new NotFoundException("Ref"));
+			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
+			.orElseThrow(() -> new NotFoundException("Ref"));
 		return mapper.domainToDto(result);
 	}
 
