@@ -92,6 +92,9 @@ public class RefFilter implements Query {
 		if (query != null) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
+		if (local) {
+			result = result.and(isOrigin(""));
+		}
 		if (sources != null) {
 			throw new UnsupportedOperationException();
 		}
