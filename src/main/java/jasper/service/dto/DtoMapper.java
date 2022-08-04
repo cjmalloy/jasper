@@ -1,9 +1,17 @@
 package jasper.service.dto;
 
-import jasper.domain.*;
+import jasper.domain.Feed;
+import jasper.domain.Origin;
+import jasper.domain.Ref;
+import jasper.domain.User;
 import jasper.security.Auth;
-import org.mapstruct.*;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
@@ -18,6 +26,7 @@ public abstract class DtoMapper {
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {
 		refDto.setTags(auth.filterTags(refDto.getTags()));
+		removePrefixTags(refDto.getTags());
 	}
 
 	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
@@ -38,4 +47,16 @@ public abstract class DtoMapper {
 	}
 
 	public abstract OriginNameDto domainToDto(Origin origin);
+
+	void removePrefixTags(List<String> tags) {
+		for (int i = tags.size() - 1; i >= 0; i--) {
+			var check = tags.get(i) + "/";
+			for (int j = 0; j < tags.size(); j++) {
+				if (tags.get(j).startsWith(check)) {
+					tags.remove(i);
+					break;
+				}
+			}
+		}
+	}
 }
