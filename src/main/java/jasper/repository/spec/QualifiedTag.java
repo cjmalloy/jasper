@@ -1,17 +1,21 @@
 package jasper.repository.spec;
 
+import jasper.domain.Origin;
+import jasper.domain.TagId;
+import jasper.domain.Template;
+import jasper.domain.proj.HasOrigin;
+import jasper.domain.proj.HasTags;
+import jasper.domain.proj.IsTag;
+import jasper.repository.filter.TagQuery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.jpa.domain.Specification;
+
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TemplateSpec.defaultTemplate;
 import static jasper.repository.spec.TemplateSpec.matchesTag;
-
-import jasper.domain.*;
-import jasper.domain.proj.*;
-import jasper.repository.filter.TagQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.jpa.domain.Specification;
 
 public class QualifiedTag {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
@@ -42,7 +46,7 @@ public class QualifiedTag {
 
 	public boolean captures(String capture) {
 		var c = new QualifiedTag(capture);
-		if (!tag.isEmpty() && !tag.equals(c.tag)) return not;
+		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
 		if (!origin.equals("@*") && !origin.equals(c.origin)) return not;
 		return !not;
 	}

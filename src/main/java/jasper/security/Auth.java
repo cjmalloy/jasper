@@ -75,8 +75,8 @@ public class Auth {
 			if (ref.getTags().contains("public")) return true;
 			if (hasRole("USER")) {
 				var qualifiedTags = ref.getQualifiedTags();
-				if (qualifiedTags.contains(getUserTag())) return true;
-				return captures(getReadAccess(), qualifiedTags);
+				return captures(getUserTag(), qualifiedTags) ||
+					captures(getReadAccess(), qualifiedTags);
 			}
 		}
 		return false;
@@ -113,8 +113,8 @@ public class Auth {
 		if (existing.getTags() != null) {
 			if (existing.getTags().contains("locked")) return false;
 			var qualifiedTags = existing.getQualifiedNonPublicTags();
-			if (qualifiedTags.contains(getUserTag())) return true;
-			return captures(getWriteAccess(), qualifiedTags);
+			return captures(getUserTag(), qualifiedTags) ||
+				captures(getWriteAccess(), qualifiedTags);
 		}
 		return false;
 	}
@@ -210,8 +210,7 @@ public class Auth {
 
 	public <T extends IsTag> Specification<T> tagReadSpec() {
 		if (hasRole("MOD")) return Specification.where(null);
-		var spec = Specification
-			.<T>where(publicTag());
+		var spec = Specification.<T>where(publicTag());
 		if (hasRole("USER")) {
 			spec = spec.or(isTag(getUserTag()))
 					   .or(isAnyTag(getReadAccess()));
@@ -225,10 +224,18 @@ public class Auth {
 		if (target == null) return false;
 		if (target.isEmpty()) return false;
 		for (String selector : selectors) {
-			var s = new QualifiedTag(selector);
-			for (String t : target) {
-				if (s.captures(t)) return true;
-			}
+			if (captures(selector, target)) return true;
+		}
+		return false;
+	}
+
+	private static boolean captures(String selector, List<String> target) {
+		if (selector == null) return false;
+		if (target == null) return false;
+		if (target.isEmpty()) return false;
+		var s = new QualifiedTag(selector);
+		for (String t : target) {
+			if (s.captures(t)) return true;
 		}
 		return false;
 	}

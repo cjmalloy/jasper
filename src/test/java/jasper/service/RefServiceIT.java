@@ -153,7 +153,7 @@ public class RefServiceIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
-			.containsExactly("+user/tester");
+			.containsExactly("+user/tester", "+user");
 	}
 
 	@Test
@@ -168,7 +168,7 @@ public class RefServiceIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
-			.containsExactly("_user/tester");
+			.containsExactly("_user/tester", "_user");
 	}
 
 	@Test

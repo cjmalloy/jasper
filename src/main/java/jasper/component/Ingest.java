@@ -66,11 +66,11 @@ public class Ingest {
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
+		ref.addHierarchicalTags();
 		validate(ref, true);
 		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
-		ref.addHierarchicalTags();
 		refRepository.save(ref);
 	}
 
@@ -79,10 +79,10 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
+		ref.addHierarchicalTags();
 		validate(ref, false);
 		updateMetadata(ref, existing);
 		ref.setModified(Instant.now());
-		ref.addHierarchicalTags();
 		refRepository.save(ref);
 	}
 

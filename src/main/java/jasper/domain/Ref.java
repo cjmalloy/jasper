@@ -109,7 +109,6 @@ public class Ref implements HasTags {
 		if (tags == null) return;
 		for (var i = tags.size() - 1; i >= 0; i--) {
 			var t = tags.get(i);
-			if (t.startsWith("_") || t.startsWith("+")) continue;;
 			while (t.contains("/")) {
 				t = t.substring(0, t.lastIndexOf("/"));
 				if (!tags.contains(t)) {
