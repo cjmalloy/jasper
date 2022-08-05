@@ -118,6 +118,10 @@ public class Ref implements HasTags {
 		}
 	}
 
+	public void removePrefixTags() {
+		removePrefixTags(this.tags);
+	}
+
 	@JsonIgnore
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;
@@ -125,7 +129,10 @@ public class Ref implements HasTags {
 			tags = toAdd;
 		} else {
 			for (var t : toAdd) {
-				if (!tags.contains(t)) {
+				if (t.startsWith("-")) {
+					tags.remove(t.substring(1));
+				}
+				else if (!tags.contains(t)) {
 					tags.add(t);
 				}
 			}
@@ -144,5 +151,18 @@ public class Ref implements HasTags {
 	@Override
 	public int hashCode() {
 		return Objects.hash(url, origin);
+	}
+
+	public static void removePrefixTags(List<String> tags) {
+		if (tags == null) return;
+		for (int i = tags.size() - 1; i >= 0; i--) {
+			var check = tags.get(i) + "/";
+			for (int j = 0; j < tags.size(); j++) {
+				if (tags.get(j).startsWith(check)) {
+					tags.remove(i);
+					break;
+				}
+			}
+		}
 	}
 }

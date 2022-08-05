@@ -129,6 +129,14 @@ public class Auth {
 		return false;
 	}
 
+	public boolean canTagAll(List<String> tags, String url) {
+		if (hasRole("MOD")) return true;
+		for (var tag : tags) {
+			if (!canTag(tag, url)) return false;
+		}
+		return true;
+	}
+
 	public boolean canTag(String tag, String url) {
 		if (hasRole("EDITOR") && isPublicTag(tag) && canReadRef(url)) return true;
 		return canReadTag(tag) && canWriteRef(url);

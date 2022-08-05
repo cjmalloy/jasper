@@ -47,7 +47,19 @@ public class TaggingService {
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
+		ref.removePrefixTags();
 		ref.getTags().remove(tag);
+		ingest.update(ref);
+	}
+
+	@PreAuthorize("@auth.canTagAll(#tags, #url)")
+	public void tag(List<String> tags, String url, String origin) {
+		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
+		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
+		var ref = maybeRef.get();
+		ref.removePrefixTags();
+		ref.addTags(tags);
 		ingest.update(ref);
 	}
 }

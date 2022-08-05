@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,6 +17,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.constraints.Pattern;
+
+import java.util.List;
 
 import static jasper.domain.Origin.ORIGIN_LEN;
 import static jasper.domain.Ref.URL_LEN;
@@ -47,5 +50,15 @@ public class TaggingController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
 		taggingService.delete(tag, url, origin);
+	}
+
+	@PatchMapping
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchTags(
+		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = TagId.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
+	) {
+		taggingService.tag(tags, url, origin);
 	}
 }
