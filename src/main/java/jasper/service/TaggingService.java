@@ -33,7 +33,7 @@ public class TaggingService {
 	public void create(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
+		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
 		ref.addTags(List.of(tag));
@@ -44,7 +44,7 @@ public class TaggingService {
 	public void delete(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isEmpty()) throw new NotFoundException("Ref");
+		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.getTags().remove(tag);

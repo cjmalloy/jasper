@@ -37,7 +37,7 @@ public class PluginService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Plugin get(String tag) {
 		return pluginRepository.findOneByQualifiedTag(tag)
-							   .orElseThrow(() -> new NotFoundException("Plugin"));
+							   .orElseThrow(() -> new NotFoundException("Plugin " + tag));
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
@@ -57,9 +57,9 @@ public class PluginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin");
+		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());
 		plugin.setModified(Instant.now());
 		pluginRepository.save(plugin);
 	}

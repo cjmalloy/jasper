@@ -63,7 +63,7 @@ public class RefService {
 	public RefDto get(String url, String origin) {
 		var result = refRepository.findOneByUrlAndOrigin(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
-			.orElseThrow(() -> new NotFoundException("Ref"));
+			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		return mapper.domainToDto(result);
 	}
 
@@ -93,7 +93,7 @@ public class RefService {
 	public void update(Ref ref) {
 		if (!ref.local()) throw new ForeignWriteException(ref.getOrigin());
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
 		ref.addTags(auth.hiddenTags(existing.getTags()));
@@ -103,7 +103,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url)")
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
@@ -111,7 +111,7 @@ public class RefService {
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			update(updated);
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException("Ref", e);
+			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}
 

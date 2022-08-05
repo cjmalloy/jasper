@@ -66,7 +66,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Ext get(String tag) {
 		return extRepository.findOneByQualifiedTag(tag)
-							.orElseThrow(() -> new NotFoundException("Ext"));
+							.orElseThrow(() -> new NotFoundException("Ext " + tag));
 	}
 
 	@PreAuthorize("@auth.canReadQuery(#filter)")
@@ -81,9 +81,9 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void update(Ext ext) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext");
+		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
 		validate(ext, false);
 		ext.setModified(Instant.now());
 		extRepository.save(ext);
@@ -92,12 +92,12 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void patch(String tag, JsonPatch patch) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(tag);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + tag);
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			update(objectMapper.treeToValue(patched, Ext.class));
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException("Ext", e);
+			throw new InvalidPatchException("Ext " + tag, e);
 		}
 	}
 
@@ -114,7 +114,7 @@ public class ExtService {
 		try {
 			return objectMapper.updateValue(a, b);
 		} catch (JsonMappingException e) {
-			throw new InvalidTemplateException("Merging", e);
+			throw new InvalidTemplateException("Merging Template schemas", e);
 		}
 	}
 

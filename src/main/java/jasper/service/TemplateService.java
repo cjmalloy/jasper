@@ -37,7 +37,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Template get(String tag) {
 		return templateRepository.findOneByQualifiedTag(tag)
-								 .orElseThrow(() -> new NotFoundException("Template"));
+								 .orElseThrow(() -> new NotFoundException("Template " + tag));
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
@@ -53,7 +53,7 @@ public class TemplateService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Template");
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Template "+ template.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Template");
 		template.setModified(Instant.now());

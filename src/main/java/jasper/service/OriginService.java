@@ -42,7 +42,7 @@ public class OriginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public Origin get(String origin) {
 		return originRepository.findById(origin)
-							   .orElseThrow(() -> new NotFoundException("Origin"));
+							   .orElseThrow(() -> new NotFoundException(origin));
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
@@ -62,9 +62,9 @@ public class OriginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void update(Origin origin) {
 		var maybeExisting = originRepository.findById(origin.getOrigin());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Origin");
+		if (maybeExisting.isEmpty()) throw new NotFoundException(origin.getOrigin());
 		var existing = maybeExisting.get();
-		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Origin");
+		if (!origin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException(origin.getOrigin());
 		origin.setModified(Instant.now());
 		originRepository.save(origin);
 	}
