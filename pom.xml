@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.0</version>
+		<version>2.7.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>ca.hc</groupId>
@@ -26,8 +26,8 @@
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
 		<lombok.version>1.18.24</lombok.version>
 		<testcontainers.version>1.16.2</testcontainers.version>
-		<liquibase.version>4.10.0</liquibase.version>
-		<mapstruct.version>1.4.2.Final</mapstruct.version>
+		<liquibase.version>4.14.0</liquibase.version>
+		<mapstruct.version>1.5.2.Final</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.2</jackson-databind-nullable.version>
 		<hibernate-types-55.version>2.16.2</hibernate-types-55.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
