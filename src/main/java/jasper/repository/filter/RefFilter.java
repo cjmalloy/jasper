@@ -79,7 +79,7 @@ public class RefFilter implements Query {
 		}
 		if (isNotBlank(noPluginResponse)) {
 			// TODO: query across origins
-			result = result.and(hasNoPluginResponses(pluginResponse));
+			result = result.and(hasNoPluginResponses(noPluginResponse));
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
