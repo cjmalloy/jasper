@@ -12,6 +12,7 @@ import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+@Profile("repl")
 @Component
 public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);

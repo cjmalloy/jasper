@@ -468,6 +468,8 @@ in minutes between scrapes.
 The `storage` profile enables the backup system. Use the `APPLICATION_STORAGE` environment
 variable to change the location of the storage folder.
 
+The `repl` profile enables remote replication.
+
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
 hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Anonymous.
