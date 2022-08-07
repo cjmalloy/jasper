@@ -11,6 +11,8 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
+
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
 
@@ -23,7 +25,7 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {
-		refDto.setTags(auth.filterTags(refDto.getTags()));
+		refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
 		Ref.removePrefixTags(refDto.getTags());
 	}
 
