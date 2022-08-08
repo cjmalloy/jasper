@@ -34,17 +34,20 @@ public class TemplateService {
 		templateRepository.save(template);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Template get(String tag) {
 		return templateRepository.findOneByQualifiedTag(tag)
 								 .orElseThrow(() -> new NotFoundException("Template " + tag));
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public boolean exists(String tag) {
 		return templateRepository.existsByQualifiedTag(tag);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(filter.spec(), pageable);

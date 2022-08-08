@@ -39,12 +39,14 @@ public class OriginService {
 		originRepository.save(origin);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("hasRole('ADMIN')")
 	public Origin get(String origin) {
 		return originRepository.findById(origin)
 							   .orElseThrow(() -> new NotFoundException(origin));
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("hasRole('ADMIN')")
 	public Page<Origin> page(OriginFilter filter, Pageable pageable) {
 		return originRepository
@@ -52,6 +54,7 @@ public class OriginService {
 				pageable);
 	}
 
+	@Transactional(readOnly = true)
 	public Page<OriginNameDto> pageNames(OriginFilter filter, Pageable pageable) {
 		return originRepository
 			.findAll(filter.spec(),
