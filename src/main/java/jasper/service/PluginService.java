@@ -34,17 +34,20 @@ public class PluginService {
 		pluginRepository.save(plugin);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Plugin get(String tag) {
 		return pluginRepository.findOneByQualifiedTag(tag)
 							   .orElseThrow(() -> new NotFoundException("Plugin " + tag));
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public boolean exists(String tag) {
 		return pluginRepository.existsByQualifiedTag(tag);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository

@@ -35,6 +35,7 @@ public class UserService {
 		userRepository.save(user);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public UserDto get(String tag) {
 		var result = userRepository.findOneByQualifiedTag(tag)
@@ -42,6 +43,7 @@ public class UserService {
 		return mapper.domainToDto(result);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository

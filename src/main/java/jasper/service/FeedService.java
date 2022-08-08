@@ -54,6 +54,7 @@ public class FeedService {
 		feedRepository.save(feed);
 	}
 
+	@Transactional(readOnly = true)
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public FeedDto get(String url, String origin) {
 		var result = feedRepository.findOneByUrlAndOrigin(url, origin)
@@ -61,10 +62,12 @@ public class FeedService {
 		return mapper.domainToDto(result);
 	}
 
+	@Transactional(readOnly = true)
 	public boolean exists(String url, String origin) {
 		return feedRepository.existsByUrlAndOrigin(url, origin);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<FeedDto> page(RefFilter filter, Pageable pageable) {
 		return feedRepository

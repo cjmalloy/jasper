@@ -63,12 +63,14 @@ public class ExtService {
 		extRepository.save(ext);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public Ext get(String tag) {
 		return extRepository.findOneByQualifiedTag(tag)
 							.orElseThrow(() -> new NotFoundException("Ext " + tag));
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Ext> page(TagFilter filter, Pageable pageable) {
 		return extRepository

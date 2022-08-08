@@ -59,6 +59,7 @@ public class RefService {
 		ingest.ingest(ref);
 	}
 
+	@Transactional(readOnly = true)
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	public RefDto get(String url, String origin) {
 		var result = refRepository.findOneByUrlAndOrigin(url, origin)
@@ -67,10 +68,12 @@ public class RefService {
 		return mapper.domainToDto(result);
 	}
 
+	@Transactional(readOnly = true)
 	public boolean exists(String url, String origin) {
 		return refRepository.existsByUrlAndOrigin(url, origin);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
@@ -81,6 +84,7 @@ public class RefService {
 			.map(mapper::domainToDto);
 	}
 
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public long count(RefFilter filter) {
 		return refRepository
