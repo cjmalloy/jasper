@@ -15,7 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
@@ -40,6 +43,10 @@ import static jasper.domain.Ref.SEARCH_LEN;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.TagId.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.util.RestUtil.ifModifiedSince;
+import static jasper.util.RestUtil.ifModifiedSinceList;
+import static jasper.util.RestUtil.ifModifiedSincePage;
+import static jasper.util.RestUtil.sortedByTime;
 
 @RestController
 @RequestMapping("api/v1/ref")
@@ -58,11 +65,12 @@ public class RefController {
 	}
 
 	@GetMapping
-	RefDto getRef(
+	HttpEntity<RefDto> getRef(
+		WebRequest request,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return refService.get(url, origin);
+		return ifModifiedSince(request, refService.get(url, origin));
 	}
 
 	@GetMapping("exists")
@@ -74,21 +82,23 @@ public class RefController {
 	}
 
 	@GetMapping("list")
-	List<RefDto> getList(
+	HttpEntity<List<RefDto>> getList(
+		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return urls.stream().map(url -> {
+		return ifModifiedSinceList(request, urls.stream().map(url -> {
 			try {
 				return refService.get(url, origin);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
-		}).toList();
+		}).toList());
 	}
 
 	@GetMapping("page")
-	Page<RefDto> getPage(
+	HttpEntity<Page<RefDto>> getPage(
+		WebRequest request,
 		@PageableDefault Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) String url,
@@ -117,7 +127,7 @@ public class RefController {
 						"created"));
 			}
 		}
-		return refService.page(
+		var result = refService.page(
 			RefFilter.builder()
 					 .url(url)
 					 .query(query)
@@ -131,6 +141,8 @@ public class RefController {
 					 .noPluginResponse(noPluginResponse)
 					 .modifiedAfter(modifiedAfter).build(),
 			pageable);
+		if (!sortedByTime(pageable)) return ResponseEntity.ok(result);
+		return ifModifiedSincePage(request, result);
 	}
 
 	@GetMapping("count")
