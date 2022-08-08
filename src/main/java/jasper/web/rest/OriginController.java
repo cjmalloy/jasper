@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
@@ -27,6 +30,9 @@ import java.time.Instant;
 
 import static jasper.domain.Origin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.util.RestUtil.ifModifiedSince;
+import static jasper.util.RestUtil.ifModifiedSincePage;
+import static jasper.util.RestUtil.sortedByTime;
 
 @RestController
 @RequestMapping("api/v1/origin")
@@ -45,24 +51,28 @@ public class OriginController {
 	}
 
 	@GetMapping
-	Origin getOrigin(
+	HttpEntity<Origin> getOrigin(
+		WebRequest request,
 		@RequestParam @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return originService.get(origin);
+		return ifModifiedSince(request, originService.get(origin));
 	}
 
 	@GetMapping("page")
-	Page<Origin> getPage(
+	HttpEntity<Page<Origin>> getPage(
+		WebRequest request,
 		@PageableDefault(sort = "origin") Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
-		return originService.page(
+		var result = originService.page(
 			OriginFilter
 				.builder()
 				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);
+		if (!sortedByTime(pageable)) return ResponseEntity.ok(result);
+		return ifModifiedSincePage(request, result);
 	}
 
 	@GetMapping("list/names")
