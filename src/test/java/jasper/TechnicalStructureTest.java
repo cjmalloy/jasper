@@ -15,6 +15,7 @@ class TechnicalStructureTest {
     // prettier-ignore
     @ArchTest
     static final ArchRule respectsTechnicalArchitectureLayers = layeredArchitecture()
+        .layer("Util").definedBy("..util..")
         .layer("Config").definedBy("..config..")
         .layer("Client").definedBy("..client..")
         .layer("Web").definedBy("..web..")
@@ -31,7 +32,7 @@ class TechnicalStructureTest {
         .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Component", "Config", "Security")
         .whereLayer("Security").mayOnlyBeAccessedByLayers("Config", "Client", "Service", "Web")
         .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config")
-        .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Client", "Service", "Component", "Security", "Web", "Config")
+        .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Client", "Service", "Component", "Security", "Web", "Util", "Config")
 
         .ignoreDependency(belongToAnyOf(JasperApplication.class), alwaysTrue())
         .ignoreDependency(alwaysTrue(), belongToAnyOf(

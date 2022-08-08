@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
@@ -30,6 +32,8 @@ import java.util.List;
 
 import static jasper.domain.TagId.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.util.RestUtil.ifModifiedSince;
+import static jasper.util.RestUtil.ifModifiedSinceList;
 
 @RestController
 @RequestMapping("api/v1/plugin")
@@ -48,10 +52,11 @@ public class PluginController {
 	}
 
 	@GetMapping
-	Plugin getPlugin(
+	HttpEntity<Plugin> getPlugin(
+		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String tag
 	) {
-		return pluginService.get(tag);
+		return ifModifiedSince(request, pluginService.get(tag));
 	}
 
 	@GetMapping("exists")
@@ -62,16 +67,17 @@ public class PluginController {
 	}
 
 	@GetMapping("list")
-	List<Plugin> getList(
+	HttpEntity<List<Plugin>> getList(
+		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String> tags
 	) {
-		return tags.stream().map(tag -> {
+		return ifModifiedSinceList(request, tags.stream().map(tag -> {
 			try {
 				return pluginService.get(tag);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
-		}).toList();
+		}).toList());
 	}
 
 	@GetMapping("page")

@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.constraints.Pattern;
-
 import java.util.List;
 
 import static jasper.domain.Origin.ORIGIN_LEN;
