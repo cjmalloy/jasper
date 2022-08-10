@@ -2,13 +2,20 @@ package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
 import com.rometools.rome.io.FeedException;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Feed;
 import jasper.domain.Origin;
+import jasper.domain.Ref;
 import jasper.repository.filter.RefFilter;
 import jasper.service.FeedService;
 import jasper.service.dto.FeedDto;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,11 +49,21 @@ import static jasper.util.RestUtil.ifModifiedSince;
 @RestController
 @RequestMapping("api/v1/feed")
 @Validated
+@Tag(name = "Feed")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class FeedController {
 
 	@Autowired
 	FeedService feedService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "404", description = "Foreign Write", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createFeed(
@@ -55,6 +72,11 @@ public class FeedController {
 		feedService.create(feed);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<FeedDto> getFeed(
 		WebRequest request,
@@ -64,19 +86,14 @@ public class FeedController {
 		return ifModifiedSince(request, feedService.get(url, origin));
 	}
 
-	@GetMapping("exists")
-	boolean feedExists(
-		@RequestParam @Length(max = URL_LEN) @URL String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
-	) {
-		return feedService.exists(url, origin);
-	}
-
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("page")
-	Page<FeedDto> getPage(
-		@PageableDefault(sort = "modified", direction = Direction.DESC) Pageable pageable,
+	Page<FeedDto> getFeedPage(
+		@PageableDefault(sort = "modified", direction = Direction.DESC) @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) @Length(max = URL_LEN) String url,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return feedService.page(
@@ -89,6 +106,10 @@ public class FeedController {
 			pageable);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateFeed(
@@ -97,6 +118,10 @@ public class FeedController {
 		feedService.update(feed);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchFeed(
@@ -107,6 +132,9 @@ public class FeedController {
 		feedService.patch(url, origin, patch);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteFeed(
@@ -115,7 +143,13 @@ public class FeedController {
 		feedService.delete(url);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "503", description = "Error scraping", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping("scrape")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void scrape(
 		@RequestParam @Length(max = URL_LEN) @URL String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin

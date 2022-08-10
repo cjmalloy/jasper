@@ -1,113 +1,2339 @@
 openapi: 3.0.3
-# API-first development with OpenAPI
-# This file will be used at compile time to generate Spring-MVC endpoint stubs using openapi-generator
 info:
-  title: 'jasper'
-  version: 0.0.1
+  title: Jasper KMS
+  description: REST API for Jasper Knowledge Management Server
+  version: '1.1.0'
+  license:
+    name: MIT License
+    url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
-  - url: http://localhost:8081/api/v1
-    description: Development server
-  - url: https://localhost:8081/api/v1
-    description: Development server with TLS Profile
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.1.0
 paths:
-  /ref:
+  /api/v1/origin:
     get:
-      summary: List all refs
-      operationId: listRefs
       tags:
-        - ref
+        - Origin
+      operationId: getOrigin
       parameters:
-        - name: limit
+        - name: origin
           in: query
-          description: How many items to return at one time
+          required: true
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Origin'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Origin
+      operationId: updateOrigin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Origin'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Origin
+      operationId: createOrigin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Origin'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Origin
+      operationId: deleteOrigin
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/origin/page:
+    get:
+      tags:
+        - Origin
+      operationId: getOriginPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'origin,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin-query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageOrigin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/ref:
+    get:
+      tags:
+        - Ref
+      operationId: getRef
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ref'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Ref
+      operationId: updateRef
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ref'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Ref
+      operationId: createRef
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ref'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ForeignWrite'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ref
+      operationId: deleteRef
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+        - Ref
+      operationId: patchRef
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ref/list:
+    get:
+      tags:
+        - Ref
+      operationId: getRefList
+      parameters:
+        - name: urls
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ref/page:
+    get:
+      tags:
+        - Ref
+      operationId: getRefPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: sources
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: responses
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: uncited
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: unsourced
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: pluginResponse
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/plugin-tag'
+        - name: noPluginResponse
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/plugin-tag'
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageRef'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/ref/count:
+    get:
+      tags:
+        - Ref
+      operationId: countRefs
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: sources
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: responses
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: uncited
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: unsourced
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: pluginResponse
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/plugin-tag'
+        - name: noPluginResponse
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/plugin-tag'
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: integer
+                format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/tags:
+    post:
+      tags:
+        - Tagging
+      operationId: createTags
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Tagging
+      operationId: deleteTags
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Tagging
+      operationId: patchTags
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/feed:
+    get:
+      tags:
+        - Feed
+      operationId: getFeed
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Feed'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Feed
+      operationId: updateFeed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Feed'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Feed
+      operationId: createFeed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Feed'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ForeignWrite'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Feed
+      operationId: deleteFeed
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+        - Feed
+      operationId: patchFeed
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/feed/page:
+    get:
+      tags:
+        - Feed
+      operationId: getFeedPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'modified,DESC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageFeed'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/feed/scrape:
+    get:
+      tags:
+        - Feed
+      operationId: scrape
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error scraping
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/ext:
+    get:
+      tags:
+        - Ext
+      operationId: getExt
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ext'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Ext
+      operationId: updateExt
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ext'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Ext
+      operationId: createExt
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ext'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ext
+      operationId: deleteExt
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+        - Ext
+      operationId: patchExt
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ext/page:
+    get:
+      tags:
+        - Ext
+      operationId: getExtPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'tag,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageExt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/plugin:
+    get:
+      tags:
+        - Plugin
+      operationId: getPlugin
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/plugin-qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Plugin'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Plugin
+      operationId: updatePlugin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Plugin
+      operationId: createPlugin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Plugin
+      operationId: deletePlugin
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/plugin-qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/plugin/list:
+    get:
+      tags:
+        - Plugin
+      operationId: getPluginList
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/plugin-qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plugin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/plugin/page:
+    get:
+      tags:
+        - Plugin
+      operationId: getPluginPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'tag,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PagePlugin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/template:
+    get:
+      tags:
+        - Template
+      operationId: getTemplate
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/template-qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Template'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Template
+      operationId: updateTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Template'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Template
+      operationId: createTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Template'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Template
+      operationId: deleteTemplate
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/template-qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/template/page:
+    get:
+      tags:
+        - Template
+      operationId: getTemplatePage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'tag,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageTemplate'
+  /api/v1/template/list:
+    get:
+      tags:
+        - Template
+      operationId: getTemplateList
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/template-qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+  /api/v1/user:
+    get:
+      tags:
+        - User
+      operationId: getUser
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/user-qtag'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/User'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - User
+      operationId: updateUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - User
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - User
+      operationId: deleteUser
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/user-qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/user/page:
+    get:
+      tags:
+        - User
+      operationId: getUserPage
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'tag,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/user/whoami:
+    get:
+      tags:
+        - User
+      operationId: whoAmI
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                properties:
+                  tag:
+                    type: string
+                  admin:
+                    type: boolean
+                  mod:
+                    type: boolean
+                  editor:
+                    type: boolean
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/backup:
+    get:
+      tags:
+        - Backup
+      operationId: listBackups
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Backup
+      operationId: createBackup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupOptions'
+      responses:
+        '201':
+          description: Created
+          content:
+            '*/*':
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/backup/{id}:
+    get:
+      tags:
+        - Backup
+      operationId: downloadBackup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Backup
+      operationId: deleteBackup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/backup/upload/{id}:
+    post:
+      tags:
+        - Backup
+      operationId: uploadBackup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: Created
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/backup/restore/{id}:
+    post:
+      tags:
+        - Backup
+      operationId: restoreBackup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupOptions'
+      responses:
+        '204':
+          description: No Content
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/repl/ref:
+    get:
+      tags:
+        - Repl
+      operationId: ref
+      parameters:
+        - name: size
+          in: query
           required: false
           schema:
             type: integer
             format: int32
-      responses:
-        200:
-          description: An paged array of refs
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Refs"
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/responses/Problem"
-    post:
-      summary: Create a ref
-      operationId: createRef
-      tags:
-        - ref
-      responses:
-        201:
-          description: Null response
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/responses/Problem"
-  /ref/{url}:
-    get:
-      summary: Info for a specific ref
-      operationId: showRefByUrl
-      tags:
-        - ref
-      parameters:
-        - name: url
-          in: path
-          required: true
-          description: The url of the ref to retrieve
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
           schema:
             type: string
+            format: date-time
       responses:
-        200:
-          description: Expected response to a valid request
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
-                $ref: "#/components/schemas/Refs"
-        default:
-          description: unexpected error
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/repl/feed:
+    get:
+      tags:
+        - Repl
+      operationId: feed
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
-                $ref: "#/components/responses/Problem"
+                type: array
+                items:
+                  $ref: '#/components/schemas/Feed'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/repl/ext:
+    get:
+      tags:
+        - Repl
+      operationId: ext
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ext'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/repl/plugin:
+    get:
+      tags:
+        - Repl
+      operationId: plugin
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plugin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/repl/template:
+    get:
+      tags:
+        - Repl
+      operationId: template
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/repl/user:
+    get:
+      tags:
+        - Repl
+      operationId: user
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 500
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/cors/twitter:
+    get:
+      tags:
+        - CorsBuster
+      operationId: getTweet
+      parameters:
+        - name: params
+          in: query
+          required: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found
+  /api/v1/cors/bitChute:
+    get:
+      tags:
+        - CorsBuster
+      operationId: getBitChute
+      parameters:
+        - name: params
+          in: query
+          required: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found
 components:
   schemas:
+    name:
+      type: string
+      description: Display name
+      example: Name
+      maxLength: 512
+    url:
+      type: string
+      format: uri
+      pattern: '([^:/?#]+):(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
+      description: URL
+      example: http://jasper-kms.info/
+      maxLength: 4096
+    title:
+      type: string
+      description: Title
+      example: Title
+      maxLength: 512
+    origin:
+      type: string
+      pattern: '@[a-z]+(\.[a-z])*'
+      default: ''
+      description: Origin
+      example: '@origin'
+      maxLength: 64
+    origin-query:
+      type: string
+      pattern: '!?@[a-z]+(\.[a-z])*([ |]!?@[a-z]+(\.[a-z])*)*'
+      description: Origin Query
+      example: '@origin|@test'
+      maxLength: 512
+    tag:
+      type: string
+      pattern: '[_+]?[a-z]+(/[a-z]+)*'
+      description: Tag
+      example: 'tag'
+      maxLength: 64
+    qtag:
+      type: string
+      pattern: '[_+]?[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      description: Optionally Qualified Tag
+      example: 'tag@origin'
+      maxLength: 127
+    query:
+      type: string
+      description: Tag Query
+      pattern: '(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\))([ |:&](!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\)))*'
+      example: '(politics|science):!funny'
+      maxLength: 512
+    template-tag:
+      type: string
+      pattern: '(_?[a-z]+(/[a-z]+)*)?'
+      description: Template Tag
+      example: 'kanban'
+      maxLength: 64
+    template-qtag:
+      type: string
+      pattern: '(_?[a-z]+(/[a-z]+)*)?(@[a-z]+(\.[a-z])*)?'
+      description: Optionally Qualified Template Tag
+      example: 'kanban@origin'
+      maxLength: 127
+    plugin-tag:
+      type: string
+      pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*'
+      description: Plugin Tag
+      example: 'plugin/thumbnail'
+      maxLength: 64
+    plugin-qtag:
+      type: string
+      pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      description: Optionally Qualified Plugin Tag
+      example: 'plugin/thumbnail@origin'
+      maxLength: 127
+    user-tag:
+      type: string
+      pattern: '[_+]user/[a-z]+(/[a-z]+)*'
+      description: User Tag
+      example: '+user/charlie'
+      maxLength: 64
+    user-qtag:
+      type: string
+      pattern: '[_+]user/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      description: Optionally Qualified User Tag
+      example: '+user/charlie@origin'
+      maxLength: 127
+    Origin:
+      required:
+        - origin
+        - url
+      type: object
+      properties:
+        origin:
+          $ref: '#/components/schemas/origin'
+        url:
+          $ref: '#/components/schemas/url'
+        name:
+          $ref: '#/components/schemas/name'
+        proxy:
+          $ref: '#/components/schemas/url'
+        modified:
+          type: string
+          format: date-time
+        lastScrape:
+          type: string
+          format: date-time
     Ref:
       required:
-        - id
-        - name
+        - published
+        - url
+      type: object
       properties:
-        id:
+        url:
+          $ref: '#/components/schemas/url'
+        origin:
+          $ref: '#/components/schemas/origin'
+        title:
+          $ref: '#/components/schemas/title'
+        comment:
+          type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/tag'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/url'
+        alternateUrls:
+          type: array
+          items:
+            $ref: '#/components/schemas/url'
+        plugins:
+          type: object
+          example:
+            'plugin/thumbnail':
+              url: http://example-thumbnail.com/image.png
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        published:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        modified:
+          type: string
+          format: date-time
+    Metadata:
+      type: object
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/url'
+        internalResponses:
+          type: array
+          items:
+            $ref: '#/components/schemas/url'
+        plugins:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/url'
+          example:
+            'plugin/comment':
+              - comment:671ceb54-3fac-4f14-b5e0-3b7270fa1787
+              - comment:d4a83102-a94b-4bfb-8914-1863ac673bde
+    Ext:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/tag'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        modified:
+          type: string
+          format: date-time
+    Plugin:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/plugin-tag'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        defaults:
+          type: object
+        schema:
+          type: object
+        generateMetadata:
+          type: boolean
+        modified:
+          type: string
+          format: date-time
+    Template:
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/template-tag'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        defaults:
+          type: object
+        schema:
+          type: object
+        modified:
+          type: string
+          format: date-time
+    User:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/user-tag'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        readAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        writeAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        tagReadAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        tagWriteAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        modified:
+          type: string
+          format: date-time
+    Feed:
+      required:
+        - url
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/tag'
+        modified:
+          type: string
+          format: date-time
+        lastScrape:
+          type: string
+          format: date-time
+        scrapeInterval:
+          type: string
+          format: duration
+          example: PT15M
+        scrapeDescription:
+          type: boolean
+        removeDescriptionIndent:
+          type: boolean
+    BackupOptions:
+      type: object
+      properties:
+        ext:
+          type: boolean
+        feed:
+          type: boolean
+        origin:
+          type: boolean
+        plugin:
+          type: boolean
+        ref:
+          type: boolean
+        template:
+          type: boolean
+        user:
+          type: boolean
+    Sort:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+    PageOrigin:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
           type: integer
           format: int64
-        name:
-          type: string
-        tag:
-          type: string
-    Refs:
-      type: array
-      items:
-        $ref: "#/components/schemas/Ref"
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Origin'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageRef:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ref'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageExt:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ext'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PagePlugin:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plugin'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageTemplate:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Template'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageUser:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageFeed:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feed'
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: '#/components/schemas/Sort'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
   responses:
-    Problem:
-      description: error occurred - see status code and problem object for more information.
+    BadRequest:
+      description: Bad Request
       content:
         'application/problem+json':
           schema:
             $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-
-  securitySchemes:
-    jwt:
-      type: http
-      description: JWT Authentication
-      scheme: bearer
-      bearerFormat: JWT
-security:
-  - jwt: []
+    NotFound:
+      description: Not Found
+      content:
+        'application/problem+json':
+          schema:
+            $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    ForeignWrite:
+      description: Foreign Write
+      content:
+        'application/problem+json':
+          schema:
+            $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    Conflict:
+      description: Conflict
+      content:
+        'application/problem+json':
+          schema:
+            $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    Forbidden:
+      description: Forbidden
+      content:
+        'application/problem+json':
+          schema:
+            $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'

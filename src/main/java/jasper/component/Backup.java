@@ -8,6 +8,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.FeedRepository;
 import jasper.repository.OriginRepository;
@@ -76,9 +77,8 @@ public class Backup {
 	public void createBackup(String id, BackupOptionsDto options) throws IOException {
 		var start = Instant.now();
 		log.info("Creating Backup");
-		Files.createDirectories(Paths.get(storagePath, "backups"));
-		URI uri = URI.create("jar:file:" + storagePath + "/backups/_" + id + ".zip");
-		try (FileSystem zipfs = FileSystems.newFileSystem(uri, Map.of("create", "true"))) {
+		Files.createDirectories(dir());
+		try (FileSystem zipfs = FileSystems.newFileSystem(zipfs("_" + id), Map.of("create", "true"))) {
 			if (options == null || options.isRef()) {
 				backupRepo(refRepository, zipfs.getPath("/ref.json"), false);
 			}
@@ -104,9 +104,7 @@ public class Backup {
 			throw new RuntimeException(e);
 		}
 		// Remove underscore to indicate writing has finished
-		Files.move(
-			Paths.get(storagePath, "backups", "_" + id + ".zip"),
-			Paths.get(storagePath, "backups",       id + ".zip"));
+		Files.move(path("_" + id), path(id));
 		log.info("Finished Backup");
 		log.info("Backup Duration {}", Duration.between(start, Instant.now()));
 	}
@@ -146,12 +144,20 @@ public class Backup {
 		Files.write(path, "]\n".getBytes(), StandardOpenOption.APPEND);
 	}
 
-	public byte[] get(String id) throws IOException {
-		return Files.readAllBytes(Paths.get(storagePath, "backups", id + ".zip"));
+	public byte[] get(String id) {
+		try {
+			return Files.readAllBytes(path(id));
+		} catch (IOException e) {
+			throw new NotFoundException("Backup " + id);
+		}
+	}
+
+	public boolean exists(String id) {
+		return path(id).toFile().exists();
 	}
 
 	public List<String> listBackups() {
-		try (var list = Files.list(Paths.get(storagePath, "backups"))) {
+		try (var list = Files.list(dir())) {
 			return list
 				.map(f -> f.getFileName().toString())
 				.filter(n -> n.endsWith(".zip"))
@@ -165,8 +171,7 @@ public class Backup {
 	public void restore(String id, BackupOptionsDto options) {
 		var start = Instant.now();
 		log.info("Restoring Backup");
-		var zipPath = Paths.get(storagePath, "backups", id + ".zip");
-		try (FileSystem zipfs = FileSystems.newFileSystem(zipPath)) {
+		try (FileSystem zipfs = FileSystems.newFileSystem(path(id))) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, zipfs.getPath("/ref.json"), Ref.class);
 			}
@@ -201,12 +206,24 @@ public class Backup {
 	}
 
 	public void store(String id, byte[] zipFile) throws IOException {
-		var path = Paths.get(storagePath, "backups", id + ".zip");
+		var path = path (id);
 		Files.createDirectories(path.getParent());
 		Files.write(path, zipFile, StandardOpenOption.CREATE);
 	}
 
 	public void delete(String id) throws IOException {
-		Files.delete(Paths.get(storagePath, "backups", id + ".zip"));
+		Files.delete(path(id));
+	}
+
+	Path dir() {
+		return Paths.get(storagePath, "backups");
+	}
+
+	Path path(String id) {
+		return Paths.get(storagePath, "backups", id + ".zip");
+	}
+
+	URI zipfs(String id) {
+		return URI.create("jar:file:" + storagePath + "/backups/" + id + ".zip");
 	}
 }

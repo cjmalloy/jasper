@@ -1,11 +1,17 @@
 package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
 import jasper.domain.TagId;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import org.hibernate.validator.constraints.Length;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,11 +41,20 @@ import static jasper.util.RestUtil.ifModifiedSince;
 @RestController
 @RequestMapping("api/v1/ext")
 @Validated
+@Tag(name = "Ext")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class ExtController {
 
 	@Autowired
 	ExtService extService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createExt(
@@ -48,6 +63,11 @@ public class ExtController {
 		extService.create(ext);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<Ext> getExt(
 		WebRequest request,
@@ -56,9 +76,12 @@ public class ExtController {
 		return ifModifiedSince(request, extService.get(tag));
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("page")
-	Page<Ext> getPage(
-		@PageableDefault(sort = "tag") Pageable pageable,
+	Page<Ext> getExtPage(
+		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query
 	) {
 		return extService.page(
@@ -68,6 +91,10 @@ public class ExtController {
 			pageable);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateExt(
@@ -76,6 +103,10 @@ public class ExtController {
 		extService.update(ext);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchExt(
@@ -85,6 +116,9 @@ public class ExtController {
 		extService.patch(tag, patch);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteExt(

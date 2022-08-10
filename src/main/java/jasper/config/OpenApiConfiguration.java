@@ -1,8 +1,9 @@
 package jasper.config;
 
 import org.springdoc.core.GroupedOpenApi;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
 @Profile("api-docs")
@@ -11,16 +12,23 @@ public class OpenApiConfiguration {
     public static final String API_FIRST_PACKAGE = "jasper.web.api";
 
     @Bean
-    @ConditionalOnMissingBean(name = "apiFirstGroupedOpenAPI")
-    public GroupedOpenApi apiFirstGroupedOpenAPI(
+    public GroupedOpenApi openApi(
         ApplicationProperties applicationProperties
     ) {
         ApplicationProperties.ApiDocs properties = applicationProperties.getApiDocs();
         return GroupedOpenApi
             .builder()
-            .group("openapi")
-            .packagesToScan(API_FIRST_PACKAGE)
+			.displayName(properties.getTitle())
+            .group("jasper")
+            .packagesToScan("jasper.web.rest")
             .pathsToMatch(properties.getDefaultIncludePattern())
+			.addOpenApiCustomiser(openApi -> {
+				openApi.getInfo().setTitle(properties.getTitle());
+				openApi.getInfo().setDescription(properties.getDescription());
+				openApi.getInfo().setVersion(properties.getVersion());
+				openApi.getInfo().setLicense(properties.getLicense());
+				properties.getServers().forEach(openApi::addServersItem);
+			})
             .build();
     }
 }

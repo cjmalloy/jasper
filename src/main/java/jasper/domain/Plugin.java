@@ -36,6 +36,7 @@ import static jasper.domain.TagId.TAG_LEN;
 })
 public class Plugin implements IsTag {
 	public static final String REGEX = "[_+]?plugin/[a-z]+(/[a-z]+)*";
+	public static final String QTAG_REGEX = REGEX + Origin.REGEX;
 	public static final int NAME_LEN = 512;
 
 	@Id

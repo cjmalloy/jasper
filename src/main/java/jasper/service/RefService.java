@@ -69,11 +69,6 @@ public class RefService {
 	}
 
 	@Transactional(readOnly = true)
-	public boolean exists(String url, String origin) {
-		return refRepository.existsByUrlAndOrigin(url, origin);
-	}
-
-	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository

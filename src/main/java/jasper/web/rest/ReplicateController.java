@@ -1,5 +1,10 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
@@ -35,6 +40,12 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 @RestController
 @RequestMapping("api/v1/repl")
 @Validated
+@Tag(name = "Repl")
+@ApiResponses({
+	@ApiResponse(responseCode = "200"),
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class ReplicateController {
 
 	@Autowired

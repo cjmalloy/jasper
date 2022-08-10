@@ -1,10 +1,15 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Origin;
 import jasper.repository.filter.OriginFilter;
 import jasper.service.OriginService;
-import jasper.service.dto.OriginNameDto;
 import org.hibernate.validator.constraints.Length;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,11 +39,20 @@ import static jasper.util.RestUtil.ifModifiedSince;
 @RestController
 @RequestMapping("api/v1/origin")
 @Validated
+@Tag(name = "Origin")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class OriginController {
 
 	@Autowired
 	OriginService originService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createOrigin(
@@ -47,6 +61,11 @@ public class OriginController {
 		originService.create(origin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<Origin> getOrigin(
 		WebRequest request,
@@ -55,9 +74,12 @@ public class OriginController {
 		return ifModifiedSince(request, originService.get(origin));
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("page")
-	Page<Origin> getPage(
-		@PageableDefault(sort = "origin") Pageable pageable,
+	Page<Origin> getOriginPage(
+		@PageableDefault(sort = "origin") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = OriginFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
@@ -69,20 +91,10 @@ public class OriginController {
 			pageable);
 	}
 
-	@GetMapping("list/names")
-	Page<OriginNameDto> getOriginNames(
-		@PageableDefault(sort = "origin") Pageable pageable,
-		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = OriginFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
-	) {
-		return originService.pageNames(
-			OriginFilter
-				.builder()
-				.modifiedAfter(modifiedAfter)
-				.query(query).build(),
-			pageable);
-	}
-
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateOrigin(
@@ -91,6 +103,9 @@ public class OriginController {
 		originService.update(origin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteOrigin(

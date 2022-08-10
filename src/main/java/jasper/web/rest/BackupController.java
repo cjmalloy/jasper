@@ -1,9 +1,15 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.service.BackupService;
 import jasper.service.dto.BackupOptionsDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
@@ -20,23 +27,43 @@ import java.util.List;
 @Profile("storage")
 @RestController
 @RequestMapping("api/v1/backup")
+@Tag(name = "Backup")
+@ApiResponses({
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class BackupController {
 
 	@Autowired
 	BackupService backupService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+	})
 	@PostMapping
-	public String create(@RequestBody(required = false) BackupOptionsDto options) throws IOException {
+	public String createBackup(
+		@RequestBody(required = false) BackupOptionsDto options
+	) throws IOException {
 		return backupService.createBackup(options);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping
-	public List<String> list() {
+	public List<String> listBackups() {
 		return backupService.listBackups();
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping(value = "{id}")
-	public ResponseEntity<byte[]> download(@PathVariable String id) throws IOException {
+	public ResponseEntity<byte[]> downloadBackup(
+		@PathVariable String id
+	) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
@@ -46,26 +73,44 @@ public class BackupController {
 			.body(backupService.getBackup(id));
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+	})
 	@PostMapping("upload/{id}")
-	public void upload(@PathVariable String id,
-					   @RequestBody(required = false) byte[] zipFile) throws IOException {
+	@ResponseStatus(HttpStatus.CREATED)
+	public void uploadBackup(
+		@PathVariable String id,
+		@RequestBody(required = false) byte[] zipFile
+	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
 		backupService.uploadBackup(id, zipFile);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping("restore/{id}")
-	public void restore(@PathVariable String id,
-						@RequestBody(required = false) BackupOptionsDto options) {
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void restoreBackup(
+		@PathVariable String id,
+		@RequestBody(required = false) BackupOptionsDto options) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
 		backupService.restoreBackup(id, options);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping("{id}")
-	public void delete(@PathVariable String id) throws IOException {
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteBackup(
+		@PathVariable String id
+	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}

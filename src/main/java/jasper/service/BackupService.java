@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.component.Backup;
+import jasper.errors.NotFoundException;
 import jasper.service.dto.BackupOptionsDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -33,15 +34,17 @@ public class BackupService {
 		return backup.listBackups();
 	}
 
-	public byte[] getBackup(String id) throws IOException {
+	public byte[] getBackup(String id) {
 		return backup.get(id);
 	}
 
 	public void restoreBackup(String id, BackupOptionsDto options) {
+		if (!backup.exists(id)) throw new NotFoundException("Backup " + id);
 		backup.restore(id, options);
 	}
 
 	public void deleteBackup(String id) throws IOException {
+		if (!backup.exists(id)) return; // Delete is idempotent
 		backup.delete(id);
 	}
 }

@@ -1,10 +1,16 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Plugin;
 import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
 import org.hibernate.validator.constraints.Length;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,11 +44,20 @@ import static jasper.util.RestUtil.ifModifiedSinceList;
 @RestController
 @RequestMapping("api/v1/plugin")
 @Validated
+@Tag(name = "Plugin")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class PluginController {
 
 	@Autowired
 	PluginService pluginService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createPlugin(
@@ -51,25 +66,26 @@ public class PluginController {
 		pluginService.create(plugin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<Plugin> getPlugin(
 		WebRequest request,
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
 		return ifModifiedSince(request, pluginService.get(tag));
 	}
 
-	@GetMapping("exists")
-	boolean pluginExists(
-		@RequestParam String tag
-	) {
-		return pluginService.exists(tag);
-	}
-
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("list")
-	HttpEntity<List<Plugin>> getList(
+	HttpEntity<List<Plugin>> getPluginList(
 		WebRequest request,
-		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String> tags
+		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String> tags
 	) {
 		return ifModifiedSinceList(request, tags.stream().map(tag -> {
 			try {
@@ -80,9 +96,12 @@ public class PluginController {
 		}).toList());
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("page")
-	Page<Plugin> getPage(
-		@PageableDefault(sort = "tag") Pageable pageable,
+	Page<Plugin> getPluginPage(
+		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
@@ -94,6 +113,10 @@ public class PluginController {
 			pageable);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updatePlugin(
@@ -102,10 +125,13 @@ public class PluginController {
 		pluginService.update(plugin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deletePlugin(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
 		pluginService.delete(tag);
 	}

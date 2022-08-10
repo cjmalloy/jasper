@@ -1,13 +1,20 @@
 package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Origin;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
 import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -48,11 +55,20 @@ import static jasper.util.RestUtil.ifModifiedSinceList;
 @RestController
 @RequestMapping("api/v1/ref")
 @Validated
+@Tag(name = "Ref")
+@ApiResponses({
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class RefController {
 
 	@Autowired
 	RefService refService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "404", description = "Foreign Write", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createRef(
@@ -61,6 +77,12 @@ public class RefController {
 		refService.create(ref);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<RefDto> getRef(
 		WebRequest request,
@@ -70,16 +92,13 @@ public class RefController {
 		return ifModifiedSince(request, refService.get(url, origin));
 	}
 
-	@GetMapping("exists")
-	boolean refExists(
-		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
-	) {
-		return refService.exists(url, origin);
-	}
-
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping("list")
-	HttpEntity<List<RefDto>> getList(
+	HttpEntity<List<RefDto>> getRefList(
 		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
@@ -93,18 +112,22 @@ public class RefController {
 		}).toList());
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping("page")
-	Page<RefDto> getPage(
-		@PageableDefault Pageable pageable,
+	Page<RefDto> getRefPage(
+		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) @Length(max = URL_LEN) String url,
-		@RequestParam(required = false) @Length(max = URL_LEN) String sources,
-		@RequestParam(required = false) @Length(max = URL_LEN) String responses,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) @Length(max = TAG_LEN) String pluginResponse,
-		@RequestParam(required = false) @Length(max = TAG_LEN) String noPluginResponse,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String pluginResponse,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		var rankedSort = false;
@@ -139,16 +162,21 @@ public class RefController {
 			pageable);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping("count")
 	long countRefs(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) @Length(max = URL_LEN) String sources,
-		@RequestParam(required = false) @Length(max = URL_LEN) String responses,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) @Length(max = TAG_LEN) String pluginResponse,
-		@RequestParam(required = false) @Length(max = TAG_LEN) String noPluginResponse,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String pluginResponse,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return refService.count(
@@ -156,6 +184,7 @@ public class RefController {
 				.builder()
 				.query(query)
 				.search(search)
+				.url(url)
 				.sources(sources)
 				.responses(responses)
 				.uncited(uncited)
@@ -165,6 +194,11 @@ public class RefController {
 				.modifiedAfter(modifiedAfter).build());
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(
@@ -173,6 +207,11 @@ public class RefController {
 		refService.update(ref);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchRef(
@@ -183,6 +222,10 @@ public class RefController {
 		refService.patch(url, origin, patch);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteRef(

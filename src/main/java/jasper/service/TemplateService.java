@@ -42,12 +42,6 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public boolean exists(String tag) {
-		return templateRepository.existsByQualifiedTag(tag);
-	}
-
-	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(filter.spec(), pageable);

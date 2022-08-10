@@ -190,6 +190,7 @@ public class Ingest {
 
 	public void updateMetadata(Ref ref, Ref existing) {
 		if (ref != null) {
+			// Creating or updating (not deleting)
 			ref.setMetadata(Metadata
 				.builder()
 				.responses(refRepository.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
@@ -239,6 +240,7 @@ public class Ingest {
 		}
 
 		if (existing != null && existing.getSources() != null) {
+			// Updating or deleting (now new)
 			var removedSources = ref == null
 				? existing.getSources()
 				: existing.getSources()

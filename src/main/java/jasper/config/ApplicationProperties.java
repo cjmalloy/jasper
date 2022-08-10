@@ -1,5 +1,7 @@
 package jasper.config;
 
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.servers.Server;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -251,18 +253,10 @@ public class ApplicationProperties {
 		private String contactName = JHipsterDefaults.ApiDocs.contactName;
 		private String contactUrl = JHipsterDefaults.ApiDocs.contactUrl;
 		private String contactEmail = JHipsterDefaults.ApiDocs.contactEmail;
-		private String license = JHipsterDefaults.ApiDocs.license;
-		private String licenseUrl = JHipsterDefaults.ApiDocs.licenseUrl;
+		private License license;
 		private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
 		private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
-		private Server[] servers = {};
-
-		@Getter
-		@Setter
-		public static class Server {
-			private String url;
-			private String description;
-		}
+		private List<Server> servers;
 	}
 
 	@Getter

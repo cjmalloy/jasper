@@ -63,11 +63,6 @@ public class FeedService {
 	}
 
 	@Transactional(readOnly = true)
-	public boolean exists(String url, String origin) {
-		return feedRepository.existsByUrlAndOrigin(url, origin);
-	}
-
-	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	public Page<FeedDto> page(RefFilter filter, Pageable pageable) {
 		return feedRepository

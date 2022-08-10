@@ -1,5 +1,10 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Origin;
 import jasper.domain.Ref;
 import jasper.domain.TagId;
@@ -26,11 +31,21 @@ import static jasper.domain.TagId.TAG_LEN;
 @RestController
 @RequestMapping("api/v1/tags")
 @Validated
+@Tag(name = "Tagging")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class TaggingController {
 
 	@Autowired
 	TaggingService taggingService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createTags(
@@ -41,6 +56,9 @@ public class TaggingController {
 		taggingService.create(tag, url, origin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTags(
@@ -51,6 +69,9 @@ public class TaggingController {
 		taggingService.delete(tag, url, origin);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@PatchMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchTags(

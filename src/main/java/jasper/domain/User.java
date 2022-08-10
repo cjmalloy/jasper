@@ -38,6 +38,7 @@ import static jasper.domain.TagId.TAG_LEN;
 })
 public class User implements IsTag {
 	public static final String REGEX = "[_+]user/[a-z]+(/[a-z]+)*";
+	public static final String QTAG_REGEX = REGEX + Origin.REGEX;
 	public static final int NAME_LEN = 512;
 	public static final int PUB_KEY_LEN = 4096;
 
@@ -62,19 +63,19 @@ public class User implements IsTag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> readAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> writeAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> writeAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> tagReadAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> tagReadAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.REGEX) String> tagWriteAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> tagWriteAccess;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

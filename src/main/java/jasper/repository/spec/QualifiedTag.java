@@ -19,10 +19,9 @@ import static jasper.repository.spec.TemplateSpec.matchesTag;
 
 public class QualifiedTag {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-
 	public static final String TAG_OR_WILDCARD = "(" + TagId.REGEX + ")?";
 	public static final String ORIGIN_OR_WILDCARD = "(" + Origin.REGEX_NOT_BLANK + "|@\\*)";
-	public static final String REGEX = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
+	public static final String SELECTOR = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
 
 	private final boolean not;
 	private final String tag;
@@ -40,7 +39,7 @@ public class QualifiedTag {
 		} else {
 			tag = qt.substring(0, index);
 			origin = qt.substring(index);
-			if (origin.isEmpty()) throw new UnsupportedOperationException();
+			if (origin.equals("@")) throw new UnsupportedOperationException();
 		}
 	}
 

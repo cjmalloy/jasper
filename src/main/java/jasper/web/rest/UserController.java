@@ -1,5 +1,10 @@
 package jasper.web.rest;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.User;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -7,6 +12,7 @@ import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
+import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +42,11 @@ import static jasper.util.RestUtil.ifModifiedSince;
 @RestController
 @RequestMapping("api/v1/user")
 @Validated
+@Tag(name = "User")
+@ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class UserController {
 
 	@Autowired
@@ -44,6 +55,10 @@ public class UserController {
 	@Autowired
 	Auth auth;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createUser(
@@ -52,17 +67,25 @@ public class UserController {
 		userService.create(user);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@GetMapping
 	HttpEntity<UserDto> getUser(
 		WebRequest request,
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		return ifModifiedSince(request, userService.get(tag));
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("page")
-	Page<UserDto> getPage(
-		@PageableDefault(sort = "tag") Pageable pageable,
+	Page<UserDto> getUserPage(
+		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
@@ -74,6 +97,10 @@ public class UserController {
 			pageable);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateUser(
@@ -82,14 +109,20 @@ public class UserController {
 		userService.update(user);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteUser(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		userService.delete(tag);
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("whoami")
 	RolesDto whoAmI() {
 		return RolesDto
