@@ -542,5 +542,5 @@ Jasper generates the following metadata in Refs:
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
 
 ## Release Notes
-* [v1.0.0](./docs/release-notes/jasper-1.0.0.md)
 * [v1.1.0](./docs/release-notes/jasper-1.1.0.md)
+* [v1.0.0](./docs/release-notes/jasper-1.0.0.md)
