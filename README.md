@@ -2,20 +2,33 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.1.0-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.1.0)
 
 ## Quickstart
-
 To start the server, client and database with a single admin user, run
 the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/docker-compose.yaml)
 docker compose file.
 
 ## Knowledge Management System
-Jasper KMS is an open source knowledge management system. A KMS is similar to a Content Management
+Jasper is an open source knowledge management (KMS) system. A KMS is similar to a Content Management
 System (CMS), but it does not store any content. Instead, a KMS stores links to content. This means
 that adding a KMS to your internal tools is quick and easy. It will index all of your content in a
 single place. Organize with hierarchical tags, track sources and citations and visualize as a graph.
 
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
+
+### Centralized Business Intelligence
+Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
+both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics or alerts.
+Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
+to use your existing data structures and formats.
+
+### Build your own client
+Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
+developers can create a bespoke interface without needing to make any server side changes. Create custom
+plugins and templates and ensure data integrity with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
+schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
+[OpenApi docs](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.1.0) to generate API stubs.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
