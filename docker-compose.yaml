@@ -4,7 +4,7 @@ services:
     ports:
       - 8081:8081
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: dev,jwt,storage
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: jasper
@@ -18,7 +18,3 @@ services:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: jasper
       POSTGRES_DB: jasper
-#  swagger-editor:
-#    image: swaggerapi/swagger-editor:latest
-#    ports:
-#      - 7742:8080
