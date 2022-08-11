@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -258,7 +259,9 @@ public class Auth {
 
 	public String getUserTag() {
 		if (userTag == null) {
-			var principal = getAuthentication().getPrincipal();
+			var authn = getAuthentication();
+			if (authn instanceof AnonymousAuthenticationToken) return null;
+			var principal = authn.getPrincipal();
 			if (principal == null) return null;
 			if (principal instanceof UserDetails) {
 				principal = ((UserDetails) principal).getUsername();
