@@ -51,6 +51,7 @@ import static jasper.domain.TagId.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @RestController
 @RequestMapping("api/v1/ref")
@@ -132,18 +133,25 @@ public class RefController {
 	) {
 		var rankedSort = false;
 		if (pageable.getSort().isUnsorted() || pageable.getSort().getOrderFor("rank") != null) {
-			if (search != null && !search.isBlank()) {
+			if (isNotBlank(search)) {
 				rankedSort = true;
-				pageable = PageRequest.of(
-					pageable.getPageNumber(),
-					pageable.getPageSize());
-			} else {
+			}
+			if (pageable.getSort().isUnsorted()) {
 				pageable = PageRequest.of(
 					pageable.getPageNumber(),
 					pageable.getPageSize(),
 					Sort.by(
 						Direction.DESC,
-						"created"));
+						"modified"));
+			} else {
+				// Remove rank order
+				pageable = PageRequest.of(
+					pageable.getPageNumber(),
+					pageable.getPageSize(),
+					Sort.by(pageable.getSort()
+						.stream()
+						.filter(o -> !o.getProperty().equals("rank"))
+						.toList()));
 			}
 		}
 		return refService.page(
