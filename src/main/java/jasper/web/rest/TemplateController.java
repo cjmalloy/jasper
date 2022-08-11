@@ -107,8 +107,7 @@ public class TemplateController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return templateService.page(
-			TemplateFilter
-				.builder()
+			TemplateFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);

@@ -34,6 +34,8 @@ import org.springframework.web.context.request.WebRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
+import java.time.Instant;
+
 import static jasper.domain.TagId.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
@@ -82,12 +84,13 @@ public class ExtController {
 	@GetMapping("page")
 	Page<Ext> getExtPage(
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
-		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return extService.page(
-			TagFilter
-				.builder()
-				.query(query).build(),
+			TagFilter.builder()
+				.query(query)
+				.modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}
 

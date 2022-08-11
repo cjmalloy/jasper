@@ -156,17 +156,17 @@ public class RefController {
 		}
 		return refService.page(
 			RefFilter.builder()
-					 .url(url)
-					 .query(query)
-					 .search(search)
-					 .rankedOrder(rankedSort)
-					 .sources(sources)
-					 .responses(responses)
-					 .uncited(uncited)
-					 .unsourced(unsourced)
-					 .pluginResponse(pluginResponse)
-					 .noPluginResponse(noPluginResponse)
-					 .modifiedAfter(modifiedAfter).build(),
+				.url(url)
+				.query(query)
+				.search(search)
+				.rankedOrder(rankedSort)
+				.sources(sources)
+				.responses(responses)
+				.uncited(uncited)
+				.unsourced(unsourced)
+				.pluginResponse(pluginResponse)
+				.noPluginResponse(noPluginResponse)
+				.modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}
 
@@ -188,8 +188,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return refService.count(
-			RefFilter
-				.builder()
+			RefFilter.builder()
 				.query(query)
 				.search(search)
 				.url(url)

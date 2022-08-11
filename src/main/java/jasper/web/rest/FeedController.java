@@ -97,12 +97,10 @@ public class FeedController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return feedService.page(
-			RefFilter
-				.builder()
+			RefFilter.builder()
 				.query(query)
 				.url(url)
-				.modifiedAfter(modifiedAfter)
-				.build(),
+				.modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}
 

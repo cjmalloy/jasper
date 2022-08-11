@@ -106,8 +106,7 @@ public class PluginController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return pluginService.page(
-			TagFilter
-				.builder()
+			TagFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);

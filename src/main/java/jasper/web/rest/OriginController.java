@@ -84,8 +84,7 @@ public class OriginController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return originService.page(
-			OriginFilter
-				.builder()
+			OriginFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);

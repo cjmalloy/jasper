@@ -90,8 +90,7 @@ public class UserController {
 		@RequestParam(required = false) Instant modifiedAfter
 	) {
 		return userService.page(
-			TagFilter
-				.builder()
+			TagFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.query(query).build(),
 			pageable);
