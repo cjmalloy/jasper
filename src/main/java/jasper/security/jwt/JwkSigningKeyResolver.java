@@ -1,16 +1,22 @@
 package jasper.security.jwt;
 
-import java.math.BigInteger;
-import java.net.URI;
-import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.SigningKeyResolver;
 import io.jsonwebtoken.io.Decoders;
 import org.springframework.web.client.RestTemplate;
+
+import java.math.BigInteger;
+import java.net.URI;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 class JwkSigningKeyResolver implements SigningKeyResolver {
 

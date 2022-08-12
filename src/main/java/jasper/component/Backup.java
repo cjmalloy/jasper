@@ -2,15 +2,14 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ext;
-import jasper.domain.Origin;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.plugin.Feed;
+import jasper.domain.plugin.Origin;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.repository.OriginRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.StreamMixin;
@@ -59,8 +58,6 @@ public class Backup {
 	@Autowired
 	UserRepository userRepository;
 	@Autowired
-	OriginRepository originRepository;
-	@Autowired
 	PluginRepository pluginRepository;
 	@Autowired
 	TemplateRepository templateRepository;
@@ -84,9 +81,6 @@ public class Backup {
 			}
 			if (options == null || options.isUser()) {
 				backupRepo(userRepository, zipfs.getPath("/user.json"));
-			}
-			if (options == null || options.isOrigin()) {
-				backupRepo(originRepository, zipfs.getPath("/origin.json"));
 			}
 			if (options == null || options.isPlugin()) {
 				backupRepo(pluginRepository, zipfs.getPath("/plugin.json"));
@@ -176,17 +170,15 @@ public class Backup {
 			if (options == null || options.isUser()) {
 				restoreRepo(userRepository, zipfs.getPath("/user.json"), User.class);
 			}
-			if (options == null || options.isFeed()) {
-				upgradeFeed(zipfs.getPath("/feed.json"));
-			}
-			if (options == null || options.isOrigin()) {
-				restoreRepo(originRepository, zipfs.getPath("/origin.json"), Origin.class);
-			}
 			if (options == null || options.isPlugin()) {
 				restoreRepo(pluginRepository, zipfs.getPath("/plugin.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
 				restoreRepo(templateRepository, zipfs.getPath("/template.json"), Template.class);
+			}
+			if (options == null) {
+				upgradeFeed(zipfs.getPath("/feed.json"));
+				upgradeOrigin(zipfs.getPath("/origin.json"));
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -207,12 +199,28 @@ public class Backup {
 				ref.setUrl(oldFeed.url);
 				ref.setOrigin(oldFeed.origin);
 				ref.setTitle(oldFeed.name);
+				ref.setTags(oldFeed.tags);
 				ref.setModified(oldFeed.modified);
 				var feed = new Feed();
 				feed.setLastScrape(oldFeed.lastScrape);
 				feed.setScrapeInterval(oldFeed.scrapeInterval);
 				feed.setScrapeDescription(oldFeed.scrapeDescription);
 				feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
+				refRepository.save(ref);
+			});
+	}
+
+	private void upgradeOrigin(Path path) throws IOException {
+		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldOrigin.class, objectMapper)
+			.forEachRemaining(oldOrigin -> {
+				var ref = new Ref();
+				ref.setUrl(oldOrigin.url);
+				ref.setOrigin(oldOrigin.origin);
+				ref.setTitle(oldOrigin.name);
+				ref.setModified(oldOrigin.modified);
+				var feed = new Origin();
+				feed.setProxy(oldOrigin.proxy);
+				feed.setLastScrape(oldOrigin.lastScrape);
 				refRepository.save(ref);
 			});
 	}
@@ -243,11 +251,20 @@ public class Backup {
 		public String url;
 		public String origin;
 		public String name;
-		public String tags;
+		public List<String> tags;
 		public Instant modified;
 		public Instant lastScrape;
 		public Duration scrapeInterval;
 		public boolean scrapeDescription;
 		public boolean removeDescriptionIndent;
+	}
+
+	public static class OldOrigin {
+		public String url;
+		public String origin;
+		public String name;
+		public String proxy;
+		public Instant modified;
+		public Instant lastScrape;
 	}
 }

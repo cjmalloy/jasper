@@ -1,7 +1,5 @@
 package jasper.repository.spec;
 
-import jasper.domain.Origin;
-import jasper.domain.TagId;
 import jasper.domain.Template;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
@@ -19,9 +17,9 @@ import static jasper.repository.spec.TemplateSpec.matchesTag;
 
 public class QualifiedTag {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-	public static final String TAG_OR_WILDCARD = "(" + TagId.REGEX + ")?";
-	public static final String ORIGIN_OR_WILDCARD = "(" + Origin.REGEX_NOT_BLANK + "|@\\*)";
-	public static final String SELECTOR = "(" + TagId.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
+	public static final String TAG_OR_WILDCARD = "(" + HasTags.REGEX + ")?";
+	public static final String ORIGIN_OR_WILDCARD = "(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*)";
+	public static final String SELECTOR = "(" + HasTags.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
 
 	private final boolean not;
 	private final String tag;

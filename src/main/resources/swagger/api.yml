@@ -10,141 +10,6 @@ servers:
   - description: SwaggerHub API Auto Mocking
     url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.1.0
 paths:
-  /api/v1/origin:
-    get:
-      tags:
-        - Origin
-      operationId: getOrigin
-      parameters:
-        - name: origin
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/Origin'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags:
-        - Origin
-      operationId: updateOrigin
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Origin'
-        required: true
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    post:
-      tags:
-        - Origin
-      operationId: createOrigin
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Origin'
-        required: true
-      responses:
-        '201':
-          description: Created
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Origin
-      operationId: deleteOrigin
-      parameters:
-        - name: origin
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /api/v1/origin/page:
-    get:
-      tags:
-        - Origin
-      operationId: getOriginPage
-      parameters:
-        - name: page
-          in: query
-          description: Zero-based page index (0..N)
-          required: false
-          schema:
-            minimum: 0
-            type: integer
-            default: 0
-        - name: size
-          in: query
-          description: The size of the page to be returned
-          required: false
-          schema:
-            minimum: 1
-            type: integer
-            default: 10
-        - name: sort
-          in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-            default:
-              - 'origin,ASC'
-        - name: query
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin-query'
-        - name: modifiedAfter
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/PageOrigin'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /api/v1/ref:
     get:
       tags:
@@ -371,12 +236,12 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/plugin-tag'
+            $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/plugin-tag'
+            $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
           required: false
@@ -439,12 +304,12 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/plugin-tag'
+            $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/plugin-tag'
+            $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
           required: false
@@ -563,6 +428,7 @@ paths:
       tags:
         - Scrape
       operationId: scrape
+      description: Immediately scrape a feed or replicate an origin. Ref must have either `+plugin/feed` or `+plugin/origin`
       parameters:
         - name: url
           in: query
@@ -759,7 +625,7 @@ paths:
           in: query
           required: true
           schema:
-            $ref: '#/components/schemas/plugin-qtag'
+            $ref: '#/components/schemas/qtag-plugin'
       responses:
         '200':
           description: OK
@@ -822,7 +688,7 @@ paths:
           in: query
           required: true
           schema:
-            $ref: '#/components/schemas/plugin-qtag'
+            $ref: '#/components/schemas/qtag-plugin'
       responses:
         '204':
           description: No Content
@@ -844,7 +710,7 @@ paths:
             minItems: 0
             type: array
             items:
-              $ref: '#/components/schemas/plugin-qtag'
+              $ref: '#/components/schemas/qtag-plugin'
       responses:
         '200':
           description: OK
@@ -922,7 +788,7 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/template-qtag'
+            $ref: '#/components/schemas/qtag-template'
       responses:
         '200':
           description: OK
@@ -985,7 +851,7 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/template-qtag'
+            $ref: '#/components/schemas/qtag-template'
       responses:
         '204':
           description: No Content
@@ -1057,7 +923,7 @@ paths:
             minItems: 0
             type: array
             items:
-              $ref: '#/components/schemas/template-qtag'
+              $ref: '#/components/schemas/qtag-template'
       responses:
         '200':
           description: OK
@@ -1077,7 +943,7 @@ paths:
           in: query
           required: true
           schema:
-            $ref: '#/components/schemas/user-qtag'
+            $ref: '#/components/schemas/qtag-user'
       responses:
         '200':
           description: OK
@@ -1140,7 +1006,7 @@ paths:
           in: query
           required: true
           schema:
-            $ref: '#/components/schemas/user-qtag'
+            $ref: '#/components/schemas/qtag-user'
       responses:
         '204':
           description: No Content
@@ -1612,12 +1478,6 @@ components:
       description: Origin
       example: '@origin'
       maxLength: 64
-    origin-query:
-      type: string
-      pattern: '!?@[a-z]+(\.[a-z])*([ |]!?@[a-z]+(\.[a-z])*)*'
-      description: Origin Query
-      example: '@origin|@test'
-      maxLength: 512
     tag:
       type: string
       pattern: '[_+]?[a-z]+(/[a-z]+)*'
@@ -1636,62 +1496,42 @@ components:
       pattern: '(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\))([ |:&](!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\)))*'
       example: '(politics|science):!funny'
       maxLength: 512
-    template-tag:
+    tag-template:
       type: string
       pattern: '(_?[a-z]+(/[a-z]+)*)?'
       description: Template Tag
       example: 'kanban'
       maxLength: 64
-    template-qtag:
+    qtag-template:
       type: string
       pattern: '(_?[a-z]+(/[a-z]+)*)?(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified Template Tag
       example: 'kanban@origin'
       maxLength: 127
-    plugin-tag:
+    tag-plugin:
       type: string
       pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*'
       description: Plugin Tag
       example: 'plugin/thumbnail'
       maxLength: 64
-    plugin-qtag:
+    qtag-plugin:
       type: string
       pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified Plugin Tag
       example: 'plugin/thumbnail@origin'
       maxLength: 127
-    user-tag:
+    tag-user:
       type: string
       pattern: '[_+]user/[a-z]+(/[a-z]+)*'
       description: User Tag
       example: '+user/charlie'
       maxLength: 64
-    user-qtag:
+    qtag-user:
       type: string
       pattern: '[_+]user/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127
-    Origin:
-      required:
-        - origin
-        - url
-      type: object
-      properties:
-        origin:
-          $ref: '#/components/schemas/origin'
-        url:
-          $ref: '#/components/schemas/url'
-        name:
-          $ref: '#/components/schemas/name'
-        proxy:
-          $ref: '#/components/schemas/url'
-        modified:
-          type: string
-          format: date-time
-        lastScrape:
-          type: string
-          format: date-time
     Ref:
       required:
         - published
@@ -1755,148 +1595,6 @@ components:
             'plugin/comment':
               - comment:671ceb54-3fac-4f14-b5e0-3b7270fa1787
               - comment:d4a83102-a94b-4bfb-8914-1863ac673bde
-    Ext:
-      required:
-        - tag
-      type: object
-      properties:
-        tag:
-          $ref: '#/components/schemas/tag'
-        origin:
-          $ref: '#/components/schemas/origin'
-        name:
-          $ref: '#/components/schemas/name'
-        config:
-          type: object
-        modified:
-          type: string
-          format: date-time
-    Plugin:
-      required:
-        - tag
-      type: object
-      properties:
-        tag:
-          $ref: '#/components/schemas/plugin-tag'
-        origin:
-          $ref: '#/components/schemas/origin'
-        name:
-          $ref: '#/components/schemas/name'
-        config:
-          type: object
-        defaults:
-          type: object
-        schema:
-          type: object
-        generateMetadata:
-          type: boolean
-        modified:
-          type: string
-          format: date-time
-    Template:
-      type: object
-      properties:
-        tag:
-          $ref: '#/components/schemas/template-tag'
-        origin:
-          $ref: '#/components/schemas/origin'
-        name:
-          $ref: '#/components/schemas/name'
-        config:
-          type: object
-        defaults:
-          type: object
-        schema:
-          type: object
-        modified:
-          type: string
-          format: date-time
-    User:
-      required:
-        - tag
-      type: object
-      properties:
-        tag:
-          $ref: '#/components/schemas/user-tag'
-        origin:
-          $ref: '#/components/schemas/origin'
-        name:
-          $ref: '#/components/schemas/name'
-        readAccess:
-          type: array
-          items:
-            $ref: '#/components/schemas/qtag'
-        writeAccess:
-          type: array
-          items:
-            $ref: '#/components/schemas/qtag'
-        tagReadAccess:
-          type: array
-          items:
-            $ref: '#/components/schemas/qtag'
-        tagWriteAccess:
-          type: array
-          items:
-            $ref: '#/components/schemas/qtag'
-        modified:
-          type: string
-          format: date-time
-    BackupOptions:
-      type: object
-      properties:
-        ext:
-          type: boolean
-        feed:
-          type: boolean
-        origin:
-          type: boolean
-        plugin:
-          type: boolean
-        ref:
-          type: boolean
-        template:
-          type: boolean
-        user:
-          type: boolean
-    Sort:
-      type: object
-      properties:
-        empty:
-          type: boolean
-        sorted:
-          type: boolean
-        unsorted:
-          type: boolean
-    PageOrigin:
-      type: object
-      properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
-        content:
-          type: array
-          items:
-            $ref: '#/components/schemas/Origin'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
     PageRef:
       type: object
       properties:
@@ -1927,6 +1625,22 @@ components:
           format: int32
         empty:
           type: boolean
+    Ext:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/tag'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        modified:
+          type: string
+          format: date-time
     PageExt:
       type: object
       properties:
@@ -1957,6 +1671,28 @@ components:
           format: int32
         empty:
           type: boolean
+    Plugin:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/tag-plugin'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        defaults:
+          type: object
+        schema:
+          type: object
+        generateMetadata:
+          type: boolean
+        modified:
+          type: string
+          format: date-time
     PagePlugin:
       type: object
       properties:
@@ -1987,6 +1723,24 @@ components:
           format: int32
         empty:
           type: boolean
+    Template:
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/tag-template'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        config:
+          type: object
+        defaults:
+          type: object
+        schema:
+          type: object
+        modified:
+          type: string
+          format: date-time
     PageTemplate:
       type: object
       properties:
@@ -2017,6 +1771,36 @@ components:
           format: int32
         empty:
           type: boolean
+    User:
+      required:
+        - tag
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/tag-user'
+        origin:
+          $ref: '#/components/schemas/origin'
+        name:
+          $ref: '#/components/schemas/name'
+        readAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        writeAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        tagReadAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        tagWriteAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/qtag'
+        modified:
+          type: string
+          format: date-time
     PageUser:
       type: object
       properties:
@@ -2046,6 +1830,32 @@ components:
           type: integer
           format: int32
         empty:
+          type: boolean
+    Sort:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+    BackupOptions:
+      type: object
+      properties:
+        ext:
+          type: boolean
+        feed:
+          type: boolean
+        origin:
+          type: boolean
+        plugin:
+          type: boolean
+        ref:
+          type: boolean
+        template:
+          type: boolean
+        user:
           type: boolean
   responses:
     BadRequest:

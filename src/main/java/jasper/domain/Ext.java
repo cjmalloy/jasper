@@ -3,6 +3,8 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
+import jasper.domain.proj.HasOrigin;
+import jasper.domain.proj.HasTags;
 import jasper.domain.proj.IsTag;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,8 +24,7 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
-import static jasper.domain.Origin.ORIGIN_LEN;
-import static jasper.domain.TagId.TAG_LEN;
+import static jasper.domain.proj.HasTags.TAG_LEN;
 
 @Entity
 @Getter
@@ -38,13 +39,13 @@ public class Ext implements IsTag {
 	@Id
 	@Column(updatable = false)
 	@NotBlank
-	@Pattern(regexp = TagId.REGEX)
+	@Pattern(regexp = HasTags.REGEX)
 	@Length(max = TAG_LEN)
 	private String tag;
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX)
+	@Pattern(regexp = HasOrigin.REGEX)
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
 

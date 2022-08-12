@@ -5,7 +5,10 @@ import org.springframework.data.jpa.repository.QueryHints;
 import javax.persistence.QueryHint;
 import java.util.stream.Stream;
 
-import static org.hibernate.jpa.QueryHints.*;
+import static org.hibernate.jpa.QueryHints.HINT_CACHEABLE;
+import static org.hibernate.jpa.QueryHints.HINT_FETCH_SIZE;
+import static org.hibernate.jpa.QueryHints.HINT_PASS_DISTINCT_THROUGH;
+import static org.hibernate.jpa.QueryHints.HINT_READONLY;
 
 public interface StreamMixin<T> {
 

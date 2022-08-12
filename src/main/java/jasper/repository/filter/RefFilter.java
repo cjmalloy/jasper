@@ -1,7 +1,6 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.domain.proj.HasTags;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -80,32 +79,6 @@ public class RefFilter implements Query {
 		if (isNotBlank(noPluginResponse)) {
 			// TODO: query across origins
 			result = result.and(hasNoPluginResponses(noPluginResponse));
-		}
-		if (modifiedAfter != null) {
-			result = result.and(isModifiedAfter(modifiedAfter));
-		}
-		return result;
-	}
-
-	public <T extends HasTags> Specification<T> feedSpec() {
-		var result = Specification.<T>where(null);
-		if (query != null) {
-			result = result.and(new TagQuery(query).refSpec());
-		}
-		if (local) {
-			result = result.and(isOrigin(""));
-		}
-		if (sources != null) {
-			throw new UnsupportedOperationException();
-		}
-		if (responses != null) {
-			throw new UnsupportedOperationException();
-		}
-		if (uncited) {
-			throw new UnsupportedOperationException();
-		}
-		if (unsourced) {
-			throw new UnsupportedOperationException();
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));

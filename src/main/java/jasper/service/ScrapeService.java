@@ -2,6 +2,7 @@ package jasper.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
+import jasper.component.Replicator;
 import jasper.component.RssParser;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
@@ -34,9 +35,17 @@ public class ScrapeService {
 	@Autowired
 	RssParser rssParser;
 
+	@Autowired
+	Replicator replicator;
+
 	public void scrape(String url, String origin) throws FeedException, IOException {
-		var feed = refRepository.findOneByUrlAndOrigin(url, origin)
-								   .orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		rssParser.scrape(feed);
+		var source = refRepository.findOneByUrlAndOrigin(url, origin)
+			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
+		if (source.getTags().contains("+plugin/feed")) {
+			rssParser.scrape(source);
+		}
+		if (source.getTags().contains("+plugin/origin")) {
+			replicator.replicate(source);
+		}
 	}
 }

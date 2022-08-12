@@ -1,10 +1,10 @@
 package jasper.security;
 
-import java.util.Optional;
-
 import jasper.config.Constants;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
 
 /**
  * Implementation of {@link AuditorAware} based on Spring Security.

@@ -45,12 +45,12 @@ public class FeedScraperBurst {
 				logger.info("All feeds up to date.");
 				return;
 			}
-			var ref = maybeFeed.get();
-			var feed = objectMapper.convertValue(ref.getPlugins().get("+plugin/feed"), Feed.class);
-			var minutesOld = feed.getLastScrape() == null ? 0 : Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
+			var feed = maybeFeed.get();
+			var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
+			var minutesOld = config.getLastScrape() == null ? 0 : Duration.between(config.getLastScrape(), Instant.now()).toMinutes();
 			try {
-				rssParser.scrape(ref);
-				logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, ref.getTitle(), ref.getUrl());
+				rssParser.scrape(feed);
+				logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getTitle(), feed.getUrl());
 			} catch (IOException e) {
 				e.printStackTrace();
 				logger.error("Error loading feed.");

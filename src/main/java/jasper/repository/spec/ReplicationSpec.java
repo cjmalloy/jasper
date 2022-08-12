@@ -1,9 +1,9 @@
 package jasper.repository.spec;
 
-import java.time.Instant;
-
 import jasper.domain.proj.HasModified;
 import org.springframework.data.jpa.domain.Specification;
+
+import java.time.Instant;
 
 public class ReplicationSpec {
 

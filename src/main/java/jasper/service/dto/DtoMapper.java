@@ -1,6 +1,5 @@
 package jasper.service.dto;
 
-import jasper.domain.Origin;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.security.Auth;
@@ -35,6 +34,4 @@ public abstract class DtoMapper {
 		userDto.setReadAccess(auth.filterTags(userDto.getReadAccess()));
 		userDto.setWriteAccess(auth.filterTags(userDto.getWriteAccess()));
 	}
-
-	public abstract OriginNameDto domainToDto(Origin origin);
 }

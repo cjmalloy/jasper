@@ -6,11 +6,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class BackupOptionsDto {
-	private boolean ext;
-	private boolean feed;
-	private boolean origin;
-	private boolean plugin;
 	private boolean ref;
-	private boolean template;
+	private boolean ext;
 	private boolean user;
+	private boolean plugin;
+	private boolean template;
 }

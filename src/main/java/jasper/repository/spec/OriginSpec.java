@@ -1,9 +1,9 @@
 package jasper.repository.spec;
 
-import java.util.List;
-
 import jasper.domain.proj.HasOrigin;
 import org.springframework.data.jpa.domain.Specification;
+
+import java.util.List;
 
 public class OriginSpec {
 

@@ -1,9 +1,9 @@
 package jasper.repository;
 
-import java.util.Optional;
-
 import jasper.domain.proj.IsTag;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import java.util.Optional;
 
 public interface QualifiedTagMixin<T extends IsTag> extends JpaSpecificationExecutor<T> {
 	Optional<T> findOneByQualifiedTag(String tag);

@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
-import jasper.domain.TagId;
+import jasper.domain.proj.HasTags;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import org.hibernate.validator.constraints.Length;
@@ -33,10 +33,9 @@ import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
-
 import java.time.Instant;
 
-import static jasper.domain.TagId.QTAG_LEN;
+import static jasper.domain.proj.HasTags.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 
@@ -73,7 +72,7 @@ public class ExtController {
 	@GetMapping
 	HttpEntity<Ext> getExt(
 		WebRequest request,
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = HasTags.REGEX) String tag
 	) {
 		return ifModifiedSince(request, extService.get(tag));
 	}
@@ -113,7 +112,7 @@ public class ExtController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = TagId.REGEX) String tag,
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = HasTags.REGEX) String tag,
 		@RequestBody JsonPatch patch
 	) {
 		extService.patch(tag, patch);
@@ -125,7 +124,7 @@ public class ExtController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = TagId.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = HasTags.REGEX) String tag
 	) {
 		extService.delete(tag);
 	}

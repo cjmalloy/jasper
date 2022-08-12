@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
+import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.IsTag;
 import jasper.domain.validator.SchemaValid;
 import lombok.Getter;
@@ -24,8 +25,7 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
-import static jasper.domain.Origin.ORIGIN_LEN;
-import static jasper.domain.TagId.TAG_LEN;
+import static jasper.domain.proj.HasTags.TAG_LEN;
 
 @Entity
 @Getter
@@ -36,7 +36,7 @@ import static jasper.domain.TagId.TAG_LEN;
 })
 public class Plugin implements IsTag {
 	public static final String REGEX = "[_+]?plugin/[a-z]+(/[a-z]+)*";
-	public static final String QTAG_REGEX = REGEX + Origin.REGEX;
+	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
 
 	@Id
@@ -48,7 +48,7 @@ public class Plugin implements IsTag {
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX)
+	@Pattern(regexp = HasOrigin.REGEX)
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
 

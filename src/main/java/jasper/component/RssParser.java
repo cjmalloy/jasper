@@ -50,14 +50,14 @@ public class RssParser {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	public void scrape(Ref source) throws IOException, FeedException {
-		var feed = objectMapper.convertValue(source.getPlugins().get("+plugin/feed"), Feed.class);
-		feed.setLastScrape(Instant.now());
-		source.getPlugins().set("+plugin/feed", objectMapper.convertValue(feed, JsonNode.class));
-		refRepository.save(source);
+	public void scrape(Ref feed) throws IOException, FeedException {
+		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
+		config.setLastScrape(Instant.now());
+		feed.getPlugins().set("+plugin/feed", objectMapper.convertValue(config, JsonNode.class));
+		refRepository.save(feed);
 
 		var tagSet = new HashSet<String>();
-		if (feed.getAddTags() != null) tagSet.addAll(feed.getAddTags());
+		if (config.getAddTags() != null) tagSet.addAll(config.getAddTags());
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
@@ -67,7 +67,7 @@ public class RssParser {
 			.setSocketTimeout(timeout).build();
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
-			HttpUriRequest request = new HttpGet(source.getUrl());
+			HttpUriRequest request = new HttpGet(feed.getUrl());
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request);
 				 InputStream stream = response.getEntity().getContent()) {
@@ -79,7 +79,7 @@ public class RssParser {
 				}
 				for (var entry : syndFeed.getEntries()) {
 					try {
-						parseEntry(source, feed, tagSet, entry, feedImage);
+						parseEntry(feed, config, tagSet, entry, feedImage);
 					} catch (Exception e) {
 						logger.error("Error processing entry", e);
 					}
@@ -88,13 +88,13 @@ public class RssParser {
 		}
 	}
 
-	private void parseEntry(Ref source, Feed feed, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
+	private void parseEntry(Ref feed, Feed config, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
-		ref.setSources(List.of(source.getUrl()));
-		ref.setTags(new ArrayList<>(feed.getAddTags()));
+		ref.setSources(List.of(feed.getUrl()));
+		ref.setTags(new ArrayList<>(config.getAddTags()));
 		if (entry.getPublishedDate() != null) {
 			ref.setPublished(entry.getPublishedDate().toInstant());
 		} else if (l.contains("arxiv.org")) {
@@ -108,11 +108,11 @@ public class RssParser {
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
-		if (feed.isScrapeDescription()) {
+		if (config.isScrapeDescription()) {
 			String desc = "";
 			if (entry.getDescription() != null) {
 				desc = entry.getDescription().getValue();
-				if (feed.isRemoveDescriptionIndent()) {
+				if (config.isRemoveDescriptionIndent()) {
 					desc = desc.replaceAll("(?m)^\\s+", "");
 				}
 				ref.setComment(desc);
@@ -151,16 +151,16 @@ public class RssParser {
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
-		if (ref.getPublished().isBefore(source.getPublished())) {
+		if (ref.getPublished().isBefore(feed.getPublished())) {
 			logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
-				source.getTitle(), ref.getTitle(), ref.getUrl());
+				feed.getTitle(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		try {
 			ingest.ingest(ref);
 		} catch (AlreadyExistsException e) {
 			logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-				source.getTitle(), ref.getTitle(), ref.getUrl());
+				feed.getTitle(), ref.getTitle(), ref.getUrl());
 		}
 	}
 

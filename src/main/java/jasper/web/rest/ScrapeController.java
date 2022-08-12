@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jasper.domain.Origin;
+import jasper.domain.proj.HasOrigin;
 import jasper.service.ScrapeService;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.constraints.Pattern;
 import java.io.IOException;
 
-import static jasper.domain.Origin.ORIGIN_LEN;
 import static jasper.domain.Ref.URL_LEN;
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 
 @RestController
 @RequestMapping("api/v1/scrape")
@@ -45,7 +45,7 @@ public class ScrapeController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void scrape(
 		@RequestParam @Length(max = URL_LEN) @URL String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) throws FeedException, IOException {
 		scrapeService.scrape(url, origin);
 	}

@@ -1,6 +1,7 @@
 package jasper.service.dto;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Getter;
 
 @Getter
 @Builder

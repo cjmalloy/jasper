@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
+import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,9 +26,6 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-
-import static jasper.domain.Origin.ORIGIN_LEN;
-import static jasper.domain.TagId.TAG_LEN;
 
 @Entity
 @Getter
@@ -52,7 +50,7 @@ public class Ref implements HasTags {
 
 	@Id
 	@Column(updatable = false)
-	@Pattern(regexp = Origin.REGEX)
+	@Pattern(regexp = HasOrigin.REGEX)
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
 
@@ -63,7 +61,7 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = TagId.REGEX) String> tags;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = HasTags.REGEX) String> tags;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

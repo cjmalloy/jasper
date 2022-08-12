@@ -1,10 +1,10 @@
 package jasper.repository.spec;
 
-import java.util.List;
-
 import jasper.domain.Template;
 import jasper.domain.Template_;
 import org.springframework.data.jpa.domain.Specification;
+
+import java.util.List;
 
 public class TemplateSpec {
 

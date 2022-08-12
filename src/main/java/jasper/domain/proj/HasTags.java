@@ -5,6 +5,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 
 public interface HasTags extends HasOrigin {
+	String REGEX = "[_+]?[a-z]+(/[a-z]+)*";
+	String QTAG_REGEX = REGEX + HasOrigin.REGEX;
+	String ADD_REMOVE_REGEX = "[-]?" + REGEX;
+	int TAG_LEN = 64;
+	int QTAG_LEN = TAG_LEN + ORIGIN_LEN + 1;
+
 	String getUrl();
 	List<String> getTags();
 

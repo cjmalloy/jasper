@@ -64,4 +64,14 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>,
 		ORDER BY f.config->'+plugin/feed'->'lastScrape'::timestamp ASC
 		LIMIT 1""")
 	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT *
+		FROM ref as f
+		WHERE jsonb_exists(f.tags, '+plugin/origin')
+			AND (NOT jsonb_exists(f.config->'+plugin/origin', 'lastScrape')
+				OR f.config->'+plugin/origin'->'lastScrape'::timestamp + f.config->'+plugin/origin'->'scrapeInterval'::interval < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY f.config->'+plugin/origin'->'lastScrape'::timestamp ASC
+		LIMIT 1""")
+	Optional<Ref> oldestNeedsRepl();
 }

@@ -6,9 +6,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jasper.domain.Origin;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
@@ -44,10 +44,10 @@ import javax.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 
-import static jasper.domain.Origin.ORIGIN_LEN;
 import static jasper.domain.Ref.SEARCH_LEN;
 import static jasper.domain.Ref.URL_LEN;
-import static jasper.domain.TagId.TAG_LEN;
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
+import static jasper.domain.proj.HasTags.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;
@@ -88,7 +88,7 @@ public class RefController {
 	HttpEntity<RefDto> getRef(
 		WebRequest request,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
 		return ifModifiedSince(request, refService.get(url, origin));
 	}
@@ -101,7 +101,7 @@ public class RefController {
 	HttpEntity<List<RefDto>> getRefList(
 		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
 		return ifModifiedSinceList(request, urls.stream().map(url -> {
 			try {
@@ -218,7 +218,7 @@ public class RefController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody JsonPatch patch
 	) {
 		refService.patch(url, origin, patch);

@@ -1,13 +1,5 @@
 package jasper.config;
 
-import static java.net.URLDecoder.decode;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.server.WebServerFactory;
@@ -21,6 +13,14 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+
+import static java.net.URLDecoder.decode;
 
 /**
  * Configuration of web application with Servlet 3.0 APIs.

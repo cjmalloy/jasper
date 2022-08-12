@@ -1,15 +1,15 @@
 package jasper.service.dto;
 
-import java.time.Instant;
-import java.util.List;
-
-import jasper.domain.Metadata;
-import jasper.domain.proj.HasTags;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jasper.domain.Metadata;
+import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Setter

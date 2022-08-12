@@ -1,10 +1,10 @@
 package jasper.repository;
 
-import java.util.List;
-import java.util.Optional;
-
 import jasper.domain.proj.HasTags;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import java.util.List;
+import java.util.Optional;
 
 public interface RefMixin<T extends HasTags> extends JpaSpecificationExecutor<T> {
 	Optional<T> findOneByUrlAndOrigin(String url, String origin);

@@ -1,14 +1,14 @@
 package jasper.service.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import jasper.domain.proj.HasTags;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-
-import jasper.domain.proj.HasTags;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter

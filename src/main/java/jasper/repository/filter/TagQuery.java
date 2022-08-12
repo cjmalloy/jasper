@@ -1,23 +1,26 @@
 package jasper.repository.filter;
 
-import static jasper.repository.filter.Query.*;
-import static jasper.repository.spec.OriginSpec.hasAllOrigins;
-import static jasper.repository.spec.OriginSpec.hasAnyOrigin;
+import jasper.domain.Template;
+import jasper.domain.proj.HasTags;
+import jasper.domain.proj.IsTag;
+import jasper.repository.spec.QualifiedTag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static jasper.repository.filter.Query.AND_REGEX;
+import static jasper.repository.filter.Query.DELIMS;
+import static jasper.repository.filter.Query.OR_REGEX;
 import static jasper.repository.spec.RefSpec.hasAllQualifiedTags;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAllQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TemplateSpec.matchesAllQualifiedTag;
 import static jasper.repository.spec.TemplateSpec.matchesAnyQualifiedTag;
-
-import java.util.*;
-
-import jasper.domain.Template;
-import jasper.domain.proj.*;
-import jasper.repository.spec.QualifiedTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.jpa.domain.Specification;
 
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
@@ -60,24 +63,6 @@ public class TagQuery {
 			var subExpression = Specification.<T>where(null);
 			for (var innerOrGroup : andGroup) {
 				subExpression = subExpression.and(isAnyQualifiedTag(innerOrGroup));
-			}
-			result = result.or(subExpression);
-		}
-		return result;
-	}
-
-	public <T extends HasOrigin> Specification<T> originSpec() {
-		var result = Specification.<T>where(null);
-		if (orTags.size() > 0) {
-			result = result.or(hasAnyOrigin(orTags));
-		}
-		for (var andGroup : orGroups) {
-			result = result.or(hasAllOrigins(andGroup));
-		}
-		for (var andGroup : nestedGroups) {
-			var subExpression = Specification.<T>where(null);
-			for (var innerOrGroup : andGroup) {
-				subExpression = subExpression.and(hasAnyOrigin(innerOrGroup));
 			}
 			result = result.or(subExpression);
 		}
