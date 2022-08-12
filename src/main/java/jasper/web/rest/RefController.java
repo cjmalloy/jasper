@@ -57,6 +57,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Validated
 @Tag(name = "Ref")
 @ApiResponses({
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 })
 public class RefController {
@@ -80,7 +81,6 @@ public class RefController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "304", content = @Content()),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
@@ -94,7 +94,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("list")
@@ -113,7 +112,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("page")
 	Page<RefDto> getRefPage(
@@ -170,7 +168,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("count")
 	long countRefs(
@@ -201,7 +198,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
@@ -214,7 +210,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/json-patch+json")
@@ -229,7 +224,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
-		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
