@@ -50,7 +50,6 @@ import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.TagId.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
-import static jasper.util.RestUtil.ifModifiedSinceList;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @RestController
@@ -99,18 +98,17 @@ public class RefController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("list")
-	HttpEntity<List<RefDto>> getRefList(
-		WebRequest request,
+	List<RefDto> getRefList(
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = Origin.REGEX) String origin
 	) {
-		return ifModifiedSinceList(request, urls.stream().map(url -> {
+		return urls.stream().map(url -> {
 			try {
 				return refService.get(url, origin);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
-		}).toList());
+		}).toList();
 	}
 
 	@ApiResponses({
