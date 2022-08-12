@@ -16,6 +16,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @Transactional
 public class UserService {
@@ -60,6 +62,7 @@ public class UserService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
+		user.setModified(Instant.now());
 		userRepository.save(user);
 	}
 
