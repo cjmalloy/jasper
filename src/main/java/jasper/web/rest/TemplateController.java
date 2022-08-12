@@ -84,16 +84,17 @@ public class TemplateController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping("list")
-	List<Template> getTemplateList(
+	HttpEntity<List<Template>> getTemplateList(
+		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String> tags
 	) {
-		return tags.stream().map(tag -> {
+		return ifModifiedSinceList(request, tags.stream().map(tag -> {
 			try {
 				return templateService.get(tag);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
-		}).toList();
+		}).toList());
 	}
 
 	@ApiResponses({

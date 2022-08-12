@@ -39,6 +39,7 @@ import java.util.List;
 import static jasper.domain.TagId.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
+import static jasper.util.RestUtil.ifModifiedSinceList;
 
 @RestController
 @RequestMapping("api/v1/plugin")
@@ -82,16 +83,17 @@ public class PluginController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping("list")
-	List<Plugin> getPluginList(
+	HttpEntity<List<Plugin>> getPluginList(
+		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String> tags
 	) {
-		return tags.stream().map(tag -> {
+		return ifModifiedSinceList(request, tags.stream().map(tag -> {
 			try {
 				return pluginService.get(tag);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
-		}).toList();
+		}).toList());
 	}
 
 	@ApiResponses({

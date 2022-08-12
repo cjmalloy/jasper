@@ -45,8 +45,11 @@ public class RestUtil {
 	}
 
 	public static <T extends HasModified> Instant getMaxModified(List<T> list) {
+		if (list.stream().anyMatch(Objects::isNull)) {
+			// Do not cache if an object was deleted
+			return null;
+		}
 		return list.stream()
-			.filter(Objects::nonNull)
 			.max(Comparator.comparing(HasModified::getModified))
 			.map(HasModified::getModified)
 			.orElse(null);
