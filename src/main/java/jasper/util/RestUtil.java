@@ -9,6 +9,7 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class RestUtil {
 
@@ -45,6 +46,7 @@ public class RestUtil {
 
 	public static <T extends HasModified> Instant getMaxModified(List<T> list) {
 		return list.stream()
+			.filter(Objects::nonNull)
 			.max(Comparator.comparing(HasModified::getModified))
 			.map(HasModified::getModified)
 			.orElse(null);
