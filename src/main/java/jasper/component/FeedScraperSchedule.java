@@ -1,7 +1,9 @@
 package jasper.component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
-import jasper.repository.FeedRepository;
+import jasper.domain.plugin.Feed;
+import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +25,13 @@ public class FeedScraperSchedule {
 	Ingest ingest;
 
 	@Autowired
-	FeedRepository feedRepository;
+	RefRepository refRepository;
 
 	@Autowired
 	RssParser rssParser;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@Scheduled(
 		fixedRateString = "${application.scrape-interval-min}",
@@ -34,16 +39,17 @@ public class FeedScraperSchedule {
 		timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");
-		var maybeFeed = feedRepository.oldestNeedsScrapeByOrigin("");
+		var maybeFeed = refRepository.oldestNeedsScrapeByOrigin("");
 		if (maybeFeed.isEmpty()) {
 			logger.info("All feeds up to date.");
 			return;
 		}
-		var feed = maybeFeed.get();
+		var ref = maybeFeed.get();
+		var feed = objectMapper.convertValue(ref.getPlugins().get("+plugin/feed"), Feed.class);
 		var minutesOld = Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
 		try {
-			rssParser.scrape(feed);
-			logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getName(), feed.getUrl());
+			rssParser.scrape(ref);
+			logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, ref.getTitle(), ref.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			logger.error("Error loading feed.");

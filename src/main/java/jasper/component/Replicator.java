@@ -3,7 +3,6 @@ package jasper.component;
 import jasper.client.JasperClient;
 import jasper.domain.Origin;
 import jasper.repository.ExtRepository;
-import jasper.repository.FeedRepository;
 import jasper.repository.OriginRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -33,8 +32,6 @@ public class Replicator {
 	OriginRepository originRepository;
 	@Autowired
 	RefRepository refRepository;
-	@Autowired
-	FeedRepository feedRepository;
 	@Autowired
 	ExtRepository extRepository;
 	@Autowired
@@ -69,11 +66,6 @@ public class Replicator {
 			for (var ref : client.ref(url, options)) {
 				ref.setOrigin(origin.getOrigin());
 				refRepository.save(ref);
-			}
-			options.put("modifiedAfter", feedRepository.getCursor(origin.getOrigin()));
-			for (var feed : client.feed(url, options)) {
-				feed.setOrigin(origin.getOrigin());
-				feedRepository.save(feed);
 			}
 			options.put("modifiedAfter", extRepository.getCursor(origin.getOrigin()));
 			for (var ext : client.ext(url, options)) {

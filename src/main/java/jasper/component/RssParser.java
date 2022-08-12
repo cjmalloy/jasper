@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
@@ -10,10 +11,10 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import jasper.domain.Feed;
 import jasper.domain.Ref;
+import jasper.domain.plugin.Feed;
 import jasper.errors.AlreadyExistsException;
-import jasper.repository.FeedRepository;
+import jasper.repository.RefRepository;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -33,6 +34,7 @@ import java.time.Year;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -43,17 +45,19 @@ public class RssParser {
 	Ingest ingest;
 
 	@Autowired
-	FeedRepository feedRepository;
+	RefRepository refRepository;
 
 	@Autowired
 	ObjectMapper objectMapper;
 
-	public void scrape(Feed source) throws IOException, FeedException {
-		source.setLastScrape(Instant.now());
-		feedRepository.save(source);
+	public void scrape(Ref source) throws IOException, FeedException {
+		var feed = objectMapper.convertValue(source.getPlugins().get("+plugin/feed"), Feed.class);
+		feed.setLastScrape(Instant.now());
+		source.getPlugins().set("+plugin/feed", objectMapper.convertValue(feed, JsonNode.class));
+		refRepository.save(source);
 
 		var tagSet = new HashSet<String>();
-		if (source.getTags() != null) tagSet.addAll(source.getTags());
+		if (feed.getAddTags() != null) tagSet.addAll(feed.getAddTags());
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
@@ -75,7 +79,7 @@ public class RssParser {
 				}
 				for (var entry : syndFeed.getEntries()) {
 					try {
-						parseEntry(source, tagSet, entry, feedImage);
+						parseEntry(source, feed, tagSet, entry, feedImage);
 					} catch (Exception e) {
 						logger.error("Error processing entry", e);
 					}
@@ -84,12 +88,13 @@ public class RssParser {
 		}
 	}
 
-	private void parseEntry(Feed source, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
+	private void parseEntry(Ref source, Feed feed, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
-		ref.setTags(new ArrayList<>(source.getTags()));
+		ref.setSources(List.of(source.getUrl()));
+		ref.setTags(new ArrayList<>(feed.getAddTags()));
 		if (entry.getPublishedDate() != null) {
 			ref.setPublished(entry.getPublishedDate().toInstant());
 		} else if (l.contains("arxiv.org")) {
@@ -103,11 +108,11 @@ public class RssParser {
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
-		if (source.isScrapeDescription()) {
+		if (feed.isScrapeDescription()) {
 			String desc = "";
 			if (entry.getDescription() != null) {
 				desc = entry.getDescription().getValue();
-				if (source.isRemoveDescriptionIndent()) {
+				if (feed.isRemoveDescriptionIndent()) {
 					desc = desc.replaceAll("(?m)^\\s+", "");
 				}
 				ref.setComment(desc);
@@ -146,11 +151,16 @@ public class RssParser {
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
+		if (ref.getPublished().isBefore(source.getPublished())) {
+			logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
+				source.getTitle(), ref.getTitle(), ref.getUrl());
+			return;
+		}
 		try {
 			ingest.ingest(ref);
 		} catch (AlreadyExistsException e) {
 			logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-				source.getName(), ref.getTitle(), ref.getUrl());
+				source.getTitle(), ref.getTitle(), ref.getUrl());
 		}
 	}
 
@@ -174,7 +184,7 @@ public class RssParser {
 		if (media.getMetadata() != null &&
 			media.getMetadata().getThumbnail() != null &&
 			media.getMetadata().getThumbnail().length != 0) {
-			plugins.put("plugin/thumbnail", media.getMetadata().getThumbnail()[0]);
+			plugins.put("plugin/thumbnail", Map.of("url", media.getMetadata().getThumbnail()[0].getUrl()));
 			return;
 		}
 		if (media.getMetadata() != null &&
@@ -189,7 +199,7 @@ public class RssParser {
 		if (media.getMediaGroups().length == 0) return;
 		var group = media.getMediaGroups()[0];
 		if (group.getMetadata().getThumbnail().length == 0) return;
-		plugins.put("plugin/thumbnail", group.getMetadata().getThumbnail()[0]);
+		plugins.put("plugin/thumbnail", Map.of("url", group.getMetadata().getThumbnail()[0].getUrl()));
 	}
 
 	private void parseAudio(SyndEntry entry, Map<String, Object> plugins) {

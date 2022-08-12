@@ -2,15 +2,14 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ext;
-import jasper.domain.Feed;
 import jasper.domain.Origin;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.domain.plugin.Feed;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.repository.FeedRepository;
 import jasper.repository.OriginRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -60,8 +59,6 @@ public class Backup {
 	@Autowired
 	UserRepository userRepository;
 	@Autowired
-	FeedRepository feedRepository;
-	@Autowired
 	OriginRepository originRepository;
 	@Autowired
 	PluginRepository pluginRepository;
@@ -88,9 +85,6 @@ public class Backup {
 			if (options == null || options.isUser()) {
 				backupRepo(userRepository, zipfs.getPath("/user.json"));
 			}
-			if (options == null || options.isFeed()) {
-				backupRepo(feedRepository, zipfs.getPath("/feed.json"));
-			}
 			if (options == null || options.isOrigin()) {
 				backupRepo(originRepository, zipfs.getPath("/origin.json"));
 			}
@@ -112,6 +106,7 @@ public class Backup {
 	private void backupRepo(StreamMixin<?> repo, Path path) throws IOException {
 		backupRepo(repo, path, true);
 	}
+
 	private void backupRepo(StreamMixin<?> repo, Path path, boolean evict) throws IOException {
 		log.debug("Backing up {}", path.toString());
 		var firstElementProcessed = new AtomicBoolean(false);
@@ -182,7 +177,7 @@ public class Backup {
 				restoreRepo(userRepository, zipfs.getPath("/user.json"), User.class);
 			}
 			if (options == null || options.isFeed()) {
-				restoreRepo(feedRepository, zipfs.getPath("/feed.json"), Feed.class);
+				upgradeFeed(zipfs.getPath("/feed.json"));
 			}
 			if (options == null || options.isOrigin()) {
 				restoreRepo(originRepository, zipfs.getPath("/origin.json"), Origin.class);
@@ -201,8 +196,25 @@ public class Backup {
 	}
 
 	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) throws IOException {
-		new JsonArrayStreamDataSupplier<T>(Files.newInputStream(path), type, objectMapper)
+		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), type, objectMapper)
 			.forEachRemaining(repo::save);
+	}
+
+	private void upgradeFeed(Path path) throws IOException {
+		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldFeed.class, objectMapper)
+			.forEachRemaining(oldFeed -> {
+				var ref = new Ref();
+				ref.setUrl(oldFeed.url);
+				ref.setOrigin(oldFeed.origin);
+				ref.setTitle(oldFeed.name);
+				ref.setModified(oldFeed.modified);
+				var feed = new Feed();
+				feed.setLastScrape(oldFeed.lastScrape);
+				feed.setScrapeInterval(oldFeed.scrapeInterval);
+				feed.setScrapeDescription(oldFeed.scrapeDescription);
+				feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
+				refRepository.save(ref);
+			});
 	}
 
 	public void store(String id, byte[] zipFile) throws IOException {
@@ -225,5 +237,17 @@ public class Backup {
 
 	URI zipfs(String id) {
 		return URI.create("jar:file:" + storagePath + "/backups/" + id + ".zip");
+	}
+
+	public static class OldFeed {
+		public String url;
+		public String origin;
+		public String name;
+		public String tags;
+		public Instant modified;
+		public Instant lastScrape;
+		public Duration scrapeInterval;
+		public boolean scrapeDescription;
+		public boolean removeDescriptionIndent;
 	}
 }

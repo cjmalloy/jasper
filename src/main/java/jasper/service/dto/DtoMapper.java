@@ -1,6 +1,5 @@
 package jasper.service.dto;
 
-import jasper.domain.Feed;
 import jasper.domain.Origin;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -27,15 +26,6 @@ public abstract class DtoMapper {
 	protected void filterTags(@MappingTarget RefDto refDto) {
 		refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
 		Ref.removePrefixTags(refDto.getTags());
-	}
-
-	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
-	@Mapping(target = "qualifiedTags", ignore = true)
-	public abstract FeedDto domainToDto(Feed ref);
-
-	@AfterMapping
-	protected void filterTags(@MappingTarget FeedDto feedDto) {
-		feedDto.setTags(auth.filterTags(feedDto.getTags()));
 	}
 
 	public abstract UserDto domainToDto(User user);

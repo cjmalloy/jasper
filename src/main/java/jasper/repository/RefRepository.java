@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<RefView>, ModifiedCursor {
@@ -52,4 +53,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>,
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.alternate_urls, :url)""")
 	boolean existsByAlternateUrlAndOrigin(String url, String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT *
+		FROM ref as f
+		WHERE f.origin = :origin
+			AND jsonb_exists(f.tags, '+plugin/feed')
+			AND (NOT jsonb_exists(f.config->'+plugin/feed', 'lastScrape')
+				OR f.config->'+plugin/feed'->'lastScrape'::timestamp + f.config->'+plugin/feed'->'scrapeInterval'::interval < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY f.config->'+plugin/feed'->'lastScrape'::timestamp ASC
+		LIMIT 1""")
+	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
 }

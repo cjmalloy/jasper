@@ -207,7 +207,7 @@ application:
     management-include-pattern: ${server.servlet.context-path:}/management/**
     title: Jasper KMS API
     description: Jasper Knowledge Management Server API documentation
-    version: 1.1.0
+    version: 1.2.0
     terms-of-service-url:
     contact-name:
     contact-url:
@@ -217,6 +217,6 @@ application:
       url: https://github.com/cjmalloy/jasper/blob/master/LICENSE
     servers:
       - description: SwaggerHub API Auto Mocking
-        url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.1.0
+        url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"

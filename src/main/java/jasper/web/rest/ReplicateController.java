@@ -9,7 +9,6 @@ import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.repository.ExtRepository;
-import jasper.repository.FeedRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -18,7 +17,6 @@ import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.dto.DtoMapper;
-import jasper.service.dto.FeedDto;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
@@ -51,8 +49,6 @@ public class ReplicateController {
 	@Autowired
 	RefRepository refRepository;
 	@Autowired
-	FeedRepository feedRepository;
-	@Autowired
 	ExtRepository extRepository;
 	@Autowired
 	UserRepository userRepository;
@@ -77,24 +73,6 @@ public class ReplicateController {
 					.modifiedAfter(modifiedAfter)
 					.build()
 					.spec(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
-			.map(mapper::domainToDto)
-			.getContent();
-	}
-
-	@GetMapping("feed")
-	List<FeedDto> feed(
-		@RequestParam(defaultValue = "500") int size,
-		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
-	) {
-		return feedRepository.findAll(
-				RefFilter.builder()
-					.local(true)
-					.query(query)
-					.modifiedAfter(modifiedAfter)
-					.build()
-					.feedSpec(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
 			.map(mapper::domainToDto)
 			.getContent();

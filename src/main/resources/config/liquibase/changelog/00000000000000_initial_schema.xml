@@ -161,35 +161,5 @@
 		<createIndex tableName="origin" indexName="origin_modified_index">
 			<column name="modified"/>
 		</createIndex>
-
-		<createTable tableName="feed">
-			<column name="url" type="TEXT" defaultValue="">
-				<constraints primaryKey="true" nullable="false"/>
-			</column>
-			<column name="origin" type="TEXT">
-				<constraints primaryKey="true" nullable="false"/>
-			</column>
-			<column name="name" type="TEXT"/>
-			<column name="tags" type="JSONB"/>
-			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
-			</column>
-			<column name="last_scrape" type="TIMESTAMP"/>
-			<column name="scrape_interval" type="INTERVAL" defaultValue="00:15:00">
-				<constraints nullable="false"/>
-			</column>
-			<column name="scrape_description" type="BOOLEAN" defaultValue="true">
-				<constraints nullable="false"/>
-			</column>
-			<column name="remove_description_indent" type="BOOLEAN" defaultValue="false">
-				<constraints nullable="false"/>
-			</column>
-		</createTable>
-		<sql>
-			CREATE INDEX feed_tags_index ON feed USING GIN(tags);
-		</sql>
-		<createIndex tableName="feed" indexName="feed_modified_index">
-			<column name="modified"/>
-		</createIndex>
 	</changeSet>
 </databaseChangeLog>

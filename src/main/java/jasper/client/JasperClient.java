@@ -3,7 +3,6 @@ package jasper.client;
 import feign.QueryMap;
 import feign.RequestLine;
 import jasper.domain.Ext;
-import jasper.domain.Feed;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
@@ -19,9 +18,6 @@ public interface JasperClient {
 
 	@RequestLine("GET /api/v1/repl/ref")
 	List<Ref> ref(URI baseUri, @QueryMap Map<String, Object> params);
-
-	@RequestLine("GET /api/v1/repl/feed")
-	List<Feed> feed(URI baseUri, @QueryMap Map<String, Object> params);
 
 	@RequestLine("GET /api/v1/repl/ext")
 	List<Ext> ext(URI baseUri, @QueryMap Map<String, Object> params);

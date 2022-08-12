@@ -558,187 +558,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/v1/feed:
+  /api/v1/scrape:
     get:
       tags:
-        - Feed
-      operationId: getFeed
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/Feed'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags:
-        - Feed
-      operationId: updateFeed
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Feed'
-        required: true
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    post:
-      tags:
-        - Feed
-      operationId: createFeed
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Feed'
-        required: true
-      responses:
-        '201':
-          description: Created
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/ForeignWrite'
-        '409':
-          $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Feed
-      operationId: deleteFeed
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-    patch:
-      tags:
-        - Feed
-      operationId: patchFeed
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      requestBody:
-        content:
-          application/json-patch+json:
-            schema:
-              $ref: 'https://json.schemastore.org/json-patch'
-        required: true
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/feed/page:
-    get:
-      tags:
-        - Feed
-      operationId: getFeedPage
-      parameters:
-        - name: page
-          in: query
-          description: Zero-based page index (0..N)
-          required: false
-          schema:
-            minimum: 0
-            type: integer
-            default: 0
-        - name: size
-          in: query
-          description: The size of the page to be returned
-          required: false
-          schema:
-            minimum: 1
-            type: integer
-            default: 10
-        - name: sort
-          in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-            default:
-              - 'modified,DESC'
-        - name: query
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/query'
-        - name: url
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: modifiedAfter
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/PageFeed'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /api/v1/feed/scrape:
-    get:
-      tags:
-        - Feed
+        - Scrape
       operationId: scrape
       parameters:
         - name: url
@@ -1567,43 +1390,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/feed:
-    get:
-      tags:
-        - Repl
-      operationId: feed
-      parameters:
-        - name: size
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int32
-            default: 500
-        - name: query
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/query'
-        - name: modifiedAfter
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Feed'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /api/v1/repl/ext:
     get:
       tags:
@@ -2055,36 +1841,6 @@ components:
         modified:
           type: string
           format: date-time
-    Feed:
-      required:
-        - url
-      type: object
-      properties:
-        url:
-          type: string
-          format: uri
-        origin:
-          $ref: '#/components/schemas/origin'
-        name:
-          $ref: '#/components/schemas/name'
-        tags:
-          type: array
-          items:
-            $ref: '#/components/schemas/tag'
-        modified:
-          type: string
-          format: date-time
-        lastScrape:
-          type: string
-          format: date-time
-        scrapeInterval:
-          type: string
-          format: duration
-          example: PT15M
-        scrapeDescription:
-          type: boolean
-        removeDescriptionIndent:
-          type: boolean
     BackupOptions:
       type: object
       properties:
@@ -2277,36 +2033,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/User'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
-    PageFeed:
-      type: object
-      properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
-        content:
-          type: array
-          items:
-            $ref: '#/components/schemas/Feed'
         number:
           type: integer
           format: int32
