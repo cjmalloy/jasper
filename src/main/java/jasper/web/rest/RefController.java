@@ -47,7 +47,7 @@ import java.util.List;
 import static jasper.domain.Ref.SEARCH_LEN;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
-import static jasper.domain.proj.HasTags.TAG_LEN;
+import static jasper.domain.proj.IsTag.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;

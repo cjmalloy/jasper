@@ -1,8 +1,8 @@
 package jasper.repository.spec;
 
+import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.HasTags;
 import jasper.domain.proj.IsTag;
 import jasper.repository.filter.TagQuery;
 import org.slf4j.Logger;
@@ -17,9 +17,7 @@ import static jasper.repository.spec.TemplateSpec.matchesTag;
 
 public class QualifiedTag {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-	public static final String TAG_OR_WILDCARD = "(" + HasTags.REGEX + ")?";
-	public static final String ORIGIN_OR_WILDCARD = "(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*)";
-	public static final String SELECTOR = "(" + HasTags.REGEX + "|" + TAG_OR_WILDCARD + ORIGIN_OR_WILDCARD + ")";
+	public static final String SELECTOR = "(\\*|" + IsTag.REGEX + "|(" + IsTag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
 
 	private final boolean not;
 	private final String tag;
@@ -31,7 +29,7 @@ public class QualifiedTag {
 		if (not) qt = qt.substring(1);
 		var index = qt.indexOf("@");
 		if (index == -1) {
-			tag = qt;
+			tag = qt.equals("*") ? "" : qt;
 			origin = "";
 			if (tag.isEmpty()) throw new UnsupportedOperationException();
 		} else {
@@ -48,8 +46,8 @@ public class QualifiedTag {
 		return !not;
 	}
 
-	public <T extends HasTags> Specification<T> refSpec() {
-		var spec = Specification.<T>where(null);
+	public Specification<Ref> refSpec() {
+		var spec = Specification.<Ref>where(null);
 		if (!tag.equals("")) spec = spec.and(hasTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;

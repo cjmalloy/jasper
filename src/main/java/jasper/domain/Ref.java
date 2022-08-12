@@ -6,6 +6,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
+import jasper.domain.proj.IsTag;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -26,6 +27,8 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+
+import static jasper.domain.proj.IsTag.TAG_LEN;
 
 @Entity
 @Getter
@@ -61,7 +64,7 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = HasTags.REGEX) String> tags;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String> tags;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
@@ -136,6 +139,26 @@ public class Ref implements HasTags {
 			}
 		}
 		return this;
+	}
+
+	@JsonIgnore
+	public List<String> getQualifiedTags() {
+		if (local()) return getTags();
+		if (getTags() == null) return null;
+		return getTags()
+			.stream()
+			.map(t -> t + getOrigin())
+			.toList();
+	}
+
+	@JsonIgnore
+	public List<String> getQualifiedNonPublicTags() {
+		if (getTags() == null) return null;
+		return getTags()
+			.stream()
+			.filter(t -> t.startsWith("_") || t.startsWith("+"))
+			.map(t -> t + getOrigin())
+			.toList();
 	}
 
 	@Override

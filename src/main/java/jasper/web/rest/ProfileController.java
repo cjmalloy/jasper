@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
-import static jasper.domain.proj.HasTags.QTAG_LEN;
+import static jasper.domain.proj.IsTag.QTAG_LEN;
 
 @Profile("scim")
 @RestController

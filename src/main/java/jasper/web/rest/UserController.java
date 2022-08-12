@@ -35,7 +35,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 import java.time.Instant;
 
-import static jasper.domain.proj.HasTags.QTAG_LEN;
+import static jasper.domain.proj.IsTag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 

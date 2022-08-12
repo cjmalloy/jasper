@@ -25,8 +25,6 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
-import static jasper.domain.proj.HasTags.TAG_LEN;
-
 @Entity
 @Getter
 @Setter

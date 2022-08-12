@@ -26,8 +26,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-import static jasper.domain.proj.HasTags.TAG_LEN;
-
 @Entity
 @Getter
 @Setter

@@ -4,6 +4,7 @@ import jasper.domain.Ref;
 import jasper.domain.RefId;
 import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -12,7 +13,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RefRepository extends JpaRepository<Ref, RefId>, RefMixin<Ref>, StreamMixin<RefView>, ModifiedCursor {
+public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor {
+
+	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
+	void deleteByUrlAndOrigin(String url, String origin);
+	boolean existsByUrlAndOrigin(String url, String origin);
+	List<Ref> findAllByUrl(String url);
 
 	@Query(value = """
 		SELECT max(r.modified)

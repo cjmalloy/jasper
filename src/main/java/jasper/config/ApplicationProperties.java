@@ -27,6 +27,8 @@ public class ApplicationProperties {
 	private String scrapeIntervalMin = "1";
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
+	private String replicateBatch = "5000";
+	private String replicateRole = "ROLE_ADMIN";
 	private String defaultRole = "ROLE_USER";
 	private String defaultOrigin = "";
 	private String usernameClaim = "sub";

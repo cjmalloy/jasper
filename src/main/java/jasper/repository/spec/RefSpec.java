@@ -2,7 +2,6 @@ package jasper.repository.spec;
 
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.domain.proj.HasTags;
 import org.springframework.data.jpa.domain.Specification;
 
 import javax.persistence.criteria.CriteriaBuilder;
@@ -134,14 +133,14 @@ public class RefSpec {
 					cb.literal(0)));
 	}
 
-	public static <T extends HasTags> Specification<T> hasTag(String tag) {
+	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
 				root.get("tags"),
 				cb.literal(tag)));
 	}
 
-	public static <T extends HasTags> Specification<T> hasAnyTag(List<String> tags) {
+	public static Specification<Ref>hasAnyTag(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return hasTag(tags.get(0));
 		return (root, query, cb) -> cb.isTrue(
@@ -150,7 +149,7 @@ public class RefSpec {
 				literal(cb, tags)));
 	}
 
-	public static <T extends HasTags> Specification<T> hasAllTags(List<String> tags) {
+	public static Specification<Ref> hasAllTags(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return hasTag(tags.get(0));
 		return (root, query, cb) -> cb.isTrue(
@@ -159,18 +158,18 @@ public class RefSpec {
 				literal(cb, tags)));
 	}
 
-	public static <T extends HasTags> Specification<T> hasAnyQualifiedTag(List<QualifiedTag> tags) {
+	public static Specification<Ref> hasAnyQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<T>where(null);
+		var spec = Specification.<Ref>where(null);
 		for (var t : tags) {
 			spec = spec.or(t.refSpec());
 		}
 		return spec;
 	}
 
-	public static <T extends HasTags> Specification<T> hasAllQualifiedTags(List<QualifiedTag> tags) {
+	public static Specification<Ref> hasAllQualifiedTags(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<T>where(null);
+		var spec = Specification.<Ref>where(null);
 		for (var t : tags) {
 			spec = spec.and(t.refSpec());
 		}

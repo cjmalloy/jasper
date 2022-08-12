@@ -2,7 +2,6 @@ package jasper.security;
 
 import jasper.domain.Ref;
 import jasper.domain.User;
-import jasper.domain.proj.HasTags;
 import jasper.domain.proj.IsTag;
 import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
@@ -38,8 +37,8 @@ import java.util.stream.Stream;
 
 import static jasper.repository.spec.RefSpec.hasAnyTag;
 import static jasper.repository.spec.RefSpec.hasTag;
-import static jasper.repository.spec.TagSpec.isAnyTag;
 import static jasper.repository.spec.TagSpec.isTag;
+import static jasper.repository.spec.TagSpec.isAnyTag;
 import static jasper.repository.spec.TagSpec.publicTag;
 
 @Component
@@ -70,7 +69,7 @@ public class Auth {
 		return true;
 	}
 
-	public boolean canReadRef(HasTags ref) {
+	public boolean canReadRef(Ref ref) {
 		if (hasRole("MOD")) return true;
 		if (ref.getTags() != null) {
 			if (ref.getTags().contains("public")) return true;
@@ -169,7 +168,7 @@ public class Auth {
 	public boolean canReadQuery(Query filter) {
 		if (filter.getQuery() == null) return true;
 		if (hasRole("MOD")) return true;
-		var tagList = Arrays.stream(filter.getQuery().split(Query.DELIMS + "+"))
+		var tagList = Arrays.stream(filter.getQuery().split("[!:|()]+"))
 							.filter((t) -> t.startsWith("_"))
 							.filter((t) -> !t.equals(getUserTag()))
 							.toList();
@@ -208,10 +207,9 @@ public class Auth {
 		return tags.stream().filter(tag -> !canReadTag(tag)).toList();
 	}
 
-	public <T extends HasTags> Specification<T> refReadSpec() {
+	public Specification<Ref> refReadSpec() {
 		if (hasRole("MOD")) return Specification.where(null);
-		var spec = Specification
-			.<T>where(hasTag("public"));
+		var spec = Specification.where(hasTag("public"));
 		if (hasRole("USER")) {
 			spec = spec.or(hasTag(getUserTag()))
 					   .or(hasAnyTag(getReadAccess()));

@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.client.JasperClient;
+import jasper.config.ApplicationProperties;
 import jasper.domain.Ref;
 import jasper.domain.plugin.Origin;
 import jasper.repository.ExtRepository;
@@ -27,6 +28,9 @@ public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
 
 	@Autowired
+	ApplicationProperties applicationProperties;
+
+	@Autowired
 	RefRepository refRepository;
 	@Autowired
 	ExtRepository extRepository;
@@ -47,32 +51,37 @@ public class Replicator {
 	public void replicate(Ref origin) {
 		var config = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin"), Origin.class);
 		Map<String, Object> options = new HashMap<>();
-		options.put("size", 5000);
+		options.put("size", applicationProperties.getReplicateBatch());
 		try {
 			var url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : origin.getUrl());
 			options.put("modifiedAfter", refRepository.getCursor(origin.getOrigin()));
 			for (var ref : client.ref(url, options)) {
 				ref.setOrigin(origin.getOrigin());
+				config.migrate(ref);
 				refRepository.save(ref);
 			}
 			options.put("modifiedAfter", extRepository.getCursor(origin.getOrigin()));
 			for (var ext : client.ext(url, options)) {
 				ext.setOrigin(origin.getOrigin());
+				config.migrate(ext);
 				extRepository.save(ext);
 			}
 			options.put("modifiedAfter", userRepository.getCursor(origin.getOrigin()));
 			for (var user : client.user(url, options)) {
 				user.setOrigin(origin.getOrigin());
+				config.migrate(user);
 				userRepository.save(user);
 			}
 			options.put("modifiedAfter", pluginRepository.getCursor(origin.getOrigin()));
 			for (var plugin : client.plugin(url, options)) {
 				plugin.setOrigin(origin.getOrigin());
+				config.migrate(plugin);
 				pluginRepository.save(plugin);
 			}
 			options.put("modifiedAfter", templateRepository.getCursor(origin.getOrigin()));
 			for (var template : client.template(url, options)) {
 				template.setOrigin(origin.getOrigin());
+				config.migrate(template);
 				templateRepository.save(template);
 			}
 		} catch (Exception e) {

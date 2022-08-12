@@ -1,7 +1,7 @@
 package jasper.repository.filter;
 
+import jasper.domain.Ref;
 import jasper.domain.Template;
-import jasper.domain.proj.HasTags;
 import jasper.domain.proj.IsTag;
 import jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
@@ -12,9 +12,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static jasper.repository.filter.Query.AND_REGEX;
-import static jasper.repository.filter.Query.DELIMS;
-import static jasper.repository.filter.Query.OR_REGEX;
 import static jasper.repository.spec.RefSpec.hasAllQualifiedTags;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAllQualifiedTag;
@@ -30,11 +27,11 @@ public class TagQuery {
 	private final List<QualifiedTag> orTags = new ArrayList<>();
 
 	public TagQuery(String query) {
-		parse(sanitize(query));
+		parse(query);
 	}
 
-	public <T extends HasTags> Specification<T> refSpec() {
-		var result = Specification.<T>where(null);
+	public Specification<Ref> refSpec() {
+		var result = Specification.<Ref>where(null);
 		if (orTags.size() > 0) {
 			result = result.or(hasAnyQualifiedTag(orTags));
 		}
@@ -42,7 +39,7 @@ public class TagQuery {
 			result = result.or(hasAllQualifiedTags(andGroup));
 		}
 		for (var andGroup : nestedGroups) {
-			var subExpression = Specification.<T>where(null);
+			var subExpression = Specification.<Ref>where(null);
 			for (var innerOrGroup : andGroup) {
 				subExpression = subExpression.and(hasAnyQualifiedTag(innerOrGroup));
 			}
@@ -91,7 +88,6 @@ public class TagQuery {
 		logger.debug(query);
 		// TODO: allow unlimited parentheses https://en.wikipedia.org/wiki/Shunting-yard_algorithm
 		query = markInnerOuterOrs(query);
-		query = query.replaceAll(AND_REGEX, ":");
 		var ors = query.split("[|]");
 		for (var orGroup : ors) {
 			if (orGroup.length() == 0) continue;
@@ -126,27 +122,21 @@ public class TagQuery {
 	}
 
 	private String markInnerOuterOrs(String query) {
-		if (!query.contains("(")) return query.replaceAll(OR_REGEX, "|");
+		if (!query.contains("(")) return query;
 		var groups = query.split("[()]");
 		var result = new StringBuilder();
 		var parens = false;
 		for (String group : groups) {
 			if (parens) {
 				result.append("(");
-				result.append(group.replaceAll(OR_REGEX, " "));
+				result.append(group.replaceAll("\\|", " "));
 				result.append(")");
 			} else {
-				result.append(group.replaceAll(OR_REGEX, "|"));
+				result.append(group.replaceAll("\\|", "|"));
 			}
 			parens = !parens;
 		}
 		return result.toString();
-	}
-
-	private String sanitize(String query) {
-		return query
-			.replaceAll("\\s*(" + DELIMS + ")\\s*", "$1")
-			.trim();
 	}
 
 }

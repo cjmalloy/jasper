@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.HasTags;
+import jasper.domain.proj.IsTag;
 import jasper.service.TaggingService;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
-import static jasper.domain.proj.HasTags.TAG_LEN;
+import static jasper.domain.proj.IsTag.TAG_LEN;
 
 @RestController
 @RequestMapping("api/v1/tags")
@@ -49,7 +49,7 @@ public class TaggingController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createTags(
-		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = HasTags.REGEX) String tag,
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -62,7 +62,7 @@ public class TaggingController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTags(
-		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = HasTags.REGEX) String tag,
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -75,7 +75,7 @@ public class TaggingController {
 	@PatchMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchTags(
-		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = HasTags.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = IsTag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {

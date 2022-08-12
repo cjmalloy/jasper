@@ -73,7 +73,7 @@ public class RefService {
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
 			.findAll(
-				auth.<Ref>refReadSpec()
+				auth.refReadSpec()
 					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
@@ -84,7 +84,7 @@ public class RefService {
 	public long count(RefFilter filter) {
 		return refRepository
 			.count(
-				auth.<Ref>refReadSpec()
+				auth.refReadSpec()
 					.and(filter.spec()));
 	}
 

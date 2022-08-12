@@ -7,7 +7,6 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.plugin.Feed;
-import jasper.domain.plugin.Origin;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -163,6 +162,7 @@ public class Backup {
 		try (FileSystem zipfs = FileSystems.newFileSystem(path(id))) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, zipfs.getPath("/ref.json"), Ref.class);
+				upgradeFeed(zipfs.getPath("/feed.json"));
 			}
 			if (options == null || options.isExt()) {
 				restoreRepo(extRepository, zipfs.getPath("/ext.json"), Ext.class);
@@ -176,10 +176,6 @@ public class Backup {
 			if (options == null || options.isTemplate()) {
 				restoreRepo(templateRepository, zipfs.getPath("/template.json"), Template.class);
 			}
-			if (options == null) {
-				upgradeFeed(zipfs.getPath("/feed.json"));
-				upgradeOrigin(zipfs.getPath("/origin.json"));
-			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -192,37 +188,26 @@ public class Backup {
 			.forEachRemaining(repo::save);
 	}
 
-	private void upgradeFeed(Path path) throws IOException {
-		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldFeed.class, objectMapper)
-			.forEachRemaining(oldFeed -> {
-				var ref = new Ref();
-				ref.setUrl(oldFeed.url);
-				ref.setOrigin(oldFeed.origin);
-				ref.setTitle(oldFeed.name);
-				ref.setTags(oldFeed.tags);
-				ref.setModified(oldFeed.modified);
-				var feed = new Feed();
-				feed.setLastScrape(oldFeed.lastScrape);
-				feed.setScrapeInterval(oldFeed.scrapeInterval);
-				feed.setScrapeDescription(oldFeed.scrapeDescription);
-				feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
-				refRepository.save(ref);
-			});
-	}
-
-	private void upgradeOrigin(Path path) throws IOException {
-		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldOrigin.class, objectMapper)
-			.forEachRemaining(oldOrigin -> {
-				var ref = new Ref();
-				ref.setUrl(oldOrigin.url);
-				ref.setOrigin(oldOrigin.origin);
-				ref.setTitle(oldOrigin.name);
-				ref.setModified(oldOrigin.modified);
-				var feed = new Origin();
-				feed.setProxy(oldOrigin.proxy);
-				feed.setLastScrape(oldOrigin.lastScrape);
-				refRepository.save(ref);
-			});
+	private void upgradeFeed(Path path) {
+		try {
+			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldFeed.class, objectMapper)
+				.forEachRemaining(oldFeed -> {
+					var ref = new Ref();
+					ref.setUrl(oldFeed.url);
+					ref.setOrigin(oldFeed.origin);
+					ref.setTitle(oldFeed.name);
+					ref.setTags(oldFeed.tags);
+					ref.setModified(oldFeed.modified);
+					var feed = new Feed();
+					feed.setLastScrape(oldFeed.lastScrape);
+					feed.setScrapeInterval(oldFeed.scrapeInterval);
+					feed.setScrapeDescription(oldFeed.scrapeDescription);
+					feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
+					refRepository.save(ref);
+				});
+		} catch (IOException e) {
+			// Ignore missing file
+		}
 	}
 
 	public void store(String id, byte[] zipFile) throws IOException {

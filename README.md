@@ -3,6 +3,7 @@ Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
 [![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.1.0-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.1.0)
+[![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://https://docker.com/)
 
 ## Quickstart
 To start the server, client and database with a single admin user, run
@@ -33,15 +34,13 @@ schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or u
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
 to other presentations, such as XML, YAML, or TOML.
-Jasper defines seven entity types, an access control model, and a plugin/templating system for extending
+Jasper defines five entity types, an access control model, and a plugin/templating system for extending
 the model.
-1. Origin
-2. Ref
-3. Feed
-4. Ext
-5. User
-6. Plugin
-7. Template
+1. Ref
+2. Ext
+3. User
+4. Plugin
+5. Template
 
 Although relations exist between the entities, the data model is non-relational. In other words,
 there are foreign keys, but no foreign key constraints. For example, a Ref may refer to an Origin
@@ -132,41 +131,14 @@ allows a user tag to customize their experience, such as subscribing to a list o
 on their home page.
 
 ## Entities
-There are three types of entities in Jasper:
-1. Origins
-2. Ref-like entities
-3. Tag-like entities
+There are two types of entities in Jasper:
+1. Refs
+2. Tags
 
 ![entities](./docs/entities.png)
 Origins are used to facilitate replication and multi-tenant operation. Each origin represents a
 jasper instance that that entity originated from.
 ![origins](./docs/origins.png)
-
-### Origin
-Origins are an optional part of the system for supporting multi-tenant behaviour and advanced
-replication. Although the origin is strictly required as part of every entity, the empty string
-is a valid origin which indicates "local Origin".  
-Origin entities are used to define replication sources. Example:
-```json 
-{
-  "origin": "@jasperkms.info",
-  "url": "https://jasperkms.info/",
-  "name": "Jasper KMS",
-  "proxy": "https://archive.jasperkms.info/",
-  "modified": "2022-06-18T11:25:42Z",
-  "lastScrape": "2022-06-18T11:25:42Z"
-}
-```
-Only the "origin", "url", and "modified"  fields are required.
-
-**Origin:** The id of this Origin. Must match the regex `@[a-z]+(\.[a-z]+)*` or the empty string for
-"local Origin".  
-**URL:** The canonical URL for this origin.  
-**Name:** Name of this Origin.  
-**Proxy:** Optional URL to use for replication. If present overrides URL. Useful when replicating
-through an intermediary server.  
-**Modified:** Modified date of this Origin.  
-**Last Scrape:** The last time this Origin has been scraped.  
 
 ### Ref
 Refs are the main data model in Jasper. A Ref defines a URL to a remote resource. Example:
@@ -217,42 +189,6 @@ be later than the published date of all sources.
 **Created:** Created date of this Ref.  
 **Modified:** Last modified date of this Ref. If this is the same as the created date no modification
 has occurred.  
-
-### Feed
-A Feed is a Ref-like resource. It represents an RSS or Atom feed.
-```json 
-{
-  "url": "https://rss.cbc.ca/lineup/canada.xml",
-  "origin": "",
-  "name": "CBC Canada",
-  "tags": ["public", "plugin/thumbnail", "cbc"],
-  "scrapeDescription": true,
-  "removeDescriptionIndent": true,
-  "modified": "2022-06-18T12:07:04.404272Z",
-  "lastScrape": "2022-06-18T12:07:04.404272Z",
-  "scrapeInterval": "PT15M"
-}
-```
-Only the "url", "origin", "modified", and "scrapeInterval" fields are required.
-
-A feed is scraped on a fixed interval and all entries are ingested as Refs. Any tags on the Feed are
-copied to any created Refs. Plugin tags such as "plugin/thumbnail", "plugin/embed", "plugin/audio",
-"plugin/video" will cause the parser to attempt to find the related resources in the feed data.
-If none is found these tags are not added to any ingested Refs.
-
-**URL:** The URL of the feed.  
-**Origin:** The Origin this Feed was replicated from, or empty string for local.  
-**Name:** The name of the Feed.  
-**Tags:** Tags to apply to any Refs created by this feed. All tags must match the
-regex `[_+]?[a-z]+(/[a-z]+)*`  
-**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
-feed to use for the Ref comment field.  
-**Remove Description Indent:** Remove any indents from the description. This is needed when the
-description is HTML, as indents will trigger a block quote in markdown.  
-**Modified:** Last modified date of this Feed.  
-**Last Scrape:** The time this feed was last scraped.  
-**Scrape Interval:** The time interval to scrape this feed. Use either time spans (HH:MM:SS) or 
-ISO 8601 durations.  
 
 ### Ext
 An Ext is a Tag-like entity representing a Tag extension.
@@ -379,7 +315,7 @@ string the Template matches all Exts.
 **Config:** Arbitrary JSON.  
 **Defaults:** Default Ext config if creating a new Ext with empty config.  
 **Schema:** Json Type Def (JTD) schema used to validate Ext config.  
-**Modified:** Last modified date of this Template.  
+**Modified:** Last modified date of this Template.
 
 ## Layers
 The jasper model is defined in layers. This is to facilitate lower level operations such as routing, querying
@@ -389,13 +325,12 @@ and archiving.
 The identity layer of the Jasper model defines how entities are stored or retrieved. A system operating
 at this layer should be extremely lenient when validating entities. Only the identity fields of the
 entity need to be considered. The identity fields are:  
-1. Tag-like entities: (Tag, Origin, Modified)
-2. Ref-like entities: (URL, Origin, Modified)
-3. Origins: (Origin, Modified)
+1. Refs: (URL, Origin, Modified)
+2. Tags: (Tag, Origin, Modified)
 
 ### Indexing Layer
-The indexing layer of the Jasper model adds tags to the Ref-like entities. A system operating at this layer
-should support tag queries.
+The indexing layer of the Jasper model adds tags to Refs. A system operating at this layer should support
+tag queries.
 
 ### Application Layer
 The application layer of the Jasper model includes all entity fields. Plugins and templates are validated
@@ -411,11 +346,12 @@ According to the CAP theorem you may only provide two of these three guarantees:
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
 tolerance are guaranteed. The modified date is used as a cursor to efficiently poll for modified records.
 
-To replicate a Jasper instance simply create an Origin entity for that instance. The jasper server will
-then poll that instance periodically to check for any new entities. The modified date of the last entity
-received will be stored and used for the next poll. When polling, the Jasper server requests a batch of
-entities from the remote instance where the modified date is after the last stored modified date, sorted
-by modified date ascending.
+To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin`. If
+either the `repl-burst` or `repl-schedule` profiles are active the jasper server will then poll that
+instance periodically to check for any new entities. The modified dateof the last entity received will
+be stored and used for the next poll. When polling, the Jasper server requests a batch of entities from
+the remote instance where the modified date is after the last stored modified date, sorted by modified
+date ascending.
 
 ### Duplicate Modified Date
 Jasper instances should enforce unique modified dates for each entity type. Otherwise, when receiving
@@ -442,10 +378,13 @@ Jasper is available as a Docker image and a Helm chart. It supports the followin
 | `APPLICATION_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                  |                                           |
 | `APPLICATION_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                   | 0                                         |
 | `APPLICATION_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                       | 1                                         |
+| `APPLICATION_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                            | 5000                                      |
+| `APPLICATION_REPLICATE_ROLE`                             | Required role for access to the replication endpoints. Set to `ROLE_ANONYMOUS` to allow unlimited access.          | `ROLE_ADMIN`                              |
 | `APPLICATION_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                      | 0                                         |
 | `APPLICATION_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                          | 1                                         |
 | `APPLICATION_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                       | `ROLE_USER`                               |
 | `APPLICATION_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                    | `sub`                                     |
+| `APPLICATION_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
 | `APPLICATION_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
 
 ### Profiles
@@ -472,16 +411,21 @@ backchannel authentication. Set the SCIM endpoint with the `APPLICATION_SCIM_END
 environment variable.
 
 To enable RSS scraping, enable either the `feed-schedule` or `feed-burst` profile. The `feed-schedule`
-profile will only scrape the oldest outdated feed when the scheduler is run, while `feed-burst`
-will scrape all outdated feeds.  
+profile will only scrape the oldest outdated `+plugin/feed` when the scheduler is run, while `feed-burst`
+will scrape all outdated `+plugin/feed`s.  
 Use `APPLICATION_SCRAPE_DELAY_MIN` to configure the initial delay in minutes after the server
 starts to begin scraping, and `APPLICATION_SCRAPE_INTERVAL_MIN` to configure the interval
 in minutes between scrapes.
 
+To enable Remote origin scraping, enable either the `repl-schedule` or `repl-burst` profile. The `repl-schedule`
+profile will only scrape the oldest outdated `+plugin/origin` when the scheduler is run, while `repl-burst`
+will scrape all outdated `+plugin/origin`s.  
+Use `APPLICATION_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
+starts to begin replicating, and `APPLICATION_REPL_INTERVAL_MIN` to configure the interval
+in minutes between replication batches.
+
 The `storage` profile enables the backup system. Use the `APPLICATION_STORAGE` environment
 variable to change the location of the storage folder.
-
-The `repl` profile enables remote replication.
 
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
@@ -489,13 +433,12 @@ hierarchical roles which cover broad access control, Admin, Mod, Editor, User, a
 Roles are hierarchical, so they include any permissions granted to a preceding role.
  * `ROLE_ANONYMOUS`: read access to public tags and Refs.
  * `ROLE_USER`: logged in user. Can post refs. Has read/write access to their user tag.
- * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to. Can create feeds.
+ * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to.
  * `ROLE_MOD`: can read/write any tag or ref except plugins and templates.
  * `ROLE_ADMIN`: complete access. Can read/write plugins and templates, perform backups and restores.
 
-Tags are used to provide fine-grained access to resources. For Ref-like entities (Refs and Feeds), the
-list of tags are considered. For Tag-like entities, their tag is considered. Origins may only be
-accessed by an admin, but any role can list the names of Origins on the server.
+Tags are used to provide fine-grained access to resources. For Refs, the list of tags are considered.
+For Tags entities, their tag is considered.
 
 The tag permissions are stored in the User entities:
  * Tag Read Access
@@ -528,7 +471,7 @@ In order to use the backup system, the storage profile must be active.
 ## Validation
 When ingesting entities, Jasper performs the following validation:
  * Fields must not exceed their maximum length
- * URLS are valid according to the regex `^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?`
+ * URLS are valid according to the regex `(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))`
  * Tags are valid according to their respective prefix and the general tag regex `[_+]?[a-z]+(/[a-z]+)*`
  * If a Ref has plugins present, any plugin data must conform to the plugin's schema
  * If an Ext matches a template prefix, any config must conform to all matching templates merged schemas
@@ -540,6 +483,66 @@ Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+
+## RSS / Atom Scraping
+The `+plugin/feed` can be used to scrape RSS / Atom feeds when the `feed-burst` or `feed-schedule` profiles
+are active. Although plugin fields are determined dynamically, the following fields are checked by the
+scraper:
+```json
+{
+  "properties": {
+    "scrapeInterval": { "type": "string" }
+  },
+  "optionalProperties": {
+    "addTags": { "elements": { "type": "string" } },
+    "lastScrape": { "type": "string" },
+    "scrapeDescription": { "type": "boolean" },
+    "removeDescriptionIndent": { "type": "boolean" }
+  }
+}
+```
+
+**Add Tags:** Tags to apply to any Refs created by this feed.
+**Modified:** Last modified date of this Feed.  
+**Last Scrape:** The time this feed was last scraped.  
+**Scrape Interval:** The time interval to scrape this feed. Use ISO 8601 duration format.
+**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
+feed to use for the Ref comment field.  
+**Remove Description Indent:** Remove any indents from the description. This is needed when the
+description is HTML, as indents will trigger a block quote in markdown.
+
+The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
+`+plugin/feed` it will be skipped.
+
+## Replicating Remote Origin
+The `+plugin/origin` can be used to replicate remote origins when the `repl-burst` or `repl-schedule`
+profiles are active. Although plugin fields are determined dynamically, the following fields are checked
+by the replicator:
+```json
+{
+  "properties": {
+    "scrapeInterval": { "type": "string" }
+  },
+  "optionalProperties": {
+    "addTags": { "elements": { "type": "string" } },
+    "lastScrape": { "type": "string" },
+    "scrapeDescription": { "type": "boolean" },
+    "removeDescriptionIndent": { "type": "boolean" }
+  }
+}
+```
+
+**Add Tags:** Tags to apply to any Refs created by this feed.
+**Modified:** Last modified date of this Feed.  
+**Last Scrape:** The time this feed was last scraped.  
+**Scrape Interval:** The time interval to scrape this feed. Use ISO 8601 duration format.
+**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
+feed to use for the Ref comment field.  
+**Remove Description Indent:** Remove any indents from the description. This is needed when the
+description is HTML, as indents will trigger a block quote in markdown.
+
+The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
+`+plugin/feed` it will be skipped.
 
 ## Release Notes
 * [v1.1.0](./docs/release-notes/jasper-1.1.0.md)
