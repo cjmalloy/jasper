@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.client.JasperClient;
 import jasper.config.ApplicationProperties;
 import jasper.domain.Ref;
-import jasper.domain.plugin.Origin;
+import jasper.plugin.Origin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -50,46 +50,47 @@ public class Replicator {
 
 	public void replicate(Ref origin) {
 		var config = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin"), Origin.class);
+		config.setLastScrape(Instant.now());
+		origin.getPlugins().set("+plugin/origin", objectMapper.convertValue(config, JsonNode.class));
+		refRepository.save(origin);
+
 		Map<String, Object> options = new HashMap<>();
 		options.put("size", applicationProperties.getReplicateBatch());
+		options.put("origin", config.getRemote());
 		try {
 			var url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : origin.getUrl());
-			options.put("modifiedAfter", refRepository.getCursor(origin.getOrigin()));
+			options.put("modifiedAfter", refRepository.getCursor(config.getOrigin()));
 			for (var ref : client.ref(url, options)) {
-				ref.setOrigin(origin.getOrigin());
 				config.migrate(ref);
 				refRepository.save(ref);
 			}
-			options.put("modifiedAfter", extRepository.getCursor(origin.getOrigin()));
+			options.put("modifiedAfter", extRepository.getCursor(config.getOrigin()));
 			for (var ext : client.ext(url, options)) {
-				ext.setOrigin(origin.getOrigin());
+				if (config.skip(ext.getTag())) continue;
 				config.migrate(ext);
 				extRepository.save(ext);
 			}
-			options.put("modifiedAfter", userRepository.getCursor(origin.getOrigin()));
+			options.put("modifiedAfter", userRepository.getCursor(config.getOrigin()));
 			for (var user : client.user(url, options)) {
-				user.setOrigin(origin.getOrigin());
+				if (config.skip(user.getTag())) continue;
 				config.migrate(user);
 				userRepository.save(user);
 			}
-			options.put("modifiedAfter", pluginRepository.getCursor(origin.getOrigin()));
+			options.put("modifiedAfter", pluginRepository.getCursor(config.getOrigin()));
 			for (var plugin : client.plugin(url, options)) {
-				plugin.setOrigin(origin.getOrigin());
+				if (config.skip(plugin.getTag())) continue;
 				config.migrate(plugin);
 				pluginRepository.save(plugin);
 			}
-			options.put("modifiedAfter", templateRepository.getCursor(origin.getOrigin()));
+			options.put("modifiedAfter", templateRepository.getCursor(config.getOrigin()));
 			for (var template : client.template(url, options)) {
-				template.setOrigin(origin.getOrigin());
+				if (config.skip(template.getTag())) continue;
 				config.migrate(template);
 				templateRepository.save(template);
 			}
 		} catch (Exception e) {
-			logger.error("Error replicating origin {}", origin.getOrigin(), e);
+			logger.error("Error replicating origin {}", config.getOrigin(), e);
 		}
-		config.setLastScrape(Instant.now());
-		origin.getPlugins().set("+plugin/origin", objectMapper.convertValue(config, JsonNode.class));
-		refRepository.save(origin);
 	}
 
 }

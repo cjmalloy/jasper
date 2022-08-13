@@ -14,14 +14,6 @@ public class TemplateSpec {
 				root.get(Template_.tag),
 				"");
 	}
-
-	public static Specification<Template> isTag(String tag) {
-		return (root, query, cb) ->
-			cb.equal(
-				root.get(Template_.tag),
-				tag);
-	}
-
 	public static Specification<Template> matchesTag(String tag) {
 		return (root, query, cb) ->
 			cb.not(

@@ -19,17 +19,17 @@ public class TemplateFilter implements Query {
 	public static final String QUERY = Query.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(TemplateFilter.class);
 
+	private String origin;
 	private String query;
-	private boolean local;
 	private Instant modifiedAfter;
 
 	public Specification<Template> spec() {
 		var result = Specification.<Template>where(null);
+		if (isNotBlank(origin)) {
+			result = result.and(isOrigin(origin));
+		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).templateSpec());
-		}
-		if (local) {
-			result = result.and(isOrigin(""));
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));

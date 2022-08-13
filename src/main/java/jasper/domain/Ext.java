@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -30,7 +30,7 @@ import java.util.Objects;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Ext implements IsTag {
+public class Ext implements Tag {
 	public static final int NAME_LEN = 512;
 
 	@Id

@@ -29,7 +29,7 @@ public class TaggingService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.canTag(#tag, #url)")
+	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	public void create(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -40,7 +40,7 @@ public class TaggingService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("@auth.canTag(#tag, #url)")
+	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	public void delete(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -52,7 +52,7 @@ public class TaggingService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("@auth.canTagAll(#tags, #url)")
+	@PreAuthorize("@auth.canTagAll(#tags, #url, #origin)")
 	public void tag(List<String> tags, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);

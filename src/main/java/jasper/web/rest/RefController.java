@@ -47,7 +47,7 @@ import java.util.List;
 import static jasper.domain.Ref.SEARCH_LEN;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
-import static jasper.domain.proj.IsTag.TAG_LEN;
+import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;
@@ -230,8 +230,9 @@ public class RefController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteRef(
-		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		refService.delete(url);
+		refService.delete(url, origin);
 	}
 }

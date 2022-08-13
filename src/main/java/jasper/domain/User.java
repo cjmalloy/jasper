@@ -3,7 +3,7 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import jasper.repository.spec.QualifiedTag;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,7 +34,7 @@ import java.util.Objects;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class User implements IsTag {
+public class User implements Tag {
 	public static final String REGEX = "[_+]user/[a-z]+(/[a-z]+)*";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;

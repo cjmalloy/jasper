@@ -3,10 +3,7 @@ package jasper.repository.spec;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.IsTag;
-import jasper.repository.filter.TagQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jasper.domain.proj.Tag;
 import org.springframework.data.jpa.domain.Specification;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -16,15 +13,13 @@ import static jasper.repository.spec.TemplateSpec.defaultTemplate;
 import static jasper.repository.spec.TemplateSpec.matchesTag;
 
 public class QualifiedTag {
-	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-	public static final String SELECTOR = "(\\*|" + IsTag.REGEX + "|(" + IsTag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
+	public static final String SELECTOR = "(\\*|" + Tag.REGEX + "|(" + Tag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
 
 	private final boolean not;
 	private final String tag;
 	private final String origin;
 
 	public QualifiedTag(String qt) {
-		logger.debug(qt);
 		not = qt.startsWith("!");
 		if (not) qt = qt.substring(1);
 		var index = qt.indexOf("@");
@@ -53,7 +48,7 @@ public class QualifiedTag {
 		return not ? Specification.not(spec) : spec;
 	}
 
-	public <T extends IsTag> Specification<T> spec() {
+	public <T extends Tag> Specification<T> spec() {
 		var spec = Specification.<T>where(null);
 		if (!tag.equals("")) spec = spec.and(isTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
@@ -66,11 +61,5 @@ public class QualifiedTag {
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
-	}
-
-	public <T extends HasOrigin> Specification<T> originSpec() {
-		if (!tag.equals("")) throw new UnsupportedOperationException();
-		if (origin.equals("@*")) throw new UnsupportedOperationException();
-		return not ? Specification.not(isOrigin(origin)) : isOrigin(origin);
 	}
 }

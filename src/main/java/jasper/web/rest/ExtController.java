@@ -5,9 +5,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import org.hibernate.validator.constraints.Length;
@@ -35,14 +34,14 @@ import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 import java.time.Instant;
 
-import static jasper.domain.proj.IsTag.QTAG_LEN;
+import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 
 @RestController
 @RequestMapping("api/v1/ext")
 @Validated
-@Tag(name = "Ext")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Ext")
 @ApiResponses({
 	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
@@ -72,7 +71,7 @@ public class ExtController {
 	@GetMapping
 	HttpEntity<Ext> getExt(
 		WebRequest request,
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag
 	) {
 		return ifModifiedSince(request, extService.get(tag));
 	}
@@ -112,7 +111,7 @@ public class ExtController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag,
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestBody JsonPatch patch
 	) {
 		extService.patch(tag, patch);
@@ -124,7 +123,7 @@ public class ExtController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag
 	) {
 		extService.delete(tag);
 	}

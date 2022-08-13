@@ -1,4 +1,4 @@
-package jasper.domain.plugin;
+package jasper.plugin;
 
 import lombok.Getter;
 import lombok.Setter;

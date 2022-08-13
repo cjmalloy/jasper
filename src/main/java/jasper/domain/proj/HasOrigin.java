@@ -6,6 +6,7 @@ public interface HasOrigin extends HasModified {
 	int ORIGIN_LEN = 64;
 
 	String getOrigin();
+	void setOrigin(String origin);
 	default boolean local() {
 		return getOrigin() == null || getOrigin().isEmpty();
 	}

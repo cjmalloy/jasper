@@ -1,6 +1,6 @@
 package jasper.repository.filter;
 
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -19,20 +19,20 @@ public class TagFilter implements Query {
 	public static final String QUERY = Query.REGEX;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
+	private String origin;
 	private String query;
-	private boolean local;
 	private Instant modifiedAfter;
 
-	public <T extends IsTag> Specification<T> spec() {
+	public <T extends Tag> Specification<T> spec() {
 		var result = Specification.<T>where(null);
-		if (modifiedAfter != null) {
-			result = result.and(isModifiedAfter(modifiedAfter));
-		}
-		if (local) {
-			result = result.and(isOrigin(""));
+		if (isNotBlank(origin)) {
+			result = result.and(isOrigin(origin));
 		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).spec());
+		}
+		if (modifiedAfter != null) {
+			result = result.and(isModifiedAfter(modifiedAfter));
 		}
 		return result;
 	}

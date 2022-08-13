@@ -6,7 +6,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -28,7 +28,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-import static jasper.domain.proj.IsTag.TAG_LEN;
+import static jasper.domain.proj.Tag.TAG_LEN;
 
 @Entity
 @Getter
@@ -64,7 +64,7 @@ public class Ref implements HasTags {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String> tags;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

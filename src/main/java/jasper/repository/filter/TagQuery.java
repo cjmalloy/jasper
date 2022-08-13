@@ -2,7 +2,7 @@ package jasper.repository.filter;
 
 import jasper.domain.Ref;
 import jasper.domain.Template;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +48,7 @@ public class TagQuery {
 		return result;
 	}
 
-	public <T extends IsTag> Specification<T> spec() {
+	public <T extends Tag> Specification<T> spec() {
 		var result = Specification.<T>where(null);
 		if (orTags.size() > 0) {
 			result = result.or(isAnyQualifiedTag(orTags));

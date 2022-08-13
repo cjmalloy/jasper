@@ -114,10 +114,10 @@ public class RefService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#url)")
-	public void delete(String url) {
+	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
+	public void delete(String url, String origin) {
 		try {
-			ingest.delete(url, "");
+			ingest.delete(url, origin);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

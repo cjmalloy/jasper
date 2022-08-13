@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-@Profile("repl-burst")
+@Profile("repl-schedule")
 @Component
-public class OriginScraperBurst {
-	private static final Logger logger = LoggerFactory.getLogger(OriginScraperBurst.class);
+public class OriginScraperSchedule {
+	private static final Logger logger = LoggerFactory.getLogger(OriginScraperSchedule.class);
 
 	@Autowired
 	RefRepository refRepository;
@@ -26,15 +26,13 @@ public class OriginScraperBurst {
 		initialDelayString = "${application.replicate-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
-		logger.info("Replicating all origins in a burst.");
-		while (true) {
-			var maybeFeed = refRepository.oldestNeedsReplByOrigin("");
-			if (maybeFeed.isEmpty()) {
-				logger.info("All origins up to date.");
-				return;
-			}
-			replicator.replicate(maybeFeed.get());
+		logger.info("Replicating all origins on schedule.");
+		var maybeFeed = refRepository.oldestNeedsReplByOrigin("");
+		if (maybeFeed.isEmpty()) {
+			logger.info("All origins up to date.");
+			return;
 		}
+		replicator.replicate(maybeFeed.get());
 	}
 
 }

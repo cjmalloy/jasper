@@ -61,23 +61,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean existsByAlternateUrlAndOrigin(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *
-		FROM ref as f
-		WHERE f.origin = :origin
-			AND jsonb_exists(f.tags, '+plugin/feed')
-			AND (NOT jsonb_exists(f.config->'+plugin/feed', 'lastScrape')
-				OR f.config->'+plugin/feed'->'lastScrape'::timestamp + f.config->'+plugin/feed'->'scrapeInterval'::interval < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY f.config->'+plugin/feed'->'lastScrape'::timestamp ASC
+		SELECT *, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.tags, '+plugin/feed')
+			AND (NOT jsonb_exists(ref.plugins->'+plugin/feed', 'lastScrape')
+				OR cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/feed'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) ASC
 		LIMIT 1""")
 	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *
-		FROM ref as f
-		WHERE jsonb_exists(f.tags, '+plugin/origin')
-			AND (NOT jsonb_exists(f.config->'+plugin/origin', 'lastScrape')
-				OR f.config->'+plugin/origin'->'lastScrape'::timestamp + f.config->'+plugin/origin'->'scrapeInterval'::interval < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY f.config->'+plugin/origin'->'lastScrape'::timestamp ASC
+		SELECT *, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.tags, '+plugin/origin')
+			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin', 'lastScrape')
+				OR cast(ref.plugins->'+plugin/origin'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/origin'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY cast(ref.plugins->'+plugin/origin'->>'lastScrape' AS timestamp) ASC
 		LIMIT 1""")
-	Optional<Ref> oldestNeedsRepl();
+	Optional<Ref> oldestNeedsReplByOrigin(String origin);
 }

@@ -2,7 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
-import jasper.domain.plugin.Feed;
+import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

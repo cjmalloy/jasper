@@ -2,7 +2,8 @@ package jasper.security;
 
 import jasper.domain.Ref;
 import jasper.domain.User;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.HasTags;
+import jasper.domain.proj.Tag;
 import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
@@ -37,9 +38,10 @@ import java.util.stream.Stream;
 
 import static jasper.repository.spec.RefSpec.hasAnyTag;
 import static jasper.repository.spec.RefSpec.hasTag;
-import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TagSpec.isAnyTag;
+import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TagSpec.publicTag;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 @RequestScope
@@ -69,7 +71,7 @@ public class Auth {
 		return true;
 	}
 
-	public boolean canReadRef(Ref ref) {
+	public boolean canReadRef(HasTags ref) {
 		if (hasRole("MOD")) return true;
 		if (ref.getTags() != null) {
 			if (ref.getTags().contains("public")) return true;
@@ -99,13 +101,14 @@ public class Auth {
 	}
 
 	public boolean canWriteRef(Ref ref) {
-		if (!canWriteRef(ref.getUrl())) return false;
+		if (!canWriteRef(ref.getUrl(), ref.getOrigin())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
 		return newTags(ref.getQualifiedNonPublicTags(), maybeExisting.map(Ref::getQualifiedNonPublicTags)).allMatch(this::canAddTag);
 	}
 
-	public boolean canWriteRef(String url) {
+	public boolean canWriteRef(String url, String origin) {
 		if (hasRole("MOD")) return true;
+		if (isNotBlank(origin)) return false;
 		if (!hasRole("USER")) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
 		if (maybeExisting.isEmpty()) return true;
@@ -129,19 +132,19 @@ public class Auth {
 		return false;
 	}
 
-	public boolean canTagAll(List<String> tags, String url) {
+	public boolean canTagAll(List<String> tags, String url, String origin) {
 		if (hasRole("MOD")) return true;
 		for (var tag : tags) {
-			if (!canTag(tag, url)) return false;
+			if (!canTag(tag, url, origin)) return false;
 		}
 		return true;
 	}
 
-	public boolean canTag(String tag, String url) {
+	public boolean canTag(String tag, String url, String origin) {
 		if (tag.equals("public")) return false;
 		if (tag.equals("locked")) return false;
 		if (hasRole("EDITOR") && isPublicTag(tag) && canReadRef(url)) return true;
-		return canReadTag(tag) && canWriteRef(url);
+		return canReadTag(tag) && canWriteRef(url, origin);
 	}
 
 	public boolean isPublicTag(String tag) {
@@ -217,7 +220,7 @@ public class Auth {
 		return spec;
 	}
 
-	public <T extends IsTag> Specification<T> tagReadSpec() {
+	public <T extends Tag> Specification<T> tagReadSpec() {
 		if (hasRole("MOD")) return Specification.where(null);
 		var spec = Specification.<T>where(publicTag());
 		if (hasRole("USER")) {

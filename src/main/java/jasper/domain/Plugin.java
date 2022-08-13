@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import jasper.domain.validator.SchemaValid;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,7 +32,7 @@ import java.util.Objects;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Plugin implements IsTag {
+public class Plugin implements Tag {
 	public static final String REGEX = "[_+]?plugin/[a-z]+(/[a-z]+)*";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
@@ -90,5 +90,11 @@ public class Plugin implements IsTag {
 	@Override
 	public int hashCode() {
 		return Objects.hash(tag, origin);
+	}
+
+	public static boolean isPlugin(String tag) {
+		return tag.startsWith("plugin/") ||
+			tag.startsWith("_plugin/") ||
+			tag.startsWith("+plugin/");
 	}
 }

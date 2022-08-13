@@ -1,6 +1,6 @@
 package jasper.domain.proj;
 
-public interface IsTag extends HasOrigin {
+public interface Tag extends HasOrigin {
 	String REGEX = "[_+]?[a-z]+(/[a-z]+)*";
 	String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	String ADD_REMOVE_REGEX = "[-]?" + REGEX;

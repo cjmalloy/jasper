@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
+import jasper.domain.proj.HasOrigin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -33,6 +34,7 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 
 @RestController
@@ -62,13 +64,14 @@ public class ReplicateController {
 
 	@GetMapping("ref")
 	List<RefDto> ref(
-		@RequestParam(defaultValue = "500") int size,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(defaultValue = "500") int size
 	) {
 		return refRepository.findAll(
 				RefFilter.builder()
-					.local(true)
+					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build()
@@ -80,13 +83,14 @@ public class ReplicateController {
 
 	@GetMapping("ext")
 	List<Ext> ext(
-		@RequestParam(defaultValue = "500") int size,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(defaultValue = "500") int size
 	) {
 		return extRepository.findAll(
 				TagFilter.builder()
-					.local(true)
+					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build()
@@ -97,13 +101,14 @@ public class ReplicateController {
 
 	@GetMapping("user")
 	List<UserDto> user(
-		@RequestParam(defaultValue = "500") int size,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(defaultValue = "500") int size
 	) {
 		return userRepository.findAll(
 				TagFilter.builder()
-					.local(true)
+					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build()
@@ -115,13 +120,14 @@ public class ReplicateController {
 
 	@GetMapping("plugin")
 	List<Plugin> plugin(
-		@RequestParam(defaultValue = "500") int size,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(defaultValue = "500") int size
 	) {
 		return pluginRepository.findAll(
 				TagFilter.builder()
-					.local(true)
+					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build()
@@ -132,13 +138,14 @@ public class ReplicateController {
 
 	@GetMapping("template")
 	List<Template> template(
-		@RequestParam(defaultValue = "500") int size,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(defaultValue = "500") int size
 	) {
 		return templateRepository.findAll(
 				TemplateFilter.builder()
-					.local(true)
+					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build()

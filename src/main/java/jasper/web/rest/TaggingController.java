@@ -4,10 +4,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import jasper.service.TaggingService;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +25,12 @@ import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
-import static jasper.domain.proj.IsTag.TAG_LEN;
+import static jasper.domain.proj.Tag.TAG_LEN;
 
 @RestController
 @RequestMapping("api/v1/tags")
 @Validated
-@Tag(name = "Tagging")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Tagging")
 @ApiResponses({
 	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
@@ -49,7 +48,7 @@ public class TaggingController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createTags(
-		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag,
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -62,7 +61,7 @@ public class TaggingController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteTags(
-		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = IsTag.REGEX) String tag,
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -75,7 +74,7 @@ public class TaggingController {
 	@PatchMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchTags(
-		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = IsTag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {

@@ -1,13 +1,13 @@
 package jasper.repository.spec;
 
-import jasper.domain.proj.IsTag;
+import jasper.domain.proj.Tag;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
 public class TagSpec {
 
-	public static <T extends IsTag> Specification<T> publicTag() {
+	public static <T extends Tag> Specification<T> publicTag() {
 		return (root, query, cb) ->
 			cb.not(
 				cb.like(
@@ -15,14 +15,14 @@ public class TagSpec {
 					"\\_%"));
 	}
 
-	public static <T extends IsTag> Specification<T> isTag(String tag) {
+	public static <T extends Tag> Specification<T> isTag(String tag) {
 		return (root, query, cb) ->
 			cb.equal(
 				root.get("tag"),
 				tag);
 	}
 
-	public static <T extends IsTag> Specification<T> isAnyTag(List<String> tags) {
+	public static <T extends Tag> Specification<T> isAnyTag(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return isTag(tags.get(0));
 		return (root, query, cb) ->
@@ -30,7 +30,7 @@ public class TagSpec {
 				.in(tags);
 	}
 
-	public static <T extends IsTag> Specification<T> isAnyQualifiedTag(List<QualifiedTag> tags) {
+	public static <T extends Tag> Specification<T> isAnyQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {
@@ -39,7 +39,7 @@ public class TagSpec {
 		return spec;
 	}
 
-	public static <T extends IsTag> Specification<T> isAllQualifiedTag(List<QualifiedTag> tags) {
+	public static <T extends Tag> Specification<T> isAllQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<T>where(null);
 		for (var t : tags) {

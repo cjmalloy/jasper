@@ -23,7 +23,9 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {
-		refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
+		if (refDto.getTags() != null) {
+			refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
+		}
 		Ref.removePrefixTags(refDto.getTags());
 	}
 
