@@ -199,6 +199,7 @@ public class Backup {
 					ref.setTags(oldFeed.tags);
 					ref.setModified(oldFeed.modified);
 					var feed = new Feed();
+					feed.setAddTags(oldFeed.tags);
 					feed.setLastScrape(oldFeed.lastScrape);
 					feed.setScrapeInterval(oldFeed.scrapeInterval);
 					feed.setScrapeDescription(oldFeed.scrapeDescription);
@@ -242,14 +243,5 @@ public class Backup {
 		public Duration scrapeInterval;
 		public boolean scrapeDescription;
 		public boolean removeDescriptionIndent;
-	}
-
-	public static class OldOrigin {
-		public String url;
-		public String origin;
-		public String name;
-		public String proxy;
-		public Instant modified;
-		public Instant lastScrape;
 	}
 }
