@@ -521,28 +521,32 @@ by the replicator:
 ```json
 {
   "properties": {
+    "origin": { "type": "string" },
     "scrapeInterval": { "type": "string" }
   },
   "optionalProperties": {
+    "remote": { "type": "string" },
+    "query": { "type": "string" },
+    "proxy": { "type": "string" },
+    "removeTags": { "elements": { "type": "string" } },
+    "mapTags": { "values": { "type": "string" } },
     "addTags": { "elements": { "type": "string" } },
-    "lastScrape": { "type": "string" },
-    "scrapeDescription": { "type": "boolean" },
-    "removeDescriptionIndent": { "type": "boolean" }
+    "mapOrigins": { "values": { "type": "string" } },
+    "lastScrape": { "type": "string" }
   }
 }
 ```
 
-**Add Tags:** Tags to apply to any Refs created by this feed.
-**Modified:** Last modified date of this Feed.  
-**Last Scrape:** The time this feed was last scraped.  
-**Scrape Interval:** The time interval to scrape this feed. Use ISO 8601 duration format.
-**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
-feed to use for the Ref comment field.  
-**Remove Description Indent:** Remove any indents from the description. This is needed when the
-description is HTML, as indents will trigger a block quote in markdown.
-
-The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
-`+plugin/feed` it will be skipped.
+**Origin:** Origin to apply to replicated entities.  
+**Remote:** Remote origin to query.  
+**Query:** Restrict results using a query. Can not use qualified tags as replication only works on a single origin at
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
+**Remove Tags:** Tags to remove when replicating. Applies to Ref tags and will also block Tag-like entities.  
+**Map Tags:** List of tag renames.  
+**Add Tags:** Tags to apply to any Refs replicated from this origin.  
+**Proxy:** Alternate URL to replicate from.  
+**Last Scrape:** The time this origin was last replicated.  
+**Scrape Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
 
 ## Release Notes
 * [v1.1.0](./docs/release-notes/jasper-1.1.0.md)
