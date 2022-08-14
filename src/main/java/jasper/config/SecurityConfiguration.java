@@ -56,7 +56,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         .and()
             .authorizeRequests()
             .antMatchers("/api/admin/**").hasRole("ADMIN")
-            .antMatchers("/api/repl/**").hasRole(getReplicateRole())
             .antMatchers("/api/cors/**").hasRole("USER")
             .antMatchers("/api/**").permitAll()
             .antMatchers("/management/health").permitAll()
@@ -75,12 +74,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			});
         // @formatter:on
     }
-
-	private String getReplicateRole() {
-		var role = applicationProperties.getReplicateRole();
-		if (role.startsWith("ROLE_")) return role.substring("ROLE_".length());
-		return role;
-	}
 
 	private JWTConfigurer securityConfigurerAdapter() {
 		return new JWTConfigurer(tokenProvider, applicationProperties);

@@ -187,7 +187,6 @@ application:
   replicate-delay-min: 0
   replicate-interval-min: 1
   replicate-batch: 5000
-  replicate-role: ROLE_ADMIN
   scrape-delay-min: 0
   scrape-interval-min: 1
   default-role: ROLE_USER

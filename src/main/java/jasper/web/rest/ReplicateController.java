@@ -9,15 +9,14 @@ import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.domain.proj.HasOrigin;
-import jasper.repository.ExtRepository;
-import jasper.repository.PluginRepository;
-import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
-import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
-import jasper.service.dto.DtoMapper;
+import jasper.service.ExtService;
+import jasper.service.PluginService;
+import jasper.service.RefService;
+import jasper.service.TemplateService;
+import jasper.service.UserService;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
@@ -49,18 +48,15 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 public class ReplicateController {
 
 	@Autowired
-	RefRepository refRepository;
+	RefService refService;
 	@Autowired
-	ExtRepository extRepository;
+	ExtService extService;
 	@Autowired
-	UserRepository userRepository;
+	PluginService pluginService;
 	@Autowired
-	PluginRepository pluginRepository;
+	TemplateService templateService;
 	@Autowired
-	TemplateRepository templateRepository;
-
-	@Autowired
-	DtoMapper mapper;
+	UserService userService;
 
 	@GetMapping("ref")
 	List<RefDto> ref(
@@ -69,15 +65,13 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return refRepository.findAll(
+		return refService.page(
 				RefFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
-					.build()
-					.spec(),
+					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
-			.map(mapper::domainToDto)
 			.getContent();
 	}
 
@@ -88,13 +82,12 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return extRepository.findAll(
+		return extService.page(
 				TagFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
-					.build()
-					.spec(),
+					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
 			.getContent();
 	}
@@ -106,15 +99,13 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return userRepository.findAll(
+		return userService.page(
 				TagFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
-					.build()
-					.spec(),
+					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
-			.map(mapper::domainToDto)
 			.getContent();
 	}
 
@@ -125,13 +116,12 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return pluginRepository.findAll(
+		return pluginService.page(
 				TagFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
-					.build()
-					.spec(),
+					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
 			.getContent();
 	}
@@ -143,13 +133,12 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return templateRepository.findAll(
+		return templateService.page(
 				TemplateFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
-					.build()
-					.spec(),
+					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
 			.getContent();
 	}
