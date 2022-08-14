@@ -38,7 +38,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -202,8 +201,7 @@ public class Backup {
 					ref.setUrl(oldFeed.url);
 					ref.setOrigin(oldFeed.origin);
 					ref.setTitle(oldFeed.name);
-					ref.setTags(new ArrayList<>(oldFeed.tags));
-					ref.addTags(List.of("+plugin/feed"));
+					ref.setTags(List.of("public", "internal", "+plugin/feed"));
 					ref.setCreated(oldFeed.modified);
 					ref.setModified(oldFeed.modified);
 					ref.setPublished(oldFeed.modified);
