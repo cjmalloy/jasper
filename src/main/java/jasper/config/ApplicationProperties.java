@@ -23,6 +23,7 @@ import java.util.Map;
 @Setter
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
 public class ApplicationProperties {
+	private int ingestMaxRetry = 5;
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
 	private String replicateDelayMin = "5";

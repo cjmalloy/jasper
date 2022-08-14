@@ -183,6 +183,7 @@ info:
 application:
   clientApp:
     name: 'jasperApp'
+  ingest-max-retry: 5
   replicate-delay-min: 0
   replicate-interval-min: 1
   replicate-batch: 5000

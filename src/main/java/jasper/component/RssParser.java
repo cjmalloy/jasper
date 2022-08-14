@@ -78,17 +78,30 @@ public class RssParser {
 					feedImage = Map.of("url", syndFeed.getImage().getUrl());
 				}
 				for (var entry : syndFeed.getEntries()) {
+					Ref ref;
 					try {
-						parseEntry(feed, config, tagSet, entry, feedImage);
+						ref = parseEntry(feed, config, tagSet, entry, feedImage);
 					} catch (Exception e) {
 						logger.error("Error processing entry", e);
+						continue;
+					}
+					if (ref.getPublished().isBefore(feed.getPublished())) {
+						logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
+							feed.getTitle(), ref.getTitle(), ref.getUrl());
+						continue;
+					}
+					try {
+						ingest.ingest(ref);
+					} catch (AlreadyExistsException e) {
+						logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
+							feed.getTitle(), ref.getTitle(), ref.getUrl());
 					}
 				}
 			}
 		}
 	}
 
-	private void parseEntry(Ref feed, Feed config, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
+	private Ref parseEntry(Ref feed, Feed config, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
 		ref.setUrl(l);
@@ -151,17 +164,7 @@ public class RssParser {
 			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
-		if (ref.getPublished().isBefore(feed.getPublished())) {
-			logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
-				feed.getTitle(), ref.getTitle(), ref.getUrl());
-			return;
-		}
-		try {
-			ingest.ingest(ref);
-		} catch (AlreadyExistsException e) {
-			logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-				feed.getTitle(), ref.getTitle(), ref.getUrl());
-		}
+		return ref;
 	}
 
 	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {

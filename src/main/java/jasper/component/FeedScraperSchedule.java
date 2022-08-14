@@ -22,9 +22,6 @@ public class FeedScraperSchedule {
 	private static final Logger logger = LoggerFactory.getLogger(FeedScraperSchedule.class);
 
 	@Autowired
-	Ingest ingest;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired

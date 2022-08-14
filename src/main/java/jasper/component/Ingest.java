@@ -8,10 +8,12 @@ import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Counted;
+import jasper.config.ApplicationProperties;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.NotFoundException;
@@ -22,8 +24,8 @@ import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,9 +40,11 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrls;
 
 @Component
-@Transactional(noRollbackFor = AlreadyExistsException.class)
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
+
+	@Autowired
+	ApplicationProperties applicationProperties;
 
 	@Autowired
 	RefRepository refRepository;
@@ -70,8 +74,7 @@ public class Ingest {
 		validate(ref, true);
 		updateMetadata(ref, null);
 		ref.setCreated(Instant.now());
-		ref.setModified(Instant.now());
-		refRepository.save(ref);
+		ensureUniqueModified(ref);
 	}
 
 	@Counted("jasper.ref.update")
@@ -82,8 +85,23 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		validate(ref, false);
 		updateMetadata(ref, existing);
-		ref.setModified(Instant.now());
-		refRepository.save(ref);
+		ensureUniqueModified(ref);
+	}
+
+	private void ensureUniqueModified(Ref ref) {
+		var count = 0;
+		while (true) {
+			try {
+				count++;
+				ref.setModified(Instant.now());
+				refRepository.save(ref);
+				break;
+			} catch (DataIntegrityViolationException e) {
+				if (count > applicationProperties.getIngestMaxRetry()) {
+					throw new DuplicateModifiedDateException();
+				}
+			}
+		}
 	}
 
 	@Counted("jasper.ref.delete")

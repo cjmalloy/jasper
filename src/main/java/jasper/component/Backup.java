@@ -1,6 +1,7 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -37,6 +38,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -183,9 +185,13 @@ public class Backup {
 		log.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) throws IOException {
-		new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), type, objectMapper)
-			.forEachRemaining(repo::save);
+	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) {
+		try {
+			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), type, objectMapper)
+				.forEachRemaining(repo::save);
+		} catch (IOException e) {
+			// Backup not present in zip, silently skip
+		}
 	}
 
 	private void upgradeFeed(Path path) {
@@ -196,14 +202,20 @@ public class Backup {
 					ref.setUrl(oldFeed.url);
 					ref.setOrigin(oldFeed.origin);
 					ref.setTitle(oldFeed.name);
-					ref.setTags(oldFeed.tags);
+					ref.setTags(new ArrayList<>(oldFeed.tags));
+					ref.addTags(List.of("+plugin/feed"));
 					ref.setModified(oldFeed.modified);
+					ref.setPublished(Instant.EPOCH);
 					var feed = new Feed();
 					feed.setAddTags(oldFeed.tags);
 					feed.setLastScrape(oldFeed.lastScrape);
 					feed.setScrapeInterval(oldFeed.scrapeInterval);
 					feed.setScrapeDescription(oldFeed.scrapeDescription);
 					feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
+					if (ref.getPlugins() == null) {
+						ref.setPlugins(objectMapper.getNodeFactory().objectNode());
+					}
+					ref.getPlugins().set("+plugin/feed", objectMapper.convertValue(feed, ObjectNode.class));
 					refRepository.save(ref);
 				});
 		} catch (IOException e) {

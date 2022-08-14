@@ -34,7 +34,6 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
 
 @Service
-@Transactional
 public class RefService {
 	private static final Logger logger = LoggerFactory.getLogger(RefService.class);
 
@@ -114,6 +113,7 @@ public class RefService {
 		}
 	}
 
+	@Transactional
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	public void delete(String url, String origin) {
 		try {

@@ -11,13 +11,11 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
 @Profile("scim")
 @Service
-@Transactional
 public class ProfileService {
 	private static final Set<String> ROLES = Sets.newHashSet("ROLE_ADMIN", "ROLE_MOD", "ROLE_EDITOR", "ROLE_USER", "ROLE_VIEWER");
 

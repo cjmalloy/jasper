@@ -13,6 +13,7 @@ import com.jsontypedef.jtd.Validator;
 import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.ModifiedException;
@@ -24,6 +25,7 @@ import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +38,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 @Service
-@Transactional
 public class ExtService {
 	private static final Logger logger = LoggerFactory.getLogger(ExtService.class);
 
@@ -60,7 +61,11 @@ public class ExtService {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(ext, true);
 		ext.setModified(Instant.now());
-		extRepository.save(ext);
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -88,7 +93,11 @@ public class ExtService {
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
 		validate(ext, false);
 		ext.setModified(Instant.now());
-		extRepository.save(ext);
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")

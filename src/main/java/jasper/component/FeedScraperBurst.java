@@ -22,9 +22,6 @@ public class FeedScraperBurst {
 	private static final Logger logger = LoggerFactory.getLogger(FeedScraperBurst.class);
 
 	@Autowired
-	Ingest ingest;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired

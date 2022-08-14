@@ -2,12 +2,14 @@ package jasper.service;
 
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +21,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Service
-@Transactional
 public class PluginService {
 
 	@Autowired
@@ -31,7 +32,11 @@ public class PluginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Plugin plugin) {
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
-		pluginRepository.save(plugin);
+		try {
+			pluginRepository.save(plugin);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -64,7 +69,11 @@ public class PluginService {
 		var existing = maybeExisting.get();
 		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());
 		plugin.setModified(Instant.now());
-		pluginRepository.save(plugin);
+		try {
+			pluginRepository.save(plugin);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")

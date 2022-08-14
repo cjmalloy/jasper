@@ -2,6 +2,7 @@ package jasper.service;
 
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -9,6 +10,7 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 @Service
-@Transactional
 public class UserService {
 
 	@Autowired
@@ -34,7 +35,11 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
-		userRepository.save(user);
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -63,7 +68,11 @@ public class UserService {
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
 		user.setModified(Instant.now());
-		userRepository.save(user);
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")

@@ -65,6 +65,7 @@ public class Origin {
 		if (addTags != null) {
 			ref.addTags(addTags);
 		}
+		ref.addHierarchicalTags();
 	}
 
 	private void migrateTags(List<String> tags, ObjectNode plugins) {
