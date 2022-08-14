@@ -2,8 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.1.0-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.1.0)
-[![Docker](https://badgen.net/badge/icon/docker?icon=docker&label)](https://https://docker.com/)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.0-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.2.0)
 
 ## Quickstart
 To start the server, client and database with a single admin user, run

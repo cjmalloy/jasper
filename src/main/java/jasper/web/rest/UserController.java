@@ -99,6 +99,7 @@ public class UserController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
