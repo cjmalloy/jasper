@@ -1,6 +1,7 @@
 package jasper.util;
 
 import jasper.domain.proj.HasModified;
+import jasper.service.dto.RefDto;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,7 @@ public class RestUtil {
 			.cachePrivate();
 
 	public static <T extends HasModified> ResponseEntity<T> ifModifiedSince(WebRequest request, T result) {
-		return ifModifiedSince(request, result, result.getModified());
+		return ifModifiedSince(request, result, getModified(result));
 	}
 
 	public static <T extends HasModified> ResponseEntity<List<T>> ifModifiedSinceList(WebRequest request, List<T> result) {
@@ -44,13 +45,23 @@ public class RestUtil {
 			.body(result);
 	}
 
+	private static <T extends HasModified> Instant getModified(T result) {
+		var modified = result.getModified();
+		if (!(result instanceof RefDto)) return modified;
+		var ref = (RefDto) result;
+		if (ref.getMetadata() == null) return modified;
+		if (ref.getMetadata().getModified() == null) return modified;
+		if (ref.getMetadata().getModified().isBefore(modified)) return modified;
+		return ref.getMetadata().getModified();
+	}
+
 	public static <T extends HasModified> Instant getMaxModified(List<T> list) {
 		if (list.stream().anyMatch(Objects::isNull)) {
 			// Do not cache if an object was deleted
 			return null;
 		}
 		return list.stream()
-			.max(Comparator.comparing(HasModified::getModified))
+			.max(Comparator.comparing(RestUtil::getModified))
 			.map(HasModified::getModified)
 			.orElse(null);
 	}
