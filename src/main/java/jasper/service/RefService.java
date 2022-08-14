@@ -98,7 +98,7 @@ public class RefService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#url)")
+	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
