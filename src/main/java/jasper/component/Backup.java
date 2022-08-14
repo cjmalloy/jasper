@@ -204,8 +204,9 @@ public class Backup {
 					ref.setTitle(oldFeed.name);
 					ref.setTags(new ArrayList<>(oldFeed.tags));
 					ref.addTags(List.of("+plugin/feed"));
+					ref.setCreated(oldFeed.modified);
 					ref.setModified(oldFeed.modified);
-					ref.setPublished(Instant.EPOCH);
+					ref.setPublished(oldFeed.modified);
 					var feed = new Feed();
 					feed.setAddTags(oldFeed.tags);
 					feed.setLastScrape(oldFeed.lastScrape);
