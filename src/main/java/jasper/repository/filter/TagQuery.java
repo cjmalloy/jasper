@@ -27,7 +27,7 @@ public class TagQuery {
 	private final List<QualifiedTag> orTags = new ArrayList<>();
 
 	public TagQuery(String query) {
-		parse(query);
+		parse(query.replaceAll("\\s", ""));
 	}
 
 	public Specification<Ref> refSpec() {
