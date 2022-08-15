@@ -42,17 +42,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.sources, :url)
+		WHERE jsonb_exists(ref.sources, :url)
 			AND jsonb_exists(ref.tags, :tag)""")
-	List<String> findAllResponsesByOriginWithTag(String url, String origin, String tag);
+	List<String> findAllResponsesWithTag(String url, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.sources, :url)
+		WHERE jsonb_exists(ref.sources, :url)
 			AND jsonb_exists(ref.tags, :tag) = false""")
-	List<String> findAllResponsesByOriginWithoutTag(String url, String origin, String tag);
+	List<String> findAllResponsesWithoutTag(String url, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT count(*) > 0 FROM ref

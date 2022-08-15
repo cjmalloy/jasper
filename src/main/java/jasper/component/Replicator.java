@@ -45,6 +45,9 @@ public class Replicator {
 	JasperClient client;
 
 	@Autowired
+	Meta meta;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 
@@ -62,6 +65,8 @@ public class Replicator {
 			options.put("modifiedAfter", refRepository.getCursor(config.getOrigin()));
 			for (var ref : client.ref(url, options)) {
 				config.migrate(ref);
+				var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+				meta.update(ref, maybeExisting.orElse(null));
 				refRepository.save(ref);
 			}
 			options.put("modifiedAfter", extRepository.getCursor(config.getOrigin()));

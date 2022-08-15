@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrls;
 
 @Component
@@ -35,14 +34,14 @@ public class Meta {
 			// Creating or updating (not deleting)
 			ref.setMetadata(Metadata
 				.builder()
-				.responses(refRepository.findAllResponsesByOriginWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
-				.internalResponses(refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
+				.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), "internal"))
+				.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), "internal"))
 				.plugins(pluginRepository
 					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
-						refRepository.findAllResponsesByOriginWithTag(ref.getUrl(), ref.getOrigin(), tag)))
+						refRepository.findAllResponsesWithTag(ref.getUrl(), tag)))
 					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);
@@ -55,9 +54,7 @@ public class Meta {
 					.stream()
 					.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
 					.collect(Collectors.toMap(tag -> tag, tag -> ref.getUrl()));
-				List<Ref> sources = refRepository.findAll(
-					isUrls(ref.getSources())
-						.and(isOrigin(ref.getOrigin())));
+				List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
 				for (var source : sources) {
 					var old = source.getMetadata();
 					if (old == null) {
@@ -89,9 +86,7 @@ public class Meta {
 				.stream()
 				.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 				.toList();
-			List<Ref> removed = refRepository.findAll(
-				isUrls(removedSources)
-					.and(isOrigin(existing.getOrigin())));
+			List<Ref> removed = refRepository.findAll(isUrls(removedSources));
 			for (var source : removed) {
 				var old = source.getMetadata();
 				if (old == null) {
