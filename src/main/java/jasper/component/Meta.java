@@ -79,7 +79,7 @@ public class Meta {
 		}
 
 		if (existing != null && existing.getSources() != null) {
-			// Updating or deleting (now new)
+			// Updating or deleting (not new)
 			var removedSources = ref == null
 				? existing.getSources()
 				: existing.getSources()
