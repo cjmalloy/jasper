@@ -10,6 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 public class Feed {
+	private String origin;
 	private List<String> addTags;
 	private Instant lastScrape;
 	private Duration scrapeInterval;

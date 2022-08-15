@@ -35,6 +35,9 @@ public class Origin {
 	private Map<String, String> mapOrigins;
 	private List<String> addTags;
 
+	// TODO: copy to origin post-processing
+	// TODO: conditional tag/origin mapping
+
 	private void migrateEntity(HasOrigin entity) {
 		entity.setOrigin(origin);
 		if (mapOrigins != null && mapOrigins.containsKey(entity.getOrigin())) {

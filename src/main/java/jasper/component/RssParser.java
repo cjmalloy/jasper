@@ -90,6 +90,7 @@ public class RssParser {
 							feed.getTitle(), ref.getTitle(), ref.getUrl());
 						continue;
 					}
+					ref.setOrigin(config.getOrigin());
 					try {
 						ingest.ingest(ref);
 					} catch (AlreadyExistsException e) {
