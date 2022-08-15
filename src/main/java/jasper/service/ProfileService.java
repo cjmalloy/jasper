@@ -14,10 +14,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
+import static jasper.security.AuthoritiesConstants.*;
+
 @Profile("scim")
 @Service
 public class ProfileService {
-	private static final Set<String> ROLES = Sets.newHashSet("ROLE_ADMIN", "ROLE_MOD", "ROLE_EDITOR", "ROLE_USER", "ROLE_VIEWER");
+	private static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER);
 
 	@Autowired
 	UserManager userManager;
@@ -27,7 +29,7 @@ public class ProfileService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void create(String tag, String password, String role) {
-		if (role.equals("ROLE_ADMIN") && !auth.hasRole("ADMIN")) {
+		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
 		}
 		if (tag.startsWith("user/")) {
@@ -44,7 +46,7 @@ public class ProfileService {
 			throw new InvalidUserProfileException("Invalid role: " + role);
 		}
 		if (tag.startsWith("_")) {
-			return new String[]{ role, "ROLE_PRIVATE" };
+			return new String[]{ role, PRIVATE };
 		} else {
 			return new String[]{ role };
 		}
@@ -67,7 +69,7 @@ public class ProfileService {
 
 	@PreAuthorize("hasRole('MOD')")
 	public void changeRole(String tag, String role) {
-		if (role.equals("ROLE_ADMIN") && !auth.hasRole("ADMIN")) {
+		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
 		}
 		userManager.changeRoles(tag.substring("+user/".length()), getRoles(tag, role));

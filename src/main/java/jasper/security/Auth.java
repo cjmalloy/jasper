@@ -41,13 +41,17 @@ import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isAnyTag;
 import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TagSpec.publicTag;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.PRIVATE;
+import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
+import static jasper.security.AuthoritiesConstants.USER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 @RequestScope
 public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
-	private static final String ROLE_PREFIX = "ROLE_";
 
 	@Autowired
 	RoleHierarchy roleHierarchy;
@@ -72,10 +76,10 @@ public class Auth {
 	}
 
 	public boolean canReadRef(HasTags ref) {
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		if (ref.getTags() != null) {
 			if (ref.getTags().contains("public")) return true;
-			if (hasRole("USER")) {
+			if (hasRole(USER)) {
 				var qualifiedTags = ref.getQualifiedTags();
 				return captures(getUserTag(), qualifiedTags) ||
 					captures(getReadAccess(), qualifiedTags);
@@ -85,15 +89,15 @@ public class Auth {
 	}
 
 	public boolean canReadRef(String url) {
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
 		if (maybeExisting.isEmpty()) return false;
 		return canReadRef(maybeExisting.get());
 	}
 
 	public boolean canWrite(String tag) {
-		if (hasRole("MOD")) return true;
-		if (hasRole("USER")) {
+		if (hasRole(MOD)) return true;
+		if (hasRole(USER)) {
 			if (tag.equals(getUserTag())) return true;
 			return captures(getWriteAccess(), List.of(tag));
 		}
@@ -107,9 +111,9 @@ public class Auth {
 	}
 
 	public boolean canWriteRef(String url, String origin) {
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		if (isNotBlank(origin)) return false;
-		if (!hasRole("USER")) return false;
+		if (!hasRole(USER)) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
@@ -124,8 +128,8 @@ public class Auth {
 
 	public boolean canAddTag(String tag) {
 		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
-		if (hasRole("MOD")) return true;
-		if (hasRole("USER")) {
+		if (hasRole(MOD)) return true;
+		if (hasRole(USER)) {
 			if (tag.equals(getUserTag())) return true;
 			return captures(getTagReadAccess(), List.of(tag));
 		}
@@ -133,7 +137,7 @@ public class Auth {
 	}
 
 	public boolean canTagAll(List<String> tags, String url, String origin) {
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		for (var tag : tags) {
 			if (!canTag(tag, url, origin)) return false;
 		}
@@ -143,7 +147,7 @@ public class Auth {
 	public boolean canTag(String tag, String url, String origin) {
 		if (tag.equals("public")) return false;
 		if (tag.equals("locked")) return false;
-		if (hasRole("EDITOR") && isPublicTag(tag) && canReadRef(url)) return true;
+		if (hasRole(EDITOR) && isPublicTag(tag) && canReadRef(url)) return true;
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
@@ -159,9 +163,9 @@ public class Auth {
 	}
 
 	public boolean canWriteTag(String tag) {
-		if (hasRole("MOD")) return true;
-		if (isPublicTag(tag)) return hasRole("EDITOR") ;
-		if (hasRole("USER")) {
+		if (hasRole(MOD)) return true;
+		if (isPublicTag(tag)) return hasRole(EDITOR) ;
+		if (hasRole(USER)) {
 			if (tag.equals(getUserTag())) return true;
 			return captures(getTagWriteAccess(), List.of(tag));
 		}
@@ -170,13 +174,13 @@ public class Auth {
 
 	public boolean canReadQuery(Query filter) {
 		if (filter.getQuery() == null) return true;
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		var tagList = Arrays.stream(filter.getQuery().split("[!:|()]+"))
 							.filter((t) -> t.startsWith("_"))
 							.filter((t) -> !t.equals(getUserTag()))
 							.toList();
 		if (tagList.isEmpty()) return true;
-		if (hasRole("USER")) {
+		if (hasRole(USER)) {
 			var tagReadAccess = getTagReadAccess();
 			if (tagReadAccess == null) return false;
 			return new HashSet<>(tagReadAccess).containsAll(tagList);
@@ -185,7 +189,7 @@ public class Auth {
 	}
 
 	public boolean canWriteUser(User user) {
-		if (hasRole("MOD")) return true;
+		if (hasRole(MOD)) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in write access
@@ -200,20 +204,20 @@ public class Auth {
 
 	public List<String> filterTags(List<String> tags) {
 		if (tags == null) return null;
-		if (hasRole("MOD")) return tags;
+		if (hasRole(MOD)) return tags;
 		return tags.stream().filter(this::canReadTag).toList();
 	}
 
 	public List<String> hiddenTags(List<String> tags) {
-		if (hasRole("MOD")) return null;
+		if (hasRole(MOD)) return null;
 		if (tags == null) return null;
 		return tags.stream().filter(tag -> !canReadTag(tag)).toList();
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (hasRole("MOD")) return Specification.where(null);
+		if (hasRole(MOD)) return Specification.where(null);
 		var spec = Specification.where(hasTag("public"));
-		if (hasRole("USER")) {
+		if (hasRole(USER)) {
 			spec = spec.or(hasTag(getUserTag()))
 					   .or(hasAnyTag(getReadAccess()));
 		}
@@ -221,9 +225,9 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (hasRole("MOD")) return Specification.where(null);
+		if (hasRole(MOD)) return Specification.where(null);
 		var spec = Specification.<T>where(publicTag());
-		if (hasRole("USER")) {
+		if (hasRole(USER)) {
 			spec = spec.or(isTag(getUserTag()))
 					   .or(isAnyTag(getReadAccess()));
 		}
@@ -267,7 +271,7 @@ public class Auth {
 			if (principal instanceof UserDetails) {
 				principal = ((UserDetails) principal).getUsername();
 			}
-			if (hasRole("PRIVATE")) {
+			if (hasRole(PRIVATE)) {
 				userTag = "_user/" + principal;
 			} else {
 				userTag = "+user/" + principal;

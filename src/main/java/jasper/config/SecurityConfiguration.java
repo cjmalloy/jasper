@@ -19,6 +19,9 @@ import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
 import java.util.List;
 
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.VIEWER;
+
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @Import(SecurityProblemSupport.class)
@@ -55,14 +58,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasRole("ADMIN")
-            .antMatchers("/api/cors/**").hasRole("USER")
+            .antMatchers("/api/admin/**").hasRole(ADMIN)
+            .antMatchers("/api/cors/**").hasRole(VIEWER) // TODO: restrict CORS instead of requiring authentication
             .antMatchers("/api/**").permitAll()
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()
             .antMatchers("/management/prometheus").permitAll()
-            .antMatchers("/management/**").hasRole("ADMIN")
+            .antMatchers("/management/**").hasRole(ADMIN)
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
