@@ -47,7 +47,7 @@ import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 @RequestScope
@@ -65,6 +65,10 @@ public class Auth {
 	private Set<String> roles;
 	private Optional<User> user;
 	private String userTag;
+
+	public boolean local(String origin) {
+		return isBlank(origin); // TODO: implement to support multi-tenant
+	}
 
 	public boolean freshLogin() {
 		var auth = getAuthentication();
@@ -87,9 +91,9 @@ public class Auth {
 
 	}
 
-	public boolean canReadRef(String url) {
+	public boolean canReadRef(String url, String origin) {
 		if (hasRole(MOD)) return true;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return false;
 		return canReadRef(maybeExisting.get());
 	}
@@ -103,15 +107,14 @@ public class Auth {
 
 	public boolean canWriteRef(Ref ref) {
 		if (!canWriteRef(ref.getUrl(), ref.getOrigin())) return false;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), "");
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		return newTags(ref.getQualifiedNonPublicTags(), maybeExisting.map(Ref::getQualifiedNonPublicTags)).allMatch(this::canAddTag);
 	}
 
 	public boolean canWriteRef(String url, String origin) {
 		if (hasRole(MOD)) return true;
-		if (isNotBlank(origin)) return false;
 		if (!hasRole(USER)) return false;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, "");
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null) {
@@ -142,7 +145,7 @@ public class Auth {
 	public boolean canTag(String tag, String url, String origin) {
 		if (tag.equals("public")) return false;
 		if (tag.equals("locked")) return false;
-		if (hasRole(EDITOR) && isPublicTag(tag) && canReadRef(url)) return true;
+		if (hasRole(EDITOR) && isPublicTag(tag) && canReadRef(url, origin)) return true;
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
@@ -159,7 +162,7 @@ public class Auth {
 
 	public boolean canWriteTag(String tag) {
 		if (hasRole(MOD)) return true;
-		if (isPublicTag(tag)) return hasRole(EDITOR) ;
+		if (isPublicTag(tag)) return hasRole(EDITOR);
 		if (!hasRole(USER)) return false;
 		if (tag.equals(getUserTag())) return true;
 		return captures(getTagWriteAccess(), List.of(tag));

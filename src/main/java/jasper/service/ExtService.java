@@ -14,6 +14,7 @@ import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ForeignWriteException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.ModifiedException;
@@ -58,6 +59,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void create(Ext ext) {
+		if (!auth.local(ext.getOrigin())) throw new ForeignWriteException(ext.getOrigin());
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(ext, true);
 		ext.setModified(Instant.now());

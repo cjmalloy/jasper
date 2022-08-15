@@ -3,6 +3,7 @@ package jasper.service;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
@@ -31,6 +32,7 @@ public class PluginService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Plugin plugin) {
+		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		try {
 			pluginRepository.save(plugin);

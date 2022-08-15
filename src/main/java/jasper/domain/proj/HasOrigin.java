@@ -7,7 +7,4 @@ public interface HasOrigin extends HasModified {
 
 	String getOrigin();
 	void setOrigin(String origin);
-	default boolean local() {
-		return getOrigin() == null || getOrigin().isEmpty();
-	}
 }

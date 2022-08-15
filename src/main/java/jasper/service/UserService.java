@@ -3,6 +3,7 @@ package jasper.service;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ForeignWriteException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -34,6 +35,7 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
+		if (!auth.local(user.getOrigin())) throw new ForeignWriteException(user.getOrigin());
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		try {
 			userRepository.save(user);

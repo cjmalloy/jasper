@@ -3,6 +3,7 @@ package jasper.service;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
@@ -31,6 +32,7 @@ public class TemplateService {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	public void create(Template template) {
+		if (!auth.local(template.getOrigin())) throw new ForeignWriteException(template.getOrigin());
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		try {
 			templateRepository.save(template);

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static jasper.domain.proj.Tag.TAG_LEN;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Entity
 @Getter
@@ -143,7 +144,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public List<String> getQualifiedTags() {
-		if (local()) return getTags();
+		if (isBlank(origin)) return getTags();
 		if (getTags() == null) return null;
 		return getTags()
 			.stream()

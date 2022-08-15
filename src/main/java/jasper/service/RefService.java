@@ -54,7 +54,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void create(Ref ref) {
-		if (!ref.local()) throw new ForeignWriteException(ref.getOrigin());
+		if (!auth.local(ref.getOrigin())) throw new ForeignWriteException(ref.getOrigin());
 		ingest.ingest(ref);
 	}
 
@@ -89,7 +89,6 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	public void update(Ref ref) {
-		if (!ref.local()) throw new ForeignWriteException(ref.getOrigin());
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
