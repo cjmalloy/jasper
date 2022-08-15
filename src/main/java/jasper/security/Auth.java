@@ -46,6 +46,7 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
+import static jasper.security.AuthoritiesConstants.VIEWER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -77,15 +78,13 @@ public class Auth {
 
 	public boolean canReadRef(HasTags ref) {
 		if (hasRole(MOD)) return true;
-		if (ref.getTags() != null) {
-			if (ref.getTags().contains("public")) return true;
-			if (hasRole(USER)) {
-				var qualifiedTags = ref.getQualifiedTags();
-				return captures(getUserTag(), qualifiedTags) ||
-					captures(getReadAccess(), qualifiedTags);
-			}
-		}
-		return false;
+		if (ref.getTags() == null) return false;
+		if (ref.getTags().contains("public")) return true;
+		if (!hasRole(VIEWER)) return false;
+		var qualifiedTags = ref.getQualifiedTags();
+		return captures(getUserTag(), qualifiedTags) ||
+			captures(getReadAccess(), qualifiedTags);
+
 	}
 
 	public boolean canReadRef(String url) {
@@ -97,11 +96,9 @@ public class Auth {
 
 	public boolean canWrite(String tag) {
 		if (hasRole(MOD)) return true;
-		if (hasRole(USER)) {
-			if (tag.equals(getUserTag())) return true;
-			return captures(getWriteAccess(), List.of(tag));
-		}
-		return false;
+		if (!hasRole(USER)) return false;
+		if (tag.equals(getUserTag())) return true;
+		return captures(getWriteAccess(), List.of(tag));
 	}
 
 	public boolean canWriteRef(Ref ref) {
@@ -129,11 +126,9 @@ public class Auth {
 	public boolean canAddTag(String tag) {
 		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
 		if (hasRole(MOD)) return true;
-		if (hasRole(USER)) {
-			if (tag.equals(getUserTag())) return true;
-			return captures(getTagReadAccess(), List.of(tag));
-		}
-		return false;
+		if (!hasRole(USER)) return false;
+		if (tag.equals(getUserTag())) return true;
+		return captures(getTagReadAccess(), List.of(tag));
 	}
 
 	public boolean canTagAll(List<String> tags, String url, String origin) {
@@ -165,11 +160,9 @@ public class Auth {
 	public boolean canWriteTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (isPublicTag(tag)) return hasRole(EDITOR) ;
-		if (hasRole(USER)) {
-			if (tag.equals(getUserTag())) return true;
-			return captures(getTagWriteAccess(), List.of(tag));
-		}
-		return false;
+		if (!hasRole(USER)) return false;
+		if (tag.equals(getUserTag())) return true;
+		return captures(getTagWriteAccess(), List.of(tag));
 	}
 
 	public boolean canReadQuery(Query filter) {
@@ -180,12 +173,10 @@ public class Auth {
 							.filter((t) -> !t.equals(getUserTag()))
 							.toList();
 		if (tagList.isEmpty()) return true;
-		if (hasRole(USER)) {
-			var tagReadAccess = getTagReadAccess();
-			if (tagReadAccess == null) return false;
-			return new HashSet<>(tagReadAccess).containsAll(tagList);
-		}
-		return false;
+		if (!hasRole(VIEWER)) return false;
+		var tagReadAccess = getTagReadAccess();
+		if (tagReadAccess == null) return false;
+		return new HashSet<>(tagReadAccess).containsAll(tagList);
 	}
 
 	public boolean canWriteUser(User user) {
@@ -217,21 +208,19 @@ public class Auth {
 	public Specification<Ref> refReadSpec() {
 		if (hasRole(MOD)) return Specification.where(null);
 		var spec = Specification.where(hasTag("public"));
-		if (hasRole(USER)) {
-			spec = spec.or(hasTag(getUserTag()))
-					   .or(hasAnyTag(getReadAccess()));
-		}
-		return spec;
+		if (!hasRole(VIEWER)) return spec;
+		return spec
+			.or(hasTag(getUserTag()))
+			.or(hasAnyTag(getReadAccess()));
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
 		if (hasRole(MOD)) return Specification.where(null);
 		var spec = Specification.<T>where(publicTag());
-		if (hasRole(USER)) {
-			spec = spec.or(isTag(getUserTag()))
-					   .or(isAnyTag(getReadAccess()));
-		}
-		return spec;
+		if (!hasRole(VIEWER)) return spec;
+		return spec
+			.or(isTag(getUserTag()))
+			.or(isAnyTag(getReadAccess()));
 	}
 
 	private static boolean captures(List<String> selectors, List<String> target) {
