@@ -114,6 +114,7 @@ public class ExtService {
 		}
 	}
 
+	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {

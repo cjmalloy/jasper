@@ -78,6 +78,7 @@ public class PluginService {
 		}
 	}
 
+	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
 	public void delete(String tag) {
 		try {

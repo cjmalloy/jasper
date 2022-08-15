@@ -77,6 +77,7 @@ public class UserService {
 		}
 	}
 
+	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
 		try {

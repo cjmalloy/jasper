@@ -68,6 +68,7 @@ public class TemplateService {
 		}
 	}
 
+	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
 	public void delete(String tag) {
 		try {
