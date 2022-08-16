@@ -45,8 +45,9 @@ public class FeedScraperSchedule {
 		var feed = objectMapper.convertValue(ref.getPlugins().get("+plugin/feed"), Feed.class);
 		var minutesOld = Duration.between(feed.getLastScrape(), Instant.now()).toMinutes();
 		try {
+			logger.info("Scraping {} minute old {} feed: {}.", minutesOld, ref.getTitle(), ref.getUrl());
 			rssParser.scrape(ref);
-			logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, ref.getTitle(), ref.getUrl());
+			logger.info("Finished scraping feed: {}.", ref.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			logger.error("Error loading feed.");

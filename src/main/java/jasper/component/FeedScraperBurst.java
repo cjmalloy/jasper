@@ -46,8 +46,9 @@ public class FeedScraperBurst {
 			var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
 			var minutesOld = config.getLastScrape() == null ? 0 : Duration.between(config.getLastScrape(), Instant.now()).toMinutes();
 			try {
+				logger.info("Scraping {} minute old {} feed: {}.", minutesOld, feed.getTitle(), feed.getUrl());
 				rssParser.scrape(feed);
-				logger.info("Finished scraping {} minute old {} feed: {}.", minutesOld, feed.getTitle(), feed.getUrl());
+				logger.info("Finished scraping feed: {}.", feed.getUrl());
 			} catch (IOException e) {
 				e.printStackTrace();
 				logger.error("Error loading feed.");
