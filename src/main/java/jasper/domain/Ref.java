@@ -107,6 +107,10 @@ public class Ref implements HasTags {
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 
+	public void setOrigin(String value) {
+		origin = value == null ? "" : value;
+	}
+
 	public void addHierarchicalTags() {
 		if (tags == null) return;
 		for (var i = tags.size() - 1; i >= 0; i--) {
