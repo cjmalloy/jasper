@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jasper.config.ApplicationProperties;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -20,7 +21,6 @@ import jasper.util.JsonArrayStreamDataSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
@@ -49,8 +49,8 @@ import java.util.stream.Collectors;
 public class Backup {
 	private final Logger log = LoggerFactory.getLogger(Backup.class);
 
-	@Value("${application.storage}")
-	String storagePath;
+	@Autowired
+	ApplicationProperties applicationProperties;
 	@Autowired
 	RefRepository refRepository;
 	@Autowired
@@ -223,7 +223,7 @@ public class Backup {
 	}
 
 	public void store(String id, byte[] zipFile) throws IOException {
-		var path = path (id);
+		var path = path(id);
 		Files.createDirectories(path.getParent());
 		Files.write(path, zipFile, StandardOpenOption.CREATE);
 	}
@@ -233,15 +233,15 @@ public class Backup {
 	}
 
 	Path dir() {
-		return Paths.get(storagePath, "backups");
+		return Paths.get(applicationProperties.getStorage(), "backups");
 	}
 
 	Path path(String id) {
-		return Paths.get(storagePath, "backups", id + ".zip");
+		return Paths.get(applicationProperties.getStorage(), "backups", id + ".zip");
 	}
 
 	URI zipfs(String id) {
-		return URI.create("jar:file:" + storagePath + "/backups/" + id + ".zip");
+		return URI.create("jar:file:" + applicationProperties.getStorage() + "/backups/" + id + ".zip");
 	}
 
 	public static class OldFeed {
