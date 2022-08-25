@@ -158,6 +158,7 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
     "responses": [],
     "internalResponses": [],
     "plugins": {...},
+    "modified": "2022-06-18T12:07:04.404272Z"
   },
   "published": "2022-06-18T12:00:07Z",
   "created": "2022-06-18T12:07:04.404272Z",
@@ -188,7 +189,7 @@ source lookup).
 be later than the published date of all sources.  
 **Created:** Created date of this Ref.  
 **Modified:** Last modified date of this Ref. If this is the same as the created date no modification
-has occurred.  
+has occurred. Does not update if Metadata is modified.  
 
 ### Ext
 An Ext is a Tag-like entity representing a Tag extension.
@@ -549,5 +550,6 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Scrape Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
 
 ## Release Notes
-* [v1.1.0](./docs/release-notes/jasper-1.1.0.md)
-* [v1.0.0](./docs/release-notes/jasper-1.0.0.md)
+* [v1.2](./docs/release-notes/jasper-1.2.md)
+* [v1.1](./docs/release-notes/jasper-1.1.md)
+* [v1.0](./docs/release-notes/jasper-1.0.md)

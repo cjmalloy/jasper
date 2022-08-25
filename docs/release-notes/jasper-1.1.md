@@ -1,4 +1,4 @@
-# v1.1.0 Release Notes
+# v1.1 Release Notes
 
 This release of Jasper has built on the previous release, adding the Editor role and modified
 how the Tag Based Access Control (TBAC) works.
