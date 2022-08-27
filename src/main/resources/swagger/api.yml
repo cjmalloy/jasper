@@ -1448,10 +1448,10 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/cors/twitter:
+  /api/v1/oembed/twitter:
     get:
       tags:
-        - CorsBuster
+        - oEmbed
       operationId: getTweet
       parameters:
         - name: params
@@ -1472,10 +1472,10 @@ paths:
           description: Bad Request
         '404':
           description: Not Found
-  /api/v1/cors/bitChute:
+  /api/v1/oembed/bitChute:
     get:
       tags:
-        - CorsBuster
+        - oEmbed
       operationId: getBitChute
       parameters:
         - name: params

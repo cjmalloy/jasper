@@ -17,15 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("api/v1/cors")
+@RequestMapping("api/v1/oembed")
 @Validated
-@Tag(name = "CorsBuster")
+@Tag(name = "oEmbed")
 @ApiResponses({
 	@ApiResponse(responseCode = "200"),
 	@ApiResponse(responseCode = "400", content = @Content()),
 	@ApiResponse(responseCode = "404", content = @Content()),
 })
-public class CorsBusterController {
+public class OEmbedController {
 
 	@Autowired
 	TwitterClient twitterClient;
