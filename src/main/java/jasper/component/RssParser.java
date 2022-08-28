@@ -56,8 +56,7 @@ public class RssParser {
 		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
-		feed.getPlugins().set("+plugin/feed", objectMapper.convertValue(config, JsonNode.class));
-		refRepository.save(feed);
+		saveConfig(feed, config);
 
 		var tagSet = new HashSet<String>();
 		if (config.getAddTags() != null) tagSet.addAll(config.getAddTags());
@@ -71,6 +70,9 @@ public class RssParser {
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
+			if (!config.isDisableEtag() && config.getEtag() != null) {
+				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
+			}
 			if (lastScrape != null) {
 				request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
 			}
@@ -82,6 +84,16 @@ public class RssParser {
 					return;
 				}
 				try (InputStream stream = response.getEntity().getContent()) {
+					if (!config.isDisableEtag()) {
+						var etag = response.getFirstHeader(HttpHeaders.ETAG);
+						if (etag != null) {
+							config.setEtag(etag.getValue());
+							saveConfig(feed, config);
+						} else if (config.getEtag() != null) {
+							config.setEtag(null);
+							saveConfig(feed, config);
+						}
+					}
 					SyndFeedInput input = new SyndFeedInput();
 					SyndFeed syndFeed = input.build(new XmlReader(stream));
 					Map<String, Object> feedImage = null;
@@ -112,6 +124,11 @@ public class RssParser {
 				}
 			}
 		}
+	}
+
+	private void saveConfig(Ref feed, Feed config) {
+		feed.getPlugins().set("+plugin/feed", objectMapper.convertValue(config, JsonNode.class));
+		refRepository.save(feed);
 	}
 
 	private Ref parseEntry(Ref feed, Feed config, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {

@@ -1,5 +1,6 @@
 package jasper.plugin;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -23,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Origin {
 	private String origin;
 	private String remote;
