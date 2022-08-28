@@ -432,11 +432,11 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/v1/scrape:
+  /api/v1/scrape/feed:
     get:
       tags:
         - Scrape
-      operationId: scrape
+      operationId: scrapeFeed
       description: Immediately scrape a feed or replicate an origin. Ref must have either `+plugin/feed` or `+plugin/origin`
       parameters:
         - name: url
@@ -459,6 +459,31 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '503':
+          description: Error scraping
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/web:
+    get:
+      tags:
+        - Scrape
+      operationId: scrapeWebpage
+      description: Immediately scrape a webpage and return a Ref of the contents. Currently only fills out URL, title, and published date.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ref'
+        '500':
           description: Error scraping
           content:
             '*/*':

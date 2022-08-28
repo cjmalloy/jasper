@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.ScrapeService;
+import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,12 +42,21 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "503", description = "Error scraping", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping
+	@GetMapping("feed")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void scrape(
+	void scrapeFeed(
 		@RequestParam @Length(max = URL_LEN) @URL String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) throws FeedException, IOException {
-		scrapeService.scrape(url, origin);
+		scrapeService.feed(url, origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@GetMapping("web")
+	RefDto scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException {
+		return scrapeService.webpage(url);
 	}
 }

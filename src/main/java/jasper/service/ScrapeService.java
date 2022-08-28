@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
 import jasper.component.Replicator;
 import jasper.component.RssParser;
+import jasper.component.WebScraper;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
+import jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -15,7 +17,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 
 @Service
-@PreAuthorize("hasRole('MOD')")
 public class ScrapeService {
 
 	@Autowired
@@ -34,9 +35,12 @@ public class ScrapeService {
 	RssParser rssParser;
 
 	@Autowired
+	WebScraper webScraper;
+	@Autowired
 	Replicator replicator;
 
-	public void scrape(String url, String origin) throws FeedException, IOException {
+	@PreAuthorize("hasRole('MOD')")
+	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		if (source.getTags().contains("+plugin/feed")) {
@@ -45,5 +49,10 @@ public class ScrapeService {
 		if (source.getTags().contains("+plugin/origin")) {
 			replicator.replicate(source);
 		}
+	}
+
+	@PreAuthorize("hasRole('USER')")
+	public RefDto webpage(String url) throws IOException {
+		return mapper.domainToDto(webScraper.scrape(url));
 	}
 }

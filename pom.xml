@@ -41,6 +41,7 @@
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>1.18.0</rome.version>
 		<apache-httpclient.version>4.5.13</apache-httpclient.version>
+		<jsoup.version>1.15.3</jsoup.version>
 		<scim2-client.version>2.3.7</scim2-client.version>
 	</properties>
 
@@ -236,6 +237,11 @@
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 			<version>${apache-httpclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>${jsoup.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.unboundid.product.scim2</groupId>
