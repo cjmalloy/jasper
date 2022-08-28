@@ -385,7 +385,6 @@ Jasper is available as a Docker image and a Helm chart. It supports the followin
 | `APPLICATION_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                       | `ROLE_USER`                               |
 | `APPLICATION_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                    | `sub`                                     |
 | `APPLICATION_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
-| `APPLICATION_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
