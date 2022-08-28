@@ -31,6 +31,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.Year;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,6 +54,7 @@ public class RssParser {
 
 	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
+		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
 		feed.getPlugins().set("+plugin/feed", objectMapper.convertValue(config, JsonNode.class));
 		refRepository.save(feed);
@@ -68,34 +71,41 @@ public class RssParser {
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
+			request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
-			try (CloseableHttpResponse response = client.execute(request);
-				 InputStream stream = response.getEntity().getContent()) {
-				SyndFeedInput input = new SyndFeedInput();
-				SyndFeed syndFeed = input.build(new XmlReader(stream));
-				Map<String, Object> feedImage = null;
-				if (syndFeed.getImage() != null) {
-					feedImage = Map.of("url", syndFeed.getImage().getUrl());
+			try (CloseableHttpResponse response = client.execute(request)) {
+				if (response.getStatusLine().getStatusCode() == 304) {
+					logger.info("Feed {} not modified since {}",
+						feed.getTitle(), lastScrape);
+					return;
 				}
-				for (var entry : syndFeed.getEntries()) {
-					Ref ref;
-					try {
-						ref = parseEntry(feed, config, tagSet, entry, feedImage);
-					} catch (Exception e) {
-						logger.error("Error processing entry", e);
-						continue;
+				try (InputStream stream = response.getEntity().getContent()) {
+					SyndFeedInput input = new SyndFeedInput();
+					SyndFeed syndFeed = input.build(new XmlReader(stream));
+					Map<String, Object> feedImage = null;
+					if (syndFeed.getImage() != null) {
+						feedImage = Map.of("url", syndFeed.getImage().getUrl());
 					}
-					if (ref.getPublished().isBefore(feed.getPublished())) {
-						logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
-							feed.getTitle(), ref.getTitle(), ref.getUrl());
-						continue;
-					}
-					ref.setOrigin(config.getOrigin());
-					try {
-						ingest.ingest(ref);
-					} catch (AlreadyExistsException e) {
-						logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-							feed.getTitle(), ref.getTitle(), ref.getUrl());
+					for (var entry : syndFeed.getEntries()) {
+						Ref ref;
+						try {
+							ref = parseEntry(feed, config, tagSet, entry, feedImage);
+						} catch (Exception e) {
+							logger.error("Error processing entry", e);
+							continue;
+						}
+						if (ref.getPublished().isBefore(feed.getPublished())) {
+							logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
+								feed.getTitle(), ref.getTitle(), ref.getUrl());
+							continue;
+						}
+						ref.setOrigin(config.getOrigin());
+						try {
+							ingest.ingest(ref);
+						} catch (AlreadyExistsException e) {
+							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
+								feed.getTitle(), ref.getTitle(), ref.getUrl());
+						}
 					}
 				}
 			}
