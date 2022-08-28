@@ -143,9 +143,12 @@ public class Auth {
 	}
 
 	public boolean canTag(String tag, String url, String origin) {
-		if (tag.equals("public")) return false;
-		if (tag.equals("locked")) return false;
-		if (hasRole(EDITOR) && isPublicTag(tag) && canReadRef(url, origin)) return true;
+		if (hasRole(MOD)) return true;
+		if (hasRole(EDITOR) &&
+			isPublicTag(tag) &&
+			!tag.equals("public") &&
+			!tag.equals("locked") &&
+			canReadRef(url, origin)) return true;
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
