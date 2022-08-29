@@ -20,6 +20,10 @@ import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 import java.util.List;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 
 @EnableWebSecurity
@@ -58,14 +62,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasRole(ADMIN)
-            .antMatchers("/api/cors/**").hasRole(VIEWER) // TODO: restrict CORS instead of requiring authentication
+            .antMatchers("/api/admin/**").hasRole("ADMIN")
+            .antMatchers("/api/cors/**").hasRole("VIEWER") // TODO: restrict CORS instead of requiring authentication
             .antMatchers("/api/**").permitAll()
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()
             .antMatchers("/management/prometheus").permitAll()
-            .antMatchers("/management/**").hasRole(ADMIN)
+            .antMatchers("/management/**").hasRole("ADMIN")
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
@@ -86,12 +90,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	public RoleHierarchy roleHierarchy() {
 		RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
 		String hierarchy = String.join("\n", List.of(
-			"ROLE_ADMIN > ROLE_MOD",
-			"ROLE_MOD > ROLE_EDITOR",
-			"ROLE_MOD > ROLE_REPLICATION",
-			"ROLE_EDITOR > ROLE_USER",
-			"ROLE_USER > ROLE_VIEWER",
-			"ROLE_VIEWER > ROLE_ANONYMOUS"
+			ADMIN + " > " + MOD,
+			MOD + " > " + EDITOR,
+			EDITOR + " > " + USER,
+			USER + " > " + VIEWER,
+			VIEWER + " > " + ANONYMOUS
 		));
 		roleHierarchy.setHierarchy(hierarchy);
 		return roleHierarchy;
