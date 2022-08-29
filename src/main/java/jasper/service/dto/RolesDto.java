@@ -10,4 +10,5 @@ public class RolesDto {
 	boolean admin;
 	boolean mod;
 	boolean editor;
+	boolean user;
 }

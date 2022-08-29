@@ -37,6 +37,10 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.util.RestUtil.ifModifiedSince;
 
 @RestController
@@ -128,9 +132,10 @@ public class UserController {
 		return RolesDto
 			.builder()
 			.tag(auth.getUserTag())
-			.admin(auth.hasRole("ADMIN"))
-			.mod(auth.hasRole("MOD"))
-			.editor(auth.hasRole("EDITOR"))
+			.admin(auth.hasRole(ADMIN))
+			.mod(auth.hasRole(MOD))
+			.editor(auth.hasRole(EDITOR))
+			.user(auth.hasRole(USER))
 			.build();
 	}
 }
