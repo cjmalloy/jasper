@@ -166,8 +166,8 @@ public class Auth {
 	public boolean canWriteTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (isPublicTag(tag)) return hasRole(EDITOR);
+		if (tag.equals(getUserTag()) && hasRole(VIEWER)) return true;
 		if (!hasRole(USER)) return false;
-		if (tag.equals(getUserTag())) return true;
 		return captures(getTagWriteAccess(), List.of(tag));
 	}
 
