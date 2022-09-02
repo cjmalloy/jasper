@@ -43,7 +43,6 @@ public class Ref implements HasTags {
 	public static final String REGEX = "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?";
 	public static final int URL_LEN = 4096;
 	public static final int TITLE_LEN = 512;
-	public static final int SEARCH_LEN = 512;
 
 	@Id
 	@Column(updatable = false)

@@ -7,6 +7,15 @@ import java.util.List;
 
 public class TagSpec {
 
+	public static <T extends Tag> Specification<T> searchTagOrName(String search) {
+		var searchLower = search.toLowerCase();
+		return (root, query, cb) ->
+			cb.or(
+				cb.like(cb.lower(root.get("tag")), cb.literal("%" + searchLower + "%")),
+				cb.like(cb.lower(root.get("name")), cb.literal("%" + searchLower + "%"))
+			);
+	}
+
 	public static <T extends Tag> Specification<T> publicTag() {
 		return (root, query, cb) ->
 			cb.not(

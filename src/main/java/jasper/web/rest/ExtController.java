@@ -36,6 +36,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 
 @RestController
@@ -83,11 +84,13 @@ public class ExtController {
 	Page<Ext> getExtPage(
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return extService.page(
 			TagFilter.builder()
 				.query(query)
+				.search(search)
 				.modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}

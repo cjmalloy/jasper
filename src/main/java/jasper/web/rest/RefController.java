@@ -44,11 +44,11 @@ import javax.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 
-import static jasper.domain.Ref.SEARCH_LEN;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;

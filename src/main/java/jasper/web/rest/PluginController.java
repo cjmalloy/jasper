@@ -38,6 +38,7 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifModifiedSince;
 import static jasper.util.RestUtil.ifModifiedSinceList;
 
@@ -103,11 +104,13 @@ public class PluginController {
 	Page<Plugin> getPluginPage(
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
-		@RequestParam(required = false) Instant modifiedAfter
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return pluginService.page(
 			TagFilter.builder()
 				.modifiedAfter(modifiedAfter)
+				.search(search)
 				.query(query).build(),
 			pageable);
 	}

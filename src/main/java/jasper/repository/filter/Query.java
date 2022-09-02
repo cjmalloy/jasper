@@ -10,6 +10,7 @@ public interface Query {
 	String REGEX = SELECTOR_OR_GROUP + "([|:]" + SELECTOR_OR_GROUP + ")*";
 
 	int QUERY_LEN = 512;
+	int SEARCH_LEN = 512;
 
 	String getQuery();
 }
