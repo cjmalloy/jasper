@@ -33,22 +33,21 @@ public class RestUtil {
 
 	public static <T> ResponseEntity<T> ifModifiedSince(WebRequest request, T result, Instant lastModified) {
 		if (lastModified == null) return ResponseEntity.ok(result);
-		var ms = lastModified.toEpochMilli();
-		if (request.checkNotModified(ms)) {
+		var eTag = lastModified.toString();
+		if (request.checkNotModified(eTag)) {
 			return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
 				.cacheControl(ifNotModifiedCacheControl)
 				.build();
 		}
 		return ResponseEntity.ok()
 			.cacheControl(ifNotModifiedCacheControl)
-			.lastModified(ms)
+			.eTag(eTag)
 			.body(result);
 	}
 
 	private static <T extends HasModified> Instant getModified(T result) {
 		var modified = result.getModified();
-		if (!(result instanceof RefDto)) return modified;
-		var ref = (RefDto) result;
+		if (!(result instanceof RefDto ref)) return modified;
 		if (ref.getMetadata() == null) return modified;
 		if (ref.getMetadata().getModified() == null) return modified;
 		if (ref.getMetadata().getModified().isBefore(modified)) return modified;
