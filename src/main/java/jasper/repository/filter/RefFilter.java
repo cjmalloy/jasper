@@ -20,6 +20,7 @@ import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Builder
@@ -39,6 +40,7 @@ public class RefFilter implements Query {
 	private boolean unsourced;
 	private String pluginResponse;
 	private String noPluginResponse;
+	private Instant modifiedBefore;
 	private Instant modifiedAfter;
 
 	public Specification<Ref> spec() {
@@ -79,6 +81,9 @@ public class RefFilter implements Query {
 		if (isNotBlank(noPluginResponse)) {
 			// TODO: query across origins
 			result = result.and(hasNoPluginResponses(noPluginResponse));
+		}
+		if (modifiedBefore != null) {
+			result = result.and(isModifiedBefore(modifiedBefore));
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));

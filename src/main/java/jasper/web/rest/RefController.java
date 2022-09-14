@@ -124,6 +124,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String pluginResponse,
 		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String noPluginResponse,
@@ -164,6 +165,7 @@ public class RefController {
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter).build(),
 			pageable);
 	}

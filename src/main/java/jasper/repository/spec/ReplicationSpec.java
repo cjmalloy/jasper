@@ -14,4 +14,12 @@ public class ReplicationSpec {
 				root.get("modified"),
 				i);
 	}
+
+	public static <T extends HasModified> Specification<T> isModifiedBefore(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+			cb.lessThan(
+				root.get("modified"),
+				i);
+	}
 }
