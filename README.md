@@ -63,7 +63,7 @@ Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper's data mod
 
 ## Tagging
 Jasper support hierarchical tagging of Refs. Tags are not entities, they are strings with
-regex `[_+]?[a-z]+(/[a-z]+)*`. Tags are part of the primary key for Tag-like entities, but no
+regex `[_+]?[a-z]+([./][a-z]+)*`. Tags are part of the primary key for Tag-like entities, but no
 entities need exist to use a tag.  
 Refs have a list of tags which can be used for categorization, permissions, and plugins.  
 There are three types of tags, which the type defined as a semantic ontology:
@@ -175,7 +175,7 @@ composite primary key for version history.
 **Origin:** The Origin this Ref was replicated from, or the empty string for local.  
 **Title:** Optional title for this Ref.  
 **Comment:** Optional comment for this Ref, usually markdown.  
-**Tags:** A list of tags used to categorise this Ref. All tags must match the regex `[_+]?[a-z]+(/[a-z]+)*`  
+**Tags:** A list of tags used to categorise this Ref. All tags must match the regex `[_+]?[a-z]+([./][a-z]+)*`  
 **Sources:** A list of URLs which are sources for this Ref. These may or may not have a corresponding Ref
 entity. If a source URL does correspond to a Ref, the published date of the source must predate the
 published date of this Ref.  
@@ -209,7 +209,7 @@ Only the "tag", "origin", and "modified" fields are required.
 
 An Ext allows you to customise a Tag page. For example, you could set the sidebar text or pin some links.
 
-**Tag:** The tag of this Ext. Must match the regex `[_+]?[a-z]+(/[a-z]+)*`
+**Tag:** The tag of this Ext. Must match the regex `[_+]?[a-z]+([./][a-z]+)*`
 **Origin:** The Origin this Ext was replicated from, or the empty string for local.
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.
 **Config:** Arbitrary JSON data defined by Templates. Must be valid according to each template's schema.
@@ -234,7 +234,7 @@ Only the "tag", "origin", and "modified" fields are required.
 
 A User contains the access control information for the system.
 
-**Tag:** The tag of this User. Must match the regex `[_+]user/[a-z]+(/[a-z]+)*`  
+**Tag:** The tag of this User. Must match the regex `[_+]user/[a-z]+([./][a-z]+)*`  
 **Origin:** The Origin this User was replicated from, or the empty string for local.  
 **Name:** The display name of this User. Used to customise the page title for the Tag page.  
 **Read Access:** List of tags this user has complete read access to. Grants read access to all
@@ -272,7 +272,7 @@ Only the "tag", "origin", and "modified" fields are required.
 Tagging a ref with a Plugin tag applies that plugin to the Ref. The Ref plugin must contain valid
 data according to the Plugin schema.  
 
-**Tag:** The tag of this Plugin. Must match the regex `[_+]?plugin/[a-z]+(/[a-z]+)*`  
+**Tag:** The tag of this Plugin. Must match the regex `[_+]?plugin/[a-z]+([./][a-z]+)*`  
 **Origin:** The Origin this Plugin was replicated from, or the empty string for local.  
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.  
 **Config:** Arbitrary JSON.  
@@ -310,7 +310,7 @@ The Tag in the case of a template is actually a Tag prefix. This Template matche
 where its tag followed by a forward slash is a prefix of the Ext tag. In the case of the empty
 string the Template matches all Exts.
 
-**Tag:** The tag of this Template. Must match the regex `[_+]?[a-z]+(/[a-z]+)*` or the empty string.  
+**Tag:** The tag of this Template. Must match the regex `[_+]?[a-z]+([./][a-z]+)*` or the empty string.  
 **Origin:** The Origin this Template was replicated from, or the empty string for local.  
 **Name:** The display name of this Template.  
 **Config:** Arbitrary JSON.  
@@ -472,7 +472,7 @@ In order to use the backup system, the storage profile must be active.
 When ingesting entities, Jasper performs the following validation:
  * Fields must not exceed their maximum length
  * URLS are valid according to the regex `(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))`
- * Tags are valid according to their respective prefix and the general tag regex `[_+]?[a-z]+(/[a-z]+)*`
+ * Tags are valid according to their respective prefix and the general tag regex `[_+]?[a-z]+([./][a-z]+)*`
  * If a Ref has plugins present, any plugin data must conform to the plugin's schema
  * If an Ext matches a template prefix, any config must conform to all matching templates merged schemas
 

@@ -33,7 +33,7 @@ import java.util.Objects;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Plugin implements Tag {
-	public static final String REGEX = "[_+]?plugin/[a-z]+(/[a-z]+)*";
+	public static final String REGEX = "[_+]?plugin/[a-z]+([./][a-z]+)*";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
 
