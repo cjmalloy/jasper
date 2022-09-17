@@ -40,8 +40,9 @@ import java.util.List;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifModifiedSince;
-import static jasper.util.RestUtil.ifModifiedSinceList;
+import static jasper.util.RestUtil.ifNotModified;
+import static jasper.util.RestUtil.ifNotModifiedList;
+import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/template")
@@ -49,7 +50,6 @@ import static jasper.util.RestUtil.ifModifiedSinceList;
 @Tag(name = "Template")
 @ApiResponses({
 	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
-	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 })
 public class TemplateController {
 
@@ -58,6 +58,7 @@ public class TemplateController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping
@@ -71,6 +72,7 @@ public class TemplateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
@@ -78,18 +80,19 @@ public class TemplateController {
 		WebRequest request,
 		@RequestParam(defaultValue = "") @Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String tag
 	) {
-		return ifModifiedSince(request, templateService.get(tag));
+		return ifNotModified(request, templateService.get(tag));
 	}
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
 	})
 	@GetMapping("list")
 	HttpEntity<List<Template>> getTemplateList(
 		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String> tags
 	) {
-		return ifModifiedSinceList(request, tags.stream().map(tag -> {
+		return ifNotModifiedList(request, tags.stream().map(tag -> {
 			try {
 				return templateService.get(tag);
 			} catch (NotFoundException | AccessDeniedException e) {
@@ -100,24 +103,28 @@ public class TemplateController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("page")
-	Page<Template> getTemplatePage(
+	HttpEntity<Page<Template>> getTemplatePage(
+		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return templateService.page(
+		return ifNotModifiedPage(request, templateService.page(
 			TemplateFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.search(search)
 				.query(query).build(),
-			pageable);
+			pageable));
 	}
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
@@ -131,6 +138,7 @@ public class TemplateController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)

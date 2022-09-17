@@ -42,7 +42,8 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
-import static jasper.util.RestUtil.ifModifiedSince;
+import static jasper.util.RestUtil.ifNotModified;
+import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/user")
@@ -82,25 +83,27 @@ public class UserController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
-		return ifModifiedSince(request, userService.get(tag));
+		return ifNotModified(request, userService.get(tag));
 	}
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
 	})
 	@GetMapping("page")
-	Page<UserDto> getUserPage(
+	HttpEntity<Page<UserDto>> getUserPage(
+		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return userService.page(
+		return ifNotModifiedPage(request, userService.page(
 			TagFilter.builder()
 				.modifiedAfter(modifiedAfter)
 				.search(search)
 				.query(query).build(),
-			pageable);
+			pageable));
 	}
 
 	@ApiResponses({

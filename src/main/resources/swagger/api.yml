@@ -131,10 +131,6 @@ paths:
           description: No Content
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
   /api/v1/ref/list:
@@ -166,12 +162,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Ref'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/ref/page:
     get:
       tags:
@@ -269,6 +265,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageRef'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -660,6 +658,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageExt'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -771,10 +771,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Plugin'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /api/v1/plugin/page:
     get:
       tags:
@@ -825,6 +825,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PagePlugin'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -912,6 +914,34 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/template/list:
+    get:
+      tags:
+        - Template
+      operationId: getTemplateList
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/qtag-template'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /api/v1/template/page:
     get:
       tags:
@@ -967,30 +997,12 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageTemplate'
-  /api/v1/template/list:
-    get:
-      tags:
-        - Template
-      operationId: getTemplateList
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/qtag-template'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Template'
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/user:
     get:
       tags:
@@ -1129,6 +1141,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageUser'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1575,55 +1589,55 @@ components:
       maxLength: 64
     tag:
       type: string
-      pattern: '[_+]?[a-z]+(/[a-z]+)*'
+      pattern: '[_+]?[a-z]+([./][a-z]+)*'
       description: Tag
       example: 'tag'
       maxLength: 64
     qtag:
       type: string
-      pattern: '[_+]?[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      pattern: '[_+]?[a-z]+([./][a-z]+)*(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified Tag
       example: 'tag@origin'
       maxLength: 127
     query:
       type: string
       description: Tag Query
-      pattern: '(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\))([ |:&](!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+(\/[a-z]+)*|([_+]?[a-z]+(\/[a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\)))*'
+      pattern: '(!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\))([ |:&](!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))|\(!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*))([ |]!?([_+]?[a-z]+([./][a-z]+)*|([_+]?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*|@\*)))*\)))*'
       example: '(politics|science):!funny'
       maxLength: 512
     tag-template:
       type: string
-      pattern: '(_?[a-z]+(/[a-z]+)*)?'
+      pattern: '(_?[a-z]+([./][a-z]+)*)?'
       description: Template Tag
       example: 'kanban'
       maxLength: 64
     qtag-template:
       type: string
-      pattern: '(_?[a-z]+(/[a-z]+)*)?(@[a-z]+(\.[a-z])*)?'
+      pattern: '(_?[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified Template Tag
       example: 'kanban@origin'
       maxLength: 127
     tag-plugin:
       type: string
-      pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*'
+      pattern: '[_+]?plugin/[a-z]+([./][a-z]+)*'
       description: Plugin Tag
       example: 'plugin/thumbnail'
       maxLength: 64
     qtag-plugin:
       type: string
-      pattern: '[_+]?plugin/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      pattern: '[_+]?plugin/[a-z]+([./][a-z]+)*(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified Plugin Tag
       example: 'plugin/thumbnail@origin'
       maxLength: 127
     tag-user:
       type: string
-      pattern: '[_+]user/[a-z]+(/[a-z]+)*'
+      pattern: '[_+]user/[a-z]+([./][a-z]+)*'
       description: User Tag
       example: '+user/charlie'
       maxLength: 64
     qtag-user:
       type: string
-      pattern: '[_+]user/[a-z]+(/[a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      pattern: '[_+]user/[a-z]+([./][a-z]+)*(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127
