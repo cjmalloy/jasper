@@ -45,7 +45,7 @@ public class RefFilter implements Query {
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
-		if (isNotBlank(origin)) {
+		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
 		if (isNotBlank(url)) {

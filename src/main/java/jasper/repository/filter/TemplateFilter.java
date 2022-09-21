@@ -27,7 +27,7 @@ public class TemplateFilter implements Query {
 
 	public Specification<Template> spec() {
 		var result = Specification.<Template>where(null);
-		if (isNotBlank(origin)) {
+		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
 		if (isNotBlank(query)) {
