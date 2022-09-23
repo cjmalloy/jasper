@@ -9,7 +9,6 @@ import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Counted;
 import jasper.config.ApplicationProperties;
-import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
@@ -27,12 +26,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Component
 public class Ingest {
