@@ -9,7 +9,6 @@ import org.springframework.data.jpa.domain.Specification;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
-import static jasper.repository.spec.TemplateSpec.defaultTemplate;
 import static jasper.repository.spec.TemplateSpec.matchesTag;
 
 public class QualifiedTag {
@@ -57,7 +56,6 @@ public class QualifiedTag {
 
 	public Specification<Template> templateSpec() {
 		var spec = Specification.<Template>where(null);
-		if (tag.equals("")) spec = spec.and(defaultTemplate());
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
