@@ -34,6 +34,7 @@ public class TemplateService {
 	public void create(Template template) {
 		if (!auth.local(template.getOrigin())) throw new ForeignWriteException(template.getOrigin());
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
+		template.setModified(Instant.now());
 		try {
 			templateRepository.save(template);
 		} catch (DataIntegrityViolationException e) {

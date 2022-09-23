@@ -34,6 +34,7 @@ public class PluginService {
 	public void create(Plugin plugin) {
 		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
+		plugin.setModified(Instant.now());
 		try {
 			pluginRepository.save(plugin);
 		} catch (DataIntegrityViolationException e) {

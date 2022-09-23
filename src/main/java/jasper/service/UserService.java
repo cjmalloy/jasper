@@ -37,6 +37,7 @@ public class UserService {
 	public void create(User user) {
 		if (!auth.local(user.getOrigin())) throw new ForeignWriteException(user.getOrigin());
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
+		user.setModified(Instant.now());
 		try {
 			userRepository.save(user);
 		} catch (DataIntegrityViolationException e) {
