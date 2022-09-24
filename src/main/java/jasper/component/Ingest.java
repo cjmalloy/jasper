@@ -40,7 +40,7 @@ public class Ingest {
 		}
 	}
 
-	@Counted("jasper.ref.create")
+	@Counted(value = "jasper.ref", extraTags = {"method", "create"})
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -51,7 +51,7 @@ public class Ingest {
 		ensureUniqueModified(ref);
 	}
 
-	@Counted("jasper.ref.update")
+	@Counted(value = "jasper.ref", extraTags = {"method", "update"})
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
@@ -78,7 +78,7 @@ public class Ingest {
 		}
 	}
 
-	@Counted("jasper.ref.delete")
+	@Counted(value = "jasper.ref", extraTags = {"method", "delete"})
 	public void delete(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
