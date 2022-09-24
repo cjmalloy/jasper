@@ -12,13 +12,13 @@ import java.util.stream.Collectors;
 
 public interface TokenProvider {
 	boolean validateToken(String jwt);
-	Authentication getAuthentication(String jwt);
+	Authentication getAuthentication(String jwt, String origin);
 
-	default Collection<? extends GrantedAuthority> getAuthorities(Claims claims) {
+	default Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
 		Collection<? extends GrantedAuthority> authorities;
-		if (claims.containsKey(getAuthoritiesClaim())) {
+		if (claims.containsKey(getAuthoritiesClaim() + origin)) {
 			authorities = Arrays
-				.stream(claims.get(getAuthoritiesClaim()).toString().split(","))
+				.stream(claims.get(getAuthoritiesClaim() + origin, String.class).split(","))
 				.filter(auth -> !auth.trim().isEmpty())
 				.map(SimpleGrantedAuthority::new)
 				.collect(Collectors.toList());
@@ -29,7 +29,11 @@ public interface TokenProvider {
 	}
 
 	default String getUsername(Claims claims) {
-		return claims.get(getUsernameClaim()).toString();
+		return claims.get(getUsernameClaim(), String.class);
+	}
+
+	default String[] getOrigins(Claims claims) {
+		return claims.get(getOriginsClaim(), String.class).split(",");
 	}
 
 	default String getAuthoritiesClaim() {
@@ -37,6 +41,10 @@ public interface TokenProvider {
 	}
 
 	default String getUsernameClaim() {
+		return null;
+	}
+
+	default String getOriginsClaim() {
 		return null;
 	}
 

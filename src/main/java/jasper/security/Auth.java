@@ -24,6 +24,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -47,12 +49,13 @@ import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 @RequestScope
 public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
+
+	public static final String ORIGIN_HEADER = "Origin";
 
 	@Autowired
 	RoleHierarchy roleHierarchy;
@@ -62,22 +65,24 @@ public class Auth {
 	RefRepository refRepository;
 
 	// Cache
-	private Set<String> roles;
-	private Optional<User> user;
-	private String userTag;
+	protected Set<String> roles;
+	protected Optional<User> user;
+	protected String userTag;
+	protected String origin;
 
 	public boolean local(String origin) {
-		return isBlank(origin); // TODO: implement to support multi-tenant
+		return this.getOrigin().equals(origin);
 	}
 
 	public boolean freshLogin() {
 		var auth = getAuthentication();
-		if (!(auth instanceof JwtAuthentication)) return false;
-		var iat = ((JwtAuthentication) auth).getDetails().getIssuedAt();
-		if (iat == null || iat.toInstant().isBefore(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
-			throw new FreshLoginException();
+		if (auth instanceof JwtAuthentication j) {
+			var iat = j.getDetails().getIssuedAt();
+			if (iat != null && iat.toInstant().isBefore(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+				return true;
+			}
 		}
-		return true;
+		throw new FreshLoginException();
 	}
 
 	public boolean canReadRef(HasTags ref) {
@@ -88,7 +93,6 @@ public class Auth {
 		var qualifiedTags = ref.getQualifiedTags();
 		return captures(getUserTag(), qualifiedTags) ||
 			captures(getReadAccess(), qualifiedTags);
-
 	}
 
 	public boolean canReadRef(String url, String origin) {
@@ -187,6 +191,7 @@ public class Auth {
 
 	public boolean canWriteUser(User user) {
 		if (hasRole(MOD)) return true;
+		if (!local(user.getOrigin())) return false;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in write access
@@ -277,9 +282,20 @@ public class Auth {
 
 	public Optional<User> getUser() {
 		if (user == null) {
-			user = userRepository.findOneByQualifiedTag(getUserTag());
+			user = userRepository.findOneByQualifiedTag(getUserTag() + getOrigin());
 		}
 		return user;
+	}
+
+	public String getOrigin() {
+		if (origin == null) {
+			if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+				origin = attribs.getRequest().getHeader(ORIGIN_HEADER).toLowerCase();
+			} else {
+				origin = "";
+			}
+		}
+		return origin;
 	}
 
 	public List<String> getReadAccess() {

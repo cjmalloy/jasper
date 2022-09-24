@@ -32,6 +32,7 @@ public class ApplicationProperties {
 	private String defaultRole = "ROLE_USER";
 	private String defaultOrigin = "";
 	private String usernameClaim = "sub";
+	private String originsClaim = "origins";
 	private String authoritiesClaim = "auth";
 	private String scimEndpoint;
 	private String storage = "/var/lib/jasper";

@@ -1,5 +1,6 @@
 package jasper.security.jwt;
 
+import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -34,8 +35,9 @@ public class JWTFilter extends GenericFilterBean {
 		throws IOException, ServletException {
 		HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
 		String jwt = resolveToken(httpServletRequest);
+		String origin = resolveOrigin(httpServletRequest);
 		if (tokenProvider.validateToken(jwt)) {
-			Authentication authentication = tokenProvider.getAuthentication(jwt);
+			Authentication authentication = tokenProvider.getAuthentication(jwt, origin);
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
@@ -47,5 +49,13 @@ public class JWTFilter extends GenericFilterBean {
 			return bearerToken.substring(7);
 		}
 		return null;
+	}
+
+	private String resolveOrigin(HttpServletRequest request) {
+		String origin = request.getHeader(Auth.ORIGIN_HEADER);
+		if (StringUtils.hasText(origin)) {
+			return origin.toLowerCase();
+		}
+		return "";
 	}
 }

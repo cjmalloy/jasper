@@ -73,9 +73,9 @@ public class TokenProviderImpl implements TokenProvider {
 			.compact();
 	}
 
-	public Authentication getAuthentication(String token) {
+	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		return new JwtAuthentication(getUsername(claims), origin, getOrigins(claims), claims, getAuthorities(claims, origin));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -114,6 +114,11 @@ public class TokenProviderImpl implements TokenProvider {
 
 	@Override
 	public String getUsernameClaim() {
+		return applicationProperties.getUsernameClaim();
+	}
+
+	@Override
+	public String getOriginsClaim() {
 		return applicationProperties.getUsernameClaim();
 	}
 
