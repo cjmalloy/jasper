@@ -21,8 +21,8 @@ import java.util.List;
 
 @Profile("scim")
 @Component
-public class UserManagerScim implements UserManager {
-	private static final Logger logger = LoggerFactory.getLogger(UserManagerScim.class);
+public class ProfileManagerScim implements ProfileManager {
+	private static final Logger logger = LoggerFactory.getLogger(ProfileManagerScim.class);
 
 	@Autowired
 	ScimClient scimClient;

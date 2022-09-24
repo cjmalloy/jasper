@@ -1,6 +1,6 @@
 package jasper.service;
 
-import jasper.component.UserManager;
+import jasper.component.ProfileManager;
 import jasper.errors.DeactivateSelfException;
 import jasper.errors.InvalidUserProfileException;
 import jasper.security.Auth;
@@ -22,7 +22,7 @@ public class ProfileService {
 	private static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER);
 
 	@Autowired
-	UserManager userManager;
+	ProfileManager profileManager;
 
 	@Autowired
 	Auth auth;
@@ -38,7 +38,7 @@ public class ProfileService {
 		if (!tag.startsWith("_user/") && !tag.startsWith("+user/")) {
 			throw new InvalidUserProfileException("User tag must be start with user/");
 		}
-		userManager.createUser(tag.substring("+user/".length()), password, getRoles(tag, role));
+		profileManager.createUser(tag.substring("+user/".length()), password, getRoles(tag, role));
 	}
 
 	private String[] getRoles(String tag, String role) {
@@ -54,17 +54,17 @@ public class ProfileService {
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
 	public ProfileDto getUser(String tag) {
-		return userManager.getUser(tag.substring("+user/".length()));
+		return profileManager.getUser(tag.substring("+user/".length()));
 	}
 
 	@PreAuthorize("hasRole('MOD')")
 	public Page<ProfileDto> getUsers(int pageNumber, int pageSize) {
-		return userManager.getUsers(pageNumber, pageSize);
+		return profileManager.getUsers(pageNumber, pageSize);
 	}
 
 	@PreAuthorize("@auth.freshLogin() and @auth.canWriteTag(#tag)")
 	public void changePassword(String tag, String password) {
-		userManager.changePassword(tag.substring("+user/".length()), password);
+		profileManager.changePassword(tag.substring("+user/".length()), password);
 	}
 
 	@PreAuthorize("hasRole('MOD')")
@@ -72,7 +72,7 @@ public class ProfileService {
 		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
 		}
-		userManager.changeRoles(tag.substring("+user/".length()), getRoles(tag, role));
+		profileManager.changeRoles(tag.substring("+user/".length()), getRoles(tag, role));
 	}
 
 	@PreAuthorize("hasRole('MOD')")
@@ -80,11 +80,11 @@ public class ProfileService {
 		if (!active && auth.getUserTag().equals(tag)) {
 			throw new DeactivateSelfException();
 		}
-		userManager.setActive(tag.substring("+user/".length()), active);
+		profileManager.setActive(tag.substring("+user/".length()), active);
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
 	public void delete(String tag) {
-		userManager.deleteUser(tag.substring("+user/".length()));
+		profileManager.deleteUser(tag.substring("+user/".length()));
 	}
 }
