@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.annotation.Counted;
 import jasper.config.ApplicationProperties;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -67,6 +68,7 @@ public class Backup {
 	EntityManager entityManager;
 
 	@Async
+	@Counted("jasper.backup.create")
 	@Transactional(readOnly = true)
 	public void createBackup(String id, BackupOptionsDto options) throws IOException {
 		var start = Instant.now();
@@ -133,6 +135,7 @@ public class Backup {
 		Files.write(path, "]\n".getBytes(), StandardOpenOption.APPEND);
 	}
 
+	@Counted("jasper.backup.get")
 	public byte[] get(String id) {
 		try {
 			return Files.readAllBytes(path(id));
@@ -157,6 +160,7 @@ public class Backup {
 	}
 
 	@Async
+	@Counted("jasper.backup.restore")
 	public void restore(String id, BackupOptionsDto options) {
 		var start = Instant.now();
 		log.info("Restoring Backup");
@@ -193,6 +197,7 @@ public class Backup {
 		}
 	}
 
+	@Deprecated
 	private void upgradeFeed(Path path) {
 		try {
 			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldFeed.class, objectMapper)
@@ -222,12 +227,14 @@ public class Backup {
 		}
 	}
 
+	@Counted("jasper.backup.upload")
 	public void store(String id, byte[] zipFile) throws IOException {
 		var path = path(id);
 		Files.createDirectories(path.getParent());
 		Files.write(path, zipFile, StandardOpenOption.CREATE);
 	}
 
+	@Counted("jasper.backup.delete")
 	public void delete(String id) throws IOException {
 		Files.delete(path(id));
 	}

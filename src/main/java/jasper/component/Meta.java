@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
@@ -28,6 +29,7 @@ public class Meta {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Counted("jasper.meta.update")
 	public void update(Ref ref, Ref existing) {
 		// TODO: make async
 		if (ref != null) {

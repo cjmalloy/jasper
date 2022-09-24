@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Ref;
 import org.jsoup.Jsoup;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
 
+	@Counted(value = "jasper.webscrape")
 	public Ref scrape(String url) throws IOException {
 		var doc = Jsoup.connect(url).get();
 		var result = new Ref();
