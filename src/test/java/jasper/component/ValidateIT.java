@@ -1,28 +1,28 @@
 package jasper.component;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import java.io.IOException;
-import java.util.List;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.errors.InvalidPluginException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.errors.InvalidPluginException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 @IntegrationTest
 @Transactional
-public class IngestIT {
+public class ValidateIT {
 
 	@Autowired
-	Ingest ingest;
+	Validate validate;
 
 	@Autowired
 	RefRepository refRepository;
@@ -40,7 +40,7 @@ public class IngestIT {
 		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 
-		ingest.validate(ref, false);
+		validate.ref(ref, false);
 	}
 
 	@Test
@@ -61,7 +61,7 @@ public class IngestIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester", "plugin/test"));
 
-		assertThatThrownBy(() -> ingest.validate(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -90,7 +90,7 @@ public class IngestIT {
 			}
 		}"""));
 
-		ingest.validate(ref, false);
+		validate.ref(ref, false);
 	}
 
 	@Test
@@ -122,7 +122,7 @@ public class IngestIT {
 		}"""));
 
 
-		assertThatThrownBy(() -> ingest.validate(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -144,7 +144,7 @@ public class IngestIT {
 			}
 		}"""));
 
-		assertThatThrownBy(() -> ingest.validate(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -171,6 +171,6 @@ public class IngestIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester", "plugin/test"));
 
-		ingest.validate(ref, true);
+		validate.ref(ref, true);
 	}
 }
