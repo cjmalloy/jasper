@@ -62,9 +62,9 @@ public class Auth {
 	RefRepository refRepository;
 
 	// Cache
-	private Set<String> roles;
-	private Optional<User> user;
-	private String userTag;
+	protected Set<String> roles;
+	protected Optional<User> user;
+	protected String userTag;
 
 	public boolean local(String origin) {
 		return isBlank(origin); // TODO: implement to support multi-tenant
@@ -88,7 +88,6 @@ public class Auth {
 		var qualifiedTags = ref.getQualifiedTags();
 		return captures(getUserTag(), qualifiedTags) ||
 			captures(getReadAccess(), qualifiedTags);
-
 	}
 
 	public boolean canReadRef(String url, String origin) {
@@ -127,15 +126,16 @@ public class Auth {
 	}
 
 	public boolean canAddTag(String tag) {
-		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
+		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
 		if (tag.equals(getUserTag())) return true;
 		return captures(getTagReadAccess(), List.of(tag));
 	}
 
 	public boolean canTagAll(List<String> tags, String url, String origin) {
 		if (hasRole(MOD)) return true;
+		if (!hasRole(USER)) return false;
 		for (var tag : tags) {
 			if (!canTag(tag, url, origin)) return false;
 		}
@@ -160,7 +160,10 @@ public class Auth {
 
 	public boolean canReadTag(String tag) {
 		if (!tag.startsWith("_")) return true;
-		return canAddTag(tag);
+		if (hasRole(MOD)) return true;
+		if (!hasRole(VIEWER)) return false;
+		if (tag.equals(getUserTag())) return true;
+		return captures(getTagReadAccess(), List.of(tag));
 	}
 
 	public boolean canWriteTag(String tag) {
