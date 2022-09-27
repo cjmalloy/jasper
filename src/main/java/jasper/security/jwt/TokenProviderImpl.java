@@ -22,7 +22,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-public class TokenProviderImpl implements TokenProvider {
+public class TokenProviderImpl extends AbstractJwtTokenProvider implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImpl.class);
 
@@ -37,9 +37,9 @@ public class TokenProviderImpl implements TokenProvider {
 	private final long tokenValidityInMillisecondsForRememberMe;
 
 	private final SecurityMetersService securityMetersService;
-	private final ApplicationProperties applicationProperties;
 
 	public TokenProviderImpl(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
+		super(applicationProperties);
 		byte[] keyBytes;
 		String secret = applicationProperties.getSecurity().getAuthentication().getJwt().getBase64Secret();
 		log.debug("Using a Base64-encoded JWT secret key");
@@ -73,9 +73,9 @@ public class TokenProviderImpl implements TokenProvider {
 			.compact();
 	}
 
-	public Authentication getAuthentication(String token) {
+	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -105,20 +105,5 @@ public class TokenProviderImpl implements TokenProvider {
 		}
 
 		return false;
-	}
-
-	@Override
-	public String getAuthoritiesClaim() {
-		return applicationProperties.getAuthoritiesClaim();
-	}
-
-	@Override
-	public String getUsernameClaim() {
-		return applicationProperties.getUsernameClaim();
-	}
-
-	@Override
-	public String getDefaultRole() {
-		return applicationProperties.getDefaultRole();
 	}
 }

@@ -32,7 +32,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	@Autowired
-    ApplicationProperties applicationProperties;
+	ApplicationProperties applicationProperties;
 	@Autowired
     SecurityProblemSupport problemSupport;
 	@Autowired

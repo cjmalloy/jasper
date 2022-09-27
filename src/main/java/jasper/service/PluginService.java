@@ -43,16 +43,16 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public Plugin get(String tag) {
-		return pluginRepository.findOneByQualifiedTag(tag)
-							   .orElseThrow(() -> new NotFoundException("Plugin " + tag));
+	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	public Plugin get(String qualifiedTag) {
+		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
+							   .orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public boolean exists(String tag) {
-		return pluginRepository.existsByQualifiedTag(tag);
+	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	public boolean exists(String qualifiedTag) {
+		return pluginRepository.existsByQualifiedTag(qualifiedTag);
 	}
 
 	@Transactional(readOnly = true)
@@ -81,9 +81,9 @@ public class PluginService {
 
 	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
-	public void delete(String tag) {
+	public void delete(String qualifiedTag) {
 		try {
-			pluginRepository.deleteByQualifiedTag(tag);
+			pluginRepository.deleteByQualifiedTag(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

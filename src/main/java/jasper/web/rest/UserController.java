@@ -137,7 +137,7 @@ public class UserController {
 	RolesDto whoAmI() {
 		return RolesDto
 			.builder()
-			.tag(auth.getUserTag())
+			.tag(auth.getUserTag().toString())
 			.admin(auth.hasRole(ADMIN))
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))

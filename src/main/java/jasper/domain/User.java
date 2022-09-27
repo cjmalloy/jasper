@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
-import jasper.repository.spec.QualifiedTag;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -61,19 +60,19 @@ public class User implements Tag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> readAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> readAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> writeAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> writeAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> tagReadAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagReadAccess;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = QualifiedTag.SELECTOR) String> tagWriteAccess;
+	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
 
 	@LastModifiedDate
 	private Instant modified = Instant.now();

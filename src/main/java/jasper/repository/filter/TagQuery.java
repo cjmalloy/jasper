@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static jasper.repository.spec.QualifiedTag.queryAtom;
 import static jasper.repository.spec.RefSpec.hasAllQualifiedTags;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAllQualifiedTag;
@@ -94,24 +95,24 @@ public class TagQuery {
 			if (!orGroup.contains(":")) {
 				if (orGroup.contains(" ")) {
 					// Useless parentheses around ors
-					orTags.addAll(Arrays.stream(orGroup.split("[() ]")).map(QualifiedTag::new).toList());
+					orTags.addAll(Arrays.stream(orGroup.split("[() ]")).map(QualifiedTag::queryAtom).toList());
 				} else {
-					orTags.add(new QualifiedTag(orGroup.replaceAll("[()]", "")));
+					orTags.add(queryAtom(orGroup.replaceAll("[()]", "")));
 				}
 			} else {
 				if (!orGroup.contains(" ")) {
-					orGroups.add(Arrays.stream(orGroup.replaceAll("[()]", "").split(":")).map(QualifiedTag::new).toList());
+					orGroups.add(Arrays.stream(orGroup.replaceAll("[()]", "").split(":")).map(QualifiedTag::queryAtom).toList());
 				} else {
 					var andGroups = orGroup.split(":");
 					var nested = new ArrayList<List<QualifiedTag>>();
 					for (var andGroup : andGroups) {
 						if (andGroup.length() == 0) continue;
 						if (!andGroup.contains(" ")) {
-							nested.add(List.of(new QualifiedTag(andGroup.replaceAll("[()]", ""))));
+							nested.add(List.of(queryAtom(andGroup.replaceAll("[()]", ""))));
 						} else {
 							nested.add(Arrays.stream(andGroup.split(" "))
 											 .map(s -> s.replaceAll("[()]", ""))
-											 .map(QualifiedTag::new)
+											 .map(QualifiedTag::queryAtom)
 											 .toList());
 						}
 					}

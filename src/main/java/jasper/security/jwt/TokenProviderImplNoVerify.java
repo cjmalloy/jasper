@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 
-public class TokenProviderImplNoVerify implements TokenProvider {
+public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
 
@@ -26,6 +26,7 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 	private final ApplicationProperties applicationProperties;
 
 	public TokenProviderImplNoVerify(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
+		super(applicationProperties);
 		jwtParser = Jwts.parserBuilder().build();
 		this.applicationProperties = applicationProperties;
 		this.securityMetersService = securityMetersService;
@@ -35,9 +36,9 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 		return token.substring(0, token.lastIndexOf('.') + 1);
 	}
 
-	public Authentication getAuthentication(String token) {
+	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -67,20 +68,5 @@ public class TokenProviderImplNoVerify implements TokenProvider {
 		}
 
 		return false;
-	}
-
-	@Override
-	public String getAuthoritiesClaim() {
-		return applicationProperties.getAuthoritiesClaim();
-	}
-
-	@Override
-	public String getUsernameClaim() {
-		return applicationProperties.getUsernameClaim();
-	}
-
-	@Override
-	public String getDefaultRole() {
-		return applicationProperties.getDefaultRole();
 	}
 }

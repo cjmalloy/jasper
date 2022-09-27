@@ -18,7 +18,7 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class TokenProviderImplJwks implements TokenProvider {
+public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplJwks.class);
 
@@ -34,15 +34,16 @@ public class TokenProviderImplJwks implements TokenProvider {
 		SecurityMetersService securityMetersService,
 		RestTemplate restTemplate
 	) throws URISyntaxException {
+		super(applicationProperties);
 		String jwksUri = applicationProperties.getSecurity().getAuthentication().getJwt().getJwksUri();
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
 		this.applicationProperties = applicationProperties;
 		this.securityMetersService = securityMetersService;
 	}
 
-	public Authentication getAuthentication(String token) {
+	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 
 	public boolean validateToken(String authToken) {
@@ -72,20 +73,5 @@ public class TokenProviderImplJwks implements TokenProvider {
 		}
 
 		return false;
-	}
-
-	@Override
-	public String getAuthoritiesClaim() {
-		return applicationProperties.getAuthoritiesClaim();
-	}
-
-	@Override
-	public String getUsernameClaim() {
-		return applicationProperties.getUsernameClaim();
-	}
-
-	@Override
-	public String getDefaultRole() {
-		return applicationProperties.getDefaultRole();
 	}
 }

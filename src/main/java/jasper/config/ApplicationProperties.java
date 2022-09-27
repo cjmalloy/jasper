@@ -18,7 +18,6 @@ import java.util.Map;
  * <p>
  * Properties are configured in the {@code application.yml} file.
  */
-
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
@@ -31,8 +30,15 @@ public class ApplicationProperties {
 	private String replicateBatch = "5000";
 	private String defaultRole = "ROLE_USER";
 	private String defaultOrigin = "";
+	private boolean multiTenant = false;
+	private boolean allowOriginHeader = false;
+	private boolean allowAuthHeaders = false;
 	private String usernameClaim = "sub";
 	private String authoritiesClaim = "auth";
+	private String readAccessClaim = "readAccess";
+	private String writeAccessClaim = "writeAccess";
+	private String tagReadAccessClaim = "tagReadAccess";
+	private String tagWriteAccessClaim = "tagWriteAccess";
 	private String scimEndpoint;
 	private String storage = "/var/lib/jasper";
 	private final Async async = new Async();

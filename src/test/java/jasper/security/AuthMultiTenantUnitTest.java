@@ -27,7 +27,7 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class AuthUnitTest {
+public class AuthMultiTenantUnitTest {
 
 	RoleHierarchy roleHierarchy = new SecurityConfiguration().roleHierarchy();
 
@@ -38,6 +38,8 @@ public class AuthUnitTest {
 	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
 		a.applicationProperties = new ApplicationProperties();
+		a.applicationProperties.setMultiTenant(true);
+		a.applicationProperties.setDefaultOrigin(origin);
 		a.userTag = selector(user.getQualifiedTag());
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
@@ -55,6 +57,7 @@ public class AuthUnitTest {
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
 		u.setTag(userTag);
+		u.setOrigin("@other");
 		u.setReadAccess(new ArrayList<>(List.of(tags)));
 		u.setWriteAccess(new ArrayList<>(List.of(tags)));
 		u.setTagReadAccess(new ArrayList<>(List.of(tags)));
@@ -65,6 +68,7 @@ public class AuthUnitTest {
 	Ref getRef(String ...tags) {
 		var r = new Ref();
 		r.setUrl("https://jasperkm.info/");
+		r.setOrigin("@other");
 		r.setTags(new ArrayList<>(List.of(tags)));
 		return r;
 	}
@@ -490,7 +494,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadTag("custom"))
+		assertThat(auth.canReadTag("custom@other"))
 			.isTrue();
 	}
 
@@ -499,7 +503,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadTag("+custom"))
+		assertThat(auth.canReadTag("+custom@other"))
 			.isTrue();
 	}
 
@@ -509,7 +513,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadTag("_custom"))
+		assertThat(auth.canReadTag("_custom@other"))
 			.isTrue();
 	}
 
@@ -519,7 +523,7 @@ public class AuthUnitTest {
 		user.setTag("_user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadTag("_user/test"))
+		assertThat(auth.canReadTag("_user/test@other"))
 			.isTrue();
 	}
 
@@ -528,7 +532,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadTag("_custom"))
+		assertThat(auth.canReadTag("_custom@other"))
 			.isFalse();
 	}
 
@@ -538,7 +542,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("custom"))
+		assertThat(auth.canWriteTag("custom@other"))
 			.isTrue();
 	}
 
@@ -547,7 +551,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("custom"))
+		assertThat(auth.canWriteTag("custom@other"))
 			.isFalse();
 	}
 
@@ -556,7 +560,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, EDITOR);
 
-		assertThat(auth.canWriteTag("custom"))
+		assertThat(auth.canWriteTag("custom@other"))
 			.isTrue();
 	}
 
@@ -566,7 +570,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("+custom"))
+		assertThat(auth.canWriteTag("+custom@other"))
 			.isTrue();
 	}
 
@@ -575,7 +579,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("+custom"))
+		assertThat(auth.canWriteTag("+custom@other"))
 			.isFalse();
 	}
 
@@ -585,7 +589,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("_custom"))
+		assertThat(auth.canWriteTag("_custom@other"))
 			.isTrue();
 	}
 
@@ -594,7 +598,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("_custom"))
+		assertThat(auth.canWriteTag("_custom@other"))
 			.isFalse();
 	}
 
@@ -603,7 +607,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canWriteTag("+user/test"))
+		assertThat(auth.canWriteTag("+user/test@other"))
 			.isTrue();
 	}
 
@@ -612,7 +616,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> "custom"))
+		assertThat(auth.canReadQuery(() -> "custom@other"))
 			.isTrue();
 	}
 
@@ -621,7 +625,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> "+custom"))
+		assertThat(auth.canReadQuery(() -> "+custom@other"))
 			.isTrue();
 	}
 
@@ -631,7 +635,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> "_custom"))
+		assertThat(auth.canReadQuery(() -> "_custom@other"))
 			.isTrue();
 	}
 
@@ -641,7 +645,7 @@ public class AuthUnitTest {
 		user.setTag("_user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> "_user/test"))
+		assertThat(auth.canReadQuery(() -> "_user/test@other"))
 			.isTrue();
 	}
 
@@ -650,7 +654,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(() -> "_custom"))
+		assertThat(auth.canReadQuery(() -> "_custom@other"))
 			.isFalse();
 	}
 

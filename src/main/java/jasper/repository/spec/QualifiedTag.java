@@ -6,6 +6,9 @@ import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
@@ -14,11 +17,11 @@ import static jasper.repository.spec.TemplateSpec.matchesTag;
 public class QualifiedTag {
 	public static final String SELECTOR = "(\\*|" + Tag.REGEX + "|(" + Tag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
 
-	private final boolean not;
-	private final String tag;
-	private final String origin;
+	public final boolean not;
+	public final String tag;
+	public final String origin;
 
-	public QualifiedTag(String qt) {
+	protected QualifiedTag(String qt) {
 		not = qt.startsWith("!");
 		if (not) qt = qt.substring(1);
 		var index = qt.indexOf("@");
@@ -33,8 +36,16 @@ public class QualifiedTag {
 		}
 	}
 
+	@Override
+	public String toString() {
+		return (not ? "!" : "") + tag + origin;
+	}
+
 	public boolean captures(String capture) {
-		var c = new QualifiedTag(capture);
+		return captures(selector(capture));
+	}
+
+	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
 		if (!origin.equals("@*") && !origin.equals(c.origin)) return not;
 		return !not;
@@ -59,5 +70,21 @@ public class QualifiedTag {
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
 		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
+	}
+
+	public static QualifiedTag selector(String qt) {
+		if (qt.startsWith("!")) throw new UnsupportedOperationException();
+		return new QualifiedTag(qt);
+	}
+
+	public static QualifiedTag queryAtom(String qt) {
+		return new QualifiedTag(qt);
+	}
+
+	public static List<QualifiedTag> qtList(String defaultOrigin, List<String> tags) {
+		return tags.stream()
+			.map(t -> t.contains("@") ? t : t + defaultOrigin)
+			.map(QualifiedTag::new)
+			.collect(Collectors.toList());
 	}
 }

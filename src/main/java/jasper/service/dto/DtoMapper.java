@@ -5,7 +5,6 @@ import jasper.domain.User;
 import jasper.security.Auth;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,8 +16,6 @@ public abstract class DtoMapper {
 	@Autowired
 	Auth auth;
 
-	@Mapping(target = "qualifiedNonPublicTags", ignore = true)
-	@Mapping(target = "qualifiedTags", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
 	@AfterMapping

@@ -14,7 +14,6 @@ import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.ModifiedException;
@@ -59,7 +58,6 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	public void create(Ext ext) {
-		if (!auth.local(ext.getOrigin())) throw new ForeignWriteException(ext.getOrigin());
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(ext, true);
 		ext.setModified(Instant.now());
@@ -71,10 +69,10 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public Ext get(String tag) {
-		return extRepository.findOneByQualifiedTag(tag)
-							.orElseThrow(() -> new NotFoundException("Ext " + tag));
+	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	public Ext get(String qualifiedTag) {
+		return extRepository.findOneByQualifiedTag(qualifiedTag)
+							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -102,23 +100,23 @@ public class ExtService {
 		}
 	}
 
-	@PreAuthorize("@auth.canWriteTag(#tag)")
-	public void patch(String tag, JsonPatch patch) {
-		var maybeExisting = extRepository.findOneByQualifiedTag(tag);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + tag);
+	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
+	public void patch(String qualifiedTag, JsonPatch patch) {
+		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + qualifiedTag);
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
 			update(objectMapper.treeToValue(patched, Ext.class));
 		} catch (JsonPatchException | JsonProcessingException e) {
-			throw new InvalidPatchException("Ext " + tag, e);
+			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteTag(#tag)")
-	public void delete(String tag) {
+	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
+	public void delete(String qualifiedTag) {
 		try {
-			extRepository.deleteByQualifiedTag(tag);
+			extRepository.deleteByQualifiedTag(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

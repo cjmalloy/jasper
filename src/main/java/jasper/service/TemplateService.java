@@ -43,10 +43,10 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public Template get(String tag) {
-		return templateRepository.findOneByQualifiedTag(tag)
-								 .orElseThrow(() -> new NotFoundException("Template " + tag));
+	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	public Template get(String qualifiedTag) {
+		return templateRepository.findOneByQualifiedTag(qualifiedTag)
+								 .orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -71,9 +71,9 @@ public class TemplateService {
 
 	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
-	public void delete(String tag) {
+	public void delete(String qualifiedTag) {
 		try {
-			templateRepository.deleteByQualifiedTag(tag);
+			templateRepository.deleteByQualifiedTag(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

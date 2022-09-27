@@ -3,7 +3,6 @@ package jasper.service;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -35,7 +34,6 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	public void create(User user) {
-		if (!auth.local(user.getOrigin())) throw new ForeignWriteException(user.getOrigin());
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		user.setModified(Instant.now());
 		try {
@@ -46,10 +44,10 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#tag)")
-	public UserDto get(String tag) {
-		var result = userRepository.findOneByQualifiedTag(tag)
-								   .orElseThrow(() -> new NotFoundException("User " + tag));
+	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	public UserDto get(String qualifiedTag) {
+		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
+								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
 		return mapper.domainToDto(result);
 	}
 
