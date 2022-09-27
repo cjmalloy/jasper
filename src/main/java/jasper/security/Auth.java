@@ -90,18 +90,11 @@ public class Auth {
 			captures(getReadAccess(), qualifiedTags);
 	}
 
-	public boolean canReadRef(String url, String origin) {
+	protected boolean canReadRef(String url, String origin) {
 		if (hasRole(MOD)) return true;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return false;
 		return canReadRef(maybeExisting.get());
-	}
-
-	public boolean canWrite(String tag) {
-		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
-		if (tag.equals(getUserTag())) return true;
-		return captures(getWriteAccess(), List.of(tag));
 	}
 
 	public boolean canWriteRef(Ref ref) {
@@ -125,7 +118,7 @@ public class Auth {
 		return false;
 	}
 
-	public boolean canAddTag(String tag) {
+	protected boolean canAddTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
@@ -152,7 +145,7 @@ public class Auth {
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
-	public boolean isPublicTag(String tag) {
+	protected boolean isPublicTag(String tag) {
 		if (tag.startsWith("_")) return false;
 		if (tag.startsWith("+")) return false;
 		return true;
@@ -168,7 +161,7 @@ public class Auth {
 
 	public boolean canWriteTag(String tag) {
 		if (hasRole(MOD)) return true;
-		if (isPublicTag(tag)) return hasRole(EDITOR);
+		if (isPublicTag(tag) && hasRole(EDITOR)) return true;
 		if (tag.equals(getUserTag()) && hasRole(VIEWER)) return true;
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), List.of(tag));
@@ -178,9 +171,9 @@ public class Auth {
 		if (filter.getQuery() == null) return true;
 		if (hasRole(MOD)) return true;
 		var tagList = Arrays.stream(filter.getQuery().split("[!:|()]+"))
-							.filter((t) -> t.startsWith("_"))
-							.filter((t) -> !t.equals(getUserTag()))
-							.toList();
+			.filter((t) -> t.startsWith("_"))
+			.filter((t) -> !t.equals(getUserTag()))
+			.toList();
 		if (tagList.isEmpty()) return true;
 		if (!hasRole(VIEWER)) return false;
 		var tagReadAccess = getTagReadAccess();
@@ -197,8 +190,8 @@ public class Auth {
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::canWriteTag)) return false;
 		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::canWriteTag)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::canWrite)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::canWrite)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::capturesWriteAccess)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::capturesWriteAccess)) return false;
 		return true;
 	}
 
@@ -232,7 +225,14 @@ public class Auth {
 			.or(isAnyTag(getReadAccess()));
 	}
 
-	private static boolean captures(List<String> selectors, List<String> target) {
+	protected boolean capturesWriteAccess(String qualifiedTag) {
+		if (hasRole(MOD)) return true;
+		if (!hasRole(USER)) return false;
+		if (qualifiedTag.equals(getUserTag())) return true;
+		return captures(getWriteAccess(), List.of(qualifiedTag));
+	}
+
+	protected static boolean captures(List<String> selectors, List<String> target) {
 		if (selectors == null) return false;
 		if (selectors.isEmpty()) return false;
 		if (target == null) return false;
@@ -243,7 +243,7 @@ public class Auth {
 		return false;
 	}
 
-	private static boolean captures(String selector, List<String> target) {
+	protected static boolean captures(String selector, List<String> target) {
 		if (selector == null) return false;
 		if (target == null) return false;
 		if (target.isEmpty()) return false;
@@ -254,7 +254,7 @@ public class Auth {
 		return false;
 	}
 
-	private static Stream<String> newTags(List<String> changes, Optional<List<String>> existing) {
+	protected static Stream<String> newTags(List<String> changes, Optional<List<String>> existing) {
 		if (changes == null) return Stream.empty();
 		if (existing.isEmpty()) return changes.stream();
 		return changes.stream().filter(tag -> !existing.get().contains(tag));
