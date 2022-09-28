@@ -10,6 +10,7 @@ import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
@@ -57,6 +58,7 @@ public class ExtService {
 	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "create"})
 	public void create(Ext ext) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(ext, true);
@@ -70,6 +72,7 @@ public class ExtService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "get"})
 	public Ext get(String qualifiedTag) {
 		return extRepository.findOneByQualifiedTag(qualifiedTag)
 							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
@@ -77,6 +80,7 @@ public class ExtService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "page"})
 	public Page<Ext> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
@@ -86,6 +90,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "update"})
 	public void update(Ext ext) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
@@ -101,6 +106,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "patch"})
 	public void patch(String qualifiedTag, JsonPatch patch) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + qualifiedTag);
@@ -114,6 +120,7 @@ public class ExtService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "delete"})
 	public void delete(String qualifiedTag) {
 		try {
 			extRepository.deleteByQualifiedTag(qualifiedTag);
@@ -131,6 +138,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "ext", "method", "validate"})
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		if (templates.isEmpty()) {

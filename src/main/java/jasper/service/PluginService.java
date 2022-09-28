@@ -1,5 +1,6 @@
 package jasper.service;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -31,6 +32,7 @@ public class PluginService {
 	Auth auth;
 
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "create"})
 	public void create(Plugin plugin) {
 		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
@@ -44,6 +46,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "get"})
 	public Plugin get(String qualifiedTag) {
 		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
 							   .orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
@@ -51,12 +54,14 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "exists"})
 	public boolean exists(String qualifiedTag) {
 		return pluginRepository.existsByQualifiedTag(qualifiedTag);
 	}
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "page"})
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
@@ -66,6 +71,7 @@ public class PluginService {
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "update"})
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
@@ -81,6 +87,7 @@ public class PluginService {
 
 	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "plugin", "method", "delete"})
 	public void delete(String qualifiedTag) {
 		try {
 			pluginRepository.deleteByQualifiedTag(qualifiedTag);

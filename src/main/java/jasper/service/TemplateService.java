@@ -1,5 +1,6 @@
 package jasper.service;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -31,6 +32,7 @@ public class TemplateService {
 	Auth auth;
 
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "template", "method", "create"})
 	public void create(Template template) {
 		if (!auth.local(template.getOrigin())) throw new ForeignWriteException(template.getOrigin());
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
@@ -44,6 +46,7 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "template", "method", "get"})
 	public Template get(String qualifiedTag) {
 		return templateRepository.findOneByQualifiedTag(qualifiedTag)
 								 .orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
@@ -51,11 +54,13 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Counted(value = "jasper.service", extraTags = {"service", "template", "method", "page"})
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(filter.spec(), pageable);
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "template", "method", "update"})
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Template "+ template.getQualifiedTag());
@@ -71,6 +76,7 @@ public class TemplateService {
 
 	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
+	@Counted(value = "jasper.service", extraTags = {"service", "template", "method", "delete"})
 	public void delete(String qualifiedTag) {
 		try {
 			templateRepository.deleteByQualifiedTag(qualifiedTag);

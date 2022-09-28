@@ -1,5 +1,6 @@
 package jasper.service;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.component.ProfileManager;
 import jasper.errors.DeactivateSelfException;
 import jasper.errors.InvalidUserProfileException;
@@ -28,6 +29,7 @@ public class ProfileService {
 	Auth auth;
 
 	@PreAuthorize("hasRole('MOD')")
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "create"})
 	public void create(String tag, String password, String role) {
 		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
@@ -53,21 +55,25 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
-	public ProfileDto getUser(String tag) {
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "get"})
+	public ProfileDto get(String tag) {
 		return profileManager.getUser(tag.substring("+user/".length()));
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	public Page<ProfileDto> getUsers(int pageNumber, int pageSize) {
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "page"})
+	public Page<ProfileDto> page(int pageNumber, int pageSize) {
 		return profileManager.getUsers(pageNumber, pageSize);
 	}
 
 	@PreAuthorize("@auth.freshLogin() and @auth.canWriteTag(#tag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "password"})
 	public void changePassword(String tag, String password) {
 		profileManager.changePassword(tag.substring("+user/".length()), password);
 	}
 
 	@PreAuthorize("hasRole('MOD')")
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "role"})
 	public void changeRole(String tag, String role) {
 		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
@@ -76,6 +82,7 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("hasRole('MOD')")
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "active"})
 	public void setActive(String tag, boolean active) {
 		if (!active && auth.getUserTag().equals(tag)) {
 			throw new DeactivateSelfException();
@@ -84,6 +91,7 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "profile", "method", "delete"})
 	public void delete(String tag) {
 		profileManager.deleteUser(tag.substring("+user/".length()));
 	}

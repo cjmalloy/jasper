@@ -65,7 +65,7 @@ public class ProfileController {
 	ProfileDto getProfile(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
 	) {
-		return profileService.getUser(tag);
+		return profileService.get(tag);
 	}
 
 	@ApiResponses({
@@ -75,7 +75,7 @@ public class ProfileController {
 	Page<ProfileDto> getProfilePage(
 		@PageableDefault @ParameterObject Pageable pageable
 	) {
-		return profileService.getUsers(pageable.getPageNumber(), pageable.getPageSize());
+		return profileService.page(pageable.getPageNumber(), pageable.getPageSize());
 	}
 
 	@ApiResponses({

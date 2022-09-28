@@ -1,5 +1,6 @@
 package jasper.service;
 
+import io.micrometer.core.annotation.Counted;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -33,6 +34,7 @@ public class UserService {
 	DtoMapper mapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "create"})
 	public void create(User user) {
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		user.setModified(Instant.now());
@@ -45,6 +47,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "get"})
 	public UserDto get(String qualifiedTag) {
 		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
 								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -53,6 +56,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "page"})
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
@@ -63,6 +67,7 @@ public class UserService {
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "update"})
 	public void update(User user) {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
@@ -78,6 +83,7 @@ public class UserService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "delete"})
 	public void delete(String tag) {
 		try {
 			userRepository.deleteByQualifiedTag(tag);
