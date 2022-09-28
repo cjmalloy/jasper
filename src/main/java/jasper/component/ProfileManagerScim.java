@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unboundid.scim2.common.types.Email;
+import io.micrometer.core.annotation.Counted;
 import jasper.client.ScimClient;
 import jasper.component.dto.CustomClaims;
 import jasper.component.dto.ScimPatchOp;
@@ -34,6 +35,7 @@ public class ProfileManagerScim implements ProfileManager {
 	ObjectMapper objectMapper;
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "create"})
 	public void createUser(String tag, String password, String[] roles) {
 		var user = ScimUserResource.builder()
 			.userName(tag)
@@ -54,6 +56,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "get"})
 	public ProfileDto getUser(String tag) {
 		return mapUser(_getUser(tag));
 	}
@@ -82,6 +85,8 @@ public class ProfileManagerScim implements ProfileManager {
 			.get(0), ScimUserResource.class);
 	}
 
+	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "page"})
 	public Page<ProfileDto> getUsers(int page, int size) {
 		var users = scimClient
 			.getUsers(accessToken.getAdminToken(), page + 1, size);
@@ -94,6 +99,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "password"})
 	public void changePassword(String tag, String password) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -110,6 +116,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "active"})
 	public void setActive(String tag, boolean active) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -126,6 +133,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "roles"})
 	public void changeRoles(String tag, String[] roles) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -142,6 +150,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
+	@Counted(value = "jasper.scim", extraTags = {"method", "delete"})
 	public void deleteUser(String tag) {
 		var user = _getUser(tag);
 		scimClient.deleteUser(accessToken.getAdminToken(), user.getId());
