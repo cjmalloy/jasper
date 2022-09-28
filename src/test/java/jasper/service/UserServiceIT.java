@@ -1,18 +1,10 @@
 package jasper.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.validation.ConstraintViolationException;
-
 import jasper.IntegrationTest;
 import jasper.domain.User;
+import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
-import jasper.errors.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +12,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.validation.ConstraintViolationException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("tester")
 @IntegrationTest
@@ -45,48 +44,6 @@ public class UserServiceIT {
 		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
-		assertThat(fetched.getName())
-			.isEqualTo("Custom");
-	}
-
-	@Test
-	void testCreateUserWithAllSelector() {
-		var user = new User();
-		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("@*"));
-		userRepository.save(user);
-		var other = new User();
-		other.setTag("+user/other");
-		other.setName("Custom");
-
-		userService.create(other);
-
-		assertThat(userRepository.existsByQualifiedTag("+user/other"))
-			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
-		assertThat(fetched.getTag())
-			.isEqualTo("+user/other");
-		assertThat(fetched.getName())
-			.isEqualTo("Custom");
-	}
-
-	@Test
-	void testCreateUserWithAllOriginSelector() {
-		var user = new User();
-		user.setTag("+user/tester");
-		user.setWriteAccess(List.of("+user/other@*"));
-		userRepository.save(user);
-		var other = new User();
-		other.setTag("+user/other");
-		other.setName("Custom");
-
-		userService.create(other);
-
-		assertThat(userRepository.existsByQualifiedTag("+user/other"))
-			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
-		assertThat(fetched.getTag())
-			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("Custom");
 	}
@@ -144,30 +101,6 @@ public class UserServiceIT {
 			.containsExactly("custom");
 		assertThat(fetched.getWriteAccess())
 			.containsExactly("custom");
-	}
-
-	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
-	void testModCreateUserWithTagSelectors() {
-		var user = new User();
-		user.setTag("+user/other");
-		user.setName("Custom");
-		user.setReadAccess(List.of("@*"));
-		user.setWriteAccess(List.of("custom", "custom@other"));
-
-		userService.create(user);
-
-		assertThat(userRepository.existsByQualifiedTag("+user/other"))
-			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
-		assertThat(fetched.getTag())
-			.isEqualTo("+user/other");
-		assertThat(fetched.getName())
-			.isEqualTo("Custom");
-		assertThat(fetched.getReadAccess())
-			.containsExactly("@*");
-		assertThat(fetched.getWriteAccess())
-			.containsExactly("custom", "custom@other");
 	}
 
 	@Test
@@ -419,29 +352,10 @@ public class UserServiceIT {
 	}
 
 	@Test
-	void testReadOtherUserWithAllSelector() {
-		var user = new User();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("@*"));
-		userRepository.save(user);
-		var other = new User();
-		other.setTag("_user/other");
-		other.setName("Secret");
-		userRepository.save(other);
-
-		var fetched = userService.get("_user/other");
-
-		assertThat(fetched.getTag())
-			.isEqualTo("_user/other");
-		assertThat(fetched.getName())
-			.isEqualTo("Secret");
-	}
-
-	@Test
 	void testReadOtherUserWithAllOriginSelector() {
 		var user = new User();
 		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_user/other@*"));
+		user.setReadAccess(List.of("_user/other"));
 		userRepository.save(user);
 		var other = new User();
 		other.setTag("_user/other");
