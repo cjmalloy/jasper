@@ -22,4 +22,5 @@ RUN true
 COPY --from=builder app/snapshot-dependencies/ ./
 RUN true
 COPY --from=builder app/application/ ./
-ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
+COPY docker/entrypoint.sh .
+ENTRYPOINT sh entrypoint.sh
