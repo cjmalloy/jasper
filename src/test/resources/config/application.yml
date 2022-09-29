@@ -78,7 +78,7 @@ server:
   port: 10344
   address: localhost
 
-application:
+jasper:
   clientApp:
     name: 'jasperApp'
   replicate-delay-min: 0
