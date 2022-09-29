@@ -38,10 +38,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.security.AuthoritiesConstants.ADMIN;
-import static jasper.security.AuthoritiesConstants.EDITOR;
-import static jasper.security.AuthoritiesConstants.MOD;
-import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.util.RestUtil.ifNotModified;
 import static jasper.util.RestUtil.ifNotModifiedPage;
 
@@ -135,13 +131,6 @@ public class UserController {
 	})
 	@GetMapping("whoami")
 	RolesDto whoAmI() {
-		return RolesDto
-			.builder()
-			.tag(auth.getUserTag().toString())
-			.admin(auth.hasRole(ADMIN))
-			.mod(auth.hasRole(MOD))
-			.editor(auth.hasRole(EDITOR))
-			.user(auth.hasRole(USER))
-			.build();
+		return userService.whoAmI();
 	}
 }

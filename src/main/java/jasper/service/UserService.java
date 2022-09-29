@@ -9,6 +9,7 @@ import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
+import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -20,6 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.USER;
 
 @Service
 public class UserService {
@@ -90,5 +96,17 @@ public class UserService {
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
+	}
+
+	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "who"})
+	public RolesDto whoAmI() {
+		return RolesDto
+			.builder()
+			.tag(auth.getUserTag().toString())
+			.admin(auth.hasRole(ADMIN))
+			.mod(auth.hasRole(MOD))
+			.editor(auth.hasRole(EDITOR))
+			.user(auth.hasRole(USER))
+			.build();
 	}
 }
