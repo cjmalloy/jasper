@@ -29,9 +29,9 @@ public class Props {
 	private String replicateIntervalMin = "1";
 	private String replicateBatch = "5000";
 	private String defaultRole = "ROLE_USER";
-	private String defaultOrigin = "";
+	private String localOrigin = "";
 	private boolean multiTenant = false;
-	private boolean allowOriginHeader = false;
+	private boolean allowLocalOriginHeader = false;
 	private boolean allowAuthHeaders = false;
 	private String usernameClaim = "sub";
 	private String authoritiesClaim = "auth";

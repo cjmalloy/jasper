@@ -58,7 +58,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
 
-	public static final String ORIGIN_HEADER = "Origin";
+	public static final String LOCAL_ORIGIN_HEADER = "Local-Origin";
 	public static final String WRITE_ACCESS_HEADER = "Write-Access";
 	public static final String READ_ACCESS_HEADER = "Read-Access";
 	public static final String TAG_WRITE_ACCESS_HEADER = "Tag-Write-Access";
@@ -335,9 +335,9 @@ public class Auth {
 	public String getOrigin() {
 		if (origin == null) {
 			if (props.isMultiTenant() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-				origin = attribs.getRequest().getHeader(ORIGIN_HEADER).toLowerCase();
+				origin = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
 			} else {
-				origin = props.getDefaultOrigin();
+				origin = props.getLocalOrigin();
 			}
 		}
 		return origin;

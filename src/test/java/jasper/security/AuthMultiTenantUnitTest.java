@@ -39,7 +39,7 @@ public class AuthMultiTenantUnitTest {
 		var a = new Auth();
 		a.props = new Props();
 		a.props.setMultiTenant(true);
-		a.props.setDefaultOrigin(origin);
+		a.props.setLocalOrigin(origin);
 		a.userTag = selector(user.getQualifiedTag());
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);

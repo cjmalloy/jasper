@@ -189,7 +189,7 @@ jasper:
   scrape-delay-min: 0
   scrape-interval-min: 1
   default-role: ROLE_USER
-  default-origin: ''
+  local-origin: ''
   username-claim: sub
   authorities-claim: auth
   storage: /var/lib/jasper
