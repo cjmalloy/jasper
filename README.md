@@ -83,7 +83,8 @@ Use forward slashes to define hierarchical tags (i.e. `people/murray/bill` or  `
 When fetching a page or Refs a query may be specified. The query language uses simple set-like
 operators to match Refs according to their tag list and Origin. You may use tags, origins, or
 fully qualified tags (tag + origin). There is a special origin `@*` which will match anything.
-If a tag is not fully qualified it will match the local origin `""` (the empty string).  
+If a tag is not fully qualified it will match the local origin `""` (the empty string). The `*`
+wild card can be used to match anything on the local origin.
 Valid operators in a query are:
 1. `:` and
 2. `|` or
@@ -93,7 +94,7 @@ Valid operators in a query are:
 Note: In the current implementation, groups may not be nested.
 
 Example queries:
- * `science`: All Refs that in include the `science` tag
+ * `science`: All Refs that include the `science` tag
  * `science|funny`: All Refs that have either the `science` tag or the `funny` tag
  * `science:funny`: All Refs that have both the `science` tag and the `funny` tag
  * `science:!funny`: All Refs that have the `science` tag but do not have the `funny` tag
@@ -349,10 +350,10 @@ tolerance are guaranteed. The modified date is used as a cursor to efficiently p
 
 To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin`. If
 either the `repl-burst` or `repl-schedule` profiles are active the jasper server will then poll that
-instance periodically to check for any new entities. The modified dateof the last entity received will
+instance periodically to check for any new entities. The modified date of the last entity received will
 be stored and used for the next poll. When polling, the Jasper server requests a batch of entities from
 the remote instance where the modified date is after the last stored modified date, sorted by modified
-date ascending.
+date ascending. Users with the `MOD` role may also initiate a scrape.
 
 ### Duplicate Modified Date
 Jasper instances should enforce unique modified dates for each entity type. Otherwise, when receiving
@@ -366,25 +367,33 @@ is unique.
 ## Deployment
 Jasper is available as a Docker image and a Helm chart. It supports the following configuration options:
 
-| Environment Variable                                | Description                                                                                                        | Default Value (in prod)                   |
-|-----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
-| `SPRING_PROFILES_ACTIVE`                            | Set the comma separated list of runtime profiles.                                                                  | `default`                                 |
-| `SPRING_DATASOURCE_URL`                             | PostgreSQL database connection string.                                                                             | `jdbc:postgresql://localhost:5432/jasper` |
-| `SPRING_DATASOURCE_USERNAME`                        | PostgreSQL database username.                                                                                      | `jasper`                                  |
-| `SPRING_DATASOURCE_PASSWORD`                        | PostgreSQL database password.                                                                                      |                                           |
-| `JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID`      | OAuth2 client ID.                                                                                                  |                                           |
-| `JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET`  | Base64 encoded OAuth2 client secret. Used for backchannel authentication for SCIM when the scim profile is active. |                                           |
-| `JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                        |                                           |
-| `JASPER_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                  |                                           |
-| `JASPER_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                  |                                           |
-| `JASPER_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                   | 0                                         |
-| `JASPER_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                       | 1                                         |
-| `JASPER_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                            | 5000                                      |
-| `JASPER_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                      | 0                                         |
-| `JASPER_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                          | 1                                         |
-| `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                       | `ROLE_USER`                               |
-| `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                    | `sub`                                     |
-| `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
+| Environment Variable                                | Description                                                                                                                        | Default Value (in prod)                   |
+|-----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| `SPRING_PROFILES_ACTIVE`                            | Set the comma separated list of runtime profiles.                                                                                  | `default`                                 |
+| `SPRING_DATASOURCE_URL`                             | PostgreSQL database connection string.                                                                                             | `jdbc:postgresql://localhost:5432/jasper` |
+| `SPRING_DATASOURCE_USERNAME`                        | PostgreSQL database username.                                                                                                      | `jasper`                                  |
+| `SPRING_DATASOURCE_PASSWORD`                        | PostgreSQL database password.                                                                                                      |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID`      | OAuth2 client ID.                                                                                                                  |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET`  | Base64 encoded OAuth2 client secret. Used for backchannel authentication for SCIM when the scim profile is active.                 |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                                        |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                                  |                                           |
+| `JASPER_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                                  |                                           |
+| `JASPER_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                                   | 0                                         |
+| `JASPER_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                                       | 1                                         |
+| `JASPER_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                                            | 5000                                      |
+| `JASPER_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                      | 0                                         |
+| `JASPER_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                          | 1                                         |
+| `JASPER_MULTI_TENANT`                               | Enabled multi tenant mode. When false user permissions apply to all origins. When true user permissions apply to the local origin. | `false`                                   |
+| `JASPER_ALLOW_LOCAL_ORIGIN_HEADER`                  | Allow overriding the local origin via the `Local-Origin` header.                                                                   | `false`                                   |
+| `JASPER_ALLOW_AUTH_HEADERS`                         | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers.     | `false`                                   |
+| `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                                       | `ROLE_USER`                               |
+| `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                                    | `sub`                                     |
+| `JASPER_READ_ACCESS_CLAIM`                          | Claim in the access token to use as additional read access qualified tags.                                                         | `readAccess`                              |
+| `JASPER_WRITE_ACCESS_CLAIM`                         | Claim in the access token to use as additional write access qualified tags.                                                        | `writeAccess`                             |
+| `JASPER_TAG_READ_ACCESS_CLAIM`                      | Claim in the access token to use as additional tag read access qualified tags.                                                     | `tagReadAccess`                           |
+| `JASPER_TAG_WRITE_ACCESS_CLAIM`                     | Claim in the access token to use as additional tag write access qualified tags.                                                    | `tagWriteAccess`                          |
+| `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                                  | `/var/lib/jasper`                         |
+| `JASPER_HEAP`                                       | Set both max and initial heap size for the JVM. Only applies to the docker container.                                              | `512m`                                    |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
