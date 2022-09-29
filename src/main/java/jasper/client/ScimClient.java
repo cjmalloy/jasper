@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Profile;
 import java.util.Map;
 
 @Profile("scim")
-@FeignClient(value = "tokenService", url = "${application.scim-endpoint}")
+@FeignClient(value = "tokenService", url = "${jasper.scim-endpoint}")
 public interface ScimClient {
 	@RequestLine("POST /Users")
 	@Headers({"Content-Type: application/scim+json", "Authorization: Bearer {accessCode}"})

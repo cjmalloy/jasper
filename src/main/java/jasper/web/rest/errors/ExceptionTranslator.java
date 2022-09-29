@@ -45,7 +45,7 @@ public class ExceptionTranslator implements ProblemHandling, SecurityAdviceTrait
     private static final String PATH_KEY = "path";
     private static final String VIOLATIONS_KEY = "violations";
 
-    @Value("${application.clientApp.name}")
+    @Value("${jasper.clientApp.name}")
     private String applicationName;
 
     private final Environment env;

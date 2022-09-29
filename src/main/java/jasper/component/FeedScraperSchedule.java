@@ -31,8 +31,8 @@ public class FeedScraperSchedule {
 	ObjectMapper objectMapper;
 
 	@Scheduled(
-		fixedRateString = "${application.scrape-interval-min}",
-		initialDelayString = "${application.scrape-delay-min}",
+		fixedRateString = "${jasper.scrape-interval-min}",
+		initialDelayString = "${jasper.scrape-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		logger.info("Scraping all feeds on schedule.");

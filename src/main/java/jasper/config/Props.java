@@ -20,7 +20,7 @@ import java.util.Map;
  */
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
+@ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
 	private int ingestMaxRetry = 5;
 	private String scrapeDelayMin = "5";

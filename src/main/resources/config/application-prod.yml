@@ -89,10 +89,9 @@ server:
 
 # ===================================================================
 # Application specific properties
-# Add your own application properties here, see the ApplicationProperties class
+# Add your own application properties here, see the Props class
 # ===================================================================
-
-application:
+jasper:
   cache: # Cache configuration
     ehcache: # Ehcache configuration
       time-to-live-seconds: 3600 # By default objects stay 1 hour in the cache
@@ -109,7 +108,7 @@ application:
         # As this is the PRODUCTION configuration, you MUST change the default key, and store it securely:
         # - In the JHipster Registry (which includes a Spring Cloud Config server)
         # - In a separate `application-prod.yml` file, in the same folder as your executable JAR file
-        # - In the `APPLICATION_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variable
+        # - In the `JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variable
         base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
         # Token is valid 24 hours
         token-validity-in-seconds: 86400

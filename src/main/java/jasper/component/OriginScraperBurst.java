@@ -22,8 +22,8 @@ public class OriginScraperBurst {
 	Replicator replicator;
 
 	@Scheduled(
-		fixedRateString = "${application.replicate-interval-min}",
-		initialDelayString = "${application.replicate-delay-min}",
+		fixedRateString = "${jasper.replicate-interval-min}",
+		initialDelayString = "${jasper.replicate-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
 		logger.info("Replicating all origins in a burst.");

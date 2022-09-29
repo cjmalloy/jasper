@@ -366,25 +366,25 @@ is unique.
 ## Deployment
 Jasper is available as a Docker image and a Helm chart. It supports the following configuration options:
 
-| Environment Variable                                     | Description                                                                                                        | Default Value (in prod)                   |
-|----------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
-| `SPRING_PROFILES_ACTIVE`                                 | Set the comma separated list of runtime profiles.                                                                  | `default`                                 |
-| `SPRING_DATASOURCE_URL`                                  | PostgreSQL database connection string.                                                                             | `jdbc:postgresql://localhost:5432/jasper` |
-| `SPRING_DATASOURCE_USERNAME`                             | PostgreSQL database username.                                                                                      | `jasper`                                  |
-| `SPRING_DATASOURCE_PASSWORD`                             | PostgreSQL database password.                                                                                      |                                           |
-| `APPLICATION_SECURITY_AUTHENTICATION_JWT_CLIENT_ID`      | OAuth2 client ID.                                                                                                  |                                           |
-| `APPLICATION_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET`  | Base64 encoded OAuth2 client secret. Used for backchannel authentication for SCIM when the scim profile is active. |                                           |
-| `APPLICATION_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                        |                                           |
-| `APPLICATION_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                  |                                           |
-| `APPLICATION_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                  |                                           |
-| `APPLICATION_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                   | 0                                         |
-| `APPLICATION_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                       | 1                                         |
-| `APPLICATION_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                            | 5000                                      |
-| `APPLICATION_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                      | 0                                         |
-| `APPLICATION_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                          | 1                                         |
-| `APPLICATION_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                       | `ROLE_USER`                               |
-| `APPLICATION_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                    | `sub`                                     |
-| `APPLICATION_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
+| Environment Variable                                | Description                                                                                                        | Default Value (in prod)                   |
+|-----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| `SPRING_PROFILES_ACTIVE`                            | Set the comma separated list of runtime profiles.                                                                  | `default`                                 |
+| `SPRING_DATASOURCE_URL`                             | PostgreSQL database connection string.                                                                             | `jdbc:postgresql://localhost:5432/jasper` |
+| `SPRING_DATASOURCE_USERNAME`                        | PostgreSQL database username.                                                                                      | `jasper`                                  |
+| `SPRING_DATASOURCE_PASSWORD`                        | PostgreSQL database password.                                                                                      |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID`      | OAuth2 client ID.                                                                                                  |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET`  | Base64 encoded OAuth2 client secret. Used for backchannel authentication for SCIM when the scim profile is active. |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                        |                                           |
+| `JASPER_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                  |                                           |
+| `JASPER_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                  |                                           |
+| `JASPER_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                   | 0                                         |
+| `JASPER_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                       | 1                                         |
+| `JASPER_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                            | 5000                                      |
+| `JASPER_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                      | 0                                         |
+| `JASPER_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                          | 1                                         |
+| `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                       | `ROLE_USER`                               |
+| `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                    | `sub`                                     |
+| `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                  | `/var/lib/jasper`                         |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
@@ -397,33 +397,33 @@ enable additional logging.
 For security there are 4 profiles available:  
  * `admin`: this profile disables security and treats every request as an admin user.
  * `jwt`: this profile enables security by means of a bearer access token. Requires
-`APPLICATION_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variable to be set.
+`JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variable to be set.
  * `jwks`: this profile enables security by means of a bearer access token. Requires
-`APPLICATION_SECURITY_AUTHENTICATION_JWT_JWKS_URI`  environment variable to be set.
+`JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`  environment variable to be set.
  * `jwt-no-verify`: this profile is used for debugging. It's the same as the JWT profile but does not
 verify the signature.
 
 If your user management server supports SCIM, you can enable the `scim` profile to manage users.
-Requires the `APPLICATION_SECURITY_AUTHENTICATION_JWT_CLIENT_ID` and
-`APPLICATION_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variables to be set for
-backchannel authentication. Set the SCIM endpoint with the `APPLICATION_SCIM_ENDPOINT`
+Requires the `JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID` and
+`JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variables to be set for
+backchannel authentication. Set the SCIM endpoint with the `JASPER_SCIM_ENDPOINT`
 environment variable.
 
 To enable RSS scraping, enable either the `feed-schedule` or `feed-burst` profile. The `feed-schedule`
 profile will only scrape the oldest outdated `+plugin/feed` when the scheduler is run, while `feed-burst`
 will scrape all outdated `+plugin/feed`s.  
-Use `APPLICATION_SCRAPE_DELAY_MIN` to configure the initial delay in minutes after the server
-starts to begin scraping, and `APPLICATION_SCRAPE_INTERVAL_MIN` to configure the interval
+Use `JASPER_SCRAPE_DELAY_MIN` to configure the initial delay in minutes after the server
+starts to begin scraping, and `JASPER_SCRAPE_INTERVAL_MIN` to configure the interval
 in minutes between scrapes.
 
 To enable Remote origin scraping, enable either the `repl-schedule` or `repl-burst` profile. The `repl-schedule`
 profile will only scrape the oldest outdated `+plugin/origin` when the scheduler is run, while `repl-burst`
 will scrape all outdated `+plugin/origin`s.  
-Use `APPLICATION_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
-starts to begin replicating, and `APPLICATION_REPL_INTERVAL_MIN` to configure the interval
+Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
+starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
 in minutes between replication batches.
 
-The `storage` profile enables the backup system. Use the `APPLICATION_STORAGE` environment
+The `storage` profile enables the backup system. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
 ## Access Control

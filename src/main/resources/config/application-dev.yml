@@ -66,10 +66,9 @@ server:
 
 # ===================================================================
 # Application specific properties
-# Add your own application properties here, see the ApplicationProperties class
+# Add your own application properties here, see the Props class
 # ===================================================================
-
-application:
+jasper:
   replicate-delay-min: 0
   replicate-interval-min: 1
   scrape-delay-min: 5
