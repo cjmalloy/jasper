@@ -32,11 +32,11 @@ public class WebConfigurer implements ServletContextInitializer, WebServerFactor
 
     private final Environment env;
 
-    private final ApplicationProperties applicationProperties;
+    private final Props props;
 
-    public WebConfigurer(Environment env, ApplicationProperties applicationProperties) {
+    public WebConfigurer(Environment env, Props props) {
         this.env = env;
-        this.applicationProperties = applicationProperties;
+        this.props = props;
     }
 
     @Override
@@ -86,7 +86,7 @@ public class WebConfigurer implements ServletContextInitializer, WebServerFactor
     @Bean
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = applicationProperties.getCors();
+        CorsConfiguration config = props.getCors();
         if (!CollectionUtils.isEmpty(config.getAllowedOrigins()) || !CollectionUtils.isEmpty(config.getAllowedOriginPatterns())) {
             log.debug("Registering CORS filter");
             source.registerCorsConfiguration("/api/**", config);

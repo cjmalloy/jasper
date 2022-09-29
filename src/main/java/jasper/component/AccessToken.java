@@ -1,7 +1,7 @@
 package jasper.component;
 
 import jasper.client.TokenClient;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
@@ -10,7 +10,7 @@ import org.springframework.web.context.annotation.RequestScope;
 @RequestScope
 public class AccessToken {
 	@Autowired
-	ApplicationProperties applicationProperties;
+	Props props;
 
 	@Autowired
 	TokenClient tokenClient;
@@ -25,10 +25,10 @@ public class AccessToken {
 	}
 
 	private String getSecret() {
-		return applicationProperties.getSecurity().getAuthentication().getJwt().getSecret();
+		return props.getSecurity().getAuthentication().getJwt().getSecret();
 	}
 
 	private String getClientId() {
-		return applicationProperties.getSecurity().getAuthentication().getJwt().getClientId();
+		return props.getSecurity().getAuthentication().getJwt().getClientId();
 	}
 }

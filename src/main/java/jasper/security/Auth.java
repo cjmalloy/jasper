@@ -2,7 +2,7 @@ package jasper.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
@@ -65,7 +65,7 @@ public class Auth {
 	public static final String TAG_READ_ACCESS_HEADER = "Tag-Read-Access";
 
 	@Autowired
-	ApplicationProperties applicationProperties;
+	Props props;
 	@Autowired
 	RoleHierarchy roleHierarchy;
 	@Autowired
@@ -334,10 +334,10 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			if (applicationProperties.isMultiTenant() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+			if (props.isMultiTenant() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 				origin = attribs.getRequest().getHeader(ORIGIN_HEADER).toLowerCase();
 			} else {
-				origin = applicationProperties.getDefaultOrigin();
+				origin = props.getDefaultOrigin();
 			}
 		}
 		return origin;
@@ -346,13 +346,13 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
-			if (applicationProperties.isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
 			if (getAuthentication() instanceof JwtAuthentication j) {
-				readAccess.addAll(j.getQualifiedTags(applicationProperties.getReadAccessClaim()));
+				readAccess.addAll(j.getQualifiedTags(props.getReadAccessClaim()));
 			}
-			readAccess.addAll(qtList(applicationProperties.isMultiTenant() ? getOrigin() : "@*", getUser()
+			readAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 					.map(User::getReadAccess)
 					.orElse(List.of())));
 		}
@@ -362,13 +362,13 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
-			if (applicationProperties.isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
 			if (getAuthentication() instanceof JwtAuthentication j) {
-				writeAccess.addAll(j.getQualifiedTags(applicationProperties.getWriteAccessClaim()));
+				writeAccess.addAll(j.getQualifiedTags(props.getWriteAccessClaim()));
 			}
-			writeAccess.addAll(qtList(applicationProperties.isMultiTenant() ? getOrigin() : "@*", getUser()
+			writeAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getWriteAccess)
 					.orElse(List.of())));
 		}
@@ -378,13 +378,13 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = getReadAccess();
-			if (applicationProperties.isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
 			if (getAuthentication() instanceof JwtAuthentication j) {
-				tagReadAccess.addAll(j.getQualifiedTags(applicationProperties.getTagReadAccessClaim()));
+				tagReadAccess.addAll(j.getQualifiedTags(props.getTagReadAccessClaim()));
 			}
-			tagReadAccess.addAll(qtList(applicationProperties.isMultiTenant() ? getOrigin() : "@*", getUser()
+			tagReadAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getTagReadAccess)
 				.orElse(List.of())));
 		}
@@ -394,13 +394,13 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = getWriteAccess();
-			if (applicationProperties.isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
 			if (getAuthentication() instanceof JwtAuthentication j) {
-				tagWriteAccess.addAll(j.getQualifiedTags(applicationProperties.getTagWriteAccessClaim()));
+				tagWriteAccess.addAll(j.getQualifiedTags(props.getTagWriteAccessClaim()));
 			}
-			tagWriteAccess.addAll(qtList(applicationProperties.isMultiTenant() ? getOrigin() : "@*", getUser()
+			tagWriteAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getTagWriteAccess)
 				.orElse(List.of())));
 		}

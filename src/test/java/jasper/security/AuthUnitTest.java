@@ -1,6 +1,6 @@
 package jasper.security;
 
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -37,7 +37,7 @@ public class AuthUnitTest {
 
 	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
-		a.applicationProperties = new ApplicationProperties();
+		a.props = new Props();
 		a.userTag = selector(user.getQualifiedTag());
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);

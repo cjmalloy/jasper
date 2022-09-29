@@ -3,7 +3,7 @@ package jasper.security.jwt;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,17 +29,17 @@ class JWTFilterTest {
 
     @BeforeEach
     public void setup() {
-		ApplicationProperties applicationProperties = new ApplicationProperties();
+		Props props = new Props();
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
-        applicationProperties.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
+        props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
+        tokenProvider = new TokenProviderImpl(props, securityMetersService);
         ReflectionTestUtils.setField(tokenProvider, "key", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));
 
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", 60000);
-        jwtFilter = new JWTFilter(tokenProvider, applicationProperties);
+        jwtFilter = new JWTFilter(tokenProvider, props);
         SecurityContextHolder.getContext().setAuthentication(null);
     }
 

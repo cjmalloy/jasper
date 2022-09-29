@@ -10,7 +10,7 @@ import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,18 +38,18 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	private final SecurityMetersService securityMetersService;
 
-	public TokenProviderImpl(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
-		super(applicationProperties);
+	public TokenProviderImpl(Props props, SecurityMetersService securityMetersService) {
+		super(props);
 		byte[] keyBytes;
-		String secret = applicationProperties.getSecurity().getAuthentication().getJwt().getBase64Secret();
+		String secret = props.getSecurity().getAuthentication().getJwt().getBase64Secret();
 		log.debug("Using a Base64-encoded JWT secret key");
 		keyBytes = Decoders.BASE64.decode(secret);
 		key = Keys.hmacShaKeyFor(keyBytes);
 		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
-		this.tokenValidityInMilliseconds = 1000 * applicationProperties.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
+		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
-			1000 * applicationProperties.getSecurity().getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
-		this.applicationProperties = applicationProperties;
+			1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
+		this.props = props;
 		this.securityMetersService = securityMetersService;
 	}
 
@@ -67,7 +67,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 		return Jwts
 			.builder()
 			.setSubject(authentication.getName())
-			.claim(applicationProperties.getAuthoritiesClaim(), authorities)
+			.claim(props.getAuthoritiesClaim(), authorities)
 			.signWith(key, SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();

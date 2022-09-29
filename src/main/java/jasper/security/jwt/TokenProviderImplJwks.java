@@ -7,7 +7,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,17 +27,17 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 	private final JwtParser jwtParser;
 
 	private final SecurityMetersService securityMetersService;
-	private final ApplicationProperties applicationProperties;
+	private final Props props;
 
 	public TokenProviderImplJwks(
-		ApplicationProperties applicationProperties,
+		Props props,
 		SecurityMetersService securityMetersService,
 		RestTemplate restTemplate
 	) throws URISyntaxException {
-		super(applicationProperties);
-		String jwksUri = applicationProperties.getSecurity().getAuthentication().getJwt().getJwksUri();
+		super(props);
+		String jwksUri = props.getSecurity().getAuthentication().getJwt().getJwksUri();
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
-		this.applicationProperties = applicationProperties;
+		this.props = props;
 		this.securityMetersService = securityMetersService;
 	}
 

@@ -3,7 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.annotation.Counted;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -51,7 +51,7 @@ public class Backup {
 	private final Logger log = LoggerFactory.getLogger(Backup.class);
 
 	@Autowired
-	ApplicationProperties applicationProperties;
+	Props props;
 	@Autowired
 	RefRepository refRepository;
 	@Autowired
@@ -240,15 +240,15 @@ public class Backup {
 	}
 
 	Path dir() {
-		return Paths.get(applicationProperties.getStorage(), "backups");
+		return Paths.get(props.getStorage(), "backups");
 	}
 
 	Path path(String id) {
-		return Paths.get(applicationProperties.getStorage(), "backups", id + ".zip");
+		return Paths.get(props.getStorage(), "backups", id + ".zip");
 	}
 
 	URI zipfs(String id) {
-		return URI.create("jar:file:" + applicationProperties.getStorage() + "/backups/" + id + ".zip");
+		return URI.create("jar:file:" + props.getStorage() + "/backups/" + id + ".zip");
 	}
 
 	public static class OldFeed {

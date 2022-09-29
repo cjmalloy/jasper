@@ -23,14 +23,14 @@ class StaticResourcesWebConfigurerTest {
     private ResourceHandlerRegistry resourceHandlerRegistry;
     private MockServletContext servletContext;
     private WebApplicationContext applicationContext;
-    private ApplicationProperties props;
+    private Props props;
 
     @BeforeEach
     void setUp() {
         servletContext = spy(new MockServletContext());
         applicationContext = mock(WebApplicationContext.class);
         resourceHandlerRegistry = spy(new ResourceHandlerRegistry(applicationContext, servletContext));
-        props = new ApplicationProperties();
+        props = new Props();
         staticResourcesWebConfiguration = spy(new StaticResourcesWebConfiguration(props));
     }
 

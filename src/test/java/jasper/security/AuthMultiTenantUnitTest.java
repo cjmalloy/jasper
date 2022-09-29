@@ -1,6 +1,6 @@
 package jasper.security;
 
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -37,9 +37,9 @@ public class AuthMultiTenantUnitTest {
 
 	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
-		a.applicationProperties = new ApplicationProperties();
-		a.applicationProperties.setMultiTenant(true);
-		a.applicationProperties.setDefaultOrigin(origin);
+		a.props = new Props();
+		a.props.setMultiTenant(true);
+		a.props.setDefaultOrigin(origin);
 		a.userTag = selector(user.getQualifiedTag());
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);

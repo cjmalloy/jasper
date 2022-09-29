@@ -1,7 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Counted;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -21,7 +21,7 @@ public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
 
 	@Autowired
-	ApplicationProperties applicationProperties;
+	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -71,7 +71,7 @@ public class Ingest {
 				refRepository.save(ref);
 				break;
 			} catch (DataIntegrityViolationException e) {
-				if (count > applicationProperties.getIngestMaxRetry()) {
+				if (count > props.getIngestMaxRetry()) {
 					throw new DuplicateModifiedDateException();
 				}
 			}

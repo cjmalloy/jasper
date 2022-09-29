@@ -6,7 +6,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,13 +34,13 @@ class TokenProviderImplTest {
 
     @BeforeEach
     public void setup() {
-        ApplicationProperties applicationProperties = new ApplicationProperties();
+        Props props = new Props();
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
-        applicationProperties.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
+        props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
+        tokenProvider = new TokenProviderImpl(props, securityMetersService);
         key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
         ReflectionTestUtils.setField(tokenProvider, "key", key);
@@ -95,12 +95,12 @@ class TokenProviderImplTest {
     @Test
     void testKeyIsSetFromSecretWhenSecretIsNotEmpty() {
         final String secret = "NwskoUmKHZtzGRKJKVjsJF7BtQMMxNWi";
-		ApplicationProperties applicationProperties = new ApplicationProperties();
-        applicationProperties.getSecurity().getAuthentication().getJwt().setBase64Secret(Encoders.BASE64.encode(secret.getBytes()));
+		Props props = new Props();
+        props.getSecurity().getAuthentication().getJwt().setBase64Secret(Encoders.BASE64.encode(secret.getBytes()));
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-		TokenProviderImpl tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));
@@ -109,12 +109,12 @@ class TokenProviderImplTest {
     @Test
     void testKeyIsSetFromBase64SecretWhenSecretIsEmpty() {
         final String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
-		ApplicationProperties applicationProperties = new ApplicationProperties();
-        applicationProperties.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
+		Props props = new Props();
+        props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-		TokenProviderImpl tokenProvider = new TokenProviderImpl(applicationProperties, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));

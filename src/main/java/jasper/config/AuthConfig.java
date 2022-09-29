@@ -50,24 +50,24 @@ public class AuthConfig {
 
 	@Bean
 	@Profile({"jwt", "default"})
-	TokenProvider tokenProvider(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
-		return new TokenProviderImpl(applicationProperties, securityMetersService);
+	TokenProvider tokenProvider(Props props, SecurityMetersService securityMetersService) {
+		return new TokenProviderImpl(props, securityMetersService);
 	}
 
 	@Bean
 	@Profile("jwks")
 	TokenProvider jwksTokenProvider(
-		ApplicationProperties applicationProperties,
+		Props props,
 		SecurityMetersService securityMetersService,
 		RestTemplate restTemplate
 	) throws URISyntaxException {
-		return new TokenProviderImplJwks(applicationProperties, securityMetersService, restTemplate);
+		return new TokenProviderImplJwks(props, securityMetersService, restTemplate);
 	}
 
 	@Bean
 	@Profile("jwt-no-verify")
-	TokenProvider noVerifyTokenProvider(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
-		return new TokenProviderImplNoVerify(applicationProperties, securityMetersService);
+	TokenProvider noVerifyTokenProvider(Props props, SecurityMetersService securityMetersService) {
+		return new TokenProviderImplNoVerify(props, securityMetersService);
 	}
 
 	@Bean

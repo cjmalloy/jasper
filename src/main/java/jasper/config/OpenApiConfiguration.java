@@ -13,9 +13,9 @@ public class OpenApiConfiguration {
 
     @Bean
     public GroupedOpenApi openApi(
-        ApplicationProperties applicationProperties
+        Props props
     ) {
-        ApplicationProperties.ApiDocs properties = applicationProperties.getApiDocs();
+        Props.ApiDocs properties = props.getApiDocs();
         return GroupedOpenApi
             .builder()
 			.displayName(properties.getTitle())

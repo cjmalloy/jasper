@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Counted;
 import jasper.client.JasperClient;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.Origin;
 import jasper.repository.ExtRepository;
@@ -29,7 +29,7 @@ public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
 
 	@Autowired
-	ApplicationProperties applicationProperties;
+	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -59,7 +59,7 @@ public class Replicator {
 		refRepository.save(origin);
 
 		Map<String, Object> options = new HashMap<>();
-		options.put("size", applicationProperties.getReplicateBatch());
+		options.put("size", props.getReplicateBatch());
 		options.put("origin", config.getRemote());
 		try {
 			var url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : origin.getUrl());

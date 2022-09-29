@@ -32,7 +32,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	@Autowired
-	ApplicationProperties applicationProperties;
+    Props props;
 	@Autowired
     SecurityProblemSupport problemSupport;
 	@Autowired
@@ -49,7 +49,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .accessDeniedHandler(problemSupport)
         .and()
             .headers()
-            .contentSecurityPolicy(applicationProperties.getSecurity().getContentSecurityPolicy())
+            .contentSecurityPolicy(props.getSecurity().getContentSecurityPolicy())
         .and()
             .referrerPolicy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
         .and()
@@ -83,7 +83,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
 	private JWTConfigurer securityConfigurerAdapter() {
-		return new JWTConfigurer(tokenProvider, applicationProperties);
+		return new JWTConfigurer(tokenProvider, props);
 	}
 
 	@Bean

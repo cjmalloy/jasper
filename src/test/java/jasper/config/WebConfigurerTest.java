@@ -35,7 +35,7 @@ class WebConfigurerTest {
 
     private MockEnvironment env;
 
-    private ApplicationProperties props;
+    private Props props;
 
     @BeforeEach
     public void setup() {
@@ -44,7 +44,7 @@ class WebConfigurerTest {
         doReturn(mock(ServletRegistration.Dynamic.class)).when(servletContext).addServlet(anyString(), any(Servlet.class));
 
         env = new MockEnvironment();
-        props = new ApplicationProperties();
+        props = new Props();
 
         webConfigurer = new WebConfigurer(env, props);
     }

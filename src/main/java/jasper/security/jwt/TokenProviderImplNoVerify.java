@@ -7,7 +7,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
-import jasper.config.ApplicationProperties;
+import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +23,12 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implemen
 	private final JwtParser jwtParser;
 
 	private final SecurityMetersService securityMetersService;
-	private final ApplicationProperties applicationProperties;
+	private final Props props;
 
-	public TokenProviderImplNoVerify(ApplicationProperties applicationProperties, SecurityMetersService securityMetersService) {
-		super(applicationProperties);
+	public TokenProviderImplNoVerify(Props props, SecurityMetersService securityMetersService) {
+		super(props);
 		jwtParser = Jwts.parserBuilder().build();
-		this.applicationProperties = applicationProperties;
+		this.props = props;
 		this.securityMetersService = securityMetersService;
 	}
 
