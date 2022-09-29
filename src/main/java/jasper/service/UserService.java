@@ -102,7 +102,7 @@ public class UserService {
 	public RolesDto whoAmI() {
 		return RolesDto
 			.builder()
-			.tag(auth.getUserTag().toString())
+			.tag(auth.getUserTag() == null ? null : auth.getUserTag().toString())
 			.admin(auth.hasRole(ADMIN))
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))
