@@ -54,6 +54,7 @@ public class RestUtil {
 	}
 
 	private static <T extends HasModified> String getModifiedPage(Page<T> result) {
+		if (result.getContent().size() > 100) return null;
 		return result.stream()
 			.map(RestUtil::getModified)
 			.collect(Collectors.joining(",")) +
