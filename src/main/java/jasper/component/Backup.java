@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -135,7 +136,7 @@ public class Backup {
 		Files.write(path, "]\n".getBytes(), StandardOpenOption.APPEND);
 	}
 
-	@Counted(value = "jasper.backup", extraTags = {"method", "download"})
+	@Timed(value = "jasper.backup", extraTags = {"method", "download"}, histogram = true)
 	public byte[] get(String id) {
 		try {
 			return Files.readAllBytes(path(id));
@@ -227,14 +228,14 @@ public class Backup {
 		}
 	}
 
-	@Counted(value = "jasper.backup", extraTags = {"method", "upload"})
+	@Timed(value = "jasper.backup", extraTags = {"method", "upload"}, histogram = true)
 	public void store(String id, byte[] zipFile) throws IOException {
 		var path = path(id);
 		Files.createDirectories(path.getParent());
 		Files.write(path, zipFile, StandardOpenOption.CREATE);
 	}
 
-	@Counted(value = "jasper.backup", extraTags = {"method", "delete"})
+	@Timed(value = "jasper.backup", extraTags = {"method", "delete"}, histogram = true)
 	public void delete(String id) throws IOException {
 		Files.delete(path(id));
 	}

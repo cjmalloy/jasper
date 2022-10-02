@@ -1,6 +1,6 @@
 package jasper.service;
 
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.ForeignWriteException;
@@ -29,7 +29,7 @@ public class TaggingService {
 	Auth auth;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
-	@Counted(value = "jasper.service", extraTags = {"service", "tag", "method", "create"})
+	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "create"}, histogram = true)
 	public void create(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -41,7 +41,7 @@ public class TaggingService {
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
-	@Counted(value = "jasper.service", extraTags = {"service", "tag", "method", "delete"})
+	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "delete"}, histogram = true)
 	public void delete(String tag, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -54,7 +54,7 @@ public class TaggingService {
 	}
 
 	@PreAuthorize("@auth.canTagAll(#tags, #url, #origin)")
-	@Counted(value = "jasper.service", extraTags = {"service", "tag", "method", "tag"})
+	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "tag"}, histogram = true)
 	public void tag(List<String> tags, String url, String origin) {
 		if (!origin.isEmpty()) throw new ForeignWriteException(origin);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);

@@ -2,7 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.config.Props;
 import jasper.domain.Ref;
@@ -51,7 +51,7 @@ public class Replicator {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Counted("jasper.replicate")
+	@Timed(value = "jasper.replicate", histogram = true)
 	public void replicate(Ref origin) {
 		var config = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin"), Origin.class);
 		config.setLastScrape(Instant.now());

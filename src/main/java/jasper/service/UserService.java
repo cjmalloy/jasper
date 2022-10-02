@@ -1,6 +1,6 @@
 package jasper.service;
 
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -40,7 +40,7 @@ public class UserService {
 	DtoMapper mapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "create"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "create"}, histogram = true)
 	public void create(User user) {
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		user.setModified(Instant.now());
@@ -53,7 +53,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "get"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "get"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
 								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -62,7 +62,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "page"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "page"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
@@ -73,7 +73,7 @@ public class UserService {
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "update"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "update"}, histogram = true)
 	public void update(User user) {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
@@ -89,7 +89,7 @@ public class UserService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#tag)")
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "delete"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "delete"}, histogram = true)
 	public void delete(String tag) {
 		try {
 			userRepository.deleteByQualifiedTag(tag);
@@ -98,7 +98,7 @@ public class UserService {
 		}
 	}
 
-	@Counted(value = "jasper.service", extraTags = {"service", "user", "method", "who"})
+	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "who"}, histogram = true)
 	public RolesDto whoAmI() {
 		return RolesDto
 			.builder()

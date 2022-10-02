@@ -11,7 +11,7 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.Feed;
@@ -53,7 +53,7 @@ public class RssParser {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Counted("jasper.feed")
+	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
 		var lastScrape = config.getLastScrape();

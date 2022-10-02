@@ -2,7 +2,7 @@ package jasper.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.component.Replicator;
 import jasper.component.RssParser;
 import jasper.component.WebScraper;
@@ -41,7 +41,7 @@ public class ScrapeService {
 	Replicator replicator;
 
 	@PreAuthorize("hasRole('MOD')")
-	@Counted(value = "jasper.service", extraTags = {"service", "scrape", "method", "feed"})
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape", "method", "feed"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
@@ -54,7 +54,7 @@ public class ScrapeService {
 	}
 
 	@PreAuthorize("hasRole('USER')")
-	@Counted(value = "jasper.service", extraTags = {"service", "scrape", "method", "webpage"})
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape", "method", "webpage"}, histogram = true)
 	public RefDto webpage(String url) throws IOException {
 		return mapper.domainToDto(webScraper.scrape(url));
 	}

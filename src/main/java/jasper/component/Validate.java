@@ -7,7 +7,7 @@ import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
-import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.DuplicateTagException;
@@ -39,7 +39,7 @@ public class Validate {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Counted("jasper.validate.ref")
+	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean useDefaults) {
 		tags(ref);
 		plugins(ref, useDefaults);
