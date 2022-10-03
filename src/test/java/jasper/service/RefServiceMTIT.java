@@ -1,6 +1,7 @@
 package jasper.service;
 
-import jasper.IntegrationTest;
+import jasper.MultiTenantIntegrationTest;
+import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -10,6 +11,7 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -25,9 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("tester")
-@IntegrationTest
+@MultiTenantIntegrationTest
 @Transactional
-public class RefServiceIT {
+public class RefServiceMTIT {
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	RefService refService;
@@ -43,20 +48,54 @@ public class RefServiceIT {
 
 	static final String URL = "https://www.example.com/";
 
-	@Test
-	void testCreateUntaggedRef() {
+	Ref getRef() {
+		return getRef("@other");
+	}
+
+	Ref getRef(String origin) {
 		var ref = new Ref();
 		ref.setUrl(URL);
+		ref.setOrigin(origin);
+		return ref;
+	}
+
+	User getUser() {
+		return getUser("@other");
+	}
+
+	User getUser(String origin) {
+		var user = new User();
+		user.setOrigin(origin);
+		return user;
+	}
+
+	Plugin getPlugin() {
+		var plugin = new Plugin();
+		plugin.setOrigin("@other");
+		return plugin;
+	}
+
+	@BeforeEach
+	void clearDefaultPermissions() {
+		props.setDefaultReadAccess(null);
+		props.setDefaultWriteAccess(null);
+		props.setDefaultTagReadAccess(null);
+		props.setDefaultTagWriteAccess(null);
+	}
+
+	@Test
+	void testCreateUntaggedRef() {
+		var ref = getRef();
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 	}
 
 	@Test
 	void testCreateUntaggedRemoteRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setOrigin("@remote");
 
@@ -66,52 +105,52 @@ public class RefServiceIT {
 
 	@Test
 	void testCreateDuplicateRefFails() {
-		var existing = new Ref();
+		var existing = getRef();
 		existing.setUrl(URL);
 		existing.setTags(new ArrayList<>(List.of("+user/tester")));
 		refRepository.save(existing);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AlreadyExistsException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 	}
 
 	@Test
 	void testCreateDuplicateAltRefFails() {
-		var existing = new Ref();
+		var existing = getRef();
 		existing.setUrl("https://www.different.com/");
 		existing.setTags(new ArrayList<>(List.of("+user/tester")));
 		existing.setAlternateUrls(List.of(URL));
 		refRepository.save(existing);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AlreadyExistsException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin("https://www.different.com/", ""))
+		assertThat(refRepository.existsByUrlAndOrigin("https://www.different.com/", "@other"))
 			.isTrue();
 	}
 
 	@Test
 	void testCreateRefWithPublicTag() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public")));
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 	}
 
 	@Test
 	void testCreateRefWithPublicTagRemoteFails() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setOrigin("@remote");
 		ref.setTags(new ArrayList<>(List.of("public")));
@@ -122,93 +161,93 @@ public class RefServiceIT {
 
 	@Test
 	void testCreateRefWithReadableTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "custom", "tags")));
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 	}
 
 	@Test
 	void testCreateRefWithUnreadableTagsFails() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
 	}
 
 	@Test
 	void testCreateRefWithPrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
 			.containsExactly("_secret");
 	}
 
 	@Test
 	void testCreateRefWithUserTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
 			.containsExactly("+user/tester", "+user");
 	}
 
 	@Test
 	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
 	void testCreateRefWithPrivateUserTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_user/tester")));
 
 		refService.create(ref);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getTags())
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
 			.containsExactly("_user/tester", "_user");
 	}
 
 	@Test
 	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
 	void testCreateRefWithPrivateUserTagsFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_user/other")));
 
 		assertThatThrownBy(() -> refService.create(ref))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
 	}
 
 	@Test
 	void testGetPageUntaggedRef() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		refRepository.save(ref);
 
@@ -222,7 +261,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageUntaggedRemoteRef() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setOrigin("@remote");
 		refRepository.save(ref);
@@ -236,7 +275,7 @@ public class RefServiceIT {
 	}
 
 	Ref refWithTags(String... tags) {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL + UUID.randomUUID());
 		ref.setTags(new ArrayList<>(List.of(tags)));
 		refRepository.save(ref);
@@ -251,7 +290,7 @@ public class RefServiceIT {
 		var page = refService.page(
 			RefFilter
 				.builder()
-				.query("custom")
+				.query("custom@other")
 				.build(),
 			PageRequest.of(0, 10));
 
@@ -266,7 +305,7 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.page(
 			RefFilter
 				.builder()
-				.query("_custom")
+				.query("_custom@other")
 				.build(),
 			PageRequest.of(0, 10)))
 			.isInstanceOf(AccessDeniedException.class);
@@ -280,7 +319,7 @@ public class RefServiceIT {
 		var page = refService.page(
 			RefFilter
 				.builder()
-				.query("!custom | extra")
+				.query("!custom@other | extra@other")
 				.build(),
 			PageRequest.of(0, 10));
 
@@ -289,8 +328,7 @@ public class RefServiceIT {
 	}
 
 	Ref refWithOriginTags(String origin, String... tags) {
-		var ref = new Ref();
-		ref.setOrigin(origin);
+		var ref = getRef(origin);
 		ref.setUrl(URL + UUID.randomUUID());
 		ref.setTags(new ArrayList<>(List.of(tags)));
 		refRepository.save(ref);
@@ -299,13 +337,14 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRemoteRefWithQuery() {
+		props.setDefaultReadAccess(new String[]{"@remote"});
 		refWithOriginTags("@remote", "public");
 		refWithOriginTags("@remote", "public", "custom", "extra");
 
 		var page = refService.page(
 			RefFilter
 				.builder()
-				.query("custom@*")
+				.query("custom@remote")
 				.build(),
 			PageRequest.of(0, 10));
 
@@ -313,9 +352,40 @@ public class RefServiceIT {
 			.isEqualTo(1);
 	}
 
+	@Test
+	void testGetPageRemoteRefWithQueryFailed() {
+		props.setDefaultTagReadAccess(new String[]{"@remote"});
+		refWithOriginTags("@remote", "public");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@remote")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageRemoteRefWithQueryAccessFailed() {
+		refWithOriginTags("@remote", "public");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+		assertThatThrownBy(() -> refService.page(
+			RefFilter
+				.builder()
+				.query("custom@remote")
+				.build(),
+			PageRequest.of(0, 10)))
+			.isInstanceOf(AccessDeniedException.class);
+	}
 
 	@Test
 	void testGetPageRefWithOriginQuery() {
+		props.setDefaultReadAccess(new String[]{"@a", "@b"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 
@@ -331,7 +401,25 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageRefWithOriginQueryEmpty() {
+		props.setDefaultTagReadAccess(new String[]{"@a", "@b"});
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@a")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
 	void testGetPageRefWithOriginOrQuery() {
+		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -348,7 +436,26 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageRefWithOriginOrQueryEmpty() {
+		props.setDefaultTagReadAccess(new String[]{"@a", "@b", "@c"});
+		refWithOriginTags("@a", "public", "custom");
+		refWithOriginTags("@b", "public", "custom", "extra");
+		refWithOriginTags("@c", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@a | custom@b")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
 	void testGetPageRefWithOriginOrExtraSpacesQuery() {
+		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -366,6 +473,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithNotOriginQuery() {
+		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -383,6 +491,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithImpossibleOriginQuery() {
+		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -400,7 +509,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithPublicTag() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public")));
 		refRepository.save(ref);
@@ -415,11 +524,11 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithReadableTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("custom")));
 		refRepository.save(ref);
@@ -434,11 +543,11 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithReadablePrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret", "_hot", "sauce"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_secret", "_other")));
 		refRepository.save(ref);
@@ -455,7 +564,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefWithUnreadablePrivateTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 		refRepository.save(ref);
@@ -470,7 +579,7 @@ public class RefServiceIT {
 
 	@Test
 	void testGetPageRefFiltersUnreadablePrivateTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "_secret")));
 		refRepository.save(ref);
@@ -487,11 +596,11 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateUntaggedRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setModified(ref.getModified());
@@ -499,21 +608,21 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRefWithPublicTagFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("public")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("public")));
@@ -522,21 +631,21 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRefWithUserTag() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -544,21 +653,21 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
 
 	@Test
 	void testUpdateLockedRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("locked", "+user/tester")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -567,9 +676,9 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -577,12 +686,12 @@ public class RefServiceIT {
 	@Test
 	@WithMockUser(value = "tester", roles = "Admin")
 	void testAdminUpdateLockedRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("locked", "+user/tester")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -591,21 +700,21 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateModifiedRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -614,25 +723,25 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(ModifiedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRefWithReadableTagsFailed() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("custom")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("custom")));
@@ -641,27 +750,27 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRemoteRefFailed() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("+custom"));
 		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setOrigin("@remote");
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+custom")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setOrigin("@remote");
 		update.setTitle("Second");
@@ -680,16 +789,16 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefWithWritableTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+custom")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+custom")));
@@ -697,21 +806,21 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
 
 	@Test
 	void testUpdateRefWithUnreadablePrivateTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setModified(ref.getModified());
@@ -719,21 +828,21 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRefWithLoosingHiddenTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "_secret")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester", "custom")));
@@ -741,9 +850,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 		assertThat(fetched.getTags())
@@ -752,16 +861,16 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefWithReadablePrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setModified(ref.getModified());
@@ -769,51 +878,51 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.update(update))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testUpdateRefWithWritablePrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
 		refRepository.save(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setModified(ref.getModified());
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
 
 	@Test
 	void testUpdateRefCreatesMetadata() {
-		var source = new Ref();
+		var source = getRef();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(source);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
@@ -822,9 +931,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -833,17 +942,17 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefCreatesMetadataWithoutInternal() {
-		var source = new Ref();
+		var source = getRef();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(source);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "internal")));
 		refService.create(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
@@ -852,9 +961,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -863,18 +972,18 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefUpdatesMetadata() {
-		var source = new Ref();
+		var source = getRef();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(source);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -882,9 +991,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -893,21 +1002,21 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefCreatesPluginMetadata() {
-		var plugin = new Plugin();
+		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
 		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
-		var source = new Ref();
+		var source = getRef();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(source);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "plugin/comment")));
 		refService.create(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setSources(List.of(URL + "source"));
 		update.setTitle("Second");
@@ -916,9 +1025,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -929,22 +1038,22 @@ public class RefServiceIT {
 
 	@Test
 	void testUpdateRefUpdatesPluginMetadata() {
-		var plugin = new Plugin();
+		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
 		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
-		var source = new Ref();
+		var source = getRef();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
 		source.setTags(new ArrayList<>(List.of("+user/tester")));
 		refService.create(source);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "source"));
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "plugin/comment")));
 		refService.create(ref);
-		var update = new Ref();
+		var update = getRef();
 		update.setUrl(URL);
 		update.setTitle("Second");
 		update.setTags(new ArrayList<>(List.of("+user/tester", "plugin/comment")));
@@ -952,9 +1061,9 @@ public class RefServiceIT {
 
 		refService.update(update);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -965,7 +1074,7 @@ public class RefServiceIT {
 
 	@Test
 	void testDeleteUntaggedRef() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		refRepository.save(ref);
@@ -973,16 +1082,16 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.delete(ref.getUrl(), ref.getOrigin()))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testDeleteRemoteRefFailed() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setOrigin("@remote");
@@ -1000,7 +1109,7 @@ public class RefServiceIT {
 
 	@Test
 	void testDeleteRefWithPublicTag() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("public")));
@@ -1009,16 +1118,16 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.delete(ref.getUrl(), ref.getOrigin()))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testDeleteRefWithUserTag() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -1026,17 +1135,17 @@ public class RefServiceIT {
 
 		refService.delete(ref.getUrl(), ref.getOrigin());
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
 	}
 
 	@Test
 	void testDeleteRefWithReadableTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("custom")));
@@ -1045,20 +1154,20 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.delete(ref.getUrl(), ref.getOrigin()))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testDeleteRefWithWritableTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("+custom"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+custom")));
@@ -1066,13 +1175,13 @@ public class RefServiceIT {
 
 		refService.delete(ref.getUrl(), ref.getOrigin());
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
 	}
 
 	@Test
 	void testDeleteRefWithUnreadablePrivateTags() {
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
@@ -1081,20 +1190,20 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.delete(ref.getUrl(), ref.getOrigin()))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testDeleteRefWithReadablePrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setReadAccess(List.of("_secret"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
@@ -1103,20 +1212,20 @@ public class RefServiceIT {
 		assertThatThrownBy(() -> refService.delete(ref.getUrl(), ref.getOrigin()))
 			.isInstanceOf(AccessDeniedException.class);
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
 
 	@Test
 	void testDeleteRefWithWritablePrivateTags() {
-		var user = new User();
+		var user = getUser();
 		user.setTag("+user/tester");
 		user.setWriteAccess(List.of("_secret"));
 		userRepository.save(user);
-		var ref = new Ref();
+		var ref = getRef();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("_secret")));
@@ -1124,7 +1233,7 @@ public class RefServiceIT {
 
 		refService.delete(ref.getUrl(), ref.getOrigin());
 
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
 	}
 

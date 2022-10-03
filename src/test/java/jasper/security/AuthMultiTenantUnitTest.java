@@ -32,18 +32,13 @@ public class AuthMultiTenantUnitTest {
 	RoleHierarchy roleHierarchy = new SecurityConfiguration().roleHierarchy();
 
 	Auth getAuth(User user, String ...roles) {
-		return getAuth(user.getOrigin(), user, roles);
-	}
-
-	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
 		a.props = new Props();
 		a.props.setMultiTenant(true);
-		a.props.setLocalOrigin(origin);
+		a.props.setLocalOrigin(user.getOrigin());
 		a.userTag = selector(user.getQualifiedTag());
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
-		a.origin = origin;
 		return a;
 	}
 
@@ -56,8 +51,9 @@ public class AuthMultiTenantUnitTest {
 
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
-		u.setTag(userTag);
-		u.setOrigin("@other");
+		var qt = selector(userTag);
+		u.setTag(qt.tag);
+		u.setOrigin(qt.origin);
 		u.setReadAccess(new ArrayList<>(List.of(tags)));
 		u.setWriteAccess(new ArrayList<>(List.of(tags)));
 		u.setTagReadAccess(new ArrayList<>(List.of(tags)));
@@ -97,7 +93,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadRef_Public() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUser("+user/test@other"));
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
@@ -106,7 +102,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadRef_NonPublicFailed() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUser("+user/test@other"));
 		var ref = getRef();
 
 		assertThat(auth.canReadRef(ref))
@@ -114,8 +110,40 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_RemoteRef() {
+		var auth = getAuth(getUser("+user/test@other"));
+		auth.readAccess = List.of(selector("public@remote"));
+		var ref = getRef("public");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadRef_RemoteRefFailed() {
+		var auth = getAuth(getUser("+user/test@other"));
+		var ref = getRef("public");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadRef_RemoteRefPermissionsFailed() {
+		var auth = getAuth(getUser("+user/test@other"));
+		auth.readAccess = List.of(selector("public@custom"));
+		var ref = getRef("public");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadRef_ReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getReadAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -125,8 +153,39 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_AuthReadAccess() {
+		var auth = getAuth(getUser("+user/test@other"), VIEWER);
+		auth.readAccess = List.of(selector("+custom@other"));
+		var ref = getRef("+custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_AuthReadAccessRemote() {
+		var auth = getAuth(getUser("+user/test@other"), VIEWER);
+		auth.readAccess = List.of(selector("+custom@remote"));
+		var ref = getRef("+custom");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_AuthReadAccessRemoteFailed() {
+		var auth = getAuth(getUser("+user/test@other"), VIEWER);
+		auth.readAccess = List.of(selector("+custom@remote"));
+		var ref = getRef("+custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadRef_WriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -137,7 +196,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadRef_TagReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -148,7 +207,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadRef_TagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -159,7 +218,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_WriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -171,7 +230,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -181,9 +240,20 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_RemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteRef_PrivateUserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var user = getUser("_user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -194,7 +264,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_ReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -206,7 +276,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_TagReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -218,7 +288,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_TagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -230,7 +300,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_LockedFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom", "locked");
@@ -242,7 +312,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_AddPublic() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -254,7 +324,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_AddProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -265,7 +335,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_AllowExistingProtected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test", "+custom");
 		auth.refRepository = getRefRepo(ref);
@@ -276,7 +346,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_AddPrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -287,7 +357,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteRef_AllowExistingPrivate() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test", "_custom");
 		auth.refRepository = getRefRepo(ref);
@@ -298,7 +368,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("custom"))
@@ -307,7 +377,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("_custom"))
@@ -316,7 +386,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -326,7 +396,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateTagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -336,7 +406,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_ProtectedTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -346,7 +416,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_ProtectedTagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -356,7 +426,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_ViewerFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -366,7 +436,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("+user/test"))
@@ -375,8 +445,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateUserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var user = getUser("_user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("_user/test"))
@@ -385,7 +454,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -396,8 +465,34 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanTag_PublicRemoteFailed() {
+		var user = getUser("+user/test@other");
+		user.getTagWriteAccess().add("custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canTag("custom", ref.getUrl(), ref.getOrigin()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanTag_PublicRemotePermissionFailed() {
+		var user = getUser("+user/test@other");
+		user.getTagWriteAccess().add("custom@remote");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canTag("custom", ref.getUrl(), ref.getOrigin()))
+			.isFalse();
+	}
+
+	@Test
 	void testCanTag_PublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef();
@@ -409,7 +504,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -421,7 +516,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -433,7 +528,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -444,7 +539,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_EditorPublic() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("public");
 		auth.refRepository = getRefRepo(ref);
@@ -455,7 +550,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_EditorMakePublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getReadAccess().add("custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -467,7 +562,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_EditorMakeLockedFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getReadAccess().add("custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -479,7 +574,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanTag_EditorProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -491,7 +586,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("custom@other"))
@@ -499,8 +594,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadTag_PublicRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.readAccess = List.of(selector("custom@remote"));
+
+		assertThat(auth.canReadTag("custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_PublicRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("+custom@other"))
@@ -508,8 +622,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadTag_ProtectedRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.readAccess = List.of(selector("+custom@remote"));
+
+		assertThat(auth.canReadTag("+custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_ProtectedRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("+custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -518,9 +651,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadTag_PrivateRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.readAccess = List.of(selector("_custom@remote"));
+
+		assertThat(auth.canReadTag("_custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_PrivateRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("_custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadTag_UserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var user = getUser("_user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("_user/test@other"))
@@ -528,8 +679,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadTag_UserTagRemote() {
+		var user = getUser("_user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.readAccess = List.of(selector("_user/test@remote"));
+
+		assertThat(auth.canReadTag("_user/test@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_UserTagRemoteFailed() {
+		var user = getUser("_user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("_user/test@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("_custom@other"))
@@ -538,7 +708,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 
@@ -547,8 +717,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteTag_RemotePublicFailed() {
+		var user = getUser("+user/test@other");
+		user.getTagWriteAccess().add("custom@remote");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canWriteTag("custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteTag_PublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("custom@other"))
@@ -557,7 +737,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteTag_PublicEditor() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, EDITOR);
 
 		assertThat(auth.canWriteTag("custom@other"))
@@ -565,8 +745,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteTag_RemotePublicEditorFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, EDITOR);
+		auth.tagWriteAccess = List.of(selector("custom@remote"));
+
+		assertThat(auth.canWriteTag("custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -575,8 +765,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteTag_RemoteProtectedFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, USER);
+		auth.tagWriteAccess = List.of(selector("+custom@remote"));
+
+		assertThat(auth.canWriteTag("+custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteTag_ProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("+custom@other"))
@@ -585,7 +785,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -594,8 +794,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteTag_RemotePrivateFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, USER);
+		auth.tagWriteAccess = List.of(selector("_custom@remote"));
+
+		assertThat(auth.canWriteTag("_custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("_custom@other"))
@@ -604,7 +814,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteTag_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("+user/test@other"))
@@ -612,8 +822,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteTag_UserTagRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, USER);
+		auth.tagWriteAccess = List.of(selector("+user/test@remote"));
+
+		assertThat(auth.canWriteTag("+user/test@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadQuery_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "custom@other"))
@@ -621,8 +841,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_PublicRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.tagReadAccess = List.of(selector("custom@remote"));
+
+		assertThat(auth.canReadQuery(() -> "custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PublicRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> "custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadQuery_Protected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "+custom@other"))
@@ -630,8 +869,27 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_ProtectedRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.tagReadAccess = List.of(selector("+custom@remote"));
+
+		assertThat(auth.canReadQuery(() -> "+custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_ProtectedRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> "+custom@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadQuery_Private() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -640,18 +898,8 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
-	void testCanReadQuery_UserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadQuery(() -> "_user/test@other"))
-			.isTrue();
-	}
-
-	@Test
 	void testCanReadQuery_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canReadQuery(() -> "_custom@other"))
@@ -659,8 +907,55 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_PrivateRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.tagReadAccess = List.of(selector("_custom@remote"));
+
+		assertThat(auth.canReadQuery(() -> "_custom@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PrivateRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> "_custom@remote"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_UserTag() {
+		var user = getUser("_user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> "_user/test@other"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_UserTagRemote() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+		auth.tagReadAccess = List.of(selector("+user/test@remote"));
+
+		assertThat(auth.canReadQuery(() -> "+user/test@remote"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_UserTagRemoteFailed() {
+		var user = getUser("+user/test@other");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> "+user/test@remote"))
+			.isFalse();
+	}
+
+	@Test
 	void testGetHiddenTags_Public() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("custom")))
@@ -669,7 +964,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testGetHiddenTags_Protected() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("+custom")))
@@ -678,7 +973,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -688,7 +983,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -698,7 +993,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateWriteAccessHidden() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -708,7 +1003,7 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateHidden() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("_custom")))
@@ -717,14 +1012,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isTrue();
@@ -732,13 +1027,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -746,13 +1041,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -760,14 +1055,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -775,14 +1070,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isTrue();
@@ -790,14 +1085,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/test");
-		aliceMod.setTag("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -805,13 +1099,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -819,14 +1113,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedWriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isTrue();
@@ -834,13 +1128,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -848,14 +1142,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isTrue();
@@ -863,13 +1157,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -877,13 +1171,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();
@@ -891,14 +1185,14 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateWriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isTrue();
@@ -906,13 +1200,13 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUser("+user/test@other");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUser("+user/alice@other");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/alice");
+		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();

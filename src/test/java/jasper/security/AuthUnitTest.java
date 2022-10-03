@@ -54,7 +54,9 @@ public class AuthUnitTest {
 
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
-		u.setTag(userTag);
+		var qt = selector(userTag);
+		u.setTag(qt.tag);
+		u.setOrigin(qt.origin);
 		u.setReadAccess(new ArrayList<>(List.of(tags)));
 		u.setWriteAccess(new ArrayList<>(List.of(tags)));
 		u.setTagReadAccess(new ArrayList<>(List.of(tags)));
@@ -110,6 +112,25 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_CustomOrigin() {
+		var auth = getAuth("@custom", getUser("+user/test"));
+		var ref = getRef("public");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_RemoteRef() {
+		var auth = getAuth(getUser("+user/test"));
+		var ref = getRef("public");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
 	void testCanReadRef_ReadAccess() {
 		var user = getUser("+user/test");
 		user.getReadAccess().add("+custom");
@@ -118,6 +139,37 @@ public class AuthUnitTest {
 
 		assertThat(auth.canReadRef(ref))
 			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_AuthReadAccess() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		auth.readAccess = List.of(selector("+custom"));
+		var ref = getRef("+custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_AuthReadAccessRemote() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		auth.readAccess = List.of(selector("+custom@remote"));
+		var ref = getRef("+custom");
+		ref.setOrigin("@remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_AuthReadAccessRemoteFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		auth.readAccess = List.of(selector("+custom@remote"));
+		var ref = getRef("+custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
 	}
 
 	@Test
@@ -177,9 +229,20 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testCanWriteRef_PrivateUserTag() {
+	void testCanWriteRef_RemoteFailed() {
 		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PrivateUserTag() {
+		var user = getUser("_user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -371,8 +434,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateUserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var user = getUser("_user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("_user/test"))
@@ -389,6 +451,32 @@ public class AuthUnitTest {
 
 		assertThat(auth.canTag("custom", ref.getUrl(), ref.getOrigin()))
 			.isTrue();
+	}
+
+	@Test
+	void testCanTag_PublicRemoteFailed() {
+		var user = getUser("+user/test");
+		user.getTagWriteAccess().add("custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canTag("custom", ref.getUrl(), ref.getOrigin()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanTag_PublicRemotePermissionFailed() {
+		var user = getUser("+user/test");
+		user.getTagWriteAccess().add("custom@remote");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+user/test");
+		ref.setOrigin("@remote");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canTag("custom", ref.getUrl(), ref.getOrigin()))
+			.isFalse();
 	}
 
 	@Test
@@ -514,22 +602,21 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testCanReadTag_UserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadTag("_user/test"))
-			.isTrue();
-	}
-
-	@Test
 	void testCanReadTag_PrivateFailed() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("_custom"))
 			.isFalse();
+	}
+
+	@Test
+	void testCanReadTag_UserTag() {
+		var user = getUser("_user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("_user/test"))
+			.isTrue();
 	}
 
 	@Test
@@ -637,8 +724,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_UserTag() {
-		var user = getUser("+user/test");
-		user.setTag("_user/test");
+		var user = getUser("_user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "_user/test"))
@@ -792,8 +878,7 @@ public class AuthUnitTest {
 		var alice = getUser("+user/alice");
 		auth.userRepository = getUserRepo(alice);
 
-		var aliceMod = getUser("+user/test");
-		aliceMod.setTag("+user/alice");
+		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("+custom");
 		assertThat(auth.canWriteUser(aliceMod))
 			.isFalse();

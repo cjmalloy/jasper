@@ -1,13 +1,11 @@
 package jasper.security.jwt;
 
 import io.jsonwebtoken.Claims;
-import jasper.repository.spec.QualifiedTag;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
-import java.util.List;
 
 public class JwtAuthentication extends AbstractAuthenticationToken {
 
@@ -48,14 +46,5 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 	@Override
 	public Claims getDetails() {
 		return claims;
-	}
-
-	public List<String> getTags(String claim) {
-		if (!claims.containsKey(claim)) return List.of();
-		return List.of(claims.get(claim, String.class).split(","));
-	}
-
-	public List<QualifiedTag> getQualifiedTags(String claim) {
-		return getTags(claim).stream().map(QualifiedTag::selector).toList();
 	}
 }

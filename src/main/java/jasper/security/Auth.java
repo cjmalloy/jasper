@@ -13,6 +13,7 @@ import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
 import jasper.security.jwt.JwtAuthentication;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,6 @@ import java.util.stream.Stream;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
-import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.publicTag;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -79,6 +79,7 @@ public class Auth {
 	protected QualifiedTag userTag;
 	protected String origin;
 	protected Optional<User> user;
+	protected QualifiedTag publicTag;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -99,9 +100,9 @@ public class Auth {
 	public boolean canReadRef(HasTags ref) {
 		if (hasRole(MOD)) return true;
 		if (ref.getTags() == null) return false;
-		if (ref.getTags().contains("public")) return true;
 		if (ref.getTags() == null) return false;
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
+		if (captures(getPublicTag(), qualifiedTags)) return true;
 		if (!hasRole(VIEWER)) return false;
 		return captures(getUserTag(), qualifiedTags) ||
 			captures(getReadAccess(), qualifiedTags);
@@ -140,9 +141,9 @@ public class Auth {
 	protected boolean canAddTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
-		if (!tag.startsWith("_") && !tag.startsWith("+")) return true;
+		if (isPublicTag(tag)) return true;
 		if (!hasRole(VIEWER)) return false;
-		var qt = selector(tag + origin);
+		var qt = selector(tag + getOrigin());
 		if (getUserTag().captures(qt)) return true;
 		return captures(getTagReadAccess(), List.of(qt));
 	}
@@ -169,23 +170,31 @@ public class Auth {
 	}
 
 	protected boolean isPublicTag(String tag) {
-		if (tag.startsWith("_")) return false;
-		if (tag.startsWith("+")) return false;
+		if (isPrivateTag(tag)) return false;
+		if (isProtectedTag(tag)) return false;
 		return true;
 	}
 
+	protected boolean isPrivateTag(String tag) {
+		return tag.startsWith("_");
+	}
+
+	protected boolean isProtectedTag(String tag) {
+		return tag.startsWith("+");
+	}
+
 	public boolean canReadTag(String qualifiedTag) {
-		if (!qualifiedTag.startsWith("_")) return true;
-		if (hasRole(MOD)) return true;
 		var qt = selector(qualifiedTag);
+		if ((local(qt.origin) || !props.isMultiTenant()) && !isPrivateTag(qualifiedTag)) return true;
+		if (hasRole(MOD)) return true;
 		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
 		return captures(getTagReadAccess(), List.of(qt));
 	}
 
 	public boolean canWriteTag(String qualifiedTag) {
-		if (hasRole(MOD)) return true;
 		var qt = selector(qualifiedTag);
 		if (!local(qt.origin)) return false;
+		if (hasRole(MOD)) return true;
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
 		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
 		if (!hasRole(USER)) return false;
@@ -195,10 +204,11 @@ public class Auth {
 	public boolean canReadQuery(Query filter) {
 		if (filter.getQuery() == null) return true;
 		if (hasRole(MOD)) return true;
-		var tagList = Arrays.stream(filter.getQuery().split("[!:|()]+"))
-			.filter((t) -> t.startsWith("_"))
-			.filter((t) -> !hasRole(VIEWER) || !getUserTag().captures(t))
+		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
+			.filter(StringUtils::isNotBlank)
 			.map(QualifiedTag::selector)
+			.filter(qt -> (!local(qt.origin) && props.isMultiTenant()) || isPrivateTag(qt.tag))
+			.filter(qt -> !hasRole(VIEWER) || !getUserTag().captures(qt))
 			.toList();
 		if (tagList.isEmpty()) return true;
 		if (!hasRole(VIEWER)) return false;
@@ -240,7 +250,7 @@ public class Auth {
 
 	public Specification<Ref> refReadSpec() {
 		if (hasRole(MOD)) return Specification.where(null);
-		var spec = Specification.where(hasTag("public"));
+		var spec = getPublicTag().refSpec();
 		if (!hasRole(VIEWER)) return spec;
 		return spec
 			.or(getUserTag().refSpec())
@@ -258,7 +268,7 @@ public class Auth {
 
 	public boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
-		var qt = selector(tag + origin);
+		var qt = selector(tag + getOrigin());
 		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), List.of(qt));
@@ -267,7 +277,7 @@ public class Auth {
 	protected boolean writeAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
-		var qt = selector(tag + origin);
+		var qt = selector(tag + getOrigin());
 		if (getUserTag().captures(qt)) return true;
 		return captures(getWriteAccess(), List.of(qt));
 	}
@@ -334,7 +344,7 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			if (props.isMultiTenant() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+			if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 				origin = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
 			} else {
 				origin = props.getLocalOrigin();
@@ -343,15 +353,23 @@ public class Auth {
 		return origin;
 	}
 
+	public QualifiedTag getPublicTag() {
+		if (publicTag == null) {
+			return selector("public" + (props.isMultiTenant() ? getOrigin() : "@*"));
+		}
+		return publicTag;
+	}
+
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
+			if (props.getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
+			}
 			if (props.isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
-			if (getAuthentication() instanceof JwtAuthentication j) {
-				readAccess.addAll(j.getQualifiedTags(props.getReadAccessClaim()));
-			}
+			readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
 			readAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 					.map(User::getReadAccess)
 					.orElse(List.of())));
@@ -362,12 +380,13 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
+			if (props.getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
+			}
 			if (props.isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
-			if (getAuthentication() instanceof JwtAuthentication j) {
-				writeAccess.addAll(j.getQualifiedTags(props.getWriteAccessClaim()));
-			}
+			writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
 			writeAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getWriteAccess)
 					.orElse(List.of())));
@@ -377,13 +396,14 @@ public class Auth {
 
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
-			tagReadAccess = getReadAccess();
+			tagReadAccess = new ArrayList<>(getReadAccess());
+			if (props.getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
+			}
 			if (props.isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
-			if (getAuthentication() instanceof JwtAuthentication j) {
-				tagReadAccess.addAll(j.getQualifiedTags(props.getTagReadAccessClaim()));
-			}
+			tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
 			tagReadAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getTagReadAccess)
 				.orElse(List.of())));
@@ -393,13 +413,14 @@ public class Auth {
 
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
-			tagWriteAccess = getWriteAccess();
+			tagWriteAccess = new ArrayList<>(getWriteAccess());
+			if (props.getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
+			}
 			if (props.isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
-			if (getAuthentication() instanceof JwtAuthentication j) {
-				tagWriteAccess.addAll(j.getQualifiedTags(props.getTagWriteAccessClaim()));
-			}
+			tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
 			tagWriteAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
 				.map(User::getTagWriteAccess)
 				.orElse(List.of())));
@@ -478,6 +499,19 @@ public class Auth {
 
 	private static List<QualifiedTag> getHeaderQualifiedTags(String headerName) {
 		return getHeaderTags(headerName).stream().map(QualifiedTag::selector).toList();
+	}
+
+	public List<String> getClaimTags(String claim) {
+		if (!getClaims().containsKey(claim)) return List.of();
+		return List.of(getClaims().get(claim, String.class).split(","));
+	}
+
+	public List<QualifiedTag> getClaimQualifiedTags(String claim) {
+		return getClaimTags(claim).stream().map(QualifiedTag::selector).toList();
+	}
+
+	public static List<QualifiedTag> getQualifiedTags(String[] tags) {
+		return Stream.of(tags).map(QualifiedTag::selector).toList();
 	}
 
 }

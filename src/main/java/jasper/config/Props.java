@@ -39,6 +39,10 @@ public class Props {
 	private String writeAccessClaim = "writeAccess";
 	private String tagReadAccessClaim = "tagReadAccess";
 	private String tagWriteAccessClaim = "tagWriteAccess";
+	private String[] defaultReadAccess;
+	private String[] defaultWriteAccess;
+	private String[] defaultTagReadAccess;
+	private String[] defaultTagWriteAccess;
 	private String scimEndpoint;
 	private String storage = "/var/lib/jasper";
 	private final Async async = new Async();
