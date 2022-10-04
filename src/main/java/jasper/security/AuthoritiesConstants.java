@@ -6,6 +6,7 @@ package jasper.security;
 public final class AuthoritiesConstants {
 
 	public static final String ROLE_PREFIX = "ROLE_";
+	public static final String SA = "ROLE_SYSADMIN";
 	public static final String ADMIN = "ROLE_ADMIN";
 	public static final String MOD = "ROLE_MOD";
 	public static final String EDITOR = "ROLE_EDITOR";

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.domain.Specification;
 public class OriginSpec {
 
 	public static <T extends HasOrigin> Specification<T> isOrigin(String origin) {
+		if (origin.equals("@*")) return null;
 		return (root, query, cb) ->
 			cb.equal(
 				root.get("origin"),

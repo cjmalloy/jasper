@@ -260,6 +260,21 @@ public class RefServiceMTIT {
 	}
 
 	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetPageUntaggedRef_Mod() {
+		var ref = getRef();
+		ref.setUrl(URL);
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
 	void testGetPageUntaggedRemoteRef() {
 		var ref = getRef();
 		ref.setUrl(URL);
@@ -272,6 +287,54 @@ public class RefServiceMTIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetPageUntaggedRemoteRef_Mod() {
+		var ref = getRef();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"ADMIN"})
+	void testGetPageUntaggedRemoteRef_Admin() {
+		var ref = getRef();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"SYSADMIN"})
+	void testGetPageUntaggedRemoteRef_SysAdmin() {
+		var ref = getRef();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
 	}
 
 	Ref refWithTags(String... tags) {
@@ -377,10 +440,27 @@ public class RefServiceMTIT {
 		assertThatThrownBy(() -> refService.page(
 			RefFilter
 				.builder()
-				.query("custom@remote")
+				.query("_custom@remote")
 				.build(),
 			PageRequest.of(0, 10)))
 			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	void testGetPageRemoteRefWithQueryPublicEmpty() {
+		refWithOriginTags("@remote", "public");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("custom@remote")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
 	}
 
 	@Test
@@ -505,6 +585,59 @@ public class RefServiceMTIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageRefWithQueryAllMultiTenant() {
+		refWithOriginTags("@other", "public", "custom");
+		refWithOriginTags("@other", "public", "custom", "extra");
+		refWithOriginTags("@remote", "public", "custom");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testGetPageRefWithQueryMultiTenant() {
+		refWithOriginTags("@other", "public", "custom");
+		refWithOriginTags("@other", "public", "custom", "extra");
+		refWithOriginTags("@remote", "public", "custom");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("extra@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetPageRefWithQueryMultiAuthTenant() {
+		props.setDefaultReadAccess(new String[]{"@remote"});
+		refWithOriginTags("@other", "public", "custom");
+		refWithOriginTags("@other", "public", "custom", "extra");
+		refWithOriginTags("@remote", "public", "custom");
+		refWithOriginTags("@remote", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(4);
 	}
 
 	@Test

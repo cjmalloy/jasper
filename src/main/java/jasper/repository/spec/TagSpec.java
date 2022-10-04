@@ -16,7 +16,7 @@ public class TagSpec {
 			);
 	}
 
-	public static <T extends Tag> Specification<T> publicTag() {
+	public static <T extends Tag> Specification<T> notPrivateTag() {
 		return (root, query, cb) ->
 			cb.not(
 				cb.like(

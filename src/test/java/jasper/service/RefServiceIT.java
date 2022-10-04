@@ -221,6 +221,21 @@ public class RefServiceIT {
 	}
 
 	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetPageUntaggedRef_Mod() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
 	void testGetPageUntaggedRemoteRef() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -233,6 +248,54 @@ public class RefServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetPageUntaggedRemoteRef_Mod() {
+		var ref = new Ref();
+		ref.setOrigin("@remote");
+		ref.setUrl(URL);
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"ADMIN"})
+	void testGetPageUntaggedRemoteRef_Admin() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"SYSADMIN"})
+	void testGetPageUntaggedRemoteRef_SysAdmin() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
 	}
 
 	Ref refWithTags(String... tags) {

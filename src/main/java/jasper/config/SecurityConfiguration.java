@@ -23,6 +23,7 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 
@@ -90,6 +91,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	public RoleHierarchy roleHierarchy() {
 		RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
 		String hierarchy = String.join("\n", List.of(
+			SA + " > " + ADMIN,
 			ADMIN + " > " + MOD,
 			MOD + " > " + EDITOR,
 			EDITOR + " > " + USER,

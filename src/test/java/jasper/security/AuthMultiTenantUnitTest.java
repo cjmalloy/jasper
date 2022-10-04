@@ -844,19 +844,9 @@ public class AuthMultiTenantUnitTest {
 	void testCanReadQuery_PublicRemote() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
-		auth.tagReadAccess = List.of(selector("custom@remote"));
 
 		assertThat(auth.canReadQuery(() -> "custom@remote"))
 			.isTrue();
-	}
-
-	@Test
-	void testCanReadQuery_PublicRemoteFailed() {
-		var user = getUser("+user/test@other");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadQuery(() -> "custom@remote"))
-			.isFalse();
 	}
 
 	@Test
@@ -872,19 +862,9 @@ public class AuthMultiTenantUnitTest {
 	void testCanReadQuery_ProtectedRemote() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
-		auth.tagReadAccess = List.of(selector("+custom@remote"));
 
 		assertThat(auth.canReadQuery(() -> "+custom@remote"))
 			.isTrue();
-	}
-
-	@Test
-	void testCanReadQuery_ProtectedRemoteFailed() {
-		var user = getUser("+user/test@other");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadQuery(() -> "+custom@remote"))
-			.isFalse();
 	}
 
 	@Test
@@ -938,19 +918,9 @@ public class AuthMultiTenantUnitTest {
 	void testCanReadQuery_UserTagRemote() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, VIEWER);
-		auth.tagReadAccess = List.of(selector("+user/test@remote"));
 
 		assertThat(auth.canReadQuery(() -> "+user/test@remote"))
 			.isTrue();
-	}
-
-	@Test
-	void testCanReadQuery_UserTagRemoteFailed() {
-		var user = getUser("+user/test@other");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadQuery(() -> "+user/test@remote"))
-			.isFalse();
 	}
 
 	@Test

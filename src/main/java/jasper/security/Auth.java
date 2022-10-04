@@ -41,15 +41,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
-import static jasper.repository.spec.TagSpec.publicTag;
+import static jasper.repository.spec.TagSpec.notPrivateTag;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
+import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 
@@ -97,26 +99,28 @@ public class Auth {
 		throw new FreshLoginException();
 	}
 
+	public boolean isLoggedIn() {
+		return hasRole(VIEWER);
+	}
+
 	public boolean canReadRef(HasTags ref) {
-		if (hasRole(MOD)) return true;
-		if (ref.getTags() == null) return false;
+		if (hasRole(SA)) return true;
+		if (hasRole(MOD) && selector(getMultiTenantOrigin()).captures(ref.getOrigin())) return true;
 		if (ref.getTags() == null) return false;
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
 		if (captures(getPublicTag(), qualifiedTags)) return true;
-		if (!hasRole(VIEWER)) return false;
+		if (!isLoggedIn()) return false;
 		return captures(getUserTag(), qualifiedTags) ||
 			captures(getReadAccess(), qualifiedTags);
 	}
 
 	protected boolean canReadRef(String url, String origin) {
-		if (hasRole(MOD)) return true;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return false;
 		return canReadRef(maybeExisting.get());
 	}
 
 	public boolean canWriteRef(Ref ref) {
-		if (!local(ref.getOrigin())) return false;
 		if (!canWriteRef(ref.getUrl(), ref.getOrigin())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		return newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canAddTag);
@@ -142,7 +146,7 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
-		if (!hasRole(VIEWER)) return false;
+		if (!isLoggedIn()) return false;
 		var qt = selector(tag + getOrigin());
 		if (getUserTag().captures(qt)) return true;
 		return captures(getTagReadAccess(), List.of(qt));
@@ -169,25 +173,26 @@ public class Auth {
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
-	protected boolean isPublicTag(String tag) {
+	public static boolean isPublicTag(String tag) {
 		if (isPrivateTag(tag)) return false;
 		if (isProtectedTag(tag)) return false;
 		return true;
 	}
 
-	protected boolean isPrivateTag(String tag) {
+	public static boolean isPrivateTag(String tag) {
 		return tag.startsWith("_");
 	}
 
-	protected boolean isProtectedTag(String tag) {
+	public static boolean isProtectedTag(String tag) {
 		return tag.startsWith("+");
 	}
 
 	public boolean canReadTag(String qualifiedTag) {
+		if (hasRole(SA)) return true;
 		var qt = selector(qualifiedTag);
 		if ((local(qt.origin) || !props.isMultiTenant()) && !isPrivateTag(qualifiedTag)) return true;
-		if (hasRole(MOD)) return true;
-		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
+		if (hasRole(MOD) && selector(getMultiTenantOrigin()).captures(qt)) return true;
+		if (isLoggedIn() && getUserTag().captures(qt)) return true;
 		return captures(getTagReadAccess(), List.of(qt));
 	}
 
@@ -196,7 +201,7 @@ public class Auth {
 		if (!local(qt.origin)) return false;
 		if (hasRole(MOD)) return true;
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
-		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
+		if (isLoggedIn() && getUserTag().captures(qt)) return true;
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), List.of(qt));
 	}
@@ -206,24 +211,25 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
 			.filter(StringUtils::isNotBlank)
+			.filter(Auth::isPrivateTag)
 			.map(QualifiedTag::selector)
-			.filter(qt -> (!local(qt.origin) && props.isMultiTenant()) || isPrivateTag(qt.tag))
-			.filter(qt -> !hasRole(VIEWER) || !getUserTag().captures(qt))
+			.filter(qt -> !isLoggedIn() || !getUserTag().captures(qt))
 			.toList();
 		if (tagList.isEmpty()) return true;
-		if (!hasRole(VIEWER)) return false;
+		if (!isLoggedIn()) return false;
 		var tagReadAccess = getTagReadAccess();
 		if (tagReadAccess == null) return false;
 		return captures(tagReadAccess, tagList);
 	}
 
 	public boolean canWriteUser(User user) {
-		if (hasRole(MOD)) return true;
+		if (hasRole(SA)) return true;
 		if (!local(user.getOrigin())) return false;
+		if (hasRole(MOD)) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in write access
-		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(this::isPublicTag)) return false;
+		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
 		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
@@ -249,27 +255,31 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (hasRole(MOD)) return Specification.where(null);
-		var spec = getPublicTag().refSpec();
-		if (!hasRole(VIEWER)) return spec;
+		if (hasRole(SA)) return Specification.where(null);
+		var spec = Specification.<Ref>where(isOrigin(getMultiTenantOrigin()));
+		if (hasRole(MOD)) return spec;
+		spec = spec.and(getPublicTag().refSpec());
+		if (!isLoggedIn()) return spec;
 		return spec
 			.or(getUserTag().refSpec())
 			.or(hasAnyQualifiedTag(getReadAccess()));
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (hasRole(MOD)) return Specification.where(null);
-		var spec = Specification.<T>where(publicTag());
-		if (!hasRole(VIEWER)) return spec;
+		if (hasRole(SA)) return Specification.where(null);
+		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
+		if (hasRole(MOD)) return spec;
+		spec = spec.and(notPrivateTag());
+		if (!isLoggedIn()) return spec;
 		return spec
 			.or(getUserTag().spec())
-			.or(isAnyQualifiedTag(getReadAccess()));
+			.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	public boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		var qt = selector(tag + getOrigin());
-		if (hasRole(VIEWER) && getUserTag().captures(qt)) return true;
+		if (isLoggedIn() && getUserTag().captures(qt)) return true;
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), List.of(qt));
 	}
@@ -355,9 +365,13 @@ public class Auth {
 
 	public QualifiedTag getPublicTag() {
 		if (publicTag == null) {
-			return selector("public" + (props.isMultiTenant() ? getOrigin() : "@*"));
+			return selector("public" + getMultiTenantOrigin());
 		}
 		return publicTag;
+	}
+
+	protected String getMultiTenantOrigin() {
+		return props.isMultiTenant() ? getOrigin() : "@*";
 	}
 
 	public List<QualifiedTag> getReadAccess() {
@@ -370,7 +384,7 @@ public class Auth {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
 			readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
-			readAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
+			readAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 					.map(User::getReadAccess)
 					.orElse(List.of())));
 		}
@@ -387,7 +401,7 @@ public class Auth {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
 			writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
-			writeAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
+			writeAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 				.map(User::getWriteAccess)
 					.orElse(List.of())));
 		}
@@ -404,7 +418,7 @@ public class Auth {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
 			tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
-			tagReadAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
+			tagReadAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 				.map(User::getTagReadAccess)
 				.orElse(List.of())));
 		}
@@ -421,7 +435,7 @@ public class Auth {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
 			tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
-			tagWriteAccess.addAll(qtList(props.isMultiTenant() ? getOrigin() : "@*", getUser()
+			tagWriteAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 				.map(User::getTagWriteAccess)
 				.orElse(List.of())));
 		}
