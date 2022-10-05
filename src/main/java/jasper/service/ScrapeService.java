@@ -40,7 +40,7 @@ public class ScrapeService {
 	@Autowired
 	Replicator replicator;
 
-	@PreAuthorize("hasRole('MOD')")
+	@PreAuthorize("hasRole('MOD') and auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape", "method", "feed"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
