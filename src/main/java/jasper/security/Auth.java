@@ -48,6 +48,7 @@ import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.notPrivateTag;
+import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -223,6 +224,16 @@ public class Auth {
 		return captures(tagReadAccess, tagList);
 	}
 
+	public boolean canBackup() {
+		if (props.isMultiTenant()) return hasRole(SA);
+		return hasRole(ADMIN);
+	}
+
+	public boolean canReadBackup() {
+		if (props.isMultiTenant()) return hasRole(SA);
+		return hasRole(MOD);
+	}
+
 	public boolean canWriteUser(User user) {
 		if (hasRole(SA)) return true;
 		if (!local(user.getOrigin())) return false;
@@ -277,7 +288,7 @@ public class Auth {
 			.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
-	public boolean tagWriteAccessCaptures(String tag) {
+	protected boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		var qt = selector(tag + getOrigin());
 		if (isLoggedIn() && getUserTag().captures(qt)) return true;
