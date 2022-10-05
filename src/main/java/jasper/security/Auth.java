@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
@@ -105,7 +106,7 @@ public class Auth {
 
 	public boolean canReadRef(HasTags ref) {
 		if (hasRole(SA)) return true;
-		if (hasRole(MOD) && selector(getMultiTenantOrigin()).captures(ref.getOrigin())) return true;
+		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
 		if (ref.getTags() == null) return false;
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
 		if (captures(getPublicTag(), qualifiedTags)) return true;
@@ -191,7 +192,7 @@ public class Auth {
 		if (hasRole(SA)) return true;
 		var qt = selector(qualifiedTag);
 		if ((local(qt.origin) || !props.isMultiTenant()) && !isPrivateTag(qualifiedTag)) return true;
-		if (hasRole(MOD) && selector(getMultiTenantOrigin()).captures(qt)) return true;
+		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
 		if (isLoggedIn() && getUserTag().captures(qt)) return true;
 		return captures(getTagReadAccess(), List.of(qt));
 	}

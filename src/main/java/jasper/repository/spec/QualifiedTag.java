@@ -77,6 +77,11 @@ public class QualifiedTag {
 		return new QualifiedTag(qt);
 	}
 
+	public static QualifiedTag originSelector(String qt) {
+		if (qt.isEmpty()) return selector("*");
+		return selector(qt);
+	}
+
 	public static QualifiedTag queryAtom(String qt) {
 		return new QualifiedTag(qt);
 	}

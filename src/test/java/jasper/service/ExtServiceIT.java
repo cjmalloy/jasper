@@ -126,6 +126,24 @@ public class ExtServiceIT {
 	}
 
 	@Test
+	void testReadPublicRemoteExt() {
+		var ext = new Ext();
+		ext.setOrigin("@remote");
+		ext.setTag("public");
+		ext.setName("Custom");
+		extRepository.save(ext);
+
+		var fetched = extService.get("public@remote");
+
+		assertThat(fetched.getTag())
+			.isEqualTo("public");
+		assertThat(fetched.getOrigin())
+			.isEqualTo("@remote");
+		assertThat(fetched.getName())
+			.isEqualTo("Custom");
+	}
+
+	@Test
 	void testReadUserExt() {
 		var ext = new Ext();
 		ext.setTag("+user/tester");

@@ -157,6 +157,18 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
+	void testReadPublicRemoteExt() {
+		var ext = getExt();
+		ext.setTag("public");
+		ext.setOrigin("@remote");
+		ext.setName("Custom");
+		extRepository.save(ext);
+
+		assertThatThrownBy(() -> extService.get("public@remote"))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
 	void testReadUserExt() {
 		var ext = getExt();
 		ext.setTag("+user/tester");

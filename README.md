@@ -233,7 +233,8 @@ A User is a Tag-like entity representing a user.
 ```
 Only the "tag", "origin", and "modified" fields are required.
 
-A User contains the access control information for the system.
+A User contains the access control information for the system. In multi-tenant mode access tags
+are for the same origin as the user. In normal mode access tags are for all origins.
 
 **Tag:** The tag of this User. Must match the regex `[_+]user/[a-z]+([./][a-z]+)*`  
 **Origin:** The Origin this User was replicated from, or the empty string for local.  

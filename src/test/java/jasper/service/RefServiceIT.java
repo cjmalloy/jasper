@@ -207,6 +207,54 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetUntaggedRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		refRepository.save(ref);
+
+		assertThatThrownBy(() -> refService.get(ref.getUrl(), ref.getOrigin()))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetUntaggedRefMod() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		refRepository.save(ref);
+
+		var fetch = refService.get(ref.getUrl(), ref.getOrigin());
+
+		assertThat(fetch)
+			.isNotNull();
+	}
+
+	@Test
+	void testGetUntaggedRemoteRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		assertThatThrownBy(() -> refService.get(ref.getUrl(), ref.getOrigin()))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "tester", roles = {"MOD"})
+	void testGetUntaggedRemoteRefMod() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@remote");
+		refRepository.save(ref);
+
+		var fetch = refService.get(ref.getUrl(), ref.getOrigin());
+
+		assertThat(fetch)
+			.isNotNull();
+	}
+
+	@Test
 	void testGetPageUntaggedRef() {
 		var ref = new Ref();
 		ref.setUrl(URL);
