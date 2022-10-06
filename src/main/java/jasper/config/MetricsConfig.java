@@ -10,6 +10,7 @@ import jasper.security.Auth;
 import org.apache.logging.log4j.util.Strings;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -40,11 +41,18 @@ public class MetricsConfig {
 	}
 
 	private Iterable<Tag> getUserTags() {
-		var userTag = Optional.ofNullable(auth.getUserTag()).map(QualifiedTag::toString);
-		var roles = AuthorityUtils.authorityListToSet(auth.getAuthentication().getAuthorities());
-		return Tags.of(
-			"userTag", userTag.orElse(""),
-			"roles", Strings.join(roles, ',')
-		);
+		try {
+			var userTag = Optional.ofNullable(auth.getUserTag()).map(QualifiedTag::toString);
+			var roles = AuthorityUtils.authorityListToSet(auth.getAuthentication().getAuthorities());
+			return Tags.of(
+				"scope", "request",
+				"userTag", userTag.orElse(""),
+				"roles", Strings.join(roles, ',')
+			);
+		} catch (ScopeNotActiveException e) {
+			return Tags.of(
+				"scope", "system"
+			);
+		}
 	}
 }
