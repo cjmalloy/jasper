@@ -73,7 +73,7 @@ public class ExtController {
 	@GetMapping
 	HttpEntity<Ext> getExt(
 		WebRequest request,
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
 		return ifNotModified(request, extService.get(tag));
 	}
@@ -119,7 +119,7 @@ public class ExtController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
 		@RequestBody JsonPatch patch
 	) {
 		extService.patch(tag, patch);
@@ -131,7 +131,7 @@ public class ExtController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteExt(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
 		extService.delete(tag);
 	}
