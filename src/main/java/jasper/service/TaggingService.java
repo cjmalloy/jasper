@@ -28,7 +28,7 @@ public class TaggingService {
 	Auth auth;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void create(String tag, String url, String origin) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
@@ -39,7 +39,7 @@ public class TaggingService {
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void delete(String tag, String url, String origin) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
@@ -51,7 +51,7 @@ public class TaggingService {
 	}
 
 	@PreAuthorize("@auth.canTagAll(#tags, #url, #origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "tag", "method", "tag"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void tag(List<String> tags, String url, String origin) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);

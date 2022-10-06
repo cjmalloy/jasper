@@ -32,7 +32,7 @@ public class PluginService {
 	Auth auth;
 
 	@PreAuthorize("hasRole('ADMIN')")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
 		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
@@ -46,7 +46,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "get"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Plugin get(String qualifiedTag) {
 		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
 							   .orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
@@ -54,14 +54,14 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "exists"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public boolean exists(String qualifiedTag) {
 		return pluginRepository.existsByQualifiedTag(qualifiedTag);
 	}
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "page"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
@@ -71,7 +71,7 @@ public class PluginService {
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "update"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
@@ -87,7 +87,7 @@ public class PluginService {
 
 	@Transactional
 	@PreAuthorize("hasRole('ADMIN')")
-	@Timed(value = "jasper.service", extraTags = {"service", "plugin", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
 			pluginRepository.deleteByQualifiedTag(qualifiedTag);

@@ -70,7 +70,7 @@ public class Backup {
 
 	@Async
 	@Transactional(readOnly = true)
-	@Counted(value = "jasper.backup", extraTags = {"method", "create"})
+	@Counted(value = "jasper.backup")
 	public void createBackup(String id, BackupOptionsDto options) throws IOException {
 		var start = Instant.now();
 		log.info("Creating Backup");
@@ -136,7 +136,7 @@ public class Backup {
 		Files.write(path, "]\n".getBytes(), StandardOpenOption.APPEND);
 	}
 
-	@Timed(value = "jasper.backup", extraTags = {"method", "download"}, histogram = true)
+	@Timed(value = "jasper.backup", histogram = true)
 	public byte[] get(String id) {
 		try {
 			return Files.readAllBytes(path(id));
@@ -161,7 +161,7 @@ public class Backup {
 	}
 
 	@Async
-	@Counted(value = "jasper.backup", extraTags = {"method", "restore"})
+	@Counted(value = "jasper.backup")
 	public void restore(String id, BackupOptionsDto options) {
 		var start = Instant.now();
 		log.info("Restoring Backup");
@@ -228,14 +228,14 @@ public class Backup {
 		}
 	}
 
-	@Timed(value = "jasper.backup", extraTags = {"method", "upload"}, histogram = true)
+	@Timed(value = "jasper.backup", histogram = true)
 	public void store(String id, byte[] zipFile) throws IOException {
 		var path = path(id);
 		Files.createDirectories(path.getParent());
 		Files.write(path, zipFile, StandardOpenOption.CREATE);
 	}
 
-	@Timed(value = "jasper.backup", extraTags = {"method", "delete"}, histogram = true)
+	@Timed(value = "jasper.backup", histogram = true)
 	public void delete(String id) throws IOException {
 		Files.delete(path(id));
 	}

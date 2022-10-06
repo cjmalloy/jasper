@@ -497,7 +497,7 @@ public class Auth {
 		return claims;
 	}
 
-	private Set<String> getAuthoritySet() {
+	public Set<String> getAuthoritySet() {
 		if (roles == null) {
 			Collection<? extends GrantedAuthority> userAuthorities = getAuthentication().getAuthorities();
 			if (roleHierarchy != null) {

@@ -54,7 +54,7 @@ public class RefService {
 	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void create(Ref ref) {
 		if (!auth.local(ref.getOrigin())) throw new ForeignWriteException(ref.getOrigin());
 		ingest.ingest(ref);
@@ -62,7 +62,7 @@ public class RefService {
 
 	@Transactional(readOnly = true)
 	@PostAuthorize("@auth.canReadRef(returnObject)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "get"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
 		var result = refRepository.findOneByUrlAndOrigin(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
@@ -72,7 +72,7 @@ public class RefService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "page"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
 			.findAll(
@@ -84,7 +84,7 @@ public class RefService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "count"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public long count(RefFilter filter) {
 		return refRepository
 			.count(
@@ -93,7 +93,7 @@ public class RefService {
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "update"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
@@ -104,7 +104,7 @@ public class RefService {
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "patch"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void patch(String url, String origin, JsonPatch patch) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
@@ -121,7 +121,7 @@ public class RefService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ref", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void delete(String url, String origin) {
 		try {
 			ingest.delete(url, origin);

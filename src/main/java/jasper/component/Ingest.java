@@ -40,7 +40,7 @@ public class Ingest {
 		}
 	}
 
-	@Timed(value = "jasper.ref", extraTags = {"method", "create"}, histogram = true)
+	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -51,7 +51,7 @@ public class Ingest {
 		ensureUniqueModified(ref);
 	}
 
-	@Timed(value = "jasper.ref", extraTags = {"method", "update"}, histogram = true)
+	@Timed(value = "jasper.ref", histogram = true)
 	public void update(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
@@ -78,7 +78,7 @@ public class Ingest {
 		}
 	}
 
-	@Timed(value = "jasper.ref", extraTags = {"method", "delete"}, histogram = true)
+	@Timed(value = "jasper.ref", histogram = true)
 	public void delete(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;

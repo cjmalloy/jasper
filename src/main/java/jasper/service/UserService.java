@@ -40,7 +40,7 @@ public class UserService {
 	DtoMapper mapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void create(User user) {
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		user.setModified(Instant.now());
@@ -53,7 +53,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "get"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
 								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -62,7 +62,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "page"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
@@ -73,7 +73,7 @@ public class UserService {
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "update"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void update(User user) {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
@@ -89,7 +89,7 @@ public class UserService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#tag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String tag) {
 		try {
 			userRepository.deleteByQualifiedTag(tag);
@@ -98,7 +98,7 @@ public class UserService {
 		}
 	}
 
-	@Timed(value = "jasper.service", extraTags = {"service", "user", "method", "who"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public RolesDto whoAmI() {
 		return RolesDto
 			.builder()

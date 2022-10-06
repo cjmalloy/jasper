@@ -35,7 +35,7 @@ public class ProfileService {
 	Auth auth;
 
 	@PreAuthorize("hasRole('MOD')")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void create(String tag, String password, String role) {
 		if (role.equals(SA) && !auth.hasRole(SA) ||
 			role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
@@ -62,25 +62,25 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("@auth.canReadTag(#tag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "get"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public ProfileDto get(String tag) {
 		return profileManager.getUser(tag.substring("+user/".length()));
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "page"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public Page<ProfileDto> page(int pageNumber, int pageSize) {
 		return profileManager.getUsers(pageNumber, pageSize);
 	}
 
 	@PreAuthorize("@auth.freshLogin() and @auth.canWriteTag(#tag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "password"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changePassword(String tag, String password) {
 		profileManager.changePassword(tag.substring("+user/".length()), password);
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "role"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changeRole(String tag, String role) {
 		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
@@ -89,7 +89,7 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("hasRole('MOD')")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "active"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void setActive(String tag, boolean active) {
 		if (!active && auth.getUserTag().equals(tag)) {
 			throw new DeactivateSelfException();
@@ -98,7 +98,7 @@ public class ProfileService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#tag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void delete(String tag) {
 		profileManager.deleteUser(tag.substring("+user/".length()));
 	}

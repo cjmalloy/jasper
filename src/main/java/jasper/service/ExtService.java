@@ -58,7 +58,7 @@ public class ExtService {
 	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "create"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void create(Ext ext) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate(ext, true);
@@ -72,7 +72,7 @@ public class ExtService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "get"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Ext get(String qualifiedTag) {
 		return extRepository.findOneByQualifiedTag(qualifiedTag)
 							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
@@ -80,7 +80,7 @@ public class ExtService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "page"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Page<Ext> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
@@ -90,7 +90,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "update"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void update(Ext ext) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
@@ -106,7 +106,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "patch"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void patch(String qualifiedTag, JsonPatch patch) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + qualifiedTag);
@@ -120,7 +120,7 @@ public class ExtService {
 
 	@Transactional
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "delete"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
 			extRepository.deleteByQualifiedTag(qualifiedTag);
@@ -138,7 +138,7 @@ public class ExtService {
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
-	@Timed(value = "jasper.service", extraTags = {"service", "ext", "method", "validate"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void validate(Ext ext, boolean useDefaults) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
 		if (templates.isEmpty()) {

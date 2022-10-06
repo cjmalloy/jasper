@@ -35,7 +35,7 @@ public class ProfileManagerScim implements ProfileManager {
 	ObjectMapper objectMapper;
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "create"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public void createUser(String tag, String password, String[] roles) {
 		var user = ScimUserResource.builder()
 			.userName(tag)
@@ -56,7 +56,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "get"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public ProfileDto getUser(String tag) {
 		return mapUser(_getUser(tag));
 	}
@@ -86,7 +86,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "page"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public Page<ProfileDto> getUsers(int page, int size) {
 		var users = scimClient
 			.getUsers(accessToken.getAdminToken(), page + 1, size);
@@ -99,7 +99,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "password"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public void changePassword(String tag, String password) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -116,7 +116,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "active"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public void setActive(String tag, boolean active) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -133,7 +133,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "roles"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public void changeRoles(String tag, String[] roles) {
 		var id = (String) scimClient
 			.getUser(accessToken.getAdminToken(), tag).getResources()
@@ -150,7 +150,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	@Override
-	@Timed(value = "jasper.scim", extraTags = {"method", "delete"}, histogram = true)
+	@Timed(value = "jasper.scim", histogram = true)
 	public void deleteUser(String tag) {
 		var user = _getUser(tag);
 		scimClient.deleteUser(accessToken.getAdminToken(), user.getId());

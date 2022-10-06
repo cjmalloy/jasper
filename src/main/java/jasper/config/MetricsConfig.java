@@ -3,19 +3,48 @@ package jasper.config;
 import io.micrometer.core.aop.CountedAspect;
 import io.micrometer.core.aop.TimedAspect;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
+import jasper.repository.spec.QualifiedTag;
+import jasper.security.Auth;
+import org.apache.logging.log4j.util.Strings;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.authority.AuthorityUtils;
+
+import java.util.Optional;
 
 @Configuration
 public class MetricsConfig {
 
+	@Autowired
+	Auth auth;
+
 	@Bean
 	CountedAspect countedAspect(MeterRegistry registry) {
-		return new CountedAspect(registry);
+		return new CountedAspect(registry, this::tagFactory);
 	}
 
 	@Bean
 	TimedAspect timedAspect(MeterRegistry registry) {
-		return new TimedAspect(registry);
+		return new TimedAspect(registry, this::tagFactory);
+	}
+
+	private Iterable<Tag> tagFactory(ProceedingJoinPoint pjp) {
+		return Tags.of(
+			"class", pjp.getStaticPart().getSignature().getDeclaringTypeName(),
+				"method", pjp.getStaticPart().getSignature().getName())
+			.and(getUserTags());
+	}
+
+	private Iterable<Tag> getUserTags() {
+		var userTag = Optional.ofNullable(auth.getUserTag()).map(QualifiedTag::toString);
+		var roles = AuthorityUtils.authorityListToSet(auth.getAuthentication().getAuthorities());
+		return Tags.of(
+			"userTag", userTag.orElse(""),
+			"roles", Strings.join(roles, ',')
+		);
 	}
 }
