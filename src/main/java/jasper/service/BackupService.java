@@ -23,35 +23,35 @@ public class BackupService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("auth.canBackup()")
+	@PreAuthorize("@auth.canBackup()")
 	public String createBackup(BackupOptionsDto options) throws IOException {
 		var id = Instant.now().toString();
 		backup.createBackup(id, options);
 		return id;
 	}
 
-	@PreAuthorize("auth.canBackup()")
+	@PreAuthorize("@auth.canBackup()")
 	public void uploadBackup(String id, byte[] zipFile) throws IOException {
 		backup.store(id, zipFile);
 	}
 
-	@PreAuthorize("auth.canReadBackup()")
+	@PreAuthorize("@auth.canReadBackup()")
 	public List<String> listBackups() {
 		return backup.listBackups();
 	}
 
-	@PreAuthorize("auth.canReadBackup()")
+	@PreAuthorize("@auth.canReadBackup()")
 	public byte[] getBackup(String id) {
 		return backup.get(id);
 	}
 
-	@PreAuthorize("auth.canBackup()")
+	@PreAuthorize("@auth.canBackup()")
 	public void restoreBackup(String id, BackupOptionsDto options) {
 		if (!backup.exists(id)) throw new NotFoundException("Backup " + id);
 		backup.restore(id, options);
 	}
 
-	@PreAuthorize("auth.canBackup()")
+	@PreAuthorize("@auth.canBackup()")
 	public void deleteBackup(String id) throws IOException {
 		if (!backup.exists(id)) return; // Delete is idempotent
 		backup.delete(id);
