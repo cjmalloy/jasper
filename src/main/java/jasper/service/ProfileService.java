@@ -19,13 +19,14 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
+import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 
 @Profile("scim")
 @Service
 public class ProfileService {
-	private static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER);
+	private static final Set<String> ROLES = Sets.newHashSet(SA, ADMIN, MOD, EDITOR, USER, VIEWER);
 
 	@Autowired
 	ProfileManager profileManager;
@@ -36,7 +37,8 @@ public class ProfileService {
 	@PreAuthorize("hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile", "method", "create"}, histogram = true)
 	public void create(String tag, String password, String role) {
-		if (role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
+		if (role.equals(SA) && !auth.hasRole(SA) ||
+			role.equals(ADMIN) && !auth.hasRole(ADMIN)) {
 			throw new InvalidUserProfileException("Cannot assign elevated role.");
 		}
 		if (tag.startsWith("user/")) {
