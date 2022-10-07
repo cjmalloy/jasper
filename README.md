@@ -389,6 +389,7 @@ Jasper is available as a Docker image and a Helm chart. It supports the followin
 | `JASPER_ALLOW_AUTH_HEADERS`                         | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers.     | `false`                                   |
 | `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                                       | `ROLE_USER`                               |
 | `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                                    | `sub`                                     |
+| `JASPER_AUTHORITIES_CLAIM`                          | Claim in the access token to use as authorities.                                                                                   | `auth`                                    |
 | `JASPER_READ_ACCESS_CLAIM`                          | Claim in the access token to use as additional read access qualified tags.                                                         | `readAccess`                              |
 | `JASPER_WRITE_ACCESS_CLAIM`                         | Claim in the access token to use as additional write access qualified tags.                                                        | `writeAccess`                             |
 | `JASPER_TAG_READ_ACCESS_CLAIM`                      | Claim in the access token to use as additional tag read access qualified tags.                                                     | `tagReadAccess`                           |
@@ -442,7 +443,9 @@ variable to change the location of the storage folder.
 
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
-hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Anonymous.
+hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Viewer. The
+Anonymous role is given to users who are not logged in. The System Administrator role is used
+in multi-tenant mode to grant complete access to all origins.
 Roles are hierarchical, so they include any permissions granted to a preceding role.
  * `ROLE_ANONYMOUS`: read access to public tags and Refs.
  * `ROLE_VIEWER`: logged in user. Can be given access to private tags and Refs.
@@ -450,6 +453,7 @@ Roles are hierarchical, so they include any permissions granted to a preceding r
  * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to.
  * `ROLE_MOD`: can read/write any tag or ref except plugins and templates.
  * `ROLE_ADMIN`: complete access. Can read/write plugins and templates, perform backups and restores.
+ * `ROLE_SYSADMIN`: complete access in multi-tenant mode.
 
 Tags are used to provide fine-grained access to resources. For Refs, the list of tags are considered.
 For Tags entities, their tag is considered.
@@ -472,11 +476,39 @@ The tag permissions are stored in the User entities:
 ### Special Tags
 Some public tags have special significance:
  * `public`: everyone can read
- * `internal`: don't show on all (`@*`)
+ * `internal`: don't show on all (`@*`), don't count as a response in metadata
  * `locked`: Only mod can edit
 
 By convention, the private `_moderated` tag is used to mark a Ref as approved by a mod
  * `_moderated`: Approved by a mod
+
+### Multi-tenant
+When multi-tenant mode is active users will not have read-access to other origins by default.
+Access to some backup and profile services is restricted to users with the System Admin role.
+
+### Access Tokens
+When running the system with JWT authentication, roles may be added as claims.  
+For example:
+```json
+{
+  "sub": "username",
+  "auth": "ROLE_USER"
+}
+```
+
+Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
+and `JASPER_AUTHORITIES_CLAIM` properties.
+
+Roles may also be specified by origin:
+```json
+{
+  "sub": "username",
+  "auth": {
+    "@first": "ROLE_USER",
+    "@second": "ROLE_ADMIN"
+  }
+}
+```
 
 ## Backup / Restore
 Jasper has a built-in backup system for admin use. Non admin backups should instead replicate to a separate jasper instance.
