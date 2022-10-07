@@ -56,7 +56,10 @@ public class TemplateService {
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
-		return templateRepository.findAll(filter.spec(), pageable);
+		return templateRepository.findAll(
+			auth.<Template>tagReadSpec()
+				.and(filter.spec()),
+			pageable);
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")
