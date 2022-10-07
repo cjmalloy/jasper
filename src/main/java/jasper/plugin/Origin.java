@@ -33,6 +33,7 @@ public class Origin {
 	private String proxy;
 	private Instant lastScrape;
 	private Duration scrapeInterval;
+	private boolean generateMetadata;
 	private List<String> removeTags;
 	private Map<String, String> mapTags;
 	private Map<String, String> mapOrigins;
