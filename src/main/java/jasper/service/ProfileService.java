@@ -80,7 +80,7 @@ public class ProfileService {
 		return profileManager.getUsers(auth.getOrigin(), pageNumber, pageSize);
 	}
 
-	@PreAuthorize("@auth.freshLogin() and @auth.canWriteTag(#qualifiedTag)")
+	@PreAuthorize("@auth.freshLogin() and (@auth.isUser(#qualifiedTag) or @auth.canAdminProfile())")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changePassword(String qualifiedTag, String password) {
 		profileManager.changePassword(qualifiedTag, password);

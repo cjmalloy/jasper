@@ -208,6 +208,10 @@ public class Auth {
 		return captures(getTagWriteAccess(), List.of(qt));
 	}
 
+	public boolean isUser(String qualifiedTag) {
+		return isLoggedIn() && getUserTag().captures(selector(qualifiedTag));
+	}
+
 	public boolean canReadQuery(Query filter) {
 		if (filter.getQuery() == null) return true;
 		if (hasRole(MOD)) return true;
