@@ -234,6 +234,11 @@ public class Auth {
 		return hasRole(MOD);
 	}
 
+	public boolean canAdminProfile() {
+		if (props.isMultiTenant()) return hasRole(SA);
+		return hasRole(MOD);
+	}
+
 	public boolean canWriteUser(User user) {
 		if (hasRole(SA)) return true;
 		if (!local(user.getOrigin())) return false;

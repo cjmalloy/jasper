@@ -63,7 +63,7 @@ public class ProfileController {
 	})
 	@GetMapping
 	ProfileDto getProfile(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		return profileService.get(tag);
 	}
@@ -109,7 +109,7 @@ public class ProfileController {
 	@PostMapping("activate")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void activateProfile(
-		@RequestBody @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestBody @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		profileService.setActive(tag, true);
 	}
@@ -121,7 +121,7 @@ public class ProfileController {
 	@PostMapping("deactivate")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deactivateProfile(
-		@RequestBody @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestBody @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		profileService.setActive(tag, false);
 	}
@@ -132,7 +132,7 @@ public class ProfileController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteProfile(
-		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.REGEX) String tag
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		profileService.delete(tag);
 	}

@@ -7,7 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
@@ -18,17 +18,18 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
-		Collection<? extends GrantedAuthority> authorities;
-		if (claims.containsKey(props.getAuthoritiesClaim() + origin)) {
-			authorities = Arrays
-				.stream(claims.get(props.getAuthoritiesClaim() + origin, String.class).split(","))
-				.filter(auth -> !auth.trim().isEmpty())
-				.map(SimpleGrantedAuthority::new)
-				.collect(Collectors.toList());
-		} else {
-			authorities = List.of(new SimpleGrantedAuthority(props.getDefaultRole()));
+		var authString = props.getDefaultRole();
+		var authClaim = claims.get(props.getAuthoritiesClaim(), Object.class);
+		if (authClaim instanceof String auth) {
+			authString = auth;
+		} else if (authClaim instanceof Map auth && auth.containsKey(origin)) {
+			authString = auth.get(origin).toString();
 		}
-		return authorities;
+		return Arrays
+			.stream(authString.split(","))
+			.filter(roles -> !roles.trim().isEmpty())
+			.map(SimpleGrantedAuthority::new)
+			.collect(Collectors.toList());
 	}
 
 	String getUsername(Claims claims) {

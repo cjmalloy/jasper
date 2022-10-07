@@ -4,11 +4,11 @@ import jasper.service.dto.ProfileDto;
 import org.springframework.data.domain.Page;
 
 public interface ProfileManager {
-	void createUser(String tag, String password, String[] roles);
-	ProfileDto getUser(String tag);
-	Page<ProfileDto> getUsers(int page, int size);
-	void changePassword(String tag, String password);
-	void setActive(String tag, boolean active);
-	void changeRoles(String tag, String[] roles);
-	void deleteUser(String tag);
+	void createUser(String userName, String password, String origin, String[] roles);
+	ProfileDto getUser(String userName, String origin);
+	Page<ProfileDto> getUsers(String origin, int page, int size);
+	void changePassword(String userName, String password);
+	void setActive(String userName, boolean active);
+	void changeRoles(String userName, String origin, String[] roles);
+	void deleteUser(String userName);
 }
