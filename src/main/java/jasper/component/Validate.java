@@ -110,7 +110,7 @@ public class Validate {
 			for (var error : errors) {
 				logger.debug("Error validating plugin {}: {}", tag, error);
 			}
-			if (errors.size() > 0) throw new InvalidPluginException(tag);
+			if (errors.size() > 0) throw new InvalidPluginException(tag + ": " + errors);
 		} catch (MaxDepthExceededException e) {
 			throw new InvalidPluginException(tag, e);
 		}

@@ -167,7 +167,7 @@ public class ExtService {
 			for (var error : errors) {
 				logger.debug("Error validating template {}: {}", ext.getTag(), error);
 			}
-			if (errors.size() > 0) throw new InvalidTemplateException(ext.getTag());
+			if (errors.size() > 0) throw new InvalidTemplateException(ext.getTag() + ": " + errors);
 		} catch (MaxDepthExceededException e) {
 			throw new InvalidTemplateException(ext.getTag(), e);
 		}
