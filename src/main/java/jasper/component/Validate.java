@@ -8,13 +8,17 @@ import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Timed;
+import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import jasper.repository.TemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,9 @@ public class Validate {
 	PluginRepository pluginRepository;
 
 	@Autowired
+	TemplateRepository templateRepository;
+
+	@Autowired
 	Validator validator;
 
 	@Autowired
@@ -45,6 +52,41 @@ public class Validate {
 		plugins(ref, useDefaults);
 		sources(ref);
 		responses(ref);
+	}
+
+	@Timed("jasper.validate.ext")
+	public void ext(Ext ext, boolean useDefaults) {
+		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
+		if (templates.isEmpty()) {
+			// If an ext has no template, or the template is schemaless, no config is allowed
+			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
+			return;
+		}
+		if (useDefaults && ext.getConfig() == null) {
+			var mergedDefaults = templates
+				.stream()
+				.map(Template::getDefaults)
+				.filter(Objects::nonNull)
+				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			ext.setConfig(mergedDefaults);
+		}
+		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
+		var mergedSchemas = templates
+			.stream()
+			.map(Template::getSchema)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+		var tagConfig = new JacksonAdapter(ext.getConfig());
+		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		try {
+			var errors = validator.validate(schema, tagConfig);
+			for (var error : errors) {
+				logger.debug("Error validating template {}: {}", ext.getTag(), error);
+			}
+			if (errors.size() > 0) throw new InvalidTemplateException(ext.getTag() + ": " + errors);
+		} catch (MaxDepthExceededException e) {
+			throw new InvalidTemplateException(ext.getTag(), e);
+		}
 	}
 
 	private void tags(Ref ref) {

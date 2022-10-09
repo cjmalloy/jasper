@@ -1,16 +1,12 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.MultiTenantIntegrationTest;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.domain.User;
-import jasper.errors.InvalidTemplateException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +17,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,9 +35,6 @@ public class ExtServiceMTIT {
 
 	@Autowired
 	ExtRepository extRepository;
-
-	@Autowired
-	TemplateRepository templateRepository;
 
 	@Autowired
 	UserRepository userRepository;
@@ -729,277 +721,5 @@ public class ExtServiceMTIT {
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
-	}
-
-	@Test
-	void testValidateExt() {
-		var ext = getExt();
-		ext.setTag("+user/tester");
-		ext.setName("First");
-
-		extService.validate(ext, false);
-	}
-
-	@Test
-	void testValidateTagWithInvalidTemplate() throws IOException {
-		var template = getTemplate();
-		template.setTag("user");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("+user/tester");
-		ext.setName("First");
-
-		assertThatThrownBy(() -> extService.validate(ext, false))
-			.isInstanceOf(InvalidTemplateException.class);
-	}
-
-	@Test
-	void testValidateTagWithTemplate() throws IOException {
-		var template = getTemplate();
-		template.setTag("user");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("+user/tester");
-		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100
-		}"""));
-
-		extService.validate(ext, false);
-	}
-
-	@Test
-	void testValidatePrivateExt() {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_slug/custom"));
-		user.setWriteAccess(List.of("_slug/custom"));
-		userRepository.save(user);
-		var ext = getExt();
-		ext.setTag("_slug/custom");
-		ext.setName("First");
-
-		extService.validate(ext, false);
-	}
-
-	@Test
-	void testValidatePrivateTagWithInvalidTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_slug/custom"));
-		user.setWriteAccess(List.of("_slug/custom"));
-		userRepository.save(user);
-		var template = getTemplate();
-		template.setTag("slug");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("_slug/custom");
-		ext.setName("First");
-
-		assertThatThrownBy(() -> extService.validate(ext, false))
-			.isInstanceOf(InvalidTemplateException.class);
-	}
-
-	@Test
-	void testValidateTagWithMergedTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("+slug/more/custom"));
-		user.setWriteAccess(List.of("+slug/more/custom"));
-		userRepository.save(user);
-		var mapper = new ObjectMapper();
-		var template1 = getTemplate();
-		template1.setTag("slug");
-		template1.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template1);
-		var template2 = getTemplate();
-		template2.setTag("slug/more");
-		template2.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"location": { "type": "string" },
-				"lat": { "type": "uint32" },
-				"lng": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template2);
-		var ext = getExt();
-		ext.setTag("+slug/more/custom");
-		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100,
-			"location": "Paris",
-			"lat": 123,
-			"lng": 456
-		}"""));
-
-		extService.validate(ext, false);
-	}
-
-	@Test
-	void testValidateTagWithMergedDefaultsTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("+slug/more/custom"));
-		user.setWriteAccess(List.of("+slug/more/custom"));
-		userRepository.save(user);
-		var mapper = new ObjectMapper();
-		var template1 = getTemplate();
-		template1.setTag("slug");
-		template1.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		template1.setDefaults(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100
-		}"""));
-		templateRepository.save(template1);
-		var template2 = getTemplate();
-		template2.setTag("slug/more");
-		template2.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"location": { "type": "string" },
-				"lat": { "type": "uint32" },
-				"lng": { "type": "uint32" }
-			}
-		}"""));
-		template2.setDefaults(mapper.readTree("""
-		{
-			"location": "Paris",
-			"lat": 123,
-			"lng": 456
-		}"""));
-		templateRepository.save(template2);
-		var ext = getExt();
-		ext.setTag("+slug/more/custom");
-		ext.setName("First");
-
-		extService.validate(ext, true);
-	}
-
-	@Test
-	void testValidatePrivateTagWithTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_slug/custom"));
-		user.setWriteAccess(List.of("_slug/custom"));
-		userRepository.save(user);
-		var template = getTemplate();
-		template.setTag("slug");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("_slug/custom");
-		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100
-		}"""));
-
-		extService.validate(ext, false);
-	}
-
-	@Test
-	void testValidatePrivateTagWithInvalidPrivateTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_slug/custom"));
-		user.setWriteAccess(List.of("_slug/custom"));
-		userRepository.save(user);
-		var template = getTemplate();
-		template.setTag("_slug");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("_slug/custom");
-		ext.setName("First");
-
-		assertThatThrownBy(() -> extService.validate(ext, false))
-			.isInstanceOf(InvalidTemplateException.class);
-	}
-
-	@Test
-	void testValidatePrivateTagWithPrivateTemplate() throws IOException {
-		var user = getUser();
-		user.setTag("+user/tester");
-		user.setReadAccess(List.of("_slug/custom"));
-		user.setWriteAccess(List.of("_slug/custom"));
-		userRepository.save(user);
-		var template = getTemplate();
-		template.setTag("_slug");
-		var mapper = new ObjectMapper();
-		template.setSchema((ObjectNode) mapper.readTree("""
-		{
-			"properties": {
-				"name": { "type": "string" },
-				"age": { "type": "uint32" }
-			}
-		}"""));
-		templateRepository.save(template);
-		var ext = getExt();
-		ext.setTag("_slug/custom");
-		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
-		{
-			"name": "Alice",
-			"age": 100
-		}"""));
-
-		extService.validate(ext, false);
 	}
 }

@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @IntegrationTest
 @Transactional
-public class ValidateIT {
+public class ValidateRefIT {
 
 	@Autowired
 	Validate validate;
