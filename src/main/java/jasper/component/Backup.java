@@ -232,7 +232,7 @@ public class Backup {
 	public void store(String id, byte[] zipFile) throws IOException {
 		var path = path(id);
 		Files.createDirectories(path.getParent());
-		Files.write(path, zipFile, StandardOpenOption.CREATE);
+		Files.write(path, zipFile, StandardOpenOption.CREATE_NEW);
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
