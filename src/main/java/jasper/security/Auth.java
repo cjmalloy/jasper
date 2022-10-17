@@ -228,17 +228,12 @@ public class Auth {
 		return captures(tagReadAccess, tagList);
 	}
 
-	public boolean canBackup() {
+	public boolean isSysAdmin() {
 		if (props.isMultiTenant()) return hasRole(SA);
 		return hasRole(ADMIN);
 	}
 
-	public boolean canReadBackup() {
-		if (props.isMultiTenant()) return hasRole(SA);
-		return hasRole(MOD);
-	}
-
-	public boolean canAdminProfile() {
+	public boolean isSysMod() {
 		if (props.isMultiTenant()) return hasRole(SA);
 		return hasRole(MOD);
 	}

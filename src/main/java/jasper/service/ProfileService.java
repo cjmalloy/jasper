@@ -35,7 +35,7 @@ public class ProfileService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.canAdminProfile()")
+	@PreAuthorize("@auth.isSysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void create(String qualifiedTag, String password, String role) {
 		validateRole(role);
@@ -74,13 +74,13 @@ public class ProfileService {
 		return profileManager.getUser(qt.tag.substring("+user/".length()), qt.origin);
 	}
 
-	@PreAuthorize("@auth.canAdminProfile()")
+	@PreAuthorize("@auth.isSysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public Page<ProfileDto> page(int pageNumber, int pageSize) {
 		return profileManager.getUsers(auth.getOrigin(), pageNumber, pageSize);
 	}
 
-	@PreAuthorize("@auth.freshLogin() and (@auth.isUser(#qualifiedTag) or @auth.canAdminProfile())")
+	@PreAuthorize("@auth.freshLogin() and (@auth.isUser(#qualifiedTag) or @auth.isSysMod())")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changePassword(String qualifiedTag, String password) {
 		profileManager.changePassword(qualifiedTag, password);
@@ -94,7 +94,7 @@ public class ProfileService {
 		profileManager.changeRoles(qt.tag.substring("+user/".length()), qt.origin, getRoles(qualifiedTag, role));
 	}
 
-	@PreAuthorize("@auth.canAdminProfile()")
+	@PreAuthorize("@auth.isSysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void setActive(String qualifiedTag, boolean active) {
 		if (!active && auth.getUserTag().tag.equals(selector(qualifiedTag).tag)) {
@@ -104,7 +104,7 @@ public class ProfileService {
 		profileManager.setActive(qt.tag.substring("+user/".length()), active);
 	}
 
-	@PreAuthorize("@auth.canAdminProfile()")
+	@PreAuthorize("@auth.isSysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		var qt = selector(qualifiedTag);
