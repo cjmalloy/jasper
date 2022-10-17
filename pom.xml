@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.3</version>
+		<version>2.7.4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>ca.hc</groupId>
@@ -26,15 +26,15 @@
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
 		<lombok.version>1.18.24</lombok.version>
 		<testcontainers.version>1.16.2</testcontainers.version>
-		<liquibase.version>4.14.0</liquibase.version>
-		<mapstruct.version>1.5.2.Final</mapstruct.version>
+		<liquibase.version>4.17.0</liquibase.version>
+		<mapstruct.version>1.5.3.Final</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.2</jackson-databind-nullable.version>
 		<hibernate-types-55.version>2.16.2</hibernate-types-55.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.11.5</jjwt.version>
 		<spring-cloud.version>2021.0.1</spring-cloud.version>
-		<springdoc-openapi.version>1.6.9</springdoc-openapi.version>
+		<springdoc-openapi.version>1.6.12</springdoc-openapi.version>
 		<problem-spring-web.version>0.27.0</problem-spring-web.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>0.23.1</archunit-junit5.version>
