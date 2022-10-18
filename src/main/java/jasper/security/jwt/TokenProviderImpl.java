@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.stream.Collectors;
 
 public class TokenProviderImpl extends AbstractJwtTokenProvider implements TokenProvider {
+	private static final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImpl.class);
 
@@ -75,6 +76,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
+		logger.debug("JWT Claims:  {}", claims.toString());
 		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 

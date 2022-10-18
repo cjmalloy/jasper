@@ -43,6 +43,7 @@ public class JWTFilter extends GenericFilterBean {
 		String origin = null;
 		if (props.isAllowLocalOriginHeader()) {
 			origin = resolveLocalOrigin(httpServletRequest);
+			logger.debug("Setting Local Origin from Header: {}", origin);
 		}
 		if (tokenProvider.validateToken(jwt)) {
 			Authentication authentication = tokenProvider.getAuthentication(jwt, origin);
