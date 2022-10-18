@@ -228,6 +228,7 @@ public class Props {
 				private String clientId = null;
 				private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
 				private String secret = null;
+				private String alg = "HS512";
 				private String jwksUri = null;
 				private String tokenEndpoint = null;
 				private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;

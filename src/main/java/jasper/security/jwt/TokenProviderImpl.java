@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.StringUtils;
 
+import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -44,7 +45,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 		String secret = props.getSecurity().getAuthentication().getJwt().getBase64Secret();
 		log.debug("Using a Base64-encoded JWT secret key");
 		keyBytes = Decoders.BASE64.decode(secret);
-		key = Keys.hmacShaKeyFor(keyBytes);
+		key = getKey(keyBytes);
 		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
 		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
@@ -68,9 +69,29 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 			.builder()
 			.setSubject(authentication.getName())
 			.claim(props.getAuthoritiesClaim(), authorities)
-			.signWith(key, SignatureAlgorithm.HS512)
+			.signWith(key, getAlg())
 			.setExpiration(validity)
 			.compact();
+	}
+
+	private Key getKey(byte[] keyBytes) {
+		switch (props.getSecurity().getAuthentication().getJwt().getAlg()) {
+			case "HS512": return Keys.hmacShaKeyFor(keyBytes);
+			case "RS256": return new SecretKeySpec(keyBytes, "RS256");
+			case "RS512": return new SecretKeySpec(keyBytes, "RS512");
+		}
+		log.error("Unsupported signature algorithm {}. Using default HS512.", props.getSecurity().getAuthentication().getJwt().getAlg());
+		return Keys.hmacShaKeyFor(keyBytes);
+	}
+
+	private SignatureAlgorithm getAlg() {
+		switch (props.getSecurity().getAuthentication().getJwt().getAlg()) {
+			case "HS512": return SignatureAlgorithm.HS512;
+			case "RS256": return SignatureAlgorithm.RS256;
+			case "RS512": return SignatureAlgorithm.RS512;
+		}
+		log.error("Unsupported signature algorithm {}. Using default HS512.", props.getSecurity().getAuthentication().getJwt().getAlg());
+		return SignatureAlgorithm.HS512;
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
