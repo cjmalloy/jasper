@@ -68,9 +68,19 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 			.builder()
 			.setSubject(authentication.getName())
 			.claim(props.getAuthoritiesClaim(), authorities)
-			.signWith(key, SignatureAlgorithm.HS512)
+			.signWith(key, getAlg())
 			.setExpiration(validity)
 			.compact();
+	}
+
+	private SignatureAlgorithm getAlg() {
+		switch (props.getSecurity().getAuthentication().getJwt().getAlg()) {
+			case "HS512": return SignatureAlgorithm.HS512;
+			case "RS256": return SignatureAlgorithm.RS256;
+			case "RS512": return SignatureAlgorithm.RS512;
+		}
+		log.error("Unsupported signature algorithm {}. Using default HS512.", props.getSecurity().getAuthentication().getJwt().getAlg());
+		return SignatureAlgorithm.HS512;
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
