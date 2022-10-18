@@ -2,6 +2,8 @@ package jasper.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import jasper.config.Props;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -11,6 +13,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
+	private static final Logger logger = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 	Props props;
 
 	public AbstractJwtTokenProvider(Props props) {
@@ -22,6 +25,7 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			String username = null;
 			if (props.isAllowUsernameClaimOrigin() && (username = getUsername(claims)) != null && username.contains("@")) {
 				origin = username.substring(username.indexOf("@"));
+				logger.debug("Setting Local Origin from Username: {}", origin);
 			} else {
 				origin = props.getLocalOrigin();
 			}

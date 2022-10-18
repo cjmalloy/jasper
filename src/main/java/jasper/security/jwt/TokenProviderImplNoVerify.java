@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 
 public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implements TokenProvider {
+	private static final Logger logger = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplNoVerify.class);
 
@@ -38,6 +39,7 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implemen
 
 	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
+		logger.debug("JWT Claims:  {}", claims.toString());
 		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 

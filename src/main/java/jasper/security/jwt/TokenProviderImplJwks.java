@@ -19,6 +19,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
+	private static final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
 
 	private final Logger log = LoggerFactory.getLogger(TokenProviderImplJwks.class);
 
@@ -43,6 +44,7 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 
 	public Authentication getAuthentication(String token, String origin) {
 		Claims claims = jwtParser.parseClaimsJws(token).getBody();
+		logger.debug("JWT Claims:  {}", claims.toString());
 		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
 	}
 
