@@ -14,6 +14,7 @@ public class TemplateSpec {
 				root.get(Template_.tag),
 				"");
 	}
+
 	public static Specification<Template> matchesTag(String tag) {
 		return (root, query, cb) ->
 			cb.not(

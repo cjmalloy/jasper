@@ -16,6 +16,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 /**
  * Filters incoming requests and installs a Spring Security principal if a header corresponding to a valid user is
  * found.
@@ -38,12 +40,9 @@ public class JWTFilter extends GenericFilterBean {
 		throws IOException, ServletException {
 		HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
 		String jwt = resolveToken(httpServletRequest);
-		String origin = props.getLocalOrigin();
+		String origin = null;
 		if (props.isAllowLocalOriginHeader()) {
-			var originHeader = resolveLocalOrigin(httpServletRequest);
-			if (originHeader != null) {
-				origin = originHeader;
-			}
+			origin = resolveLocalOrigin(httpServletRequest);
 		}
 		if (tokenProvider.validateToken(jwt)) {
 			Authentication authentication = tokenProvider.getAuthentication(jwt, origin);
@@ -62,7 +61,7 @@ public class JWTFilter extends GenericFilterBean {
 
 	private String resolveLocalOrigin(HttpServletRequest request) {
 		String origin = request.getHeader(Auth.LOCAL_ORIGIN_HEADER);
-		if (origin != null) {
+		if (!isBlank(origin)) {
 			return origin.toLowerCase();
 		}
 		return null;

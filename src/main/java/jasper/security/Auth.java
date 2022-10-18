@@ -80,6 +80,7 @@ public class Auth {
 	// Cache
 	protected Set<String> roles;
 	protected Claims claims;
+	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
 	protected Optional<User> user;
@@ -335,9 +336,8 @@ public class Auth {
 		return changes.stream().filter(tag -> !existing.get().contains(tag));
 	}
 
-	public QualifiedTag getUserTag() {
-		if (userTag == null) {
-			String principal;
+	public String getPrincipal() {
+		if (principal == null) {
 			var authn = getAuthentication();
 			if (authn instanceof JwtAuthentication j) {
 				principal = j.getPrincipal();
@@ -351,6 +351,18 @@ public class Auth {
 				} else {
 					return null;
 				}
+			}
+			principal = principal.replaceAll("[^a-z/.@]+", ".");
+		}
+		return principal;
+	}
+
+	public QualifiedTag getUserTag() {
+		if (userTag == null) {
+			var principal = getPrincipal();
+			if (principal == null) return null;
+			if (principal.contains("@")) {
+				principal = principal.substring(0, principal.indexOf('@'));
 			}
 			if (hasRole(PRIVATE)) {
 				userTag = selector("_user/" + principal + getOrigin());
@@ -372,6 +384,8 @@ public class Auth {
 		if (origin == null) {
 			if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 				origin = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
+			} else if (props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
+				origin = getPrincipal().substring(getPrincipal().indexOf("@"));
 			} else {
 				origin = props.getLocalOrigin();
 			}

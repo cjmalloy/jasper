@@ -18,6 +18,14 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
+		if (origin == null) {
+			String username = null;
+			if (props.isAllowUsernameClaimOrigin() && (username = getUsername(claims)) != null && username.contains("@")) {
+				origin = username.substring(username.indexOf("@"));
+			} else {
+				origin = props.getLocalOrigin();
+			}
+		}
 		var authString = props.getDefaultRole();
 		var authClaim = claims.get(props.getAuthoritiesClaim(), Object.class);
 		if (authClaim instanceof String auth) {

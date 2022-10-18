@@ -34,6 +34,7 @@ public class Props {
 	private boolean allowLocalOriginHeader = false;
 	private boolean allowAuthHeaders = false;
 	private String usernameClaim = "sub";
+	private boolean allowUsernameClaimOrigin = false;
 	private String authoritiesClaim = "auth";
 	private String readAccessClaim = "readAccess";
 	private String writeAccessClaim = "writeAccess";
