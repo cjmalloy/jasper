@@ -13,12 +13,14 @@ public class SecurityMetersService {
     public static final String INVALID_TOKENS_METER_BASE_UNIT = "errors";
     public static final String INVALID_TOKENS_METER_CAUSE_DIMENSION = "cause";
 
+    private final Counter tokenInvalidAudienceCounter;
     private final Counter tokenInvalidSignatureCounter;
     private final Counter tokenExpiredCounter;
     private final Counter tokenUnsupportedCounter;
     private final Counter tokenMalformedCounter;
 
     public SecurityMetersService(MeterRegistry registry) {
+        this.tokenInvalidAudienceCounter = invalidTokensCounterForCauseBuilder("invalid-audience").register(registry);
         this.tokenInvalidSignatureCounter = invalidTokensCounterForCauseBuilder("invalid-signature").register(registry);
         this.tokenExpiredCounter = invalidTokensCounterForCauseBuilder("expired").register(registry);
         this.tokenUnsupportedCounter = invalidTokensCounterForCauseBuilder("unsupported").register(registry);
@@ -31,6 +33,10 @@ public class SecurityMetersService {
             .baseUnit(INVALID_TOKENS_METER_BASE_UNIT)
             .description(INVALID_TOKENS_METER_DESCRIPTION)
             .tag(INVALID_TOKENS_METER_CAUSE_DIMENSION, cause);
+    }
+
+    public void trackTokenInvalidAudience() {
+        this.tokenInvalidAudienceCounter.increment();
     }
 
     public void trackTokenInvalidSignature() {
