@@ -2,7 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.3-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.2.3)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.4-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -29,7 +29,7 @@ Connect to Jasper with a custom client to give users a streamlined user experien
 developers can create a bespoke interface without needing to make any server side changes. Create custom
 plugins and templates and ensure data integrity with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
-[OpenApi docs](https://app.swaggerhub.com/apis/cjmalloy/Jasper/1.1.0) to generate API stubs.
+[OpenApi docs](https://app.swaggerhub.com/apis/cjmalloy/Jasper) to generate API stubs.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
@@ -366,7 +366,12 @@ To prevent duplicate modified dates it's enough to add a single millisecond to t
 is unique.
 
 ## Deployment
-Jasper is available as a Docker image and a Helm chart. It supports the following configuration options:
+Jasper is available in the following distributions:
+ - [Docker image](https://github.com/cjmalloy/jasper/pkgs/container/jasper)
+ - [Helm chart](https://artifacthub.io/packages/helm/jasper/jasper-ui)
+ - [Jar](https://github.com/cjmalloy/jasper/releases/latest)
+
+It supports the following configuration options:
 
 | Environment Variable                                | Description                                                                                                                        | Default Value (in prod)                   |
 |-----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
