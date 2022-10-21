@@ -30,6 +30,7 @@ class JWTFilterTest {
     @BeforeEach
     public void setup() {
 		Props props = new Props();
+		props.getSecurity().getAuthentication().getJwt().setClientId("");
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
         props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 

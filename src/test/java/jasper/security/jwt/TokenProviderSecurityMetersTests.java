@@ -1,13 +1,5 @@
 package jasper.security.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.security.Key;
-import java.util.*;
-
-import jasper.config.Props;
-import jasper.management.SecurityMetersService;
-import jasper.security.AuthoritiesConstants;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -15,6 +7,9 @@ import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import jasper.config.Props;
+import jasper.management.SecurityMetersService;
+import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +17,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.security.Key;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TokenProviderSecurityMetersTests {
 
@@ -35,6 +37,7 @@ class TokenProviderSecurityMetersTests {
     @BeforeEach
     public void setup() {
 		Props props = new Props();
+		props.getSecurity().getAuthentication().getJwt().setClientId("");
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
         props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 

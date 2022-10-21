@@ -46,6 +46,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 		return Jwts
 			.builder()
 			.setSubject(authentication.getName())
+			.setAudience(props.getSecurity().getAuthentication().getJwt().getClientId())
 			.claim(props.getAuthoritiesClaim(), authorities)
 			.signWith(key, SignatureAlgorithm.HS512)
 			.setExpiration(validity)

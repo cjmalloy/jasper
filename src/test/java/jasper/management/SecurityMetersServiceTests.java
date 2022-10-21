@@ -1,14 +1,14 @@
 package jasper.management;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.Collection;
-
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Collection;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SecurityMetersServiceTests {
 
@@ -35,11 +35,13 @@ class SecurityMetersServiceTests {
 
         meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-signature").counter();
 
+        meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-audience").counter();
+
         meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "malformed").counter();
 
         Collection<Counter> counters = meterRegistry.find(INVALID_TOKENS_METER_EXPECTED_NAME).counters();
 
-        assertThat(counters).hasSize(4);
+        assertThat(counters).hasSize(5);
     }
 
     @Test
@@ -61,6 +63,12 @@ class SecurityMetersServiceTests {
         securityMetersService.trackTokenInvalidSignature();
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-signature").counter().count()).isEqualTo(1);
+
+        assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-audience").counter().count()).isZero();
+
+        securityMetersService.trackTokenInvalidAudience();
+
+        assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-audience").counter().count()).isEqualTo(1);
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "malformed").counter().count()).isZero();
 

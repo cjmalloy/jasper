@@ -35,6 +35,7 @@ class TokenProviderImplTest {
     @BeforeEach
     public void setup() {
         Props props = new Props();
+		props.getSecurity().getAuthentication().getJwt().setClientId("");
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
         props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 
@@ -96,6 +97,7 @@ class TokenProviderImplTest {
     void testKeyIsSetFromSecretWhenSecretIsNotEmpty() {
         final String secret = "NwskoUmKHZtzGRKJKVjsJF7BtQMMxNWi";
 		Props props = new Props();
+		props.getSecurity().getAuthentication().getJwt().setClientId("");
         props.getSecurity().getAuthentication().getJwt().setBase64Secret(Encoders.BASE64.encode(secret.getBytes()));
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
@@ -110,6 +112,7 @@ class TokenProviderImplTest {
     void testKeyIsSetFromBase64SecretWhenSecretIsEmpty() {
         final String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
 		Props props = new Props();
+		props.getSecurity().getAuthentication().getJwt().setClientId("");
         props.getSecurity().getAuthentication().getJwt().setBase64Secret(base64Secret);
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
