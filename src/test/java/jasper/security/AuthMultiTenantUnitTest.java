@@ -34,8 +34,7 @@ public class AuthMultiTenantUnitTest {
 	RoleHierarchy roleHierarchy = new SecurityConfiguration().roleHierarchy();
 
 	Auth getAuth(User user, String ...roles) {
-		var a = new Auth();
-		a.props = new Props();
+		var a = new Auth(new Props(), null, null, null);
 		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.props.setMultiTenant(true);
 		a.props.setLocalOrigin(user.getOrigin());
