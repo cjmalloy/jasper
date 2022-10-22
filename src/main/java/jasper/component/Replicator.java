@@ -69,6 +69,9 @@ public class Replicator {
 	@Autowired
 	TunnelClient tunnel;
 
+	@Autowired
+	StompBroker stomp;
+
 	@Timed(value = "jasper.pull", histogram = true)
 	public void pull(Ref remote) {
 		if (Arrays.stream(props.getReplicateOrigins()).noneMatch(remote.getOrigin()::equals)) {
@@ -112,6 +115,9 @@ public class Replicator {
 							validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
 						}
 						refRepository.save(ref);
+						if (pull.isGenerateMetadata()) {
+							stomp.updateRef(ref);
+						}
 					} catch (RuntimeException e) {
 						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					}

@@ -17,11 +17,10 @@ import jasper.security.jwt.JwtAuthentication;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -122,16 +121,13 @@ public class Auth {
 	public static final String TAG_WRITE_ACCESS_HEADER = "Tag-Write-Access";
 	public static final String TAG_READ_ACCESS_HEADER = "Tag-Read-Access";
 
-	@Autowired
 	Props props;
-	@Autowired
 	RoleHierarchy roleHierarchy;
-	@Autowired
 	UserRepository userRepository;
-	@Autowired
 	RefRepository refRepository;
 
 	// Cache
+	protected Authentication authentication;
 	protected Set<String> roles;
 	protected Claims claims;
 	protected String principal;
@@ -144,6 +140,29 @@ public class Auth {
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
+
+	public Auth(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
+		this.props = props;
+		this.roleHierarchy = roleHierarchy;
+		this.userRepository = userRepository;
+		this.refRepository = refRepository;
+	}
+
+	public void clear(Authentication authentication) {
+		this.authentication = authentication;
+		roles = null;
+		claims = null;
+		principal = null;
+		userTag = null;
+		origin = null;
+		client = null;
+		user = null;
+		publicTags = null;
+		readAccess = null;
+		writeAccess = null;
+		tagReadAccess = null;
+		tagWriteAccess = null;
+	}
 
 	@PostConstruct
 	public void log() {
@@ -207,6 +226,8 @@ public class Auth {
 		// Mods can read anything in their local origin if multi tenant
 		// In single tenant mods and above can read anything
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
@@ -217,7 +238,10 @@ public class Auth {
 		return captures(getReadAccess(), qualifiedTags);
 	}
 
-	protected boolean canReadRef(String url, String origin) {
+	/**
+	 * Can the user read a ref by tags.
+	 */
+	public boolean canReadRef(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
@@ -262,6 +286,28 @@ public class Auth {
 			if (owns(qualifiedTags)) return true;
 			// Check access tags
 			return captures(getWriteAccess(), qualifiedTags);
+		}
+		return false;
+	}
+
+	/**
+	 * Can subscribe to STOMP topic.
+	 */
+	public boolean canSubscribeTo(String destination) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
+		if (destination == null) return false;
+		if (destination.startsWith("/topic/tag/")) {
+			var tag = destination.substring("/topic/tag/".length()).replace('>', '_').replace('<', '+');
+            return canReadTag(tag);
+		} else if (destination.startsWith("/topic/ref/")) {
+			var ref = destination.substring("/topic/ref/".length());
+			var origin = ref.substring(0, ref.indexOf('/'));
+			if (origin.equals("default")) origin = "";
+			var url = ref.substring(ref.indexOf('/') + 1);
+			return canReadRef(url, origin);
+		} else if (destination.startsWith("/topic/response/")) {
+			return true;
 		}
 		return false;
 	}
@@ -357,6 +403,8 @@ public class Auth {
 	 */
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		var qt = qt(qualifiedTag);
 		// In single tenant mode, non private tags are all readable
 		// In multi tenant mode, local non private tags are all readable
@@ -409,6 +457,8 @@ public class Auth {
 	 * be read.
 	 */
 	public boolean canReadQuery(Query filter) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		// Anyone can read the empty query (retrieve all Refs)
 		if (filter.getQuery() == null) return true;
 		// Mod
@@ -757,8 +807,11 @@ public class Auth {
 		return false;
 	}
 
-	public AbstractAuthenticationToken getAuthentication() {
-		return (AbstractAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+	public Authentication getAuthentication() {
+		if (authentication == null) {
+			authentication = SecurityContextHolder.getContext().getAuthentication();
+		}
+		return authentication;
 	}
 
 	public Claims getClaims() {
