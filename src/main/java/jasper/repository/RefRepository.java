@@ -52,7 +52,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean existsByAlternateUrlAndOrigin(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/feed')
@@ -63,7 +63,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/origin/pull')
@@ -74,7 +74,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsPullByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/origin/push')
