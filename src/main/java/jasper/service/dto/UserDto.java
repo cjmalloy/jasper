@@ -1,7 +1,6 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import jasper.domain.proj.Tag;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,7 +10,7 @@ import java.util.List;
 
 @Getter
 @Setter
-@JsonInclude(Include.NON_NULL)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class UserDto implements Tag {
 	private String tag;
 	private String origin;

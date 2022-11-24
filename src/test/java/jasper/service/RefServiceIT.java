@@ -969,7 +969,7 @@ public class RefServiceIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isEmpty();
+			.isNull();
 	}
 
 	@Test

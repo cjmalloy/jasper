@@ -1172,7 +1172,7 @@ public class RefServiceMTIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isEmpty();
+			.isNull();
 	}
 
 	@Test

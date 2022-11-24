@@ -44,6 +44,7 @@ public class Meta {
 					.map(tag -> new Pair<>(
 						tag,
 						refRepository.findAllResponsesWithTag(ref.getUrl(), tag)))
+					.filter(p -> !p.getValue1().isEmpty())
 					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);
@@ -54,7 +55,7 @@ public class Meta {
 				Map<String, String> plugins = pluginRepository
 					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
 					.stream()
-					.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
+					.filter(tag -> ref.getTags().contains(tag))
 					.collect(Collectors.toMap(tag -> tag, tag -> ref.getUrl()));
 				List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
 				for (var source : sources) {
