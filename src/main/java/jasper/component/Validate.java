@@ -163,7 +163,7 @@ public class Validate {
 		for (var sourceUrl : ref.getSources()) {
 			var sources = refRepository.findAllByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getPublished());
 			for (var source : sources) {
-				throw new PublishDateException(ref.getUrl(), source.getUrl());
+				ref.setPublished(source.getPublished().plusMillis(1));
 			}
 		}
 	}
