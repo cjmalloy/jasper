@@ -169,7 +169,7 @@ public class Validate {
 	}
 
 	private void responses(Ref ref) {
-		var responses = refRepository.findAllResponsesPublishedBefore(ref.getUrl(), ref.getPublished());
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getPublished());
 		for (var response : responses) {
 			throw new PublishDateException(response, ref.getUrl());
 		}

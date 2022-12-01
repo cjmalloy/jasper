@@ -30,9 +30,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE ref.published < :date
+		WHERE ref.published <= :date
 			AND jsonb_exists(ref.sources, :url)""")
-	List<String> findAllResponsesPublishedBefore(String url, Instant date);
+	List<String> findAllResponsesPublishedBeforeThanEqual(String url, Instant date);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
