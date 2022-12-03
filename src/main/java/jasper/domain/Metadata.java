@@ -21,6 +21,7 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class Metadata {
 
+	@Builder.Default
 	private Instant modified = Instant.now();
 	private List<String> responses;
 	private List<String> internalResponses;
