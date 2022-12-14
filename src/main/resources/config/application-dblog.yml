@@ -4,4 +4,4 @@ logging:
     org.hibernate.SQL: DEBUG
     org.springframework.orm.jpa: DEBUG
     org.springframework.transaction: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE

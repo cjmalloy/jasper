@@ -1,5 +1,6 @@
 package jasper.component.cron;
 
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Tagger;
 import jasper.component.channel.Watch;
@@ -13,7 +14,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
