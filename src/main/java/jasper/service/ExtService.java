@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
 import jasper.component.IngestExt;
 import jasper.config.Props;
 import jasper.domain.Ext;
@@ -26,7 +27,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
