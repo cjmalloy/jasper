@@ -1,5 +1,6 @@
 package jasper.component.delta;
 
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.FileCache;
 import jasper.component.Tagger;
@@ -9,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
 
 @Profile("proxy & file-cache")
 @Component

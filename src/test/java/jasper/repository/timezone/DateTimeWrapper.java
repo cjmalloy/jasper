@@ -3,7 +3,7 @@ package jasper.repository.timezone;
 import java.io.Serializable;
 import java.time.*;
 import java.util.Objects;
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "jhi_date_time_wrapper")

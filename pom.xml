@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.18</version>
+		<version>3.2.9</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>jasper</groupId>
@@ -28,18 +28,19 @@
 		<testcontainers.version>1.20.1</testcontainers.version>
 		<mapstruct.version>1.6.0</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.6</jackson-databind-nullable.version>
-		<hibernate-types-55.version>2.21.1</hibernate-types-55.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.12.5</jjwt.version>
-		<spring-cloud.version>2021.0.9</spring-cloud.version>
-		<problem-spring-web.version>0.27.0</problem-spring-web.version>
+		<spring-cloud.version>2023.0.3</spring-cloud.version>
+		<problem-spring-web.version>0.29.1</problem-spring-web.version>
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
+		<commons.collections4.version>4.4</commons.collections4.version>
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
-		<apache-httpclient.version>4.5.14</apache-httpclient.version>
+		<apache-httpclient.version>5.2.1</apache-httpclient.version>
 		<commons-io.version>2.16.1</commons-io.version>
+		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.18.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<fabric8.version>6.4.1</fabric8.version>
@@ -85,8 +86,8 @@
 			<artifactId>liquibase-core</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>javax.annotation</groupId>
-			<artifactId>javax.annotation-api</artifactId>
+			<groupId>jakarta.annotation</groupId>
+			<artifactId>jakarta.annotation-api</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.module</groupId>
@@ -94,7 +95,7 @@
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
-			<artifactId>jackson-datatype-hibernate5</artifactId>
+			<artifactId>jackson-datatype-hibernate5-jakarta</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
@@ -129,11 +130,17 @@
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-collections4</artifactId>
+			<version>${commons.collections4.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.vavr</groupId>
+			<artifactId>vavr</artifactId>
+			<version>${varv.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openapitools</groupId>
@@ -151,22 +158,17 @@
 			<version>${json-patch.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.hibernate</groupId>
+			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-jpamodelgen</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.hibernate</groupId>
+			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-core</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.hibernate.validator</groupId>
 			<artifactId>hibernate-validator</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vladmihalcea</groupId>
-			<artifactId>hibernate-types-55</artifactId>
-			<version>${hibernate-types-55.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.mapstruct</groupId>
@@ -260,8 +262,8 @@
 			<version>${rome.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
 			<version>${apache-httpclient.version}</version>
 		</dependency>
 		<dependency>
