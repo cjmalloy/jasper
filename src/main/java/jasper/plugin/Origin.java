@@ -76,6 +76,7 @@ public class Origin {
 	}
 
 	private void migrateTags(List<String> tags, ObjectNode plugins) {
+		if (tags == null) return;
 		for (int i = tags.size() - 1; i >= 0; i--) {
 			var tag = tags.get(i);
 			if (removeTags != null && removeTags.contains(tag)) {
