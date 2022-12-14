@@ -186,6 +186,7 @@ print(yaml.dump({
 		var output = responses.get(0);
 		assertThat(output.getComment()).isEqualTo("TEST");
 	}
+
 	@Test
 	void testShellJson() throws UntrustedScriptException {
 		// language=Bash

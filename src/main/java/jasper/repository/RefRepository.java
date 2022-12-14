@@ -1,6 +1,5 @@
 package jasper.repository;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
@@ -47,9 +46,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		String origin,
 		String title,
 		String comment,
-		ArrayNode tags,
-		ArrayNode sources,
-		ArrayNode alternateUrls,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
 		ObjectNode plugins,
 		Metadata metadata,
 		Instant published,
