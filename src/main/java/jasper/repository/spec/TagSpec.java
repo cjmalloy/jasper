@@ -21,7 +21,7 @@ public class TagSpec {
 			cb.not(
 				cb.like(
 					root.get("tag"),
-					"\\_%"));
+					"\\_%", '\\'));
 	}
 
 	public static <T extends Tag> Specification<T> isTag(String tag) {

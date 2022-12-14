@@ -3,7 +3,12 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vladmihalcea.hibernate.type.json.JsonType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.domain.validator.SchemaValid;
@@ -11,18 +16,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-import org.hibernate.annotations.TypeDefs;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -32,9 +30,6 @@ import static jasper.config.JacksonConfiguration.om;
 @Getter
 @Setter
 @IdClass(TagId.class)
-@TypeDefs({
-	@TypeDef(name = "json", typeClass = JsonType.class)
-})
 public class Plugin implements Tag {
 	public static final String REGEX = "[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
@@ -60,15 +55,15 @@ public class Plugin implements Tag {
 	@Length(max = NAME_LEN)
 	private String name;
 
-	@Type(type = "json")
+	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(columnDefinition = "jsonb")
 	private ObjectNode config;
 
-	@Type(type = "json")
+	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(columnDefinition = "jsonb")
 	private JsonNode defaults;
 
-	@Type(type = "json")
+	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(columnDefinition = "jsonb")
 	@SchemaValid
 	private ObjectNode schema;
