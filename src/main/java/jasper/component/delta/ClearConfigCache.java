@@ -17,7 +17,7 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static jasper.domain.proj.HasOrigin.origin;
-import static net.logstash.logback.util.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 public class ClearConfigCache {

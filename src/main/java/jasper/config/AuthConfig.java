@@ -8,10 +8,10 @@ import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
 import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplNop;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -24,7 +24,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.annotation.ApplicationScope;
 
 import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -47,14 +46,16 @@ public class AuthConfig {
 
 	@Bean
 	@Profile("no-ssl")
-	RestTemplate restTemplateBypassSSL()
-		throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+	RestTemplate restTemplateBypassSSL() throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 		HostnameVerifier hostnameVerifier = (s, sslSession) -> true;
-		SSLContext sslContext = SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
-		SSLConnectionSocketFactory csf = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
-		CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(csf).build();
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		var sslContext = SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
+		var csf = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
+		var cm = PoolingHttpClientConnectionManagerBuilder.create()
+				.setSSLSocketFactory(csf)
+				.build();
+		var httpClient = HttpClients.custom().setConnectionManager(cm).build();
+		var requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setHttpClient(httpClient);
 		return new RestTemplate(requestFactory);
 	}

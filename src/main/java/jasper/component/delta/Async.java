@@ -1,5 +1,6 @@
 package jasper.component.delta;
 
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.Ref;
@@ -18,7 +19,6 @@ import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
