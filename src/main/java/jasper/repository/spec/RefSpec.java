@@ -1,11 +1,11 @@
 package jasper.repository.spec;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import org.springframework.data.jpa.domain.Specification;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
 import java.time.Instant;
 import java.util.List;
 
@@ -18,11 +18,11 @@ public class RefSpec {
 			var searchQuery = cb.function("websearch_to_tsquery", Object.class, cb.literal(search));
 			if (rankedOrder) {
 				query.orderBy(cb.desc(cb.function("ts_rank_cd", Object.class,
-					root.get(Ref_.textsearchEn), searchQuery)));
+					root.get("textsearch_en"), searchQuery)));
 			}
 			return cb.isTrue(
 				cb.function("ts_match_vq", Boolean.class,
-					root.get(Ref_.textsearchEn),
+					root.get("textsearch_en"),
 					searchQuery));
 		};
 	}
@@ -42,12 +42,12 @@ public class RefSpec {
 	public static Specification<Ref> isNotObsolete() {
 		return (root, query, cb) ->
 			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(root.get("metadata")),
 				cb.isNull(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal("obsolete"))),
 				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal("obsolete")),
 					cb.literal("true")));
 	}
@@ -95,7 +95,7 @@ public class RefSpec {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
 				cb.function("jsonb_object_field", List.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal("responses")),
 				cb.literal(url)));
 	}
@@ -104,7 +104,7 @@ public class RefSpec {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
 				cb.function("jsonb_object_field", List.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal("internalResponses")),
 				cb.literal(url)));
 	}
@@ -130,15 +130,15 @@ public class RefSpec {
 	public static Specification<Ref> hasNoResponses() {
 		return (root, query, cb) ->
 			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(root.get("metadata")),
 				cb.isNull(
 					cb.function("jsonb_object_field", List.class,
-						root.get(Ref_.metadata),
+						root.get("metadata"),
 						cb.literal("responses"))),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class,
 						cb.function("jsonb_object_field", List.class,
-							root.get(Ref_.metadata),
+							root.get("metadata"),
 							cb.literal("responses"))),
 					cb.literal(0)));
 	}
@@ -146,22 +146,22 @@ public class RefSpec {
 	public static Specification<Ref> hasNoPluginResponses(String plugin) {
 		return (root, query, cb) ->
 			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(root.get("metadata")),
 				cb.isNull(
 					cb.function("jsonb_object_field", List.class,
-						root.get(Ref_.metadata),
+						root.get("metadata"),
 						cb.literal("plugins"))),
 				cb.isNull(
 					cb.function("jsonb_object_field", List.class,
 						cb.function("jsonb_object_field", List.class,
-							root.get(Ref_.metadata),
+							root.get("metadata"),
 							cb.literal("plugins")),
 						cb.literal(plugin))),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class,
 						cb.function("jsonb_object_field", List.class,
 							cb.function("jsonb_object_field", List.class,
-								root.get(Ref_.metadata),
+								root.get("metadata"),
 								cb.literal("plugins")),
 							cb.literal(plugin))),
 					cb.literal(0)));
@@ -170,12 +170,12 @@ public class RefSpec {
 	public static Specification<Ref> hasPluginResponses(String plugin) {
 		return (root, query, cb) ->
 			cb.and(
-				cb.isNotNull(root.get(Ref_.metadata)),
+				cb.isNotNull(root.get("metadata")),
 				cb.gt(
 					cb.function("jsonb_array_length", Long.class,
 						cb.function("jsonb_object_field", List.class,
 							cb.function("jsonb_object_field", List.class,
-								root.get(Ref_.metadata),
+								root.get("metadata"),
 								cb.literal("plugins")),
 							cb.literal(plugin))),
 					cb.literal(0)));
@@ -248,7 +248,7 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
 	}
@@ -257,7 +257,7 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
+					root.get("metadata"),
 					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
 	}

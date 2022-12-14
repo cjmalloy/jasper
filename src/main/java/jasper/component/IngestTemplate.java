@@ -1,6 +1,9 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jasper.config.Props;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
@@ -17,9 +20,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -107,7 +107,7 @@ public class IngestTemplate {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-				if (e.getCause() instanceof ConstraintViolationException c) {
+				if (e instanceof ConstraintViolationException c) {
 					if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("template_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();

@@ -1,5 +1,6 @@
 package jasper.config;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
@@ -38,7 +39,6 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;

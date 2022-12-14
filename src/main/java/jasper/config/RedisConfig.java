@@ -23,7 +23,6 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
-import org.springframework.integration.dsl.IntegrationFlows;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.util.CallerBlocksPolicy;
 import org.springframework.messaging.Message;
@@ -164,7 +163,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishCursorFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(cursorTxChannel)
 			.handle(new CustomPublishingMessageHandler<Instant>() {
 				@Override
@@ -182,7 +181,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeCursorFlow() {
-		return IntegrationFlows.from(cursorRedisChannel())
+		return IntegrationFlow
+			.from(cursorRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(cursorRxChannel)
 			.get();
@@ -203,7 +203,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishRefFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(refTxChannel)
 			.handle(new CustomPublishingMessageHandler<RefDto>() {
 				@Override
@@ -226,7 +226,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeRefFlow() {
-		return IntegrationFlows.from(refRedisChannel())
+		return IntegrationFlow
+			.from(refRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(refRxChannel)
 			.get();
@@ -251,7 +252,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishTagFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(tagTxChannel)
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
@@ -269,7 +270,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeTagFlow() {
-		return IntegrationFlows.from(tagRedisChannel())
+		return IntegrationFlow
+			.from(tagRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(tagRxChannel)
 			.get();
@@ -291,7 +293,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishResponseFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(responseTxChannel)
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
@@ -309,7 +311,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeResponseFlow() {
-		return IntegrationFlows.from(responseRedisChannel())
+		return IntegrationFlow
+			.from(responseRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(responseRxChannel)
 			.get();
@@ -331,7 +334,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishUserFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(userTxChannel)
 			.handle(new CustomPublishingMessageHandler<UserDto>() {
 				@Override
@@ -354,7 +357,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeUserFlow() {
-		return IntegrationFlows.from(userRedisChannel())
+		return IntegrationFlow
+			.from(userRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(userRxChannel)
 			.get();
@@ -380,7 +384,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishExtFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(extTxChannel)
 			.handle(new CustomPublishingMessageHandler<ExtDto>() {
 				@Override
@@ -403,7 +407,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeExtFlow() {
-		return IntegrationFlows.from(extRedisChannel())
+		return IntegrationFlow
+			.from(extRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(extRxChannel)
 			.get();
@@ -429,7 +434,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishPluginFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(pluginTxChannel)
 			.handle(new CustomPublishingMessageHandler<PluginDto>() {
 				@Override
@@ -452,7 +457,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribePluginFlow() {
-		return IntegrationFlows.from(pluginRedisChannel())
+		return IntegrationFlow
+			.from(pluginRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(pluginRxChannel)
 			.get();
@@ -478,7 +484,7 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisPublishTemplateFlow() {
-		return IntegrationFlows
+		return IntegrationFlow
 			.from(templateTxChannel)
 			.handle(new CustomPublishingMessageHandler<TemplateDto>() {
 				@Override
@@ -501,7 +507,8 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeTemplateFlow() {
-		return IntegrationFlows.from(templateRedisChannel())
+		return IntegrationFlow
+			.from(templateRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
 			.channel(templateRxChannel)
 			.get();
