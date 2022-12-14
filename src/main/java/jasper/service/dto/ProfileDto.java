@@ -1,10 +1,9 @@
 package jasper.service.dto;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
-
-import javax.validation.constraints.Pattern;
 
 import static jasper.domain.User.QTAG_REGEX;
 import static jasper.domain.proj.Tag.QTAG_LEN;

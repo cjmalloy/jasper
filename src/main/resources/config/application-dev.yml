@@ -111,11 +111,4 @@ jasper:
             # Token is valid 24 hours
             token-validity-in-seconds: 86400
             token-validity-in-seconds-for-remember-me: 2592000
-  logging:
-    use-json-format: false # By default, logs are not in Json format
-    logstash: # Forward logs to logstash over a socket, used by LoggingConfiguration
-      enabled: false
-      host: localhost
-      port: 5000
-      queue-size: 512
 
