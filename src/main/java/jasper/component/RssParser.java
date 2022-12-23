@@ -240,7 +240,8 @@ public class RssParser {
 	private void parseAudio(SyndEntry entry, Map<String, Object> plugins) {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
-				if ("audio/mpeg".equals(e.getType())) {
+				if (e.getType() == null) continue;
+				if (e.getType().startsWith("audio/")) {
 					plugins.put("plugin/audio",  Map.of("url", e.getUrl()));
 					return;
 				}
