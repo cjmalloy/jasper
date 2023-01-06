@@ -26,7 +26,6 @@ public class QualifiedTag {
 		if (not) qt = qt.substring(1);
 		var index = qt.indexOf("@");
 		if (index == -1) {
-			if (qt.isEmpty()) throw new UnsupportedOperationException();
 			tag = qt.equals("*") ? "" : qt;
 			origin = "";
 		} else {
