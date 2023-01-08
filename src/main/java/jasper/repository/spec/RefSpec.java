@@ -106,6 +106,10 @@ public class RefSpec {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(
+					cb.function("jsonb_object_field", List.class,
+						root.get(Ref_.metadata),
+						cb.literal("responses"))),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class,
 						cb.function("jsonb_object_field", List.class,
@@ -118,6 +122,16 @@ public class RefSpec {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(
+					cb.function("jsonb_object_field", List.class,
+						root.get(Ref_.metadata),
+						cb.literal("plugins"))),
+				cb.isNull(
+					cb.function("jsonb_object_field", List.class,
+						cb.function("jsonb_object_field", List.class,
+							root.get(Ref_.metadata),
+							cb.literal("plugins")),
+						cb.literal(plugin))),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class,
 						cb.function("jsonb_object_field", List.class,
