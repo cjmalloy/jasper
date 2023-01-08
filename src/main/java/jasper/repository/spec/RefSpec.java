@@ -84,6 +84,15 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
+	public static Specification<Ref> hasNoTags() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.tags)),
+				cb.equal(
+					cb.function("jsonb_array_length", Long.class, root.get(Ref_.tags)),
+					cb.literal(0)));
+	}
+
 	public static Specification<Ref> hasNoSources() {
 		return (root, query, cb) ->
 			cb.or(

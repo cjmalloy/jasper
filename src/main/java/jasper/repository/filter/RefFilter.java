@@ -15,6 +15,7 @@ import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasNoPluginResponses;
 import static jasper.repository.spec.RefSpec.hasNoResponses;
 import static jasper.repository.spec.RefSpec.hasNoSources;
+import static jasper.repository.spec.RefSpec.hasNoTags;
 import static jasper.repository.spec.RefSpec.hasPluginResponses;
 import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.hasSource;
@@ -36,6 +37,7 @@ public class RefFilter implements Query {
 	private boolean rankedOrder;
 	private String sources;
 	private String responses;
+	private boolean untagged;
 	private boolean uncited;
 	private boolean unsourced;
 	private String pluginResponse;
@@ -65,6 +67,9 @@ public class RefFilter implements Query {
 		if (isNotBlank(responses)) {
 			// TODO: query across origins
 			result = result.and(hasSource(responses));
+		}
+		if (untagged) {
+			result = result.and(hasNoTags());
 		}
 		if (uncited) {
 			// TODO: query across origins

@@ -126,6 +126,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
+		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
@@ -165,6 +166,7 @@ public class RefController {
 				.rankedOrder(rankedSort)
 				.sources(sources)
 				.responses(responses)
+				.untagged(untagged)
 				.uncited(uncited)
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
@@ -184,6 +186,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
+		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -198,6 +201,7 @@ public class RefController {
 				.url(url)
 				.sources(sources)
 				.responses(responses)
+				.untagged(untagged)
 				.uncited(uncited)
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
