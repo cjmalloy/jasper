@@ -24,6 +24,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 			AND t.schema IS NOT NULL
 			AND (t.tag = ''
 				OR t.tag = :tag
+				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
 				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))""")
