@@ -56,6 +56,7 @@ import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 @RequestScope
@@ -360,14 +361,15 @@ public class Auth {
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
 			var principal = getPrincipal();
-			if (principal == null) return null;
+			if (principal == null) principal = "";
 			if (principal.contains("@")) {
 				principal = principal.substring(0, principal.indexOf('@'));
 			}
+			var rhs = isNotBlank(principal) ? "/" + principal : "";
 			if (hasRole(PRIVATE)) {
-				userTag = selector("_user/" + principal + getOrigin());
+				userTag = selector("_user" + rhs + getOrigin());
 			} else {
-				userTag = selector("+user/" + principal + getOrigin());
+				userTag = selector("+user" + rhs + getOrigin());
 			}
 		}
 		return userTag;
