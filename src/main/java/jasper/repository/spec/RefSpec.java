@@ -163,24 +163,6 @@ public class RefSpec {
 				cb.literal(tag)));
 	}
 
-	public static Specification<Ref>hasAnyTag(List<String> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		if (tags.size() == 1) return hasTag(tags.get(0));
-		return (root, query, cb) -> cb.isTrue(
-			cb.function("jsonb_exists_any", Boolean.class,
-				root.get("tags"),
-				literal(cb, tags)));
-	}
-
-	public static Specification<Ref> hasAllTags(List<String> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		if (tags.size() == 1) return hasTag(tags.get(0));
-		return (root, query, cb) -> cb.isTrue(
-			cb.function("jsonb_exists_all", Boolean.class,
-				root.get("tags"),
-				literal(cb, tags)));
-	}
-
 	public static Specification<Ref> hasAnyQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		var spec = Specification.<Ref>where(null);
