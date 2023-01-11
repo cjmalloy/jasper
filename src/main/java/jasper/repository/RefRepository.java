@@ -59,7 +59,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean existsByAlternateUrlAndOrigin(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		SELECT *, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/feed')
@@ -70,7 +70,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		SELECT *, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/origin')
