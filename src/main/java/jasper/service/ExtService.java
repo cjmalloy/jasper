@@ -65,7 +65,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Ext get(String qualifiedTag) {
-		return extRepository.findOneByQualifiedTag(qualifiedTag)
+		return extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
 	}
 
@@ -83,7 +83,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void update(Ext ext) {
-		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
+		var maybeExisting = extRepository.findFirstByQualifiedTagOrderByModifiedDesc(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
@@ -99,7 +99,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void patch(String qualifiedTag, JsonPatch patch) {
-		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
+		var maybeExisting = extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + qualifiedTag);
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));

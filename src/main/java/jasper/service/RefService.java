@@ -64,7 +64,7 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
-		var result = refRepository.findOneByUrlAndOrigin(url, origin)
+		var result = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		return mapper.domainToDto(result);
@@ -95,7 +95,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void update(Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
@@ -106,7 +106,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void patch(String url, String origin, JsonPatch patch) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		try {
 			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));

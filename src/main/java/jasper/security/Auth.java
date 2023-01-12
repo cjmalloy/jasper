@@ -119,14 +119,14 @@ public class Auth {
 	}
 
 	protected boolean canReadRef(String url, String origin) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) return false;
 		return canReadRef(maybeExisting.get());
 	}
 
 	public boolean canWriteRef(Ref ref) {
 		if (!canWriteRef(ref.getUrl(), ref.getOrigin())) return false;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		return newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canAddTag);
 	}
 
@@ -134,7 +134,7 @@ public class Auth {
 		if (!local(origin)) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null) {
@@ -245,7 +245,7 @@ public class Auth {
 		if (!local(user.getOrigin())) return false;
 		if (hasRole(MOD)) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
@@ -377,7 +377,7 @@ public class Auth {
 
 	public Optional<User> getUser() {
 		if (user == null) {
-			user = userRepository.findOneByQualifiedTag(getUserTag().toString());
+			user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(getUserTag().toString());
 		}
 		return user;
 	}

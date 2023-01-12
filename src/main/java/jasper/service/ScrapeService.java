@@ -43,7 +43,7 @@ public class ScrapeService {
 	@PreAuthorize("hasRole('MOD') and @auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findOneByUrlAndOrigin(url, origin)
+		var source = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		if (source.getTags().contains("+plugin/feed")) {
 			rssParser.scrape(source);

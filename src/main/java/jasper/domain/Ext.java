@@ -56,6 +56,8 @@ public class Ext implements Tag {
 	@Column(columnDefinition = "jsonb")
 	private JsonNode config;
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

@@ -53,7 +53,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
@@ -71,7 +71,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("custom"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("custom").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -373,7 +373,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("+custom"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("+custom").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("+custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+custom");
 		assertThat(fetched.getName())
@@ -396,7 +396,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("custom"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("custom").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -418,7 +418,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
@@ -441,7 +441,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -468,7 +468,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("_secret"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("_secret").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
@@ -495,7 +495,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("_secret"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("_secret").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
@@ -518,7 +518,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("public"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("public").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("public").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("public");
 		assertThat(fetched.getName())
@@ -554,7 +554,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("custom"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("custom").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("custom").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("custom");
 		assertThat(fetched.getName())
@@ -595,7 +595,7 @@ public class ExtServiceIT {
 
 		assertThat(extRepository.existsByQualifiedTag("_secret"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("_secret").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("_secret").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())

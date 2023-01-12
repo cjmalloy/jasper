@@ -53,7 +53,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
 		ref.addHierarchicalTags();
@@ -80,7 +80,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void delete(String url, String origin) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		meta.update(null, maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);

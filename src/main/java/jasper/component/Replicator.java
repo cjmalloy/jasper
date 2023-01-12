@@ -67,7 +67,7 @@ public class Replicator {
 			for (var ref : client.ref(url, options)) {
 				config.migrate(ref);
 				if (config.isGenerateMetadata()) {
-					var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+					var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 					meta.update(ref, maybeExisting.orElse(null));
 				}
 				refRepository.save(ref);

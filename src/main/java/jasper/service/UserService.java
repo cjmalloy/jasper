@@ -55,7 +55,7 @@ public class UserService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
-		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
+		var result = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
 		return mapper.domainToDto(result);
 	}
@@ -75,7 +75,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void update(User user) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));

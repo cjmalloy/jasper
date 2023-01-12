@@ -71,6 +71,8 @@ public class Plugin implements Tag {
 
 	private boolean generateMetadata = false;
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

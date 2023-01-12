@@ -30,7 +30,7 @@ public class TaggingService {
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void create(String tag, String url, String origin) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
@@ -41,7 +41,7 @@ public class TaggingService {
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void delete(String tag, String url, String origin) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
@@ -53,7 +53,7 @@ public class TaggingService {
 	@PreAuthorize("@auth.canTagAll(#tags, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void tag(List<String> tags, String url, String origin) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		ref.removePrefixTags();

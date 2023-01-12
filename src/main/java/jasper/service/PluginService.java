@@ -48,7 +48,7 @@ public class PluginService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Plugin get(String qualifiedTag) {
-		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
+		return pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 							   .orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
 
@@ -73,7 +73,7 @@ public class PluginService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
-		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
+		var maybeExisting = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());

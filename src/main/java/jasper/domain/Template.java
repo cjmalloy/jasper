@@ -67,6 +67,8 @@ public class Template implements Tag {
 	@SchemaValid
 	private ObjectNode schema;
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

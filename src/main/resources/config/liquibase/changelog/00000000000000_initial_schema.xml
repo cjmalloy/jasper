@@ -44,7 +44,7 @@
 				<constraints nullable="false"/>
 			</column>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 		</createTable>
 		<sql>
@@ -61,9 +61,6 @@
 		<createIndex tableName="ref" indexName="ref_published_index">
 			<column name="published"/>
 		</createIndex>
-		<createIndex tableName="ref" indexName="ref_modified_index">
-			<column name="modified"/>
-		</createIndex>
 		<addUniqueConstraint tableName="ref" columnNames="modified, origin" />
 
 		<createTable tableName="ext">
@@ -76,12 +73,9 @@
 			<column name="name" type="TEXT"/>
 			<column name="config" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 		</createTable>
-		<createIndex tableName="ext" indexName="ext_modified_index">
-			<column name="modified"/>
-		</createIndex>
 		<addUniqueConstraint tableName="ext" columnNames="modified, origin" />
 
 		<createTable tableName="users">
@@ -97,13 +91,10 @@
 			<column name="tag_read_access" type="JSONB"/>
 			<column name="tag_write_access" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="pub_key" type="BYTEA"/>
 		</createTable>
-		<createIndex tableName="users" indexName="users_modified_index">
-			<column name="modified"/>
-		</createIndex>
 		<addUniqueConstraint tableName="users" columnNames="modified, origin" />
 
 		<createTable tableName="plugin">
@@ -121,12 +112,9 @@
 				<constraints nullable="false"/>
 			</column>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 		</createTable>
-		<createIndex tableName="plugin" indexName="plugin_modified_index">
-			<column name="modified"/>
-		</createIndex>
 		<addUniqueConstraint tableName="plugin" columnNames="modified, origin" />
 
 		<createTable tableName="template">
@@ -141,12 +129,9 @@
 			<column name="defaults" type="JSONB"/>
 			<column name="schema" type="JSONB"/>
 			<column name="modified" type="TIMESTAMP">
-				<constraints nullable="false"/>
+				<constraints primaryKey="true" nullable="false"/>
 			</column>
 		</createTable>
-		<createIndex tableName="template" indexName="template_modified_index">
-			<column name="modified"/>
-		</createIndex>
 		<addUniqueConstraint tableName="template" columnNames="modified, origin" />
 
 	</changeSet>

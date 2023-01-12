@@ -48,7 +48,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Template get(String qualifiedTag) {
-		return templateRepository.findOneByQualifiedTag(qualifiedTag)
+		return templateRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 								 .orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
 	}
 
@@ -65,7 +65,7 @@ public class TemplateService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void update(Template template) {
-		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+		var maybeExisting = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Template "+ template.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Template");

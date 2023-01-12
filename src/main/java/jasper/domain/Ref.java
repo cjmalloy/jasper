@@ -101,6 +101,8 @@ public class Ref implements HasTags {
 	@Column(updatable = false)
 	private Instant created = Instant.now();
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
