@@ -2,10 +2,10 @@ name: Publish Docker
 
 on:
   push:
-    branches: [ master ]
-    tags: [ 'v*.*.*' ]
+    branches: [ archive ]
+    tags: [ 'archive-v*.*.*' ]
   pull_request:
-    branches: [ master ]
+    branches: [ archive ]
 
 env:
   # Use docker.io for Docker Hub if empty
