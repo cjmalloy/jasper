@@ -6,6 +6,7 @@ import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
 import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.module.DCModule;
+import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
@@ -153,22 +154,27 @@ public class RssParser {
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
-		if (config.isScrapeDescription()) {
-			String desc = "";
-			if (entry.getDescription() != null) {
-				desc = entry.getDescription().getValue();
-				if (config.isRemoveDescriptionIndent()) {
-					desc = desc.replaceAll("(?m)^\\s+", "");
-				}
-				ref.setComment(desc);
+		var comment = "";
+		if (config.isScrapeDescription() || config.isScrapeContents()) {
+			SyndContent desc = null;
+			if (config.isScrapeContents() && !entry.getContents().isEmpty()) {
+				desc = getPreferredType(entry.getContents());
+			} else if (config.isScrapeDescription() && entry.getDescription() != null) {
+				desc = entry.getDescription();
 			}
-			var dc = (DCModule) entry.getModule(DCModule.URI);
-			if (dc.getCreator() != null) {
-				if (!desc.isBlank()) desc += "\n\n\n\n";
-				desc += dc.getCreator();
-				ref.setComment(desc);
+			if (desc != null) {
+				comment = desc.getValue();
+				if (isHtml(desc)) {
+					comment = comment.replaceAll("(?m)^\\s+", "");
+				}
 			}
 		}
+		var dc = (DCModule) entry.getModule(DCModule.URI);
+		if (config.isScrapeAuthor() && !dc.getCreators().isEmpty()) {
+			if (!comment.isBlank()) comment += "\n\n\n\n";
+			comment += String.join(", ", dc.getCreators());
+		}
+		ref.setComment(comment);
 		if (!tagSet.isEmpty()) {
 			var plugins = new HashMap<String, Object>();
 			if (tagSet.contains("plugin/thumbnail")) {
@@ -197,6 +203,23 @@ public class RssParser {
 			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
 		return ref;
+	}
+
+	private SyndContent getPreferredType(List<SyndContent> contents) {
+		for (var c : contents) if (isHtml(c)) return c;
+		for (var c : contents) if (isText(c)) return c;
+		return contents.get(0);
+	}
+
+	private boolean isHtml(SyndContent content) {
+		var t = content.getType();
+		return t != null && (t.equals("text/html") || t.equals("html"));
+	}
+
+	private boolean isText(SyndContent content) {
+		var t = content.getType();
+		// When used for the description of an entry, if null 'text/plain' must be assumed.
+		return t == null || t.equals("text/plain");
 	}
 
 	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {

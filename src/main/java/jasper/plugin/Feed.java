@@ -16,9 +16,10 @@ public class Feed {
 	private String origin;
 	private List<String> addTags;
 	private Instant lastScrape;
-	private boolean disableEtag = false;
+	private boolean disableEtag;
 	private String etag;
 	private Duration scrapeInterval;
-	private boolean scrapeDescription = true;
-	private boolean removeDescriptionIndent = false;
+	private boolean scrapeDescription;
+	private boolean scrapeContents;
+	private boolean scrapeAuthor;
 }
