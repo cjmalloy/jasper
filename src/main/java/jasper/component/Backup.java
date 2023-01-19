@@ -1,7 +1,6 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
@@ -11,7 +10,6 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Feed;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -168,7 +166,6 @@ public class Backup {
 		try (FileSystem zipfs = FileSystems.newFileSystem(path(id))) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, zipfs.getPath("/ref.json"), Ref.class);
-				upgradeFeed(zipfs.getPath("/feed.json"));
 			}
 			if (options == null || options.isExt()) {
 				restoreRepo(extRepository, zipfs.getPath("/ext.json"), Ext.class);
@@ -198,36 +195,6 @@ public class Backup {
 		}
 	}
 
-	@Deprecated
-	private void upgradeFeed(Path path) {
-		try {
-			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), OldFeed.class, objectMapper)
-				.forEachRemaining(oldFeed -> {
-					var ref = new Ref();
-					ref.setUrl(oldFeed.url);
-					ref.setOrigin(oldFeed.origin);
-					ref.setTitle(oldFeed.name);
-					ref.setTags(List.of("public", "internal", "+plugin/feed"));
-					ref.setCreated(oldFeed.modified);
-					ref.setModified(oldFeed.modified);
-					ref.setPublished(oldFeed.modified);
-					var feed = new Feed();
-					feed.setAddTags(oldFeed.tags);
-					feed.setLastScrape(oldFeed.lastScrape);
-					feed.setScrapeInterval(oldFeed.scrapeInterval);
-					feed.setScrapeDescription(oldFeed.scrapeDescription);
-					feed.setRemoveDescriptionIndent(oldFeed.removeDescriptionIndent);
-					if (ref.getPlugins() == null) {
-						ref.setPlugins(objectMapper.getNodeFactory().objectNode());
-					}
-					ref.getPlugins().set("+plugin/feed", objectMapper.convertValue(feed, ObjectNode.class));
-					refRepository.save(ref);
-				});
-		} catch (IOException e) {
-			// Ignore missing file
-		}
-	}
-
 	@Timed(value = "jasper.backup", histogram = true)
 	public void store(String id, byte[] zipFile) throws IOException {
 		var path = path(id);
@@ -250,17 +217,5 @@ public class Backup {
 
 	URI zipfs(String id) {
 		return URI.create("jar:file:" + props.getStorage() + "/backups/" + id + ".zip");
-	}
-
-	public static class OldFeed {
-		public String url;
-		public String origin;
-		public String name;
-		public List<String> tags;
-		public Instant modified;
-		public Instant lastScrape;
-		public Duration scrapeInterval;
-		public boolean scrapeDescription;
-		public boolean removeDescriptionIndent;
 	}
 }
