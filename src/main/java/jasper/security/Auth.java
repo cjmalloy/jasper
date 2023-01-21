@@ -114,14 +114,12 @@ public class Auth {
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
 		if (captures(getPublicTag(), qualifiedTags)) return true;
 		if (!isLoggedIn()) return false;
-		return captures(getUserTag(), qualifiedTags) ||
-			captures(getReadAccess(), qualifiedTags);
+		return captures(getReadAccess(), qualifiedTags);
 	}
 
 	protected boolean canReadRef(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) return false;
-		return canReadRef(maybeExisting.get());
+		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
 
 	public boolean canWriteRef(Ref ref) {
@@ -139,9 +137,7 @@ public class Auth {
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null) {
 			if (existing.getTags().contains("locked")) return false;
-			var qualifiedTags = qtList(origin, existing.getTags());
-			return captures(getUserTag(), qualifiedTags) ||
-				captures(getWriteAccess(), qualifiedTags);
+			return captures(getWriteAccess(), qtList(origin, existing.getTags()));
 		}
 		return false;
 	}
@@ -151,9 +147,7 @@ public class Auth {
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
 		if (!isLoggedIn()) return false;
-		var qt = selector(tag + getOrigin());
-		if (getUserTag().captures(qt)) return true;
-		return captures(getTagReadAccess(), List.of(qt));
+		return captures(getTagReadAccess(), selector(tag + getOrigin()));
 	}
 
 	public boolean canTagAll(List<String> tags, String url, String origin) {
@@ -196,8 +190,7 @@ public class Auth {
 		var qt = selector(qualifiedTag);
 		if ((local(qt.origin) || !props.isMultiTenant()) && !isPrivateTag(qualifiedTag)) return true;
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
-		if (isLoggedIn() && getUserTag().captures(qt)) return true;
-		return captures(getTagReadAccess(), List.of(qt));
+		return captures(getTagReadAccess(), qt);
 	}
 
 	public boolean canWriteTag(String qualifiedTag) {
@@ -205,9 +198,9 @@ public class Auth {
 		if (!local(qt.origin)) return false;
 		if (hasRole(MOD)) return true;
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
-		if (isLoggedIn() && getUserTag().captures(qt)) return true;
+		if (isLoggedIn() && getUserTag().captures(qt)) return true; // Viewers may only edit their user ext
 		if (!hasRole(USER)) return false;
-		return captures(getTagWriteAccess(), List.of(qt));
+		return captures(getTagWriteAccess(), qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -220,8 +213,8 @@ public class Auth {
 		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
+			.filter(qt -> !isUser(qt))
 			.map(QualifiedTag::selector)
-			.filter(qt -> !isLoggedIn() || !getUserTag().captures(qt))
 			.toList();
 		if (tagList.isEmpty()) return true;
 		if (!isLoggedIn()) return false;
@@ -278,9 +271,7 @@ public class Auth {
 		if (hasRole(MOD)) return spec;
 		spec = spec.and(getPublicTag().refSpec());
 		if (!isLoggedIn()) return spec;
-		return spec
-			.or(getUserTag().refSpec())
-			.or(hasAnyQualifiedTag(getReadAccess()));
+		return spec.or(hasAnyQualifiedTag(getReadAccess()));
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
@@ -289,25 +280,22 @@ public class Auth {
 		if (hasRole(MOD)) return spec;
 		spec = spec.and(notPrivateTag());
 		if (!isLoggedIn()) return spec;
-		return spec
-			.or(getUserTag().spec())
-			.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		var qt = selector(tag + getOrigin());
-		if (isLoggedIn() && getUserTag().captures(qt)) return true;
+		if (isLoggedIn() && getUserTag().captures(qt)) return true; // Viewers may only edit their user ext
 		if (!hasRole(USER)) return false;
-		return captures(getTagWriteAccess(), List.of(qt));
+		return captures(getTagWriteAccess(), qt);
 	}
 
 	protected boolean writeAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		var qt = selector(tag + getOrigin());
-		if (getUserTag().captures(qt)) return true;
-		return captures(getWriteAccess(), List.of(qt));
+		return captures(getWriteAccess(), qt);
 	}
 
 	protected static boolean captures(List<QualifiedTag> selectors, List<QualifiedTag> target) {
@@ -317,6 +305,16 @@ public class Auth {
 		if (target.isEmpty()) return false;
 		for (var selector : selectors) {
 			if (captures(selector, target)) return true;
+		}
+		return false;
+	}
+
+	protected static boolean captures(List<QualifiedTag> selectors, QualifiedTag target) {
+		if (selectors == null) return false;
+		if (selectors.isEmpty()) return false;
+		if (target == null) return false;
+		for (var selector : selectors) {
+			if (selector.captures(target)) return true;
 		}
 		return false;
 	}
@@ -409,6 +407,7 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
+			readAccess.add(getUserTag());
 			if (props.getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
 			}
@@ -426,6 +425,7 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
+			writeAccess.add(getUserTag());
 			if (props.getDefaultWriteAccess() != null) {
 				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
 			}
