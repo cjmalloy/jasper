@@ -20,6 +20,11 @@ public abstract class DtoMapper {
 
 	public abstract RefDto domainToDto(Ref ref);
 
+	@Mapping(target = "responses", source = "metadata.responses")
+	public abstract RefNodeDto domainToNodeDto(Ref ref);
+
+	public abstract RefReplDto domainToReplDto(Ref ref);
+
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto refDto) {
 		if (refDto.getTags() != null) {
@@ -27,9 +32,6 @@ public abstract class DtoMapper {
 		}
 		Ref.removePrefixTags(refDto.getTags());
 	}
-
-	@Mapping(target = "responses", source = "metadata.responses")
-	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefNodeDto refDto) {
