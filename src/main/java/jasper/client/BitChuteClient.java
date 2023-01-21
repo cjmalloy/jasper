@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 
 import java.util.Map;
 
-@FeignClient(value = "twitter", url = "https://www.bitchute.com/")
+@FeignClient(value = "bitChute", url = "https://www.bitchute.com/")
 public interface BitChuteClient {
 
 	@RequestLine("GET /oembed")
