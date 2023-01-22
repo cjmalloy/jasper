@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -112,9 +113,10 @@ public class RssParser {
 							continue;
 						}
 						if (ref.getPublished().isBefore(feed.getPublished())) {
-							logger.debug("Skipping RSS entry in feed {} which was published before feed publish date. {} {}",
+							logger.warn("RSS entry in feed {} which was published before feed publish date. {} {}",
 								feed.getTitle(), ref.getTitle(), ref.getUrl());
-							continue;
+							feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
+							refRepository.save(feed);
 						}
 						ref.setOrigin(config.getOrigin());
 						try {

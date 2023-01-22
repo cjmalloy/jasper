@@ -14,10 +14,10 @@ import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
-import jasper.service.RefService;
+import jasper.service.ReplicateService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
-import jasper.service.dto.RefDto;
+import jasper.service.dto.RefReplDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +48,7 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 public class ReplicateController {
 
 	@Autowired
-	RefService refService;
+	ReplicateService replService;
 	@Autowired
 	ExtService extService;
 	@Autowired
@@ -59,13 +59,13 @@ public class ReplicateController {
 	UserService userService;
 
 	@GetMapping("ref")
-	List<RefDto> ref(
+	List<RefReplDto> ref(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return refService.page(
+		return replService.page(
 				RefFilter.builder()
 					.origin(origin)
 					.query(query)
