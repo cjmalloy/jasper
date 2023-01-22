@@ -359,7 +359,7 @@ public class Auth {
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
 			var principal = getPrincipal();
-			if (principal == null) principal = "";
+			if (principal == null) return null;
 			if (principal.contains("@")) {
 				principal = principal.substring(0, principal.indexOf('@'));
 			}
