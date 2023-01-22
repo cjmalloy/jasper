@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class RefDto implements HasTags {
+public class RefReplDto implements HasTags {
 	private String url;
 	private String origin;
 	private String title;
@@ -21,7 +21,6 @@ public class RefDto implements HasTags {
 	private List<String> sources;
 	private List<String> alternateUrls;
 	private ObjectNode plugins;
-	private MetadataDto metadata;
 	private Instant published;
 	private Instant created;
 	private Instant modified;

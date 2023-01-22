@@ -97,24 +97,6 @@ public class RefController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-	})
-	@GetMapping("list")
-	HttpEntity<List<RefDto>> getRefList(
-		WebRequest request,
-		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
-	) {
-		return ifNotModifiedList(request, urls.stream().map(url -> {
-			try {
-				return refService.get(url, origin);
-			} catch (NotFoundException | AccessDeniedException e) {
-				return null;
-			}
-		}).toList());
-	}
-
-	@ApiResponses({
-		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "304", content = @Content()),
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})

@@ -12,13 +12,14 @@ import java.util.List;
 @Getter
 @Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class RefDto implements HasTags {
+public class RefNodeDto implements HasTags {
 	private String url;
 	private String origin;
 	private String title;
 	private String comment;
 	private List<String> tags;
 	private List<String> sources;
+	private List<String> responses;
 	private List<String> alternateUrls;
 	private ObjectNode plugins;
 	private MetadataDto metadata;

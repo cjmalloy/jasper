@@ -18,7 +18,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> findFirstByUrlAndOriginOrderByModifiedDesc(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
-	List<Ref> findAllByUrl(String url);
 
 	@Query(value = """
 		SELECT max(r.modified)
@@ -33,12 +32,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE ref.published <= :date
 			AND jsonb_exists(ref.sources, :url)""")
 	List<String> findAllResponsesPublishedBeforeThanEqual(String url, Instant date);
-
-	@Query(nativeQuery = true, value = """
-		SELECT url FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.sources, :url)""")
-	List<String> findAllResponsesByOrigin(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref

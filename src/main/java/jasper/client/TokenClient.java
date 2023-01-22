@@ -7,7 +7,7 @@ import feign.RequestLine;
 import jasper.component.dto.AuthTokenResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 
-@FeignClient(value = "tokenclient", url = "${jasper.security.authentication.jwt.token-endpoint}")
+@FeignClient(value = "token", url = "${jasper.security.authentication.jwt.token-endpoint}")
 public interface TokenClient {
 	@RequestLine("POST /")
 	@Headers("Content-Type: application/x-www-form-urlencoded")

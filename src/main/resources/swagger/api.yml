@@ -1645,13 +1645,13 @@ components:
       maxLength: 127
     tag-user:
       type: string
-      pattern: '[_+]user/[a-z]+([./][a-z]+)*'
+      pattern: '[_+]user(/[a-z]+([./][a-z]+)*)?'
       description: User Tag
       example: '+user/charlie'
       maxLength: 64
     qtag-user:
       type: string
-      pattern: '[_+]user/[a-z]+([./][a-z]+)*(@[a-z]+(\.[a-z])*)?'
+      pattern: '[_+]user(/[a-z]+([./][a-z]+)*)?(@[a-z]+(\.[a-z])*)?'
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127
