@@ -34,7 +34,7 @@ import java.util.Objects;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class User implements Tag {
-	public static final String REGEX = "[_+]user(/[a-z]+([./][a-z]+)*)?";
+	public static final String REGEX = "[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
 	public static final int PUB_KEY_LEN = 4096;
