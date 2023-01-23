@@ -358,6 +358,7 @@ public class Auth {
 
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
+			if (!isLoggedIn()) return null;
 			var principal = getPrincipal();
 			if (principal == null) return null;
 			if (principal.contains("@")) {
@@ -373,8 +374,9 @@ public class Auth {
 		return userTag;
 	}
 
-	public Optional<User> getUser() {
+	protected Optional<User> getUser() {
 		if (user == null) {
+			if (!isLoggedIn()) return Optional.empty();
 			user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(getUserTag().toString());
 		}
 		return user;
@@ -407,6 +409,7 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
+			if (!isLoggedIn()) return readAccess;
 			readAccess.add(getUserTag());
 			if (props.getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
@@ -425,6 +428,7 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
+			if (!isLoggedIn()) return writeAccess;
 			writeAccess.add(getUserTag());
 			if (props.getDefaultWriteAccess() != null) {
 				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
@@ -443,6 +447,7 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
+			if (!isLoggedIn()) return tagReadAccess;
 			if (props.getDefaultTagReadAccess() != null) {
 				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
 			}
@@ -460,6 +465,7 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
+			if (!isLoggedIn()) return tagWriteAccess;
 			if (props.getDefaultTagWriteAccess() != null) {
 				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
 			}
