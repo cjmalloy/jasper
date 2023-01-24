@@ -409,18 +409,19 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
-			if (!isLoggedIn()) return readAccess;
-			readAccess.add(getUserTag());
 			if (props.getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
 			}
 			if (props.isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
-			readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
-			readAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
-					.map(User::getReadAccess)
-					.orElse(List.of())));
+			if (isLoggedIn()) {
+				readAccess.add(getUserTag());
+				readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
+				readAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+						.map(User::getReadAccess)
+						.orElse(List.of())));
+			}
 		}
 		return readAccess;
 	}
@@ -428,18 +429,19 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
-			if (!isLoggedIn()) return writeAccess;
-			writeAccess.add(getUserTag());
 			if (props.getDefaultWriteAccess() != null) {
 				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
 			}
 			if (props.isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
-			writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
-			writeAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
-				.map(User::getWriteAccess)
-					.orElse(List.of())));
+			if (isLoggedIn()) {
+				writeAccess.add(getUserTag());
+				writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
+				writeAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+						.map(User::getWriteAccess)
+						.orElse(List.of())));
+			}
 		}
 		return writeAccess;
 	}
@@ -447,17 +449,18 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
-			if (!isLoggedIn()) return tagReadAccess;
 			if (props.getDefaultTagReadAccess() != null) {
 				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
 			}
 			if (props.isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
-			tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
-			tagReadAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
-				.map(User::getTagReadAccess)
-				.orElse(List.of())));
+			if (isLoggedIn()) {
+				tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
+				tagReadAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+						.map(User::getTagReadAccess)
+						.orElse(List.of())));
+			}
 		}
 		return tagReadAccess;
 	}
@@ -465,17 +468,18 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
-			if (!isLoggedIn()) return tagWriteAccess;
 			if (props.getDefaultTagWriteAccess() != null) {
 				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
 			}
 			if (props.isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
-			tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
-			tagWriteAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
-				.map(User::getTagWriteAccess)
-				.orElse(List.of())));
+			if (isLoggedIn()) {
+				tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
+				tagWriteAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+						.map(User::getTagWriteAccess)
+						.orElse(List.of())));
+			}
 		}
 		return tagWriteAccess;
 	}
