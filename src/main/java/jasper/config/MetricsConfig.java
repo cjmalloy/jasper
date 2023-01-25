@@ -36,7 +36,8 @@ public class MetricsConfig {
 	private Iterable<Tag> tagFactory(ProceedingJoinPoint pjp) {
 		return Tags.of(
 			"class", pjp.getStaticPart().getSignature().getDeclaringTypeName(),
-				"method", pjp.getStaticPart().getSignature().getName())
+				"method", pjp.getStaticPart().getSignature().getName(),
+				"origin", auth.getOrigin())
 			.and(getUserTags());
 	}
 
