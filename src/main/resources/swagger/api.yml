@@ -762,34 +762,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/plugin/list:
-    get:
-      tags:
-        - Plugin
-      operationId: getPluginList
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/qtag-plugin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Plugin'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /api/v1/plugin/page:
     get:
       tags:
@@ -929,34 +901,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/template/list:
-    get:
-      tags:
-        - Template
-      operationId: getTemplateList
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/qtag-template'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Template'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /api/v1/template/page:
     get:
       tags:
