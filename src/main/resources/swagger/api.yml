@@ -137,41 +137,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/v1/ref/list:
-    get:
-      tags:
-        - Ref
-      operationId: getRefList
-      parameters:
-        - name: urls
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Ref'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /api/v1/ref/page:
     get:
       tags:
@@ -350,6 +315,42 @@ paths:
               schema:
                 type: integer
                 format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/graph/list:
+    get:
+      tags:
+        - Graph
+      operationId: getGraphList
+      parameters:
+        - name: urls
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  - $ref: '#/components/schemas/RefNode'
+                  - type: 'null'
+        '304':
+          description: Not Modified
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1701,23 +1702,24 @@ components:
       type: object
       properties:
         responses:
-          type: array
-          items:
-            $ref: '#/components/schemas/url'
+          type: number
         internalResponses:
-          type: array
-          items:
-            $ref: '#/components/schemas/url'
+          type: number
         plugins:
           type: object
           additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/url'
+            type: number
           example:
-            'plugin/comment':
-              - comment:671ceb54-3fac-4f14-b5e0-3b7270fa1787
-              - comment:d4a83102-a94b-4bfb-8914-1863ac673bde
+            'plugin/comment': 3
+    RefNode:
+      allOf:
+        - $ref: '#/components/schemas/Ref'
+        - type: object
+          properties:
+            responses:
+              type: array
+              items:
+                $ref: '#/components/schemas/url'
     PageRef:
       type: object
       properties:
