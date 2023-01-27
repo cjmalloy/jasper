@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.6
+  version: 1.2.7
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.6
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.7
 paths:
   /api/v1/ref:
     get:
@@ -137,41 +137,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/v1/ref/list:
-    get:
-      tags:
-        - Ref
-      operationId: getRefList
-      parameters:
-        - name: urls
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Ref'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
   /api/v1/ref/page:
     get:
       tags:
@@ -354,6 +319,41 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/graph/list:
+    get:
+      tags:
+        - Graph
+      operationId: getGraphList
+      parameters:
+        - name: urls
+          in: query
+          required: true
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/RefNode'
+                    - nullable: true
+        '304':
+          description: Not Modified
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /api/v1/tags:
     post:
       tags:
@@ -761,34 +761,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/plugin/list:
-    get:
-      tags:
-        - Plugin
-      operationId: getPluginList
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/qtag-plugin'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Plugin'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /api/v1/plugin/page:
     get:
       tags:
@@ -928,34 +900,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/template/list:
-    get:
-      tags:
-        - Template
-      operationId: getTemplateList
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            maxItems: 100
-            minItems: 0
-            type: array
-            items:
-              $ref: '#/components/schemas/qtag-template'
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Template'
-        '304':
-          description: Not Modified
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /api/v1/template/page:
     get:
       tags:
@@ -1701,23 +1645,24 @@ components:
       type: object
       properties:
         responses:
-          type: array
-          items:
-            $ref: '#/components/schemas/url'
+          type: number
         internalResponses:
-          type: array
-          items:
-            $ref: '#/components/schemas/url'
+          type: number
         plugins:
           type: object
           additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/url'
+            type: number
           example:
-            'plugin/comment':
-              - comment:671ceb54-3fac-4f14-b5e0-3b7270fa1787
-              - comment:d4a83102-a94b-4bfb-8914-1863ac673bde
+            'plugin/comment': 3
+    RefNode:
+      allOf:
+        - $ref: '#/components/schemas/Ref'
+        - type: object
+          properties:
+            responses:
+              type: array
+              items:
+                $ref: '#/components/schemas/url'
     PageRef:
       type: object
       properties:

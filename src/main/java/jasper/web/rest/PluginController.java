@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Plugin;
-import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
 import org.hibernate.validator.constraints.Length;
@@ -17,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,15 +30,12 @@ import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
 import java.time.Instant;
-import java.util.List;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedList;
 import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
@@ -80,24 +75,6 @@ public class PluginController {
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
 		return ifNotModified(request, pluginService.get(tag));
-	}
-
-	@ApiResponses({
-		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "304", content = @Content()),
-	})
-	@GetMapping("list")
-	HttpEntity<List<Plugin>> getPluginList(
-		WebRequest request,
-		@RequestParam @Size(max = 100) List<@Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String> tags
-	) {
-		return ifNotModifiedList(request, tags.stream().map(tag -> {
-			try {
-				return pluginService.get(tag);
-			} catch (NotFoundException | AccessDeniedException e) {
-				return null;
-			}
-		}).toList());
 	}
 
 	@ApiResponses({
