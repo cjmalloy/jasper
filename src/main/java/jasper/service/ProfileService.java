@@ -83,7 +83,8 @@ public class ProfileService {
 	@PreAuthorize("@auth.freshLogin() and (@auth.isUser(#qualifiedTag) or @auth.sysMod())")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changePassword(String qualifiedTag, String password) {
-		profileManager.changePassword(qualifiedTag, password);
+		var qt = selector(qualifiedTag);
+		profileManager.changePassword(qt.tag.substring("+user/".length()), password);
 	}
 
 	@PreAuthorize("hasRole('MOD') and @auth.canWriteTag(#qualifiedTag)")
