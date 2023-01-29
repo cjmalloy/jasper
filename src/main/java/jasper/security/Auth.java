@@ -97,7 +97,7 @@ public class Auth {
 
 	public boolean freshLogin() {
 		var iat = getClaims().getIssuedAt();
-		if (iat != null && iat.toInstant().isBefore(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();

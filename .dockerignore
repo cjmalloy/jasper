@@ -1,4 +1,7 @@
 target/
+.github/
+.mvn/
+docs/
 .idea/
 storage/
 repl/
