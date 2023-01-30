@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
-import jasper.errors.NotFoundException;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
 import jasper.service.dto.RefDto;
@@ -24,7 +23,6 @@ import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,7 +48,6 @@ import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedList;
 import static jasper.util.RestUtil.ifNotModifiedPage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -113,8 +110,8 @@ public class RefController {
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String pluginResponse,
-		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		var rankedSort = false;
@@ -172,8 +169,8 @@ public class RefController {
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String pluginResponse,
-		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return refService.count(

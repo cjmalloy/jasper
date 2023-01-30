@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.fulltextEn;
@@ -40,8 +41,8 @@ public class RefFilter implements Query {
 	private boolean untagged;
 	private boolean uncited;
 	private boolean unsourced;
-	private String pluginResponse;
-	private String noPluginResponse;
+	private List<String> pluginResponse;
+	private List<String> noPluginResponse;
 	private Instant modifiedBefore;
 	private Instant modifiedAfter;
 
@@ -79,13 +80,17 @@ public class RefFilter implements Query {
 			// TODO: query across origins
 			result = result.and(hasNoSources());
 		}
-		if (isNotBlank(pluginResponse)) {
+		if (pluginResponse != null) {
 			// TODO: query across origins
-			result = result.and(hasPluginResponses(pluginResponse));
+			for (var r : pluginResponse) {
+				result = result.and(hasPluginResponses(r));
+			}
 		}
-		if (isNotBlank(noPluginResponse)) {
+		if (noPluginResponse != null) {
 			// TODO: query across origins
-			result = result.and(hasNoPluginResponses(noPluginResponse));
+			for (var nr : noPluginResponse) {
+				result = result.and(hasNoPluginResponses(nr));
+			}
 		}
 		if (modifiedBefore != null) {
 			result = result.and(isModifiedBefore(modifiedBefore));
