@@ -99,7 +99,9 @@ public class RefService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
-		ref.addTags(auth.hiddenTags(existing.getTags()));
+		var hiddenTags = auth.hiddenTags(existing.getTags());
+		ref.addTags(hiddenTags);
+		ref.addPlugins(hiddenTags, existing.getPlugins());
 		ingest.update(ref);
 	}
 

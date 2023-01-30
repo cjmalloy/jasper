@@ -1,6 +1,10 @@
 package jasper.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
+import jasper.component.Ingest;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -36,12 +40,38 @@ public class RefServiceIT {
 	RefRepository refRepository;
 
 	@Autowired
+	Ingest ingest;
+
+	@Autowired
 	PluginRepository pluginRepository;
 
 	@Autowired
 	UserRepository userRepository;
 
 	static final String URL = "https://www.example.com/";
+
+	Plugin getPlugin(String tag) {
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		var mapper = new ObjectMapper();
+		try {
+			plugin.setSchema((ObjectNode) mapper.readTree("""
+			{
+				"properties": {
+					"name": { "type": "string" },
+					"age": { "type": "uint32" }
+				}
+			}"""));
+			plugin.setDefaults(mapper.readTree("""
+			{
+				"name": "bob",
+				"age": 42
+			}"""));
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException(e);
+		}
+		return plugin;
+	}
 
 	@Test
 	void testCreateUntaggedRef() {
@@ -513,7 +543,7 @@ public class RefServiceIT {
 	void testGetPageRefWithPublicTag() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(new ArrayList<>(List.of("public")));
+		ref.setTags(List.of("public"));
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -532,7 +562,7 @@ public class RefServiceIT {
 		userRepository.save(user);
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(new ArrayList<>(List.of("custom")));
+		ref.setTags(List.of("custom"));
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -551,7 +581,7 @@ public class RefServiceIT {
 		userRepository.save(user);
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(new ArrayList<>(List.of("_secret", "_other")));
+		ref.setTags(List.of("_secret", "_other"));
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -568,7 +598,7 @@ public class RefServiceIT {
 	void testGetPageRefWithUnreadablePrivateTags() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(new ArrayList<>(List.of("_secret")));
+		ref.setTags(List.of("_secret"));
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -583,7 +613,7 @@ public class RefServiceIT {
 	void testGetPageRefFiltersUnreadablePrivateTags() {
 		var ref = new Ref();
 		ref.setUrl(URL);
-		ref.setTags(new ArrayList<>(List.of("public", "_secret")));
+		ref.setTags(List.of("public", "_secret"));
 		refRepository.save(ref);
 
 		var page = refService.page(
@@ -594,6 +624,67 @@ public class RefServiceIT {
 			.isEqualTo(1);
 		assertThat(page.getContent().get(0).getTags())
 			.containsExactly("public");
+	}
+
+	@Test
+	void testGetPageRefWithPlugin() {
+		pluginRepository.save(getPlugin("plugin/test"));
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
+		ingest.ingest(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().get(0).getTags())
+			.containsExactly("public", "plugin/test");
+		assertThat(page.getContent().get(0).getPlugins().has("plugin/test"))
+			.isTrue();
+	}
+
+	@Test
+	void testGetPageRefWithUnreadablePlugin() {
+		pluginRepository.save(getPlugin("_plugin/test"));
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("public", "_plugin/test")));
+		ingest.ingest(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().get(0).getTags())
+			.containsExactly("public");
+		assertThat(page.getContent().get(0).getPlugins())
+			.isNull();
+	}
+
+	@Test
+	void testGetPageRefWithFilteredPlugin() {
+		pluginRepository.save(getPlugin("plugin/test"));
+		pluginRepository.save(getPlugin("_plugin/test"));
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("public", "plugin/test", "_plugin/test")));
+		ingest.ingest(ref);
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().get(0).getTags())
+			.containsExactly("public", "plugin/test");
+		assertThat(page.getContent().get(0).getPlugins().has("plugin/test"))
+			.isTrue();
 	}
 
 	@Test
@@ -838,7 +929,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testUpdateRefWithLoosingHiddenTags() {
+	void testUpdateRefWithoutLoosingHiddenTags() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
@@ -859,6 +950,33 @@ public class RefServiceIT {
 			.isEqualTo("Second");
 		assertThat(fetched.getTags())
 			.contains("+user/tester", "custom", "_secret");
+	}
+
+	@Test
+	void testUpdateRefWithoutLoosingHiddenPlugins() {
+		pluginRepository.save(getPlugin("_plugin/test"));
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(new ArrayList<>(List.of("+user/tester", "_plugin/test")));
+		ingest.ingest(ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(new ArrayList<>(List.of("+user/tester", "custom")));
+		update.setModified(ref.getModified());
+
+		refService.update(update);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getTags())
+			.contains("+user/tester", "custom", "_plugin/test");
+		assertThat(fetched.getPlugins().has("_plugin/test"))
+			.isTrue();
 	}
 
 	@Test

@@ -147,6 +147,19 @@ public class Ref implements HasTags {
 		return this;
 	}
 
+	@JsonIgnore
+	public Ref addPlugins(List<String> toAdd, ObjectNode from) {
+		if (toAdd == null || from == null) return this;
+		if (plugins == null) {
+			plugins = from;
+		} else {
+			for (var t : toAdd) {
+				plugins.set(t, from.get(t));
+			}
+		}
+		return this;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
