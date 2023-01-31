@@ -1,7 +1,9 @@
 package jasper.service.dto;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.domain.proj.HasTags;
 import jasper.security.Auth;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
@@ -18,6 +20,9 @@ public abstract class DtoMapper {
 	@Autowired
 	Auth auth;
 
+	@Autowired
+	ObjectMapper objectMapper;
+
 	public abstract RefDto domainToDto(Ref ref);
 
 	@Mapping(target = "responses", source = "metadata.responses")
@@ -26,19 +31,22 @@ public abstract class DtoMapper {
 	public abstract RefReplDto domainToReplDto(Ref ref);
 
 	@AfterMapping
-	protected void filterTags(@MappingTarget RefDto refDto) {
-		if (refDto.getTags() != null) {
-			refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
+	protected void filterTags(@MappingTarget HasTags ref) {
+		if (ref.getTags() == null) return;
+		var filtered = new ArrayList<>(auth.filterTags(ref.getTags()));
+		if (ref.getPlugins() != null && filtered.size() < ref.getTags().size()) {
+			var filteredPlugins = objectMapper.createObjectNode();
+			ref.getPlugins().fieldNames().forEachRemaining(field -> {
+				if (filtered.contains(field)) filteredPlugins.set(field, ref.getPlugins().get(field));
+			});
+			if (filteredPlugins.isEmpty()) {
+				ref.setPlugins(null);
+			} else {
+				ref.setPlugins(filteredPlugins);
+			}
 		}
-		Ref.removePrefixTags(refDto.getTags());
-	}
-
-	@AfterMapping
-	protected void filterTags(@MappingTarget RefNodeDto refDto) {
-		if (refDto.getTags() != null) {
-			refDto.setTags(new ArrayList<>(auth.filterTags(refDto.getTags())));
-		}
-		Ref.removePrefixTags(refDto.getTags());
+		ref.setTags(filtered);
+		Ref.removePrefixTags(ref.getTags());
 	}
 
 	public abstract UserDto domainToDto(User user);

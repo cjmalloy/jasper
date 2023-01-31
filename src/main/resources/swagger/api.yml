@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.7
+  version: 1.2.8
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.7
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.8
 paths:
   /api/v1/ref:
     get:
@@ -221,12 +221,20 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/tag-plugin'
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/tag-plugin'
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
           required: false
@@ -296,12 +304,20 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/tag-plugin'
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/tag-plugin'
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
           required: false
