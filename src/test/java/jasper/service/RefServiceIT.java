@@ -754,29 +754,6 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testUpdateLockedRefFailed() {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle("First");
-		ref.setTags(new ArrayList<>(List.of("locked", "+user/tester")));
-		refRepository.save(ref);
-		var update = new Ref();
-		update.setUrl(URL);
-		update.setTitle("Second");
-		update.setTags(new ArrayList<>(List.of("+user/tester")));
-		update.setModified(ref.getModified());
-
-		assertThatThrownBy(() -> refService.update(update))
-			.isInstanceOf(AccessDeniedException.class);
-
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
-			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
-		assertThat(fetched.getTitle())
-			.isEqualTo("First");
-	}
-
-	@Test
 	@WithMockUser(value = "tester", roles = "Admin")
 	void testAdminUpdateLockedRefFailed() {
 		var ref = new Ref();

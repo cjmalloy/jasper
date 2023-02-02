@@ -136,7 +136,6 @@ public class Auth {
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null) {
-			if (existing.getTags().contains("locked")) return false;
 			return captures(getWriteAccess(), qtList(origin, existing.getTags()));
 		}
 		return false;
