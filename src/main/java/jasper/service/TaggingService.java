@@ -9,6 +9,7 @@ import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,9 @@ public class TaggingService {
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void delete(String tag, String url, String origin) {
+		if (tag.equals("locked")) {
+			throw new AccessDeniedException("Cannot unlock Ref");
+		}
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
@@ -50,9 +54,12 @@ public class TaggingService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("@auth.canTagAll(#tags, #url, #origin)")
+	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void tag(List<String> tags, String url, String origin) {
+		if (tags.contains("-locked")) {
+			throw new AccessDeniedException("Cannot unlock Ref");
+		}
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
