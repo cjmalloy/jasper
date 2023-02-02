@@ -159,6 +159,10 @@ public class Auth {
 		return true;
 	}
 
+	public List<String> tagPatch(List<String> patch) {
+		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
+	}
+
 	public boolean canTag(String tag, String url, String origin) {
 		if (!local(origin)) return false;
 		if (hasRole(MOD)) return true;
