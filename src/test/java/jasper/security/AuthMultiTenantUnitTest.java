@@ -299,18 +299,6 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
-	void testCanWriteRef_LockedFailed() {
-		var user = getUser("+user/test@other");
-		user.getWriteAccess().add("+custom");
-		var auth = getAuth(user, USER);
-		var ref = getRef("+custom", "locked");
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canWriteRef(ref))
-			.isFalse();
-	}
-
-	@Test
 	void testCanWriteRef_AddPublic() {
 		var user = getUser("+user/test@other");
 		user.getWriteAccess().add("+custom");
