@@ -11,8 +11,12 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
@@ -23,12 +27,26 @@ public abstract class DtoMapper {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	DateTimeFormatter smtp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z z", Locale.US);
+
 	public abstract RefDto domainToDto(Ref ref);
 
 	@Mapping(target = "responses", source = "metadata.responses")
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
 	public abstract RefReplDto domainToReplDto(Ref ref);
+
+	public Ref smtpToDomain(SmtpWebhookDto msg) {
+		var result = new Ref();
+		result.setUrl("comment:" + UUID.randomUUID());
+		if (!"0001-01-01 00:00:00 +0000 UTC".equals(msg.getDate())) {
+			result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp).toInstant());
+		}
+		result.setTitle(msg.getSubject());
+		result.setComment(msg.getBody().getHtml() == null ? msg.getBody().getText() : msg.getBody().getHtml());
+		result.setTags(new ArrayList<>(List.of("plugin/email")));
+		return result;
+	}
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget HasTags ref) {

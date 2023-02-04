@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.8
+  version: 1.2.9
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.8
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.9
 paths:
   /api/v1/ref:
     get:
@@ -1535,6 +1535,26 @@ paths:
           description: Bad Request
         '404':
           description: Not Found
+  /api/v1/webhook/smtp:
+    post:
+      tags:
+        - webhook
+      operationId: smtp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmtpWebhookDto'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
   schemas:
     name:
@@ -1941,6 +1961,108 @@ components:
           type: boolean
         user:
           type: boolean
+    Addresses:
+      type: object
+      properties:
+        from:
+          $ref: '#/components/schemas/EmailAddress'
+        to:
+          $ref: '#/components/schemas/EmailAddress'
+        replyTo:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+        bcc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+        inReplyTo:
+          type: array
+          items:
+            type: string
+        html:
+          type: string
+        resentFrom:
+          $ref: '#/components/schemas/EmailAddress'
+        resentTo:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+        resentCc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+        resentBcc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAddress'
+    Body:
+      type: object
+      properties:
+        text:
+          type: string
+        html:
+          type: string
+    EmailAddress:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+    EmailAttachment:
+      type: object
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+        data:
+          type: string
+    EmailEmbeddedFile:
+      type: object
+      properties:
+        cid:
+          type: string
+        contentType:
+          type: string
+        data:
+          type: string
+    SmtpWebhookDto:
+      type: object
+      properties:
+        spf:
+          type: string
+        references:
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        date:
+          type: string
+        subject:
+          type: string
+        resentDate:
+          type: string
+        resentId:
+          type: string
+        body:
+          $ref: '#/components/schemas/Body'
+        addresses:
+          $ref: '#/components/schemas/Addresses'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailAttachment'
+        embeddedFiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailEmbeddedFile'
   responses:
     BadRequest:
       description: Bad Request
