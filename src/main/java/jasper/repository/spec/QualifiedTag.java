@@ -13,6 +13,7 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TemplateSpec.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class QualifiedTag {
 	public static final String SELECTOR = "(\\*|" + Tag.REGEX + "|(" + Tag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
@@ -79,6 +80,17 @@ public class QualifiedTag {
 	public static QualifiedTag originSelector(String qt) {
 		if (qt.isEmpty()) return selector("*");
 		return selector(qt);
+	}
+
+	public static String concat(String ...tags) {
+		var result = new StringBuilder();
+		for (var tag : tags) {
+			if (isEmpty(tag)) continue;
+			if (tag.startsWith("+") || tag.startsWith("_") || tag.startsWith("@")) tag = tag.substring(1);
+			if (result.length() > 0) result.append("/");
+			result.append(tag);
+		}
+		return result.toString();
 	}
 
 	public static QualifiedTag queryAtom(String qt) {
