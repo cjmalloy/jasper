@@ -104,7 +104,7 @@ public class Auth {
 	}
 
 	public boolean isLoggedIn() {
-		return getPrincipal() != null && hasRole(VIEWER);
+		return getUserTag() != null && hasRole(VIEWER);
 	}
 
 	public boolean canReadRef(HasTags ref) {
@@ -342,6 +342,7 @@ public class Auth {
 	public String getPrincipal() {
 		if (principal == null) {
 			var authn = getAuthentication();
+			if (authn == null) return null;
 			if (authn instanceof JwtAuthentication j) {
 				principal = j.getPrincipal();
 			} else {
@@ -362,7 +363,6 @@ public class Auth {
 
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
-			if (!isLoggedIn()) return null;
 			var principal = getPrincipal();
 			if (principal == null) return null;
 			if (principal.contains("@")) {
