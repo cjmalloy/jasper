@@ -3,7 +3,7 @@ package jasper.config;
 import jasper.management.SecurityMetersService;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
-import jasper.security.jwt.TokenProviderImplAdmin;
+import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplJwks;
 import jasper.security.jwt.TokenProviderImplNoVerify;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -11,6 +11,7 @@ import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -71,8 +72,8 @@ public class AuthConfig {
 	}
 
 	@Bean
-	@Profile("admin")
-	TokenProvider adminProvider() {
-		return new TokenProviderImplAdmin();
+	@ConditionalOnMissingBean
+	TokenProvider defaultProvider(Props props) {
+		return new TokenProviderImplDefault(props);
 	}
 }

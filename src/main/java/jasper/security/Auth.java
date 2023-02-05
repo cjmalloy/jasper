@@ -104,7 +104,7 @@ public class Auth {
 	}
 
 	public boolean isLoggedIn() {
-		return hasRole(VIEWER);
+		return getPrincipal() != null && hasRole(VIEWER);
 	}
 
 	public boolean canReadRef(HasTags ref) {
