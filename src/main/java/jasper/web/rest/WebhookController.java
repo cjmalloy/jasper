@@ -5,8 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jasper.service.RefService;
-import jasper.service.dto.DtoMapper;
+import jasper.service.SmtpService;
 import jasper.service.dto.SmtpWebhookDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +30,10 @@ public class WebhookController {
 	private static final Logger logger = LoggerFactory.getLogger(WebhookController.class);
 
 	@Autowired
-	DtoMapper mapper;
-
-	@Autowired
-	RefService refService;
+	SmtpService smtpService;
 
 	@PostMapping("smtp")
-	void smtp(@RequestBody SmtpWebhookDto msg) {
-		refService.create(mapper.smtpToDomain(msg));
+	void smtp(@RequestBody SmtpWebhookDto email) {
+		smtpService.create(email);
 	}
 }

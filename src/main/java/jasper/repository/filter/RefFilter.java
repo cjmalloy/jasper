@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.endsWithTitle;
 import static jasper.repository.spec.RefSpec.fulltextEn;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasNoPluginResponses;
@@ -20,6 +21,8 @@ import static jasper.repository.spec.RefSpec.hasNoTags;
 import static jasper.repository.spec.RefSpec.hasPluginResponses;
 import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.hasSource;
+import static jasper.repository.spec.RefSpec.isPublishedAfter;
+import static jasper.repository.spec.RefSpec.isPublishedBefore;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
@@ -35,6 +38,7 @@ public class RefFilter implements Query {
 	private String url;
 	private String query;
 	private String search;
+	private String endsTitle;
 	private boolean rankedOrder;
 	private String sources;
 	private String responses;
@@ -45,6 +49,8 @@ public class RefFilter implements Query {
 	private List<String> noPluginResponse;
 	private Instant modifiedBefore;
 	private Instant modifiedAfter;
+	private Instant publishedBefore;
+	private Instant publishedAfter;
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
@@ -59,6 +65,9 @@ public class RefFilter implements Query {
 		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
+		}
+		if (isNotBlank(endsTitle)) {
+			result = result.and(endsWithTitle(endsTitle));
 		}
 		if (isNotBlank(sources)) {
 			// TODO: query across origins
@@ -97,6 +106,12 @@ public class RefFilter implements Query {
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
+		}
+		if (publishedBefore != null) {
+			result = result.and(isPublishedBefore(publishedBefore));
+		}
+		if (publishedAfter != null) {
+			result = result.and(isPublishedAfter(publishedAfter));
 		}
 		return result;
 	}
