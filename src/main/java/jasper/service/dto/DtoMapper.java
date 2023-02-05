@@ -27,7 +27,7 @@ public abstract class DtoMapper {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	DateTimeFormatter smtp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z z", Locale.US);
+	DateTimeFormatter smtp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
 
 	public abstract RefDto domainToDto(Ref ref);
 
