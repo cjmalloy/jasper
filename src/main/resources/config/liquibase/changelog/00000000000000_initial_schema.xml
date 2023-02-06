@@ -92,6 +92,7 @@
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
 			<column name="name" type="TEXT"/>
+			<column name="role" type="TEXT"/>
 			<column name="read_access" type="JSONB"/>
 			<column name="write_access" type="JSONB"/>
 			<column name="tag_read_access" type="JSONB"/>

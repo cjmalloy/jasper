@@ -36,7 +36,7 @@ public class AuthMultiTenantUnitTest {
 		a.props = new Props();
 		a.props.setMultiTenant(true);
 		a.props.setLocalOrigin(user.getOrigin());
-		a.userTag = selector(user.getQualifiedTag());
+		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
 		return a;
@@ -111,8 +111,9 @@ public class AuthMultiTenantUnitTest {
 
 	@Test
 	void testCanReadRef_RemoteRef() {
-		var auth = getAuth(getUser("+user/test@other"));
-		auth.readAccess = List.of(selector("public@remote"));
+		var user = getUser("+user/test@other");
+		user.setReadAccess(List.of("public"));
+		var auth = getAuth(user);
 		var ref = getRef("public");
 		ref.setOrigin("@remote");
 
@@ -954,11 +955,10 @@ public class AuthMultiTenantUnitTest {
 	@Test
 	void testGetHiddenTags_PrivateReadAccess() {
 		var user = getUser("+user/test@other");
-		user.getReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("_custom")))
-			.isEmpty();
+			.isNotEmpty();
 	}
 
 	@Test

@@ -15,6 +15,7 @@ public class UserDto implements Tag {
 	private String tag;
 	private String origin;
 	private String name;
+	private String role;
 	private List<String> readAccess;
 	private List<String> writeAccess;
 	private List<String> tagReadAccess;

@@ -16,8 +16,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
@@ -37,20 +38,14 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
-		if (origin == null) {
-			String username = null;
-			if (props.isAllowUsernameClaimOrigin() && (username = getUsername(claims)) != null && username.contains("@")) {
-				origin = username.substring(username.indexOf("@"));
-			} else {
-				origin = props.getLocalOrigin();
-			}
-		}
 		var authString = props.getDefaultRole();
-		var authClaim = claims.get(props.getAuthoritiesClaim(), Object.class);
-		if (authClaim instanceof String auth) {
-			authString = auth;
-		} else if (authClaim instanceof Map auth && auth.containsKey(origin)) {
-			authString = auth.get(origin).toString();
+		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
+		if (isNotBlank(authClaim)) {
+			if (isNotBlank(authString)) {
+				authString += "," + authClaim;
+			} else {
+				authString = authClaim;
+			}
 		}
 		return Arrays
 			.stream(authString.split(","))
@@ -59,8 +54,16 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			.collect(Collectors.toList());
 	}
 
-	String getUsername(Claims claims) {
-		return claims.get(props.getUsernameClaim(), String.class);
+	String getUsername(Claims claims, boolean isPrivate) {
+		var principal = claims.get(props.getUsernameClaim(), String.class);
+		principal = principal.replaceAll("[^a-z.@]+", ".");
+		if (principal.startsWith("+") || principal.startsWith("_")) return principal;
+		if (principal.startsWith("@")) {
+			principal = "user" + principal;
+		} else {
+			principal = "user/" + principal;
+		}
+		return isPrivate ? "_" : "+" + principal;
 	}
 
 	public boolean validateToken(String authToken) {

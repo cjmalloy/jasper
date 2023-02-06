@@ -6,6 +6,7 @@ import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.compress.utils.Sets;
 import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
@@ -24,6 +25,13 @@ import javax.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.USER;
+import static jasper.security.AuthoritiesConstants.VIEWER;
 
 @Entity
 @Getter
@@ -35,9 +43,17 @@ import java.util.Objects;
 })
 public class User implements Tag {
 	public static final String REGEX = "[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?";
+	public static final String ROLE_REGEX = "\\w*";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
+	public static final int ROLE_LEN = 32;
 	public static final int PUB_KEY_LEN = 4096;
+
+	/**
+	 * Valid roles for the User entities. Does not include SA as that would
+	 * allow multi-tenant users to get system-wide access.
+	 */
+	public static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER);
 
 	@Id
 	@Column(updatable = false)
@@ -51,6 +67,10 @@ public class User implements Tag {
 	@Pattern(regexp = HasOrigin.REGEX)
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
+
+	@Length(max = ROLE_LEN)
+	@Pattern(regexp = ROLE_REGEX)
+	private String role = "";
 
 	@Formula("tag || origin")
 	private String qualifiedTag;

@@ -19,7 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("tester")
+@WithMockUser("+user/tester")
 @IntegrationTest
 @Transactional
 public class ExtServiceIT {
@@ -61,7 +61,7 @@ public class ExtServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateExt() {
 		var ext = new Ext();
 		ext.setTag("custom");
@@ -195,7 +195,7 @@ public class ExtServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testReadPrivateUserExt() {
 		var ext = new Ext();
 		ext.setTag("_user/tester");
@@ -300,7 +300,7 @@ public class ExtServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserExt() {
 		var ext = new Ext();
 		ext.setTag("_user/tester");
@@ -320,7 +320,7 @@ public class ExtServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserExtFailed() {
 		var ext = new Ext();
 		ext.setTag("_user/other");

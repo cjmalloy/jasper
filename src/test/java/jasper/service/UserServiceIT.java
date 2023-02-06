@@ -20,7 +20,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("tester")
+@WithMockUser("+user/tester")
 @IntegrationTest
 @Transactional
 public class UserServiceIT {
@@ -62,7 +62,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateUser() {
 		var user = new User();
 		user.setTag("+user/other");
@@ -80,7 +80,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateUserWithTags() {
 		var user = new User();
 		user.setTag("+user/other");
@@ -104,7 +104,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateUserWithNotTagSelectorsFailed() {
 		var user = new User();
 		user.setTag("+user/other");
@@ -117,7 +117,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateUserWithPrivateTags() {
 		var user = new User();
 		user.setTag("+user/other");
@@ -325,7 +325,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testReadPrivateUser() {
 		var user = new User();
 		user.setTag("_user/tester");
@@ -493,7 +493,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserUser() {
 		var user = new User();
 		user.setTag("_user/tester");
@@ -513,7 +513,7 @@ public class UserServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserUserFailed() {
 		var user = new User();
 		user.setTag("_user/other");

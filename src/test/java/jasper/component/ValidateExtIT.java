@@ -19,7 +19,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("tester")
+@WithMockUser("+user/tester")
 @IntegrationTest
 @Transactional
 public class ValidateExtIT {

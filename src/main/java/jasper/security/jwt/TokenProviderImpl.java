@@ -1,6 +1,5 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -13,6 +12,8 @@ import org.springframework.security.core.GrantedAuthority;
 import java.security.Key;
 import java.util.Date;
 import java.util.stream.Collectors;
+
+import static jasper.security.AuthoritiesConstants.PRIVATE;
 
 public class TokenProviderImpl extends AbstractJwtTokenProvider implements TokenProvider {
 
@@ -54,7 +55,9 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		Claims claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
+		var claims = jwtParser.parseClaimsJws(token).getBody();
+		var authorites = getAuthorities(claims, origin);
+		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
+		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
 	}
 }
