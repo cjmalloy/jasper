@@ -56,6 +56,7 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
 	String getUsername(Claims claims, boolean isPrivate) {
 		var principal = claims.get(props.getUsernameClaim(), String.class);
+		if (principal == null) return null;
 		principal = principal.replaceAll("[^a-z.@]+", ".");
 		if (principal.startsWith("+") || principal.startsWith("_")) return principal;
 		if (principal.startsWith("@")) {
