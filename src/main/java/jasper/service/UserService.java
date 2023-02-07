@@ -103,6 +103,7 @@ public class UserService {
 		return RolesDto
 			.builder()
 			.tag(auth.isLoggedIn() ? auth.getUserTag().toString() : "")
+			.sysadmin(auth.hasRole(SA))
 			.admin(auth.hasRole(ADMIN))
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))
