@@ -21,9 +21,9 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implemen
 		return token.substring(0, token.lastIndexOf('.') + 1);
 	}
 
-	public Authentication getAuthentication(String token, String origin) {
+	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-		var authorites = getAuthorities(claims, origin);
+		var authorites = getAuthorities(claims);
 		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
 	}

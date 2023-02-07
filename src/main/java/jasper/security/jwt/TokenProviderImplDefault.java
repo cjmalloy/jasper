@@ -21,7 +21,7 @@ public class TokenProviderImplDefault implements TokenProvider {
 	}
 
 	@Override
-	public Authentication getAuthentication(String jwt, String origin) {
+	public Authentication getAuthentication(String jwt) {
 		return new AnonymousAuthenticationToken("key", "anonymousUser", List.of(new SimpleGrantedAuthority(props.getDefaultRole())));
 	}
 }

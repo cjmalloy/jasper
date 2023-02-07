@@ -18,6 +18,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.SA;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
@@ -25,6 +29,8 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 	private final Logger log = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
+
+	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN, SA };
 
 	Props props;
 
@@ -37,7 +43,7 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 		this.securityMetersService = securityMetersService;
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims) {
 		var authString = props.getDefaultRole();
 		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
@@ -56,11 +62,17 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
 	String getUsername(Claims claims, boolean isPrivate) {
 		var principal = claims.get(props.getUsernameClaim(), String.class);
-		principal = principal.replaceAll("[^a-z.@]+", ".");
-		if (principal.startsWith("+") || principal.startsWith("_")) return principal;
-		if (principal.startsWith("@")) {
-			principal = "user" + principal;
+		if (isBlank(principal) || principal.startsWith("@")) {
+			if (getAuthorities(claims).stream().noneMatch(a ->
+				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
+				return null;
+			}
+			// The root user has access to every other user.
+			// Only assign to mods or higher when username is missing.
+			principal = "user" + (isBlank(principal)  ? "" : principal);
 		} else {
+			principal = principal.replaceAll("[^a-z.@]+", ".");
+			if (principal.startsWith("+") || principal.startsWith("_")) return principal;
 			principal = "user/" + principal;
 		}
 		return isPrivate ? "_" : "+" + principal;
