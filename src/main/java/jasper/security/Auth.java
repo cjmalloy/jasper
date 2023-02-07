@@ -236,6 +236,7 @@ public class Auth {
 	public boolean canWriteUser(User user) {
 		if (hasRole(SA)) return true;
 		if (!local(user.getOrigin())) return false;
+		if (!hasRole(user.getRole())) return false;
 		if (hasRole(MOD)) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
