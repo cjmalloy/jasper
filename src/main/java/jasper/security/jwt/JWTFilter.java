@@ -1,7 +1,6 @@
 package jasper.security.jwt;
 
 import jasper.config.Props;
-import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -15,8 +14,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
  * Filters incoming requests and installs a Spring Security principal if a header corresponding to a valid user is
@@ -40,12 +37,8 @@ public class JWTFilter extends GenericFilterBean {
 		throws IOException, ServletException {
 		HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
 		String jwt = resolveToken(httpServletRequest);
-		String origin = null;
-		if (props.isAllowLocalOriginHeader()) {
-			origin = resolveLocalOrigin(httpServletRequest);
-		}
 		if (tokenProvider.validateToken(jwt)) {
-			Authentication authentication = tokenProvider.getAuthentication(jwt, origin);
+			Authentication authentication = tokenProvider.getAuthentication(jwt);
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
@@ -55,14 +48,6 @@ public class JWTFilter extends GenericFilterBean {
 		String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
 		if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
 			return bearerToken.substring(7);
-		}
-		return null;
-	}
-
-	private String resolveLocalOrigin(HttpServletRequest request) {
-		String origin = request.getHeader(Auth.LOCAL_ORIGIN_HEADER);
-		if (!isBlank(origin)) {
-			return origin.toLowerCase();
 		}
 		return null;
 	}
