@@ -54,6 +54,7 @@ import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -233,14 +234,18 @@ public class Auth {
 		return hasRole(MOD);
 	}
 
-	public boolean canWriteUser(User user) {
-		if (!local(user.getOrigin())) return false;
+	public boolean canWriteUser(String tag) {
+		if (!local(tag)) return false;
 		if (sysAdmin()) return true;
+		if (!canWriteTag(tag)) return false;
+		var oldRole = userRepository.findOneByQualifiedTag(tag).map(User::getRole).orElse(null);
+		return isBlank(oldRole) || hasRole(oldRole);
+	}
+
+	public boolean canWriteUser(User user) {
+		if (!canWriteUser(user.getQualifiedTag())) return false;
 		if (isNotBlank(user.getRole()) && !hasRole(user.getRole())) return false;
-		var oldRole = userRepository.findOneByQualifiedTag(user.getQualifiedTag()).map(User::getRole).orElse(null);
-		if (isNotBlank(oldRole) && !hasRole(oldRole)) return false;
 		if (hasRole(MOD)) return true;
-		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;

@@ -25,6 +25,7 @@ import java.time.Instant;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 
 @Service
@@ -88,7 +89,7 @@ public class UserService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteTag(#tag)")
+	@PreAuthorize("@auth.canWriteUser(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String tag) {
 		try {
