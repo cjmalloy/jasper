@@ -234,8 +234,11 @@ public class Auth {
 	}
 
 	public boolean canWriteUser(User user) {
-		if (hasRole(SA)) return true;
 		if (!local(user.getOrigin())) return false;
+		if (sysAdmin()) return true;
+		if (isNotBlank(user.getRole()) && !hasRole(user.getRole())) return false;
+		var oldRole = userRepository.findOneByQualifiedTag(user.getQualifiedTag()).map(User::getRole).orElse(null);
+		if (isNotBlank(oldRole) && !hasRole(oldRole)) return false;
 		if (hasRole(MOD)) return true;
 		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
