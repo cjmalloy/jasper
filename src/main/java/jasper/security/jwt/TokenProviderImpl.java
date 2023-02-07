@@ -54,9 +54,9 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 			.compact();
 	}
 
-	public Authentication getAuthentication(String token, String origin) {
+	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		var authorites = getAuthorities(claims, origin);
+		var authorites = getAuthorities(claims);
 		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
 	}

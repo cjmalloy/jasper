@@ -24,9 +24,9 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
 	}
 
-	public Authentication getAuthentication(String token, String origin) {
+	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		var authorites = getAuthorities(claims, origin);
+		var authorites = getAuthorities(claims);
 		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
 	}
