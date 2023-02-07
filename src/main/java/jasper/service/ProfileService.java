@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -27,10 +28,10 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @Service
 public class ProfileService {
 	/**
-	 * Valid roles for a user. In multi-tenant mode just use SA or VIEWER, and set origin
+	 * Valid roles for a user. In multi-tenant mode just use SA or ANONYMOUS, and set origin
 	 * based roles in User entities.
 	 */
-	private static final Set<String> ROLES = Sets.newHashSet(SA, ADMIN, MOD, EDITOR, USER, VIEWER);
+	private static final Set<String> ROLES = Sets.newHashSet(SA, ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS);
 
 	@Autowired
 	ProfileManager profileManager;
