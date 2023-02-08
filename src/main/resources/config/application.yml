@@ -188,7 +188,7 @@ jasper:
   replicate-batch: 5000
   scrape-delay-min: 0
   scrape-interval-min: 1
-  default-role: ROLE_USER
+  default-role: ROLE_ANONYMOUS
   local-origin: ''
   username-claim: sub
   authorities-claim: auth
