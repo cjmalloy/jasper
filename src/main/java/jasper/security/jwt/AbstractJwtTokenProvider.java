@@ -18,8 +18,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
+import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.SA;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -60,19 +62,25 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			.collect(Collectors.toList());
 	}
 
-	String getUsername(Claims claims, boolean isPrivate) {
+	String getUsername(Claims claims) {
 		var principal = claims.get(props.getUsernameClaim(), String.class);
-		if (isBlank(principal) || principal.startsWith("@")) {
-			if (getAuthorities(claims).stream().noneMatch(a ->
+		var authorities = getAuthorities(claims);
+		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
+		if (isBlank(principal) ||
+			principal.equals("+user") ||
+			principal.equals("_user") ||
+			!principal.matches("^[+_a-z0-9]")) {
+			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
+				// Invalid username and can't fall back to root user
 				return null;
 			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			principal = "user" + (isBlank(principal)  ? "" : principal);
+			principal = "user" + (isBlank(principal)  ? "" : selector(principal).origin);
 		} else {
-			principal = principal.replaceAll("[^a-z.@]+", ".");
-			if (principal.startsWith("+") || principal.startsWith("_")) return principal;
+			principal = principal.replaceAll("[^a-z.@/]+", ".");
+			if (principal.startsWith("+user") || principal.startsWith("_user")) return principal;
 			principal = "user/" + principal;
 		}
 		return isPrivate ? "_" : "+" + principal;

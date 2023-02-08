@@ -13,8 +13,6 @@ import java.security.Key;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-import static jasper.security.AuthoritiesConstants.PRIVATE;
-
 public class TokenProviderImpl extends AbstractJwtTokenProvider implements TokenProvider {
 
 	private final Key key;
@@ -56,8 +54,6 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		var authorites = getAuthorities(claims);
-		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
 	}
 }
