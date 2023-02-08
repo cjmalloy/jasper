@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.compress.utils.Sets;
@@ -73,6 +74,7 @@ public class User implements Tag {
 	private String role = "";
 
 	@Formula("tag || origin")
+	@Setter(AccessLevel.NONE)
 	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)

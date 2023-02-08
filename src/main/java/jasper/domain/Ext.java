@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -47,6 +48,7 @@ public class Ext implements Tag {
 	private String origin = "";
 
 	@Formula("tag || origin")
+	@Setter(AccessLevel.NONE)
 	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)

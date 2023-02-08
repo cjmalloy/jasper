@@ -7,6 +7,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.domain.validator.SchemaValid;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -51,6 +52,7 @@ public class Plugin implements Tag {
 	private String origin = "";
 
 	@Formula("tag || origin")
+	@Setter(AccessLevel.NONE)
 	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)

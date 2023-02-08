@@ -7,6 +7,7 @@ import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
 import jasper.domain.proj.Tag;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -82,15 +83,19 @@ public class Ref implements HasTags {
 	private Metadata metadata;
 
 	@Formula("COALESCE(jsonb_array_length(tags), 0)")
+	@Setter(AccessLevel.NONE)
 	private String tagCount;
 
 	@Formula("COALESCE(jsonb_array_length(sources), 0)")
+	@Setter(AccessLevel.NONE)
 	private String sourceCount;
 
 	@Formula("COALESCE(jsonb_array_length(metadata -> 'responses'), 0)")
+	@Setter(AccessLevel.NONE)
 	private String responseCount;
 
 	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/comment'), 0)")
+	@Setter(AccessLevel.NONE)
 	private String commentCount;
 
 	@Column
