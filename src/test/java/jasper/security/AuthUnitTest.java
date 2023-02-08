@@ -38,7 +38,7 @@ public class AuthUnitTest {
 	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
 		a.props = new Props();
-		a.userTag = selector(user.getQualifiedTag());
+		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
 		a.origin = origin;

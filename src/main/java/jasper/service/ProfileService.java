@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
-import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -27,7 +27,11 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @Profile("scim")
 @Service
 public class ProfileService {
-	private static final Set<String> ROLES = Sets.newHashSet(SA, ADMIN, MOD, EDITOR, USER, VIEWER);
+	/**
+	 * Valid roles for a user. In multi-tenant mode just use SA or ANONYMOUS, and set origin
+	 * based roles in User entities.
+	 */
+	private static final Set<String> ROLES = Sets.newHashSet(SA, ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS);
 
 	@Autowired
 	ProfileManager profileManager;
@@ -45,8 +49,7 @@ public class ProfileService {
 		if (!qualifiedTag.startsWith("_user/") && !qualifiedTag.startsWith("+user/")) {
 			throw new InvalidUserProfileException("User tag must be start with user/");
 		}
-		var qt = selector(qualifiedTag);
-		profileManager.createUser(qt.tag.substring("+user/".length()), password, qt.origin, getRoles(qualifiedTag, role));
+		profileManager.createUser(qualifiedTag.substring("+user/".length()), password, getRoles(qualifiedTag, role));
 	}
 
 	private void validateRole(String role) {
@@ -70,8 +73,7 @@ public class ProfileService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public ProfileDto get(String qualifiedTag) {
-		var qt = selector(qualifiedTag);
-		return profileManager.getUser(qt.tag.substring("+user/".length()), qt.origin);
+		return profileManager.getUser(qualifiedTag.substring("+user/".length()));
 	}
 
 	@PreAuthorize("@auth.sysMod()")
@@ -80,35 +82,31 @@ public class ProfileService {
 		return profileManager.getUsers(auth.getOrigin(), pageNumber, pageSize);
 	}
 
-	@PreAuthorize("@auth.freshLogin() and (@auth.isUser(#qualifiedTag) or @auth.sysMod())")
+	@PreAuthorize("(@auth.isUser(#qualifiedTag) or @auth.sysMod()) and @auth.freshLogin()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changePassword(String qualifiedTag, String password) {
-		var qt = selector(qualifiedTag);
-		profileManager.changePassword(qt.tag.substring("+user/".length()), password);
+		profileManager.changePassword(qualifiedTag.substring("+user/".length()), password);
 	}
 
 	@PreAuthorize("hasRole('MOD') and @auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changeRole(String qualifiedTag, String role) {
 		validateRole(role);
-		var qt = selector(qualifiedTag);
-		profileManager.changeRoles(qt.tag.substring("+user/".length()), qt.origin, getRoles(qualifiedTag, role));
+		profileManager.changeRoles(qualifiedTag.substring("+user/".length()), getRoles(qualifiedTag, role));
 	}
 
 	@PreAuthorize("@auth.sysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void setActive(String qualifiedTag, boolean active) {
-		if (!active && auth.getUserTag().tag.equals(selector(qualifiedTag).tag)) {
+		if (!active && auth.getUserTag().tag.equals(qualifiedTag)) {
 			throw new DeactivateSelfException();
 		}
-		var qt = selector(qualifiedTag);
-		profileManager.setActive(qt.tag.substring("+user/".length()), active);
+		profileManager.setActive(qualifiedTag.substring("+user/".length()), active);
 	}
 
 	@PreAuthorize("@auth.sysMod()")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void delete(String qualifiedTag) {
-		var qt = selector(qualifiedTag);
-		profileManager.deleteUser(qt.tag.substring("+user/".length()));
+		profileManager.deleteUser(qualifiedTag.substring("+user/".length()));
 	}
 }

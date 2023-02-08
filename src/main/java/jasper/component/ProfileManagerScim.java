@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static jasper.security.AuthoritiesConstants.PRIVATE;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("scim")
 @Component
@@ -44,49 +43,40 @@ public class ProfileManagerScim implements ProfileManager {
 
 	@Override
 	@Timed(value = "jasper.scim", histogram = true)
-	public void createUser(String userName, String password, String origin, String[] roles) {
+	public void createUser(String userName, String password, String[] roles) {
 		var user = ScimUserResource.builder()
 			.userName(userName)
 			.password(password)
-			.customClaims(getClaims(origin, roles))
+			.customClaims(getClaims(roles))
 			.emails(List.of(new Email().setValue(userName + "@jasper.local")))
 			.build();
 		scimClient.createUser(accessToken.getAdminToken(), user);
 	}
 
-	private ObjectNode getClaims(String origin, String[] roles) {
+	private ObjectNode getClaims(String[] roles) {
 		var claims = objectMapper.createObjectNode();
 		var auth = String.join(",", roles);
-		if (props.isMultiTenant() || isNotBlank(origin)) {
-			return claims.set(props.getAuthoritiesClaim(), objectMapper.createObjectNode().set(origin, new TextNode(auth)));
-		} else {
-			return claims.set(props.getAuthoritiesClaim(), new TextNode(auth));
-		}
+		return claims.set(props.getAuthoritiesClaim(), new TextNode(auth));
 	}
 
-	private String[] getRoles(String origin, ScimUserResource user) {
+	private String[] getRoles(ScimUserResource user) {
 		if (user.getCustomClaims() != null &&
 			user.getCustomClaims().get(props.getAuthoritiesClaim()) != null) {
-			var auth = user.getCustomClaims().get(props.getAuthoritiesClaim());
-			if (auth.has(origin) && isNotBlank(auth.get(origin).asText())) {
-				return auth.get(origin).asText().split(",");
-			} else if (auth.isTextual()) {
-				return auth.asText().split(",");
-			}
+			return user.getCustomClaims().get(props.getAuthoritiesClaim()).asText().split(",");
 		}
 		return new String[] { props.getDefaultRole() };
 	}
 
 	@Override
 	@Timed(value = "jasper.scim", histogram = true)
-	public ProfileDto getUser(String userName, String origin) {
-		return mapUser(origin, _getUser(userName));
+	public ProfileDto getUser(String userName) {
+		return mapUser(_getUser(userName));
 	}
 
-	private ProfileDto mapUser(String origin, ScimUserResource user) {
+	private ProfileDto mapUser(ScimUserResource user) {
 		var result = new ProfileDto();
 		result.setActive(user.isActive());
-		var roles = Arrays.asList(getRoles(origin, user));
+		var roles = Arrays.asList(getRoles(user));
 		for (var role : roles) {
 			if (!role.equals(PRIVATE)) {
 				result.setRole(role);
@@ -117,7 +107,7 @@ public class ProfileManagerScim implements ProfileManager {
 			PageRequest.of(users.getStartIndex() - 1, users.getItemsPerPage()),
 			users.getTotalResults())
 			.map(m -> objectMapper.convertValue(m, ScimUserResource.class))
-			.map(u -> mapUser(origin, u));
+			.map(u -> mapUser(u));
 	}
 
 	@Override
@@ -153,23 +143,13 @@ public class ProfileManagerScim implements ProfileManager {
 
 	@Override
 	@Timed(value = "jasper.scim", histogram = true)
-	public void changeRoles(String userName, String origin, String[] roles) {
+	public void changeRoles(String userName, String[] roles) {
 		var user = _getUser(userName);
 		var claims = user.getCustomClaims();
 		if (claims == null || claims.isNull()) {
-			claims = getClaims(origin, roles);
-		} else if (claims.get(props.getAuthoritiesClaim()).isObject()) {
-			var auth = (ObjectNode) claims.get(props.getAuthoritiesClaim());
-			auth.set(origin, new TextNode(String.join(",", roles)));
+			claims = getClaims(roles);
 		} else {
-			if (isNotBlank(origin)) {
-				var localAuth = claims.get(props.getAuthoritiesClaim());
-				claims = getClaims(origin, roles);
-				var auth = (ObjectNode) claims.get(props.getAuthoritiesClaim());
-				auth.set("", localAuth);
-			} else {
-				claims.set(props.getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
-			}
+			claims.set(props.getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
 		}
 		var patch = ScimPatchOp.builder().operations(List.of(
 			ScimPatchOp.Operation.builder()

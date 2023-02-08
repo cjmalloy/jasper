@@ -7,6 +7,7 @@ import lombok.Getter;
 @Builder
 public class RolesDto {
 	String tag;
+	boolean sysadmin;
 	boolean admin;
 	boolean mod;
 	boolean editor;

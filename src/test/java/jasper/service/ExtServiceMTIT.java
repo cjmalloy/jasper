@@ -22,7 +22,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("tester")
+@WithMockUser("+user/tester")
 @MultiTenantIntegrationTest
 @Transactional
 public class ExtServiceMTIT {
@@ -93,7 +93,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "MOD")
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testModCreateExt() {
 		var ext = getExt();
 		ext.setTag("custom");
@@ -221,7 +221,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testReadPrivateUserExt() {
 		var ext = getExt();
 		ext.setTag("_user/tester");
@@ -291,7 +291,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"MOD"})
+	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testPagePublicRemoteExtMod() {
 		var ext = getExt();
 		ext.setTag("custom");
@@ -316,7 +316,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"ADMIN"})
+	@WithMockUser(value = "+user/tester", roles = "ADMIN")
 	void testPagePublicRemoteExtAdmin() {
 		var ext = getExt();
 		ext.setTag("custom");
@@ -341,7 +341,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"SYSADMIN"})
+	@WithMockUser(value = "+user/tester", roles = "SYSADMIN")
 	void testPagePublicRemoteExtSysAdmin() {
 		var ext = getExt();
 		ext.setTag("custom");
@@ -421,7 +421,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserExt() {
 		var ext = getExt();
 		ext.setTag("_user/tester");
@@ -441,7 +441,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testPagePrivateUserExtFailed() {
 		var ext = getExt();
 		ext.setTag("_user/other");

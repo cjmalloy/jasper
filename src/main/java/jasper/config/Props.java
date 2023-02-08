@@ -28,7 +28,7 @@ public class Props {
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
 	private String replicateBatch = "5000";
-	private String defaultRole = "ROLE_USER";
+	private String defaultRole = "ROLE_ANONYMOUS";
 	private String localOrigin = "";
 	private boolean multiTenant = false;
 	private boolean allowLocalOriginHeader = false;

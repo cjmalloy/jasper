@@ -21,8 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -35,7 +35,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -51,11 +50,11 @@ import static jasper.repository.spec.TagSpec.notPrivateTag;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
-import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -92,7 +91,7 @@ public class Auth {
 	protected List<QualifiedTag> tagWriteAccess;
 
 	public boolean local(String origin) {
-		return this.getOrigin().equals(origin);
+		return getOrigin().equals(origin);
 	}
 
 	public boolean freshLogin() {
@@ -104,7 +103,7 @@ public class Auth {
 	}
 
 	public boolean isLoggedIn() {
-		return hasRole(VIEWER);
+		return isNotBlank(getPrincipal());
 	}
 
 	public boolean canReadRef(HasTags ref) {
@@ -113,7 +112,6 @@ public class Auth {
 		if (ref.getTags() == null) return false;
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
 		if (captures(getPublicTag(), qualifiedTags)) return true;
-		if (!isLoggedIn()) return false;
 		return captures(getReadAccess(), qualifiedTags);
 	}
 
@@ -145,7 +143,7 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
-		if (!isLoggedIn()) return false;
+		if (!hasRole(VIEWER)) return false;
 		return captures(getTagReadAccess(), selector(tag + getOrigin()));
 	}
 
@@ -191,7 +189,7 @@ public class Auth {
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
 		var qt = selector(qualifiedTag);
-		if ((local(qt.origin) || !props.isMultiTenant()) && !isPrivateTag(qualifiedTag)) return true;
+		if (!isPrivateTag(qualifiedTag) && (!props.isMultiTenant() || local(qt.origin))) return true;
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
 		return captures(getTagReadAccess(), qt);
 	}
@@ -220,7 +218,6 @@ public class Auth {
 			.map(QualifiedTag::selector)
 			.toList();
 		if (tagList.isEmpty()) return true;
-		if (!isLoggedIn()) return false;
 		var tagReadAccess = getTagReadAccess();
 		if (tagReadAccess == null) return false;
 		return captures(tagReadAccess, tagList);
@@ -236,11 +233,18 @@ public class Auth {
 		return hasRole(MOD);
 	}
 
+	public boolean canWriteUser(String tag) {
+		if (!local(selector(tag).origin)) return false;
+		if (sysAdmin()) return true;
+		if (!canWriteTag(tag)) return false;
+		var oldRole = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(tag).map(User::getRole).orElse(null);
+		return isBlank(oldRole) || hasRole(oldRole);
+	}
+
 	public boolean canWriteUser(User user) {
-		if (hasRole(SA)) return true;
-		if (!local(user.getOrigin())) return false;
+		if (!canWriteUser(user.getQualifiedTag())) return false;
+		if (isNotBlank(user.getRole()) && !hasRole(user.getRole())) return false;
 		if (hasRole(MOD)) return true;
-		if (!canWriteTag(user.getQualifiedTag())) return false;
 		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
@@ -272,18 +276,16 @@ public class Auth {
 		if (hasRole(SA)) return Specification.where(null);
 		var spec = Specification.<Ref>where(isOrigin(getMultiTenantOrigin()));
 		if (hasRole(MOD)) return spec;
-		spec = spec.and(getPublicTag().refSpec());
-		if (!isLoggedIn()) return spec;
-		return spec.or(hasAnyQualifiedTag(getReadAccess()));
+		return spec.and(getPublicTag().refSpec())
+			.or(hasAnyQualifiedTag(getReadAccess()));
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
 		if (hasRole(SA)) return Specification.where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (hasRole(MOD)) return spec;
-		spec = spec.and(notPrivateTag());
-		if (!isLoggedIn()) return spec;
-		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec.and(notPrivateTag())
+			.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
@@ -341,6 +343,7 @@ public class Auth {
 	public String getPrincipal() {
 		if (principal == null) {
 			var authn = getAuthentication();
+			if (authn == null) return null;
 			if (authn instanceof JwtAuthentication j) {
 				principal = j.getPrincipal();
 			} else {
@@ -354,7 +357,6 @@ public class Auth {
 					return null;
 				}
 			}
-			principal = principal.replaceAll("[^a-z/.@]+", ".");
 		}
 		return principal;
 	}
@@ -362,17 +364,8 @@ public class Auth {
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
 			if (!isLoggedIn()) return null;
-			var principal = getPrincipal();
-			if (principal == null) return null;
-			if (principal.contains("@")) {
-				principal = principal.substring(0, principal.indexOf('@'));
-			}
-			var rhs = isNotBlank(principal) ? "/" + principal : "";
-			if (hasRole(PRIVATE)) {
-				userTag = selector("_user" + rhs + getOrigin());
-			} else {
-				userTag = selector("+user" + rhs + getOrigin());
-			}
+			var principal = selector(getPrincipal());
+			userTag = selector(principal.tag + getOrigin());
 		}
 		return userTag;
 	}
@@ -389,7 +382,7 @@ public class Auth {
 		if (origin == null) {
 			if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 				origin = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
-			} else if (props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
+			} else if (isLoggedIn() && props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
 				origin = getPrincipal().substring(getPrincipal().indexOf("@"));
 			} else {
 				origin = props.getLocalOrigin();
@@ -532,11 +525,15 @@ public class Auth {
 
 	public Set<String> getAuthoritySet() {
 		if (roles == null) {
-			Collection<? extends GrantedAuthority> userAuthorities = getAuthentication().getAuthorities();
-			if (roleHierarchy != null) {
-				userAuthorities = roleHierarchy.getReachableGrantedAuthorities(userAuthorities);
+			var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
+			if (getUser().isPresent()) {
+				if (User.ROLES.contains(getUser().get().getRole())) {
+					userAuthorities.add(new SimpleGrantedAuthority(getUser().get().getRole()));
+				}
 			}
-			roles = AuthorityUtils.authorityListToSet(userAuthorities);
+			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
+					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
+					userAuthorities);
 		}
 		return roles;
 	}

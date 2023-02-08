@@ -6,6 +6,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
+import java.time.Instant;
 import java.util.List;
 
 public class RefSpec {
@@ -50,6 +51,12 @@ public class RefSpec {
 					cb.function("jsonb_exists_any", Boolean.class,
 						root.get(Ref_.alternateUrls),
 						literal(cb, urls))));
+	}
+
+	public static Specification<Ref> endsWithTitle(String text) {
+		var textLower = text.toLowerCase();
+		return (root, query, cb) ->
+				cb.like(cb.literal(textLower), cb.concat("%", cb.lower(root.get(Ref_.title))));
 	}
 
 	public static Specification<Ref> hasSource(String url) {
@@ -159,7 +166,7 @@ public class RefSpec {
 	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				root.get("tags"),
+				root.get(Ref_.tags),
 				cb.literal(tag)));
 	}
 
@@ -185,5 +192,21 @@ public class RefSpec {
 		return cb.function("string_to_array", String[].class,
 			cb.literal(String.join(",", tags)),
 			cb.literal(","));
+	}
+
+	public static Specification<Ref> isPublishedAfter(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.greaterThan(
+						root.get(Ref_.PUBLISHED),
+						i);
+	}
+
+	public static Specification<Ref> isPublishedBefore(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.lessThan(
+						root.get(Ref_.PUBLISHED),
+						i);
 	}
 }

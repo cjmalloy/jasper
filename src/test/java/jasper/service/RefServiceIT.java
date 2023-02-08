@@ -28,7 +28,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("tester")
+@WithMockUser("+user/tester")
 @IntegrationTest
 @Transactional
 public class RefServiceIT {
@@ -208,7 +208,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testCreateRefWithPrivateUserTags() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -223,7 +223,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"USER", "PRIVATE"})
+	@WithMockUser("_user/tester")
 	void testCreateRefWithPrivateUserTagsFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -247,7 +247,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"MOD"})
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
 	void testGetUntaggedRefMod() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -271,7 +271,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"MOD"})
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
 	void testGetUntaggedRemoteRefMod() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -299,7 +299,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"MOD"})
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
 	void testGetPageUntaggedRef_Mod() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -329,7 +329,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"MOD"})
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
 	void testGetPageUntaggedRemoteRef_Mod() {
 		var ref = new Ref();
 		ref.setOrigin("@remote");
@@ -345,7 +345,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"ADMIN"})
+	@WithMockUser(value = "+user/tester", roles = {"ADMIN"})
 	void testGetPageUntaggedRemoteRef_Admin() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -361,7 +361,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = {"SYSADMIN"})
+	@WithMockUser(value = "+user/tester", roles = {"SYSADMIN"})
 	void testGetPageUntaggedRemoteRef_SysAdmin() {
 		var ref = new Ref();
 		ref.setUrl(URL);
@@ -754,7 +754,7 @@ public class RefServiceIT {
 	}
 
 	@Test
-	@WithMockUser(value = "tester", roles = "Admin")
+	@WithMockUser(value = "+user/tester", roles = "Admin")
 	void testAdminUpdateLockedRefFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);

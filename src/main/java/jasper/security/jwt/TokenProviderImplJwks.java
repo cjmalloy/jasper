@@ -4,10 +4,13 @@ import io.jsonwebtoken.Jwts;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+
+import static jasper.security.AuthoritiesConstants.PRIVATE;
 
 public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
 
@@ -21,8 +24,10 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
 	}
 
-	public Authentication getAuthentication(String token, String origin) {
+	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims, origin));
+		var authorites = getAuthorities(claims);
+		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
+		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
 	}
 }

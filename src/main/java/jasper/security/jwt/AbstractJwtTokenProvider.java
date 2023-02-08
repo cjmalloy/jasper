@@ -16,14 +16,21 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
 import java.util.stream.Collectors;
+
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.SA;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
 	private final Logger log = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
+
+	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN, SA };
 
 	Props props;
 
@@ -36,21 +43,15 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 		this.securityMetersService = securityMetersService;
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, String origin) {
-		if (origin == null) {
-			String username = null;
-			if (props.isAllowUsernameClaimOrigin() && (username = getUsername(claims)) != null && username.contains("@")) {
-				origin = username.substring(username.indexOf("@"));
-			} else {
-				origin = props.getLocalOrigin();
-			}
-		}
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims) {
 		var authString = props.getDefaultRole();
-		var authClaim = claims.get(props.getAuthoritiesClaim(), Object.class);
-		if (authClaim instanceof String auth) {
-			authString = auth;
-		} else if (authClaim instanceof Map auth && auth.containsKey(origin)) {
-			authString = auth.get(origin).toString();
+		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
+		if (isNotBlank(authClaim)) {
+			if (isNotBlank(authString)) {
+				authString += "," + authClaim;
+			} else {
+				authString = authClaim;
+			}
 		}
 		return Arrays
 			.stream(authString.split(","))
@@ -59,8 +60,22 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			.collect(Collectors.toList());
 	}
 
-	String getUsername(Claims claims) {
-		return claims.get(props.getUsernameClaim(), String.class);
+	String getUsername(Claims claims, boolean isPrivate) {
+		var principal = claims.get(props.getUsernameClaim(), String.class);
+		if (isBlank(principal) || principal.startsWith("@")) {
+			if (getAuthorities(claims).stream().noneMatch(a ->
+				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
+				return null;
+			}
+			// The root user has access to every other user.
+			// Only assign to mods or higher when username is missing.
+			principal = "user" + (isBlank(principal)  ? "" : principal);
+		} else {
+			principal = principal.replaceAll("[^a-z.@]+", ".");
+			if (principal.startsWith("+") || principal.startsWith("_")) return principal;
+			principal = "user/" + principal;
+		}
+		return isPrivate ? "_" : "+" + principal;
 	}
 
 	public boolean validateToken(String authToken) {
