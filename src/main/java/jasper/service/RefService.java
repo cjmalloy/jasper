@@ -108,14 +108,24 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void patch(String url, String origin, JsonPatch patch) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
+		var created = false;
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		if (ref == null) {
+			created = true;
+			ref = new Ref();
+			ref.setUrl(url);
+			ref.setOrigin(origin);
+		}
 		try {
-			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
+			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
-			update(updated);
+			if (created) {
+				create(updated);
+			} else {
+				update(updated);
+			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}

@@ -25,12 +25,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+
+import static jasper.repository.spec.QualifiedTag.selector;
 
 @Service
 public class ExtService {
@@ -99,11 +102,25 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void patch(String qualifiedTag, JsonPatch patch) {
-		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + qualifiedTag);
+		var created = false;
+		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		if (ext == null) {
+			created = true;
+			ext = new Ext();
+			var qt = selector(qualifiedTag);
+			ext.setTag(qt.tag);
+			ext.setOrigin(qt.origin);
+		}
 		try {
-			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
-			update(objectMapper.treeToValue(patched, Ext.class));
+			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
+			var updated = objectMapper.treeToValue(patched, Ext.class);
+			// @PreAuthorize annotations are not triggered for calls within the same class
+			if (!auth.canWriteTag(updated.getQualifiedTag())) throw new AccessDeniedException("Can't add new tags");
+			if (created) {
+				create(updated);
+			} else {
+				update(updated);
+			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
