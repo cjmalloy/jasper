@@ -4,10 +4,7 @@ import io.jsonwebtoken.Jwts;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.StringUtils;
-
-import static jasper.security.AuthoritiesConstants.PRIVATE;
 
 public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implements TokenProvider {
 
@@ -23,9 +20,7 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implemen
 
 	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-		var authorites = getAuthorities(claims);
-		var isPrivate = authorites.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-		return new JwtAuthentication(getUsername(claims, isPrivate), claims, authorites);
+		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
 	}
 
 	@Override
