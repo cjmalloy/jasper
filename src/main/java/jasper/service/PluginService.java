@@ -30,7 +30,7 @@ public class PluginService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
@@ -68,7 +68,7 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
@@ -84,7 +84,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

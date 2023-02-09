@@ -30,7 +30,7 @@ public class TemplateService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void create(Template template) {
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
@@ -60,7 +60,7 @@ public class TemplateService {
 			pageable);
 	}
 
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
@@ -76,7 +76,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
