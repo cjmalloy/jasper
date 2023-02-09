@@ -91,7 +91,7 @@ public class Auth {
 	protected List<QualifiedTag> tagWriteAccess;
 
 	public boolean local(String origin) {
-		return getOrigin().equals(origin);
+		return getOrigin().equals(selector(origin).origin);
 	}
 
 	public boolean freshLogin() {
