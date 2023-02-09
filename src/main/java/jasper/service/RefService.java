@@ -8,7 +8,6 @@ import com.github.fge.jsonpatch.JsonPatchException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
 import jasper.domain.Ref;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
@@ -56,7 +55,6 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void create(Ref ref) {
-		if (!auth.local(ref.getOrigin())) throw new ForeignWriteException(ref.getOrigin());
 		ingest.ingest(ref);
 	}
 

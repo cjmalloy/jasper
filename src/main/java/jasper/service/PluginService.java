@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
@@ -31,10 +30,9 @@ public class PluginService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
-		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		plugin.setModified(Instant.now());
 		try {
@@ -70,7 +68,7 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
@@ -86,7 +84,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

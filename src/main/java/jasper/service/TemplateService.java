@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
@@ -31,10 +30,9 @@ public class TemplateService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void create(Template template) {
-		if (!auth.local(template.getOrigin())) throw new ForeignWriteException(template.getOrigin());
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		template.setModified(Instant.now());
 		try {
@@ -62,7 +60,7 @@ public class TemplateService {
 			pageable);
 	}
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
@@ -78,7 +76,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.isLocal(plugin.getOrigin) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
