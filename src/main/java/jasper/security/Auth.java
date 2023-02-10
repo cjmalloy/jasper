@@ -232,6 +232,16 @@ public class Auth {
 		return hasRole(MOD);
 	}
 
+	public boolean canReadUser(String qualifiedTag) {
+		if (!canReadTag(qualifiedTag)) return false;
+		return hasRole(VIEWER);
+	}
+
+	public boolean canReadUserQuery(Query filter) {
+		if (!canReadUserQuery(filter)) return false;
+		return hasRole(VIEWER);
+	}
+
 	public boolean canWriteUser(String tag) {
 		if (!local(selector(tag).origin)) return false;
 		if (sysAdmin()) return true;

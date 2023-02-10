@@ -28,6 +28,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
+import static jasper.security.AuthoritiesConstants.VIEWER;
 
 @Service
 public class UserService {
@@ -64,7 +65,7 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@PreAuthorize("@auth.canReadUser(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
@@ -80,7 +81,7 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.canReadUserQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
@@ -127,6 +128,7 @@ public class UserService {
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))
 			.user(auth.hasRole(USER))
+			.viewer(auth.hasRole(VIEWER))
 			.build();
 	}
 }
