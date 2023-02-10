@@ -45,7 +45,7 @@ public class Ingest {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
-		validate.ref(ref, true);
+		validate.ref(ref);
 		meta.update(ref, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
@@ -56,7 +56,7 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
-		validate.ref(ref, false);
+		validate.ref(ref);
 		meta.update(ref, maybeExisting.get());
 		ensureUniqueModified(ref);
 	}
@@ -65,7 +65,7 @@ public class Ingest {
 	public void push(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		validate.ref(ref, true);
+		validate.ref(ref);
 		meta.update(ref, maybeExisting.orElse(null));
 		refRepository.save(ref);
 	}

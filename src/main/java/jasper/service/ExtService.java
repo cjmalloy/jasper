@@ -56,7 +56,7 @@ public class ExtService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void create(Ext ext) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
-		validate.ext(ext, true);
+		validate.ext(ext);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
@@ -68,7 +68,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void push(Ext ext) {
-		validate.ext(ext, true);
+		validate.ext(ext);
 		try {
 			extRepository.save(ext);
 		} catch (DataIntegrityViolationException e) {
@@ -109,7 +109,7 @@ public class ExtService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
-		validate.ext(ext, false);
+		validate.ext(ext);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);

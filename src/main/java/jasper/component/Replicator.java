@@ -94,7 +94,7 @@ public class Replicator {
 				}
 				try {
 					if (pull.isValidatePlugins()) {
-						validate.ref(ref, true, pull.getValidationOrigin());
+						validate.ref(ref, pull.getValidationOrigin());
 					}
 					refRepository.save(ref);
 				} catch (RuntimeException e) {
@@ -107,7 +107,7 @@ public class Replicator {
 				pull.migrate(ext, config);
 				try {
 					if (pull.isValidateTemplates()) {
-						validate.ext(ext, true, pull.getValidationOrigin());
+						validate.ext(ext, pull.getValidationOrigin());
 					}
 					extRepository.save(ext);
 				} catch (RuntimeException e) {

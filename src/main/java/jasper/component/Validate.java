@@ -47,32 +47,32 @@ public class Validate {
 	ObjectMapper objectMapper;
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, boolean useDefaults) {
-		this.ref(ref, useDefaults, ref.getOrigin());
+	public void ref(Ref ref) {
+		this.ref(ref, ref.getOrigin());
 	}
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, boolean useDefaults, String validationOrigin) {
+	public void ref(Ref ref, String validationOrigin) {
 		tags(ref);
-		plugins(ref, useDefaults, validationOrigin);
+		plugins(ref, validationOrigin);
 		sources(ref);
 		responses(ref);
 	}
 
 	@Timed("jasper.validate.ext")
-	public void ext(Ext ext, boolean useDefaults) {
-		this.ext(ext, useDefaults, ext.getOrigin());
+	public void ext(Ext ext) {
+		this.ext(ext, ext.getOrigin());
 	}
 
 	@Timed("jasper.validate.ext")
-	public void ext(Ext ext, boolean useDefaults, String origin) {
+	public void ext(Ext ext, String origin) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
-		if (useDefaults && ext.getConfig() == null) {
+		if (ext.getConfig() == null) {
 			var mergedDefaults = templates
 				.stream()
 				.map(Template::getDefaults)
@@ -106,7 +106,7 @@ public class Validate {
 		}
 	}
 
-	private void plugins(Ref ref, boolean useDefaults, String origin) {
+	private void plugins(Ref ref, String origin) {
 		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
@@ -118,7 +118,7 @@ public class Validate {
 			});
 		}
 		for (var tag : ref.getTags()) {
-			plugin(ref, tag, useDefaults, origin);
+			plugin(ref, tag, origin);
 		}
 	}
 
@@ -130,14 +130,14 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, boolean useDefaults, String origin) {
+	private void plugin(Ref ref, String tag, String origin) {
 		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, origin);
 		if (plugins.isEmpty()) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 			return;
 		}
-		if (useDefaults && (ref.getPlugins() == null || !ref.getPlugins().has(tag))) {
+		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
 			if (ref.getPlugins() == null) {
 				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
 			}
