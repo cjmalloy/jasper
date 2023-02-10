@@ -28,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -58,6 +59,12 @@ public class RefService {
 		ingest.ingest(ref);
 	}
 
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
+	public void push(Ref ref) {
+		ingest.push(ref);
+	}
+
 	@Transactional(readOnly = true)
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
@@ -66,6 +73,13 @@ public class RefService {
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		return mapper.domainToDto(result);
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
+	public Instant cursor(String origin) {
+		return refRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)

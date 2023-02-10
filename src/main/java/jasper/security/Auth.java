@@ -219,9 +219,7 @@ public class Auth {
 			.map(QualifiedTag::selector)
 			.toList();
 		if (tagList.isEmpty()) return true;
-		var tagReadAccess = getTagReadAccess();
-		if (tagReadAccess == null) return false;
-		return captures(tagReadAccess, tagList);
+		return captures(getTagReadAccess(), tagList);
 	}
 
 	public boolean sysAdmin() {

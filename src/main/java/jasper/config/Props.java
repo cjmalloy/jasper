@@ -27,7 +27,7 @@ public class Props {
 	private String scrapeIntervalMin = "1";
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
-	private String replicateBatch = "5000";
+	private int maxReplicateBatch = 5000;
 	private String defaultRole = "ROLE_ANONYMOUS";
 	private String localOrigin = "";
 	private boolean multiTenant = false;

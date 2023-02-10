@@ -48,15 +48,25 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean useDefaults) {
+		this.ref(ref, useDefaults, ref.getOrigin());
+	}
+
+	@Timed("jasper.validate.ref")
+	public void ref(Ref ref, boolean useDefaults, String validationOrigin) {
 		tags(ref);
-		plugins(ref, useDefaults);
+		plugins(ref, useDefaults, validationOrigin);
 		sources(ref);
 		responses(ref);
 	}
 
 	@Timed("jasper.validate.ext")
 	public void ext(Ext ext, boolean useDefaults) {
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), ext.getOrigin());
+		this.ext(ext, useDefaults, ext.getOrigin());
+	}
+
+	@Timed("jasper.validate.ext")
+	public void ext(Ext ext, boolean useDefaults, String origin) {
+		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
@@ -96,7 +106,7 @@ public class Validate {
 		}
 	}
 
-	private void plugins(Ref ref, boolean useDefaults) {
+	private void plugins(Ref ref, boolean useDefaults, String origin) {
 		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
@@ -108,7 +118,7 @@ public class Validate {
 			});
 		}
 		for (var tag : ref.getTags()) {
-			plugin(ref, tag, useDefaults);
+			plugin(ref, tag, useDefaults, origin);
 		}
 	}
 
@@ -120,8 +130,8 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, boolean useDefaults) {
-		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, ref.getOrigin());
+	private void plugin(Ref ref, String tag, boolean useDefaults, String origin) {
+		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, origin);
 		if (plugins.isEmpty()) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);

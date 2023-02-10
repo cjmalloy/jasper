@@ -14,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,12 +43,29 @@ public class TemplateService {
 		}
 	}
 
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
+	public void push(Template template) {
+		try {
+			templateRepository.save(template);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Template get(String qualifiedTag) {
 		return templateRepository.findOneByQualifiedTag(qualifiedTag)
 								 .orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
+	public Instant cursor(String origin) {
+		return templateRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)

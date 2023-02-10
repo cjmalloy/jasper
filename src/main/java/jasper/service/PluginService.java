@@ -14,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,16 @@ public class PluginService {
 		}
 	}
 
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
+	public void push(Plugin plugin) {
+		try {
+			pluginRepository.save(plugin);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -55,6 +66,13 @@ public class PluginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public boolean exists(String qualifiedTag) {
 		return pluginRepository.existsByQualifiedTag(qualifiedTag);
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
+	public Instant cursor(String origin) {
+		return pluginRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)

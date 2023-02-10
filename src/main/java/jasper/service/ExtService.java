@@ -26,6 +26,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,12 +65,30 @@ public class ExtService {
 		}
 	}
 
+	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
+	public void push(Ext ext) {
+		validate.ext(ext, true);
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Ext get(String qualifiedTag) {
 		return extRepository.findOneByQualifiedTag(qualifiedTag)
 							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
+	public Instant cursor(String origin) {
+		return extRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)

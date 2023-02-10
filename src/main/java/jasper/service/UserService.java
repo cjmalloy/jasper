@@ -16,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +53,16 @@ public class UserService {
 		}
 	}
 
+	@PreAuthorize("@auth.canWriteUser(#user)")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public void push(User user) {
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
@@ -59,6 +70,13 @@ public class UserService {
 		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
 								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
 		return mapper.domainToDto(result);
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public Instant cursor(String origin) {
+		return userRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)
