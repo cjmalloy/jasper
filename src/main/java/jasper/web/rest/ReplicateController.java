@@ -105,7 +105,7 @@ public class ReplicateController {
 		RuntimeException first = null;
 		for (var ref : refs) {
 			try {
-				this.refService.push(ref);
+				refService.push(ref);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
 			}
@@ -153,7 +153,7 @@ public class ReplicateController {
 		RuntimeException first = null;
 		for (var ext : exts) {
 			try {
-				this.extService.push(ext);
+				extService.push(ext);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
 			}
@@ -201,7 +201,7 @@ public class ReplicateController {
 		RuntimeException first = null;
 		for (var user : users) {
 			try {
-				this.userService.push(user);
+				userService.push(user);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
 			}
@@ -249,7 +249,7 @@ public class ReplicateController {
 		RuntimeException first = null;
 		for (var plugin : plugins) {
 			try {
-				this.pluginService.push(plugin);
+				pluginService.push(plugin);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
 			}
@@ -297,7 +297,7 @@ public class ReplicateController {
 		RuntimeException first = null;
 		for (var template : templates) {
 			try {
-				this.templateService.push(template);
+				templateService.push(template);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
 			}

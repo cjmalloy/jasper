@@ -48,7 +48,7 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref) {
-		this.ref(ref, ref.getOrigin());
+		ref(ref, ref.getOrigin());
 	}
 
 	@Timed("jasper.validate.ref")
@@ -61,7 +61,7 @@ public class Validate {
 
 	@Timed("jasper.validate.ext")
 	public void ext(Ext ext) {
-		this.ext(ext, ext.getOrigin());
+		ext(ext, ext.getOrigin());
 	}
 
 	@Timed("jasper.validate.ext")

@@ -97,16 +97,16 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 				return true;
 			}
 		} catch (ExpiredJwtException e) {
-			this.securityMetersService.trackTokenExpired();
+			securityMetersService.trackTokenExpired();
 			log.trace(INVALID_JWT_TOKEN, e);
 		} catch (UnsupportedJwtException e) {
-			this.securityMetersService.trackTokenUnsupported();
+			securityMetersService.trackTokenUnsupported();
 			log.trace(INVALID_JWT_TOKEN, e);
 		} catch (MalformedJwtException e) {
-			this.securityMetersService.trackTokenMalformed();
+			securityMetersService.trackTokenMalformed();
 			log.trace(INVALID_JWT_TOKEN, e);
 		} catch (SignatureException e) {
-			this.securityMetersService.trackTokenInvalidSignature();
+			securityMetersService.trackTokenInvalidSignature();
 			log.trace(INVALID_JWT_TOKEN, e);
 		} catch (IllegalArgumentException e) {
 			log.error("Token validation error {}", e.getMessage());

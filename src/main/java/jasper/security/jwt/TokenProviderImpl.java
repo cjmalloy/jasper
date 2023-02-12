@@ -23,8 +23,8 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	public TokenProviderImpl(Props props, SecurityMetersService securityMetersService) {
 		super(props, securityMetersService);
-		key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getAuthentication().getJwt().getBase64Secret()));
-		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
+		this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getAuthentication().getJwt().getBase64Secret()));
+		this.jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
 		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
 			1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
@@ -37,9 +37,9 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 		long now = (new Date()).getTime();
 		Date validity;
 		if (rememberMe) {
-			validity = new Date(now + this.tokenValidityInMillisecondsForRememberMe);
+			validity = new Date(now + tokenValidityInMillisecondsForRememberMe);
 		} else {
-			validity = new Date(now + this.tokenValidityInMilliseconds);
+			validity = new Date(now + tokenValidityInMilliseconds);
 		}
 
 		return Jwts
