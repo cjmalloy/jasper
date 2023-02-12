@@ -16,11 +16,6 @@ import lombok.Setter;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-
-import static jasper.domain.Plugin.isPlugin;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 
 @Getter
@@ -33,41 +28,29 @@ public class Pull {
 	private Instant lastPull;
 	private int batchSize;
 	private boolean validatePlugins;
+	private boolean stripInvalidPlugins;
 	private boolean validateTemplates;
+	private boolean stripInvalidTemplates;
 	private String validationOrigin;
 	private boolean generateMetadata;
-	private List<String> removeTags;
-	private Map<String, String> mapTags;
-	private Map<String, String> mapOrigins;
+	private String getOriginFromTag;
 	private List<String> addTags;
+	private List<String> removeTags;
 
 	// TODO: copy to origin post-processing
 	// TODO: conditional tag/origin mapping
 
 	private void migrateEntity(HasOrigin entity, Origin config) {
 		entity.setOrigin(config.getLocal());
-		if (mapOrigins != null && mapOrigins.containsKey(entity.getOrigin())) {
-			entity.setOrigin(mapOrigins.get(entity.getOrigin()));
-		}
 	}
 
 	private void migrateTag(Tag tag, Origin config) {
 		migrateEntity(tag, config);
-		if (mapTags != null && mapTags.containsKey(tag.getTag())) {
-			var replacement = mapTags.get(tag.getTag());
-			if (isNotBlank(replacement)) {
-				tag.setTag(replacement);
-			}
-		}
-	}
-
-	public boolean skip(String tag) {
-		return removeTags != null && removeTags.contains(tag);
 	}
 
 	public void migrate(Ref ref, Origin config) {
 		migrateEntity(ref, config);
-		if (ref.getTags() != null && (removeTags != null || mapTags != null)) {
+		if (ref.getTags() != null && removeTags != null) {
 			ref.removePrefixTags();
 			migrateTags(ref.getTags(), ref.getPlugins());
 		}
@@ -83,20 +66,7 @@ public class Pull {
 			var tag = tags.get(i);
 			if (removeTags != null && removeTags.contains(tag)) {
 				tags.remove(i);
-			} else if (mapTags != null && mapTags.containsKey(tag)) {
-				var replacement = mapTags.get(tag);
-				if (plugins != null && plugins.has(tag)) {
-					var plugin = plugins.get(tag);
-					plugins.remove(tag);
-					if (isPlugin(replacement)) {
-						plugins.set(replacement, plugin);
-					}
-				}
-				if (isBlank(replacement) || tags.contains(replacement)) {
-					tags.remove(i);
-				} else {
-					tags.set(i, replacement);
-				}
+				if (plugins != null) plugins.remove(tag);
 			}
 		}
 	}
@@ -111,12 +81,6 @@ public class Pull {
 
 	public void migrate(Template template, Origin config) {
 		migrateEntity(template, config);
-		if (mapTags != null && mapTags.containsKey(template.getTag())) {
-			var replacement = mapTags.get(template.getTag());
-			if (replacement != null) {
-				template.setTag(replacement);
-			}
-		}
 	}
 
 	public void migrate(User user, Origin config) {

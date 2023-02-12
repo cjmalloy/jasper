@@ -75,13 +75,11 @@ public class Replicator {
 			var url = new URI(isNotBlank(pull.getProxy()) ? pull.getProxy() : origin.getUrl());
 			options.put("modifiedAfter", pluginRepository.getCursor(config.getLocal()));
 			for (var plugin : client.pluginPull(url, options)) {
-				if (pull.skip(plugin.getTag())) continue;
 				pull.migrate(plugin, config);
 				pluginRepository.save(plugin);
 			}
 			options.put("modifiedAfter", templateRepository.getCursor(config.getLocal()));
 			for (var template : client.templatePull(url, options)) {
-				if (pull.skip(template.getTag())) continue;
 				pull.migrate(template, config);
 				templateRepository.save(template);
 			}
@@ -94,7 +92,7 @@ public class Replicator {
 				}
 				try {
 					if (pull.isValidatePlugins()) {
-						validate.ref(ref, pull.getValidationOrigin());
+						validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
 					}
 					refRepository.save(ref);
 				} catch (RuntimeException e) {
@@ -103,11 +101,10 @@ public class Replicator {
 			}
 			options.put("modifiedAfter", extRepository.getCursor(config.getLocal()));
 			for (var ext : client.extPull(url, options)) {
-				if (pull.skip(ext.getTag())) continue;
 				pull.migrate(ext, config);
 				try {
 					if (pull.isValidateTemplates()) {
-						validate.ext(ext, pull.getValidationOrigin());
+						validate.ext(ext, pull.getValidationOrigin(), pull.isStripInvalidTemplates());
 					}
 					extRepository.save(ext);
 				} catch (RuntimeException e) {
@@ -116,7 +113,6 @@ public class Replicator {
 			}
 			options.put("modifiedAfter", userRepository.getCursor(config.getLocal()));
 			for (var user : client.userPull(url, options)) {
-				if (pull.skip(user.getTag())) continue;
 				pull.migrate(user, config);
 				userRepository.save(user);
 			}

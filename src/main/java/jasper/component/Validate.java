@@ -48,37 +48,38 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref) {
-		ref(ref, ref.getOrigin());
+		ref(ref, ref.getOrigin(), false);
 	}
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, String validationOrigin) {
+	public void ref(Ref ref, String validationOrigin, boolean stripOnError) {
 		tags(ref);
-		plugins(ref, validationOrigin);
+		plugins(ref, validationOrigin, stripOnError);
 		sources(ref);
 		responses(ref);
 	}
 
 	@Timed("jasper.validate.ext")
 	public void ext(Ext ext) {
-		ext(ext, ext.getOrigin());
+		ext(ext, ext.getOrigin(), false);
 	}
 
 	@Timed("jasper.validate.ext")
-	public void ext(Ext ext, String origin) {
+	public void ext(Ext ext, String origin, boolean stripOnError) {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
+		var mergedDefaults = templates
+			.stream()
+			.map(Template::getDefaults)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 		if (ext.getConfig() == null) {
-			var mergedDefaults = templates
-				.stream()
-				.map(Template::getDefaults)
-				.filter(Objects::nonNull)
-				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 			ext.setConfig(mergedDefaults);
+			stripOnError = false;
 		}
 		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
 		var mergedSchemas = templates
@@ -86,16 +87,36 @@ public class Validate {
 			.map(Template::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		var tagConfig = new JacksonAdapter(ext.getConfig());
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
-		try {
-			var errors = validator.validate(schema, tagConfig);
-			for (var error : errors) {
-				logger.debug("Error validating template {}: {}", ext.getTag(), error);
+		if (stripOnError) {
+			try {
+				template(schema, ext.getTag(), mergedDefaults);
+			} catch (Exception e) {
+				// Defaults don't validate anyway,
+				// so cancel stripping plugins to pass validation
+				stripOnError = false;
 			}
-			if (errors.size() > 0) throw new InvalidTemplateException(ext.getTag() + ": " + errors);
+		}
+		try {
+			template(schema, ext.getTag(), ext.getConfig());
+		} catch (Exception e) {
+			if (!stripOnError) throw e;
+			template(schema, ext.getTag(), mergedDefaults);
+			ext.setConfig(mergedDefaults);
+		}
+	}
+
+	private void template(Schema schema, String tag, JsonNode template) {
+		try {
+			var errors = validator.validate(schema, new JacksonAdapter(template));
+			for (var error : errors) {
+				logger.debug("Error validating template {}: {}", tag, error);
+			}
+			if (errors.size() > 0) {
+				throw new InvalidTemplateException(tag + ": " + errors);
+			}
 		} catch (MaxDepthExceededException e) {
-			throw new InvalidTemplateException(ext.getTag(), e);
+			throw new InvalidTemplateException(tag, e);
 		}
 	}
 
@@ -106,7 +127,7 @@ public class Validate {
 		}
 	}
 
-	private void plugins(Ref ref, String origin) {
+	private void plugins(Ref ref, String origin, boolean stripOnError) {
 		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
@@ -118,7 +139,7 @@ public class Validate {
 			});
 		}
 		for (var tag : ref.getTags()) {
-			plugin(ref, tag, origin);
+			plugin(ref, tag, origin, stripOnError);
 		}
 	}
 
@@ -130,39 +151,62 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, String origin) {
+	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
 		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, origin);
 		if (plugins.isEmpty()) {
-			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
-			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
+			if (!stripOnError) {
+				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
+				if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
+			} else {
+				ref.getPlugins().remove(tag);
+			}
 			return;
 		}
+		var mergedDefaults = plugins
+			.stream()
+			.map(Plugin::getDefaults)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
 			if (ref.getPlugins() == null) {
 				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
 			}
-			var mergedDefaults = plugins
-				.stream()
-				.map(Plugin::getDefaults)
-				.filter(Objects::nonNull)
-				.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 			ref.getPlugins().set(tag, mergedDefaults);
+			stripOnError = false;
 		}
 		var mergedSchemas = plugins
 			.stream()
 			.map(Plugin::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		var pluginData = new JacksonAdapter((ref.getPlugins() != null && ref.getPlugins().has(tag))
-			? ref.getPlugins().get(tag)
-			: objectMapper.getNodeFactory().objectNode());
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		if (stripOnError) {
+			try {
+				plugin(schema, tag, mergedDefaults);
+			} catch (Exception e) {
+				// Defaults don't validate anyway,
+				// so cancel stripping plugins to pass validation
+				stripOnError = false;
+			}
+		}
 		try {
-			var errors = validator.validate(schema, pluginData);
+			plugin(schema, tag, ref.getPlugins().get(tag));
+		} catch (Exception e) {
+			if (!stripOnError) throw e;
+			plugin(schema, tag, mergedDefaults);
+			ref.getPlugins().set(tag, mergedDefaults);
+		}
+	}
+
+	private void plugin(Schema schema, String tag, JsonNode plugin) {
+		try {
+			var errors = validator.validate(schema, new JacksonAdapter(plugin));
 			for (var error : errors) {
 				logger.debug("Error validating plugin {}: {}", tag, error);
 			}
-			if (errors.size() > 0) throw new InvalidPluginException(tag + ": " + errors);
+			if (errors.size() > 0) {
+				throw new InvalidPluginException(tag + ": " + errors);
+			}
 		} catch (MaxDepthExceededException e) {
 			throw new InvalidPluginException(tag, e);
 		}
