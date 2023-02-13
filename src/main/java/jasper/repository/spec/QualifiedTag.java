@@ -93,7 +93,7 @@ public class QualifiedTag {
 		return result.toString();
 	}
 
-	public static QualifiedTag queryAtom(String qt) {
+	public static QualifiedTag atom(String qt) {
 		return new QualifiedTag(qt);
 	}
 
