@@ -7,6 +7,7 @@ import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
+import jasper.component.Validate;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
@@ -46,6 +47,9 @@ public class RefService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	Validate validate;
 
 	@Autowired
 	DtoMapper mapper;
@@ -128,6 +132,7 @@ public class RefService {
 			ref.setUrl(url);
 			ref.setOrigin(origin);
 		}
+		ref.setPlugins(validate.pluginDefaults(ref));
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);

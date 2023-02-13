@@ -130,6 +130,9 @@ public class ExtService {
 			ext.setTag(qt.tag);
 			ext.setOrigin(qt.origin);
 		}
+		if (ext.getConfig() == null) {
+			ext.setConfig(validate.templateDefaults(qualifiedTag));
+		}
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ext.class);

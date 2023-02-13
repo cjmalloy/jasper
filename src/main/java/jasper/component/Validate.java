@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.Objects;
+
+import static jasper.repository.spec.QualifiedTag.selector;
 
 @Component
 public class Validate {
@@ -104,6 +107,16 @@ public class Validate {
 			template(schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
 		}
+	}
+
+	public JsonNode templateDefaults(String qualifiedTag) {
+		var qt = selector(qualifiedTag);
+		var templates = templateRepository.findAllForTagAndOriginWithSchema(qt.tag, qt.origin);
+		return templates
+			.stream()
+			.map(Template::getDefaults)
+			.filter(Objects::nonNull)
+			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
 	}
 
 	private void template(Schema schema, String tag, JsonNode template) {
@@ -189,6 +202,18 @@ public class Validate {
 			plugin(schema, tag, defaults);
 			ref.getPlugins().set(tag, defaults);
 		}
+	}
+
+	public ObjectNode pluginDefaults(Ref ref) {
+		var result = objectMapper.getNodeFactory().objectNode();
+		if (ref.getTags() == null) return result;
+		for (var tag : ref.getTags()) {
+			var plugins = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
+			result.set(tag, plugins
+				.map(Plugin::getDefaults).orElse(objectMapper.getNodeFactory().objectNode()));
+		}
+		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
+		return result;
 	}
 
 	private void plugin(Schema schema, String tag, JsonNode plugin) {
