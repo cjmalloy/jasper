@@ -24,6 +24,11 @@ both a push or pull model to publish their analytics, reports, results, KPIs, gr
 Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
 to use your existing data structures and formats.
 
+### Security
+Jasper uses Tag Based Access Control (TBAC) to assign fine grained access controls to any object in the
+system. This system is simple and powerful, such that the entire security specification is contained
+in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/main/java/jasper/security/Auth.java).
+
 ### Build your own client
 Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
 developers can create a bespoke interface without needing to make any server side changes. Create custom

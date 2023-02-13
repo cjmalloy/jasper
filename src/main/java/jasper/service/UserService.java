@@ -81,12 +81,12 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadUserQuery(#filter)")
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
-				auth.<User>tagReadSpec()
+				auth.userReadSpec()
 					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
