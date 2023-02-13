@@ -118,13 +118,11 @@ public class TagQuery {
 	private void parse(String query) {
 		logger.debug(query);
 		// TODO: compare performance with https://en.wikipedia.org/wiki/Shunting-yard_algorithm
-		var array = ("\"" + query + "\"")
+		var array = ("[\"" + query + "\"]")
 			.replaceAll("[|:()]", "\",\"$0\",\"")
 			.replaceAll(",?\"\\(\",?", "[")
 			.replaceAll(",?\"\\)\",?", "]")
-			.replaceAll("\"\"", "")
-			.replaceAll("^\",?", "[\"")
-			.replaceAll(",?\"$", "\"]");
+			.replaceAll("\"\"", "");
 		try {
 			logger.info(array);
 			ast = (ArrayNode) objectMapper.readTree(array);
