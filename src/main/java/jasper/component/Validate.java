@@ -152,7 +152,7 @@ public class Validate {
 	}
 
 	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugins = pluginRepository.findAllForTagAndOriginWithSchema(tag, origin);
+		var plugins = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
 		if (plugins.isEmpty()) {
 			if (!stripOnError) {
 				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
@@ -162,27 +162,20 @@ public class Validate {
 			}
 			return;
 		}
-		var mergedDefaults = plugins
-			.stream()
+		var defaults = plugins
 			.map(Plugin::getDefaults)
-			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.orElse(objectMapper.getNodeFactory().objectNode());
 		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
 			if (ref.getPlugins() == null) {
 				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
 			}
-			ref.getPlugins().set(tag, mergedDefaults);
+			ref.getPlugins().set(tag, defaults);
 			stripOnError = false;
 		}
-		var mergedSchemas = plugins
-			.stream()
-			.map(Plugin::getSchema)
-			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
-		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		var schema = objectMapper.convertValue(plugins.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
-				plugin(schema, tag, mergedDefaults);
+				plugin(schema, tag, defaults);
 			} catch (Exception e) {
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
@@ -193,8 +186,8 @@ public class Validate {
 			plugin(schema, tag, ref.getPlugins().get(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			plugin(schema, tag, mergedDefaults);
-			ref.getPlugins().set(tag, mergedDefaults);
+			plugin(schema, tag, defaults);
+			ref.getPlugins().set(tag, defaults);
 		}
 	}
 
