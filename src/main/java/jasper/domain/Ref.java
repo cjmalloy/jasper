@@ -40,7 +40,7 @@ import static jasper.domain.proj.Tag.TAG_LEN;
 	@TypeDef(name = "tsvector", typeClass = PostgreSQLTSVectorType.class)
 })
 public class Ref implements HasTags {
-	public static final String REGEX = "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?";
+	public static final String REGEX = "^(?:[^:/?#]+:)?(?://[^/?#]*)?[^?#]*(?:\\?[^#]*)?(?:#.*)?";
 	public static final int URL_LEN = 4096;
 	public static final int TITLE_LEN = 512;
 
