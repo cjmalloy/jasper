@@ -7,8 +7,8 @@ import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
+import jasper.component.Validate;
 import jasper.domain.Ref;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
@@ -29,6 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -48,6 +49,9 @@ public class RefService {
 	Auth auth;
 
 	@Autowired
+	Validate validate;
+
+	@Autowired
 	DtoMapper mapper;
 
 	@Autowired
@@ -56,8 +60,13 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void create(Ref ref) {
-		if (!auth.local(ref.getOrigin())) throw new ForeignWriteException(ref.getOrigin());
 		ingest.ingest(ref);
+	}
+
+	@PreAuthorize("@auth.canWriteRef(#ref)")
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
+	public void push(Ref ref) {
+		ingest.push(ref);
 	}
 
 	@Transactional(readOnly = true)
@@ -68,6 +77,13 @@ public class RefService {
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 		return mapper.domainToDto(result);
+	}
+
+	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
+	public Instant cursor(String origin) {
+		return refRepository.getCursor(origin);
 	}
 
 	@Transactional(readOnly = true)
@@ -108,14 +124,25 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void patch(String url, String origin, JsonPatch patch) {
-		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
+		var created = false;
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
+		if (ref == null) {
+			created = true;
+			ref = new Ref();
+			ref.setUrl(url);
+			ref.setOrigin(origin);
+		}
+		ref.setPlugins(validate.pluginDefaults(ref));
 		try {
-			var patched = patch.apply(objectMapper.convertValue(maybeExisting.get(), JsonNode.class));
+			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
-			update(updated);
+			if (created) {
+				create(updated);
+			} else {
+				update(updated);
+			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}

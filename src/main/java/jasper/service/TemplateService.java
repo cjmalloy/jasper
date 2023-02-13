@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
@@ -15,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +31,21 @@ public class TemplateService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void create(Template template) {
-		if (!auth.local(template.getOrigin())) throw new ForeignWriteException(template.getOrigin());
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		template.setModified(Instant.now());
+		try {
+			templateRepository.save(template);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
+	public void push(Template template) {
 		try {
 			templateRepository.save(template);
 		} catch (DataIntegrityViolationException e) {
@@ -53,6 +62,13 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
+	public Instant cursor(String origin) {
+		return templateRepository.getCursor(origin);
+	}
+
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
@@ -62,7 +78,7 @@ public class TemplateService {
 			pageable);
 	}
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc(template.getQualifiedTag());
@@ -78,7 +94,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

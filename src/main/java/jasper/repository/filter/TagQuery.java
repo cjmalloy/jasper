@@ -1,143 +1,134 @@
 package jasper.repository.filter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.proj.Tag;
-import jasper.repository.spec.QualifiedTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
-import static jasper.repository.spec.QualifiedTag.queryAtom;
-import static jasper.repository.spec.RefSpec.hasAllQualifiedTags;
-import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
-import static jasper.repository.spec.TagSpec.isAllQualifiedTag;
-import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
-import static jasper.repository.spec.TemplateSpec.matchesAllQualifiedTag;
-import static jasper.repository.spec.TemplateSpec.matchesAnyQualifiedTag;
+import static jasper.repository.spec.QualifiedTag.atom;
 
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
+	private static final ObjectMapper objectMapper = new ObjectMapper();
 
-	private final List<List<QualifiedTag>> orGroups = new ArrayList<>();
-	private final List<List<List<QualifiedTag>>> nestedGroups = new ArrayList<>();
-	private final List<QualifiedTag> orTags = new ArrayList<>();
+	private ArrayNode ast;
 
 	public TagQuery(String query) {
 		parse(query.replaceAll("\\s", ""));
 	}
 
 	public Specification<Ref> refSpec() {
+		return _refSpec(ast);
+	}
+
+	private Specification<Ref> _refSpec(JsonNode ast) {
 		var result = Specification.<Ref>where(null);
-		if (orTags.size() > 0) {
-			result = result.or(hasAnyQualifiedTag(orTags));
-		}
-		for (var andGroup : orGroups) {
-			result = result.or(hasAllQualifiedTags(andGroup));
-		}
-		for (var andGroup : nestedGroups) {
-			var subExpression = Specification.<Ref>where(null);
-			for (var innerOrGroup : andGroup) {
-				subExpression = subExpression.and(hasAnyQualifiedTag(innerOrGroup));
+		if (!ast.isArray()) return result;
+		var or = true;
+		var ands = new ArrayList<Specification<Ref>>();
+		for (var i = 0; i < ast.size(); i++) {
+			var n = ast.get(i);
+			if (":".equals(n.textValue())) {
+				or = false;
+			} else if ("|".equals(n.textValue())) {
+				or = true;
+			} else {
+				var value = n.isArray() ? _refSpec(n) : atom(n.textValue()).refSpec();
+				if (or && ands.size() > 0) {
+					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					ands.clear();
+				}
+				ands.add(value);
 			}
-			result = result.or(subExpression);
+		}
+		if (ands.size() > 0) {
+			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
 		}
 		return result;
 	}
 
 	public <T extends Tag> Specification<T> spec() {
+		return _spec(ast);
+	}
+
+	private  <T extends Tag> Specification<T> _spec(JsonNode ast) {
 		var result = Specification.<T>where(null);
-		if (orTags.size() > 0) {
-			result = result.or(isAnyQualifiedTag(orTags));
-		}
-		for (var andGroup : orGroups) {
-			result = result.or(isAllQualifiedTag(andGroup));
-		}
-		for (var andGroup : nestedGroups) {
-			var subExpression = Specification.<T>where(null);
-			for (var innerOrGroup : andGroup) {
-				subExpression = subExpression.and(isAnyQualifiedTag(innerOrGroup));
+		if (!ast.isArray()) return result;
+		var or = true;
+		var ands = new ArrayList<Specification<T>>();
+		for (var i = 0; i < ast.size(); i++) {
+			var n = ast.get(i);
+			if (":".equals(n.textValue())) {
+				or = false;
+			} else if ("|".equals(n.textValue())) {
+				or = true;
+			} else {
+				Specification<T> value = n.isArray() ? _spec(n) : atom(n.textValue()).spec();
+				if (or && ands.size() > 0) {
+					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					ands.clear();
+				}
+				ands.add(value);
 			}
-			result = result.or(subExpression);
+		}
+		if (ands.size() > 0) {
+			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
 		}
 		return result;
 	}
 
 	public Specification<Template> templateSpec() {
+		return _templateSpec(ast);
+	}
+
+	private Specification<Template> _templateSpec(JsonNode ast) {
 		var result = Specification.<Template>where(null);
-		if (orTags.size() > 0) {
-			result = result.or(matchesAnyQualifiedTag(orTags));
-		}
-		for (var andGroup : orGroups) {
-			result = result.or(matchesAllQualifiedTag(andGroup));
-		}
-		for (var andGroup : nestedGroups) {
-			var subExpression = Specification.<Template>where(null);
-			for (var innerOrGroup : andGroup) {
-				subExpression = subExpression.and(matchesAnyQualifiedTag(innerOrGroup));
+		if (!ast.isArray()) return result;
+		var or = true;
+		var ands = new ArrayList<Specification<Template>>();
+		for (var i = 0; i < ast.size(); i++) {
+			var n = ast.get(i);
+			if (":".equals(n.textValue())) {
+				or = false;
+			} else if ("|".equals(n.textValue())) {
+				or = true;
+			} else {
+				var value = n.isArray() ? _templateSpec(n) : atom(n.textValue()).templateSpec();
+				if (or && ands.size() > 0) {
+					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					ands.clear();
+				}
+				ands.add(value);
 			}
-			result = result.or(subExpression);
+		}
+		if (ands.size() > 0) {
+			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
 		}
 		return result;
 	}
 
 	private void parse(String query) {
 		logger.debug(query);
-		// TODO: allow unlimited parentheses https://en.wikipedia.org/wiki/Shunting-yard_algorithm
-		query = markInnerOuterOrs(query);
-		var ors = query.split("[|]");
-		for (var orGroup : ors) {
-			if (orGroup.length() == 0) continue;
-			if (!orGroup.contains(":")) {
-				if (orGroup.contains(" ")) {
-					// Useless parentheses around ors
-					orTags.addAll(Arrays.stream(orGroup.split("[() ]")).map(QualifiedTag::queryAtom).toList());
-				} else {
-					orTags.add(queryAtom(orGroup.replaceAll("[()]", "")));
-				}
-			} else {
-				if (!orGroup.contains(" ")) {
-					orGroups.add(Arrays.stream(orGroup.replaceAll("[()]", "").split(":")).map(QualifiedTag::queryAtom).toList());
-				} else {
-					var andGroups = orGroup.split(":");
-					var nested = new ArrayList<List<QualifiedTag>>();
-					for (var andGroup : andGroups) {
-						if (andGroup.length() == 0) continue;
-						if (!andGroup.contains(" ")) {
-							nested.add(List.of(queryAtom(andGroup.replaceAll("[()]", ""))));
-						} else {
-							nested.add(Arrays.stream(andGroup.split(" "))
-											 .map(s -> s.replaceAll("[()]", ""))
-											 .map(QualifiedTag::queryAtom)
-											 .toList());
-						}
-					}
-					nestedGroups.add(nested);
-				}
-			}
+		// TODO: compare performance with https://en.wikipedia.org/wiki/Shunting-yard_algorithm
+		var array = ("[\"" + query + "\"]")
+			.replaceAll("[|:()]", "\",\"$0\",\"")
+			.replaceAll(",?\"\\(\",?", "[")
+			.replaceAll(",?\"\\)\",?", "]")
+			.replaceAll("\"\"", "");
+		try {
+			logger.info(array);
+			ast = (ArrayNode) objectMapper.readTree(array);
+		} catch (JsonProcessingException e) {
+			throw new UnsupportedOperationException(e);
 		}
-	}
-
-	private String markInnerOuterOrs(String query) {
-		if (!query.contains("(")) return query;
-		var groups = query.split("[()]");
-		var result = new StringBuilder();
-		var parens = false;
-		for (String group : groups) {
-			if (parens) {
-				result.append("(");
-				result.append(group.replaceAll("\\|", " "));
-				result.append(")");
-			} else {
-				result.append(group.replaceAll("\\|", "|"));
-			}
-			parens = !parens;
-		}
-		return result.toString();
 	}
 
 }

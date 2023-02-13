@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.compress.utils.Sets;
@@ -42,7 +43,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class User implements Tag {
-	public static final String REGEX = "[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?";
+	public static final String REGEX = "[_+]user(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?";
 	public static final String ROLE_REGEX = "\\w*";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
@@ -73,6 +74,7 @@ public class User implements Tag {
 	private String role = "";
 
 	@Formula("tag || origin")
+	@Setter(AccessLevel.NONE)
 	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)

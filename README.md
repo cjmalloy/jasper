@@ -2,7 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.9-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.10-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -23,6 +23,11 @@ Build a Business Intelligence (BI) dashboard without building a data lake. Busin
 both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics or alerts.
 Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
 to use your existing data structures and formats.
+
+### Security
+Jasper uses Tag Based Access Control (TBAC) to assign fine grained access controls to any object in the
+system. This system is simple and powerful, such that the entire security specification is contained
+in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/main/java/jasper/security/Auth.java).
 
 ### Build your own client
 Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
@@ -349,8 +354,8 @@ According to the CAP theorem you may only provide two of these three guarantees:
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
 tolerance are guaranteed. The modified date is used as a cursor to efficiently poll for modified records.
 
-To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin`. If
-either the `repl-burst` or `repl-schedule` profiles are active the jasper server will then poll that
+To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin/pull`. If
+either the `pull-burst` or `pull-schedule` profiles are active the jasper server will then poll that
 instance periodically to check for any new entities. The modified date of the last entity received will
 be stored and used for the next poll. When polling, the Jasper server requests a batch of entities from
 the remote instance where the modified date is after the last stored modified date, sorted by modified
@@ -436,8 +441,8 @@ Use `JASPER_SCRAPE_DELAY_MIN` to configure the initial delay in minutes after th
 starts to begin scraping, and `JASPER_SCRAPE_INTERVAL_MIN` to configure the interval
 in minutes between scrapes.
 
-To enable Remote origin scraping, enable either the `repl-schedule` or `repl-burst` profile. The `repl-schedule`
-profile will only scrape the oldest outdated `+plugin/origin` when the scheduler is run, while `repl-burst`
+To enable Remote origin scraping, enable either the `pull-schedule` or `pull-burst` profile. The `pull-schedule`
+profile will only scrape the oldest outdated `+plugin/origin/pull` when the scheduler is run, while `pull-burst`
 will scrape all outdated `+plugin/origin`s.  
 Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
 starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
@@ -566,7 +571,7 @@ The `+plugin/feed` will be set as a source for all scraped Refs. If the publishe
 `+plugin/feed` it will be skipped.
 
 ## Replicating Remote Origin
-The `+plugin/origin` can be used to replicate remote origins when the `repl-burst` or `repl-schedule`
+The `+plugin/origin` can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
 profiles are active. Although plugin fields are determined dynamically, the following fields are checked
 by the replicator:
 ```json
@@ -603,3 +608,6 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 * [v1.2](./docs/release-notes/jasper-1.2.md)
 * [v1.1](./docs/release-notes/jasper-1.1.md)
 * [v1.0](./docs/release-notes/jasper-1.0.md)
+
+# Developing
+Run a dev database with `docker compose up db -d`.

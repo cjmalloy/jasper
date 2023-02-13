@@ -4,10 +4,14 @@ import jasper.repository.spec.QualifiedTag;
 
 public interface Query {
 	String ATOM = "!?" + QualifiedTag.SELECTOR;
-	String AND_GROUP = ATOM + "([:]" + ATOM + ")*";
-	String OR_GROUP = "\\(" + AND_GROUP + "([|]" + AND_GROUP + ")*\\)";
-	String SELECTOR_OR_GROUP = "(" + ATOM + "|" + OR_GROUP + ")";
-	String REGEX = SELECTOR_OR_GROUP + "([|:]" + SELECTOR_OR_GROUP + ")*";
+	String ATOMS = ATOM + "(?:[|:]" + ATOM + ")*";
+	String GROUP = "(?:" + ATOMS + "|\\(" + ATOMS + "\\))"; // Allow  parentheses
+	String GROUPS = GROUP + "(?:[|:]" + GROUP + ")*";
+	String GROUP2 = "(?:" + GROUPS + "|\\(" + GROUPS + "\\))";  // Allow nested parentheses
+	String GROUP2S = GROUP2 + "(?:[|:]" + GROUP2 + ")*";
+	String GROUP3 = "(?:" + GROUP2S + "|\\(" + GROUP2S + "\\))";  // Allow third parentheses
+	String GROUP3S = GROUP3 + "(?:[|:]" + GROUP3 + ")*";
+	String REGEX = GROUP3S;
 
 	int QUERY_LEN = 512;
 	int SEARCH_LEN = 512;

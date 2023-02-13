@@ -66,10 +66,21 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SELECT *, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
 		FROM ref
 		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin', 'lastScrape')
-				OR cast(ref.plugins->'+plugin/origin'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/origin'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/origin'->>'lastScrape' AS timestamp) ASC
+			AND jsonb_exists(ref.tags, '+plugin/origin/pull')
+			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/pull', 'lastPull')
+				OR cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) + cast(ref.plugins->'+plugin/origin/pull'->>'pullInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) ASC
 		LIMIT 1""")
-	Optional<Ref> oldestNeedsReplByOrigin(String origin);
+	Optional<Ref> oldestNeedsPullByOrigin(String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT *, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount
+		FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.tags, '+plugin/origin/push')
+			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/push', 'lastPush')
+				OR cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) + cast(ref.plugins->'+plugin/origin/push'->>'pushInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
+		ORDER BY cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) ASC
+		LIMIT 1""")
+	Optional<Ref> oldestNeedsPushByOrigin(String origin);
 }

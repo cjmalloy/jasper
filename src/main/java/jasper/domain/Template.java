@@ -7,6 +7,7 @@ import com.vladmihalcea.hibernate.type.json.JsonType;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.domain.validator.SchemaValid;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
@@ -32,7 +33,7 @@ import java.util.Objects;
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Template implements Tag {
-	public static final String REGEX = "(_?[a-z0-9]+([./][a-z0-9]+)*)?";
+	public static final String REGEX = "(?:_?[a-z0-9]+(?:[./][a-z0-9]+)*)?";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
 
@@ -49,6 +50,7 @@ public class Template implements Tag {
 	private String origin = "";
 
 	@Formula("tag || origin")
+	@Setter(AccessLevel.NONE)
 	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)

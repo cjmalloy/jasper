@@ -1,7 +1,7 @@
 package jasper.domain.proj;
 
 public interface Tag extends HasOrigin {
-	String REGEX = "[_+]?[a-z0-9]+([./][a-z0-9]+)*";
+	String REGEX = "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*";
 	String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	String ADD_REMOVE_REGEX = "[-]?" + REGEX;
 	int TAG_LEN = 64;

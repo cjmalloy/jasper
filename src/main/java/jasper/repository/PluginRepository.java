@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor {
@@ -22,12 +23,8 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		FROM Plugin AS p
 		WHERE p.origin = :origin
 			AND p.schema IS NOT NULL
-			AND (p.tag = ''
-				OR p.tag = :tag
-				OR locate(concat(p.tag, '/'), :tag) = 1
-				OR (:tag LIKE '\\_%' AND locate(concat(p.tag, '/'), :tag) = 2)
-				OR (:tag LIKE '+%' AND locate(concat(p.tag, '/'), :tag) = 2))""")
-	List<Plugin> findAllForTagAndOriginWithSchema(String tag, String origin);
+			AND p.tag = :tag""")
+	Optional<Plugin> findByTagAndOriginWithSchema(String tag, String origin);
 
 	// TODO: Cache this, it rarely changes
 	@Query("""

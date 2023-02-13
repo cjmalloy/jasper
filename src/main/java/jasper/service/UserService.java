@@ -16,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
+import static jasper.security.AuthoritiesConstants.VIEWER;
 
 @Service
 public class UserService {
@@ -52,8 +54,18 @@ public class UserService {
 		}
 	}
 
+	@PreAuthorize("@auth.canWriteUser(#user)")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public void push(User user) {
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@PreAuthorize("@auth.canReadUser(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		var result = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
@@ -62,12 +74,19 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public Instant cursor(String origin) {
+		return userRepository.getCursor(origin);
+	}
+
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
-				auth.<User>tagReadSpec()
+				auth.userReadSpec()
 					.and(filter.spec()),
 				pageable)
 			.map(mapper::domainToDto);
@@ -109,6 +128,7 @@ public class UserService {
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))
 			.user(auth.hasRole(USER))
+			.viewer(auth.hasRole(VIEWER))
 			.build();
 	}
 }

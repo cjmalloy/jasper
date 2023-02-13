@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ForeignWriteException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
@@ -15,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +31,21 @@ public class PluginService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
-		if (!auth.local(plugin.getOrigin())) throw new ForeignWriteException(plugin.getOrigin());
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		plugin.setModified(Instant.now());
+		try {
+			pluginRepository.save(plugin);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
+	public void push(Plugin plugin) {
 		try {
 			pluginRepository.save(plugin);
 		} catch (DataIntegrityViolationException e) {
@@ -60,6 +69,13 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
+	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
+	public Instant cursor(String origin) {
+		return pluginRepository.getCursor(origin);
+	}
+
+	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
@@ -70,7 +86,7 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(plugin.getQualifiedTag());
@@ -86,7 +102,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

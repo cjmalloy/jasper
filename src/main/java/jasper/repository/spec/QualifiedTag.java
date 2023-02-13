@@ -16,7 +16,7 @@ import static jasper.repository.spec.TemplateSpec.matchesTag;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class QualifiedTag {
-	public static final String SELECTOR = "(\\*|" + Tag.REGEX + "|(" + Tag.REGEX + ")?(" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
+	public static final String SELECTOR = "(?:\\*|" + Tag.REGEX + "|(?:" + Tag.REGEX + ")?(?:" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
 
 	public final boolean not;
 	public final String tag;
@@ -93,7 +93,7 @@ public class QualifiedTag {
 		return result.toString();
 	}
 
-	public static QualifiedTag queryAtom(String qt) {
+	public static QualifiedTag atom(String qt) {
 		return new QualifiedTag(qt);
 	}
 

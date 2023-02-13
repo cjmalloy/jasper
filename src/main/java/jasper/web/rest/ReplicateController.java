@@ -7,13 +7,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
+import jasper.domain.Ref;
 import jasper.domain.Template;
+import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
+import jasper.service.RefService;
 import jasper.service.ReplicateService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
@@ -25,10 +28,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.List;
@@ -41,7 +47,6 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 @Validated
 @Tag(name = "Repl")
 @ApiResponses({
-	@ApiResponse(responseCode = "200"),
 	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 })
@@ -49,6 +54,8 @@ public class ReplicateController {
 
 	@Autowired
 	ReplicateService replService;
+	@Autowired
+	RefService refService;
 	@Autowired
 	ExtService extService;
 	@Autowired
@@ -58,6 +65,9 @@ public class ReplicateController {
 	@Autowired
 	UserService userService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("ref")
 	List<RefReplDto> ref(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -75,6 +85,37 @@ public class ReplicateController {
 			.getContent();
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
+	@GetMapping("ref/cursor")
+	Instant refCursor(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		return refService.cursor(origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("ref")
+	void refPush(
+		@RequestBody @Valid List<Ref> refs
+	) {
+		RuntimeException first = null;
+		for (var ref : refs) {
+			try {
+				refService.push(ref);
+			} catch (RuntimeException e) {
+				first = first == null ? e : first;
+			}
+		}
+		if (first != null) throw first;
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("ext")
 	List<Ext> ext(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -92,6 +133,37 @@ public class ReplicateController {
 			.getContent();
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
+	@GetMapping("ext/cursor")
+	Instant extCursor(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		return extService.cursor(origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("ext")
+	void extPush(
+		@RequestBody @Valid List<Ext> exts
+	) {
+		RuntimeException first = null;
+		for (var ext : exts) {
+			try {
+				extService.push(ext);
+			} catch (RuntimeException e) {
+				first = first == null ? e : first;
+			}
+		}
+		if (first != null) throw first;
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("user")
 	List<UserDto> user(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -109,6 +181,37 @@ public class ReplicateController {
 			.getContent();
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
+	@GetMapping("user/cursor")
+	Instant userCursor(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		return userService.cursor(origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("user")
+	void userPush(
+		@RequestBody @Valid List<User> users
+	) {
+		RuntimeException first = null;
+		for (var user : users) {
+			try {
+				userService.push(user);
+			} catch (RuntimeException e) {
+				first = first == null ? e : first;
+			}
+		}
+		if (first != null) throw first;
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("plugin")
 	List<Plugin> plugin(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -126,6 +229,37 @@ public class ReplicateController {
 			.getContent();
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
+	@GetMapping("plugin/cursor")
+	Instant pluginCursor(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		return pluginService.cursor(origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("plugin")
+	void pluginPush(
+		@RequestBody @Valid List<Plugin> plugins
+	) {
+		RuntimeException first = null;
+		for (var plugin : plugins) {
+			try {
+				pluginService.push(plugin);
+			} catch (RuntimeException e) {
+				first = first == null ? e : first;
+			}
+		}
+		if (first != null) throw first;
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping("template")
 	List<Template> template(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -141,5 +275,33 @@ public class ReplicateController {
 					.build(),
 				PageRequest.of(0, size, Direction.ASC, "modified"))
 			.getContent();
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
+	@GetMapping("template/cursor")
+	Instant templateCursor(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		return templateService.cursor(origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("template")
+	void templatePush(
+		@RequestBody @Valid List<Template> templates
+	) {
+		RuntimeException first = null;
+		for (var template : templates) {
+			try {
+				templateService.push(template);
+			} catch (RuntimeException e) {
+				first = first == null ? e : first;
+			}
+		}
+		if (first != null) throw first;
 	}
 }

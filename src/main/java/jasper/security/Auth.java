@@ -53,10 +53,55 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
-import static jasper.security.AuthoritiesConstants.VIEWER;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+/**
+ * This single class is where all authorization decisions are made.
+ * Authorization decisions are made based on six criteria:
+ * 1. The user tag
+ * 2. The local origin (always the same as the user tag origin)
+ * 3. The user role (SYSADMIN, ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS)
+ * 4. The user access tags
+ * 5. Is multi-tenant enabled?
+ * 6. Is the JWT token fresh? (less than 15 minutes old)
+ *
+ * These criteria may be sourced in three cascading steps:
+ * 1. Application properties (set by command line, environment variables, or default value)
+ * 2. JWT token claims
+ * 3. Request headers
+ *
+ * The local origin is set by headers with the highest precedence, then JWT and
+ * finally application properties.
+ * Roles and access tags merge to be the more elevated role.
+ *
+ * The application properties that can be configured are:
+ * 1. localOrigin (""): set the local origin
+ * 2. multiTenant (false): enable or disable multi-tenant
+ * 3. defaultRole ("ROLE_ANONYMOUS"): set the default role
+ * 4. defaultReadAccess ([]): set the default read access tags
+ * 5. defaultWriteAccess ([]): set the default write access tags
+ * 6. defaultTagReadAccess ([]): set the default tag read access tags
+ * 7. defaultTagWriteAccess ([]): set the default tag write access tags
+ * 8. usernameClaim ("sub"): the JWT claim to use as a username
+ * 9. allowUsernameClaimOrigin (false): allow the JWT username claim to set the local origin
+ * 10. authoritiesClaim ("auth"): the JWT claim to use as a role
+ * 11. readAccessClaim ("readAccess"): the JWT claim to use as read access tags
+ * 12. readAccessClaim ("writeAccess"): the JWT claim to use as write access tags
+ * 13. tagReadAccessClaim ("tagReadAccess"): the JWT claim to use as tag read access tags
+ * 14. tagWriteAccessClaim ("tagWriteAccess"): the JWT claim to use as tag write access tags
+ * 15. allowLocalOriginHeader (false): enable setting the local origin in the header
+ * 16. allowAuthHeaders (false): enable setting the user access tags in the header
+ *
+ * The following headers are checked if enabled:
+ * 1. Local-Origin
+ * 2. Write-Access
+ * 3. Read-Access
+ * 4. Tag-Write-Access
+ * 5. Tag-Tag-Write-Access
+ *
+ * If no username is not set and the role is at least MOD it will default to +user.
+ */
 @Component
 @RequestScope
 public class Auth {
@@ -90,10 +135,17 @@ public class Auth {
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
 
+	/**
+	 * Is this origin local. Nulls and empty strings are both considered to
+	 * be the default origin.
+	 */
 	public boolean local(String origin) {
-		return getOrigin().equals(origin);
+		return getOrigin().equals(selector(origin).origin);
 	}
 
+	/**
+	 * Has the user logged in within 15 minutes?
+	 */
 	public boolean freshLogin() {
 		var iat = getClaims().getIssuedAt();
 		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
@@ -102,16 +154,34 @@ public class Auth {
 		throw new FreshLoginException();
 	}
 
+	/**
+	 * Is the current user logged in? Only if they have a user tag which is not blank.
+	 * Otherwise, an anonymous request is being made and no user tag should be expected.
+	 * Mods, Admins and SysAdmins cannot make anonymous requests, as they will be
+	 * a default user tag +user.
+	 */
 	public boolean isLoggedIn() {
 		return isNotBlank(getPrincipal());
 	}
 
+	/**
+	 * Can the user read this Ref?
+	 * Only considers the Ref given, does not check if it is modified from
+	 * the database version.
+	 */
 	public boolean canReadRef(HasTags ref) {
+		// Sysadmin can always read anything
 		if (hasRole(SA)) return true;
+		// Mods can read anything in their local origin if multi tenant
+		// In single tenant mods and above can read anything
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
+		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
+		// Add the ref's origin to its tag list
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
+		// Anyone can read ref if it is public
 		if (captures(getPublicTag(), qualifiedTags)) return true;
+		// Check if user read access tags capture anything in the ref tags
 		return captures(getReadAccess(), qualifiedTags);
 	}
 
@@ -120,34 +190,61 @@ public class Auth {
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
 
+	/**
+	 * Can the user update an existing Ref with given updated version?
+	 * Checks the existing database version for write access and verifies any
+	 * tag additions.
+	 * @param ref the updated ref
+	 */
 	public boolean canWriteRef(Ref ref) {
+		// First check if we can write to the existing Ref
 		if (!canWriteRef(ref.getUrl(), ref.getOrigin())) return false;
+		// If we can write to the existing we are granted permission
+		// We do not need to check if we have write access to the updated Ref,
+		// as self revocation is allowed
 		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
+		// We do need to check if we are allowed to add any of the new tags
+		// by calling canAddTag on each one
 		return newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canAddTag);
 	}
 
+	/**
+	 * Can the user write to an existing Ref.
+	 */
 	public boolean canWriteRef(String url, String origin) {
+		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
-		if (hasRole(MOD)) return true;
+		// Minimum role for writing Refs is USER
 		if (!hasRole(USER)) return false;
 		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
+		// If we're creating, simply having the role USER is enough
 		if (maybeExisting.isEmpty()) return true;
 		var existing = maybeExisting.get();
 		if (existing.getTags() != null) {
+			// First write check of an existing Ref must be for the locked tag
+			if (existing.getTags().contains("locked")) return false;
+			// Mods can write anything in their origin
+			if (hasRole(MOD)) return true;
 			return captures(getWriteAccess(), qtList(origin, existing.getTags()));
 		}
 		return false;
 	}
 
+	/**
+	 * Does the user have permission to use a tag when tagging Refs?
+	 */
 	protected boolean canAddTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
-		if (!hasRole(VIEWER)) return false;
 		return captures(getTagReadAccess(), selector(tag + getOrigin()));
 	}
 
+	/**
+	 * Can the user add these tags to an existing ref?
+	 */
 	public boolean canTagAll(List<String> tags, String url, String origin) {
+		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
@@ -161,86 +258,154 @@ public class Auth {
 		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
 	}
 
+	/**
+	 * Can the user add this tag to an existing ref?
+	 */
 	public boolean canTag(String tag, String url, String origin) {
+		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		if (hasRole(MOD)) return true;
+		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
 			isPublicTag(tag) &&
+			// Except for public, an Editor cannot make a private Ref public or vice-versa
 			!tag.equals("public") &&
+			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
 			!tag.equals("locked") &&
 			canReadRef(url, origin)) return true;
+		// You can add the tag, and you can edit the ref
 		return canAddTag(tag) && canWriteRef(url, origin);
 	}
 
+	/**
+	 * Is this a public tag?
+	 * Public tags start with a letter or number.
+	 */
 	public static boolean isPublicTag(String tag) {
 		if (isPrivateTag(tag)) return false;
 		if (isProtectedTag(tag)) return false;
 		return true;
 	}
 
+
+	/**
+	 * Is this a private tag?
+	 * Private tags start with a _.
+	 */
 	public static boolean isPrivateTag(String tag) {
 		return tag.startsWith("_");
 	}
 
+
+	/**
+	 * Is this a protected tag?
+	 * Protected tags start with a +.
+	 */
 	public static boolean isProtectedTag(String tag) {
 		return tag.startsWith("+");
 	}
 
+	/**
+	 * Can the user read the given qualified tag and any associated entities? (Ext, User, Plugin, Template)
+	 * A selector is a tag that may contain an origin, or an origin with no tag.
+	 * In multi-tenant mode you have no read access outside your origin by default.
+	 */
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
 		var qt = selector(qualifiedTag);
+		// In single tenant mode, non private tags are all readable
+		// In multi tenant mode, local non private tags are all readable
 		if (!isPrivateTag(qualifiedTag) && (!props.isMultiTenant() || local(qt.origin))) return true;
+		// In single tenant mode, mods can read anything
+		// In multi tenant mode, mods can ready anything in their origin
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
+		// Finally check access tags
 		return captures(getTagReadAccess(), qt);
 	}
 
+	/**
+	 * Can the user modify the associated Ext and User entities of a tag?
+	 */
 	public boolean canWriteTag(String qualifiedTag) {
 		var qt = selector(qualifiedTag);
+		// Only writing to the local origin ever permitted
 		if (!local(qt.origin)) return false;
+		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
+		// Editors have special access to edit public tag Exts
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
-		if (isLoggedIn() && getUserTag().captures(qt)) return true; // Viewers may only edit their user ext
+		// Viewers may only edit their user ext
+		if (isLoggedIn() && getUserTag().captures(qt)) return true;
+		// User is required to edit anything other than your own user
 		if (!hasRole(USER)) return false;
+		// Check access tags
 		return captures(getTagWriteAccess(), qt);
 	}
 
+	/**
+	 * Does the users tag capture this tag?
+	 */
 	public boolean isUser(String qualifiedTag) {
 		return isLoggedIn() && getUserTag().captures(selector(qualifiedTag));
 	}
 
+	/**
+	 * Check all the individual selectors of the query and verify they can all
+	 * be read.
+	 */
 	public boolean canReadQuery(Query filter) {
+		// Anyone can read the empty query (retrieve all Refs)
 		if (filter.getQuery() == null) return true;
+		// Mod
 		if (hasRole(MOD)) return true;
-		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
+		return Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
 			.filter(StringUtils::isNotBlank)
-			.filter(Auth::isPrivateTag)
-			.filter(qt -> !isUser(qt))
-			.map(QualifiedTag::selector)
-			.toList();
-		if (tagList.isEmpty()) return true;
-		var tagReadAccess = getTagReadAccess();
-		if (tagReadAccess == null) return false;
-		return captures(tagReadAccess, tagList);
+			.allMatch(this::canReadTag);
 	}
 
+	/**
+	 * Is the user Sysadmin role in multi tenant, Admin in single tenant
+	 */
 	public boolean sysAdmin() {
 		if (props.isMultiTenant()) return hasRole(SA);
 		return hasRole(ADMIN);
 	}
 
+	/**
+	 * Is the user Sysadmin role in multi tenant, Mod in single tenant
+	 */
 	public boolean sysMod() {
 		if (props.isMultiTenant()) return hasRole(SA);
 		return hasRole(MOD);
 	}
 
-	public boolean canWriteUser(String tag) {
-		if (!local(selector(tag).origin)) return false;
-		if (sysAdmin()) return true;
-		if (!canWriteTag(tag)) return false;
-		var oldRole = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(tag).map(User::getRole).orElse(null);
-		return isBlank(oldRole) || hasRole(oldRole);
+	/**
+	 * Can the user read a user entity?
+	 * Limit access to logged in users or write access.
+	 */
+	public boolean canReadUser(String qualifiedTag) {
+		if (isLoggedIn()) return canReadTag(qualifiedTag);
+		return canWriteTag(qualifiedTag);
 	}
 
+	/**
+	 * Can this user be updated?
+	 * Check if the user can write this tag, and that their role is not smaller.
+	 */
+	public boolean canWriteUser(String tag) {
+		// Only writing to the local origin ever permitted
+		if (!local(selector(tag).origin)) return false;
+		if (hasRole(MOD)) return true;
+		if (!canWriteTag(tag)) return false;
+		var role = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(tag).map(User::getRole).orElse(null);
+		return isBlank(role) || hasRole(role);
+	}
+
+	/**
+	 * Can this user be updated with the given user?
+	 * Check that the user is writeable, and that the user has write access to all new tags.
+	 * Do not allow public tags to be given write access.
+	 */
 	public boolean canWriteUser(User user) {
 		if (!canWriteUser(user.getQualifiedTag())) return false;
 		if (isNotBlank(user.getRole()) && !hasRole(user.getRole())) return false;
@@ -286,6 +451,12 @@ public class Auth {
 		if (hasRole(MOD)) return spec;
 		return spec.and(notPrivateTag())
 			.or(isAnyQualifiedTag(getTagReadAccess()));
+	}
+
+	public Specification<User> userReadSpec() {
+		if (hasRole(SA)) return Specification.where(null);
+		if (hasRole(MOD)) return Specification.where(isOrigin(getMultiTenantOrigin()));
+		return Specification.where(isAnyQualifiedTag(getTagWriteAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {

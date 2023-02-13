@@ -48,8 +48,8 @@ public class ScrapeService {
 		if (source.getTags().contains("+plugin/feed")) {
 			rssParser.scrape(source);
 		}
-		if (source.getTags().contains("+plugin/origin")) {
-			replicator.replicate(source);
+		if (source.getTags().contains("+plugin/origin/pull")) {
+			replicator.pull(source);
 		}
 	}
 
