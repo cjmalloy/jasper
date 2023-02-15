@@ -380,15 +380,6 @@ public class Auth {
 	}
 
 	/**
-	 * Can the user read a user entity?
-	 * Limit access to logged in users or write access.
-	 */
-	public boolean canReadUser(String qualifiedTag) {
-		if (isLoggedIn()) return canReadTag(qualifiedTag);
-		return canWriteTag(qualifiedTag);
-	}
-
-	/**
 	 * Can this user be updated?
 	 * Check if the user can write this tag, and that their role is not smaller.
 	 */
@@ -451,12 +442,6 @@ public class Auth {
 		if (hasRole(MOD)) return spec;
 		return spec.and(notPrivateTag())
 			.or(isAnyQualifiedTag(getTagReadAccess()));
-	}
-
-	public Specification<User> userReadSpec() {
-		if (hasRole(SA)) return Specification.where(null);
-		if (hasRole(MOD)) return Specification.where(isOrigin(getMultiTenantOrigin()));
-		return Specification.where(isAnyQualifiedTag(getTagWriteAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
