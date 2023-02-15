@@ -31,7 +31,8 @@ public abstract class DtoMapper {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	DateTimeFormatter smtp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
+	DateTimeFormatter smtp1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
+	DateTimeFormatter smtp2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
 
 	public abstract RefDto domainToDto(Ref ref);
 
@@ -44,7 +45,11 @@ public abstract class DtoMapper {
 		var result = new Ref();
 		result.setUrl("comment:" + UUID.randomUUID());
 		if (!msg.getDate().startsWith("0001-01-01")) {
-			result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp).toInstant());
+			try {
+				result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp1).toInstant());
+			} catch (RuntimeException e) {
+				result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp2).toInstant());
+			}
 		}
 		result.setTitle(msg.getSubject());
 		result.setComment(msg.getBody().getHtml() == null ? msg.getBody().getText() : msg.getBody().getHtml());
