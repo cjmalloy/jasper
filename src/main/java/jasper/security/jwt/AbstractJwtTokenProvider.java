@@ -65,7 +65,6 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 	String getUsername(Claims claims) {
 		var principal = claims.get(props.getUsernameClaim(), String.class);
 		var authorities = getAuthorities(claims);
-		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		if (isBlank(principal) ||
 			principal.equals("+user") ||
 			principal.equals("_user") ||
@@ -77,12 +76,14 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			principal = "user" + (isBlank(principal)  ? "" : selector(principal).origin);
+			return "_user" + (isBlank(principal)  ? "" : selector(principal).origin);
 		} else {
 			principal = principal.replaceAll("[^a-z.@/]+", ".");
-			if (principal.startsWith("+user") || principal.startsWith("_user")) return principal;
+			if (principal.equals("+user") || principal.equals("_user")) return principal;
+			if (principal.startsWith("+user/") || principal.startsWith("_user/")) return principal;
 			principal = "user/" + principal;
 		}
+		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		return isPrivate ? "_" : "+" + principal;
 	}
 
