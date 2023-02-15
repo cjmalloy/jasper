@@ -358,9 +358,14 @@ public class Auth {
 		if (filter.getQuery() == null) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		return Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
+		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
 			.filter(StringUtils::isNotBlank)
-			.allMatch(this::canReadTag);
+			.filter(Auth::isPrivateTag)
+			.filter(qt -> !isUser(qt))
+			.map(QualifiedTag::selector)
+			.toList();
+		if (tagList.isEmpty()) return true;
+		return captures(getTagReadAccess(), tagList);
 	}
 
 	/**
