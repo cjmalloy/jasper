@@ -32,7 +32,7 @@ public abstract class DtoMapper {
 	ObjectMapper objectMapper;
 
 	DateTimeFormatter smtp1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
-	DateTimeFormatter smtp2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
+	DateTimeFormatter smtp2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z z", Locale.US);
 
 	public abstract RefDto domainToDto(Ref ref);
 
@@ -52,7 +52,9 @@ public abstract class DtoMapper {
 			}
 		}
 		result.setTitle(msg.getSubject());
-		result.setComment(msg.getBody().getHtml() == null ? msg.getBody().getText() : msg.getBody().getHtml());
+		result.setComment(msg.getBody().getHtml() == null ?
+			msg.getBody().getText() :
+			msg.getBody().getHtml().replaceAll("(?m)^\\s+", ""));
 		result.setTags(emailToTags(msg));
 		return result;
 	}
