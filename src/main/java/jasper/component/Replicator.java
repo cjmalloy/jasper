@@ -141,8 +141,10 @@ public class Replicator {
 						.build().spec(),
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
-			client.pluginPush(url, pluginList);
-			push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
+			if (!pluginList.isEmpty()) {
+				client.pluginPush(url, pluginList);
+				push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
+			}
 
 			modifiedAfter = push.isWriteOnly() ? push.getLastModifiedTemplateWritten() : client.templateCursor(url, config.getRemote());
 			var templateList = templateRepository.findAll(
@@ -153,8 +155,10 @@ public class Replicator {
 						.build().spec(),
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
-			client.templatePush(url, templateList);
-			push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
+			if (!templateList.isEmpty()) {
+				client.templatePush(url, templateList);
+				push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
+			}
 
 			modifiedAfter = push.isWriteOnly() ? push.getLastModifiedRefWritten() : client.refCursor(url, config.getRemote());
 			var refList = refRepository.findAll(
@@ -165,8 +169,10 @@ public class Replicator {
 						.build().spec(),
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
-			client.refPush(url, refList);
-			push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
+			if (!refList.isEmpty()) {
+				client.refPush(url, refList);
+				push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
+			}
 
 			modifiedAfter = push.isWriteOnly() ? push.getLastModifiedExtWritten() : client.extCursor(url, config.getRemote());
 			var extList = extRepository.findAll(
@@ -177,8 +183,10 @@ public class Replicator {
 						.build().spec(),
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
-			client.extPush(url, extList);
-			push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
+			if (!extList.isEmpty()) {
+				client.extPush(url, extList);
+				push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
+			}
 
 			modifiedAfter = push.isWriteOnly() ? push.getLastModifiedUserWritten() : client.userCursor(url, config.getRemote());
 			var userList = userRepository.findAll(
@@ -189,8 +197,10 @@ public class Replicator {
 						.build().spec(),
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
-			client.userPush(url, userList);
-			push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());
+			if (!userList.isEmpty()) {
+				client.userPush(url, userList);
+				push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());
+			}
 		} catch (Exception e) {
 			logger.error("Error pushing {} to origin {}", config.getLocal(), config.getRemote(), e);
 		}
