@@ -43,7 +43,6 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
-		if (refRepository.existsByAlternateUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
 		validate.ref(ref);
 		meta.update(ref, null);
