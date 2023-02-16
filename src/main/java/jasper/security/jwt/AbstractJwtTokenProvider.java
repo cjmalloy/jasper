@@ -7,6 +7,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jasper.config.Props;
+import jasper.domain.proj.Tag;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +68,7 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 		logger.debug("Principal: {}", principal);
 		var authorities = getAuthorities(claims);
 		if (isBlank(principal) ||
-			!principal.matches("^[+_a-z0-9.@/].*") ||
+			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
 			principal.equals("_user")) {
 			if (authorities.stream().noneMatch(a ->
