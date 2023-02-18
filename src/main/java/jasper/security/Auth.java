@@ -181,6 +181,8 @@ public class Auth {
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
 		// Anyone can read ref if it is public
 		if (captures(getPublicTag(), qualifiedTags)) return true;
+		// Check if owner
+		if (owns(qualifiedTags)) return true;
 		// Check if user read access tags capture anything in the ref tags
 		return captures(getReadAccess(), qualifiedTags);
 	}
@@ -225,7 +227,11 @@ public class Auth {
 			if (existing.getTags().contains("locked")) return false;
 			// Mods can write anything in their origin
 			if (hasRole(MOD)) return true;
-			return captures(getWriteAccess(), qtList(origin, existing.getTags()));
+			var qualifiedTags = qtList(origin, existing.getTags());
+			// Check if owner
+			if (owns(qualifiedTags)) return true;
+			// Check access tags
+			return captures(getWriteAccess(), qualifiedTags);
 		}
 		return false;
 	}
@@ -237,7 +243,9 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
-		return captures(getTagReadAccess(), selector(tag + getOrigin()));
+		var qt = selector(tag + getOrigin());
+		if (isUser(qt)) return true;
+		return captures(getTagReadAccess(), qt);
 	}
 
 	/**
@@ -319,6 +327,8 @@ public class Auth {
 		// In single tenant mode, mods can read anything
 		// In multi tenant mode, mods can ready anything in their origin
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
+		// Can read own user tag
+		if (isUser(qualifiedTag)) return true;
 		// Finally check access tags
 		return captures(getTagReadAccess(), qt);
 	}
@@ -335,7 +345,7 @@ public class Auth {
 		// Editors have special access to edit public tag Exts
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
 		// Viewers may only edit their user ext
-		if (isLoggedIn() && getUserTag().captures(qt)) return true;
+		if (isUser(qt)) return true;
 		// User is required to edit anything other than your own user
 		if (!hasRole(USER)) return false;
 		// Check access tags
@@ -343,10 +353,18 @@ public class Auth {
 	}
 
 	/**
-	 * Does the users tag capture this tag?
+	 * Does the users tag match this tag?
 	 */
+	public boolean isUser(QualifiedTag qt) {
+		return isLoggedIn() && getUserTag().matches(qt);
+	}
+
 	public boolean isUser(String qualifiedTag) {
-		return isLoggedIn() && getUserTag().captures(selector(qualifiedTag));
+		return isUser(selector(qualifiedTag));
+	}
+
+	public boolean owns(List<QualifiedTag> qt) {
+		return qt.stream().anyMatch(this::isUser);
 	}
 
 	/**
@@ -437,6 +455,9 @@ public class Auth {
 		if (hasRole(SA)) return Specification.where(null);
 		var spec = Specification.<Ref>where(isOrigin(getMultiTenantOrigin()));
 		if (hasRole(MOD)) return spec;
+		if (isLoggedIn()) {
+			spec = spec.or(getUserTag().refSpec());
+		}
 		return spec.and(getPublicTag().refSpec())
 			.or(hasAnyQualifiedTag(getReadAccess()));
 	}
@@ -452,7 +473,7 @@ public class Auth {
 	protected boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		var qt = selector(tag + getOrigin());
-		if (isLoggedIn() && getUserTag().captures(qt)) return true; // Viewers may only edit their user ext
+		if (isUser(qt)) return true; // Viewers may only edit their user ext
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), qt);
 	}
@@ -461,6 +482,7 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		var qt = selector(tag + getOrigin());
+		if (isUser(qt)) return true;
 		return captures(getWriteAccess(), qt);
 	}
 
@@ -573,7 +595,6 @@ public class Auth {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				readAccess.add(getUserTag());
 				readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
 				readAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 						.map(User::getReadAccess)
@@ -593,7 +614,6 @@ public class Auth {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				writeAccess.add(getUserTag());
 				writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
 				writeAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
 						.map(User::getWriteAccess)
