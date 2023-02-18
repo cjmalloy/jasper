@@ -73,6 +73,8 @@ public class Plugin implements Tag {
 
 	private boolean generateMetadata = false;
 
+	private boolean userUrl = false;
+
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

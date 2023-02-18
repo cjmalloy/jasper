@@ -233,7 +233,7 @@ public class Auth {
 	/**
 	 * Does the user have permission to use a tag when tagging Refs?
 	 */
-	protected boolean canAddTag(String tag) {
+	public boolean canAddTag(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;

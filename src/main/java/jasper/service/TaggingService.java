@@ -2,6 +2,7 @@ package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
+import jasper.domain.Ref;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
@@ -13,7 +14,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import static jasper.domain.proj.Tag.urlForUser;
 
 @Service
 public class TaggingService {
@@ -66,5 +70,42 @@ public class TaggingService {
 		ref.removePrefixTags();
 		ref.addTags(tags);
 		ingest.update(ref);
+	}
+
+	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
+	public void createResponse(String tag, String url, String origin) {
+		var ref = getResponseRef(tag);
+		if (ref.getSources() == null) {
+			ref.setSources(new ArrayList<>());
+		}
+		if (!ref.getSources().contains(url)) {
+			ref.getSources().add(url);
+		}
+		ingest.update(ref);
+	}
+
+	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
+	public void deleteResponse(String tag, String url, String origin) {
+		var ref = getResponseRef(tag);
+		if (ref.getSources() == null) {
+			ref.setSources(new ArrayList<>());
+		}
+		ref.getSources().remove(url);
+		ingest.update(ref);
+	}
+
+	private Ref getResponseRef(String tag) {
+		var url = urlForUser(auth.getUserTag().tag, tag);
+		return refRepository.findOneByUrlAndOrigin(url, auth.getOrigin())
+			.orElseGet(() -> {
+				var ref = new Ref();
+				ref.setUrl(url);
+				ref.setOrigin(ref.getOrigin());
+				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
+				ingest.ingest(ref);
+				return ref;
+			});
 	}
 }
