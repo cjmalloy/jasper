@@ -102,7 +102,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

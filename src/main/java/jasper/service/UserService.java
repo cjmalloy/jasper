@@ -108,7 +108,7 @@ public class UserService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteUser(#tag)")
+	@PreAuthorize("@auth.sysMod() or @auth.canWriteUser(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String tag) {
 		try {

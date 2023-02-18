@@ -85,7 +85,7 @@ public class TaggingService {
 		ingest.update(ref);
 	}
 
-	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.sysMod() or @auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url, String origin) {
 		var ref = getResponseRef(tag);

@@ -94,7 +94,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
