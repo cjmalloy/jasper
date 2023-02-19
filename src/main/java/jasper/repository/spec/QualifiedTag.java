@@ -41,6 +41,14 @@ public class QualifiedTag {
 		return (not ? "!" : "") + tag + origin;
 	}
 
+	public boolean matches(String qt) {
+		return matches(selector(qt));
+	}
+
+	public boolean matches(QualifiedTag qt) {
+		return tag.equals(qt.tag) && origin.equals(qt.origin) && not == qt.not;
+	}
+
 	public boolean captures(String capture) {
 		return captures(selector(capture));
 	}

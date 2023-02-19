@@ -124,7 +124,7 @@ public class TagQuery {
 			.replaceAll(",?\"\\)\",?", "]")
 			.replaceAll("\"\"", "");
 		try {
-			logger.info(array);
+			logger.debug(array);
 			ast = (ArrayNode) objectMapper.readTree(array);
 		} catch (JsonProcessingException e) {
 			throw new UnsupportedOperationException(e);

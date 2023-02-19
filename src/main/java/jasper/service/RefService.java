@@ -149,7 +149,7 @@ public class RefService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
+	@PreAuthorize("@auth.sysMod() or @auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void delete(String url, String origin) {
 		try {

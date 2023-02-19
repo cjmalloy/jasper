@@ -14,4 +14,8 @@ public interface Tag extends HasOrigin {
 	default String getQualifiedTag() {
 		return getTag() + getOrigin();
 	}
+
+	static String urlForUser(String plugin, String user) {
+		return "tag:/" + plugin + "?user=" + user;
+	}
 }

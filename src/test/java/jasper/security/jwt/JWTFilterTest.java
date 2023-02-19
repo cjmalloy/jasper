@@ -47,7 +47,7 @@ class JWTFilterTest {
     @Test
     void testJWTFilter() throws Exception {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-            "test-user",
+            "test.user",
             "test-password",
             Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.USER))
         );
@@ -60,6 +60,24 @@ class JWTFilterTest {
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         assertThat(SecurityContextHolder.getContext().getAuthentication().getName()).isEqualTo("+user/test.user");
+    }
+
+    @Test
+    void testJWTFilterInvalidPrincipal() throws Exception {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            "test-user",
+            "test-password",
+            Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.USER))
+        );
+        String jwt = tokenProvider.createToken(authentication, false);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(JWTFilter.AUTHORIZATION_HEADER, "Bearer " + jwt);
+        request.setRequestURI("/api/test");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+        jwtFilter.doFilter(request, response, filterChain);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getName()).isBlank();
     }
 
     @Test

@@ -7,6 +7,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jasper.config.Props;
+import jasper.domain.proj.Tag;
 import jasper.management.SecurityMetersService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
-	private final Logger log = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
+	private final Logger logger = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
@@ -64,26 +65,28 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 
 	String getUsername(Claims claims) {
 		var principal = claims.get(props.getUsernameClaim(), String.class);
+		logger.debug("Principal: {}", principal);
 		var authorities = getAuthorities(claims);
-		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 		if (isBlank(principal) ||
+			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
-			principal.equals("_user") ||
-			!principal.matches("^[+_a-z0-9].*")) {
+			principal.equals("_user")) {
 			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
 				// Invalid username and can't fall back to root user
+				logger.debug("Root role not allowed.");
 				return null;
 			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			principal = "user" + (isBlank(principal)  ? "" : selector(principal).origin);
-		} else {
-			principal = principal.replaceAll("[^a-z.@/]+", ".");
-			if (principal.startsWith("+user") || principal.startsWith("_user")) return principal;
-			principal = "user/" + principal;
+			logger.debug("Username: {}", "_user" + (isBlank(principal)  ? "" : selector(principal).origin));
+			return "_user" + (isBlank(principal)  ? "" : selector(principal).origin);
+		} else if (principal.startsWith("+user/") || principal.startsWith("_user/")) {
+			return principal;
 		}
-		return isPrivate ? "_" : "+" + principal;
+		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
+		logger.debug("Username: {}", (isPrivate ? "_" : "+") + principal);
+		return (isPrivate ? "_user/" : "+user/") + principal;
 	}
 
 	public boolean validateToken(String authToken) {
@@ -92,24 +95,24 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			var claims = jwtParser.parseClaimsJws(authToken).getBody();
 			if (!props.getSecurity().getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
-				log.trace(INVALID_JWT_TOKEN + " Invalid Audience");
+				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else {
 				return true;
 			}
 		} catch (ExpiredJwtException e) {
 			securityMetersService.trackTokenExpired();
-			log.trace(INVALID_JWT_TOKEN, e);
+			logger.trace(INVALID_JWT_TOKEN, e);
 		} catch (UnsupportedJwtException e) {
 			securityMetersService.trackTokenUnsupported();
-			log.trace(INVALID_JWT_TOKEN, e);
+			logger.trace(INVALID_JWT_TOKEN, e);
 		} catch (MalformedJwtException e) {
 			securityMetersService.trackTokenMalformed();
-			log.trace(INVALID_JWT_TOKEN, e);
+			logger.trace(INVALID_JWT_TOKEN, e);
 		} catch (SignatureException e) {
 			securityMetersService.trackTokenInvalidSignature();
-			log.trace(INVALID_JWT_TOKEN, e);
+			logger.trace(INVALID_JWT_TOKEN, e);
 		} catch (IllegalArgumentException e) {
-			log.error("Token validation error {}", e.getMessage());
+			logger.error("Token validation error {}", e.getMessage());
 		}
 		return false;
 	}

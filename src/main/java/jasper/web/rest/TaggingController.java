@@ -80,4 +80,30 @@ public class TaggingController {
 	) {
 		taggingService.tag(tags, url, origin);
 	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+	})
+	@PostMapping("response")
+	@ResponseStatus(HttpStatus.CREATED)
+	void createResponse(
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		taggingService.createResponse(tag, url, origin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@DeleteMapping("response")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void deleteResponse(
+		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		taggingService.deleteResponse(tag, url, origin);
+	}
 }

@@ -120,7 +120,7 @@ public class RefServiceMTIT {
 	}
 
 	@Test
-	void testCreateDuplicateAltRefFails() {
+	void testCreateDuplicateAltRefPasses() {
 		var existing = getRef();
 		existing.setUrl("https://www.different.com/");
 		existing.setTags(new ArrayList<>(List.of("+user/tester")));
@@ -129,10 +129,11 @@ public class RefServiceMTIT {
 		var ref = getRef();
 		ref.setUrl(URL);
 
-		assertThatThrownBy(() -> refService.create(ref))
-			.isInstanceOf(AlreadyExistsException.class);
+		refService.create(ref);
 
 		assertThat(refRepository.existsByUrlAndOrigin("https://www.different.com/", "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 	}
 
