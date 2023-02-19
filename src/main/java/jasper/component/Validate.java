@@ -13,8 +13,10 @@ import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
+import jasper.domain.User;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
 import jasper.repository.PluginRepository;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static jasper.domain.proj.Tag.urlForUser;
 import static jasper.repository.spec.QualifiedTag.selector;
 
 @Component
@@ -165,8 +168,8 @@ public class Validate {
 	}
 
 	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugins = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
-		if (plugins.isEmpty()) {
+		var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
+		if (plugin.isEmpty()) {
 			if (!stripOnError) {
 				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 				if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
@@ -175,7 +178,10 @@ public class Validate {
 			}
 			return;
 		}
-		var defaults = plugins
+		plugin.ifPresent(p -> {
+			if (p.isUserUrl()) userUrl(ref, p);
+		});
+		var defaults = plugin
 			.map(Plugin::getDefaults)
 			.orElse(objectMapper.getNodeFactory().objectNode());
 		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
@@ -185,7 +191,7 @@ public class Validate {
 			ref.getPlugins().set(tag, defaults);
 			stripOnError = false;
 		}
-		var schema = objectMapper.convertValue(plugins.get().getSchema(), Schema.class);
+		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
 				plugin(schema, tag, defaults);
@@ -201,6 +207,16 @@ public class Validate {
 			if (!stripOnError) throw e;
 			plugin(schema, tag, defaults);
 			ref.getPlugins().set(tag, defaults);
+		}
+	}
+
+	private void userUrl(Ref ref, Plugin plugin) {
+		var userTag = ref.getTags().stream().filter(User.REGEX::matches).findFirst();
+		if (userTag.isEmpty()) {
+			throw new InvalidPluginUserUrlException(plugin.getTag());
+		}
+		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get()))) {
+			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 	}
 

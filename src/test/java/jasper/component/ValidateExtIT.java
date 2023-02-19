@@ -39,7 +39,7 @@ public class ValidateExtIT {
 		ext.setTag("+user/tester");
 		ext.setName("First");
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -59,7 +59,7 @@ public class ValidateExtIT {
 		ext.setTag("+user/tester");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext, false))
+		assertThatThrownBy(() -> validate.ext(ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -85,7 +85,7 @@ public class ValidateExtIT {
 			"age": 100
 		}"""));
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -99,7 +99,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -124,7 +124,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext, false))
+		assertThatThrownBy(() -> validate.ext(ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -169,7 +169,7 @@ public class ValidateExtIT {
 			"lng": 456
 		}"""));
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -216,7 +216,7 @@ public class ValidateExtIT {
 		ext.setTag("+slug/more/custom");
 		ext.setName("First");
 
-		validate.ext(ext, true);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -246,7 +246,7 @@ public class ValidateExtIT {
 			"age": 100
 		}"""));
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 
 	@Test
@@ -271,7 +271,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext, false))
+		assertThatThrownBy(() -> validate.ext(ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -302,6 +302,6 @@ public class ValidateExtIT {
 			"age": 100
 		}"""));
 
-		validate.ext(ext, false);
+		validate.ext(ext);
 	}
 }

@@ -40,7 +40,7 @@ public class ValidateRefIT {
 		ref.setTags(List.of("+user/tester"));
 		refRepository.save(ref);
 
-		validate.ref(ref, false);
+		validate.ref(ref);
 	}
 
 	@Test
@@ -61,7 +61,7 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester", "plugin/test"));
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -90,7 +90,7 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref(ref);
 	}
 
 	@Test
@@ -122,7 +122,7 @@ public class ValidateRefIT {
 		}"""));
 
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -144,7 +144,7 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref(ref))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -171,6 +171,6 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester", "plugin/test"));
 
-		validate.ref(ref, true);
+		validate.ref(ref);
 	}
 }

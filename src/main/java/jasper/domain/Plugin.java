@@ -73,6 +73,8 @@ public class Plugin implements Tag {
 
 	private boolean generateMetadata = false;
 
+	private boolean userUrl = false;
+
 	@Id
 	@Column(updatable = false)
 	@LastModifiedDate
