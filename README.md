@@ -404,6 +404,7 @@ It supports the following configuration options:
 | `JASPER_ALLOW_AUTH_HEADERS`                         | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers.     | `false`                                   |
 | `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                                       | `ROLE_ANONYMOUS`                          |
 | `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                                    | `sub`                                     |
+| `JASPER_ALLOW_USERNAME_CLAIM_ORIGIN`                | Allow origin in the JWT username claim.                                                                                            | `false`                                   |
 | `JASPER_AUTHORITIES_CLAIM`                          | Claim in the access token to use as authorities.                                                                                   | `auth`                                    |
 | `JASPER_READ_ACCESS_CLAIM`                          | Claim in the access token to use as additional read access qualified tags.                                                         | `readAccess`                              |
 | `JASPER_WRITE_ACCESS_CLAIM`                         | Claim in the access token to use as additional write access qualified tags.                                                        | `writeAccess`                             |
@@ -521,14 +522,11 @@ For example:
 Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
 and `JASPER_AUTHORITIES_CLAIM` properties.
 
-Roles may also be specified by origin:
+The origin may also be specified in the username if the `JASPER_ALLOW_USERNAME_CLAIM_ORIGIN` flag is set:
 ```json
 {
-  "sub": "username",
-  "auth": {
-    "@first": "ROLE_USER",
-    "@second": "ROLE_ADMIN"
-  }
+  "sub": "username@other",
+  "auth": "ROLE_USER"
 }
 ```
 
