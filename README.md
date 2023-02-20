@@ -499,11 +499,8 @@ The tag permissions are stored in the User entities:
 ### Special Tags
 Some public tags have special significance:
  * `public`: everyone can read
- * `internal`: don't show on all (`@*`), don't count as a response in metadata
- * `locked`: Only mod can edit
-
-By convention, the private `_moderated` tag is used to mark a Ref as approved by a mod
- * `_moderated`: Approved by a mod
+ * `internal`: don't show in UI normally, count separately in metadata
+ * `locked`: No edits allowed (tagging is allowed)
 
 ### Multi-tenant
 When multi-tenant mode is active users will not have read-access to other origins by default.
