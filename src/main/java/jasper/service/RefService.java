@@ -8,8 +8,10 @@ import com.github.fge.jsonpatch.JsonPatchException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
 import jasper.component.Validate;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
+import jasper.errors.MaxSourcesException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
@@ -40,6 +42,9 @@ public class RefService {
 	private static final Logger logger = LoggerFactory.getLogger(RefService.class);
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -60,12 +65,18 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void create(Ref ref) {
+		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
+			throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+		}
 		ingest.ingest(ref);
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void push(Ref ref) {
+		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
+			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", props.getMaxSources(), ref.getSources().size());
+		}
 		ingest.push(ref);
 	}
 
@@ -111,6 +122,9 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void update(Ref ref) {
+		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
+			throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
