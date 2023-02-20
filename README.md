@@ -583,7 +583,7 @@ The `+plugin/feed` will be set as a source for all scraped Refs. If the publishe
 `+plugin/feed` it will be skipped.
 
 ## Remote Origin
-The `+plugin/origin` tag marks a Ref as a Remote Origin. These may be either pulled from or pushed to.
+The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a local alias. These may be either pulled from or pushed to.
 ```json
 {
   "optionalProperties": {
