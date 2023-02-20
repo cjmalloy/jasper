@@ -532,7 +532,7 @@ The origin may also be specified in the username if the `JASPER_ALLOW_USERNAME_C
 
 ## Backup / Restore
 Jasper has a built-in backup system for admin use. Non admin backups should instead replicate to a separate jasper instance.
-In order to use the backup system, the storage profile must be active.
+In order to use the backup system, the `storage` profile must be active.
 
 ## Validation
 When ingesting entities, Jasper performs the following validation:
