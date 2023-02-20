@@ -158,7 +158,7 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
   "sources": [],
   "alternateUrls": [],
   "plugins": {
-    "plugin/thumbnail": {"url": "https://...jpg"},
+    "plugin/thumbnail": {"url": "https://...jpg"}
   },
   "metadata": {
     "responses": [],
@@ -271,6 +271,7 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
     }
   },
   "generateMetadata": false,
+  "userUrl": false,
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
@@ -287,7 +288,9 @@ data according to the Plugin schema.
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
 this plugin in all Ref metadata.  
-**Modified:** Last modified date of this User.  
+**User Url:** Flag to only allow this plugin on a User Url (`tag:/{tag}?user={user}`).
+This restricts the plugin to one Ref per user.
+**Modified:** Last modified date of this Plugin.  
 
 ### Template
 A Template is a Tag-like entity used to extend the functionality of Exts.
@@ -298,7 +301,7 @@ A Template is a Tag-like entity used to extend the functionality of Exts.
   "name": "Default Template",
   "config": {...},
   "defaults": {
-    "pinned": [],
+    "pinned": []
   },
   "schema": {
     "properties": {
@@ -389,6 +392,7 @@ It supports the following configuration options:
 | `JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                                        |                                           |
 | `JASPER_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                                  |                                           |
 | `JASPER_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                                  |                                           |
+| `JASPER_INGEST_MAX_RETRY`                           | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                          | 5                                         |
 | `JASPER_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                                   | 0                                         |
 | `JASPER_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                                       | 1                                         |
 | `JASPER_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                                            | 5000                                      |
@@ -443,7 +447,14 @@ in minutes between scrapes.
 
 To enable Remote origin scraping, enable either the `pull-schedule` or `pull-burst` profile. The `pull-schedule`
 profile will only scrape the oldest outdated `+plugin/origin/pull` when the scheduler is run, while `pull-burst`
-will scrape all outdated `+plugin/origin`s.  
+will scrape all outdated `+plugin/origin/pull`s.  
+Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
+starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
+in minutes between replication batches.
+
+To enable Remote origin pushing, enable either the `push-schedule` or `push-burst` profile. The `push-schedule`
+profile will only push to the oldest outdated `+plugin/origin/push` when the scheduler is run, while `pull-burst`
+will push to all outdated `+plugin/origin/push`s.  
 Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
 starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
 in minutes between replication batches.
@@ -570,39 +581,93 @@ description is HTML, as indents will trigger a block quote in markdown.
 The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
 `+plugin/feed` it will be skipped.
 
-## Replicating Remote Origin
-The `+plugin/origin` can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
-profiles are active. Although plugin fields are determined dynamically, the following fields are checked
-by the replicator:
+## Remote Origin
+The `+plugin/origin` tag marks a Ref as a Remote Origin. These may be either pulled from or pushed to.
 ```json
 {
-  "properties": {
-    "origin": { "type": "string" },
-    "scrapeInterval": { "type": "string" }
-  },
   "optionalProperties": {
-    "remote": { "type": "string" },
-    "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "removeTags": { "elements": { "type": "string" } },
-    "mapTags": { "values": { "type": "string" } },
-    "addTags": { "elements": { "type": "string" } },
-    "mapOrigins": { "values": { "type": "string" } },
-    "lastScrape": { "type": "string" }
+    "local": { "type": "string" },
+    "remote": { "type": "string" }
   }
 }
 ```
 
-**Origin:** Origin to apply to replicated entities.  
-**Remote:** Remote origin to query.  
+**Local:** Local alias for the remote origin.  
+**Remote:** Remote origin to query, or blank for the default.  
+
+## Replicating Remote Origin
+The `+plugin/origin/pull` can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
+profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
+fields set.
+```json
+{
+  "properties": {
+    "pullInterval": { "type": "string" }
+  },
+  "optionalProperties": {
+    "query": { "type": "string" },
+    "proxy": { "type": "string" },
+    "lastPull": { "type": "string" },
+    "batchSize": { "type": "int32" },
+    "generateMetadata": { "type": "boolean" },
+    "validatePlugins": { "type": "boolean" },
+    "validateTemplates": { "type": "boolean" },
+    "validationOrigin": { "type": "string" },
+    "addTags": { "elements": { "type": "string" } },
+    "removeTags": { "elements": { "type": "string" } }
+  }
+}
+```
+
 **Query:** Restrict results using a query. Can not use qualified tags as replication only works on a single origin at
 a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Remove Tags:** Tags to remove when replicating. Applies to Ref tags and will also block Tag-like entities.  
-**Map Tags:** List of tag renames.  
-**Add Tags:** Tags to apply to any Refs replicated from this origin.  
 **Proxy:** Alternate URL to replicate from.  
-**Last Scrape:** The time this origin was last replicated.  
-**Scrape Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
+**Last Pull:** The time this origin was last replicated.  
+**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
+**Batch Size:** The max number of entities of each type to pull each interval.  
+**Generate Metadata:** Flag to enable, disable metadata generation.  
+**Validate Plugins:** Flag to enable, disable plugin validation.  
+**Validate Templates:** Flag to enable, disable template validation.  
+**Validation Origin:** Origin to get plugin and templates for validation.  
+**Add Tags:** Tags to apply to any Refs replicated from this origin.  
+**Remove Tags:** Tags to remove from any Refs replicated from this origin.  
+
+## Pushing to a Remote Origin
+The `+plugin/origin/push` can be used to replicate remote origins when the `push-burst` or `push-schedule`
+profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
+fields set.
+```json
+{
+  "properties": {
+    "pushInterval": { "type": "string" }
+  },
+  "optionalProperties": {
+    "query": { "type": "string" },
+    "proxy": { "type": "string" },
+    "lastPush": { "type": "string" },
+    "batchSize": { "type": "int32" },
+    "writeOnly": { "type": "boolean" },
+    "lastModifiedRefWritten": { "elements": { "type": "string" } },
+    "lastModifiedExtWritten": { "elements": { "type": "string" } },
+    "lastModifiedUserWritten": { "elements": { "type": "string" } },
+    "lastModifiedPluginWritten": { "elements": { "type": "string" } },
+    "lastModifiedTemplateWritten": { "elements": { "type": "string" } }
+  }
+}
+```
+
+**Query:** Restrict push using a query. Can not use qualified tags as replication only works on a single origin at
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
+**Proxy:** Alternate URL to push to.  
+**Last Push:** The time this origin was last pushed to.  
+**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
+**Batch Size:** The max number of entities of each type to pull each interval.  
+**Write Only:** Do not query remote for last modified cursor, just use saved cursor.  
+**Last Modified Ref Written:** Modified date of last Ref pushed.    
+**Last Modified Ext Written:** Modified date of last Ext pushed.    
+**Last Modified User Written:** Modified date of last User pushed.    
+**Last Modified Plugin Written:** Modified date of last Plugin pushed.    
+**Last Modified Template Written:** Modified date of last Template pushed.    
 
 ## Release Notes
 * [v1.2](./docs/release-notes/jasper-1.2.md)

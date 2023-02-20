@@ -33,7 +33,6 @@ public class Pull {
 	private boolean stripInvalidTemplates;
 	private String validationOrigin;
 	private boolean generateMetadata;
-	private String getOriginFromTag;
 	private List<String> addTags;
 	private List<String> removeTags;
 
