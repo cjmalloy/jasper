@@ -1,6 +1,7 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
@@ -129,6 +130,18 @@ public abstract class DtoMapper {
 	protected void filterTags(@MappingTarget UserDto userDto) {
 		userDto.setReadAccess(auth.filterTags(userDto.getReadAccess()));
 		userDto.setWriteAccess(auth.filterTags(userDto.getWriteAccess()));
+	}
+
+	@AfterMapping
+	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
+		if (source.getInternalResponses() == null) return;
+		var ending = "?user=" + auth.getUserTag().tag;
+		target.setUserUrls(source.getInternalResponses().stream()
+			.filter(url -> url.startsWith("tag:/"))
+			.filter(url -> url.endsWith(ending))
+			.map(url -> url.substring("tag:/".length(), url.length() - ending.length()))
+			.toList()
+		);
 	}
 
 	public int countMetadata(List<String> responses) {
