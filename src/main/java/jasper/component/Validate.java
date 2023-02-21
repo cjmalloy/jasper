@@ -215,7 +215,7 @@ public class Validate {
 		if (userTag.isEmpty()) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
-		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get()))) {
+		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get() + ref.getOrigin()))) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 	}
