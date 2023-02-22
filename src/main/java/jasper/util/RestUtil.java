@@ -8,8 +8,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.WebRequest;
 
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.StringUtils.getCommonPrefix;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.reverse;
 
 public class RestUtil {
 
@@ -54,22 +60,32 @@ public class RestUtil {
 	}
 
 	private static <T extends HasModified> String getModifiedPage(Page<T> result) {
-		if (result.getContent().size() > 100) return null;
-		return result.stream()
-			.map(RestUtil::getModified)
-			.collect(Collectors.joining(",")) +
+		if (result.getContent().size() > 500) return null;
+		var etag = new ArrayList<>(result.stream().map(RestUtil::getModified).toList());
+		for (var i = etag.size() - 1; i > 0; i--) {
+			var a = etag.get(i - 1);
+			var b = etag.get(i);
+			var prefix = getCommonPrefix(a, b);
+			var suffix = reverse(getCommonPrefix(reverse(a), reverse(b)));
+			if (prefix.length() == b.length()) {
+				etag.set(i, "");
+			} else if (isNotBlank(prefix)) {
+				etag.set(i, b.substring(prefix.length(), b.length() - suffix.length() - 1));
+			}
+		}
+		return String.join(",", etag) +
 			";" + result.isFirst() +
 			"," + result.isLast();
 	}
 
 	private static <T extends HasModified> String getModified(T result) {
 		if (result == null) return "";
-		var modified = result.getModified().toString();
+		var modified = result.getModified().truncatedTo(ChronoUnit.MILLIS).toString();
 		if (!(result instanceof RefDto ref)) return modified;
 		if (ref.getMetadata() == null) return modified;
 		if (ref.getMetadata().getModified() == null) return modified;
 		if (ref.getMetadata().getModified().isBefore(result.getModified())) return modified;
-		return ref.getMetadata().getModified().toString();
+		return ref.getMetadata().getModified().truncatedTo(ChronoUnit.MILLIS).toString();
 	}
 
 	public interface GetModified<T> {
