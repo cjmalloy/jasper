@@ -224,9 +224,10 @@ public class Validate {
 		var result = objectMapper.getNodeFactory().objectNode();
 		if (ref.getTags() == null) return result;
 		for (var tag : ref.getTags()) {
-			var plugins = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
-			result.set(tag, plugins
-				.map(Plugin::getDefaults).orElse(objectMapper.getNodeFactory().objectNode()));
+			var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
+			if (plugin.isPresent()) {
+				result.set(tag, plugin.get().getDefaults());
+			}
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
 		return result;
