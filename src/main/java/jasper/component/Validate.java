@@ -75,7 +75,7 @@ public class Validate {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
-			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
+			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
 		var mergedDefaults = templates
