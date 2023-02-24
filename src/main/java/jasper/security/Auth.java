@@ -55,6 +55,7 @@ import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.jpa.domain.Specification.where;
 
 /**
  * This single class is where all authorization decisions are made.
@@ -452,22 +453,22 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (hasRole(SA)) return Specification.where(null);
+		if (hasRole(SA)) return where(null);
 		var spec = Specification.<Ref>where(isOrigin(getMultiTenantOrigin()));
 		if (hasRole(MOD)) return spec;
+		spec = spec.or(getPublicTag().refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
 		}
-		return spec.and(getPublicTag().refSpec())
-			.or(hasAnyQualifiedTag(getReadAccess()));
+		return spec.or(hasAnyQualifiedTag(getReadAccess()));
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (hasRole(SA)) return Specification.where(null);
+		if (hasRole(SA)) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (hasRole(MOD)) return spec;
-		return spec.and(notPrivateTag())
-			.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec.and(Specification.<T>where(notPrivateTag())
+			.or(isAnyQualifiedTag(getTagReadAccess())));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
