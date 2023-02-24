@@ -47,10 +47,6 @@ the model.
 4. Plugin
 5. Template
 
-Although relations exist between the entities, the data model is non-relational. In other words,
-there are foreign keys, but no foreign key constraints. For example, a Ref may refer to an Origin
-without requiring that an Origin entity exist.
-
 The main entity is the Ref, it represents a reference to external content. The main field in a Ref
 is the URL field which can be a link to a web page, or a reference to arbitrary resources predicated
 on the URL scheme. Web content will of course use the http or https scheme. To reference a book,
