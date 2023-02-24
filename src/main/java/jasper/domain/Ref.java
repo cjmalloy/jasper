@@ -82,6 +82,10 @@ public class Ref implements HasTags {
 	@Column(columnDefinition = "jsonb")
 	private Metadata metadata;
 
+	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
+	@Setter(AccessLevel.NONE)
+	private String scheme;
+
 	@Formula("COALESCE(jsonb_array_length(tags), 0)")
 	@Setter(AccessLevel.NONE)
 	private String tagCount;

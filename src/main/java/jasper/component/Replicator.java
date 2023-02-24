@@ -170,6 +170,7 @@ public class Replicator {
 					PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 				.getContent();
 			if (!refList.isEmpty()) {
+				push.migrate(refList, config);
 				client.refPush(url, refList);
 				push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
 			}

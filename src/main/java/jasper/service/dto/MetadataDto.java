@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -15,4 +16,5 @@ public class MetadataDto {
 	private int responses;
 	private int internalResponses;
 	private Map<String, Integer> plugins;
+	private List<String> userUrls;
 }

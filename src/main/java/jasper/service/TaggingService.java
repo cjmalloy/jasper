@@ -97,7 +97,7 @@ public class TaggingService {
 	}
 
 	private Ref getResponseRef(String tag) {
-		var url = urlForUser(auth.getUserTag().tag, tag);
+		var url = urlForUser(tag, auth.getUserTag().toString());
 		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, auth.getOrigin())
 			.orElseGet(() -> {
 				var ref = new Ref();

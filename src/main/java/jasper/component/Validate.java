@@ -75,7 +75,7 @@ public class Validate {
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
-			if (ext.getConfig() != null) throw new InvalidTemplateException(ext.getTag());
+			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
 		var mergedDefaults = templates
@@ -215,7 +215,7 @@ public class Validate {
 		if (userTag.isEmpty()) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
-		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get()))) {
+		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get() + ref.getOrigin()))) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 	}
@@ -224,9 +224,10 @@ public class Validate {
 		var result = objectMapper.getNodeFactory().objectNode();
 		if (ref.getTags() == null) return result;
 		for (var tag : ref.getTags()) {
-			var plugins = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
-			result.set(tag, plugins
-				.map(Plugin::getDefaults).orElse(objectMapper.getNodeFactory().objectNode()));
+			var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
+			if (plugin.isPresent()) {
+				result.set(tag, plugin.get().getDefaults());
+			}
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
 		return result;

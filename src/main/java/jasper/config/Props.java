@@ -22,6 +22,7 @@ import java.util.Map;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
+	private int maxSources = 100;
 	private int ingestMaxRetry = 5;
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";

@@ -17,6 +17,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 
 @Getter
 @Setter
@@ -33,7 +35,6 @@ public class Pull {
 	private boolean stripInvalidTemplates;
 	private String validationOrigin;
 	private boolean generateMetadata;
-	private String getOriginFromTag;
 	private List<String> addTags;
 	private List<String> removeTags;
 
@@ -50,6 +51,9 @@ public class Pull {
 
 	public void migrate(Ref ref, Origin config) {
 		migrateEntity(ref, config);
+		if (isNotBlank(ref.getOrigin()) && ref.getUrl().startsWith("tag:") && !ref.getUrl().endsWith(ref.getOrigin())) {
+			ref.setUrl(ref.getUrl() + ref.getOrigin());
+		}
 		if (ref.getTags() != null && removeTags != null) {
 			ref.removePrefixTags();
 			migrateTags(ref.getTags(), ref.getPlugins());
