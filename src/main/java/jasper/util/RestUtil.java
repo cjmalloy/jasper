@@ -70,7 +70,7 @@ public class RestUtil {
 			if (prefix.length() == b.length()) {
 				etag.set(i, "");
 			} else if (isNotBlank(prefix)) {
-				etag.set(i, b.substring(prefix.length(), b.length() - suffix.length() - 1));
+				etag.set(i, Integer.toHexString(prefix.length()) + "/" + b.substring(prefix.length(), b.length() - suffix.length()));
 			}
 		}
 		return String.join(",", etag) +
