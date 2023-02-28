@@ -38,7 +38,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -61,9 +60,6 @@ public class RssParser {
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
 		saveConfig(feed, config);
-
-		var tagSet = new HashSet<String>();
-		if (config.getAddTags() != null) tagSet.addAll(config.getAddTags());
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
@@ -107,7 +103,7 @@ public class RssParser {
 					for (var entry : syndFeed.getEntries()) {
 						Ref ref;
 						try {
-							ref = parseEntry(feed, config, tagSet, entry, feedImage);
+							ref = parseEntry(feed, config, entry, feedImage);
 						} catch (Exception e) {
 							logger.error("Error processing entry", e);
 							continue;
@@ -136,7 +132,7 @@ public class RssParser {
 		refRepository.save(feed);
 	}
 
-	private Ref parseEntry(Ref feed, Feed config, HashSet<String> tagSet, SyndEntry entry, Map<String, Object> defaultThumbnail) {
+	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
 		ref.setUrl(l);
@@ -177,33 +173,37 @@ public class RssParser {
 			comment += String.join(", ", dc.getCreators());
 		}
 		ref.setComment(comment);
-		if (!tagSet.isEmpty()) {
-			var plugins = new HashMap<String, Object>();
-			if (tagSet.contains("plugin/thumbnail")) {
-				parseThumbnail(entry, plugins);
-				if (!plugins.containsKey("plugin/thumbnail")) {
-					if (defaultThumbnail != null) {
-						plugins.put("plugin/thumbnail", defaultThumbnail);
-					} else {
-						ref.getTags().remove("plugin/thumbnail");
-					}
+		var plugins = new HashMap<String, Object>();
+		if (config.isScrapeThumbnail()) {
+			parseThumbnail(entry, plugins);
+			if (!plugins.containsKey("plugin/thumbnail")) {
+				if (defaultThumbnail != null) {
+					plugins.put("plugin/thumbnail", defaultThumbnail);
 				}
 			}
-			if (tagSet.contains("plugin/audio")) {
-				parseAudio(entry, plugins);
-				if (!plugins.containsKey("plugin/audio")) {
-					ref.getTags().remove("plugin/audio");
-				}
+			if (plugins.containsKey("plugin/thumbnail")) {
+				ref.getTags().add("plugin/thumbnail");
 			}
-			if (tagSet.contains("plugin/video")) {
-				parseVideo(entry, plugins);
-				if (!plugins.containsKey("plugin/video")) {
-					ref.getTags().remove("plugin/video");
-				}
-			}
-			if (tagSet.contains("plugin/embed")) parseEmbed(entry, plugins);
-			ref.setPlugins(objectMapper.valueToTree(plugins));
 		}
+		if (config.isScrapeAudio()) {
+			parseAudio(entry, plugins);
+			if (plugins.containsKey("plugin/audio")) {
+				ref.getTags().add("plugin/audio");
+			}
+		}
+		if (config.isScrapeVideo()) {
+			parseVideo(entry, plugins);
+			if (plugins.containsKey("plugin/video")) {
+				ref.getTags().add("plugin/video");
+			}
+		}
+		if (config.isScrapeEmbed()) {
+			parseEmbed(entry, plugins);
+			if (plugins.containsKey("plugin/embed")) {
+				ref.getTags().add("plugin/embed");
+			}
+		}
+		ref.setPlugins(objectMapper.valueToTree(plugins));
 		return ref;
 	}
 
