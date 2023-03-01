@@ -59,6 +59,7 @@ public class RssParser {
 		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
+		upgradeFeed(config);
 		saveConfig(feed, config);
 
 		int timeout = 30 * 1000; // 30 seconds
@@ -124,6 +125,26 @@ public class RssParser {
 					}
 				}
 			}
+		}
+	}
+
+	private void upgradeFeed(Feed config) {
+		var addTags = config.getAddTags();
+		if (addTags.contains("plugin/thumbnail")) {
+			config.setScrapeThumbnail(true);
+			addTags.remove("plugin/thumbnail");
+		}
+		if (addTags.contains("plugin/audio")) {
+			config.setScrapeAudio(true);
+			addTags.remove("plugin/audio");
+		}
+		if (addTags.contains("plugin/video")) {
+			config.setScrapeVideo(true);
+			addTags.remove("plugin/video");
+		}
+		if (addTags.contains("plugin/embed")) {
+			config.setScrapeEmbed(true);
+			addTags.remove("plugin/embed");
 		}
 	}
 
