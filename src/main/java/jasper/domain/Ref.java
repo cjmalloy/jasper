@@ -102,6 +102,15 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String commentCount;
 
+	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	private String voteCount;
+
+	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	private String voteScore;
+
+	@Formula("floor((COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)) * pow(0.5, extract(epoch FROM age(published)) / 3600))")
+	private String voteScoreDecay;
+
 	@Column
 	@NotNull
 	private Instant published = Instant.now();
