@@ -579,6 +579,7 @@ public class Auth {
 
 	private String getOriginHeader() {
 		if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+			logger.debug("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
 		}
 		return null;
