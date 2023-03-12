@@ -135,6 +135,7 @@ public abstract class DtoMapper {
 	@AfterMapping
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
 		if (source.getInternalResponses() == null) return;
+		if (auth.getUserTag() == null) return;
 		var start = "tag:/";
 		var ending = "?user=" + auth.getUserTag().toString();
 		target.setUserUrls(source.getInternalResponses().stream()
