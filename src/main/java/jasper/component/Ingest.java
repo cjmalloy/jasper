@@ -41,21 +41,21 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void ingest(Ref ref) {
+	public void ingest(Ref ref, boolean force) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
-		validate.ref(ref);
+		validate.ref(ref, force);
 		meta.update(ref, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void update(Ref ref) {
+	public void update(Ref ref, boolean force) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
-		validate.ref(ref);
+		validate.ref(ref, force);
 		meta.update(ref, maybeExisting.get());
 		ensureUniqueModified(ref);
 	}
@@ -64,7 +64,7 @@ public class Ingest {
 	public void push(Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		validate.ref(ref);
+		validate.ref(ref, true);
 		meta.update(ref, maybeExisting.orElse(null));
 		refRepository.save(ref);
 	}

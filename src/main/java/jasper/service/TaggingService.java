@@ -40,7 +40,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
 		ref.addTags(List.of(tag));
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
@@ -55,7 +55,7 @@ public class TaggingService {
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.removePrefixTags();
 		ref.getTags().remove(tag);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
@@ -69,7 +69,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		ref.removePrefixTags();
 		ref.addTags(tags);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
@@ -82,7 +82,7 @@ public class TaggingService {
 		if (!ref.getSources().contains(url)) {
 			ref.getSources().add(url);
 		}
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.sysMod() or @auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
@@ -93,7 +93,7 @@ public class TaggingService {
 			ref.setSources(new ArrayList<>());
 		}
 		ref.getSources().remove(url);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	private Ref getResponseRef(String tag) {
@@ -104,7 +104,7 @@ public class TaggingService {
 				ref.setUrl(url);
 				ref.setOrigin(ref.getOrigin());
 				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
-				ingest.ingest(ref);
+				ingest.ingest(ref, false);
 				return ref;
 			});
 	}

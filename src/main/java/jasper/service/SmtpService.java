@@ -43,7 +43,7 @@ public class SmtpService {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
 			ref.getTags().add("internal");
 		}
-		refService.create(ref);
+		refService.create(ref, false);
 	}
 
 }

@@ -64,11 +64,12 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void create(Ref ref) {
+	public void create(Ref ref, boolean force) {
 		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
-			throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
 		}
-		ingest.ingest(ref);
+		ingest.ingest(ref, force);
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
@@ -121,9 +122,10 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void update(Ref ref) {
+	public void update(Ref ref, boolean force) {
 		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
-			throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
+			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
 		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
@@ -132,7 +134,7 @@ public class RefService {
 		var hiddenTags = auth.hiddenTags(existing.getTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
-		ingest.update(ref);
+		ingest.update(ref, force);
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
@@ -153,9 +155,9 @@ public class RefService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				create(updated);
+				create(updated, false);
 			} else {
-				update(updated);
+				update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
