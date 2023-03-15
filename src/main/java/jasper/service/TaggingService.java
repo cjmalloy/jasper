@@ -102,7 +102,7 @@ public class TaggingService {
 			.orElseGet(() -> {
 				var ref = new Ref();
 				ref.setUrl(url);
-				ref.setOrigin(ref.getOrigin());
+				ref.setOrigin(auth.getOrigin());
 				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
 				ingest.ingest(ref, false);
 				return ref;
