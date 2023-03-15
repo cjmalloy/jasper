@@ -72,9 +72,9 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void createResponse(String tag, String url, String origin) {
+	public void createResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
 		if (ref.getSources() == null) {
 			ref.setSources(new ArrayList<>());
@@ -85,9 +85,9 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.sysMod() or @auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void deleteResponse(String tag, String url, String origin) {
+	public void deleteResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
 		if (ref.getSources() == null) {
 			ref.setSources(new ArrayList<>());
