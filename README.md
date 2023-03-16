@@ -8,7 +8,8 @@ Knowledge Management Server
 ## Quickstart
 To start the server, client and database with a single admin user, run
 the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/docker-compose.yaml)
-docker compose file.
+docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
+electron wrapper.
 
 ## Knowledge Management System
 Jasper is an open source knowledge management (KMS) system. A KMS is similar to a Content Management
