@@ -122,7 +122,7 @@ public class UserService {
 	public RolesDto whoAmI() {
 		return RolesDto
 			.builder()
-			.tag(auth.isLoggedIn() ? auth.getUserTag().toString() : "")
+			.tag(auth.isLoggedIn() ? auth.getUserTag().toString() : auth.getOrigin())
 			.sysadmin(auth.hasRole(SA))
 			.admin(auth.hasRole(ADMIN))
 			.mod(auth.hasRole(MOD))

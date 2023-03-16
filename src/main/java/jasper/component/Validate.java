@@ -53,14 +53,14 @@ public class Validate {
 	ObjectMapper objectMapper;
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref) {
+	public void ref(Ref ref, boolean force) {
 		ref(ref, ref.getOrigin(), false);
 	}
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, String validationOrigin, boolean stripOnError) {
+	public void ref(Ref ref, String validationOrigin, boolean force) {
 		tags(ref);
-		plugins(ref, validationOrigin, stripOnError);
+		plugins(ref, validationOrigin, force);
 		sources(ref);
 		responses(ref);
 	}

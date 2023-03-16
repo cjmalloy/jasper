@@ -40,7 +40,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
 		ref.addTags(List.of(tag));
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
@@ -55,7 +55,7 @@ public class TaggingService {
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.removePrefixTags();
 		ref.getTags().remove(tag);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
@@ -69,12 +69,12 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		ref.removePrefixTags();
 		ref.addTags(tags);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void createResponse(String tag, String url, String origin) {
+	public void createResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
 		if (ref.getSources() == null) {
 			ref.setSources(new ArrayList<>());
@@ -82,18 +82,18 @@ public class TaggingService {
 		if (!ref.getSources().contains(url)) {
 			ref.getSources().add(url);
 		}
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.sysMod() or @auth.local(#origin) and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void deleteResponse(String tag, String url, String origin) {
+	public void deleteResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
 		if (ref.getSources() == null) {
 			ref.setSources(new ArrayList<>());
 		}
 		ref.getSources().remove(url);
-		ingest.update(ref);
+		ingest.update(ref, false);
 	}
 
 	private Ref getResponseRef(String tag) {
@@ -102,9 +102,9 @@ public class TaggingService {
 			.orElseGet(() -> {
 				var ref = new Ref();
 				ref.setUrl(url);
-				ref.setOrigin(ref.getOrigin());
+				ref.setOrigin(auth.getOrigin());
 				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
-				ingest.ingest(ref);
+				ingest.ingest(ref, false);
 				return ref;
 			});
 	}

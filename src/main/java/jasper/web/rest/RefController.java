@@ -71,9 +71,10 @@ public class RefController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	void createRef(
-		@RequestBody @Valid Ref ref
+		@RequestBody @Valid Ref ref,
+		@RequestParam(defaultValue = "false") boolean force
 	) {
-		refService.create(ref);
+		refService.create(ref, force);
 	}
 
 	@ApiResponses({
@@ -196,9 +197,10 @@ public class RefController {
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void updateRef(
-		@RequestBody @Valid Ref ref
+		@RequestBody @Valid Ref ref,
+		@RequestParam(defaultValue = "false") boolean force
 	) {
-		refService.update(ref);
+		refService.update(ref, force);
 	}
 
 	@ApiResponses({

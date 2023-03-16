@@ -566,8 +566,8 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-				origin = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
+			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
+				origin = getOriginHeader().toLowerCase();
 			} else if (isLoggedIn() && props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
 				origin = getPrincipal().substring(getPrincipal().indexOf("@"));
 			} else {
@@ -575,6 +575,14 @@ public class Auth {
 			}
 		}
 		return origin;
+	}
+
+	private String getOriginHeader() {
+		if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+			logger.debug("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
+			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
+		}
+		return null;
 	}
 
 	public QualifiedTag getPublicTag() {
