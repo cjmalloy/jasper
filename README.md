@@ -285,8 +285,8 @@ data according to the Plugin schema.
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
 this plugin in all Ref metadata.  
-**User Url:** Flag to only allow this plugin on a User Url (`tag:/{tag}?user={user}`).
-This restricts the plugin to one Ref per user.
+**User Url:** Flag to only allow this plugin on a User Url, which is a specially constructed URL
+of the form `tag:/{tag}?user={user}`. This has the effect of restricting the plugin to one Ref per user.
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
