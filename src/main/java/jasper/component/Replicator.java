@@ -6,6 +6,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.config.Props;
 import jasper.domain.Ref;
+import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Origin;
 import jasper.plugin.Pull;
 import jasper.plugin.Push;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -61,18 +63,22 @@ public class Replicator {
 	ObjectMapper objectMapper;
 
 	@Timed(value = "jasper.pull", histogram = true)
-	public void pull(Ref origin) {
-		var pull = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin/pull"), Pull.class);
+	public void pull(Ref remote) {
+		if (Arrays.stream(props.getReplicateOrigins()).noneMatch(remote.getOrigin()::equals)) {
+			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
+			throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		}
+		var pull = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin/pull"), Pull.class);
 		pull.setLastPull(Instant.now());
-		origin.getPlugins().set("+plugin/origin/pull", objectMapper.convertValue(pull, JsonNode.class));
-		refRepository.save(origin);
+		remote.getPlugins().set("+plugin/origin/pull", objectMapper.convertValue(pull, JsonNode.class));
+		refRepository.save(remote);
 
 		Map<String, Object> options = new HashMap<>();
-		var config = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin"), Origin.class);
+		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
 		options.put("size", pull.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), props.getMaxReplicateBatch()));
 		options.put("origin", config.getRemote());
 		try {
-			var url = new URI(isNotBlank(pull.getProxy()) ? pull.getProxy() : origin.getUrl());
+			var url = new URI(isNotBlank(pull.getProxy()) ? pull.getProxy() : remote.getUrl());
 			options.put("modifiedAfter", pluginRepository.getCursor(config.getLocal()));
 			for (var plugin : client.pluginPull(url, options)) {
 				pull.migrate(plugin, config);
@@ -122,16 +128,20 @@ public class Replicator {
 	}
 
 	@Timed(value = "jasper.push", histogram = true)
-	public void push(Ref origin) {
-		var push = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin/push"), Push.class);
+	public void push(Ref remote) {
+		if (Arrays.stream(props.getReplicateOrigins()).noneMatch(remote.getOrigin()::equals)) {
+			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
+			throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		}
+		var push = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin/push"), Push.class);
 		push.setLastPush(Instant.now());
-		origin.getPlugins().set("+plugin/origin/push", objectMapper.convertValue(push, JsonNode.class));
-		refRepository.save(origin);
+		remote.getPlugins().set("+plugin/origin/push", objectMapper.convertValue(push, JsonNode.class));
+		refRepository.save(remote);
 
-		var config = objectMapper.convertValue(origin.getPlugins().get("+plugin/origin"), Origin.class);
+		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
 		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
 		try {
-			var url = new URI(isNotBlank(push.getProxy()) ? push.getProxy() : origin.getUrl());
+			var url = new URI(isNotBlank(push.getProxy()) ? push.getProxy() : remote.getUrl());
 			Instant modifiedAfter = push.isWriteOnly() ? push.getLastModifiedPluginWritten() : client.pluginCursor(url, config.getRemote());
 			var pluginList = pluginRepository.findAll(
 					TagFilter.builder()

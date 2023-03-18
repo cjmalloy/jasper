@@ -26,8 +26,16 @@ public class Props {
 	private int ingestMaxRetry = 5;
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
+	/**
+	 * Whitelist origins to be allowed to scrape using +plugin/feed.
+	 */
+	private String[] scrapeOrigins = new String[]{""};
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
+	/**
+	 * Whitelist origins to be allowed to replicate using +plugin/origin.
+	 */
+	private String[] replicateOrigins = new String[]{""};
 	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean multiTenant = false;

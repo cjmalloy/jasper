@@ -186,9 +186,11 @@ jasper:
   ingest-max-retry: 5
   replicate-delay-min: 0
   replicate-interval-min: 1
+  replicate-origins: ['']
   max-replicate-batch: 5000
   scrape-delay-min: 0
   scrape-interval-min: 1
+  scrape-origins: ['']
   default-role: ROLE_ANONYMOUS
   local-origin: ''
   username-claim: sub
