@@ -89,7 +89,10 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			principal = "_user" + origin;
+			if (isBlank(principal) && !principal.equals("+user") && !principal.equals("+user" + origin)) {
+				// Default to private user if +user is not exactly specified
+				principal = "_user" + origin;
+			}
 			logger.debug("Username: {}", principal);
 			return principal;
 		} else if (principal.startsWith("+user/") || principal.startsWith("_user/")) {
