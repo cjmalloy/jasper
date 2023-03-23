@@ -77,10 +77,21 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 				logger.debug("Root role not allowed.");
 				return null;
 			}
+			var origin = "";
+			if (!isBlank(principal)) {
+				try {
+					origin = selector(principal).origin;
+				} catch (UnsupportedOperationException e) {
+					// Invalid origin
+					logger.debug("Root role not allowed with origin {}.", origin);
+					return null;
+				}
+			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			logger.debug("Username: {}", "_user" + (isBlank(principal)  ? "" : selector(principal).origin));
-			return "_user" + (isBlank(principal)  ? "" : selector(principal).origin);
+			principal = "_user" + origin;
+			logger.debug("Username: {}", principal);
+			return principal;
 		} else if (principal.startsWith("+user/") || principal.startsWith("_user/")) {
 			return principal;
 		}
