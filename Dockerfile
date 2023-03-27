@@ -9,7 +9,7 @@ RUN mvn -B package -Dmaven.test.skip
 RUN java -Djarmode=layertools -jar target/*.jar extract
 
 FROM builder as test
-CMD mvn test && \
+CMD mvn test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/
 
