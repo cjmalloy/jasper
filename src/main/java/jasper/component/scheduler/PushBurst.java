@@ -1,4 +1,4 @@
-package jasper.scheduler;
+package jasper.component.scheduler;
 
 import jasper.component.Remotes;
 import jasper.config.Props;

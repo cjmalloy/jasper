@@ -1,4 +1,4 @@
-package jasper.scheduler;
+package jasper.component.scheduler;
 
 import jasper.component.FeedScraper;
 import jasper.config.Props;
@@ -11,13 +11,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-@Profile("feed-schedule")
+@Profile("feed-burst")
 @Component
-public class FeedScraperImplSchedule {
-	private static final Logger logger = LoggerFactory.getLogger(FeedScraperImplSchedule.class);
+public class FeedScraperImplBurst {
+	private static final Logger logger = LoggerFactory.getLogger(FeedScraperImplBurst.class);
 
 	@Autowired
-    FeedScraper feedScraper;
+	FeedScraper feedScraper;
 
 	@Autowired
 	Props props;
@@ -26,12 +26,11 @@ public class FeedScraperImplSchedule {
 		fixedRateString = "${jasper.scrape-interval-min}",
 		initialDelayString = "${jasper.scrape-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
-	public void scheduleScrape() {
+	public void burstScrape() {
 		for (var origin : props.getScrapeOrigins()) {
-			logger.info("Scraping all {} feeds on schedule", origin);
-			if (!feedScraper.scrapeOrigin(origin)) {
-				logger.info("All {} feeds up to date.", origin);
-			}
+			logger.info("Scraping all {} feeds in a burst.", origin);
+			while (feedScraper.scrapeOrigin(origin));
+			logger.info("All {} feeds up to date.", origin);
 		}
 	}
 

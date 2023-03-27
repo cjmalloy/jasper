@@ -1,4 +1,4 @@
-package jasper.scheduler;
+package jasper.component.scheduler;
 
 import jasper.component.Remotes;
 import jasper.config.Props;
@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-@Profile("pull-burst")
+@Profile("push-schedule")
 @Component
-public class PullBurst {
-	private static final Logger logger = LoggerFactory.getLogger(PullBurst.class);
+public class PushSchedule {
+	private static final Logger logger = LoggerFactory.getLogger(PushSchedule.class);
 
 	@Autowired
 	Remotes remotes;
@@ -27,10 +27,12 @@ public class PullBurst {
 		initialDelayString = "${jasper.replicate-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
+		logger.info("Pushing all remotes on schedule.");
 		for (var origin : props.getReplicateOrigins()) {
-			logger.info("Pulling all {} remotes in a burst.", origin);
-			while (remotes.pull(origin));
-			logger.info("All {} remotes pulled.", origin);
+			logger.info("Pushing all {} remotes on schedule", origin);
+			if (!remotes.push(origin)) {
+				logger.info("All {} remotes pushed.", origin);
+			}
 		}
 	}
 
