@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static jasper.repository.spec.RefSpec.isUrls;
@@ -52,11 +51,11 @@ public class Meta {
 			if (ref.getTags() != null) {
 				// Update sources
 				var internal = ref.getTags().contains("internal");
-				Map<String, String> plugins = pluginRepository
+				List<String> plugins = pluginRepository
 					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
 					.stream()
 					.filter(tag -> ref.getTags().contains(tag))
-					.collect(Collectors.toMap(tag -> tag, tag -> ref.getUrl()));
+					.toList();
 				List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
 				for (var source : sources) {
 					var old = source.getMetadata();
@@ -74,7 +73,7 @@ public class Meta {
 					} else {
 						old.addResponse(ref.getUrl());
 					}
-					old.addPlugins(plugins);
+					old.addPlugins(plugins, ref.getUrl());
 					source.setMetadata(old);
 					refRepository.save(source);
 				}
