@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.11
+  version: 1.2.12
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.11
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.12
 paths:
   /api/v1/ref:
     get:
@@ -444,7 +444,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/components/schemas/tag'
+              $ref: '#/components/schemas/tagPatch'
         - name: url
           in: query
           required: true
@@ -529,6 +529,34 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+        tags:
+            - Tagging
+        operationId: patchResponse
+        parameters:
+            - name: tags
+              in: query
+              required: true
+              schema:
+                  type: array
+                  items:
+                      $ref: '#/components/schemas/tagPatch'
+            - name: url
+              in: query
+              required: true
+              schema:
+                  $ref: '#/components/schemas/url'
+        responses:
+            '204':
+                description: No Content
+            '400':
+                $ref: '#/components/responses/BadRequest'
+            '403':
+                $ref: '#/components/responses/Forbidden'
+            '404':
+                $ref: '#/components/responses/NotFound'
+            '409':
+                $ref: '#/components/responses/Conflict'
   /api/v1/scrape/feed:
     get:
       tags:
@@ -1860,6 +1888,12 @@ components:
       description: Tag
       example: 'tag'
       maxLength: 64
+    tagPatch:
+      type: string
+      pattern: '-?[_+]?[a-z0-9]+([./][a-z0-9]+)*'
+      description: Tag
+      example: 'tag'
+      maxLength: 65
     qtag:
       type: string
       pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+(\.[a-z0-9])*)?'

@@ -96,6 +96,18 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
+	@PreAuthorize("@auth.hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
+	public void respond(List<String> tags, String url) {
+		for (var tag : tags) {
+			if (tag.startsWith("-")) {
+				deleteResponse(tag.substring(1), url);
+			} else {
+				createResponse(tag, url);
+			}
+		}
+	}
+
 	private Ref getResponseRef(String tag) {
 		var url = urlForUser(tag, auth.getUserTag().toString());
 		return refRepository.findOneByUrlAndOrigin(url, auth.getOrigin())

@@ -74,7 +74,7 @@ public class TaggingController {
 	@PatchMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchTags(
-		@RequestParam List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -103,5 +103,17 @@ public class TaggingController {
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url
 	) {
 		taggingService.deleteResponse(tag, url);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PatchMapping("response")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchResponse(
+		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url
+	) {
+		taggingService.respond(tags, url);
 	}
 }

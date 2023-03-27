@@ -250,6 +250,15 @@ public class Auth {
 	}
 
 	/**
+	 * Does the user have permission to use all tags when tagging Refs?
+	 */
+	public boolean canAddTags(List<String> tags) {
+		if (hasRole(MOD)) return true;
+		if (!hasRole(USER)) return false;
+		return tags.stream().allMatch(this::canAddTag);
+	}
+
+	/**
 	 * Can the user add these tags to an existing ref?
 	 */
 	public boolean canTagAll(List<String> tags, String url, String origin) {
