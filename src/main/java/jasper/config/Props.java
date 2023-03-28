@@ -40,6 +40,7 @@ public class Props {
 	private String localOrigin = "";
 	private boolean multiTenant = false;
 	private String defaultRole = "ROLE_ANONYMOUS";
+	private String defaultUser = "+user";
 	private String[] defaultReadAccess;
 	private String[] defaultWriteAccess;
 	private String[] defaultTagReadAccess;

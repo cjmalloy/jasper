@@ -3,6 +3,7 @@ package jasper.config;
 import jasper.management.SecurityMetersService;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
+import jasper.security.jwt.TokenProviderImplAnon;
 import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplJwks;
 import jasper.security.jwt.TokenProviderImplNoVerify;
@@ -72,8 +73,14 @@ public class AuthConfig {
 	}
 
 	@Bean
-	@ConditionalOnMissingBean
-	TokenProvider defaultProvider(Props props) {
+	@Profile("default-user")
+	TokenProvider defaultTokenProvider(Props props) {
 		return new TokenProviderImplDefault(props);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	TokenProvider anonTokenProvider(Props props) {
+		return new TokenProviderImplAnon(props);
 	}
 }
