@@ -110,6 +110,10 @@ public class RefController {
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant publishedBefore,
+		@RequestParam(required = false) Instant publishedAfter,
+		@RequestParam(required = false) Instant createdBefore,
+		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -151,7 +155,11 @@ public class RefController {
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
 				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter).build(),
+				.modifiedAfter(modifiedAfter)
+				.publishedBefore(publishedBefore)
+				.publishedAfter(publishedAfter)
+				.createdBefore(createdBefore)
+				.createdAfter(createdAfter).build(),
 			pageable));
 	}
 
@@ -168,7 +176,12 @@ public class RefController {
 		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant publishedBefore,
+		@RequestParam(required = false) Instant publishedAfter,
+		@RequestParam(required = false) Instant createdBefore,
+		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -185,7 +198,12 @@ public class RefController {
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
-				.modifiedAfter(modifiedAfter).build());
+				.modifiedBefore(modifiedBefore)
+				.modifiedAfter(modifiedAfter)
+				.publishedBefore(publishedBefore)
+				.publishedAfter(publishedAfter)
+				.createdBefore(createdBefore)
+				.createdAfter(createdAfter).build());
 	}
 
 	@ApiResponses({

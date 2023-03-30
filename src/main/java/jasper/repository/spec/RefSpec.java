@@ -209,4 +209,20 @@ public class RefSpec {
 						root.get(Ref_.PUBLISHED),
 						i);
 	}
+
+	public static Specification<Ref> isCreatedAfter(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.greaterThan(
+						root.get(Ref_.CREATED),
+						i);
+	}
+
+	public static Specification<Ref> isCreatedBefore(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.lessThan(
+						root.get(Ref_.CREATED),
+						i);
+	}
 }
