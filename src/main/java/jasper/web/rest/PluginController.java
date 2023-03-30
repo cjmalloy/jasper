@@ -87,11 +87,13 @@ public class PluginController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return ifNotModifiedPage(request, pluginService.page(
 			TagFilter.builder()
+				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
 				.search(search)
 				.query(query).build(),

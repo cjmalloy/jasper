@@ -11,6 +11,7 @@ import java.time.Instant;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
+import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -23,6 +24,7 @@ public class TemplateFilter implements Query {
 	private String origin;
 	private String query;
 	private String search;
+	private Instant modifiedBefore;
 	private Instant modifiedAfter;
 
 	public Specification<Template> spec() {
@@ -35,6 +37,9 @@ public class TemplateFilter implements Query {
 		}
 		if (isNotBlank(search)) {
 			result = result.and(searchTagOrName(search));
+		}
+		if (modifiedBefore != null) {
+			result = result.and(isModifiedBefore(modifiedBefore));
 		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
