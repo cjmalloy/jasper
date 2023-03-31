@@ -100,6 +100,7 @@ public class UserService {
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
 		user.setModified(Instant.now());
+		if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 		try {
 			userRepository.save(user);
 		} catch (DataIntegrityViolationException e) {

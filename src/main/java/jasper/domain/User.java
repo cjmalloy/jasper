@@ -99,6 +99,8 @@ public class User implements Tag {
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
+	private byte[] key;
+
 	@Size(max = PUB_KEY_LEN)
 	private byte[] pubKey;
 

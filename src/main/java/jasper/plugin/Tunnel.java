@@ -9,8 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Origin {
-	private String local;
-	private String remote;
-	private String proxy;
+public class Tunnel {
+	private String user;
+	private String sshHost;
 }

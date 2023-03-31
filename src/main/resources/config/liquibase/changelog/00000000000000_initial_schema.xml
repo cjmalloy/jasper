@@ -100,6 +100,7 @@
 			<column name="modified" type="TIMESTAMP">
 				<constraints nullable="false"/>
 			</column>
+			<column name="key" type="BYTEA"/>
 			<column name="pub_key" type="BYTEA"/>
 		</createTable>
 		<createIndex tableName="users" indexName="users_modified_index">

@@ -18,7 +18,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @JsonInclude(Include.NON_NULL)
 public class Push {
 	private String query;
-	private String proxy;
 	private Duration pushInterval;
 	private Instant lastPush;
 	private int batchSize;
