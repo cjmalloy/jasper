@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>, ModifiedCursor {
+public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>, ModifiedCursor, OriginMixin {
 
 	@Query(value = """
 		SELECT max(u.modified)

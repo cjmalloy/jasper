@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.13
+  version: 1.2.14
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.13
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.14
 paths:
   /api/v1/ref:
     get:
@@ -1216,6 +1216,30 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag-user'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/origin/{origin}:
+    delete:
+      tags:
+        - Origin
+      operationId: deleteOrigin
+      parameters:
+        - name: origin
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/origin'
+        - name: olderThan
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
       responses:
         '204':
           description: No Content

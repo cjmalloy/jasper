@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
 
 	@Query(value = """
 		SELECT max(t.modified)
