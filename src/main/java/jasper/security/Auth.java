@@ -99,7 +99,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 2. Write-Access
  * 3. Read-Access
  * 4. Tag-Write-Access
- * 5. Tag-Tag-Write-Access
+ * 5. Tag-Read-Access
  *
  * If no username is not set and the role is at least MOD it will default to +user.
  */
@@ -364,7 +364,7 @@ public class Auth {
 	}
 
 	/**
-	 * Does the users tag match this tag?
+	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
 		return isLoggedIn() && getUserTag().matches(qt);
