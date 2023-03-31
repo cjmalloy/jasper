@@ -36,8 +36,7 @@ public class MetricsConfig {
 	private Iterable<Tag> tagFactory(ProceedingJoinPoint pjp) {
 		return Tags.of(
 			"class", pjp.getStaticPart().getSignature().getDeclaringTypeName(),
-				"method", pjp.getStaticPart().getSignature().getName(),
-				"origin", auth.getOrigin())
+				"method", pjp.getStaticPart().getSignature().getName())
 			.and(getUserTags());
 	}
 
@@ -48,7 +47,8 @@ public class MetricsConfig {
 			return Tags.of(
 				"scope", "request",
 				"userTag", userTag.orElse(""),
-				"roles", Strings.join(roles, ',')
+				"roles", Strings.join(roles, ','),
+				"origin", auth.getOrigin()
 			);
 		} catch (ScopeNotActiveException e) {
 			return Tags.of(
