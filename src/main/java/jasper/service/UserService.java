@@ -21,6 +21,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
@@ -29,6 +34,8 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static jasper.util.Crypto.writeRsaPrivatePem;
+import static jasper.util.Crypto.writeSshRsa;
 
 @Service
 public class UserService {
@@ -101,6 +108,24 @@ public class UserService {
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
 		user.setModified(Instant.now());
 		if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
+	}
+
+	@PreAuthorize("@auth.canWriteUser(#qualifiedTag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public void keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
+		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
+		var user = maybeExisting.get();
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+		kpg.initialize(3072);
+		KeyPair kp = kpg.generateKeyPair();
+		user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
+		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getTag()).getBytes());
 		try {
 			userRepository.save(user);
 		} catch (DataIntegrityViolationException e) {
