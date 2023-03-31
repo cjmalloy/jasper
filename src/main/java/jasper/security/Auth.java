@@ -108,6 +108,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
 public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
 
+	public static final String USER_TAG_HEADER = "User-Tag";
 	public static final String LOCAL_ORIGIN_HEADER = "Local-Origin";
 	public static final String WRITE_ACCESS_HEADER = "Write-Access";
 	public static final String READ_ACCESS_HEADER = "Read-Access";
@@ -537,6 +538,9 @@ public class Auth {
 
 	public String getPrincipal() {
 		if (principal == null) {
+			if (props.isAllowUserTagHeader() && !isBlank(getHeaderTag(USER_TAG_HEADER))) {
+				return principal = getHeaderTag(USER_TAG_HEADER);
+			}
 			var authn = getAuthentication();
 			if (authn == null) return null;
 			if (authn instanceof JwtAuthentication j) {
@@ -752,6 +756,13 @@ public class Auth {
 			return List.of(a.getRequest().getHeader(headerName).split(","));
 		}
 		return List.of();
+	}
+
+	private static String getHeaderTag(String headerName) {
+		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
+			return a.getRequest().getHeader(headerName);
+		}
+		return null;
 	}
 
 	private static List<QualifiedTag> getHeaderQualifiedTags(String headerName) {

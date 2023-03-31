@@ -52,6 +52,7 @@ public class Props {
 	private String writeAccessClaim = "writeAccess";
 	private String tagReadAccessClaim = "tagReadAccess";
 	private String tagWriteAccessClaim = "tagWriteAccess";
+	private boolean allowUserTagHeader = false;
 	private boolean allowLocalOriginHeader = false;
 	private boolean allowAuthHeaders = false;
 	private String scimEndpoint;
