@@ -95,11 +95,13 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 16. allowAuthHeaders (false): enable setting the user access tags in the header
  *
  * The following headers are checked if enabled:
- * 1. Local-Origin
- * 2. Write-Access
- * 3. Read-Access
- * 4. Tag-Write-Access
- * 5. Tag-Read-Access
+ * 1. User-Tag
+ * 2. Local-Origin
+ * 3. User-Role
+ * 4. Write-Access
+ * 5. Read-Access
+ * 6. Tag-Write-Access
+ * 7. Tag-Read-Access
  *
  * If no username is not set and the role is at least MOD it will default to +user.
  */
@@ -109,6 +111,7 @@ public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
 
 	public static final String USER_TAG_HEADER = "User-Tag";
+	public static final String USER_ROLE_HEADER = "User-Role";
 	public static final String LOCAL_ORIGIN_HEADER = "Local-Origin";
 	public static final String WRITE_ACCESS_HEADER = "Write-Access";
 	public static final String READ_ACCESS_HEADER = "Read-Access";
@@ -735,6 +738,9 @@ public class Auth {
 				if (User.ROLES.contains(getUser().get().getRole())) {
 					userAuthorities.add(new SimpleGrantedAuthority(getUser().get().getRole()));
 				}
+			}
+			if (props.isAllowUserRoleHeader() && User.ROLES.contains(getHeader(USER_ROLE_HEADER))) {
+				userAuthorities.add(new SimpleGrantedAuthority(getHeader(USER_ROLE_HEADER)));
 			}
 			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
 					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
