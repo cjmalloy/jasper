@@ -12,4 +12,9 @@ public class OriginSpec {
 				root.get("origin"),
 				origin);
 	}
+
+	public static <T extends HasOrigin> Specification<T> any() {
+		return (root, query, cb) ->
+			cb.conjunction();
+	}
 }

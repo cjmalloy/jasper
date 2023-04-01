@@ -309,7 +309,6 @@ public class Auth {
 		return true;
 	}
 
-
 	/**
 	 * Is this a private tag?
 	 * Private tags start with a _.
@@ -317,7 +316,6 @@ public class Auth {
 	public static boolean isPrivateTag(String tag) {
 		return tag.startsWith("_");
 	}
-
 
 	/**
 	 * Is this a protected tag?
