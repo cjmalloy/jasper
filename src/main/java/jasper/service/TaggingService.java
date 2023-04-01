@@ -110,7 +110,10 @@ public class TaggingService {
 
 	private Ref getResponseRef(String tag) {
 		var url = urlForUser(tag, auth.getUserTag().toString());
-		return refRepository.findOneByUrlAndOrigin(url, auth.getOrigin())
+		return refRepository.findOneByUrlAndOrigin(url, auth.getOrigin()).map(ref -> {
+				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
+				return ref;
+			})
 			.orElseGet(() -> {
 				var ref = new Ref();
 				ref.setUrl(url);
