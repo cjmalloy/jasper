@@ -27,17 +27,6 @@ public class Metadata {
 	private List<String> internalResponses;
 	private Map<String, List<String>> plugins;
 
-	// TODO: remote stats
-//	private List<String> origins;
-//	private List<String> sourcesAcrossOrigins;
-//	private List<String> responsesAcrossOrigins;
-//	private Map<String, String> pluginsAcrossOrigins;
-
-	// TODO: recursive stats
-//	private Long recursiveResponseCount;
-//	private Map<String, Long> recursivePluginCount;
-//	private Instant lastRecurse;
-
 	public void addResponse(String url) {
 		if (responses == null) {
 			responses = new ArrayList<>();

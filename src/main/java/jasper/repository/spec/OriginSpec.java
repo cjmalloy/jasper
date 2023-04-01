@@ -17,4 +17,8 @@ public class OriginSpec {
 		return (root, query, cb) ->
 			cb.conjunction();
 	}
+
+	public static <T extends HasOrigin> Specification<T> none() {
+		return (root, query, cb) -> cb.disjunction();
+	}
 }

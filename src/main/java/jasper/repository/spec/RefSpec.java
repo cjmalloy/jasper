@@ -9,11 +9,9 @@ import javax.persistence.criteria.Expression;
 import java.time.Instant;
 import java.util.List;
 
-public class RefSpec {
+import static jasper.repository.spec.OriginSpec.none;
 
-	public static Specification<Ref> none() {
-		return (root, query, cb) -> cb.disjunction();
-	}
+public class RefSpec {
 
 	public static Specification<Ref> fulltextEn(String search, boolean rankedOrder) {
 		return (root, query, cb) -> {
