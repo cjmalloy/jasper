@@ -538,8 +538,8 @@ public class Auth {
 
 	public String getPrincipal() {
 		if (principal == null) {
-			if (props.isAllowUserTagHeader() && !isBlank(getHeaderTag(USER_TAG_HEADER))) {
-				return principal = getHeaderTag(USER_TAG_HEADER);
+			if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
+				return principal = getHeader(USER_TAG_HEADER);
 			}
 			var authn = getAuthentication();
 			if (authn == null) return null;
@@ -751,14 +751,15 @@ public class Auth {
 		return prefix + role;
 	}
 
-	private static List<String> getHeaderTags(String headerName) {
-		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
-			return List.of(a.getRequest().getHeader(headerName).split(","));
+	private static List<String> getHeaderList(String headerName) {
+		var header = getHeader(headerName);
+		if (header != null) {
+			return List.of(header.split(","));
 		}
 		return List.of();
 	}
 
-	private static String getHeaderTag(String headerName) {
+	private static String getHeader(String headerName) {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
 			return a.getRequest().getHeader(headerName);
 		}
@@ -766,7 +767,7 @@ public class Auth {
 	}
 
 	private static List<QualifiedTag> getHeaderQualifiedTags(String headerName) {
-		return getHeaderTags(headerName).stream().map(QualifiedTag::selector).toList();
+		return getHeaderList(headerName).stream().map(QualifiedTag::selector).toList();
 	}
 
 	public List<String> getClaimTags(String claim) {
