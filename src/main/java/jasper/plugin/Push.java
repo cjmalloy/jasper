@@ -21,7 +21,7 @@ public class Push {
 	private Duration pushInterval;
 	private Instant lastPush;
 	private int batchSize;
-	private boolean writeOnly = false;
+	private boolean checkRemoteCursor;
 	private Instant lastModifiedRefWritten;
 	private Instant lastModifiedExtWritten;
 	private Instant lastModifiedUserWritten;

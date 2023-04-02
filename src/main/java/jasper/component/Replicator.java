@@ -144,7 +144,7 @@ public class Replicator {
 		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
 		tunnel.proxy(remote, url -> {
 			try {
-				Instant modifiedAfter = push.isWriteOnly() ? push.getLastModifiedPluginWritten() : client.pluginCursor(url, config.getRemote());
+				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, config.getRemote()) : push.getLastModifiedPluginWritten();
 				var pluginList = pluginRepository.findAll(
 						TagFilter.builder()
 							.origin(config.getRemote())
@@ -158,7 +158,7 @@ public class Replicator {
 					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isWriteOnly() ? push.getLastModifiedTemplateWritten() : client.templateCursor(url, config.getRemote());
+				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, config.getRemote()) : push.getLastModifiedTemplateWritten();
 				var templateList = templateRepository.findAll(
 						TagFilter.builder()
 							.origin(config.getRemote())
@@ -172,7 +172,7 @@ public class Replicator {
 					push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isWriteOnly() ? push.getLastModifiedRefWritten() : client.refCursor(url, config.getRemote());
+				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, config.getRemote()) : push.getLastModifiedRefWritten();
 				var refList = refRepository.findAll(
 						RefFilter.builder()
 							.origin(config.getRemote())
@@ -187,7 +187,7 @@ public class Replicator {
 					push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isWriteOnly() ? push.getLastModifiedExtWritten() : client.extCursor(url, config.getRemote());
+				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, config.getRemote()) : push.getLastModifiedExtWritten();
 				var extList = extRepository.findAll(
 						TagFilter.builder()
 							.origin(config.getRemote())
@@ -201,7 +201,7 @@ public class Replicator {
 					push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isWriteOnly() ? push.getLastModifiedUserWritten() : client.userCursor(url, config.getRemote());
+				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, config.getRemote()) : push.getLastModifiedUserWritten();
 				var userList = userRepository.findAll(
 						TagFilter.builder()
 							.origin(config.getRemote())
