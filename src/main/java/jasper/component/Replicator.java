@@ -89,12 +89,13 @@ public class Replicator {
 					pull.migrate(template, config);
 					templateRepository.save(template);
 				}
+				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(pull.getValidationOrigin());
 				options.put("modifiedAfter", refRepository.getCursor(config.getLocal()));
 				for (var ref : client.refPull(url, options)) {
 					pull.migrate(ref, config);
 					if (pull.isGenerateMetadata()) {
 						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-						meta.update(ref, maybeExisting.orElse(null));
+						meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 					}
 					try {
 						if (pull.isValidatePlugins()) {
