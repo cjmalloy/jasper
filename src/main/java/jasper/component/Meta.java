@@ -48,35 +48,34 @@ public class Meta {
 				.build()
 			);
 
-			if (ref.getTags() != null) {
-				// Update sources
-				var internal = ref.getTags().contains("internal");
-				List<String> plugins = pluginRepository
-					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
-					.stream()
-					.filter(tag -> ref.getTags().contains(tag))
-					.toList();
-				List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
-				for (var source : sources) {
-					var old = source.getMetadata();
-					if (old == null) {
-						logger.warn("Ref missing metadata: {}", ref.getUrl());
-						old = Metadata
-							.builder()
-							.responses(new ArrayList<>())
-							.internalResponses(new ArrayList<>())
-							.plugins(new HashMap<>())
-							.build();
-					}
-					if (internal) {
-						old.addInternalResponse(ref.getUrl());
-					} else {
-						old.addResponse(ref.getUrl());
-					}
-					old.addPlugins(plugins, ref.getUrl());
-					source.setMetadata(old);
-					refRepository.save(source);
+			// Update sources
+			if (ref.getTags() == null) ref.setTags(new ArrayList<>());
+			var internal = ref.getTags().contains("internal");
+			List<String> plugins = pluginRepository
+				.findAllByGenerateMetadataByOrigin(ref.getOrigin())
+				.stream()
+				.filter(tag -> ref.getTags().contains(tag))
+				.toList();
+			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
+			for (var source : sources) {
+				var old = source.getMetadata();
+				if (old == null) {
+					logger.warn("Ref missing metadata: {}", ref.getUrl());
+					old = Metadata
+						.builder()
+						.responses(new ArrayList<>())
+						.internalResponses(new ArrayList<>())
+						.plugins(new HashMap<>())
+						.build();
 				}
+				if (internal) {
+					old.addInternalResponse(ref.getUrl());
+				} else {
+					old.addResponse(ref.getUrl());
+				}
+				old.addPlugins(plugins, ref.getUrl());
+				source.setMetadata(old);
+				refRepository.save(source);
 			}
 		}
 
