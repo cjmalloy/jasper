@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
+import jasper.client.dto.JasperMapper;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.OperationForbiddenOnOriginException;
@@ -55,6 +56,9 @@ public class Replicator {
 
 	@Autowired
 	Validate validate;
+
+	@Autowired
+	JasperMapper jasperMapper;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -180,6 +184,7 @@ public class Replicator {
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+					.map(jasperMapper::domainToDto)
 					.getContent();
 				if (!refList.isEmpty()) {
 					push.migrate(refList, config);
@@ -209,6 +214,7 @@ public class Replicator {
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+					.map(jasperMapper::domainToDto)
 					.getContent();
 				if (!userList.isEmpty()) {
 					client.userPush(url, userList);
