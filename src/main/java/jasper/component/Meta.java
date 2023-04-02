@@ -1,8 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.domain.Metadata;
-import jasper.domain.Ref;
+import jasper.domain.*;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.javatuples.Pair;
@@ -11,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,17 +28,19 @@ public class Meta {
 	@Autowired
 	PluginRepository pluginRepository;
 
-	@Timed("jasper.meta.update")
-	public void update(Ref ref, Ref existing) {
-		// TODO: make async
+	@Timed(value = "jasper.meta.update", histogram = true)
+	public void update(Ref ref, Ref existing, List<String> metadataPlugins) {
+		if (metadataPlugins == null) {
+			var origin = ref != null ? ref.getOrigin() : existing.getOrigin();
+			metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
+		}
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			ref.setMetadata(Metadata
 				.builder()
 				.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), "internal"))
 				.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), "internal"))
-				.plugins(pluginRepository
-					.findAllByGenerateMetadataByOrigin(ref.getOrigin())
+				.plugins(metadataPlugins
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
@@ -51,11 +53,10 @@ public class Meta {
 			// Update sources
 			if (ref.getTags() == null) ref.setTags(new ArrayList<>());
 			var internal = ref.getTags().contains("internal");
-			List<String> plugins = pluginRepository
-				.findAllByGenerateMetadataByOrigin(ref.getOrigin())
-				.stream()
+			List<String> plugins = metadataPlugins.stream()
 				.filter(tag -> ref.getTags().contains(tag))
 				.toList();
+			// TODO: Update sources without fetching
 			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
 			for (var source : sources) {
 				var old = source.getMetadata();
@@ -87,6 +88,7 @@ public class Meta {
 				.stream()
 				.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 				.toList();
+			// TODO: Update sources without fetching
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources));
 			for (var source : removed) {
 				var old = source.getMetadata();
