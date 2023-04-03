@@ -85,7 +85,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@PreAuthorize("@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant cursor(String origin) {
 		return extRepository.getCursor(origin);
