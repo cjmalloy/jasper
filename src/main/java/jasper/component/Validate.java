@@ -154,8 +154,11 @@ public class Validate {
 				}
 			});
 		}
-		for (var tag : ref.getTags()) {
-			plugin(ref, tag, origin, stripOnError);
+		for (var i = ref.getTags().size() - 1; i >= 0; i--) {
+			var tag = ref.getTags().get(i);
+			if (plugin(ref, tag, origin, stripOnError)) {
+				ref.getTags().remove(i);
+			}
 		}
 	}
 
@@ -167,16 +170,14 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
+	private boolean plugin(Ref ref, String tag, String origin, boolean stripOnError) {
 		var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
 		if (plugin.isEmpty()) {
 			if (!stripOnError) {
 				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 				if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
-			} else {
-				ref.getTags().remove(tag);
 			}
-			return;
+			return true;
 		}
 		plugin.ifPresent(p -> {
 			if (p.isUserUrl()) userUrl(ref, p);
@@ -208,6 +209,7 @@ public class Validate {
 			plugin(schema, tag, defaults);
 			ref.getPlugins().set(tag, defaults);
 		}
+		return false;
 	}
 
 	private void userUrl(Ref ref, Plugin plugin) {
