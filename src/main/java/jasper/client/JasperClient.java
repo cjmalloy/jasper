@@ -36,7 +36,7 @@ public interface JasperClient {
 
 	@RequestLine("GET /api/v1/repl/user")
 	List<User> userPull(URI baseUri, @QueryMap Map<String, Object> params);
-	@RequestLine("GET /api/v1/repl/user/cursor?origin=origin}")
+	@RequestLine("GET /api/v1/repl/user/cursor?origin={origin}")
 	Instant userCursor(URI baseUri, @Param("origin") String origin);
 	@RequestLine("GET /api/v1/repl/user")
 	void userPush(URI baseUri, List<UserDto> push);
