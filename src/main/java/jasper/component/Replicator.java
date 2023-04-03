@@ -164,7 +164,7 @@ public class Replicator {
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
 				if (!pluginList.isEmpty()) {
-					client.pluginPush(url, pluginList);
+					client.pluginPush(url, remoteOrigin, pluginList);
 					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
 				}
 
@@ -178,7 +178,7 @@ public class Replicator {
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
 				if (!templateList.isEmpty()) {
-					client.templatePush(url, templateList);
+					client.templatePush(url, remoteOrigin, templateList);
 					push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
 				}
 
@@ -194,8 +194,7 @@ public class Replicator {
 					.getContent();
 				logger.debug("Pushing {} refs to {}", refList.size(), remoteOrigin);
 				if (!refList.isEmpty()) {
-					push.migrate(refList, config);
-					client.refPush(url, refList);
+					client.refPush(url, remoteOrigin, refList);
 					push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
 				}
 
@@ -209,7 +208,7 @@ public class Replicator {
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
 				if (!extList.isEmpty()) {
-					client.extPush(url, extList);
+					client.extPush(url, remoteOrigin, extList);
 					push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
 				}
 
@@ -224,7 +223,7 @@ public class Replicator {
 					.map(jasperMapper::domainToDto)
 					.getContent();
 				if (!userList.isEmpty()) {
-					client.userPush(url, userList);
+					client.userPush(url, remoteOrigin, userList);
 					push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());
 				}
 			} catch (Exception e) {
