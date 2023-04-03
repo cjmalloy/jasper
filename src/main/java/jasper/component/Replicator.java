@@ -151,7 +151,7 @@ public class Replicator {
 				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, config.getRemote()) : push.getLastModifiedPluginWritten();
 				var pluginList = pluginRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getRemote())
+							.origin(config.getLocal())
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -165,7 +165,7 @@ public class Replicator {
 				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, config.getRemote()) : push.getLastModifiedTemplateWritten();
 				var templateList = templateRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getRemote())
+							.origin(config.getLocal())
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -179,7 +179,7 @@ public class Replicator {
 				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, config.getRemote()) : push.getLastModifiedRefWritten();
 				var refList = refRepository.findAll(
 						RefFilter.builder()
-							.origin(config.getRemote())
+							.origin(config.getLocal())
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -196,7 +196,7 @@ public class Replicator {
 				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, config.getRemote()) : push.getLastModifiedExtWritten();
 				var extList = extRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getRemote())
+							.origin(config.getLocal())
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -210,7 +210,7 @@ public class Replicator {
 				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, config.getRemote()) : push.getLastModifiedUserWritten();
 				var userList = userRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getRemote())
+							.origin(config.getLocal())
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
