@@ -174,7 +174,7 @@ public class Validate {
 				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 				if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
 			} else {
-				ref.getPlugins().remove(tag);
+				ref.getTags().remove(tag);
 			}
 			return;
 		}
