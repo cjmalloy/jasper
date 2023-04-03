@@ -186,6 +186,7 @@ public class Replicator {
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.map(jasperMapper::domainToDto)
 					.getContent();
+				logger.debug("Pushing {} refs to {}", refList.size(), config.getRemote());
 				if (!refList.isEmpty()) {
 					push.migrate(refList, config);
 					client.refPush(url, refList);

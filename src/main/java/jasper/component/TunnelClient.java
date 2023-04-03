@@ -59,6 +59,7 @@ public class TunnelClient {
                     pks.forEach(session::addPublicKeyIdentity);
                     session.auth().verify(30, TimeUnit.SECONDS);
                     try (var tracker = session.createLocalPortForwardingTracker(38080, new SshdSocketAddress("localhost", 8022))) {
+						logger.debug("Opened reverse proxy in SSH tunnel.");
                         request.go(new URI("http://localhost:38080"));
                     } catch (URISyntaxException e) {
                         throw new RuntimeException(e);
