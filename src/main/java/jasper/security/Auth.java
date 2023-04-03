@@ -464,7 +464,7 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (hasRole(SA)) return where(null);
+		if (sysMod()) return where(null);
 		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : getPublicTag().refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
@@ -473,7 +473,7 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (hasRole(SA)) return where(null);
+		if (sysMod()) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {

@@ -63,21 +63,21 @@ public class QualifiedTag {
 	public Specification<Ref> refSpec() {
 		var spec = Specification.<Ref>where(null);
 		if (!tag.equals("")) spec = spec.and(hasTag(tag));
-		spec = spec.and(origin.equals("@*") ? any() : isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public <T extends Tag> Specification<T> spec() {
 		var spec = Specification.<T>where(null);
 		if (!tag.equals("")) spec = spec.and(isTag(tag));
-		spec = spec.and(origin.equals("@*") ? any() : isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public Specification<Template> templateSpec() {
 		var spec = Specification.<Template>where(null);
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
-		spec = spec.and(origin.equals("@*") ? any() : isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
