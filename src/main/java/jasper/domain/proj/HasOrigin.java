@@ -7,4 +7,9 @@ public interface HasOrigin extends HasModified {
 
 	String getOrigin();
 	void setOrigin(String origin);
+
+	static String origin(String origin) {
+		if (origin == null) return "";
+		return origin;
+	}
 }

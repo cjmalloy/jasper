@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.origin;
+
 @Component
 public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
@@ -79,22 +81,24 @@ public class Replicator {
 
 		Map<String, Object> options = new HashMap<>();
 		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
+		var localOrigin = origin(config.getLocal());
+		var remoteOrigin = origin(config.getRemote());
 		options.put("size", pull.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), props.getMaxReplicateBatch()));
 		options.put("origin", config.getRemote());
 		tunnel.proxy(remote, url -> {
 			try {
-				options.put("modifiedAfter", pluginRepository.getCursor(config.getLocal()));
+				options.put("modifiedAfter", pluginRepository.getCursor(localOrigin));
 				for (var plugin : client.pluginPull(url, options)) {
 					pull.migrate(plugin, config);
 					pluginRepository.save(plugin);
 				}
-				options.put("modifiedAfter", templateRepository.getCursor(config.getLocal()));
+				options.put("modifiedAfter", templateRepository.getCursor(localOrigin));
 				for (var template : client.templatePull(url, options)) {
 					pull.migrate(template, config);
 					templateRepository.save(template);
 				}
 				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(pull.getValidationOrigin());
-				options.put("modifiedAfter", refRepository.getCursor(config.getLocal()));
+				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
 				for (var ref : client.refPull(url, options)) {
 					pull.migrate(ref, config);
 					if (pull.isGenerateMetadata()) {
@@ -110,7 +114,7 @@ public class Replicator {
 						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					}
 				}
-				options.put("modifiedAfter", extRepository.getCursor(config.getLocal()));
+				options.put("modifiedAfter", extRepository.getCursor(localOrigin));
 				for (var ext : client.extPull(url, options)) {
 					pull.migrate(ext, config);
 					try {
@@ -122,13 +126,13 @@ public class Replicator {
 						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag());
 					}
 				}
-				options.put("modifiedAfter", userRepository.getCursor(config.getLocal()));
+				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
 				for (var user : client.userPull(url, options)) {
 					pull.migrate(user, config);
 					userRepository.save(user);
 				}
 			} catch (Exception e) {
-				logger.error("Error pulling {} from {}", config.getLocal(), config.getRemote(), e);
+				logger.error("Error pulling {} from {}", localOrigin, remoteOrigin, e);
 			}
 		});
 	}
@@ -145,13 +149,15 @@ public class Replicator {
 		refRepository.save(remote);
 
 		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
+		var localOrigin = origin(config.getLocal());
+		var remoteOrigin = origin(config.getRemote());
 		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
 		tunnel.proxy(remote, url -> {
 			try {
-				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, config.getRemote()) : push.getLastModifiedPluginWritten();
+				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
 				var pluginList = pluginRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getLocal())
+							.origin(localOrigin)
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -162,10 +168,10 @@ public class Replicator {
 					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, config.getRemote()) : push.getLastModifiedTemplateWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, remoteOrigin) : push.getLastModifiedTemplateWritten();
 				var templateList = templateRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getLocal())
+							.origin(localOrigin)
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -176,27 +182,27 @@ public class Replicator {
 					push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, config.getRemote()) : push.getLastModifiedRefWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, remoteOrigin) : push.getLastModifiedRefWritten();
 				var refList = refRepository.findAll(
 						RefFilter.builder()
-							.origin(config.getLocal())
+							.origin(localOrigin)
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.map(jasperMapper::domainToDto)
 					.getContent();
-				logger.debug("Pushing {} refs to {}", refList.size(), config.getRemote());
+				logger.debug("Pushing {} refs to {}", refList.size(), remoteOrigin);
 				if (!refList.isEmpty()) {
 					push.migrate(refList, config);
 					client.refPush(url, refList);
 					push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, config.getRemote()) : push.getLastModifiedExtWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, remoteOrigin) : push.getLastModifiedExtWritten();
 				var extList = extRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getLocal())
+							.origin(localOrigin)
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -207,10 +213,10 @@ public class Replicator {
 					push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
 				}
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, config.getRemote()) : push.getLastModifiedUserWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, remoteOrigin) : push.getLastModifiedUserWritten();
 				var userList = userRepository.findAll(
 						TagFilter.builder()
-							.origin(config.getLocal())
+							.origin(localOrigin)
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
@@ -222,7 +228,7 @@ public class Replicator {
 					push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());
 				}
 			} catch (Exception e) {
-				logger.error("Error pushing {} to origin {}", config.getLocal(), config.getRemote(), e);
+				logger.error("Error pushing {} to origin {}", localOrigin, remoteOrigin, e);
 			}
 		});
 	}
