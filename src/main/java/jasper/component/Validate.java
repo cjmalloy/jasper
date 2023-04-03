@@ -54,7 +54,7 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
-		ref(ref, ref.getOrigin(), false);
+		ref(ref, ref.getOrigin(), force);
 	}
 
 	@Timed("jasper.validate.ref")
