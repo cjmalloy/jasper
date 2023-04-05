@@ -738,8 +738,10 @@ public class Auth {
 					userAuthorities.add(new SimpleGrantedAuthority(getUser().get().getRole()));
 				}
 			}
-			if (props.isAllowUserRoleHeader() && User.ROLES.contains(getHeader(USER_ROLE_HEADER))) {
-				userAuthorities.add(new SimpleGrantedAuthority(getHeader(USER_ROLE_HEADER)));
+			if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+				getHeaderList(USER_ROLE_HEADER).stream()
+					.filter(User.ROLES::contains)
+					.forEach(r -> userAuthorities.add(new SimpleGrantedAuthority(r)));
 			}
 			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
 					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
