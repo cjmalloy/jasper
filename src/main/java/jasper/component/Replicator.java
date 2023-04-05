@@ -163,6 +163,7 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
+				logger.debug("Pushing {} users to {}", pluginList.size(), remoteOrigin);
 				if (!pluginList.isEmpty()) {
 					client.pluginPush(url, remoteOrigin, pluginList);
 					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
@@ -177,6 +178,7 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
+				logger.debug("Pushing {} templates to {}", templateList.size(), remoteOrigin);
 				if (!templateList.isEmpty()) {
 					client.templatePush(url, remoteOrigin, templateList);
 					push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
@@ -207,6 +209,7 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.getContent();
+				logger.debug("Pushing {} exts to {}", extList.size(), remoteOrigin);
 				if (!extList.isEmpty()) {
 					client.extPush(url, remoteOrigin, extList);
 					push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
@@ -222,6 +225,7 @@ public class Replicator {
 						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
 					.map(jasperMapper::domainToDto)
 					.getContent();
+				logger.debug("Pushing {} users to {}", userList.size(), remoteOrigin);
 				if (!userList.isEmpty()) {
 					client.userPush(url, remoteOrigin, userList);
 					push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());

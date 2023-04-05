@@ -23,6 +23,8 @@ import jasper.service.UserService;
 import jasper.service.dto.RefReplDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
@@ -52,6 +54,7 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 })
 public class ReplicateController {
+	private static final Logger logger = LoggerFactory.getLogger(ReplicateController.class);
 
 	@Autowired
 	ReplicateService replService;
@@ -104,6 +107,7 @@ public class ReplicateController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Ref> refs
 	) {
+		logger.debug("Receiving push of {} refs", refs.size());
 		RuntimeException first = null;
 		for (var ref : refs) {
 			try {
@@ -155,6 +159,7 @@ public class ReplicateController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Ext> exts
 	) {
+		logger.debug("Receiving push of {} exts", exts.size());
 		RuntimeException first = null;
 		for (var ext : exts) {
 			try {
@@ -205,6 +210,7 @@ public class ReplicateController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<User> users
 	) {
+		logger.debug("Receiving push of {} users", users.size());
 		RuntimeException first = null;
 		for (var user : users) {
 			try {
@@ -255,6 +261,7 @@ public class ReplicateController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Plugin> plugins
 	) {
+		logger.debug("Receiving push of {} plugins", plugins.size());
 		RuntimeException first = null;
 		for (var plugin : plugins) {
 			try {
@@ -305,6 +312,7 @@ public class ReplicateController {
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Template> templates
 	) {
+		logger.debug("Receiving push of {} templates", templates.size());
 		RuntimeException first = null;
 		for (var template : templates) {
 			try {
