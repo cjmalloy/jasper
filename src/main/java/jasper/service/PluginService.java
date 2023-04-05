@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,7 @@ public class PluginService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
@@ -43,7 +42,7 @@ public class PluginService {
 		}
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void push(Plugin plugin) {
 		try {
@@ -69,7 +68,7 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.hasRole('VIEWER')")
+	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant cursor(String origin) {
 		return pluginRepository.getCursor(origin);
@@ -86,7 +85,7 @@ public class PluginService {
 				pageable);
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
@@ -102,7 +101,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

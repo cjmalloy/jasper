@@ -37,7 +37,7 @@ public class ScrapeService {
 	@Autowired
 	WebScraper webScraper;
 
-	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
+	@PreAuthorize("hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
@@ -45,7 +45,7 @@ public class ScrapeService {
 		rssParser.scrape(source);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER')")
+	@PreAuthorize("hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException {
 		return mapper.domainToDto(webScraper.scrape(url));

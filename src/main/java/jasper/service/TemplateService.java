@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,7 @@ public class TemplateService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void create(Template template) {
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
@@ -43,7 +42,7 @@ public class TemplateService {
 		}
 	}
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void push(Template template) {
 		try {
@@ -62,7 +61,7 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.hasRole('VIEWER')")
+	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant cursor(String origin) {
 		return templateRepository.getCursor(origin);
@@ -78,7 +77,7 @@ public class TemplateService {
 			pageable);
 	}
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#template.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
@@ -94,7 +93,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

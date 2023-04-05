@@ -7,8 +7,10 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jasper.config.Props;
+import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.management.SecurityMetersService;
+import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,9 +19,11 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.stream.Collectors;
+import java.util.List;
 
 import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.security.Auth.USER_TAG_HEADER;
+import static jasper.security.Auth.getHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -27,46 +31,46 @@ import static jasper.security.AuthoritiesConstants.SA;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-public abstract class AbstractJwtTokenProvider implements TokenProvider {
-
+public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN, SA };
 
-	Props props;
-
 	JwtParser jwtParser;
 
 	private final SecurityMetersService securityMetersService;
 
-	public AbstractJwtTokenProvider(Props props, SecurityMetersService securityMetersService) {
-		this.props = props;
+	AbstractJwtTokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
+		super(props, userRepository);
 		this.securityMetersService = securityMetersService;
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims) {
-		var authString = props.getDefaultRole();
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user) {
+		var auth = getPartialAuthorities(claims);
+		if (user != null && User.ROLES.contains(user.getRole())) {
+			auth.add(new SimpleGrantedAuthority(user.getRole()));
+		}
+		return auth;
+	}
+
+	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims) {
+		var auth = getPartialAuthorities();
 		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
-			if (isNotBlank(authString)) {
-				authString += "," + authClaim;
-			} else {
-				authString = authClaim;
-			}
+			Arrays.stream(authClaim.split(",")).forEach(r -> auth.add(new SimpleGrantedAuthority(r)));
 		}
-		return Arrays
-			.stream(authString.split(","))
-			.filter(roles -> !roles.trim().isEmpty())
-			.map(SimpleGrantedAuthority::new)
-			.collect(Collectors.toList());
+		return auth;
 	}
 
 	String getUsername(Claims claims) {
+		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
+			return getHeader(USER_TAG_HEADER);
+		}
 		var principal = claims.get(props.getUsernameClaim(), String.class);
 		logger.debug("Principal: {}", principal);
-		var authorities = getAuthorities(claims);
+		var authorities = getPartialAuthorities(claims);
 		if (isBlank(principal) ||
 			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
@@ -103,6 +107,7 @@ public abstract class AbstractJwtTokenProvider implements TokenProvider {
 		return (isPrivate ? "_user/" : "+user/") + principal;
 	}
 
+	@Override
 	public boolean validateToken(String authToken) {
 		if (!StringUtils.hasText(authToken)) return false;
 		try {

@@ -72,7 +72,7 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
@@ -85,7 +85,7 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
 		var ref = getResponseRef(tag);
@@ -96,7 +96,7 @@ public class TaggingService {
 		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
+	@PreAuthorize("hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
 		for (var tag : tags) {

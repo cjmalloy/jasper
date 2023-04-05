@@ -3,6 +3,7 @@ package jasper.security.jwt;
 import io.jsonwebtoken.Jwts;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
+import jasper.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.client.RestTemplate;
 
@@ -13,16 +14,19 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 
 	public TokenProviderImplJwks(
 		Props props,
+		UserRepository userRepository,
 		SecurityMetersService securityMetersService,
 		RestTemplate restTemplate
 	) throws URISyntaxException {
-		super(props, securityMetersService);
+		super(props, userRepository, securityMetersService);
 		String jwksUri = props.getSecurity().getAuthentication().getJwt().getJwksUri();
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
 	}
 
 	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		var principal = getUsername(claims);
+		var user = getUser(principal);
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
 	}
 }

@@ -22,7 +22,6 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -41,7 +40,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
@@ -51,7 +49,6 @@ import static jasper.repository.spec.TagSpec.notPrivateTag;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
-import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
@@ -466,7 +463,6 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (!hasRole(props.getMinRole())) return none();
 		if (sysMod()) return where(null);
 		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : getPublicTag().refSpec());
 		if (isLoggedIn()) {
@@ -476,7 +472,6 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (!hasRole(props.getMinRole())) return none();
 		if (sysMod()) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
@@ -541,9 +536,6 @@ public class Auth {
 
 	public String getPrincipal() {
 		if (principal == null) {
-			if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
-				return principal = getHeader(USER_TAG_HEADER);
-			}
 			var authn = getAuthentication();
 			if (authn == null) return null;
 			if (authn instanceof JwtAuthentication j) {
@@ -558,9 +550,6 @@ public class Auth {
 				} else {
 					return null;
 				}
-			}
-			if (principal.startsWith("+") && getHeaderList(USER_ROLE_HEADER).contains(PRIVATE)) {
-				principal = "_" + principal.substring(1);
 			}
 		}
 		return principal;
@@ -577,8 +566,15 @@ public class Auth {
 
 	protected Optional<User> getUser() {
 		if (user == null) {
-			if (!isLoggedIn()) return Optional.empty();
-			user = userRepository.findOneByQualifiedTag(getUserTag().toString());
+			var auth = getAuthentication();
+			if (auth instanceof JwtAuthentication j) {
+				user = Optional.of(j.getDetails());
+			} else {
+				user = Optional.empty();
+			}
+			if (isLoggedIn() && user.isEmpty()) {
+				user = userRepository.findOneByQualifiedTag(getUserTag().toString());
+			}
 		}
 		return user;
 	}
@@ -726,7 +722,7 @@ public class Auth {
 		if (claims == null) {
 			var auth = getAuthentication();
 			if (auth instanceof JwtAuthentication j) {
-				claims = j.getDetails();
+				claims = j.getClaims();
 			} else {
 				claims = new DefaultClaims();
 			}
@@ -737,16 +733,6 @@ public class Auth {
 	public Set<String> getAuthoritySet() {
 		if (roles == null) {
 			var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-			if (getUser().isPresent()) {
-				if (User.ROLES.contains(getUser().get().getRole())) {
-					userAuthorities.add(new SimpleGrantedAuthority(getUser().get().getRole()));
-				}
-			}
-			if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
-				getHeaderList(USER_ROLE_HEADER).stream()
-					.filter(User.ROLES::contains)
-					.forEach(r -> userAuthorities.add(new SimpleGrantedAuthority(r)));
-			}
 			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
 					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
 					userAuthorities);
@@ -770,7 +756,7 @@ public class Auth {
 		return List.of();
 	}
 
-	private static String getHeader(String headerName) {
+	public static String getHeader(String headerName) {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
 			return a.getRequest().getHeader(headerName);
 		}

@@ -6,6 +6,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
+import jasper.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -13,7 +14,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-public class TokenProviderImpl extends AbstractJwtTokenProvider implements TokenProvider {
+public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
 	private final Key key;
 
@@ -21,14 +22,13 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	private final long tokenValidityInMillisecondsForRememberMe;
 
-	public TokenProviderImpl(Props props, SecurityMetersService securityMetersService) {
-		super(props, securityMetersService);
+	public TokenProviderImpl(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
+		super(props, userRepository, securityMetersService);
 		this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getAuthentication().getJwt().getBase64Secret()));
-		this.jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
+		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
 		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
 			1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
-		this.props = props;
 	}
 
 	public String createToken(Authentication authentication, boolean rememberMe) {
@@ -54,6 +54,8 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider implements Token
 
 	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJws(token).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		var principal = getUsername(claims);
+		var user = getUser(principal);
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
 	}
 }
