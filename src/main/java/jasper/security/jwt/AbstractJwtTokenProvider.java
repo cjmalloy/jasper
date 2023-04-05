@@ -31,7 +31,7 @@ import static jasper.security.AuthoritiesConstants.SA;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider {
+public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider implements TokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(AbstractJwtTokenProvider.class);
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";

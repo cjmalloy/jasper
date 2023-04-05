@@ -82,7 +82,7 @@ public class AuthConfig {
 
 	@Bean
 	@ConditionalOnMissingBean
-	TokenProvider anonTokenProvider(Props props, UserRepository userRepository) {
-		return new TokenProviderImplAnon(props, userRepository);
+	TokenProvider anonTokenProvider(Props props) {
+		return new TokenProviderImplAnon(props);
 	}
 }

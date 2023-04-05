@@ -34,8 +34,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	@Autowired
     Props props;
+
 	@Autowired
     SecurityProblemSupport problemSupport;
+
 	@Autowired
 	TokenProvider tokenProvider;
 
@@ -85,7 +87,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
 	private JWTConfigurer securityConfigurerAdapter() {
-		return new JWTConfigurer(tokenProvider);
+		return new JWTConfigurer(props, tokenProvider);
 	}
 
 	@Bean
