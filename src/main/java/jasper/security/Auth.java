@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
@@ -464,6 +465,7 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
+		if (!hasRole(props.getMinRole())) return none();
 		if (sysMod()) return where(null);
 		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : getPublicTag().refSpec());
 		if (isLoggedIn()) {
@@ -473,6 +475,7 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
+		if (!hasRole(props.getMinRole())) return none();
 		if (sysMod()) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());

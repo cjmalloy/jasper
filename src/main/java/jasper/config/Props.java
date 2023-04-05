@@ -39,6 +39,10 @@ public class Props {
 	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean multiTenant = false;
+	/**
+	 * Minimum role for basic access.
+	 */
+	private String minRole = "ROLE_ANONYMOUS";
 	private String defaultRole = "ROLE_ANONYMOUS";
 	private String defaultUser = "+user";
 	private String[] defaultReadAccess;
