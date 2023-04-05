@@ -31,27 +31,27 @@ public interface JasperClient {
 	List<Ext> extPull(URI baseUri, @QueryMap Map<String, Object> params);
 	@RequestLine("GET /api/v1/repl/ext/cursor?origin={origin}")
 	Instant extCursor(URI baseUri, @Param("origin") String origin);
-	@RequestLine("GET /api/v1/repl/ext?origin={origin}")
+	@RequestLine("POST /api/v1/repl/ext?origin={origin}")
 	void extPush(URI baseUri, @Param("origin") String origin, List<Ext> push);
 
 	@RequestLine("GET /api/v1/repl/user")
 	List<User> userPull(URI baseUri, @QueryMap Map<String, Object> params);
 	@RequestLine("GET /api/v1/repl/user/cursor?origin={origin}")
 	Instant userCursor(URI baseUri, @Param("origin") String origin);
-	@RequestLine("GET /api/v1/repl/user?origin={origin}")
+	@RequestLine("POST /api/v1/repl/user?origin={origin}")
 	void userPush(URI baseUri, @Param("origin") String origin, List<UserDto> push);
 
 	@RequestLine("GET /api/v1/repl/plugin")
 	List<Plugin> pluginPull(URI baseUri, @QueryMap Map<String, Object> params);
 	@RequestLine("GET /api/v1/repl/plugin/cursor?origin={origin}")
 	Instant pluginCursor(URI baseUri, @Param("origin") String origin);
-	@RequestLine("GET /api/v1/repl/plugin?origin={origin}")
+	@RequestLine("POST /api/v1/repl/plugin?origin={origin}")
 	void pluginPush(URI baseUri, @Param("origin") String origin, List<Plugin> push);
 
 	@RequestLine("GET /api/v1/repl/template")
 	List<Template> templatePull(URI baseUri, @QueryMap Map<String, Object> params);
 	@RequestLine("GET /api/v1/repl/template/cursor?origin={origin}")
 	Instant templateCursor(URI baseUri, @Param("origin") String origin);
-	@RequestLine("GET /api/v1/repl/template?origin={origin}")
+	@RequestLine("POST /api/v1/repl/template?origin={origin}")
 	void templatePush(URI baseUri, @Param("origin") String origin, List<Template> push);
 }
