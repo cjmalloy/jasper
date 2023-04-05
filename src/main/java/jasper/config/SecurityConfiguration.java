@@ -63,14 +63,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasRole("ADMIN")
-            .antMatchers("/api/cors/**").hasRole("VIEWER") // TODO: restrict CORS instead of requiring authentication
-            .antMatchers("/api/**").permitAll()
+            .antMatchers("/api/admin/**").hasAuthority(ADMIN)
+            .antMatchers("/api/cors/**").hasAuthority(VIEWER) // TODO: restrict CORS instead of requiring authentication
+            .antMatchers("/api/**").hasAuthority(props.getMinRole())
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()
             .antMatchers("/management/prometheus").permitAll()
-            .antMatchers("/management/**").hasRole("ADMIN")
+            .antMatchers("/management/**").hasAuthority(ADMIN)
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
