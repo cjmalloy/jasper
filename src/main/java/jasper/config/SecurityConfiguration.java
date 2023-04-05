@@ -63,7 +63,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasAuthority(ADMIN)
+            .antMatchers("/api/v1/admin/**").hasAuthority(ADMIN)
             .antMatchers("/api/v1/oembed/**").hasAuthority(VIEWER) // TODO: restrict CORS instead of requiring authentication
             .antMatchers("/api/v1/user/whoami").permitAll()
             .antMatchers("/api/**").hasAuthority(props.getMinRole())
