@@ -2,6 +2,8 @@ package jasper.config;
 
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -31,6 +33,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @Import(SecurityProblemSupport.class)
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+	private final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
 	@Autowired
     Props props;
@@ -87,6 +90,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
 	private JWTConfigurer securityConfigurerAdapter() {
+		logger.info("Default Role: {}", props.getDefaultRole());
+		logger.info("Minimum Role: {}", props.getMinRole());
 		return new JWTConfigurer(props, tokenProvider);
 	}
 

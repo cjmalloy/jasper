@@ -1,12 +1,16 @@
 package jasper.security.jwt;
 
 import jasper.config.Props;
+import jasper.config.SecurityConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 
 import javax.servlet.http.HttpServletRequest;
 
 public class AnonFilter extends AnonymousAuthenticationFilter {
+	private final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
 	private final TokenProviderImplAnon tokenProvider;
 
@@ -17,6 +21,8 @@ public class AnonFilter extends AnonymousAuthenticationFilter {
 
 	@Override
 	protected Authentication createAuthentication(HttpServletRequest request) {
-		return tokenProvider.getAuthentication(null);
+		var auth = tokenProvider.getAuthentication(null);
+		logger.debug("Anon Auth: {}", auth.getAuthorities());
+		return auth;
 	}
 }

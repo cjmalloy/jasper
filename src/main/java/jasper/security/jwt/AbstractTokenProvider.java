@@ -45,6 +45,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	List<SimpleGrantedAuthority> getPartialAuthorities() {
 		var authString = props.getDefaultRole();
 		if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
 			authString += getHeader(USER_ROLE_HEADER);
 		}
 		return Arrays
