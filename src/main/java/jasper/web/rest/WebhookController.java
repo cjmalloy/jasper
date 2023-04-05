@@ -5,8 +5,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.domain.proj.HasOrigin;
 import jasper.service.SmtpService;
 import jasper.service.dto.SmtpWebhookDto;
+import org.hibernate.validator.constraints.Length;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.constraints.Pattern;
+
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 
 @RestController
 @RequestMapping("api/v1/webhook")
@@ -33,7 +40,10 @@ public class WebhookController {
 	SmtpService smtpService;
 
 	@PostMapping("smtp")
-	void smtp(@RequestBody SmtpWebhookDto email) {
-		smtpService.create(email);
+	void smtp(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestBody SmtpWebhookDto email
+	) {
+		smtpService.create(email, origin);
 	}
 }
