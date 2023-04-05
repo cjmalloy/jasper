@@ -51,6 +51,7 @@ import static jasper.repository.spec.TagSpec.notPrivateTag;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
@@ -557,6 +558,9 @@ public class Auth {
 				} else {
 					return null;
 				}
+			}
+			if (principal.startsWith("+") && getHeaderList(USER_ROLE_HEADER).contains(PRIVATE)) {
+				principal = "_" + principal.substring(1);
 			}
 		}
 		return principal;
