@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.14
+  version: 1.2.15
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.14
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.15
 paths:
   /api/v1/ref:
     get:
@@ -612,11 +612,11 @@ paths:
             '409':
                 $ref: '#/components/responses/Conflict'
   /api/v1/scrape/feed:
-    get:
+    post:
       tags:
         - Scrape
       operationId: scrapeFeed
-      description: Immediately scrape a feed or replicate an origin. Ref must have either `+plugin/feed` or `+plugin/origin`
+      description: Immediately scrape a feed. Ref must have `+plugin/feed`
       parameters:
         - name: url
           in: query
@@ -1223,6 +1223,70 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/origin/push:
+    post:
+      tags:
+        - Origin
+      operationId: push
+      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pushing
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/origin/pull:
+    post:
+      tags:
+        - Origin
+      operationId: pull
+      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pulling
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/origin/{origin}:
     delete:
       tags:
