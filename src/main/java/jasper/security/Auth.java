@@ -41,6 +41,7 @@ import java.util.stream.Stream;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
@@ -144,7 +145,7 @@ public class Auth {
 	 * be the default origin.
 	 */
 	public boolean local(String origin) {
-		return getOrigin().equals(selector(origin).origin);
+		return getOrigin().equals(qt(origin).origin);
 	}
 
 	/**
@@ -558,8 +559,7 @@ public class Auth {
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
 			if (!isLoggedIn()) return null;
-			var principal = selector(getPrincipal());
-			userTag = selector(principal.tag + getOrigin());
+			userTag = qt(getPrincipal());
 		}
 		return userTag;
 	}
@@ -577,19 +577,20 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
+			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader().toLowerCase();
 			} else if (isLoggedIn() && props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
-				origin = getPrincipal().substring(getPrincipal().indexOf("@"));
-			} else {
-				origin = props.getLocalOrigin();
+				try {
+					origin = qt(getPrincipal()).origin;
+				} catch (UnsupportedOperationException ignored) {}
 			}
 		}
 		return origin;
 	}
 
-	private String getOriginHeader() {
-		if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+	public static String getOriginHeader() {
+		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 			logger.debug("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
 		}

@@ -9,7 +9,6 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static jasper.repository.spec.OriginSpec.any;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
@@ -79,6 +78,13 @@ public class QualifiedTag {
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
+	}
+
+	public static QualifiedTag qt(String qt) {
+		if (qt.startsWith("!")) throw new UnsupportedOperationException();
+		if (qt.startsWith("*")) throw new UnsupportedOperationException();
+		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
+		return new QualifiedTag(qt);
 	}
 
 	public static QualifiedTag selector(String qt) {

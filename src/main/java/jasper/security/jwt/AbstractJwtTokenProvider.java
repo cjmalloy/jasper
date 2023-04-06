@@ -21,9 +21,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
+import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -78,6 +79,19 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 			return getHeader(USER_TAG_HEADER);
 		}
 		var principal = claims.get(props.getUsernameClaim(), String.class);
+		var origin = props.getLocalOrigin();
+		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
+			origin = getOriginHeader().toLowerCase();
+		} else if (!isBlank(principal) && props.isAllowUsernameClaimOrigin() && principal.contains("@")) {
+			try {
+				var qt = qt(principal);
+				origin = qt.origin;
+				principal = qt.tag;
+			} catch (UnsupportedOperationException ignored) {}
+		}
+		if (principal.contains("@")) {
+			principal = principal.substring(0, principal.indexOf("@"));
+		}
 		logger.debug("Principal: {}", principal);
 		var authorities = getPartialAuthorities(claims);
 		if (isBlank(principal) ||
@@ -90,30 +104,18 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 				logger.debug("Root role not allowed.");
 				return null;
 			}
-			var origin = "";
-			if (!isBlank(principal)) {
-				try {
-					origin = selector(principal).origin;
-				} catch (UnsupportedOperationException e) {
-					// Invalid origin
-					logger.debug("Root role not allowed with origin {}.", origin);
-					return null;
-				}
-			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			if (isBlank(principal) && !principal.equals("+user") && !principal.equals("+user" + origin)) {
+			if (!"+user".equals(principal)) {
 				// Default to private user if +user is not exactly specified
-				principal = "_user" + origin;
+				principal = "_user";
 			}
-			logger.debug("Username: {}", principal);
-			return principal;
-		} else if (principal.startsWith("+user/") || principal.startsWith("_user/")) {
-			return principal;
+		} else if (!principal.startsWith("+user/") && !principal.startsWith("_user/")) {
+			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
+			principal = (isPrivate ? "_user/" : "+user/") + principal;
 		}
-		var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-		logger.debug("Username: {}", (isPrivate ? "_" : "+") + principal);
-		return (isPrivate ? "_user/" : "+user/") + principal;
+		logger.debug("Username: {}", principal + origin);
+		return principal + origin;
 	}
 
 	@Override
