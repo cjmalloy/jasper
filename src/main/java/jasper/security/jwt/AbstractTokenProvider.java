@@ -36,8 +36,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	Collection<? extends GrantedAuthority> getAuthorities(User user) {
 		var auth = getPartialAuthorities();
-		if (user != null && User.ROLES.contains(user.getRole())) {
-			auth.add(new SimpleGrantedAuthority(user.getRole()));
+		if (user != null && User.ROLES.contains(user.getRole().trim())) {
+			auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
 		}
 		return auth;
 	}
@@ -50,7 +50,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		}
 		return Arrays
 			.stream(authString.split(","))
-			.filter(roles -> !roles.trim().isEmpty())
+			.filter(r -> !r.isBlank())
+			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
 	}

@@ -59,7 +59,11 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		var auth = getPartialAuthorities();
 		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
-			Arrays.stream(authClaim.split(",")).forEach(r -> auth.add(new SimpleGrantedAuthority(r)));
+			Arrays.stream(authClaim.split(","))
+				.filter(r -> !r.isBlank())
+				.map(String::trim)
+				.map(SimpleGrantedAuthority::new)
+				.forEach(auth::add);
 		}
 		return auth;
 	}
