@@ -8,9 +8,9 @@ import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jasper.config.Props;
 import jasper.domain.User;
+import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.management.SecurityMetersService;
-import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -43,8 +43,8 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	private final SecurityMetersService securityMetersService;
 
-	AbstractJwtTokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
-		super(props, userRepository);
+	AbstractJwtTokenProvider(Props props, UserDetailsProvider userDetailsProvider, SecurityMetersService securityMetersService) {
+		super(props, userDetailsProvider);
 		this.securityMetersService = securityMetersService;
 	}
 
@@ -85,8 +85,10 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		} else if (!isBlank(principal) && props.isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
 				var qt = qt(principal);
-				origin = qt.origin;
-				principal = qt.tag;
+				if (qt.origin.matches(HasOrigin.REGEX)) {
+					origin = qt.origin;
+					principal = qt.tag;
+				}
 			} catch (UnsupportedOperationException ignored) {}
 		}
 		if (principal.contains("@")) {

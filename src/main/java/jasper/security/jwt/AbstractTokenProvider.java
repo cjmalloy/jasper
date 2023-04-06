@@ -2,7 +2,6 @@ package jasper.security.jwt;
 
 import jasper.config.Props;
 import jasper.domain.User;
-import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,16 +21,16 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	public Props props;
 
-	public UserRepository userRepository;
+	public UserDetailsProvider userDetailsProvider;
 
-	AbstractTokenProvider(Props props, UserRepository userRepository) {
+	AbstractTokenProvider(Props props, UserDetailsProvider userDetailsProvider) {
 		this.props = props;
-		this.userRepository = userRepository;
+		this.userDetailsProvider = userDetailsProvider;
 	}
 
 	User getUser(String userTag) {
-		if (userRepository == null) return null;
-		return userRepository.findOneByQualifiedTag(userTag).orElse(null);
+		if (userDetailsProvider == null) return null;
+		return userDetailsProvider.findOneByQualifiedTag(userTag).orElse(null);
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(User user) {
