@@ -567,11 +567,7 @@ public class Auth {
 	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = getAuthentication();
-			if (auth instanceof JwtAuthentication j) {
-				user = Optional.of(j.getDetails());
-			} else {
-				user = Optional.empty();
-			}
+			user = Optional.ofNullable((User) auth.getDetails());
 			if (isLoggedIn() && user.isEmpty()) {
 				user = userRepository.findOneByQualifiedTag(getUserTag().toString());
 			}
