@@ -152,6 +152,10 @@ public class Replicator {
 		var localOrigin = origin(config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
+		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
+			logger.debug("Skipping push, up to date {}", remoteOrigin);
+			return;
+		}
 		tunnel.proxy(remote, url -> {
 			try {
 				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
@@ -234,6 +238,50 @@ public class Replicator {
 				logger.error("Error pushing {} to origin {}", localOrigin, remoteOrigin, e);
 			}
 		});
+	}
+
+	private boolean allPushed(Push push, String localOrigin) {
+		if (refRepository.count(
+				RefFilter.builder()
+					.origin(localOrigin)
+					.query(push.getQuery())
+					.modifiedAfter(push.getLastModifiedRefWritten())
+					.build().spec()) > 0) {
+			return false;
+		}
+		if (extRepository.count(
+				TagFilter.builder()
+					.origin(localOrigin)
+					.query(push.getQuery())
+					.modifiedAfter(push.getLastModifiedExtWritten())
+					.build().spec()) > 0) {
+			return false;
+		}
+		if (userRepository.count(
+				TagFilter.builder()
+					.origin(localOrigin)
+					.query(push.getQuery())
+					.modifiedAfter(push.getLastModifiedUserWritten())
+					.build().spec()) > 0) {
+			return false;
+		}
+		if (pluginRepository.count(
+			TagFilter.builder()
+				.origin(localOrigin)
+				.query(push.getQuery())
+				.modifiedAfter(push.getLastModifiedPluginWritten())
+				.build().spec()) > 0) {
+			return false;
+		}
+		if (templateRepository.count(
+			TagFilter.builder()
+				.origin(localOrigin)
+				.query(push.getQuery())
+				.modifiedAfter(push.getLastModifiedTemplateWritten())
+				.build().spec()) > 0) {
+			return false;
+		}
+		return true;
 	}
 
 }
