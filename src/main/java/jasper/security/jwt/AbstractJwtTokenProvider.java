@@ -51,7 +51,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user) {
 		var auth = getPartialAuthorities(claims);
-		if (user != null) {
+		if (user != null && user.getRole() != null) {
 			logger.debug("User Roles: {}", user.getRole());
 			if (User.ROLES.contains(user.getRole().trim())) {
 				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
