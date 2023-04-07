@@ -5,6 +5,7 @@ import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.User;
+import jasper.security.UserDetailsProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.Authentication;

@@ -1,4 +1,4 @@
-package jasper.security.jwt;
+package jasper.security;
 
 import jasper.domain.User;
 

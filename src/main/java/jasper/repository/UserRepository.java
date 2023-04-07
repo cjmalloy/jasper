@@ -2,7 +2,7 @@ package jasper.repository;
 
 import jasper.domain.TagId;
 import jasper.domain.User;
-import jasper.security.jwt.UserDetailsProvider;
+import jasper.security.UserDetailsProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
