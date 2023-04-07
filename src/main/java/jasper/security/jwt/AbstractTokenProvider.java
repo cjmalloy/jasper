@@ -2,6 +2,7 @@ package jasper.security.jwt;
 
 import jasper.config.Props;
 import jasper.domain.User;
+import jasper.security.UserDetailsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;

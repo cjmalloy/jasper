@@ -3,7 +3,6 @@ package jasper.client.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.HasTags;
-import jasper.service.dto.MetadataDto;
 import lombok.Getter;
 import lombok.Setter;
 

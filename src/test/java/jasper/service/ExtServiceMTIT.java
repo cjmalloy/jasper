@@ -22,7 +22,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("+user/tester")
+@WithMockUser("+user/tester@other")
 @MultiTenantIntegrationTest
 @Transactional
 public class ExtServiceMTIT {
@@ -59,6 +59,7 @@ public class ExtServiceMTIT {
 
 	@BeforeEach
 	void clearDefaultPermissions() {
+		props.setAllowUsernameClaimOrigin(true);
 		props.setDefaultReadAccess(null);
 		props.setDefaultWriteAccess(null);
 		props.setDefaultTagReadAccess(null);
@@ -221,7 +222,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser("_user/tester")
+	@WithMockUser("_user/tester@other")
 	void testReadPrivateUserExt() {
 		var ext = getExt();
 		ext.setTag("_user/tester");
@@ -421,7 +422,7 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser("_user/tester")
+	@WithMockUser("_user/tester@other")
 	void testPagePrivateUserExt() {
 		var ext = getExt();
 		ext.setTag("_user/tester");
