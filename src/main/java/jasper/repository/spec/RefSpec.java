@@ -39,6 +39,13 @@ public class RefSpec {
 						cb.literal(url))));
 	}
 
+	public static Specification<Ref> isScheme(String scheme) {
+		return (root, query, cb) ->
+			cb.like(
+				root.get(Ref_.url),
+				cb.literal(scheme + "%"));
+	}
+
 	public static Specification<Ref> isUrls(List<String> urls) {
 		if (urls == null || urls.isEmpty()) return none();
 		return (root, query, cb) ->

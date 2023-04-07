@@ -25,6 +25,7 @@ import static jasper.repository.spec.RefSpec.isCreatedAfter;
 import static jasper.repository.spec.RefSpec.isCreatedBefore;
 import static jasper.repository.spec.RefSpec.isPublishedAfter;
 import static jasper.repository.spec.RefSpec.isPublishedBefore;
+import static jasper.repository.spec.RefSpec.isScheme;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
@@ -38,6 +39,7 @@ public class RefFilter implements Query {
 
 	private String origin;
 	private String url;
+	private String scheme;
 	private String query;
 	private String search;
 	private String endsTitle;
@@ -63,6 +65,9 @@ public class RefFilter implements Query {
 		}
 		if (isNotBlank(url)) {
 			result = result.and(isUrl(url));
+		}
+		if (isNotBlank(scheme)) {
+			result = result.and(isScheme(scheme));
 		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());

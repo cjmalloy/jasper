@@ -180,6 +180,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: scheme
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
           required: false
@@ -2032,9 +2037,15 @@ components:
     url:
       type: string
       format: uri
-      pattern: '([^:/?#]+):(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
+      pattern: '[^:/?#]+:(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
       description: URL
       example: http://jasper-kms.info/
+      maxLength: 4096
+    scheme:
+      type: string
+      pattern: '[^:/?#]+:'
+      description: Scheme
+      example: 'http:'
       maxLength: 4096
     title:
       type: string
