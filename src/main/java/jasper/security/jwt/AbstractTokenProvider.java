@@ -36,8 +36,13 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	Collection<? extends GrantedAuthority> getAuthorities(User user) {
 		var auth = getPartialAuthorities();
-		if (user != null && User.ROLES.contains(user.getRole().trim())) {
-			auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
+		if (user != null && user.getRole() != null) {
+			logger.debug("User Roles: {}", user.getRole());
+			if (User.ROLES.contains(user.getRole().trim())) {
+				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
+			}
+		} else {
+			logger.debug("No User");
 		}
 		return auth;
 	}
