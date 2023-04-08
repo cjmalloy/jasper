@@ -108,7 +108,7 @@ public class Backup {
 		var firstElementProcessed = new AtomicBoolean(false);
 		Files.write(path, "[".getBytes(), StandardOpenOption.CREATE);
 		var buf = new StringBuilder();
-		var buffSize = 1000000;
+		var buffSize = props.getBackupBufferSize();
 		Stream<?> stream;
 		if (newerThan != null) {
 			stream = repo.streamAllByModifiedGreaterThanEqualOrderByModifiedDesc(newerThan);

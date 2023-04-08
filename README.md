@@ -418,6 +418,7 @@ It supports the following configuration options:
 | `JASPER_DEFAULT_TAG_READ_ACCESS`                    | Additional tag read access qualified tags to apply to all users.                                                                   |                                           |
 | `JASPER_DEFAULT_TAG_WRITE_ACCESS`                   | Additional tag write access qualified tags to apply to all users.                                                                  |                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                                  | `/var/lib/jasper`                         |
+| `JASPER_BACKUP_BUFFER_SIZE`                         | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                           | `1000000`                                 |
 | `JASPER_HEAP`                                       | Set both max and initial heap size for the JVM. Only applies to the docker container.                                              | `512m`                                    |
 
 ### Profiles
