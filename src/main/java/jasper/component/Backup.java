@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
@@ -48,7 +49,7 @@ import java.util.stream.Stream;
 @Profile("storage")
 @Component
 public class Backup {
-	private final Logger log = LoggerFactory.getLogger(Backup.class);
+	private final Logger logger = LoggerFactory.getLogger(Backup.class);
 
 	@Autowired
 	Props props;
@@ -72,7 +73,7 @@ public class Backup {
 	@Counted(value = "jasper.backup")
 	public void createBackup(String id, BackupOptionsDto options) throws IOException {
 		var start = Instant.now();
-		log.info("Creating Backup");
+		logger.info("Creating Backup");
 		Files.createDirectories(dir());
 		try (FileSystem zipfs = FileSystems.newFileSystem(zipfs("_" + id), Map.of("create", "true"))) {
 			if (options.isRef()) {
@@ -95,8 +96,8 @@ public class Backup {
 		}
 		// Remove underscore to indicate writing has finished
 		Files.move(path("_" + id), path(id));
-		log.info("Finished Backup");
-		log.info("Backup Duration {}", Duration.between(start, Instant.now()));
+		logger.info("Finished Backup");
+		logger.info("Backup Duration {}", Duration.between(start, Instant.now()));
 	}
 
 	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path) throws IOException {
@@ -104,7 +105,7 @@ public class Backup {
 	}
 
 	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path, boolean evict) throws IOException {
-		log.debug("Backing up {}", path.toString());
+		logger.debug("Backing up {}", path.toString());
 		var firstElementProcessed = new AtomicBoolean(false);
 		Files.write(path, "[".getBytes(), StandardOpenOption.CREATE);
 		var buf = new StringBuilder();
@@ -122,7 +123,7 @@ public class Backup {
 				}
 				buf.append(objectMapper.writeValueAsString(entity));
 				if (buf.length() > buffSize) {
-					log.debug("Flushing buffer {} bytes", buf.length());
+					logger.debug("Flushing buffer {} bytes", buf.length());
 					Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 					buf.setLength(0);
 					entityManager.clear();
@@ -135,7 +136,7 @@ public class Backup {
 			}
 		});
 		if (buf.length() > 0) {
-			log.debug("Flushing buffer {} bytes", buf.length());
+			logger.debug("Flushing buffer {} bytes", buf.length());
 			Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 			buf.setLength(0);
 		}
@@ -170,7 +171,7 @@ public class Backup {
 	@Counted(value = "jasper.backup")
 	public void restore(String id, BackupOptionsDto options) {
 		var start = Instant.now();
-		log.info("Restoring Backup");
+		logger.info("Restoring Backup");
 		try (FileSystem zipfs = FileSystems.newFileSystem(path(id))) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, zipfs.getPath("/ref.json"), Ref.class);
@@ -190,14 +191,24 @@ public class Backup {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		log.info("Finished Restore");
-		log.info("Restore Duration {}", Duration.between(start, Instant.now()));
+		logger.info("Finished Restore");
+		logger.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
 	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) {
 		try {
 			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), type, objectMapper)
-				.forEachRemaining(repo::save);
+				.forEachRemaining(t -> {
+					try {
+						repo.save(t);
+					} catch (Exception e) {
+						try {
+							logger.error("Skipping {} due to constraint violation", objectMapper.writeValueAsString(t), e);
+						} catch (JsonProcessingException ex) {
+							logger.error("Skipping {} due to constraint violation", t, e);
+						}
+					}
+				});
 		} catch (IOException e) {
 			// Backup not present in zip, silently skip
 		}
