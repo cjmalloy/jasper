@@ -122,10 +122,11 @@ public class Backup {
 				}
 				buf.append(objectMapper.writeValueAsString(entity));
 				if (buf.length() > buffSize) {
+					log.debug("Flushing buffer {} bytes", buf.length());
 					Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 					buf.setLength(0);
+					entityManager.clear();
 				}
-				log.debug("Buffer size {}", buf.length());
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -134,7 +135,7 @@ public class Backup {
 			}
 		});
 		if (buf.length() > 0) {
-			log.debug("Buffer size {}", buf.length());
+			log.debug("Flushing buffer {} bytes", buf.length());
 			Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 			buf.setLength(0);
 		}
