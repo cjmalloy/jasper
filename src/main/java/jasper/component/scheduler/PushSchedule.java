@@ -1,6 +1,7 @@
-package jasper.component;
+package jasper.component.scheduler;
 
-import jasper.repository.RefRepository;
+import jasper.component.Remotes;
+import jasper.config.Props;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,23 +17,23 @@ public class PushSchedule {
 	private static final Logger logger = LoggerFactory.getLogger(PushSchedule.class);
 
 	@Autowired
-	RefRepository refRepository;
+	Remotes remotes;
 
 	@Autowired
-	Replicator replicator;
+	Props props;
 
 	@Scheduled(
 		fixedRateString = "${jasper.replicate-interval-min}",
 		initialDelayString = "${jasper.replicate-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
-		logger.info("Pushing all origins on schedule.");
-		var maybeFeed = refRepository.oldestNeedsPushByOrigin("");
-		if (maybeFeed.isEmpty()) {
-			logger.info("All origins pushed.");
-			return;
+		logger.info("Pushing all remotes on schedule.");
+		for (var origin : props.getReplicateOrigins()) {
+			logger.info("Pushing all {} remotes on schedule", origin);
+			if (!remotes.push(origin)) {
+				logger.info("All {} remotes pushed.", origin);
+			}
 		}
-		replicator.push(maybeFeed.get());
 	}
 
 }

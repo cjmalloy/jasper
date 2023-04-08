@@ -13,8 +13,10 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
 import org.apache.http.HttpHeaders;
@@ -37,6 +39,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +47,9 @@ import java.util.Map;
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	Ingest ingest;
@@ -56,6 +62,10 @@ public class RssParser {
 
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
+		if (Arrays.stream(props.getScrapeOrigins()).noneMatch(feed.getOrigin()::equals)) {
+			logger.debug("Scrape origins: {}", (Object) props.getScrapeOrigins());
+			throw new OperationForbiddenOnOriginException(feed.getOrigin());
+		}
 		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
@@ -114,7 +124,11 @@ public class RssParser {
 							feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 							refRepository.save(feed);
 						}
-						ref.setOrigin(config.getOrigin());
+						if (props.isMultiTenant()) {
+							ref.setOrigin(feed.getOrigin());
+						} else {
+							ref.setOrigin(config.getOrigin());
+						}
 						try {
 							ingest.ingest(ref, false);
 						} catch (AlreadyExistsException e) {

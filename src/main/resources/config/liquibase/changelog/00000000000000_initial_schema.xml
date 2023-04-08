@@ -94,6 +94,7 @@
 			<column name="modified" type="TIMESTAMP">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
+			<column name="key" type="BYTEA"/>
 			<column name="pub_key" type="BYTEA"/>
 		</createTable>
 		<addUniqueConstraint tableName="users" columnNames="modified, origin" />

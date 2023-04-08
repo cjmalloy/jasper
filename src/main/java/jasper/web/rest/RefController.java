@@ -103,6 +103,7 @@ public class RefController {
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) boolean untagged,
@@ -110,6 +111,10 @@ public class RefController {
 		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant publishedBefore,
+		@RequestParam(required = false) Instant publishedAfter,
+		@RequestParam(required = false) Instant createdBefore,
+		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -140,6 +145,7 @@ public class RefController {
 		return ifNotModifiedPage(request, refService.page(
 			RefFilter.builder()
 				.url(url)
+				.scheme(scheme)
 				.query(query)
 				.search(search)
 				.rankedOrder(rankedSort)
@@ -151,7 +157,11 @@ public class RefController {
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
 				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter).build(),
+				.modifiedAfter(modifiedAfter)
+				.publishedBefore(publishedBefore)
+				.publishedAfter(publishedAfter)
+				.createdBefore(createdBefore)
+				.createdAfter(createdAfter).build(),
 			pageable));
 	}
 
@@ -163,12 +173,18 @@ public class RefController {
 	long countRefs(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant publishedBefore,
+		@RequestParam(required = false) Instant publishedAfter,
+		@RequestParam(required = false) Instant createdBefore,
+		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -178,6 +194,7 @@ public class RefController {
 				.query(query)
 				.search(search)
 				.url(url)
+				.scheme(scheme)
 				.sources(sources)
 				.responses(responses)
 				.untagged(untagged)
@@ -185,7 +202,12 @@ public class RefController {
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
-				.modifiedAfter(modifiedAfter).build());
+				.modifiedBefore(modifiedBefore)
+				.modifiedAfter(modifiedAfter)
+				.publishedBefore(publishedBefore)
+				.publishedAfter(publishedAfter)
+				.createdBefore(createdBefore)
+				.createdAfter(createdAfter).build());
 	}
 
 	@ApiResponses({

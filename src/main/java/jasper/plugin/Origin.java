@@ -12,4 +12,5 @@ import lombok.Setter;
 public class Origin {
 	private String local;
 	private String remote;
+	private String proxy;
 }

@@ -26,7 +26,6 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,7 +84,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PostAuthorize("@auth.hasRole('VIEWER')")
+	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant cursor(String origin) {
 		return extRepository.getCursor(origin);

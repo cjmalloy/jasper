@@ -1,18 +1,14 @@
 package jasper.security.jwt;
 
 import jasper.config.Props;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import jasper.repository.UserRepository;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
-import java.util.List;
+public class TokenProviderImplDefault extends AbstractTokenProvider {
 
-public class TokenProviderImplDefault implements TokenProvider {
-
-	Props props;
-
-	public TokenProviderImplDefault(Props props) {
-		this.props = props;
+	public TokenProviderImplDefault(Props props, UserRepository userRepository) {
+		super(props, userRepository);
 	}
 
 	@Override
@@ -22,6 +18,8 @@ public class TokenProviderImplDefault implements TokenProvider {
 
 	@Override
 	public Authentication getAuthentication(String jwt) {
-		return new AnonymousAuthenticationToken("key", "anonymousUser", List.of(new SimpleGrantedAuthority(props.getDefaultRole())));
+		var principal = props.getDefaultUser();
+		var user = getUser(principal);
+		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user));
 	}
 }

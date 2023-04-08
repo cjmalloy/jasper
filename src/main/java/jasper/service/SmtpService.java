@@ -31,8 +31,9 @@ public class SmtpService {
 	RefRepository refRepository;
 
 	@Timed(value = "jasper.service", extraTags = {"service", "smtp"}, histogram = true)
-	public void create(SmtpWebhookDto email) {
+	public void create(SmtpWebhookDto email, String origin) {
 		var ref = mapper.smtpToDomain(email);
+		ref.setOrigin(origin);
 		Page<Ref> source = refRepository.findAll(
 				RefFilter.builder()
 						.query("plugin/email:!internal")

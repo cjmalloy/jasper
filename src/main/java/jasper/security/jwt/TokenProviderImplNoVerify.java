@@ -3,15 +3,15 @@ package jasper.security.jwt;
 import io.jsonwebtoken.Jwts;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
+import jasper.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 
-public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implements TokenProvider {
+public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider {
 
-	public TokenProviderImplNoVerify(Props props, SecurityMetersService securityMetersService) {
-		super(props, securityMetersService);
-		jwtParser = Jwts.parserBuilder().build();
-		this.props = props;
+	public TokenProviderImplNoVerify(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
+		super(props, userRepository, securityMetersService);
+		super.jwtParser = Jwts.parserBuilder().build();
 	}
 
 	private String dropSig(String token) {
@@ -20,7 +20,9 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider implemen
 
 	public Authentication getAuthentication(String token) {
 		var claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
-		return new JwtAuthentication(getUsername(claims), claims, getAuthorities(claims));
+		var principal = getUsername(claims);
+		var user = getUser(principal);
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
 	}
 
 	@Override

@@ -70,7 +70,7 @@ public class ProfileService {
 		}
 	}
 
-	@PreAuthorize("@auth.hasRole('VIEWER') and @auth.canReadTag(#qualifiedTag)")
+	@PreAuthorize("hasRole('VIEWER') and @auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public ProfileDto get(String qualifiedTag) {
 		return profileManager.getUser(qualifiedTag.substring("+user/".length()));
@@ -88,7 +88,7 @@ public class ProfileService {
 		profileManager.changePassword(qualifiedTag.substring("+user/".length()), password);
 	}
 
-	@PreAuthorize("@auth.hasRole('MOD') and @auth.canWriteTag(#qualifiedTag)")
+	@PreAuthorize("hasRole('MOD') and @auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changeRole(String qualifiedTag, String role) {
 		validateRole(role);

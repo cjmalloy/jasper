@@ -41,7 +41,7 @@ class TokenProviderImplTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProviderImpl(props, securityMetersService);
+        tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
         key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
         ReflectionTestUtils.setField(tokenProvider, "key", key);
@@ -102,7 +102,7 @@ class TokenProviderImplTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));
@@ -117,7 +117,7 @@ class TokenProviderImplTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, securityMetersService);
+		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
 
         Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
         assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));

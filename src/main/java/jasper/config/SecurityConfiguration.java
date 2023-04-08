@@ -2,6 +2,8 @@ package jasper.config;
 
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -31,11 +33,14 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @Import(SecurityProblemSupport.class)
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+	private final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
 	@Autowired
     Props props;
+
 	@Autowired
     SecurityProblemSupport problemSupport;
+
 	@Autowired
 	TokenProvider tokenProvider;
 
@@ -63,14 +68,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .and()
             .authorizeRequests()
-            .antMatchers("/api/admin/**").hasRole("ADMIN")
-            .antMatchers("/api/cors/**").hasRole("VIEWER") // TODO: restrict CORS instead of requiring authentication
-            .antMatchers("/api/**").permitAll()
+            .antMatchers("/api/v1/admin/**").hasAuthority(ADMIN)
+            .antMatchers("/api/v1/oembed/**").hasAuthority(VIEWER) // TODO: restrict CORS instead of requiring authentication
+            .antMatchers("/api/**").hasAuthority(props.getMinRole())
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()
             .antMatchers("/management/prometheus").permitAll()
-            .antMatchers("/management/**").hasRole("ADMIN")
+            .antMatchers("/management/**").hasAuthority(ADMIN)
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
@@ -84,7 +89,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
 	private JWTConfigurer securityConfigurerAdapter() {
-		return new JWTConfigurer(tokenProvider, props);
+		logger.info("Default Role: {}", props.getDefaultRole());
+		logger.info("Minimum Role: {}", props.getMinRole());
+		return new JWTConfigurer(props, tokenProvider);
 	}
 
 	@Bean

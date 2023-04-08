@@ -62,22 +62,29 @@ public class QualifiedTag {
 	public Specification<Ref> refSpec() {
 		var spec = Specification.<Ref>where(null);
 		if (!tag.equals("")) spec = spec.and(hasTag(tag));
-		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public <T extends Tag> Specification<T> spec() {
 		var spec = Specification.<T>where(null);
 		if (!tag.equals("")) spec = spec.and(isTag(tag));
-		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public Specification<Template> templateSpec() {
 		var spec = Specification.<Template>where(null);
 		if (!tag.equals("")) spec = spec.and(matchesTag(tag));
-		if (!origin.equals("@*")) spec = spec.and(isOrigin(origin));
+		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
+	}
+
+	public static QualifiedTag qt(String qt) {
+		if (qt.startsWith("!")) throw new UnsupportedOperationException();
+		if (qt.startsWith("*")) throw new UnsupportedOperationException();
+		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
+		return new QualifiedTag(qt);
 	}
 
 	public static QualifiedTag selector(String qt) {

@@ -88,12 +88,14 @@ public class ExtController {
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return ifNotModifiedPage(request, extService.page(
 			TagFilter.builder()
 				.query(query)
 				.search(search)
+				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter).build(),
 			pageable));
 	}

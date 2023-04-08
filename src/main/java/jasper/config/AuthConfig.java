@@ -1,8 +1,10 @@
 package jasper.config;
 
 import jasper.management.SecurityMetersService;
+import jasper.repository.UserRepository;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
+import jasper.security.jwt.TokenProviderImplAnon;
 import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplJwks;
 import jasper.security.jwt.TokenProviderImplNoVerify;
@@ -51,29 +53,36 @@ public class AuthConfig {
 
 	@Bean
 	@Profile({"jwt", "default"})
-	TokenProvider tokenProvider(Props props, SecurityMetersService securityMetersService) {
-		return new TokenProviderImpl(props, securityMetersService);
+	TokenProvider tokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
+		return new TokenProviderImpl(props, userRepository, securityMetersService);
 	}
 
 	@Bean
 	@Profile("jwks")
 	TokenProvider jwksTokenProvider(
 		Props props,
+		UserRepository userRepository,
 		SecurityMetersService securityMetersService,
 		RestTemplate restTemplate
 	) throws URISyntaxException {
-		return new TokenProviderImplJwks(props, securityMetersService, restTemplate);
+		return new TokenProviderImplJwks(props, userRepository, securityMetersService, restTemplate);
 	}
 
 	@Bean
 	@Profile("jwt-no-verify")
-	TokenProvider noVerifyTokenProvider(Props props, SecurityMetersService securityMetersService) {
-		return new TokenProviderImplNoVerify(props, securityMetersService);
+	TokenProvider noVerifyTokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
+		return new TokenProviderImplNoVerify(props, userRepository, securityMetersService);
+	}
+
+	@Bean
+	@Profile("default-user")
+	TokenProvider defaultTokenProvider(Props props, UserRepository userRepository) {
+		return new TokenProviderImplDefault(props, userRepository);
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
-	TokenProvider defaultProvider(Props props) {
-		return new TokenProviderImplDefault(props);
+	TokenProvider anonTokenProvider(Props props) {
+		return new TokenProviderImplAnon(props);
 	}
 }

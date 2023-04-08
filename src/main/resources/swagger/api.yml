@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.11
+  version: 1.2.16
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.11
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.16
 paths:
   /api/v1/ref:
     get:
@@ -180,6 +180,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: scheme
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
           required: false
@@ -205,13 +210,37 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
           in: query
           required: false
           schema:
             type: string
             format: date-time
-        - name: modifiedBefore
+        - name: publishedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: publishedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdAfter
           in: query
           required: false
           schema:
@@ -294,7 +323,37 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: publishedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: publishedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdAfter
           in: query
           required: false
           schema:
@@ -444,7 +503,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/components/schemas/tag'
+              $ref: '#/components/schemas/tagPatch'
         - name: url
           in: query
           required: true
@@ -529,12 +588,40 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+        tags:
+            - Tagging
+        operationId: patchResponse
+        parameters:
+            - name: tags
+              in: query
+              required: true
+              schema:
+                  type: array
+                  items:
+                      $ref: '#/components/schemas/tagPatch'
+            - name: url
+              in: query
+              required: true
+              schema:
+                  $ref: '#/components/schemas/url'
+        responses:
+            '204':
+                description: No Content
+            '400':
+                $ref: '#/components/responses/BadRequest'
+            '403':
+                $ref: '#/components/responses/Forbidden'
+            '404':
+                $ref: '#/components/responses/NotFound'
+            '409':
+                $ref: '#/components/responses/Conflict'
   /api/v1/scrape/feed:
-    get:
+    post:
       tags:
         - Scrape
       operationId: scrapeFeed
-      description: Immediately scrape a feed or replicate an origin. Ref must have either `+plugin/feed` or `+plugin/origin`
+      description: Immediately scrape a feed. Ref must have `+plugin/feed`
       parameters:
         - name: url
           in: query
@@ -733,6 +820,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
           in: query
           required: false
@@ -877,6 +970,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
           in: query
           required: false
@@ -1016,6 +1115,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
           in: query
           required: false
@@ -1123,6 +1228,94 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/origin/push:
+    post:
+      tags:
+        - Origin
+      operationId: push
+      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pushing
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/origin/pull:
+    post:
+      tags:
+        - Origin
+      operationId: pull
+      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pulling
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/origin/{origin}:
+    delete:
+      tags:
+        - Origin
+      operationId: deleteOrigin
+      parameters:
+        - name: origin
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/origin'
+        - name: olderThan
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/user/page:
     get:
       tags:
@@ -1160,6 +1353,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
         - name: modifiedAfter
           in: query
           required: false
@@ -1838,9 +2037,15 @@ components:
     url:
       type: string
       format: uri
-      pattern: '([^:/?#]+):(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
+      pattern: '[^:/?#]+:(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
       description: URL
       example: http://jasper-kms.info/
+      maxLength: 4096
+    scheme:
+      type: string
+      pattern: '[^:/?#]+:'
+      description: Scheme
+      example: 'http:'
       maxLength: 4096
     title:
       type: string
@@ -1860,6 +2065,12 @@ components:
       description: Tag
       example: 'tag'
       maxLength: 64
+    tagPatch:
+      type: string
+      pattern: '-?[_+]?[a-z0-9]+([./][a-z0-9]+)*'
+      description: Tag
+      example: 'tag'
+      maxLength: 65
     qtag:
       type: string
       pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+(\.[a-z0-9])*)?'

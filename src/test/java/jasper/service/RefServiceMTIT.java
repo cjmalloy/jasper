@@ -26,7 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@WithMockUser("+user/tester")
+@WithMockUser("+user/tester@other")
 @MultiTenantIntegrationTest
 @Transactional
 public class RefServiceMTIT {
@@ -77,6 +77,7 @@ public class RefServiceMTIT {
 
 	@BeforeEach
 	void clearDefaultPermissions() {
+		props.setAllowUsernameClaimOrigin(true);
 		props.setDefaultReadAccess(null);
 		props.setDefaultWriteAccess(null);
 		props.setDefaultTagReadAccess(null);
@@ -218,7 +219,7 @@ public class RefServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser("_user/tester")
+	@WithMockUser("_user/tester@other")
 	void testCreateRefWithPrivateUserTags() {
 		var ref = getRef();
 		ref.setUrl(URL);

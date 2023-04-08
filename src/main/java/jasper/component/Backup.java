@@ -42,7 +42,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Profile("storage")
 @Component
@@ -74,20 +76,20 @@ public class Backup {
 		log.info("Creating Backup");
 		Files.createDirectories(dir());
 		try (FileSystem zipfs = FileSystems.newFileSystem(zipfs("_" + id), Map.of("create", "true"))) {
-			if (options == null || options.isRef()) {
-				backupRepo(refRepository, zipfs.getPath("/ref.json"), false);
+			if (options.isRef()) {
+				backupRepo(refRepository, options.getNewerThan(), zipfs.getPath("/ref.json"), false);
 			}
-			if (options == null || options.isExt()) {
-				backupRepo(extRepository, zipfs.getPath("/ext.json"));
+			if (options.isExt()) {
+				backupRepo(extRepository, options.getNewerThan(), zipfs.getPath("/ext.json"));
 			}
-			if (options == null || options.isUser()) {
-				backupRepo(userRepository, zipfs.getPath("/user.json"));
+			if (options.isUser()) {
+				backupRepo(userRepository, options.getNewerThan(), zipfs.getPath("/user.json"));
 			}
-			if (options == null || options.isPlugin()) {
-				backupRepo(pluginRepository, zipfs.getPath("/plugin.json"));
+			if (options.isPlugin()) {
+				backupRepo(pluginRepository, options.getNewerThan(), zipfs.getPath("/plugin.json"));
 			}
-			if (options == null || options.isTemplate()) {
-				backupRepo(templateRepository, zipfs.getPath("/template.json"));
+			if (options.isTemplate()) {
+				backupRepo(templateRepository, options.getNewerThan(), zipfs.getPath("/template.json"));
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -98,27 +100,34 @@ public class Backup {
 		log.info("Backup Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private void backupRepo(StreamMixin<?> repo, Path path) throws IOException {
-		backupRepo(repo, path, true);
+	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path) throws IOException {
+		backupRepo(repo, newerThan, path, true);
 	}
 
-	private void backupRepo(StreamMixin<?> repo, Path path, boolean evict) throws IOException {
+	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path, boolean evict) throws IOException {
 		log.debug("Backing up {}", path.toString());
 		var firstElementProcessed = new AtomicBoolean(false);
 		Files.write(path, "[".getBytes(), StandardOpenOption.CREATE);
 		var buf = new StringBuilder();
 		var buffSize = 1000000;
-		repo.streamAllByOrderByModifiedDesc().forEach(entity -> {
+		Stream<?> stream;
+		if (newerThan != null) {
+			stream = repo.streamAllByModifiedGreaterThanEqualOrderByModifiedDesc(newerThan);
+		} else {
+			stream = repo.streamAllByOrderByModifiedDesc();
+		}
+		stream.forEach(entity -> {
 			try {
 				if (firstElementProcessed.getAndSet(true)) {
 					buf.append(",\n");
 				}
 				buf.append(objectMapper.writeValueAsString(entity));
 				if (buf.length() > buffSize) {
+					log.debug("Flushing buffer {} bytes", buf.length());
 					Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 					buf.setLength(0);
+					entityManager.clear();
 				}
-				log.debug("Buffer size {}", buf.length());
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -127,7 +136,7 @@ public class Backup {
 			}
 		});
 		if (buf.length() > 0) {
-			log.debug("Buffer size {}", buf.length());
+			log.debug("Flushing buffer {} bytes", buf.length());
 			Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
 			buf.setLength(0);
 		}
@@ -211,7 +220,9 @@ public class Backup {
 		return Paths.get(props.getStorage(), "backups");
 	}
 
+	private static final Pattern INVALID_PATH = Pattern.compile("[./\\\\]");
 	Path path(String id) {
+		if (INVALID_PATH.matcher(id).find()) throw new NotFoundException("Illegal characters");
 		return Paths.get(props.getStorage(), "backups", id + ".zip");
 	}
 

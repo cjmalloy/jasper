@@ -22,16 +22,29 @@ import java.util.Map;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
-	private int maxSources = 100;
+	private int maxSources = 1000;
 	private int ingestMaxRetry = 5;
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
+	/**
+	 * Whitelist origins to be allowed to scrape using +plugin/feed.
+	 */
+	private String[] scrapeOrigins = new String[]{""};
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
+	/**
+	 * Whitelist origins to be allowed to replicate using +plugin/origin.
+	 */
+	private String[] replicateOrigins = new String[]{""};
 	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean multiTenant = false;
+	/**
+	 * Minimum role for basic access.
+	 */
+	private String minRole = "ROLE_ANONYMOUS";
 	private String defaultRole = "ROLE_ANONYMOUS";
+	private String defaultUser = "+user";
 	private String[] defaultReadAccess;
 	private String[] defaultWriteAccess;
 	private String[] defaultTagReadAccess;
@@ -43,6 +56,8 @@ public class Props {
 	private String writeAccessClaim = "writeAccess";
 	private String tagReadAccessClaim = "tagReadAccess";
 	private String tagWriteAccessClaim = "tagWriteAccess";
+	private boolean allowUserTagHeader = false;
+	private boolean allowUserRoleHeader = false;
 	private boolean allowLocalOriginHeader = false;
 	private boolean allowAuthHeaders = false;
 	private String scimEndpoint;

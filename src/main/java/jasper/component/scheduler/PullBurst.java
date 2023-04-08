@@ -1,6 +1,7 @@
-package jasper.component;
+package jasper.component.scheduler;
 
-import jasper.repository.RefRepository;
+import jasper.component.Remotes;
+import jasper.config.Props;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,24 +17,20 @@ public class PullBurst {
 	private static final Logger logger = LoggerFactory.getLogger(PullBurst.class);
 
 	@Autowired
-	RefRepository refRepository;
+	Remotes remotes;
 
 	@Autowired
-	Replicator replicator;
+	Props props;
 
 	@Scheduled(
 		fixedRateString = "${jasper.replicate-interval-min}",
 		initialDelayString = "${jasper.replicate-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
-		logger.info("Pulling all origins in a burst.");
-		while (true) {
-			var maybeFeed = refRepository.oldestNeedsPullByOrigin("");
-			if (maybeFeed.isEmpty()) {
-				logger.info("All origins pulled.");
-				return;
-			}
-			replicator.pull(maybeFeed.get());
+		for (var origin : props.getReplicateOrigins()) {
+			logger.info("Pulling all {} remotes in a burst.", origin);
+			while (remotes.pull(origin));
+			logger.info("All {} remotes pulled.", origin);
 		}
 	}
 

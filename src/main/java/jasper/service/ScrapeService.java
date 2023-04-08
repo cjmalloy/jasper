@@ -3,7 +3,6 @@ package jasper.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.Replicator;
 import jasper.component.RssParser;
 import jasper.component.WebScraper;
 import jasper.errors.NotFoundException;
@@ -37,20 +36,13 @@ public class ScrapeService {
 
 	@Autowired
 	WebScraper webScraper;
-	@Autowired
-	Replicator replicator;
 
-	@PreAuthorize("hasRole('MOD') and @auth.canWriteRef(#url, #origin)")
+	@PreAuthorize("hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		if (source.getTags().contains("+plugin/feed")) {
-			rssParser.scrape(source);
-		}
-		if (source.getTags().contains("+plugin/origin/pull")) {
-			replicator.pull(source);
-		}
+		rssParser.scrape(source);
 	}
 
 	@PreAuthorize("hasRole('USER')")

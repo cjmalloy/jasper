@@ -33,6 +33,8 @@ import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
@@ -91,11 +93,13 @@ public class UserController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return ifNotModifiedPage(request, userService.page(
 			TagFilter.builder()
+				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
 				.search(search)
 				.query(query).build(),
@@ -113,6 +117,19 @@ public class UserController {
 		@RequestBody @Valid User user
 	) {
 		userService.update(user);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PostMapping("keygen")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void keygen(
+			@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
+	) throws NoSuchAlgorithmException, IOException {
+		userService.keygen(tag);
 	}
 
 	@ApiResponses({

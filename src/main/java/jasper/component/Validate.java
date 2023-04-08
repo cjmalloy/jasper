@@ -54,7 +54,7 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
-		ref(ref, ref.getOrigin(), false);
+		ref(ref, ref.getOrigin(), force);
 	}
 
 	@Timed("jasper.validate.ref")
@@ -170,10 +170,9 @@ public class Validate {
 	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
 		var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
 		if (plugin.isEmpty()) {
-			if (!stripOnError) {
-				// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
-				if (ref.getPlugins() != null && ref.getPlugins().has(tag)) throw new InvalidPluginException(tag);
-			} else {
+			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
+			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) {
+				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
 			return;

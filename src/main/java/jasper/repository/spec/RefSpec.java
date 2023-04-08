@@ -9,11 +9,9 @@ import javax.persistence.criteria.Expression;
 import java.time.Instant;
 import java.util.List;
 
-public class RefSpec {
+import static jasper.repository.spec.OriginSpec.none;
 
-	public static Specification<Ref> none() {
-		return (root, query, cb) -> cb.disjunction();
-	}
+public class RefSpec {
 
 	public static Specification<Ref> fulltextEn(String search, boolean rankedOrder) {
 		return (root, query, cb) -> {
@@ -39,6 +37,13 @@ public class RefSpec {
 					cb.function("jsonb_exists", Boolean.class,
 						root.get(Ref_.alternateUrls),
 						cb.literal(url))));
+	}
+
+	public static Specification<Ref> isScheme(String scheme) {
+		return (root, query, cb) ->
+			cb.like(
+				root.get(Ref_.url),
+				cb.literal(scheme + "%"));
 	}
 
 	public static Specification<Ref> isUrls(List<String> urls) {
@@ -207,6 +212,22 @@ public class RefSpec {
 		return (root, query, cb) ->
 				cb.lessThan(
 						root.get(Ref_.PUBLISHED),
+						i);
+	}
+
+	public static Specification<Ref> isCreatedAfter(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.greaterThan(
+						root.get(Ref_.CREATED),
+						i);
+	}
+
+	public static Specification<Ref> isCreatedBefore(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+				cb.lessThan(
+						root.get(Ref_.CREATED),
 						i);
 	}
 }

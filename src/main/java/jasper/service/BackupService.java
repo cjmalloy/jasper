@@ -17,6 +17,14 @@ import java.util.List;
 @Service
 public class BackupService {
 
+	private static final BackupOptionsDto DEFAULT_OPTIONS = BackupOptionsDto.builder()
+			.ref(true)
+			.ref(true)
+			.plugin(true)
+			.template(true)
+			.user(true)
+			.build();
+
 	@Autowired
 	Backup backup;
 
@@ -26,6 +34,10 @@ public class BackupService {
 	@PreAuthorize("@auth.sysAdmin()")
 	public String createBackup(BackupOptionsDto options) throws IOException {
 		var id = Instant.now().toString();
+		if (options == null) options = DEFAULT_OPTIONS;
+		if (options.getNewerThan() != null) {
+			id += "_-_" + options.getNewerThan();
+		}
 		backup.createBackup(id, options);
 		return id;
 	}

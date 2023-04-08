@@ -22,7 +22,6 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -42,6 +41,7 @@ import java.util.stream.Stream;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
@@ -95,11 +95,13 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 16. allowAuthHeaders (false): enable setting the user access tags in the header
  *
  * The following headers are checked if enabled:
- * 1. Local-Origin
- * 2. Write-Access
- * 3. Read-Access
- * 4. Tag-Write-Access
- * 5. Tag-Tag-Write-Access
+ * 1. User-Tag
+ * 2. Local-Origin
+ * 3. User-Role
+ * 4. Write-Access
+ * 5. Read-Access
+ * 6. Tag-Write-Access
+ * 7. Tag-Read-Access
  *
  * If no username is not set and the role is at least MOD it will default to +user.
  */
@@ -108,6 +110,8 @@ import static org.springframework.data.jpa.domain.Specification.where;
 public class Auth {
 	private static final Logger logger = LoggerFactory.getLogger(Auth.class);
 
+	public static final String USER_TAG_HEADER = "User-Tag";
+	public static final String USER_ROLE_HEADER = "User-Role";
 	public static final String LOCAL_ORIGIN_HEADER = "Local-Origin";
 	public static final String WRITE_ACCESS_HEADER = "Write-Access";
 	public static final String READ_ACCESS_HEADER = "Read-Access";
@@ -141,7 +145,7 @@ public class Auth {
 	 * be the default origin.
 	 */
 	public boolean local(String origin) {
-		return getOrigin().equals(selector(origin).origin);
+		return getOrigin().equals(qt(origin).origin);
 	}
 
 	/**
@@ -250,6 +254,15 @@ public class Auth {
 	}
 
 	/**
+	 * Does the user have permission to use all tags when tagging Refs?
+	 */
+	public boolean canAddTags(List<String> tags) {
+		if (hasRole(MOD)) return true;
+		if (!hasRole(USER)) return false;
+		return tags.stream().allMatch(this::canAddTag);
+	}
+
+	/**
 	 * Can the user add these tags to an existing ref?
 	 */
 	public boolean canTagAll(List<String> tags, String url, String origin) {
@@ -296,7 +309,6 @@ public class Auth {
 		return true;
 	}
 
-
 	/**
 	 * Is this a private tag?
 	 * Private tags start with a _.
@@ -304,7 +316,6 @@ public class Auth {
 	public static boolean isPrivateTag(String tag) {
 		return tag.startsWith("_");
 	}
-
 
 	/**
 	 * Is this a protected tag?
@@ -354,7 +365,7 @@ public class Auth {
 	}
 
 	/**
-	 * Does the users tag match this tag?
+	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
 		return isLoggedIn() && getUserTag().matches(qt);
@@ -453,9 +464,8 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (hasRole(SA)) return where(null);
-		if (hasRole(MOD)) return where(isOrigin(getMultiTenantOrigin()));
-		var spec = where(getPublicTag().refSpec());
+		if (sysMod()) return where(null);
+		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : getPublicTag().refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
 		}
@@ -463,10 +473,9 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (hasRole(SA)) return where(null);
+		if (sysMod()) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
-		if (hasRole(MOD)) return spec;
-		spec = spec.and(notPrivateTag());
+		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().spec());
 		}
@@ -550,35 +559,38 @@ public class Auth {
 	public QualifiedTag getUserTag() {
 		if (userTag == null) {
 			if (!isLoggedIn()) return null;
-			var principal = selector(getPrincipal());
-			userTag = selector(principal.tag + getOrigin());
+			userTag = qt(getPrincipal());
 		}
 		return userTag;
 	}
 
 	protected Optional<User> getUser() {
 		if (user == null) {
-			if (!isLoggedIn()) return Optional.empty();
-			user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(getUserTag().toString());
+			var auth = getAuthentication();
+			user = Optional.ofNullable((User) auth.getDetails());
+			if (isLoggedIn() && user.isEmpty()) {
+				user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(getUserTag().toString());
+			}
 		}
 		return user;
 	}
 
 	public String getOrigin() {
 		if (origin == null) {
+			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader().toLowerCase();
 			} else if (isLoggedIn() && props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
-				origin = getPrincipal().substring(getPrincipal().indexOf("@"));
-			} else {
-				origin = props.getLocalOrigin();
+				try {
+					origin = qt(getPrincipal()).origin;
+				} catch (UnsupportedOperationException ignored) {}
 			}
 		}
 		return origin;
 	}
 
-	private String getOriginHeader() {
-		if (props.isAllowLocalOriginHeader() && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
+	public static String getOriginHeader() {
+		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 			logger.debug("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
 		}
@@ -707,7 +719,7 @@ public class Auth {
 		if (claims == null) {
 			var auth = getAuthentication();
 			if (auth instanceof JwtAuthentication j) {
-				claims = j.getDetails();
+				claims = j.getClaims();
 			} else {
 				claims = new DefaultClaims();
 			}
@@ -718,11 +730,6 @@ public class Auth {
 	public Set<String> getAuthoritySet() {
 		if (roles == null) {
 			var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-			if (getUser().isPresent()) {
-				if (User.ROLES.contains(getUser().get().getRole())) {
-					userAuthorities.add(new SimpleGrantedAuthority(getUser().get().getRole()));
-				}
-			}
 			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
 					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
 					userAuthorities);
@@ -738,15 +745,23 @@ public class Auth {
 		return prefix + role;
 	}
 
-	private static List<String> getHeaderTags(String headerName) {
-		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
-			return List.of(a.getRequest().getHeader(headerName).split(","));
+	private static List<String> getHeaderList(String headerName) {
+		var header = getHeader(headerName);
+		if (header != null) {
+			return List.of(header.split(","));
 		}
 		return List.of();
 	}
 
+	public static String getHeader(String headerName) {
+		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
+			return a.getRequest().getHeader(headerName);
+		}
+		return null;
+	}
+
 	private static List<QualifiedTag> getHeaderQualifiedTags(String headerName) {
-		return getHeaderTags(headerName).stream().map(QualifiedTag::selector).toList();
+		return getHeaderList(headerName).stream().map(QualifiedTag::selector).toList();
 	}
 
 	public List<String> getClaimTags(String claim) {

@@ -23,6 +23,8 @@ import jasper.service.UserService;
 import jasper.service.dto.RefReplDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
@@ -40,6 +42,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
+import static jasper.plugin.Push.migrate;
 import static jasper.repository.filter.Query.QUERY_LEN;
 
 @RestController
@@ -51,6 +54,7 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 })
 public class ReplicateController {
+	private static final Logger logger = LoggerFactory.getLogger(ReplicateController.class);
 
 	@Autowired
 	ReplicateService replService;
@@ -100,11 +104,15 @@ public class ReplicateController {
 	})
 	@PostMapping("ref")
 	void refPush(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Ref> refs
 	) {
+		logger.debug("Receiving push of {} refs", refs.size());
 		RuntimeException first = null;
 		for (var ref : refs) {
 			try {
+				ref.setOrigin(origin);
+				migrate(ref);
 				refService.push(ref);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
@@ -148,11 +156,14 @@ public class ReplicateController {
 	})
 	@PostMapping("ext")
 	void extPush(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Ext> exts
 	) {
+		logger.debug("Receiving push of {} exts", exts.size());
 		RuntimeException first = null;
 		for (var ext : exts) {
 			try {
+				ext.setOrigin(origin);
 				extService.push(ext);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
@@ -196,11 +207,14 @@ public class ReplicateController {
 	})
 	@PostMapping("user")
 	void userPush(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<User> users
 	) {
+		logger.debug("Receiving push of {} users", users.size());
 		RuntimeException first = null;
 		for (var user : users) {
 			try {
+				user.setOrigin(origin);
 				userService.push(user);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
@@ -244,11 +258,14 @@ public class ReplicateController {
 	})
 	@PostMapping("plugin")
 	void pluginPush(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Plugin> plugins
 	) {
+		logger.debug("Receiving push of {} plugins", plugins.size());
 		RuntimeException first = null;
 		for (var plugin : plugins) {
 			try {
+				plugin.setOrigin(origin);
 				pluginService.push(plugin);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;
@@ -292,11 +309,14 @@ public class ReplicateController {
 	})
 	@PostMapping("template")
 	void templatePush(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody @Valid List<Template> templates
 	) {
+		logger.debug("Receiving push of {} templates", templates.size());
 		RuntimeException first = null;
 		for (var template : templates) {
 			try {
+				template.setOrigin(origin);
 				templateService.push(template);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;

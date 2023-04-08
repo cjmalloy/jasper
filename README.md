@@ -2,13 +2,14 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.11-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.16-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
 To start the server, client and database with a single admin user, run
 the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/docker-compose.yaml)
-docker compose file.
+docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
+electron wrapper.
 
 ## Knowledge Management System
 Jasper is an open source knowledge management (KMS) system. A KMS is similar to a Content Management
@@ -284,8 +285,8 @@ data according to the Plugin schema.
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
 this plugin in all Ref metadata.  
-**User Url:** Flag to only allow this plugin on a User Url (`tag:/{tag}?user={user}`).
-This restricts the plugin to one Ref per user.
+**User Url:** Flag to only allow this plugin on a User Url, which is a specially constructed URL
+of the form `tag:/{tag}?user={user}`. This has the effect of restricting the plugin to one Ref per user.
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
@@ -379,6 +380,7 @@ It supports the following configuration options:
 
 | Environment Variable                                | Description                                                                                                                        | Default Value (in prod)                   |
 |-----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| `SERVER_PORT`                                       | Port to listen for HTTP connections.                                                                                               | `8081`                                    |
 | `SPRING_PROFILES_ACTIVE`                            | Set the comma separated list of runtime profiles.                                                                                  | `default`                                 |
 | `SPRING_DATASOURCE_URL`                             | PostgreSQL database connection string.                                                                                             | `jdbc:postgresql://localhost:5432/jasper` |
 | `SPRING_DATASOURCE_USERNAME`                        | PostgreSQL database username.                                                                                                      | `jasper`                                  |
@@ -388,17 +390,22 @@ It supports the following configuration options:
 | `JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`       | OAuth2 JWKS URI. Used in combination with the JWKS profile.                                                                        |                                           |
 | `JASPER_SECURITY_AUTHENTICATION_JWT_TOKEN_ENDPOINT` | Endpoint for requesting an access token. Required if the scim profile is enabled.                                                  |                                           |
 | `JASPER_SCIM_ENDPOINT`                              | Endpoint for a SCIM API. Required if the scim profile is enabled.                                                                  |                                           |
-| `JASPER_MAX_SOURCES`                                | Maximum number of Ref sources for POST or PUT.                                                                                     | 100                                       |
+| `JASPER_MAX_SOURCES`                                | Maximum number of Ref sources for POST or PUT.                                                                                     | 1000                                      |
 | `JASPER_INGEST_MAX_RETRY`                           | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                          | 5                                         |
+| `JASPER_REPLICATE_ORIGINS`                          | Whitelist origins to be allowed to replicate using +plugin/origin.                                                                 | 0                                         |
 | `JASPER_REPLICATE_DELAY_MIN`                        | Initial delay before replicating remote origins.                                                                                   | 0                                         |
 | `JASPER_REPLICATE_INTERVAL_MIN`                     | Interval between replicating remote origins.                                                                                       | 1                                         |
 | `JASPER_REPLICATE_BATCH`                            | Max number of each entity type to replicate in a batch.                                                                            | 5000                                      |
+| `JASPER_SCRAPE_ORIGINS`                             | Whitelist origins to be allowed to scrape using +plugin/feed.                                                                      | 0                                         |
 | `JASPER_SCRAPE_DELAY_MIN`                           | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                      | 0                                         |
 | `JASPER_SCRAPE_INTERVAL_MIN`                        | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                          | 1                                         |
 | `JASPER_MULTI_TENANT`                               | Enabled multi tenant mode. When false user permissions apply to all origins. When true user permissions apply to the local origin. | `false`                                   |
+| `JASPER_ALLOW_USER_TAG_HEADER`                      | Allow pre-authentication of a user via the `User-Tag` header.                                                                      | `false`                                   |
+| `JASPER_ALLOW_USER_ROLE_HEADER`                     | Allows escalating user role via `User-Role` header.                                                                                | `false`                                   |
 | `JASPER_ALLOW_LOCAL_ORIGIN_HEADER`                  | Allow overriding the local origin via the `Local-Origin` header.                                                                   | `false`                                   |
 | `JASPER_ALLOW_AUTH_HEADERS`                         | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers.     | `false`                                   |
 | `JASPER_DEFAULT_ROLE`                               | Default role if not present in access token.                                                                                       | `ROLE_ANONYMOUS`                          |
+| `JASPER_DEFAULT_USER`                               | Default user if `default-user` profile is active.                                                                                  | `ROLE_ANONYMOUS`                          |
 | `JASPER_USERNAME_CLAIM`                             | Claim in the access token to use as a username.                                                                                    | `sub`                                     |
 | `JASPER_ALLOW_USERNAME_CLAIM_ORIGIN`                | Allow origin in the JWT username claim.                                                                                            | `false`                                   |
 | `JASPER_AUTHORITIES_CLAIM`                          | Claim in the access token to use as authorities.                                                                                   | `auth`                                    |

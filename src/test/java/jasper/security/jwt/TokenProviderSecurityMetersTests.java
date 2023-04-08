@@ -45,7 +45,7 @@ class TokenProviderSecurityMetersTests {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(meterRegistry);
 
-        tokenProvider = new TokenProviderImpl(props, securityMetersService);
+        tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
         Key key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
         ReflectionTestUtils.setField(tokenProvider, "key", key);

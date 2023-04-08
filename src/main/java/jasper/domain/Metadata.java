@@ -27,17 +27,6 @@ public class Metadata {
 	private List<String> internalResponses;
 	private Map<String, List<String>> plugins;
 
-	// TODO: remote stats
-//	private List<String> origins;
-//	private List<String> sourcesAcrossOrigins;
-//	private List<String> responsesAcrossOrigins;
-//	private Map<String, String> pluginsAcrossOrigins;
-
-	// TODO: recursive stats
-//	private Long recursiveResponseCount;
-//	private Map<String, Long> recursivePluginCount;
-//	private Instant lastRecurse;
-
 	public void addResponse(String url) {
 		if (responses == null) {
 			responses = new ArrayList<>();
@@ -58,23 +47,21 @@ public class Metadata {
 		}
 	}
 
-	public void addPlugins(Map<String, String> add) {
+	public void addPlugins(List<String> add, String url) {
 		if (plugins == null) {
 			plugins = new HashMap<>();
 		}
 		var changed = false;
-		for (var e : add.entrySet()) {
-			var k = e.getKey();
-			var v = e.getValue();
-			if (plugins.containsKey(k)) {
-				var list = plugins.get(k);
-				if (!list.contains(v)) {
+		for (var plugin : add) {
+			if (plugins.containsKey(plugin)) {
+				var list = plugins.get(plugin);
+				if (!list.contains(url)) {
 					changed = true;
-					list.add(v);
+					list.add(url);
 				}
 			} else {
 				changed = true;
-				plugins.put(k, List.of(v));
+				plugins.put(plugin, List.of(url));
 			}
 		}
 		if (changed) modified = Instant.now();

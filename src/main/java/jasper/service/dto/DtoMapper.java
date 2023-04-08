@@ -35,9 +35,11 @@ public abstract class DtoMapper {
 	DateTimeFormatter smtp1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
 	DateTimeFormatter smtp2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z z", Locale.US);
 
+	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
 	@Mapping(target = "responses", source = "metadata.responses")
+	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
 	public abstract RefReplDto domainToReplDto(Ref ref);
