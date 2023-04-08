@@ -42,7 +42,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -220,13 +219,13 @@ public class Backup {
 		return Paths.get(props.getStorage(), "backups");
 	}
 
-	private static final Pattern INVALID_PATH = Pattern.compile("[./\\\\]");
 	Path path(String id) {
-		if (INVALID_PATH.matcher(id).find()) throw new NotFoundException("Illegal characters");
+		if (id.contains("/") || id.contains("\\")) throw new NotFoundException("Illegal characters");
 		return Paths.get(props.getStorage(), "backups", id + ".zip");
 	}
 
 	URI zipfs(String id) {
+		if (id.contains("/") || id.contains("\\")) throw new NotFoundException("Illegal characters");
 		return URI.create("jar:file:" + props.getStorage() + "/backups/" + id + ".zip");
 	}
 }
