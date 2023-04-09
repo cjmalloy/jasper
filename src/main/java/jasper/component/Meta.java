@@ -32,12 +32,14 @@ public class Meta {
 	public void update(Ref ref, Ref existing, List<String> metadataPlugins) {
 		if (metadataPlugins == null) {
 			var origin = ref != null ? ref.getOrigin() : existing.getOrigin();
+			// TODO: Need to consider the origin of the source when deciding to generate metadata
 			metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 		}
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			ref.setMetadata(Metadata
 				.builder()
+				// TODO: multi-tenant filter instead of all origins
 				.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), "internal"))
 				.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), "internal"))
 				.plugins(metadataPlugins
@@ -96,6 +98,7 @@ public class Meta {
 					logger.warn("Ref missing metadata: {}", existing.getUrl());
 					continue;
 				}
+				// TODO: Only do this part async, as we don't know if there is a duplicate response in another origin
 				old.remove(existing.getUrl());
 				source.setMetadata(old);
 				refRepository.save(source);

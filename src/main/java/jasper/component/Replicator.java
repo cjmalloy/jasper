@@ -97,7 +97,7 @@ public class Replicator {
 					pull.migrate(template, config);
 					templateRepository.save(template);
 				}
-				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(pull.getValidationOrigin());
+				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
 				for (var ref : client.refPull(url, options)) {
 					pull.migrate(ref, config);
