@@ -238,6 +238,8 @@ public class Replicator {
 				logger.error("Error pushing {} to origin {}", localOrigin, remoteOrigin, e);
 			}
 		});
+		remote.getPlugins().set("+plugin/origin/push", objectMapper.convertValue(push, JsonNode.class));
+		refRepository.save(remote);
 	}
 
 	private boolean allPushed(Push push, String localOrigin) {
