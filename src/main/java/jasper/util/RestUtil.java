@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.WebRequest;
 
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,8 +85,8 @@ public class RestUtil {
 		if (!(result instanceof RefDto ref)) return modified;
 		if (ref.getMetadata() == null) return modified;
 		if (ref.getMetadata().getModified() == null) return modified;
-		if (ref.getMetadata().getModified().isBefore(result.getModified())) return modified;
-		return ref.getMetadata().getModified().truncatedTo(ChronoUnit.MILLIS).toString();
+		if (Instant.parse(ref.getMetadata().getModified()).isBefore(result.getModified())) return modified;
+		return ref.getMetadata().getModified();
 	}
 
 	public interface GetModified<T> {

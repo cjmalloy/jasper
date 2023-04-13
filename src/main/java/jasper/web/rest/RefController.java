@@ -115,6 +115,8 @@ public class RefController {
 		@RequestParam(required = false) Instant publishedAfter,
 		@RequestParam(required = false) Instant createdBefore,
 		@RequestParam(required = false) Instant createdAfter,
+		@RequestParam(required = false) Instant responseBefore,
+		@RequestParam(required = false) Instant responseAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -161,7 +163,9 @@ public class RefController {
 				.publishedBefore(publishedBefore)
 				.publishedAfter(publishedAfter)
 				.createdBefore(createdBefore)
-				.createdAfter(createdAfter).build(),
+				.createdAfter(createdAfter)
+				.responseBefore(responseBefore)
+				.responseAfter(responseAfter).build(),
 			pageable));
 	}
 
@@ -185,6 +189,8 @@ public class RefController {
 		@RequestParam(required = false) Instant publishedAfter,
 		@RequestParam(required = false) Instant createdBefore,
 		@RequestParam(required = false) Instant createdAfter,
+		@RequestParam(required = false) Instant responseBefore,
+		@RequestParam(required = false) Instant responseAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -207,7 +213,9 @@ public class RefController {
 				.publishedBefore(publishedBefore)
 				.publishedAfter(publishedAfter)
 				.createdBefore(createdBefore)
-				.createdAfter(createdAfter).build());
+				.createdAfter(createdAfter)
+				.responseBefore(responseBefore)
+				.responseAfter(responseAfter).build());
 	}
 
 	@ApiResponses({

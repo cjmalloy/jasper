@@ -22,7 +22,7 @@ import java.util.Map;
 public class Metadata {
 
 	@Builder.Default
-	private Instant modified = Instant.now();
+	private String modified = Instant.now().toString();
 	private List<String> responses;
 	private List<String> internalResponses;
 	private Map<String, List<String>> plugins;
@@ -32,7 +32,7 @@ public class Metadata {
 			responses = new ArrayList<>();
 		}
 		if (!responses.contains(url)) {
-			modified = Instant.now();
+			modified = Instant.now().toString();
 			responses.add(url);
 		}
 	}
@@ -42,7 +42,7 @@ public class Metadata {
 			internalResponses = new ArrayList<>();
 		}
 		if (!internalResponses.contains(url)) {
-			modified = Instant.now();
+			modified = Instant.now().toString();
 			internalResponses.add(url);
 		}
 	}
@@ -64,11 +64,11 @@ public class Metadata {
 				plugins.put(plugin, List.of(url));
 			}
 		}
-		if (changed) modified = Instant.now();
+		if (changed) modified = Instant.now().toString();
 	}
 
 	public void remove(String url) {
-		modified = Instant.now();
+		modified = Instant.now().toString();
 		if (responses != null) responses.remove(url);
 		if (internalResponses != null) internalResponses.remove(url);
 		if (plugins != null) {

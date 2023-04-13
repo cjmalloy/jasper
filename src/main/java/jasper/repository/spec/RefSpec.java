@@ -203,7 +203,7 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 				cb.greaterThan(
-						root.get(Ref_.PUBLISHED),
+						root.get(Ref_.published),
 						i);
 	}
 
@@ -211,7 +211,7 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 				cb.lessThan(
-						root.get(Ref_.PUBLISHED),
+						root.get(Ref_.published),
 						i);
 	}
 
@@ -219,7 +219,7 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 				cb.greaterThan(
-						root.get(Ref_.CREATED),
+						root.get(Ref_.created),
 						i);
 	}
 
@@ -227,7 +227,25 @@ public class RefSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 				cb.lessThan(
-						root.get(Ref_.CREATED),
+						root.get(Ref_.created),
 						i);
+	}
+
+	public static Specification<Ref> isResponseAfter(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("modified")),
+				cb.literal(i.toString()));
+	}
+
+	public static Specification<Ref> isResponseBefore(Instant i) {
+		if (i == null) return null;
+		return (root, query, cb) ->
+			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("modified")),
+				cb.literal(i.toString()));
 	}
 }

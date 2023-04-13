@@ -25,6 +25,8 @@ import static jasper.repository.spec.RefSpec.isCreatedAfter;
 import static jasper.repository.spec.RefSpec.isCreatedBefore;
 import static jasper.repository.spec.RefSpec.isPublishedAfter;
 import static jasper.repository.spec.RefSpec.isPublishedBefore;
+import static jasper.repository.spec.RefSpec.isResponseAfter;
+import static jasper.repository.spec.RefSpec.isResponseBefore;
 import static jasper.repository.spec.RefSpec.isScheme;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
@@ -57,6 +59,8 @@ public class RefFilter implements Query {
 	private Instant publishedAfter;
 	private Instant createdBefore;
 	private Instant createdAfter;
+	private Instant responseBefore;
+	private Instant responseAfter;
 
 	public Specification<Ref> spec() {
 		var result = Specification.<Ref>where(null);
@@ -127,6 +131,12 @@ public class RefFilter implements Query {
 		}
 		if (createdAfter != null) {
 			result = result.and(isCreatedAfter(createdAfter));
+		}
+		if (responseBefore != null) {
+			result = result.and(isResponseBefore(responseBefore));
+		}
+		if (responseAfter != null) {
+			result = result.and(isResponseAfter(responseAfter));
 		}
 		return result;
 	}

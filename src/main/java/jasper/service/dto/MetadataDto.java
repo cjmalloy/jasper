@@ -12,7 +12,7 @@ import java.util.Map;
 @Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class MetadataDto {
-	private Instant modified = Instant.now();
+	private String modified = Instant.now().toString();
 	private int responses;
 	private int internalResponses;
 	private Map<String, Integer> plugins;
