@@ -57,6 +57,10 @@ public class BackupService {
 		return backup.get(id);
 	}
 
+	public byte[] getBackupPreauth(String id) {
+		return backup.get(id);
+	}
+
 	@PreAuthorize("@auth.sysAdmin()")
 	public void restoreBackup(String id, BackupOptionsDto options) {
 		if (!backup.exists(id)) throw new NotFoundException("Backup " + id);
