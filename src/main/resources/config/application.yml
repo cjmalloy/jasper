@@ -182,7 +182,7 @@ info:
 jasper:
   clientApp:
     name: 'jasperApp'
-  max-sources: 100
+  max-sources: 1000
   ingest-max-retry: 5
   replicate-delay-min: 0
   replicate-interval-min: 1
