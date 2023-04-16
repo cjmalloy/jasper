@@ -874,6 +874,72 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/ext/count:
+    get:
+      tags:
+        - Ext
+      operationId: countExts
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - 'tag,ASC'
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/query'
+        - name: modifiedBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: modifiedAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: integer
+                format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/plugin:
     get:
       tags:

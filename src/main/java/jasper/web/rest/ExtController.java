@@ -101,6 +101,27 @@ public class ExtController {
 	}
 
 	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+	})
+	@GetMapping("count")
+	long countExts(
+		WebRequest request,
+		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant modifiedBefore,
+		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
+	) {
+		return extService.count(
+			TagFilter.builder()
+				.query(query)
+				.search(search)
+				.modifiedBefore(modifiedBefore)
+				.modifiedAfter(modifiedAfter).build());
+	}
+
+	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
