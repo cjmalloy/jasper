@@ -22,9 +22,8 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	@Query("""
 		FROM Plugin AS p
 		WHERE p.origin = :origin
-			AND p.schema IS NOT NULL
 			AND p.tag = :tag""")
-	Optional<Plugin> findByTagAndOriginWithSchema(String tag, String origin);
+	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
 
 	// TODO: Cache this, it rarely changes
 	@Query("""

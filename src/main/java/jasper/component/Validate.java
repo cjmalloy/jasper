@@ -168,8 +168,11 @@ public class Validate {
 	}
 
 	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
-		if (plugin.isEmpty()) {
+		var plugin = pluginRepository.findByTagAndOrigin(tag, origin);
+		plugin.ifPresent(p -> {
+			if (p.isUserUrl()) userUrl(ref, p);
+		});
+		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) {
 				if (!stripOnError) throw new InvalidPluginException(tag);
@@ -177,9 +180,6 @@ public class Validate {
 			}
 			return;
 		}
-		plugin.ifPresent(p -> {
-			if (p.isUserUrl()) userUrl(ref, p);
-		});
 		var defaults = plugin
 			.map(Plugin::getDefaults)
 			.orElse(objectMapper.getNodeFactory().objectNode());
@@ -223,10 +223,8 @@ public class Validate {
 		var result = objectMapper.getNodeFactory().objectNode();
 		if (ref.getTags() == null) return result;
 		for (var tag : ref.getTags()) {
-			var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
-			if (plugin.isPresent()) {
-				result.set(tag, plugin.get().getDefaults());
-			}
+			var plugin = pluginRepository.findByTagAndOrigin(tag, ref.getOrigin());
+			plugin.ifPresent(p -> result.set(tag, p.getDefaults()));
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
 		return result;
