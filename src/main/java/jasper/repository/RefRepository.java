@@ -105,15 +105,36 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
 			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, :url) AND jsonb_exists(re.tags, 'internal') = false),
-			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, :url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'responses', metadata->'responses' - :response,
+			'internalResponses', metadata->'internalResponses' - :response,
+			'plugins', ((SELECT jsonb_object_agg(
+				p.key,
+				p.value - :response
+			) FROM json_each(metadata->'plugins') p))
+		))
+		WHERE r.url = :source""")
+	int removeSourceMetadataByUrl(String source, String response);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			'responses', CASE WHEN ((select count(*) from ref re where re.url = :response and NOT jsonb_exists(re.tags, 'internal')) > 0)
+				THEN metadata->'responses'
+				ELSE metadata->'responses' || :response END,
+			'internalResponses', CASE WHEN ((select count(*) from ref ire where ire.url = :response and jsonb_exists(ire.tags, 'internal')) > 0)
+				THEN metadata->'internalResponses' || :response
+				ELSE metadata->'internalResponses' END,
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
-				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, :url) AND jsonb_exists(pre.tags, p.tag) = true)
+				CASE WHEN ((select count(*) from ref pre where pre.url = :response and jsonb_exists(pre.tags, p.tag)) > 0)
+					THEN metadata->'plugins'->p.tag
+					ELSE coalesce(metadata->'plugins'->p.tag, '[]'\\:\\:jsonb) || :response END,
 			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
 		))
-		WHERE r.url = :url""")
-	int updateMetadataByUrl(String url, String validationOrigin);
+		WHERE r.url = :source""")
+	int addSourceMetadataByUrl(String source, String response, String validationOrigin);
 
 	@Modifying
 	@Query(nativeQuery = true, value = """

@@ -40,7 +40,7 @@ public class Meta {
 			// Added sources
 			for (var source : ref.getSources()) {
 				if (existing != null && existing.getSources() != null && existing.getSources().contains(source)) continue;
-				refRepository.updateMetadataByUrl(source, validationOrigin);
+				refRepository.addSourceMetadataByUrl(source, ref.getUrl(), validationOrigin);
 			}
 		}
 		if (existing != null && existing.getSources() != null) {
@@ -48,7 +48,7 @@ public class Meta {
 			for (var source : existing.getSources()) {
 				// Removed sources
 				if (ref != null && ref.getSources() != null && ref.getSources().contains(source)) continue;
-				refRepository.updateMetadataByUrl(source, validationOrigin);
+				refRepository.removeSourceMetadataByUrl(source, existing.getUrl());
 			}
 		}
 	}
