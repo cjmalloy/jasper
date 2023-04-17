@@ -97,19 +97,18 @@ public class Replicator {
 					pull.migrate(template, config);
 					templateRepository.save(template);
 				}
-				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
 				for (var ref : client.refPull(url, options)) {
 					pull.migrate(ref, config);
-					if (pull.isGenerateMetadata()) {
-						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-						meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
-					}
 					try {
 						if (pull.isValidatePlugins()) {
 							validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
 						}
+						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 						refRepository.save(ref);
+						if (pull.isGenerateMetadata()) {
+							meta.update(ref, maybeExisting.orElse(null), origin(pull.getValidationOrigin()));
+						}
 					} catch (RuntimeException e) {
 						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					}

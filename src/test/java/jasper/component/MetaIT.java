@@ -35,7 +35,7 @@ public class MetaIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester"));
 
-		meta.update(ref, null, null);
+		meta.update(ref, null);
 
 		assertThat(ref.getMetadata().getResponses()).isEmpty();
 		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
@@ -55,7 +55,7 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester"));
 
-		meta.update(child, null, null);
+		meta.update(child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
@@ -77,7 +77,7 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester", "internal"));
 
-		meta.update(child, null, null);
+		meta.update(child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
@@ -103,7 +103,7 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester", "plugin/comment", "internal"));
 
-		meta.update(child, null, null);
+		meta.update(child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();

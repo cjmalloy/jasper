@@ -90,6 +90,36 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
 			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, :url) AND jsonb_exists(re.tags, 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, :url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
+				p.tag,
+				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, :url) AND jsonb_exists(pre.tags, p.tag) = true)
+			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
+		))
+		WHERE r.url = :url AND r.origin = :origin""")
+	int updateMetadataByUrlAndOrigin(String url, String origin, String validationOrigin);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, :url) AND jsonb_exists(re.tags, 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, :url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
+				p.tag,
+				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, :url) AND jsonb_exists(pre.tags, p.tag) = true)
+			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
+		))
+		WHERE r.url = :url""")
+	int updateMetadataByUrl(String url, String validationOrigin);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
 			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.tags, 'internal') = false),
 			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.tags, 'internal') = true),
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
