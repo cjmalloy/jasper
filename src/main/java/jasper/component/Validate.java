@@ -13,7 +13,6 @@ import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
-import jasper.domain.User;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
@@ -210,11 +209,11 @@ public class Validate {
 	}
 
 	private void userUrl(Ref ref, Plugin plugin) {
-		var userTag = ref.getTags().stream().filter(User.REGEX::matches).findFirst();
-		if (userTag.isEmpty()) {
+		if (ref.getSources() == null || ref.getSources().size() != 1) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
-		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get() + ref.getOrigin()))) {
+		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
+		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForUser(ref.getSources().get(0), userTag.get()))) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 	}

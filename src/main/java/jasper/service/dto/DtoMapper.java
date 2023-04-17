@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -136,14 +137,12 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
-		if (source.getInternalResponses() == null) return;
+		if (source.getPlugins() == null) return;
 		if (auth.getUserTag() == null) return;
-		var start = "tag:/";
-		var ending = "?user=" + auth.getUserTag().toString();
-		target.setUserUrls(source.getInternalResponses().stream()
-			.filter(url -> url.startsWith(start))
-			.filter(url -> url.endsWith(ending))
-			.map(url -> url.substring(start.length(), url.length() - ending.length()))
+		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
+		target.setUserUrls(source.getPlugins().entrySet().stream()
+			.filter(e -> e.getValue().stream().anyMatch(url -> url.startsWith(prefix)))
+			.map(Map.Entry::getKey)
 			.toList()
 		);
 	}

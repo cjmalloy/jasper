@@ -2,14 +2,11 @@ package jasper.plugin;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import jasper.domain.Ref;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
 import java.time.Instant;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 
 @Getter
@@ -26,10 +23,4 @@ public class Push {
 	private Instant lastModifiedUserWritten;
 	private Instant lastModifiedPluginWritten;
 	private Instant lastModifiedTemplateWritten;
-
-	public static void migrate(Ref ref) {
-		if (isNotBlank(ref.getOrigin()) && ref.getUrl().startsWith("tag:") && !ref.getUrl().endsWith(ref.getOrigin())) {
-			ref.setUrl(ref.getUrl() + ref.getOrigin());
-		}
-	}
 }

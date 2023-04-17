@@ -42,7 +42,6 @@ import java.time.Instant;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
-import static jasper.plugin.Push.migrate;
 import static jasper.repository.filter.Query.QUERY_LEN;
 
 @RestController
@@ -112,7 +111,6 @@ public class ReplicateController {
 		for (var ref : refs) {
 			try {
 				ref.setOrigin(origin);
-				migrate(ref);
 				refService.push(ref);
 			} catch (RuntimeException e) {
 				first = first == null ? e : first;

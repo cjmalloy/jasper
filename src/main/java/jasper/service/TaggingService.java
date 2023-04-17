@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.removeTag;
 import static jasper.domain.proj.Tag.urlForUser;
 
 @Service
@@ -75,12 +76,9 @@ public class TaggingService {
 	@PreAuthorize("hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
-		var ref = getResponseRef(tag);
-		if (ref.getSources() == null) {
-			ref.setSources(new ArrayList<>());
-		}
-		if (!ref.getSources().contains(url)) {
-			ref.getSources().add(url);
+		var ref = getResponseRef(url);
+		if (!ref.getTags().contains(tag)) {
+			ref.getTags().add(tag);
 		}
 		ingest.update(ref, false);
 	}
@@ -88,37 +86,39 @@ public class TaggingService {
 	@PreAuthorize("hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
-		var ref = getResponseRef(tag);
-		if (ref.getSources() == null) {
-			ref.setSources(new ArrayList<>());
-		}
-		ref.getSources().remove(url);
+		var ref = getResponseRef(url);
+		removeTag(ref.getTags(), tag);
 		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
+		var ref = getResponseRef(url);
 		for (var tag : tags) {
 			if (tag.startsWith("-")) {
-				deleteResponse(tag.substring(1), url);
-			} else {
-				createResponse(tag, url);
+				removeTag(ref.getTags(), tag.substring(1));
+			} else if (!ref.getTags().contains(tag)) {
+				ref.getTags().add(tag);
 			}
 		}
 	}
 
-	private Ref getResponseRef(String tag) {
-		var url = urlForUser(tag, auth.getUserTag().toString());
-		return refRepository.findOneByUrlAndOrigin(url, auth.getOrigin()).map(ref -> {
-				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
+	private Ref getResponseRef(String url) {
+		var userUrl = urlForUser(url, auth.getUserTag().tag);
+		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
+				if (!ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
+				if (ref.getTags().contains("plugin/deleted")) {
+					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
+				}
 				return ref;
 			})
 			.orElseGet(() -> {
 				var ref = new Ref();
-				ref.setUrl(url);
+				ref.setUrl(userUrl);
 				ref.setOrigin(auth.getOrigin());
-				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag, tag)));
+				ref.setSources(new ArrayList<>(List.of(url)));
+				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
 				ingest.ingest(ref, false);
 				return ref;
 			});
