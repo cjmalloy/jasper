@@ -5,9 +5,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
 import jasper.service.dto.BackupOptionsDto;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("storage")
@@ -145,6 +149,17 @@ public class BackupController {
 			id = id.substring(0, id.length() - 4);
 		}
 		backupService.restoreBackup(id, options);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("backfill")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void backfill(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String validationOrigin
+	) {
+		backupService.backfill(validationOrigin);
 	}
 
 	@ApiResponses({

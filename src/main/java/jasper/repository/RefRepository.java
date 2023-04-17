@@ -5,6 +5,7 @@ import jasper.domain.RefId;
 import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -83,4 +84,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		ORDER BY cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) ASC
 		LIMIT 1""")
 	Optional<Ref> oldestNeedsPushByOrigin(String origin);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.tags, 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
+				p.tag,
+				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.tags, p.tag) = true)
+			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
+		))""")
+	int backfill(String validationOrigin);
+
 }

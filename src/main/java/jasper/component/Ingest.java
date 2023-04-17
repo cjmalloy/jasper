@@ -15,7 +15,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.List;
 
 @Component
 public class Ingest {
@@ -35,16 +34,6 @@ public class Ingest {
 
 	@Autowired
 	Meta meta;
-
-	// TODO: run async on schedule
-	void backfillMetadata() {
-		var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin("");
-		List<Ref> all = refRepository.findAll();
-		for (var ref : all) {
-			meta.update(ref, null, metadataPlugins);
-			refRepository.save(ref);
-		}
-	}
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref, boolean force) {

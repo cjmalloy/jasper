@@ -1,5 +1,6 @@
 package jasper.service;
 
+import io.micrometer.core.annotation.Timed;
 import jasper.component.Backup;
 import jasper.errors.NotFoundException;
 import jasper.security.Auth;
@@ -65,6 +66,12 @@ public class BackupService {
 	public void restoreBackup(String id, BackupOptionsDto options) {
 		if (!backup.exists(id)) throw new NotFoundException("Backup " + id);
 		backup.restore(id, options);
+	}
+
+	@PreAuthorize("@auth.sysMod()")
+	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
+	public void backfill(String validationOrigin) {
+		backup.backfill(validationOrigin);
 	}
 
 	@PreAuthorize("@auth.sysAdmin()")
