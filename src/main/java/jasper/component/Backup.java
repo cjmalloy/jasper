@@ -221,6 +221,13 @@ public class Backup {
 		Files.write(path, zipFile, StandardOpenOption.CREATE_NEW);
 	}
 
+	@Async
+	@Transactional
+	@Counted(value = "jasper.backfill")
+	public void backfill(String validationOrigin) {
+		refRepository.backfill(validationOrigin);
+	}
+
 	@Timed(value = "jasper.backup", histogram = true)
 	public void delete(String id) throws IOException {
 		Files.delete(path(id));
