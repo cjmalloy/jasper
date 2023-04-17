@@ -114,7 +114,7 @@ public class Ref implements HasTags {
 	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
 	private String voteScore;
 
-	@Formula("floor((COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)) * pow(0.5, extract(epoch FROM age(published)) / 3600))")
+	@Formula("floor((3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)) * pow(CASE WHEN 3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) > COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
 	private String voteScoreDecay;
 
 	@Column
