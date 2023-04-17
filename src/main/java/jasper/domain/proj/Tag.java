@@ -1,5 +1,7 @@
 package jasper.domain.proj;
 
+import java.util.List;
+
 public interface Tag extends HasOrigin {
 	String REGEX = "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*";
 	String QTAG_REGEX = REGEX + HasOrigin.REGEX;
@@ -17,5 +19,10 @@ public interface Tag extends HasOrigin {
 
 	static String urlForUser(String plugin, String user) {
 		return "tag:/" + plugin + "?user=" + user;
+	}
+
+	static boolean hasTag(List<String> tags, String tag) {
+		if (tags == null) return false;
+		return tags.contains(tag);
 	}
 }

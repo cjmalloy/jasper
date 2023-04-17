@@ -40,9 +40,9 @@ public class Ingest {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
 		validate.ref(ref, force);
-		meta.update(ref, null, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
+		meta.update(ref, null);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -51,8 +51,8 @@ public class Ingest {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
 		validate.ref(ref, force);
-		meta.update(ref, maybeExisting.get(), null);
 		ensureUniqueModified(ref);
+		meta.update(ref, maybeExisting.get());
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -60,8 +60,8 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
 		validate.ref(ref, true);
-		meta.update(ref, maybeExisting.orElse(null), null);
 		refRepository.save(ref);
+		meta.update(ref, maybeExisting.orElse(null));
 	}
 
 	private void ensureUniqueModified(Ref ref) {
@@ -84,8 +84,8 @@ public class Ingest {
 	public void delete(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		meta.update(null, maybeExisting.get(), null);
 		refRepository.deleteByUrlAndOrigin(url, origin);
+		meta.update(null, maybeExisting.get());
 	}
 
 }
