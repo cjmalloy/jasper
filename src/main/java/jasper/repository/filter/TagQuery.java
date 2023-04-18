@@ -43,14 +43,14 @@ public class TagQuery {
 			} else {
 				var value = n.isArray() ? _refSpec(n) : atom(n.textValue()).refSpec();
 				if (or && ands.size() > 0) {
-					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
 		if (ands.size() > 0) {
-			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
 	}
@@ -73,14 +73,14 @@ public class TagQuery {
 			} else {
 				Specification<T> value = n.isArray() ? _spec(n) : atom(n.textValue()).spec();
 				if (or && ands.size() > 0) {
-					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
 		if (ands.size() > 0) {
-			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
 	}
@@ -103,14 +103,14 @@ public class TagQuery {
 			} else {
 				var value = n.isArray() ? _templateSpec(n) : atom(n.textValue()).templateSpec();
 				if (or && ands.size() > 0) {
-					result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
 		if (ands.size() > 0) {
-			result = result.or(ands.stream().reduce((a, b) -> a == null ? b : a.and(b)).get());
+			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
 	}
