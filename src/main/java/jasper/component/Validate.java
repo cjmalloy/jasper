@@ -223,7 +223,9 @@ public class Validate {
 		if (ref.getTags() == null) return result;
 		for (var tag : ref.getTags()) {
 			var plugin = pluginRepository.findByTagAndOrigin(tag, ref.getOrigin());
-			plugin.ifPresent(p -> result.set(tag, p.getDefaults()));
+			plugin.ifPresent(p -> {
+				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
+			});
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
 		return result;
