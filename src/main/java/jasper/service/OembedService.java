@@ -69,9 +69,8 @@ public class OembedService {
 				for (var e : p.getEndpoints()) {
 					if (e.getSchemes() == null ) continue;
 					for (var s : e.getSchemes()) {
-						if (url.matches(s.replace("*", ".*"))) {
-							return e;
-						}
+						var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
+						if (url.matches(regex)) return e;
 					}
 				}
 			}
