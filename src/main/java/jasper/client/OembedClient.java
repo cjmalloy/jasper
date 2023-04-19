@@ -5,11 +5,12 @@ import feign.QueryMap;
 import feign.RequestLine;
 import org.springframework.cloud.openfeign.FeignClient;
 
+import java.net.URI;
 import java.util.Map;
 
-@FeignClient(value = "twitter", url = "https://publish.twitter.com")
-public interface TwitterClient {
+@FeignClient(value = "oembed")
+public interface OembedClient {
 
-	@RequestLine("GET /oembed")
-	JsonNode oembed(@QueryMap Map<String, String> params);
+	@RequestLine("GET")
+	JsonNode oembed(URI baseUri, @QueryMap Map<String, String> params);
 }
