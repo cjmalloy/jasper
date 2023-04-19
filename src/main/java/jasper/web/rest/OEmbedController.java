@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -31,7 +32,7 @@ public class OEmbedController {
 	OembedService oembedService;
 
 	@GetMapping()
-	JsonNode oembed(@RequestParam Map<String, String> params) throws URISyntaxException {
+	JsonNode oembed(@RequestParam Map<String, String> params) throws URISyntaxException, JsonProcessingException {
 		return oembedService.get(params);
 	}
 }

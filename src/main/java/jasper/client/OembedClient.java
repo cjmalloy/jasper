@@ -12,5 +12,5 @@ import java.util.Map;
 public interface OembedClient {
 
 	@RequestLine("GET")
-	JsonNode oembed(URI baseUri, @QueryMap Map<String, String> params);
+	String oembed(URI baseUri, @QueryMap Map<String, String> params);
 }

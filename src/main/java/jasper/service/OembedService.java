@@ -1,5 +1,6 @@
 package jasper.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional(readOnly = true)
@@ -45,10 +47,11 @@ public class OembedService {
 	@Cacheable("oembed")
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
-	public JsonNode get(Map<String, String> params) throws URISyntaxException {
+	public JsonNode get(Map<String, String> params) throws URISyntaxException, JsonProcessingException {
 		var config = getProvider(params.get("url"));
 		if (config == null) throw new NotFoundException("oembed");
-		return oembedClient.oembed(new URI(config.getUrl()), params);
+		params.put("format", "json");
+		return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl()), params));
 	}
 
 	@Cacheable("oembed-provider")
