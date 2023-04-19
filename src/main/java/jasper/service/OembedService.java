@@ -13,6 +13,7 @@ import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class OembedService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Cacheable("oembed")
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) throws URISyntaxException {
@@ -49,6 +51,7 @@ public class OembedService {
 		return oembedClient.oembed(new URI(config.getUrl()), params);
 	}
 
+	@Cacheable("oembed-provider")
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public Oembed.Endpoints getProvider(String url) {
