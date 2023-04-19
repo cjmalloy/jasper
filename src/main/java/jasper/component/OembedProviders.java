@@ -37,16 +37,18 @@ public class OembedProviders {
 	}
 
 	public void create(List<Oembed> providers) {
-		for (var p : providers) {
-			var ref = new Ref();
-			ref.setUrl(p.getProvider_url());
-			ref.setOrigin(props.getLocalOrigin());
-			ref.setTitle(p.getProvider_name());
-			ref.setTags(List.of("public", "internal", "+plugin/oembed"));
-			var plugins = objectMapper.createObjectNode();
-			plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
-			ref.setPlugins(plugins);
-			refRepository.save(ref);
+			for (var p : providers) {
+				var ref = new Ref();
+				ref.setUrl(p.getProvider_url());
+				ref.setTitle(p.getProvider_name());
+				ref.setTags(List.of("public", "internal", "+plugin/oembed"));
+				var plugins = objectMapper.createObjectNode();
+				plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
+				ref.setPlugins(plugins);
+				for (var origin : props.getOembedOrigins()) {
+					ref.setOrigin(origin);
+					refRepository.save(ref);
+			}
 		}
 	}
 }
