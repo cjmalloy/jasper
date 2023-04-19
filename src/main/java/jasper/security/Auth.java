@@ -248,7 +248,7 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
-		var qt = selector(tag + getOrigin());
+		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
 		return captures(getTagReadAccess(), qt);
 	}
@@ -332,7 +332,7 @@ public class Auth {
 	 */
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
-		var qt = selector(qualifiedTag);
+		var qt = qt(qualifiedTag);
 		// In single tenant mode, non private tags are all readable
 		// In multi tenant mode, local non private tags are all readable
 		if (!isPrivateTag(qualifiedTag) && (!props.isMultiTenant() || local(qt.origin))) return true;
@@ -349,7 +349,7 @@ public class Auth {
 	 * Can the user modify the associated Ext and User entities of a tag?
 	 */
 	public boolean canWriteTag(String qualifiedTag) {
-		var qt = selector(qualifiedTag);
+		var qt = qt(qualifiedTag);
 		// Only writing to the local origin ever permitted
 		if (!local(qt.origin)) return false;
 		// Mods can write anything in their origin
@@ -372,7 +372,7 @@ public class Auth {
 	}
 
 	public boolean isUser(String qualifiedTag) {
-		return isUser(selector(qualifiedTag));
+		return isUser(qt(qualifiedTag));
 	}
 
 	public boolean owns(List<QualifiedTag> qt) {
@@ -420,7 +420,7 @@ public class Auth {
 	 */
 	public boolean canWriteUser(String tag) {
 		// Only writing to the local origin ever permitted
-		if (!local(selector(tag).origin)) return false;
+		if (!local(qt(tag).origin)) return false;
 		if (hasRole(MOD)) return true;
 		if (!canWriteTag(tag)) return false;
 		var role = userRepository.findOneByQualifiedTag(tag).map(User::getRole).orElse(null);
@@ -484,7 +484,7 @@ public class Auth {
 
 	protected boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
-		var qt = selector(tag + getOrigin());
+		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true; // Viewers may only edit their user ext
 		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), qt);
@@ -493,7 +493,7 @@ public class Auth {
 	protected boolean writeAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
-		var qt = selector(tag + getOrigin());
+		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
 		return captures(getWriteAccess(), qt);
 	}

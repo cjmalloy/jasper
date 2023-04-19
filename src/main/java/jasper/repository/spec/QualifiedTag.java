@@ -13,32 +13,47 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
 import static jasper.repository.spec.TemplateSpec.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class QualifiedTag {
-	public static final String SELECTOR = "(?:\\*|" + Tag.REGEX + "|(?:" + Tag.REGEX + ")?(?:" + HasOrigin.REGEX_NOT_BLANK + "|@\\*))";
+	public static final String SELECTOR = "(?:\\*|" + Tag.REGEX + "|(?:" + Tag.REGEX + ")?(?:" + HasOrigin.REGEX_NOT_BLANK + "|@\\*?))";
 
 	public final boolean not;
 	public final String tag;
 	public final String origin;
 
 	protected QualifiedTag(String qt) {
-		not = qt.startsWith("!");
-		if (not) qt = qt.substring(1);
-		var index = qt.indexOf("@");
-		if (index == -1) {
-			tag = qt.equals("*") ? "" : qt;
+		if (isBlank(qt)) {
+			not = false;
+			tag =  "";
 			origin = "";
 		} else {
-			tag = qt.substring(0, index);
-			origin = qt.substring(index);
-			if (origin.equals("@")) throw new UnsupportedOperationException();
+			not = qt.startsWith("!");
+			if (not) qt = qt.substring(1);
+			var index = qt.indexOf("@");
+			if (index == -1) {
+				if (qt.equals("*")) {
+					tag =  "";
+					origin = "";
+				} else {
+					tag =  qt;
+					origin = "@*";
+				}
+			} else {
+				var rhs = qt.substring(index);
+				tag = qt.substring(0, index);
+				origin = rhs.equals("@") ? "" : rhs;
+			}
 		}
 	}
 
 	@Override
 	public String toString() {
-		return (not ? "!" : "") + tag + origin;
+		return (not ? "!" : "") + tag
+			+ (isBlank(origin) ? "@"
+			: origin.equals("@*") ? ""
+			: origin);
 	}
 
 	public boolean matches(String qt) {
@@ -84,6 +99,7 @@ public class QualifiedTag {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
 		if (qt.startsWith("*")) throw new UnsupportedOperationException();
 		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
+		if (!qt.contains("@")) qt += "@";
 		return new QualifiedTag(qt);
 	}
 

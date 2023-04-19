@@ -30,7 +30,7 @@ import java.util.HashSet;
 import java.util.Objects;
 
 import static jasper.domain.proj.Tag.urlForUser;
-import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.repository.spec.QualifiedTag.qt;
 
 @Component
 public class Validate {
@@ -112,7 +112,7 @@ public class Validate {
 	}
 
 	public JsonNode templateDefaults(String qualifiedTag) {
-		var qt = selector(qualifiedTag);
+		var qt = qt(qualifiedTag);
 		var templates = templateRepository.findAllForTagAndOriginWithSchema(qt.tag, qt.origin);
 		return templates
 			.stream()
