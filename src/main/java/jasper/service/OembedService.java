@@ -51,7 +51,7 @@ public class OembedService {
 		var config = getProvider(params.get("url"));
 		if (config == null) throw new NotFoundException("oembed");
 		params.put("format", "json");
-		return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl()), params));
+		return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
 	}
 
 	@Cacheable("oembed-provider")
