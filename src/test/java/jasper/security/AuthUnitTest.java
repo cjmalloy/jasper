@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
@@ -54,7 +55,7 @@ public class AuthUnitTest {
 
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
-		var qt = selector(userTag);
+		var qt = qt(userTag);
 		u.setTag(qt.tag);
 		u.setOrigin(qt.origin);
 		u.setReadAccess(new ArrayList<>(List.of(tags)));

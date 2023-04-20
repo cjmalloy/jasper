@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
@@ -61,7 +62,7 @@ public class AbstractJwtTokenProviderUnitTest {
 
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
-		var qt = selector(userTag);
+		var qt = qt(userTag);
 		u.setTag(qt.tag);
 		u.setOrigin(qt.origin);
 		u.setReadAccess(new ArrayList<>(List.of(tags)));

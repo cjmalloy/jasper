@@ -51,7 +51,7 @@ public class QualifiedTag {
 	@Override
 	public String toString() {
 		return (not ? "!" : "") + tag
-			+ (isBlank(origin) ? "@"
+			+ (origin.equals("@") ? ""
 			: origin.equals("@*") ? ""
 			: origin);
 	}
@@ -129,9 +129,18 @@ public class QualifiedTag {
 	}
 
 	public static List<QualifiedTag> qtList(String defaultOrigin, List<String> tags) {
+		var origin = isBlank(defaultOrigin) ? "@" : defaultOrigin;
 		return tags.stream()
-			.map(t -> t.contains("@") ? t : t + defaultOrigin)
-			.map(QualifiedTag::new)
+			.map(t -> t.contains("@") ? t : t + origin)
+			.map(QualifiedTag::qt)
+			.collect(Collectors.toList());
+	}
+
+	public static List<QualifiedTag> selectors(String defaultOrigin, List<String> tags) {
+		var origin = isBlank(defaultOrigin) ? "@" : defaultOrigin;
+		return tags.stream()
+			.map(t -> t.contains("@") ? t : t + origin)
+			.map(QualifiedTag::selector)
 			.collect(Collectors.toList());
 	}
 }

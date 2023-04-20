@@ -86,6 +86,7 @@ jasper:
   max-replicate-batch: 5000
   scrape-delay-min: 5
   scrape-interval-min: 1
+  oembed-origins: []
   default-role: ROLE_USER
   username-claim: sub
   logging:

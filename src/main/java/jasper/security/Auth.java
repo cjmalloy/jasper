@@ -44,6 +44,7 @@ import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.repository.spec.QualifiedTag.selectors;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.notPrivateTag;
@@ -619,7 +620,7 @@ public class Auth {
 			}
 			if (isLoggedIn()) {
 				readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
-				readAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+				readAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
 			}
@@ -638,7 +639,7 @@ public class Auth {
 			}
 			if (isLoggedIn()) {
 				writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
-				writeAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+				writeAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getWriteAccess)
 						.orElse(List.of())));
 			}
@@ -657,7 +658,7 @@ public class Auth {
 			}
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
-				tagReadAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+				tagReadAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagReadAccess)
 						.orElse(List.of())));
 			}
@@ -676,7 +677,7 @@ public class Auth {
 			}
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
-				tagWriteAccess.addAll(qtList(getMultiTenantOrigin(), getUser()
+				tagWriteAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagWriteAccess)
 						.orElse(List.of())));
 			}
