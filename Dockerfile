@@ -1,15 +1,16 @@
 FROM maven:openjdk as builder
 WORKDIR app
 COPY pom.xml .
-RUN mvn -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r target
+COPY .m2/settings.xml .
+RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r target
 COPY src ./src
-RUN mvn -B package -Dmaven.test.skip
+RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
 # java -Djarmode=layertools -jar target/docker-spring-boot-0.0.1.jar list
 RUN java -Djarmode=layertools -jar target/*.jar extract
 
 FROM builder as test
-CMD mvn test; \
+CMD mvn -gs settings.xml test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/
 
