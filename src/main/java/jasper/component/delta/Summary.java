@@ -6,6 +6,7 @@ import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
+import jasper.domain.User;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import lombok.Getter;
@@ -50,6 +51,7 @@ public class Summary implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) {
 		if (ref.hasPluginResponse("+plugin/summary")) return;
+		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/summary"));
 		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
@@ -71,7 +73,19 @@ public class Summary implements Async.AsyncRunner {
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		response.setSources(List.of(ref.getUrl()));
-		response.setTags(new ArrayList<>(List.of("public", "summary", "+plugin/summary", "internal", "plugin/comment")));
+		response.setTags(new ArrayList<>(List.of("+plugin/summary")));
+		var tags = new ArrayList<String>();
+		if (ref.getTags().contains("public")) tags.add("public");
+		if (ref.getTags().contains("dm")) tags.add("dm");
+		if (ref.getTags().contains("internal")) tags.add("internal");
+		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
+		if (author != null) tags.add("plugin/inbox/" + author.substring(1));
+		for (var t : ref.getTags()) {
+			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
+				tags.add(t);
+			}
+		}
+		response.addTags(tags);
 		ingest.ingest(response, false);
 	}
 

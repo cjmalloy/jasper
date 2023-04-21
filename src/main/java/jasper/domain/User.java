@@ -151,4 +151,11 @@ public class User implements Tag {
 	public int hashCode() {
 		return Objects.hash(tag, origin);
 	}
+
+	public static boolean isUser(String t) {
+		return t.startsWith("+user") ||
+			t.startsWith("_user") ||
+			t.startsWith("+user/") ||
+			t.startsWith("_user/");
+	}
 }

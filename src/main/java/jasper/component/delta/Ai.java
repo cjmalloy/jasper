@@ -8,6 +8,7 @@ import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
+import jasper.domain.User;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import lombok.Getter;
@@ -54,7 +55,7 @@ public class Ai implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) throws JsonProcessingException {
 		if (ref.hasPluginResponse("+plugin/ai")) return;
-		var author = ref.getTags().stream().filter(this::isUser).findFirst().orElse(null);
+		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		if (author == null) {
 			logger.warn("plugin/api chat requires author");
 			return;
@@ -85,15 +86,20 @@ public class Ai implements Async.AsyncRunner {
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		response.setSources(List.of(ref.getUrl()));
-		response.setTags(new ArrayList<>(List.of("public", "ai", "+plugin/ai", "internal", "plugin/comment", "plugin/inbox/" + author.substring(1))));
+		response.setTags(new ArrayList<>(List.of("+plugin/ai")));
+		var tags = new ArrayList<String>();
+		if (ref.getTags().contains("public")) tags.add("public");
+		if (ref.getTags().contains("dm")) tags.add("dm");
+		if (ref.getTags().contains("internal")) tags.add("internal");
+		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
+		if (author != null) tags.add("plugin/inbox/" + author.substring(1));
+		for (var t : ref.getTags()) {
+			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
+				tags.add(t);
+			}
+		}
+		response.addTags(tags);
 		ingest.ingest(response, false);
-	}
-
-	private boolean isUser(String t) {
-		return t.startsWith("+user") ||
-			t.startsWith("_user") ||
-			t.startsWith("+user/") ||
-			t.startsWith("_user/");
 	}
 
 	@Getter
