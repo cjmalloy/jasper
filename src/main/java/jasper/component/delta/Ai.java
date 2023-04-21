@@ -56,10 +56,6 @@ public class Ai implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		if (ref.hasPluginResponse("+plugin/ai")) return;
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		if (author == null) {
-			logger.warn("plugin/api chat requires author");
-			return;
-		}
 		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
@@ -85,8 +81,7 @@ public class Ai implements Async.AsyncRunner {
 		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
-		response.setSources(List.of(ref.getUrl()));
-		response.setTags(new ArrayList<>(List.of("+plugin/ai")));
+		response.setTags(new ArrayList<>(List.of("+plugin/ai", "plugin/latex")));
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
 		if (ref.getTags().contains("dm")) tags.add("dm");
@@ -99,6 +94,20 @@ public class Ai implements Async.AsyncRunner {
 			}
 		}
 		response.addTags(tags);
+		var sources = new ArrayList<>(List.of(ref.getUrl()));
+		if (response.getTags().contains("dm") ||
+			response.getTags().contains("plugin/comment") ||
+			response.getTags().contains("plugin/email")) {
+			// Add top comment source
+			if (ref.getSources() != null && ref.getSources().size() > 0) {
+				if (ref.getSources().size() > 1) {
+					sources.add(ref.getSources().get(1));
+				} else {
+					sources.add(ref.getSources().get(0));
+				}
+			}
+		}
+		response.setSources(sources);
 		ingest.ingest(response, false);
 	}
 

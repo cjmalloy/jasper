@@ -72,7 +72,6 @@ public class Summary implements Async.AsyncRunner {
 		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
-		response.setSources(List.of(ref.getUrl()));
 		response.setTags(new ArrayList<>(List.of("+plugin/summary")));
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
@@ -86,6 +85,20 @@ public class Summary implements Async.AsyncRunner {
 			}
 		}
 		response.addTags(tags);
+		var sources = new ArrayList<>(List.of(ref.getUrl()));
+		if (response.getTags().contains("dm") ||
+			response.getTags().contains("plugin/comment") ||
+			response.getTags().contains("plugin/email")) {
+			// Add top comment source
+			if (ref.getSources() != null && ref.getSources().size() > 0) {
+				if (ref.getSources().size() > 1) {
+					sources.add(ref.getSources().get(1));
+				} else {
+					sources.add(ref.getSources().get(0));
+				}
+			}
+		}
+		response.setSources(sources);
 		ingest.ingest(response, false);
 	}
 
