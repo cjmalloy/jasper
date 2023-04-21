@@ -83,4 +83,11 @@ public class OpenAi {
 			throw e;
 		}
 	}
+
+	public static ChatMessage cm(String role, String content) {
+		var result = new ChatMessage();
+		result.setRole(role);
+		result.setContent(content);
+		return result;
+	}
 }

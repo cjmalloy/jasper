@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static jasper.component.OpenAi.cm;
+
 @Profile("ai")
 @Component
 public class Ai implements Async.AsyncRunner {
@@ -83,14 +85,6 @@ public class Ai implements Async.AsyncRunner {
 		response.setTags(new ArrayList<>(List.of("public", "ai", "+plugin/ai", "internal", "plugin/comment", "plugin/inbox/" + author.substring(1))));
 		ingest.ingest(response, false);
 	}
-
-	private ChatMessage cm(String role, String content) {
-		var result = new ChatMessage();
-		result.setRole(role);
-		result.setContent(content);
-		return result;
-	}
-
 
 	private boolean isUser(String t) {
 		return t.startsWith("+user") ||
