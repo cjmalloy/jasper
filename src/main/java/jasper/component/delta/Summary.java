@@ -75,8 +75,10 @@ public class Summary implements Async.AsyncRunner {
 		response.setTags(new ArrayList<>(List.of("+plugin/summary")));
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
+		if (ref.getTags().contains("internal")) tags.add("internal");
 		if (ref.getTags().contains("dm")) tags.add("dm");
 		if (ref.getTags().contains("dm")) tags.add("internal");
+		if (ref.getTags().contains("dm")) tags.add("plugin/thread");
 		if (ref.getTags().contains("internal")) tags.add("internal");
 		if (ref.getTags().contains("plugin/comment")) tags.add("internal");
 		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
