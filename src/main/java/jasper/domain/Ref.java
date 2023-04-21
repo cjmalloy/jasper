@@ -132,6 +132,13 @@ public class Ref implements HasTags {
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 
+	public boolean hasPluginResponse(String tag) {
+		if (metadata == null) return false;
+		if (metadata.getPlugins() == null) return false;
+		if (!metadata.getPlugins().containsKey(tag)) return false;
+		return !metadata.getPlugins().get(tag).isEmpty();
+	}
+
 	public void setOrigin(String value) {
 		origin = value == null ? "" : value;
 	}
