@@ -45,7 +45,7 @@ public class Summary implements Async.AsyncRunner {
 		if (ref.hasPluginResponse("+plugin/summary")) return;
 		var response = new Ref();
 		try {
-			var res = openAi.completion(String.join("\n\n",
+			var res = openAi.completion("", String.join("\n\n",
 				"Summarize the following:",
 				"Title: " + ref.getTitle(),
 				"Tags: " + String.join(", ", ref.getTags()),

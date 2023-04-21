@@ -2,7 +2,8 @@ package jasper.component.delta;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.completion.CompletionChoice;
+import com.theokanning.openai.completion.chat.ChatCompletionChoice;
+import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
@@ -61,14 +62,17 @@ public class Ai implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.completion(String.join("\n\n",
-				config.getSystemPrompt(),
-				config.getAuthorPrompt().replace("{author}", author),
-				"Title: " + ref.getTitle(),
-				"Tags: " + String.join(", ", ref.getTags()),
-				ref.getComment(),
-				config.getInstructionPrompt()));
-			response.setComment(res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n")));
+			var messages = List.of(
+				cm("system", config.getSystemPrompt()),
+				cm("user", String.join("\n\n",
+					config.getAuthorPrompt().replace("{author}", author),
+					"Title: " + ref.getTitle(),
+					"Tags: " + String.join(", ", ref.getTags()),
+					ref.getComment(),
+					config.getInstructionPrompt()))
+			);
+			var res = openAi.chat(messages);
+			response.setComment(res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
 		} catch (Exception e) {
 			response.setComment("Error invoking AI. " + e.getMessage());
@@ -78,6 +82,13 @@ public class Ai implements Async.AsyncRunner {
 		response.setSources(List.of(ref.getUrl()));
 		response.setTags(new ArrayList<>(List.of("public", "ai", "+plugin/ai", "internal", "plugin/comment", "plugin/inbox/" + author.substring(1))));
 		ingest.ingest(response, false);
+	}
+
+	private ChatMessage cm(String role, String content) {
+		var result = new ChatMessage();
+		result.setRole(role);
+		result.setContent(content);
+		return result;
 	}
 
 
