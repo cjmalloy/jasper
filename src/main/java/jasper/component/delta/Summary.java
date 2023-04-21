@@ -76,8 +76,11 @@ public class Summary implements Async.AsyncRunner {
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
 		if (ref.getTags().contains("dm")) tags.add("dm");
+		if (ref.getTags().contains("dm")) tags.add("internal");
 		if (ref.getTags().contains("internal")) tags.add("internal");
+		if (ref.getTags().contains("plugin/comment")) tags.add("internal");
 		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
+		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/thread");
 		if (author != null) tags.add("plugin/inbox/" + author.substring(1));
 		for (var t : ref.getTags()) {
 			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
@@ -86,9 +89,7 @@ public class Summary implements Async.AsyncRunner {
 		}
 		response.addTags(tags);
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
-		if (response.getTags().contains("dm") ||
-			response.getTags().contains("plugin/comment") ||
-			response.getTags().contains("plugin/email")) {
+		if (response.getTags().contains("plugin/thread")) {
 			// Add top comment source
 			if (ref.getSources() != null && ref.getSources().size() > 0) {
 				if (ref.getSources().size() > 1) {

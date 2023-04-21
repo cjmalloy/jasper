@@ -42,7 +42,7 @@ public class SmtpService {
 				PageRequest.of(0, 1, Sort.by(Sort.Order.desc(Ref_.PUBLISHED))));
 		if (!source.isEmpty()) {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
-			ref.getTags().add("internal");
+			ref.addTags(List.of("internal", "plugin/thread"));
 		}
 		refService.create(ref, false);
 	}
