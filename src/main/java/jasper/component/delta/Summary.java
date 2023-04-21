@@ -6,6 +6,10 @@ import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
+import jasper.errors.NotFoundException;
+import jasper.repository.PluginRepository;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +37,9 @@ public class Summary implements Async.AsyncRunner {
 	OpenAi openAi;
 
 	@Autowired
+	PluginRepository pluginRepository;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@PostConstruct
@@ -43,6 +50,9 @@ public class Summary implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) {
 		if (ref.hasPluginResponse("+plugin/summary")) return;
+		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/summary"));
+		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
 		var response = new Ref();
 		try {
 			var res = openAi.completion("", String.join("\n\n",
@@ -56,9 +66,18 @@ public class Summary implements Async.AsyncRunner {
 			response.setComment("Error creating the summary. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
 		}
+		var title = ref.getTitle();
+		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
+		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		response.setSources(List.of(ref.getUrl()));
 		response.setTags(new ArrayList<>(List.of("public", "summary", "+plugin/summary", "internal", "plugin/comment")));
 		ingest.ingest(response, false);
+	}
+
+	@Getter
+	@Setter
+	private static class SummaryConfig {
+		private String titlePrefix;
 	}
 }

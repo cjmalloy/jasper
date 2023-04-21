@@ -80,6 +80,9 @@ public class Ai implements Async.AsyncRunner {
 			response.setComment("Error invoking AI. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
 		}
+		var title = ref.getTitle();
+		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
+		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		response.setSources(List.of(ref.getUrl()));
 		response.setTags(new ArrayList<>(List.of("public", "ai", "+plugin/ai", "internal", "plugin/comment", "plugin/inbox/" + author.substring(1))));
@@ -96,6 +99,7 @@ public class Ai implements Async.AsyncRunner {
 	@Getter
 	@Setter
 	private static class AiConfig {
+		private String titlePrefix;
 		private String systemPrompt;
 		private String authorPrompt;
 		private String instructionPrompt;
