@@ -36,7 +36,7 @@ public class OpenAi {
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment());
 		CompletionRequest completionRequest = CompletionRequest.builder()
-			.maxTokens(2048)
+			.maxTokens(1024)
 			.prompt(systemPrompt + "\n\n" +
 				"Prompt: " + prompt + "\n\n" +
 				"Reply:")
@@ -46,16 +46,24 @@ public class OpenAi {
 		try {
 			return service.createCompletion(completionRequest);
 		} catch (OpenAiHttpException e) {
-			if (e.statusCode == 400) {
+			if ("context_length_exceeded".equals(e.code)) {
 				completionRequest.setMaxTokens(400);
 				try {
 					return service.createCompletion(completionRequest);
 				} catch (OpenAiHttpException second) {
+					if ("context_length_exceeded".equals(second.code)) {
+						completionRequest.setMaxTokens(20);
+						try {
+							return service.createCompletion(completionRequest);
+						} catch (OpenAiHttpException third) {
+							throw e;
+						}
+					}
 					throw e;
 				}
 			}
+			throw e;
 		}
-		return null;
 	}
 
 	public ChatCompletionResult chat(List<ChatMessage> messages) {
@@ -65,18 +73,26 @@ public class OpenAi {
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment());
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(4096)
+			.maxTokens(2048)
 			.messages(messages)
 			.model("gpt-3.5-turbo")
 			.build();
 		try {
 			return service.createChatCompletion(completionRequest);
 		} catch (OpenAiHttpException e) {
-			if (e.statusCode == 400) {
-				completionRequest.setMaxTokens(400);
+			if ("context_length_exceeded".equals(e.code)) {
 				try {
+					completionRequest.setMaxTokens(400);
 					return service.createChatCompletion(completionRequest);
 				} catch (OpenAiHttpException second) {
+					if ("context_length_exceeded".equals(second.code)) {
+						try {
+							completionRequest.setMaxTokens(20);
+							return service.createChatCompletion(completionRequest);
+						} catch (OpenAiHttpException third) {
+							throw e;
+						}
+					}
 					throw e;
 				}
 			}
