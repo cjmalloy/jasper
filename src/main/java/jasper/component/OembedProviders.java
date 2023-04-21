@@ -9,6 +9,7 @@ import jasper.plugin.Oembed;
 import jasper.repository.RefRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.List;
 
+@Profile("oembed")
 @Component
 public class OembedProviders {
 
