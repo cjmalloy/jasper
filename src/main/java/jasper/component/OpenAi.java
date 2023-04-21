@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
 
 import static jasper.repository.spec.QualifiedTag.selector;
@@ -34,7 +35,7 @@ public class OpenAi {
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
-		OpenAiService service = new OpenAiService(key.get(0).getComment());
+		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		CompletionRequest completionRequest = CompletionRequest.builder()
 			.maxTokens(1024)
 			.prompt(systemPrompt + "\n\n" +
@@ -71,7 +72,7 @@ public class OpenAi {
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
-		OpenAiService service = new OpenAiService(key.get(0).getComment());
+		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
 			.maxTokens(2048)
 			.messages(messages)
