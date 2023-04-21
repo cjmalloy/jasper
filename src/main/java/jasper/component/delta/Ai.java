@@ -47,6 +47,9 @@ public class Ai implements Async.AsyncRunner {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	RefMapper refMapper;
+
 	@PostConstruct
 	void init() {
 		async.addAsync("plugin/ai", this);
@@ -61,15 +64,10 @@ public class Ai implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
 		var response = new Ref();
 		try {
-			var messages = List.of(
+			var messages = new ArrayList<>(List.of(
 				cm("system", config.getSystemPrompt()),
-				cm("user", String.join("\n\n",
-					config.getAuthorPrompt().replace("{author}", author),
-					"Title: " + ref.getTitle(),
-					"Tags: " + String.join(", ", ref.getTags()),
-					ref.getComment(),
-					config.getInstructionPrompt()))
-			);
+				cm("user", objectMapper.writeValueAsString(refMapper.domainToDto(ref)))
+			));
 			var res = openAi.chat(messages);
 			response.setComment(res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
@@ -119,6 +117,5 @@ public class Ai implements Async.AsyncRunner {
 		private String titlePrefix;
 		private String systemPrompt;
 		private String authorPrompt;
-		private String instructionPrompt;
 	}
 }
