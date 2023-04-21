@@ -33,7 +33,7 @@ public class Async {
 
 	Map<String, AsyncRunner> tasks = new HashMap<>();
 
-	@Scheduled(fixedDelay = 15000)
+	@Scheduled(fixedDelay = 3000)
 	public void drainAsyncTask() {
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
