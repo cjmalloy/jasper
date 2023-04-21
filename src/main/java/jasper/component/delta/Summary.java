@@ -56,7 +56,7 @@ public class Summary implements Async.AsyncRunner {
 		var response = new Ref();
 		try {
 			var res = openAi.completion("", String.join("\n\n",
-				"Summarize the following:",
+				config.getSystemPrompt(),
 				"Title: " + ref.getTitle(),
 				"Tags: " + String.join(", ", ref.getTags()),
 				ref.getComment()));
@@ -79,5 +79,6 @@ public class Summary implements Async.AsyncRunner {
 	@Setter
 	private static class SummaryConfig {
 		private String titlePrefix;
+		private String systemPrompt;
 	}
 }
