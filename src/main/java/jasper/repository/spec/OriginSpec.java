@@ -10,7 +10,7 @@ public class OriginSpec {
 		return (root, query, cb) ->
 			cb.equal(
 				root.get("origin"),
-				origin);
+				origin.equals("@") ? "" : origin);
 	}
 
 	public static <T extends HasOrigin> Specification<T> any() {
