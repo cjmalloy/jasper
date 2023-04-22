@@ -1,5 +1,6 @@
 package jasper.component.delta;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theokanning.openai.completion.CompletionChoice;
 import jasper.component.Ingest;
@@ -51,6 +52,7 @@ public class Summary implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) {
 		if (ref.hasPluginResponse("+plugin/summary")) return;
+		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/summary"));
@@ -64,6 +66,7 @@ public class Summary implements Async.AsyncRunner {
 				ref.getComment()));
 			response.setComment(res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
+			response.setPlugin("+plugin/ai", objectMapper.convertValue(res, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error creating the summary. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
