@@ -74,7 +74,7 @@ public class OpenAi {
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(2048)
+			.maxTokens(4096)
 			.messages(messages)
 			.model("gpt-3.5-turbo")
 			.build();
