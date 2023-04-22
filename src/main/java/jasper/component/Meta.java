@@ -61,28 +61,30 @@ public class Meta {
 			// TODO: Update sources without fetching
 			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
 			for (var source : sources) {
-				var old = source.getMetadata();
-				if (old == null) {
+				var metadata = source.getMetadata();
+				if (metadata == null) {
 					logger.warn("Ref missing metadata: {}", ref.getUrl());
-					old = Metadata
+					metadata = Metadata
 						.builder()
 						.responses(new ArrayList<>())
 						.internalResponses(new ArrayList<>())
 						.plugins(new HashMap<>())
 						.build();
 				}
+				metadata.remove(ref.getUrl());
 				if (internal) {
-					old.addInternalResponse(ref.getUrl());
+					metadata.addInternalResponse(ref.getUrl());
 				} else {
-					old.addResponse(ref.getUrl());
+					metadata.addResponse(ref.getUrl());
 				}
-				old.addPlugins(plugins, ref.getUrl());
-				source.setMetadata(old);
+				metadata.addPlugins(plugins, ref.getUrl());
+				source.setMetadata(metadata);
 				refRepository.save(source);
 			}
 		}
 
 		if (existing != null && existing.getSources() != null) {
+
 			// Updating or deleting (not new)
 			var removedSources = ref == null
 				? existing.getSources()
@@ -93,14 +95,14 @@ public class Meta {
 			// TODO: Update sources without fetching
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources));
 			for (var source : removed) {
-				var old = source.getMetadata();
-				if (old == null) {
+				var metadata = source.getMetadata();
+				if (metadata == null) {
 					logger.warn("Ref missing metadata: {}", existing.getUrl());
 					continue;
 				}
 				// TODO: Only do this part async, as we don't know if there is a duplicate response in another origin
-				old.remove(existing.getUrl());
-				source.setMetadata(old);
+				metadata.remove(existing.getUrl());
+				source.setMetadata(metadata);
 				refRepository.save(source);
 			}
 		}

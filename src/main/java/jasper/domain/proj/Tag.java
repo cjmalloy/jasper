@@ -22,8 +22,8 @@ public interface Tag extends HasOrigin {
 	}
 
 	static void removeTag(List<String> tags, String tag) {
-		for (var i = tags.size(); i >= 0; i--) {
-			var t = tags.get(0);
+		for (var i = tags.size() - 1; i >= 0; i--) {
+			var t = tags.get(i);
 			if (t.equals(tag) || t.startsWith(tag + "/")) {
 				tags.remove(i);
 			}

@@ -102,6 +102,7 @@ public class TaggingService {
 				ref.getTags().add(tag);
 			}
 		}
+		ingest.update(ref, false);
 	}
 
 	private Ref getResponseRef(String url) {
