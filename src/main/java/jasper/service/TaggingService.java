@@ -56,7 +56,7 @@ public class TaggingService {
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
 		ref.removePrefixTags();
 		ref.getTags().remove(tag);
-		ingest.update(ref, false);
+		ingest.update(ref, true);
 	}
 
 	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
@@ -70,7 +70,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		ref.removePrefixTags();
 		ref.addTags(tags);
-		ingest.update(ref, false);
+		ingest.update(ref, true);
 	}
 
 	@PreAuthorize("hasRole('USER') and @auth.canAddTag(#tag)")
@@ -88,7 +88,7 @@ public class TaggingService {
 	public void deleteResponse(String tag, String url) {
 		var ref = getResponseRef(url);
 		removeTag(ref.getTags(), tag);
-		ingest.update(ref, false);
+		ingest.update(ref, true);
 	}
 
 	@PreAuthorize("hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
@@ -102,7 +102,7 @@ public class TaggingService {
 				ref.getTags().add(tag);
 			}
 		}
-		ingest.update(ref, false);
+		ingest.update(ref, true);
 	}
 
 	private Ref getResponseRef(String url) {
