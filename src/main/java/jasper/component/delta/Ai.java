@@ -62,11 +62,16 @@ public class Ai implements Async.AsyncRunner {
 		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
+		var sample = refMapper.domainToDto(ref);
+		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
+		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) {
+			sample.setPlugins(null);
+		}
 		var response = new Ref();
 		try {
 			var messages = new ArrayList<>(List.of(
 				cm("system", config.getSystemPrompt()),
-				cm("user", objectMapper.writeValueAsString(refMapper.domainToDto(ref)))
+				cm("user", objectMapper.writeValueAsString(sample))
 			));
 			var res = openAi.chat(messages);
 			response.setComment(res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n")));
