@@ -84,9 +84,10 @@ Use forward slashes to define hierarchical tags (i.e. `people/murray/bill` or  `
 ## Querying
 When fetching a page or Refs a query may be specified. The query language uses simple set-like
 operators to match Refs according to their tag list and Origin. You may use tags, origins, or
-fully qualified tags (tag + origin). There is a special origin `@*` which will match anything.
-If a tag is not fully qualified it will match the local origin `""` (the empty string). The `*`
-wild card can be used to match anything on the local origin.
+fully qualified tags (tag + origin). There is a special origin `@` which will match the
+default origin `""` (the empty string).  
+If a tag is not fully qualified it will match the wildcard origin `"@*"`. The `*`
+wild card can be used to match anything on the default origin `""` (empty string).
 Valid operators in a query are:
 1. `:` and
 2. `|` or
