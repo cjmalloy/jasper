@@ -149,7 +149,8 @@ public class Validate {
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (field.equals("")) return;
 				if (!ref.getTags().contains(field)) {
-					throw new InvalidPluginException(field);
+					if (!stripOnError) throw new InvalidPluginException(field);
+					ref.getPlugins().remove(field);
 				}
 			});
 		}
