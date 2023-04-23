@@ -87,31 +87,6 @@ public class Ai implements Async.AsyncRunner {
 			t.getTag() + ": " +
 			t.getConfig().get("description")).collect(Collectors.joining(", ")) +
 		"}";
-		var examples = """
-			Here is the JSON to create a Ref with a Poll asking what your favorite color is:
-			```json
-			{
-			  "url": "internal:38baa550-83fc-47d1-80dd-7c64715209e1",,
-			  "origin": ""
-			  "title": "What is your favorite color?",
-			  "tags": [
-			    "public",
-			    "+user/username",
-			    "plugin/poll"
-			  ],
-			  "plugins": {
-			    "plugin/poll": {
-			      "a": "Red",
-			      "b": "Blue",
-			      "c": "Green",
-			      "d": "Yellow"
-			    }
-			  },
-			  "published": "2023-04-22T13:24:06.786Z",
-			  "modified": "2023-04-22T13:24:06.895197Z"
-			}
-			```
-			""";
 		var instructions = """
 				Include your response as the comment field of a Ref.
 				Only reply with pure JSON. Do not include any text outside of the JSON Ref.
@@ -175,20 +150,36 @@ public class Ai implements Async.AsyncRunner {
 			messages.add(cm("system", "examples: " + examples));
 			messages.add(cm("user", objectMapper.writeValueAsString(sample)));
 			messages.add(cm("system", instructions));
-			var res = openAi.chat(messages);
-			response.setComment(res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n")));
-			response.setUrl("ai:" + res.getId());
-			response.setPlugin("+plugin/ai", objectMapper.convertValue(res, JsonNode.class));
+			messages.add(cm(ref.getOrigin(), "system", "Output format instructions", instructions, objectMapper));
+			var reply = "";
+			Object msg = null;
+			if (config.fineTuning == null) {
+				var res = openAi.chat(messages);
+				msg = res;
+				reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
+				response.setUrl("ai:" + res.getId());
+				logger.trace("Reply: " + reply);
+			} else {
+				var res = openAi.fineTunedCompletion(messages);
+				msg = res;
+				reply = res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n"));
+				response.setUrl("ai:" + res.getId());
+				logger.trace("Reply: " + reply);
+			}
+			response.setComment(reply);
+			response.setPlugin("+plugin/ai", objectMapper.convertValue(msg, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error invoking AI. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
 		}
 		List<Ref> refArray = List.of(response);
+		Exception ex = null;
 		try {
 			try {
 				// Try getting single Ref
 				refArray = List.of(objectMapper.readValue(response.getComment(), new TypeReference<Ref>(){}));
 			} catch (Exception e) {
+				ex = e;
 				// Try with array
 				refArray = objectMapper.readValue(response.getComment(), new TypeReference<List<Ref>>() {});
 			}
@@ -196,7 +187,7 @@ public class Ai implements Async.AsyncRunner {
 			refArray.get(0).setPlugin("+plugin/ai", response.getPlugins().get("+plugin/ai"));
 		} catch (Exception e) {
 			logger.warn("Falling back: AI did not reply with JSON.");
-			logger.warn(response.getComment(), e);
+			logger.warn(response.getComment(), ex);
 			response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai", "plugin/latex")));
 		}
 		response = refArray.get(0);
