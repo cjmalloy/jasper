@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.theokanning.openai.completion.CompletionChoice;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
@@ -33,7 +34,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static jasper.component.OpenAi.cm;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("ai")
 @Component
@@ -73,7 +73,7 @@ public class Ai implements Async.AsyncRunner {
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
-		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
+		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		var sample = refMapper.domainToDto(ref);
 		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) {
@@ -122,12 +122,14 @@ public class Ai implements Async.AsyncRunner {
 					]
 				}
 				```
+				All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
 				Always add the "+plugin/ai" tag, as that is your signature.
 				Never include a tag like "+user/chris", as that is impersonation.
 				You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/ai
 				Only add the "plugin/ai" tag to trigger an AI response to your comment as well (spawn an new
 				agent with your Ref as the prompt).
 				Include your response as the comment field of a Ref.
+				Never include metadata, only Jasper creates metadata asynchronously.
 				Only reply with pure JSON.
 				Do not include any text outside of the JSON Ref.
 				The first character of your reply should be {.
@@ -136,20 +138,18 @@ public class Ai implements Async.AsyncRunner {
 		var response = new Ref();
 		try {
 			var messages = new ArrayList<>(List.of(
-				cm("system", config.getSystemPrompt())
+				cm(ref.getOrigin(), "system", "System Prompt", config.systemPrompt, objectMapper)
 			));
 			if (author != null) {
-				messages.add(cm("user", "The author of this ref is " + author + ". "));
+				messages.add(cm(ref.getOrigin(), "user", "Explanation of signature tag", "The author of this ref is " + author + ". ", objectMapper));
 			}
 			if (author == null) {
-				messages.add(cm("system", "You are following up on a previous ref to further a line of inquiry, " +
-					"suggest the next course of action, or resolve the matter in your reply."));
+				messages.add(cm(ref.getOrigin(), "system", "Spawning Agent Prompt", "You are following up on a previous ref to further a line of inquiry, " +
+					"suggest the next course of action, or resolve the matter in your reply.", objectMapper));
 			}
-			messages.add(cm("system", "plugins: " + plugins));
-			messages.add(cm("system", "templates: " + templates));
-			messages.add(cm("system", "examples: " + examples));
+			messages.add(cm(ref.getOrigin(), "system", "Installed Plugins List", plugins, objectMapper));
+			messages.add(cm(ref.getOrigin(), "system", "Installed Templates List", templates, objectMapper));
 			messages.add(cm("user", objectMapper.writeValueAsString(sample)));
-			messages.add(cm("system", instructions));
 			messages.add(cm(ref.getOrigin(), "system", "Output format instructions", instructions, objectMapper));
 			var reply = "";
 			Object msg = null;
@@ -191,11 +191,6 @@ public class Ai implements Async.AsyncRunner {
 			response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai", "plugin/latex")));
 		}
 		response = refArray.get(0);
-		if (isBlank(response.getTitle())) {
-			var title = ref.getTitle();
-			if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
-			response.setTitle(title);
-		}
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
 		if (ref.getTags().contains("internal")) tags.add("internal");
@@ -240,9 +235,11 @@ public class Ai implements Async.AsyncRunner {
 
 	@Getter
 	@Setter
-	private static class AiConfig {
-		private String titlePrefix;
-		private String systemPrompt;
-		private String authorPrompt;
+	private static class AiReply {
+		private Ref[] ref;
+		private Ext[] ext;
+		private Plugin[] plugin;
+		private Template[] template;
+		private User[] user;
 	}
 }
