@@ -81,6 +81,8 @@ server:
 jasper:
   clientApp:
     name: 'jasperApp'
+  mod-seals: ['seal', '+seal', '_seal', '_moderated']
+  editor-seals: ['plugin/qc']
   replicate-delay-min: 0
   replicate-interval-min: 1
   max-replicate-batch: 5000

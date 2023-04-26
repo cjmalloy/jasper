@@ -25,6 +25,8 @@ public class Props {
 	private int maxSources = 1000;
 	private int backupBufferSize = 1000000;
 	private int ingestMaxRetry = 5;
+	private String[] modSeals;
+	private String[] editorSeals;
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
 	/**

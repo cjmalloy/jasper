@@ -162,6 +162,20 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
+	public Ref removeTags(List<String> toRemove) {
+		if (tags == null || toRemove == null) return this;
+		for (var r : toRemove) {
+			tags.remove(r);
+			for (int i = tags.size() - 1; i >= 0; i--) {
+				if (tags.get(i).startsWith(r + "/")) {
+					tags.remove(i);
+				}
+			}
+		}
+		return this;
+	}
+
+	@JsonIgnore
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;
 		if (tags == null) {
