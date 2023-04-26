@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -146,13 +147,15 @@ public class Validate {
 		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
+			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (field.equals("")) return;
 				if (!ref.getTags().contains(field)) {
 					if (!stripOnError) throw new InvalidPluginException(field);
-					ref.getPlugins().remove(field);
+					strip.add(field);
 				}
 			});
+			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
 		for (var tag : ref.getTags()) {
 			plugin(ref, tag, origin, stripOnError);
