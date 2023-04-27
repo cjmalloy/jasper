@@ -124,11 +124,7 @@ public class RssParser {
 							feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 							refRepository.save(feed);
 						}
-						if (props.isMultiTenant()) {
-							ref.setOrigin(feed.getOrigin());
-						} else {
-							ref.setOrigin(config.getOrigin());
-						}
+						ref.setOrigin(feed.getOrigin());
 						try {
 							ingest.ingest(ref, false);
 						} catch (AlreadyExistsException e) {

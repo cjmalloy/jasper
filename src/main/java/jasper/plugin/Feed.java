@@ -13,7 +13,6 @@ import java.util.List;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Feed {
-	private String origin;
 	private List<String> addTags;
 	private Instant lastScrape;
 	private boolean disableEtag;
