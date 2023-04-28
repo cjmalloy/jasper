@@ -61,7 +61,9 @@ public class OpenAi {
 
 	@PostConstruct
 	public void init() throws JsonProcessingException {
-		getConfig();
+		try {
+			getConfig();
+		} catch (Exception e) { }
 	}
 
 	private AiConfig getConfig() throws JsonProcessingException {
