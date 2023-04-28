@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Profile("summary")
+@Profile("ai")
 @Component
 public class Summary implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Summary.class);

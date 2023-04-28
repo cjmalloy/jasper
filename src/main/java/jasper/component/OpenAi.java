@@ -24,6 +24,7 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import retrofit2.Retrofit;
 
@@ -39,6 +40,7 @@ import static com.theokanning.openai.service.OpenAiService.execute;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+@Profile("ai")
 @Component
 public class OpenAi {
 	private static final Logger logger = LoggerFactory.getLogger(OpenAi.class);
