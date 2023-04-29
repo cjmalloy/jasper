@@ -3,6 +3,7 @@ package jasper.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.config.Props;
+import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
@@ -134,6 +135,7 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
+	protected Client client;
 	protected Optional<User> user;
 	protected QualifiedTag publicTag;
 	protected List<QualifiedTag> readAccess;
@@ -581,13 +583,20 @@ public class Auth {
 			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader().toLowerCase();
-			} else if (isLoggedIn() && props.isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
+			} else if (isLoggedIn() && props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
 				try {
 					origin = qt(getPrincipal()).origin;
 				} catch (UnsupportedOperationException ignored) {}
 			}
 		}
 		return origin;
+	}
+
+	public Client getClient() {
+		if (client == null) {
+			client = props.getSecurity().getClient(getOrigin());
+		}
+		return client;
 	}
 
 	public static String getOriginHeader() {
@@ -612,14 +621,14 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>();
-			if (props.getDefaultReadAccess() != null) {
-				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
+			if (getClient().getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
 			}
-			if (props.isAllowAuthHeaders()) {
+			if (getClient().isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				readAccess.addAll(getClaimQualifiedTags(props.getReadAccessClaim()));
+				readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
 				readAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
@@ -631,14 +640,14 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
-			if (props.getDefaultWriteAccess() != null) {
-				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
+			if (getClient().getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(getClient().getDefaultWriteAccess()));
 			}
-			if (props.isAllowAuthHeaders()) {
+			if (getClient().isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				writeAccess.addAll(getClaimQualifiedTags(props.getWriteAccessClaim()));
+				writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
 				writeAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getWriteAccess)
 						.orElse(List.of())));
@@ -650,14 +659,14 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
-			if (props.getDefaultTagReadAccess() != null) {
-				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
+			if (getClient().getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(getClient().getDefaultTagReadAccess()));
 			}
-			if (props.isAllowAuthHeaders()) {
+			if (getClient().isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				tagReadAccess.addAll(getClaimQualifiedTags(props.getTagReadAccessClaim()));
+				tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
 				tagReadAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagReadAccess)
 						.orElse(List.of())));
@@ -669,14 +678,14 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
-			if (props.getDefaultTagWriteAccess() != null) {
-				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
+			if (getClient().getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(getClient().getDefaultTagWriteAccess()));
 			}
-			if (props.isAllowAuthHeaders()) {
+			if (getClient().isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
 			if (isLoggedIn()) {
-				tagWriteAccess.addAll(getClaimQualifiedTags(props.getTagWriteAccessClaim()));
+				tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
 				tagWriteAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagWriteAccess)
 						.orElse(List.of())));

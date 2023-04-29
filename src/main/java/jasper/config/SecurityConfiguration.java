@@ -91,7 +91,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
 	private JWTConfigurer securityConfigurerAdapter() {
-		logger.info("Default Role: {}", props.getDefaultRole());
 		logger.info("Minimum Role: {}", props.getMinRole());
 		return new JWTConfigurer(props, tokenProvider);
 	}

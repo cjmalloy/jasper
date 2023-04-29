@@ -11,6 +11,7 @@ import tech.jhipster.config.JHipsterDefaults;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 /**
@@ -45,29 +46,12 @@ public class Props {
 	 */
 	private String[] oembedOrigins = new String[]{""};
 	private String localOrigin = "";
+	private boolean allowLocalOriginHeader = false;
 	private boolean multiTenant = false;
 	/**
 	 * Minimum role for basic access.
 	 */
 	private String minRole = "ROLE_ANONYMOUS";
-	private String defaultRole = "ROLE_ANONYMOUS";
-	private String defaultUser = "+user";
-	private String[] defaultReadAccess;
-	private String[] defaultWriteAccess;
-	private String[] defaultTagReadAccess;
-	private String[] defaultTagWriteAccess;
-	private String usernameClaim = "sub";
-	private boolean allowUsernameClaimOrigin = false;
-	private String authoritiesClaim = "auth";
-	private String readAccessClaim = "readAccess";
-	private String writeAccessClaim = "writeAccess";
-	private String tagReadAccessClaim = "tagReadAccess";
-	private String tagWriteAccessClaim = "tagWriteAccess";
-	private boolean allowUserTagHeader = false;
-	private boolean allowUserRoleHeader = false;
-	private boolean allowLocalOriginHeader = false;
-	private boolean allowAuthHeaders = false;
-	private String scimEndpoint;
 	private String storage = "/var/lib/jasper";
 	private final Async async = new Async();
 	private final Http http = new Http();
@@ -226,41 +210,69 @@ public class Props {
 	@Setter
 	public static class Security {
 		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
-		private final ClientAuthorization clientAuthorization = new ClientAuthorization();
-		private final Authentication authentication = new Authentication();
+		private final Map<String, Client> clients = new HashMap<>();
 		private final RememberMe rememberMe = new RememberMe();
 		private final OAuth2 oauth2 = new OAuth2();
 
-		@Getter
-		@Setter
-		public static class ClientAuthorization {
-			private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
-			private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
-			private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
-			private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
+		public Client getClient(String origin) {
+			if (origin.equals("") && clients.containsKey("default")) return clients.get("default");
+			return clients.get(origin.substring(1));
 		}
 
 		@Getter
 		@Setter
-		public static class Authentication {
-			private final Jwt jwt = new Jwt();
+		public static class Client {
+			private final ClientAuthorization clientAuthorization = new ClientAuthorization();
+			private final Authentication authentication = new Authentication();
+			private String scimEndpoint;
+			private String usernameClaim = "sub";
+			private String authoritiesClaim = "auth";
+			private String readAccessClaim = "readAccess";
+			private String writeAccessClaim = "writeAccess";
+			private String tagReadAccessClaim = "tagReadAccess";
+			private String tagWriteAccessClaim = "tagWriteAccess";
+			private String defaultRole = "ROLE_ANONYMOUS";
+			private String defaultUser = "+user";
+			private String[] defaultReadAccess;
+			private String[] defaultWriteAccess;
+			private String[] defaultTagReadAccess;
+			private String[] defaultTagWriteAccess;
+			private boolean allowUsernameClaimOrigin = false;
+			private boolean allowUserTagHeader = false;
+			private boolean allowUserRoleHeader = false;
+			private boolean allowAuthHeaders = false;
 
 			@Getter
 			@Setter
-			public static class Jwt {
-				private String clientId = null;
-				private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
-				private String secret = null;
-				private String jwksUri = null;
-				private String tokenEndpoint = null;
-				private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
-				private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
+			public static class ClientAuthorization {
+				private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
+				private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
+				private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
+				private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
+			}
 
-				public String getSecret() {
-					if (secret == null) {
-						secret = new String(Base64.getDecoder().decode(base64Secret));
+			@Getter
+			@Setter
+			public static class Authentication {
+				private final Jwt jwt = new Jwt();
+
+				@Getter
+				@Setter
+				public static class Jwt {
+					private String clientId = null;
+					private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
+					private String secret = null;
+					private String jwksUri = null;
+					private String tokenEndpoint = null;
+					private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
+					private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
+
+					public String getSecret() {
+						if (secret == null) {
+							secret = new String(Base64.getDecoder().decode(base64Secret));
+						}
+						return secret;
 					}
-					return secret;
 				}
 			}
 		}
