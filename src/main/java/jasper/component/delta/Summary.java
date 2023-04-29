@@ -7,14 +7,13 @@ import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
-import jasper.domain.User;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
+import jasper.repository.RefRepository;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -26,34 +25,30 @@ import java.util.stream.Collectors;
 
 @Profile("ai")
 @Component
-public class Summary implements Async.AsyncRunner {
+public class Summary extends Delta {
 	private static final Logger logger = LoggerFactory.getLogger(Summary.class);
 
-	@Autowired
-	Async async;
+	private final Async async;
+	private final OpenAi openAi;
+	private final PluginRepository pluginRepository;
+	private final ObjectMapper objectMapper;
 
-	@Autowired
-	Ingest ingest;
-
-	@Autowired
-	OpenAi openAi;
-
-	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
-	ObjectMapper objectMapper;
+	public Summary(Ingest ingest, RefRepository refRepository, Async async, OpenAi openAi, PluginRepository pluginRepository, ObjectMapper objectMapper) {
+		super("+plugin/inbox/summary", ingest, refRepository);
+		this.async = async;
+		this.openAi = openAi;
+		this.pluginRepository = pluginRepository;
+		this.objectMapper = objectMapper;
+	}
 
 	@PostConstruct
 	void init() {
-		async.addAsync("plugin/summary", this);
+		async.addAsync("plugin/inbox/summary", this);
 	}
 
 	@Override
-	public void run(Ref ref) {
-		if (ref.hasPluginResponse("+plugin/summary")) return;
+	public Delta.DeltaReply transform(Ref ref, List<Ref> sources) {
 		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
-		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/summary"));
 		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
@@ -66,7 +61,7 @@ public class Summary implements Async.AsyncRunner {
 				ref.getComment()));
 			response.setComment(res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
-			response.setPlugin("+plugin/ai", objectMapper.convertValue(res, JsonNode.class));
+			response.setPlugin("+plugin/summary", objectMapper.convertValue(res, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error creating the summary. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
@@ -76,36 +71,7 @@ public class Summary implements Async.AsyncRunner {
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		response.setTags(new ArrayList<>(List.of("+plugin/summary")));
-		var tags = new ArrayList<String>();
-		if (ref.getTags().contains("public")) tags.add("public");
-		if (ref.getTags().contains("internal")) tags.add("internal");
-		if (ref.getTags().contains("dm")) tags.add("dm");
-		if (ref.getTags().contains("dm")) tags.add("internal");
-		if (ref.getTags().contains("dm")) tags.add("plugin/thread");
-		if (ref.getTags().contains("internal")) tags.add("internal");
-		if (ref.getTags().contains("plugin/comment")) tags.add("internal");
-		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
-		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/thread");
-		if (author != null) tags.add("plugin/inbox/" + author.substring(1));
-		for (var t : ref.getTags()) {
-			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
-				tags.add(t);
-			}
-		}
-		response.addTags(tags);
-		var sources = new ArrayList<>(List.of(ref.getUrl()));
-		if (response.getTags().contains("plugin/thread")) {
-			// Add top comment source
-			if (ref.getSources() != null && ref.getSources().size() > 0) {
-				if (ref.getSources().size() > 1) {
-					sources.add(ref.getSources().get(1));
-				} else {
-					sources.add(ref.getSources().get(0));
-				}
-			}
-		}
-		response.setSources(sources);
-		ingest.ingest(response, false);
+		return DeltaReply.of(response);
 	}
 
 	@Getter

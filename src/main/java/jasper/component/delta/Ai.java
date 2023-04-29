@@ -10,20 +10,14 @@ import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
-import jasper.domain.Ext;
-import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
 import jasper.domain.User;
-import jasper.domain.proj.Tag;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
+import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
-import lombok.Getter;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -37,46 +31,46 @@ import static jasper.component.OpenAi.cm;
 
 @Profile("ai")
 @Component
-public class Ai implements Async.AsyncRunner {
+public class Ai extends Delta {
 	private static final Logger logger = LoggerFactory.getLogger(Ai.class);
 
-	@Autowired
-	Async async;
+	private final Async async;
+	private final OpenAi openAi;
+	private final PluginRepository pluginRepository;
+	private final TemplateRepository templateRepository;
+	private final ObjectMapper objectMapper;
+	private final RefMapper refMapper;
 
-	@Autowired
-	Ingest ingest;
-
-	@Autowired
-	OpenAi openAi;
-
-	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
-	TemplateRepository templateRepository;
-
-	@Autowired
-	ObjectMapper objectMapper;
-
-	@Autowired
-	RefMapper refMapper;
+	public Ai(Ingest ingest, RefRepository refRepository, Async async, OpenAi openAi, PluginRepository pluginRepository, TemplateRepository templateRepository, ObjectMapper objectMapper, RefMapper refMapper) {
+		super("+plugin/openai", ingest, refRepository);
+		this.async = async;
+		this.openAi = openAi;
+		this.pluginRepository = pluginRepository;
+		this.templateRepository = templateRepository;
+		this.objectMapper = objectMapper;
+		this.refMapper = refMapper;
+	}
 
 	@PostConstruct
 	void init() {
-		async.addAsync("plugin/ai", this);
+		async.addAsync("plugin/inbox/ai", this);
 	}
 
 	@Override
-	public void run(Ref ref) throws JsonProcessingException {
-		if (ref.hasPluginResponse("+plugin/ai")) return;
+	public Delta.DeltaReply transform(Ref ref, List<Ref> sources) {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
+		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/openai", ref.getOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		var sample = refMapper.domainToDto(ref);
-		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
-		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) {
+		String pluginString = null;
+		try {
+			pluginString = objectMapper.writeValueAsString(ref.getPlugins());
+		} catch (JsonProcessingException e) {
+			logger.trace("Could not parse plugins ", e);
+		}
+		if (pluginString == null || pluginString.length() > 2000 || pluginString.contains(";base64,")) {
 			sample.setPlugins(null);
 		}
 		var plugins = "{" + pluginRepository.findAll().stream().map(p ->
@@ -135,7 +129,8 @@ public class Ai implements Async.AsyncRunner {
 				The first character of your reply should be {.
 				Only output valid JSON.
 			""";
-		var response = new Ref();
+		var fallback = new Ref();
+		var resArray = Delta.DeltaReply.of(fallback);
 		try {
 			var messages = new ArrayList<>(List.of(
 				cm(ref.getOrigin(), "system", "System Prompt", config.systemPrompt, objectMapper)
@@ -157,89 +152,31 @@ public class Ai implements Async.AsyncRunner {
 				var res = openAi.chat(messages);
 				msg = res;
 				reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
-				response.setUrl("ai:" + res.getId());
+				fallback.setUrl("ai:" + res.getId());
 				logger.trace("Reply: " + reply);
 			} else {
 				var res = openAi.fineTunedCompletion(messages);
 				msg = res;
 				reply = res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n"));
-				response.setUrl("ai:" + res.getId());
+				fallback.setUrl("ai:" + res.getId());
 				logger.trace("Reply: " + reply);
 			}
-			response.setComment(reply);
-			response.setPlugin("+plugin/ai", objectMapper.convertValue(msg, JsonNode.class));
+			fallback.setComment(reply);
+			fallback.setPlugin("+plugin/ai", objectMapper.convertValue(msg, JsonNode.class));
 		} catch (Exception e) {
-			response.setComment("Error invoking AI. " + e.getMessage());
-			response.setUrl("internal:" + UUID.randomUUID());
+			fallback.setComment("Error invoking AI. " + e.getMessage());
+			fallback.setUrl("internal:" + UUID.randomUUID());
 		}
-		List<Ref> refArray = List.of(response);
 		Exception ex = null;
 		try {
-			try {
-				// Try getting single Ref
-				refArray = List.of(objectMapper.readValue(response.getComment(), new TypeReference<Ref>(){}));
-			} catch (Exception e) {
-				ex = e;
-				// Try with array
-				refArray = objectMapper.readValue(response.getComment(), new TypeReference<List<Ref>>() {});
-			}
-			refArray.get(0).setUrl(response.getUrl());
-			refArray.get(0).setPlugin("+plugin/ai", response.getPlugins().get("+plugin/ai"));
+			resArray = objectMapper.readValue(fallback.getComment(), new TypeReference<Delta.DeltaReply>(){});
+			resArray.res().setUrl(fallback.getUrl());
+			resArray.res().setPlugin("+plugin/openai", fallback.getPlugins().get("+plugin/openai"));
 		} catch (Exception e) {
 			logger.warn("Falling back: AI did not reply with JSON.");
-			logger.warn(response.getComment(), ex);
-			response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai", "plugin/latex")));
+			logger.warn(fallback.getComment(), ex);
+			fallback.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai", "plugin/latex")));
 		}
-		response = refArray.get(0);
-		var tags = new ArrayList<String>();
-		if (ref.getTags().contains("public")) tags.add("public");
-		if (ref.getTags().contains("internal")) tags.add("internal");
-		if (ref.getTags().contains("dm")) tags.add("dm");
-		if (ref.getTags().contains("dm")) tags.add("plugin/thread");
-		if (ref.getTags().contains("plugin/email")) tags.add("plugin/email");
-		if (ref.getTags().contains("plugin/email")) tags.add("plugin/thread");
-		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
-		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/thread");
-		if (ref.getTags().contains("plugin/thread")) tags.add("plugin/thread");
-		if (author != null) tags.add("plugin/inbox/" + author.substring(1));
-		for (var t : ref.getTags()) {
-			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
-				tags.add(t);
-			}
-		}
-		response.addTags(tags);
-		var sources = new ArrayList<>(List.of(ref.getUrl()));
-		if (response.getTags().contains("plugin/thread")) {
-			// Add top comment source
-			if (ref.getSources() != null && ref.getSources().size() > 0) {
-				if (ref.getSources().size() > 1) {
-					sources.add(ref.getSources().get(1));
-				} else {
-					sources.add(ref.getSources().get(0));
-				}
-			}
-		}
-		response.setSources(sources);
-		for (var aiReply : refArray) {
-			aiReply.setOrigin(ref.getOrigin());
-			if (aiReply.getTags() != null) {
-				aiReply.setTags(new ArrayList<>(aiReply.getTags().stream().filter(
-					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/ai") || !t.startsWith("+") && !t.startsWith("_"))
-				).toList()));
-			}
-
-			ingest.ingest(aiReply, false);
-			logger.debug("AI reply sent ({})", aiReply.getUrl());
-		}
-	}
-
-	@Getter
-	@Setter
-	private static class AiReply {
-		private Ref[] ref;
-		private Ext[] ext;
-		private Plugin[] plugin;
-		private Template[] template;
-		private User[] user;
+		return resArray;
 	}
 }

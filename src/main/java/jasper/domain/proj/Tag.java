@@ -1,5 +1,9 @@
 package jasper.domain.proj;
 
+import jasper.domain.Ref;
+import jasper.domain.User;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public interface Tag extends HasOrigin {
@@ -28,5 +32,41 @@ public interface Tag extends HasOrigin {
 				tags.remove(i);
 			}
 		}
+	}
+
+	static List<String> replyTags(Ref ref) {
+		var tags = new ArrayList<String>();
+		if (ref.getTags().contains("public")) tags.add("public");
+		if (ref.getTags().contains("internal")) tags.add("internal");
+		if (ref.getTags().contains("dm")) tags.add("dm");
+		if (ref.getTags().contains("dm")) tags.add("internal");
+		if (ref.getTags().contains("dm")) tags.add("plugin/thread");
+		if (ref.getTags().contains("internal")) tags.add("internal");
+		if (ref.getTags().contains("plugin/comment")) tags.add("internal");
+		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/comment");
+		if (ref.getTags().contains("plugin/comment")) tags.add("plugin/thread");
+		ref.getTags().stream().filter(User::isUser).findFirst().ifPresent(author ->
+			tags.add("plugin/inbox/" + author.substring(1)));
+		for (var t : ref.getTags()) {
+			if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
+				tags.add(t);
+			}
+		}
+		return tags;
+	}
+
+	static List<String> replySources(Ref ref) {
+		var sources = new ArrayList<>(List.of(ref.getUrl()));
+		if (ref.getTags().contains("plugin/thread")) {
+			// Add top comment source
+			if (ref.getSources() != null && ref.getSources().size() > 0) {
+				if (ref.getSources().size() > 1) {
+					sources.add(ref.getSources().get(1));
+				} else {
+					sources.add(ref.getSources().get(0));
+				}
+			}
+		}
+		return sources;
 	}
 }
