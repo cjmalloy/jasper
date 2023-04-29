@@ -26,9 +26,13 @@ public class TagSpec {
 
 	public static <T extends Tag> Specification<T> isTag(String tag) {
 		return (root, query, cb) ->
-			cb.equal(
-				root.get("tag"),
-				tag);
+			cb.or(
+				cb.equal(
+					root.get("tag"),
+					tag),
+				cb.like(
+					root.get("tag"),
+					tag + "/%"));
 	}
 
 	public static <T extends Tag> Specification<T> isAnyTag(List<String> tags) {
