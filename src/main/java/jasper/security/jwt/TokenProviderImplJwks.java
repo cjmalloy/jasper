@@ -19,7 +19,7 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		RestTemplate restTemplate
 	) throws URISyntaxException {
 		super(props, userRepository, securityMetersService);
-		String jwksUri = props.getSecurity().getAuthentication().getJwt().getJwksUri();
+		String jwksUri = props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getJwksUri();
 		jwtParser = Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build();
 	}
 

@@ -24,11 +24,11 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
 	public TokenProviderImpl(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		super(props, userRepository, securityMetersService);
-		this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getAuthentication().getJwt().getBase64Secret()));
+		this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getBase64Secret()));
 		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
-		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSeconds();
+		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
-			1000 * props.getSecurity().getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
+			1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
 	}
 
 	public String createToken(Authentication authentication, boolean rememberMe) {
@@ -45,8 +45,8 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 		return Jwts
 			.builder()
 			.setSubject(authentication.getName())
-			.setAudience(props.getSecurity().getAuthentication().getJwt().getClientId())
-			.claim(props.getAuthoritiesClaim(), authorities)
+			.setAudience(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId())
+			.claim(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), authorities)
 			.signWith(key, SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();

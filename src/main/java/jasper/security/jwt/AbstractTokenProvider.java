@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.getHeader;
+import static jasper.security.Auth.getOriginHeader;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractTokenProvider implements TokenProvider {
@@ -48,8 +49,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	List<SimpleGrantedAuthority> getPartialAuthorities() {
-		var authString = props.getDefaultRole();
-		if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+		var authString = props.getSecurity().getClient(getPartialOrigin()).getDefaultRole();
+		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
 			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
 			authString += ", " + getHeader(USER_ROLE_HEADER);
 		}
@@ -59,5 +60,13 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
+	}
+
+	String getPartialOrigin() {
+		var origin = props.getLocalOrigin();
+		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
+			origin = getOriginHeader().toLowerCase();
+		}
+		return origin;
 	}
 }

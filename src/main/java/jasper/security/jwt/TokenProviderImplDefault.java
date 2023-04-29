@@ -18,7 +18,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 
 	@Override
 	public Authentication getAuthentication(String jwt) {
-		var principal = props.getDefaultUser();
+		var principal = props.getSecurity().getClient(getPartialOrigin()).getDefaultUser();
 		var user = getUser(principal);
 		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user));
 	}

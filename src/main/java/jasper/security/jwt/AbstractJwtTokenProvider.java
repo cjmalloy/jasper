@@ -64,7 +64,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims) {
 		var auth = getPartialAuthorities();
-		var authClaim = claims.get(props.getAuthoritiesClaim(), String.class);
+		var authClaim = claims.get(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
 			Arrays.stream(authClaim.split(","))
 				.filter(r -> !r.isBlank())
@@ -76,14 +76,14 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 	}
 
 	String getUsername(Claims claims) {
-		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
+		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
 			return getHeader(USER_TAG_HEADER);
 		}
-		var principal = claims.get(props.getUsernameClaim(), String.class);
+		var principal = claims.get(props.getSecurity().getClient(getPartialOrigin()).getUsernameClaim(), String.class);
 		var origin = props.getLocalOrigin();
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader().toLowerCase();
-		} else if (!isBlank(principal) && props.isAllowUsernameClaimOrigin() && principal.contains("@")) {
+		} else if (!isBlank(principal) && props.getSecurity().getClient(getPartialOrigin()).isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
 				var qt = qt(principal);
 				if (qt.origin.matches(HasOrigin.REGEX)) {
@@ -126,7 +126,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		if (!StringUtils.hasText(authToken)) return false;
 		try {
 			var claims = jwtParser.parseClaimsJws(authToken).getBody();
-			if (!props.getSecurity().getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
+			if (!props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else {

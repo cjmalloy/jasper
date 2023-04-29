@@ -77,11 +77,11 @@ public class RefServiceMTIT {
 
 	@BeforeEach
 	void clearDefaultPermissions() {
-		props.setAllowUsernameClaimOrigin(true);
-		props.setDefaultReadAccess(null);
-		props.setDefaultWriteAccess(null);
-		props.setDefaultTagReadAccess(null);
-		props.setDefaultTagWriteAccess(null);
+		props.getSecurity().getClient("").setAllowUsernameClaimOrigin(true);
+		props.getSecurity().getClient("").setDefaultReadAccess(null);
+		props.getSecurity().getClient("").setDefaultWriteAccess(null);
+		props.getSecurity().getClient("").setDefaultTagReadAccess(null);
+		props.getSecurity().getClient("").setDefaultTagWriteAccess(null);
 	}
 
 	@Test
@@ -474,7 +474,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRemoteRefWithQuery() {
-		props.setDefaultReadAccess(new String[]{"@remote"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@remote"});
 		refWithOriginTags("@remote", "public");
 		refWithOriginTags("@remote", "public", "custom", "extra");
 
@@ -491,7 +491,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRemoteRefWithQueryFailed() {
-		props.setDefaultTagReadAccess(new String[]{"@remote"});
+		props.getSecurity().getClient("").setDefaultTagReadAccess(new String[]{"@remote"});
 		refWithOriginTags("@remote", "public");
 		refWithOriginTags("@remote", "public", "custom", "extra");
 
@@ -539,7 +539,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithOriginQuery() {
-		props.setDefaultReadAccess(new String[]{"@a", "@b"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@a", "@b"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 
@@ -556,7 +556,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithOriginQueryEmpty() {
-		props.setDefaultTagReadAccess(new String[]{"@a", "@b"});
+		props.getSecurity().getClient("").setDefaultTagReadAccess(new String[]{"@a", "@b"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 
@@ -573,7 +573,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithOriginOrQuery() {
-		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -591,7 +591,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithOriginOrQueryEmpty() {
-		props.setDefaultTagReadAccess(new String[]{"@a", "@b", "@c"});
+		props.getSecurity().getClient("").setDefaultTagReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -609,7 +609,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithOriginOrExtraSpacesQuery() {
-		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -627,7 +627,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithNotOriginQuery() {
-		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -645,7 +645,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithImpossibleOriginQuery() {
-		props.setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@a", "@b", "@c"});
 		refWithOriginTags("@a", "public", "custom");
 		refWithOriginTags("@b", "public", "custom", "extra");
 		refWithOriginTags("@c", "public", "custom", "extra");
@@ -698,7 +698,7 @@ public class RefServiceMTIT {
 
 	@Test
 	void testGetPageRefWithQueryMultiAuthTenant() {
-		props.setDefaultReadAccess(new String[]{"@remote"});
+		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@remote"});
 		refWithOriginTags("@other", "public", "custom");
 		refWithOriginTags("@other", "public", "custom", "extra");
 		refWithOriginTags("@remote", "public", "custom");
