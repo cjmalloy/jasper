@@ -99,6 +99,10 @@ public class User implements Tag {
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
+	@Formula("ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1)")
+	@Setter(AccessLevel.NONE)
+	private int levels;
+
 	private byte[] key;
 
 	@Size(max = PUB_KEY_LEN)
