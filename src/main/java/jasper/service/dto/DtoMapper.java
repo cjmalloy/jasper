@@ -1,8 +1,11 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.domain.Ext;
 import jasper.domain.Metadata;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
 import jasper.security.Auth;
@@ -44,6 +47,12 @@ public abstract class DtoMapper {
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
 	public abstract RefReplDto domainToReplDto(Ref ref);
+
+	public abstract ExtDto domainToDto(Ext ext);
+
+	public abstract PluginDto domainToDto(Plugin plugin);
+
+	public abstract TemplateDto domainToDto(Template plugin);
 
 	public Ref smtpToDomain(SmtpWebhookDto msg) {
 		var result = new Ref();

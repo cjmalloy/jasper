@@ -9,6 +9,7 @@ import jasper.domain.Ext;
 import jasper.domain.proj.Tag;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
+import jasper.service.dto.ExtDto;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,7 +72,7 @@ public class ExtController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	HttpEntity<Ext> getExt(
+	HttpEntity<ExtDto> getExt(
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
@@ -83,7 +84,7 @@ public class ExtController {
 		@ApiResponse(responseCode = "304", content = @Content()),
 	})
 	@GetMapping("page")
-	HttpEntity<Page<Ext>> getExtPage(
+	HttpEntity<Page<ExtDto>> getExtPage(
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,

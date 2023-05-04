@@ -9,6 +9,7 @@ import jasper.domain.Template;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.TemplateService;
+import jasper.service.dto.TemplateDto;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,7 +72,7 @@ public class TemplateController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	HttpEntity<Template> getTemplate(
+	HttpEntity<TemplateDto> getTemplate(
 		WebRequest request,
 		@RequestParam(defaultValue = "") @Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String tag
 	) {
@@ -84,7 +85,7 @@ public class TemplateController {
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("page")
-	HttpEntity<Page<Template>> getTemplatePage(
+	HttpEntity<Page<TemplateDto>> getTemplatePage(
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,

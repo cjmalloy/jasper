@@ -20,7 +20,10 @@ import jasper.service.RefService;
 import jasper.service.ReplicateService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
+import jasper.service.dto.ExtDto;
+import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefReplDto;
+import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
 import org.slf4j.Logger;
@@ -123,7 +126,7 @@ public class ReplicateController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping("ext")
-	List<Ext> ext(
+	List<ExtDto> ext(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -225,7 +228,7 @@ public class ReplicateController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping("plugin")
-	List<Plugin> plugin(
+	List<PluginDto> plugin(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -276,7 +279,7 @@ public class ReplicateController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping("template")
-	List<Template> template(
+	List<TemplateDto> template(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) Instant modifiedAfter,

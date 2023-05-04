@@ -9,6 +9,8 @@ import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
 import jasper.repository.filter.TemplateFilter;
 import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.TemplateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -29,6 +31,9 @@ public class TemplateService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@PreAuthorize("@auth.local(#template.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
@@ -55,9 +60,10 @@ public class TemplateService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public Template get(String qualifiedTag) {
+	public TemplateDto get(String qualifiedTag) {
 		return templateRepository.findOneByQualifiedTag(qualifiedTag)
-								 .orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
+			.map(mapper::domainToDto)
+			.orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -70,11 +76,12 @@ public class TemplateService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public Page<Template> page(TemplateFilter filter, Pageable pageable) {
+	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(
 			auth.<Template>tagReadSpec()
 				.and(filter.spec()),
-			pageable);
+			pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@PreAuthorize("@auth.local(#template.getOrigin()) and hasRole('ADMIN')")

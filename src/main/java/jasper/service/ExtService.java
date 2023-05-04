@@ -18,6 +18,8 @@ import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.ExtDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +51,9 @@ public class ExtService {
 	Validate validate;
 
 	@Autowired
+	DtoMapper mapper;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
@@ -78,9 +83,10 @@ public class ExtService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Ext get(String qualifiedTag) {
+	public ExtDto get(String qualifiedTag) {
 		return extRepository.findOneByQualifiedTag(qualifiedTag)
-							.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
+			.map(mapper::domainToDto)
+			.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -93,12 +99,13 @@ public class ExtService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Page<Ext> page(TagFilter filter, Pageable pageable) {
+	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
 				auth.<Ext>tagReadSpec()
 					.and(filter.spec()),
-				pageable);
+				pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@Transactional(readOnly = true)

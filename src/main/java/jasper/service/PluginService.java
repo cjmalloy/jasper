@@ -9,6 +9,8 @@ import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.PluginDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -29,6 +31,9 @@ public class PluginService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -55,9 +60,10 @@ public class PluginService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
-	public Plugin get(String qualifiedTag) {
+	public PluginDto get(String qualifiedTag) {
 		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
-							   .orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
+			.map(mapper::domainToDto)
+			.orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -77,12 +83,13 @@ public class PluginService {
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
-	public Page<Plugin> page(TagFilter filter, Pageable pageable) {
+	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
 				auth.<Plugin>tagReadSpec()
 					.and(filter.spec()),
-				pageable);
+				pageable)
+			.map(mapper::domainToDto);
 	}
 
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")

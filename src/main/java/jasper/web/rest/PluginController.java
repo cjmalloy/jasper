@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
+import jasper.service.dto.PluginDto;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,7 +71,7 @@ public class PluginController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	HttpEntity<Plugin> getPlugin(
+	HttpEntity<PluginDto> getPlugin(
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
@@ -83,7 +84,7 @@ public class PluginController {
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("page")
-	HttpEntity<Page<Plugin>> getPluginPage(
+	HttpEntity<Page<PluginDto>> getPluginPage(
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,

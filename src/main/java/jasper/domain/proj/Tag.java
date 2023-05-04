@@ -1,5 +1,7 @@
 package jasper.domain.proj;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 
 public interface Tag extends HasOrigin {
@@ -13,6 +15,7 @@ public interface Tag extends HasOrigin {
 	void setTag(String tag);
 	String getName();
 
+	@JsonIgnore
 	default String getQualifiedTag() {
 		return getTag() + getOrigin();
 	}
