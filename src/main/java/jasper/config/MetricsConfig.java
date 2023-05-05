@@ -21,6 +21,9 @@ import java.util.Optional;
 public class MetricsConfig {
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	Auth auth;
 
 	@Bean
@@ -36,7 +39,8 @@ public class MetricsConfig {
 	private Iterable<Tag> tagFactory(ProceedingJoinPoint pjp) {
 		return Tags.of(
 			"class", pjp.getStaticPart().getSignature().getDeclaringTypeName(),
-				"method", pjp.getStaticPart().getSignature().getName())
+				"method", pjp.getStaticPart().getSignature().getName(),
+				"debug", ""+props.isDebug())
 			.and(getUserTags());
 	}
 

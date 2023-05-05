@@ -23,6 +23,7 @@ import java.util.Map;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
+	private boolean debug = false;
 	private int maxSources = 1000;
 	private int backupBufferSize = 1000000;
 	private int ingestMaxRetry = 5;

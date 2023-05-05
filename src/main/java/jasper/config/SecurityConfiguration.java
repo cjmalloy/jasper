@@ -5,6 +5,7 @@ import jasper.security.jwt.TokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
@@ -20,6 +21,8 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 import org.springframework.web.cors.CorsConfiguration;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
+import javax.annotation.PostConstruct;
+import java.util.Arrays;
 import java.util.List;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
@@ -45,7 +48,27 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	@Autowired
 	TokenProvider tokenProvider;
 
-    @Override
+	@Value("${spring.profiles.active}")
+	String[] profiles;
+
+	@PostConstruct
+	void init() {
+		var unsafeSecret = profile("dev") && profile("jwt");
+		if (!props.isDebug()) props.setDebug(unsafeSecret);
+		if (props.isDebug()) {
+			logger.error("==================================================");
+			logger.error("==================================================\n");
+			logger.error("DEBUG MODE\n");
+			logger.error("==================================================");
+			logger.error("==================================================");
+		}
+	}
+
+	private boolean profile(String profile) {
+		return Arrays.asList(profiles).contains(profile);
+	}
+
+	@Override
     public void configure(HttpSecurity http) throws Exception {
         // @formatter:off
         http

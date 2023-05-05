@@ -1,6 +1,7 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -38,6 +39,9 @@ import static jasper.util.Crypto.writeSshRsa;
 
 @Service
 public class UserService {
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	UserRepository userRepository;
@@ -147,6 +151,7 @@ public class UserService {
 	public RolesDto whoAmI() {
 		return RolesDto
 			.builder()
+			.debug(props.isDebug())
 			.tag(auth.isLoggedIn() ? auth.getUserTag().toString() : auth.getOrigin())
 			.sysadmin(auth.hasRole(SA))
 			.admin(auth.hasRole(ADMIN))
