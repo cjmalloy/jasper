@@ -609,7 +609,11 @@ public class Auth {
 
 	public QualifiedTag getPublicTag() {
 		if (publicTag == null) {
-			return selector("public" + getMultiTenantOrigin());
+			if (props.isMultiTenant()) {
+				return qt("public" + getOrigin());
+			} else {
+				return selector("public");
+			}
 		}
 		return publicTag;
 	}
