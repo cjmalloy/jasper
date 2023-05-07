@@ -62,6 +62,19 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			logger.error("==================================================");
 			logger.error("==================================================");
 		}
+		if (props.isMultiTenant()) {
+			logger.warn("==================================================");
+			logger.warn("==================================================\n");
+			logger.warn("MULTI TENANT\n");
+			logger.warn("==================================================");
+			logger.warn("==================================================");
+		} else {
+			logger.warn("==================================================");
+			logger.warn("==================================================\n");
+			logger.warn("SINGLE TENANT\n");
+			logger.warn("==================================================");
+			logger.warn("==================================================");
+		}
 	}
 
 	private boolean profile(String profile) {
