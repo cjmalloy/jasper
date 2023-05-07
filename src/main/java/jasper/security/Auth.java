@@ -44,7 +44,6 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
-import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.selectors;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
@@ -609,7 +608,7 @@ public class Auth {
 
 	public QualifiedTag getPublicTag() {
 		if (publicTag == null) {
-			return selector("public" + getMultiTenantOrigin());
+			return qt("public" + getMultiTenantOrigin());
 		}
 		return publicTag;
 	}
