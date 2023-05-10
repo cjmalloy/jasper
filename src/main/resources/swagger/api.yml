@@ -677,7 +677,7 @@ paths:
       tags:
         - Scrape
       operationId: scrapeWebpage
-      description: Immediately scrape a webpage and return a Ref of the contents. Currently only fills out URL, title, and published date.
+      description: Immediately scrape a webpage and return a Ref of the contents. Will check and update cache. Currently only fills out the title.
       parameters:
         - name: url
           in: query
@@ -693,6 +693,83 @@ paths:
                 $ref: '#/components/schemas/Ref'
         '500':
           description: Error scraping
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/fetch:
+    get:
+      tags:
+        - Scrape
+      operationId: fetch
+      description: Immediately scrape a webpage and return the contents. Will check and update cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/scrape:
+    get:
+      tags:
+        - Scrape
+      operationId: fetch
+      description: Immediately scrape a webpage if it is not in the cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '201':
+          description: No Content
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/cache:
+    post:
+      tags:
+        - Scrape
+      operationId: fetch
+      description: Uploads a file to the cache and returns a generated random URI to access it with.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              format: binary
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Error caching
           content:
             '*/*':
               schema:

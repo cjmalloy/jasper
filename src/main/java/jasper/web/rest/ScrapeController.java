@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.constraints.Pattern;
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
@@ -57,7 +59,34 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("web")
-	RefDto scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException {
+	RefDto scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException, URISyntaxException {
 		return scrapeService.webpage(url);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@GetMapping("fetch")
+	byte[] fetch(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException {
+		return scrapeService.fetch(url);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@GetMapping("scrape")
+	void scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException {
+		scrapeService.scrape(url);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PostMapping("cache")
+	String cache(@RequestBody byte[] data) {
+		return scrapeService.cache(data);
 	}
 }
