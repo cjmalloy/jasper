@@ -107,6 +107,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .authorizeRequests()
             .antMatchers("/api/v1/admin/**").hasAuthority(ADMIN)
             .antMatchers("/api/v1/oembed/**").hasAuthority(VIEWER) // TODO: restrict CORS instead of requiring authentication
+            .antMatchers("/api/v1/scrape/fetch").permitAll()
             .antMatchers(HttpMethod.GET, "/api/v1/backup/**").permitAll()
             .antMatchers("/api/**").hasAuthority(props.getMinRole())
             .antMatchers("/management/health").permitAll()
