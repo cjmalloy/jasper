@@ -4,6 +4,8 @@ import io.jsonwebtoken.Jwts;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import jasper.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.client.RestTemplate;
 
@@ -11,6 +13,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
+	private final Logger logger = LoggerFactory.getLogger(TokenProviderImplJwks.class);
 
 	public TokenProviderImplJwks(
 		Props props,
@@ -35,7 +38,10 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 
 	@Override
 	public boolean validateToken(String authToken) {
-		if (!props.getSecurity().getClients().containsKey(getPartialOrigin())) return false;
+		if (!props.getSecurity().hasClient(getPartialOrigin())) {
+			logger.error("No client for provider {}", getPartialOrigin());
+			return false;
+		}
 		return super.validateToken(authToken);
 	}
 }

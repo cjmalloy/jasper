@@ -7,6 +7,8 @@ import io.jsonwebtoken.security.Keys;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import jasper.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TokenProviderImpl extends AbstractJwtTokenProvider {
+	private final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
 
 	private final Map<String, Key> keys = new HashMap<>();
 
@@ -67,7 +70,10 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
 	@Override
 	public boolean validateToken(String authToken) {
-		if (!props.getSecurity().getClients().containsKey(getPartialOrigin())) return false;
+		if (!props.getSecurity().hasClient(getPartialOrigin())) {
+			logger.error("No client for provider {}", getPartialOrigin());
+			return false;
+		}
 		return super.validateToken(authToken);
 	}
 }

@@ -215,6 +215,11 @@ public class Props {
 		private final RememberMe rememberMe = new RememberMe();
 		private final OAuth2 oauth2 = new OAuth2();
 
+		public boolean hasClient(String origin) {
+			if (origin.equals("") && clients.containsKey("default")) return true;
+			return clients.containsKey(origin.substring(1));
+		}
+
 		public Client getClient(String origin) {
 			if (origin.equals("") && clients.containsKey("default")) return clients.get("default");
 			return clients.get(origin.substring(1));

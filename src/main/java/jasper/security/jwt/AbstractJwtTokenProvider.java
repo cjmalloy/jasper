@@ -81,7 +81,9 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
 			return getHeader(USER_TAG_HEADER);
 		}
+		logger.debug("Sub: {}", props.getSecurity().getClient(getPartialOrigin()).getUsernameClaim());
 		var principal = claims.get(props.getSecurity().getClient(getPartialOrigin()).getUsernameClaim(), String.class);
+		logger.debug("Principal: {}", principal);
 		var origin = props.getLocalOrigin();
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader().toLowerCase();
@@ -97,7 +99,6 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		if (principal.contains("@")) {
 			principal = principal.substring(0, principal.indexOf("@"));
 		}
-		logger.debug("Principal: {}", principal);
 		var authorities = getPartialAuthorities(claims);
 		if (isBlank(principal) ||
 			!principal.matches(Tag.QTAG_REGEX) ||
