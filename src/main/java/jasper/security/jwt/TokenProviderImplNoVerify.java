@@ -11,7 +11,7 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider {
 
 	public TokenProviderImplNoVerify(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		super(props, userRepository, securityMetersService);
-		super.jwtParser = Jwts.parserBuilder().build();
+		super.jwtParser.put("", Jwts.parserBuilder().build());
 	}
 
 	private String dropSig(String token) {
@@ -19,7 +19,7 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider {
 	}
 
 	public Authentication getAuthentication(String token) {
-		var claims = jwtParser.parseClaimsJwt(dropSig(token)).getBody();
+		var claims = jwtParser.get("").parseClaimsJwt(dropSig(token)).getBody();
 		var principal = getUsername(claims);
 		var user = getUser(principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));

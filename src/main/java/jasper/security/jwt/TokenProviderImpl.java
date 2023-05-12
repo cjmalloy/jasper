@@ -12,11 +12,13 @@ import org.springframework.security.core.GrantedAuthority;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
-	private final Key key;
+	private final Map<String, Key> keys = new HashMap<>();
 
 	private final long tokenValidityInMilliseconds;
 
@@ -24,8 +26,12 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
 	public TokenProviderImpl(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		super(props, userRepository, securityMetersService);
-		this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getBase64Secret()));
-		jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
+		for (var c : props.getSecurity().getClients().entrySet()) {
+			var client = c.getKey().equals("default") ? "" : c.getKey();
+			var key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getBase64Secret()));
+			this.keys.put(client, key);
+			jwtParser.put(client, Jwts.parserBuilder().setSigningKey(key).build());
+		}
 		this.tokenValidityInMilliseconds = 1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSeconds();
 		this.tokenValidityInMillisecondsForRememberMe =
 			1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
@@ -47,13 +53,13 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 			.setSubject(authentication.getName())
 			.setAudience(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId())
 			.claim(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), authorities)
-			.signWith(key, SignatureAlgorithm.HS512)
+			.signWith(keys.get(getPartialOrigin()), SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();
 	}
 
 	public Authentication getAuthentication(String token) {
-		var claims = jwtParser.parseClaimsJws(token).getBody();
+		var claims = jwtParser.get(getPartialOrigin()).parseClaimsJws(token).getBody();
 		var principal = getUsername(claims);
 		var user = getUser(principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));

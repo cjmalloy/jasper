@@ -20,7 +20,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.USER_TAG_HEADER;
@@ -40,7 +42,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN, SA };
 
-	JwtParser jwtParser;
+	Map<String, JwtParser> jwtParser = new HashMap<>();
 
 	private final SecurityMetersService securityMetersService;
 
@@ -125,7 +127,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 	public boolean validateToken(String authToken) {
 		if (!StringUtils.hasText(authToken)) return false;
 		try {
-			var claims = jwtParser.parseClaimsJws(authToken).getBody();
+			var claims = jwtParser.get(getPartialOrigin()).parseClaimsJws(authToken).getBody();
 			if (!props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
