@@ -62,7 +62,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 			.collect(Collectors.toList());
 	}
 
-	String getPartialOrigin() {
+	public String getPartialOrigin() {
 		var origin = props.getLocalOrigin();
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader().toLowerCase();
