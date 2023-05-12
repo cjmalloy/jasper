@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.service.OembedService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("api/v1/oembed")
@@ -32,7 +35,9 @@ public class OEmbedController {
 	OembedService oembedService;
 
 	@GetMapping()
-	JsonNode oembed(@RequestParam Map<String, String> params) throws URISyntaxException, JsonProcessingException {
-		return oembedService.get(params);
+	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) throws URISyntaxException, JsonProcessingException {
+		return ResponseEntity.ok()
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+			.body(oembedService.get(params));
 	}
 }
