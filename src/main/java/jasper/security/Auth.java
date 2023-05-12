@@ -601,7 +601,7 @@ public class Auth {
 
 	public static String getOriginHeader() {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			logger.debug("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
+			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
 		}
 		return null;
