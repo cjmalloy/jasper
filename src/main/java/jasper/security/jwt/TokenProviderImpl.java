@@ -29,8 +29,8 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 
 	public TokenProviderImpl(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		super(props, userRepository, securityMetersService);
-		for (var c : props.getSecurity().getClients().entrySet()) {
-			var client = c.getKey().equals("default") ? "" : c.getKey();
+		for (var c : props.getSecurity().clientList()) {
+			var client = c.getKey();
 			var key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getBase64Secret()));
 			this.keys.put(client, key);
 			jwtParser.put(client, Jwts.parserBuilder().setSigningKey(key).build());

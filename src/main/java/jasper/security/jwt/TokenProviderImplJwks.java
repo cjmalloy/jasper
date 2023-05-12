@@ -22,8 +22,8 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		RestTemplate restTemplate
 	) throws URISyntaxException {
 		super(props, userRepository, securityMetersService);
-		for (var c : props.getSecurity().getClients().entrySet()) {
-			var client = c.getKey().equals("default") ? "" : c.getKey();
+		for (var c : props.getSecurity().clientList()) {
+			var client = c.getKey();
 			String jwksUri = c.getValue().getAuthentication().getJwt().getJwksUri();
 			jwtParser.put(client, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build());
 		}

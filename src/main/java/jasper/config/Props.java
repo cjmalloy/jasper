@@ -14,6 +14,9 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 /**
  * Properties specific to Jasper.
  * <p>
@@ -214,6 +217,17 @@ public class Props {
 		private final Map<String, Client> clients = new HashMap<>();
 		private final RememberMe rememberMe = new RememberMe();
 		private final OAuth2 oauth2 = new OAuth2();
+
+		public static String getOrigin(String client) {
+			if (isBlank(client) || client.equals("default")) return "";
+			return "@" + client;
+		}
+
+		public List<Map.Entry<String, Client>> clientList() {
+			return clients.entrySet().stream()
+				.map(e -> Map.entry(getOrigin(e.getKey()), e.getValue()))
+				.toList();
+		}
 
 		public boolean hasClient(String origin) {
 			if (origin.equals("") && clients.containsKey("default")) return true;
