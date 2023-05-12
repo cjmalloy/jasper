@@ -24,11 +24,11 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
-		<lombok.version>1.18.24</lombok.version>
-		<testcontainers.version>1.16.2</testcontainers.version>
-		<mapstruct.version>1.5.3.Final</mapstruct.version>
-		<jackson-databind-nullable.version>0.2.4</jackson-databind-nullable.version>
-		<hibernate-types-55.version>2.16.2</hibernate-types-55.version>
+		<lombok.version>1.18.26</lombok.version>
+		<testcontainers.version>1.18.1</testcontainers.version>
+		<mapstruct.version>1.5.5.Final</mapstruct.version>
+		<jackson-databind-nullable.version>0.2.6</jackson-databind-nullable.version>
+		<hibernate-types-55.version>2.21.1</hibernate-types-55.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.11.5</jjwt.version>
@@ -38,9 +38,9 @@
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>0.23.1</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
-		<rome.version>1.18.0</rome.version>
-		<apache-httpclient.version>4.5.13</apache-httpclient.version>
-		<jsoup.version>1.15.3</jsoup.version>
+		<rome.version>2.1.0</rome.version>
+		<apache-httpclient.version>4.5.14</apache-httpclient.version>
+		<jsoup.version>1.16.1</jsoup.version>
 		<scim2-client.version>2.3.7</scim2-client.version>
 	</properties>
 
