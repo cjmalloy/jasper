@@ -30,19 +30,21 @@ public class WebScraper {
 	@Timed(value = "jasper.webscrape")
 	public Ref web(String url) throws IOException, URISyntaxException {
 		var result = new Ref();
-		var web = fetch(url);
-		var strData = new String(web.getData());
-		if (!strData.trim().startsWith("<")) return result;
-		var doc = Jsoup.parse(strData);
 		result.setUrl(url);
-		result.setTitle(doc.title());
+		var web = fetch(url);
+		if (web.getData() != null) {
+			var strData = new String(web.getData());
+			if (!strData.trim().startsWith("<")) return result;
+			var doc = Jsoup.parse(strData);
+			result.setTitle(doc.title());
+		}
 		return result;
 	}
 
 	@Timed(value = "jasper.webscrape")
 	public Web fetch(String url) throws URISyntaxException, IOException {
 		var maybeWeb = webRepository.findById(url);
-		if (maybeWeb.isPresent()) return maybeWeb.get();
+		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
 		var result = new Web();
 		result.setUrl(url);
 		try {
