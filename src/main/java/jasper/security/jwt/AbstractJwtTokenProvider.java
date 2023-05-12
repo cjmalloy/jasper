@@ -66,7 +66,8 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims) {
 		var auth = getPartialAuthorities();
-		var authClaim = claims.get(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), String.class);
+		var client = props.getSecurity().getClient(getPartialOrigin());
+		var authClaim = claims.get(client.getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
 			Arrays.stream(authClaim.split(","))
 				.filter(r -> !r.isBlank())
@@ -78,16 +79,17 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 	}
 
 	String getUsername(Claims claims) {
-		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
+		var client = props.getSecurity().getClient(getPartialOrigin());
+		if (client.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
 			return getHeader(USER_TAG_HEADER);
 		}
-		logger.debug("Sub: {}", props.getSecurity().getClient(getPartialOrigin()).getUsernameClaim());
-		var principal = claims.get(props.getSecurity().getClient(getPartialOrigin()).getUsernameClaim(), String.class);
+		logger.debug("Sub: {}", client.getUsernameClaim());
+		var principal = claims.get(client.getUsernameClaim(), String.class);
 		logger.debug("Principal: {}", principal);
 		var origin = props.getLocalOrigin();
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader().toLowerCase();
-		} else if (!isBlank(principal) && props.getSecurity().getClient(getPartialOrigin()).isAllowUsernameClaimOrigin() && principal.contains("@")) {
+		} else if (!isBlank(principal) && client.isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
 				var qt = qt(principal);
 				if (qt.origin.matches(HasOrigin.REGEX)) {
@@ -127,9 +129,10 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 	@Override
 	public boolean validateToken(String authToken) {
 		if (!StringUtils.hasText(authToken)) return false;
+		var client = props.getSecurity().getClient(getPartialOrigin());
 		try {
 			var claims = jwtParser.get(getPartialOrigin()).parseClaimsJws(authToken).getBody();
-			if (!props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
+			if (!client.getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else {
