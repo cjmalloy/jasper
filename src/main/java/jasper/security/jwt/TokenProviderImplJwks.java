@@ -12,6 +12,8 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImplJwks.class);
 
@@ -25,7 +27,7 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		for (var c : props.getSecurity().clientList()) {
 			var client = c.getKey();
 			String jwksUri = c.getValue().getAuthentication().getJwt().getJwksUri();
-			jwtParser.put(client, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build());
+			if (isNotBlank(jwksUri)) jwtParser.put(client, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build());
 		}
 	}
 
