@@ -44,6 +44,10 @@ spring:
     contexts: dev, faker
   messages:
     cache-duration: PT1S # 1 second, see the ISO 8601 standard
+  mail:
+    properties:
+      'mail.smtp.localhost': 'jasperkm.info'
+      'mail.debug': 'true'
   thymeleaf:
     cache: false
   sleuth:

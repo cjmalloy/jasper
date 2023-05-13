@@ -140,6 +140,14 @@ spring:
     change-log: classpath:config/liquibase/master.xml
   messages:
     basename: i18n/messages
+  mail:
+    host: smtp-relay.gmail.com
+    port: 587
+    protocol: smtp
+    properties:
+      'mail.smtp.localhost': 'hades'
+      'mail.smtp.auth': 'false'
+      'mail.smtp.starttls.enable': 'true'
   main:
     allow-bean-definition-overriding: true
     allow-circular-references: true
