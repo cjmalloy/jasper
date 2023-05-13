@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jasper.domain.Ref;
 import jasper.domain.RefId;
+import jasper.domain.proj.RefUrl;
 import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -101,5 +102,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
 		))""")
 	int backfill(String validationOrigin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
+		FROM ref
+		WHERE ref.origin = :origin
+			AND jsonb_exists(ref.tags, '+plugin/origin')
+			AND (plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
+				OR plugins->'+plugin/origin'->>'local' = :remote
+		LIMIT 1""")
+	Optional<RefUrl> originUrl(String origin, String remote);
 
 }
