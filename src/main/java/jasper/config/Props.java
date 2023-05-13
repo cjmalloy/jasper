@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
+	private String emailHost = "jasper.local";
 	private boolean debug = false;
 	private int maxSources = 1000;
 	private int backupBufferSize = 1000000;
