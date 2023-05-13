@@ -9,6 +9,7 @@ import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -21,21 +22,32 @@ import jasper.errors.PublishDateException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
+import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
 
 import static jasper.domain.proj.Tag.urlForUser;
 import static jasper.repository.spec.QualifiedTag.qt;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
 
 @Component
 public class Validate {
 	private static final Logger logger = LoggerFactory.getLogger(Validate.class);
+
+	@Autowired
+	Props props;
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	RefRepository refRepository;
@@ -55,6 +67,13 @@ public class Validate {
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
 		ref(ref, ref.getOrigin(), force);
+		try {
+			if (!auth.hasRole(MOD)) ref.removeTags(Arrays.asList(props.getModSeals()));
+			if (!auth.hasRole(EDITOR)) ref.removeTags(Arrays.asList(props.getEditorSeals()));
+		} catch (ScopeNotActiveException e) {
+			ref.removeTags(Arrays.asList(props.getModSeals()));
+			ref.removeTags(Arrays.asList(props.getEditorSeals()));
+		}
 	}
 
 	@Timed("jasper.validate.ref")

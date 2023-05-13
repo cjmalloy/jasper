@@ -8,7 +8,6 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +15,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Arrays;
-
-import static jasper.security.AuthoritiesConstants.EDITOR;
-import static jasper.security.AuthoritiesConstants.MOD;
 
 @Component
 public class Ingest {
@@ -40,14 +35,9 @@ public class Ingest {
 	@Autowired
 	Meta meta;
 
-	@Autowired
-	Auth auth;
-
 	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref, boolean force) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
-		if (!auth.hasRole(MOD)) ref.removeTags(Arrays.asList(props.getModSeals()));
-		if (!auth.hasRole(EDITOR)) ref.removeTags(Arrays.asList(props.getEditorSeals()));
 		ref.addHierarchicalTags();
 		validate.ref(ref, force);
 		meta.update(ref, null, null);
@@ -59,8 +49,6 @@ public class Ingest {
 	public void update(Ref ref, boolean force) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		if (!auth.hasRole(MOD)) ref.removeTags(Arrays.asList(props.getModSeals()));
-		if (!auth.hasRole(EDITOR)) ref.removeTags(Arrays.asList(props.getEditorSeals()));
 		ref.addHierarchicalTags();
 		validate.ref(ref, force);
 		meta.update(ref, maybeExisting.get(), null);
