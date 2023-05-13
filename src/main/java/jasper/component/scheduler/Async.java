@@ -7,7 +7,6 @@ import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,7 +17,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 
-@Profile("async")
 @Component
 public class Async {
 	private static final Logger logger = LoggerFactory.getLogger(Async.class);
@@ -35,6 +33,7 @@ public class Async {
 
 	@Scheduled(fixedDelay = 3000)
 	public void drainAsyncTask() {
+		if (tasks.isEmpty()) return;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.query(trackingQuery())
