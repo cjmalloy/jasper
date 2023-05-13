@@ -49,7 +49,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	List<SimpleGrantedAuthority> getPartialAuthorities() {
-		var authString = props.getSecurity().getClient(getPartialOrigin()).getDefaultRole();
+		var client = props.getSecurity().getClient(getPartialOrigin());
+		var authString = client == null ? "ROLE_ANONYMOUS" : client.getDefaultRole();
 		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
 			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
 			authString += ", " + getHeader(USER_ROLE_HEADER);
