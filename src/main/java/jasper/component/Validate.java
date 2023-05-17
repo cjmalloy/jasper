@@ -66,7 +66,6 @@ public class Validate {
 
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
-		ref(ref, ref.getOrigin(), force);
 		try {
 			if (!auth.hasRole(MOD)) ref.removeTags(Arrays.asList(props.getModSeals()));
 			if (!auth.hasRole(EDITOR)) ref.removeTags(Arrays.asList(props.getEditorSeals()));
@@ -74,6 +73,7 @@ public class Validate {
 			ref.removeTags(Arrays.asList(props.getModSeals()));
 			ref.removeTags(Arrays.asList(props.getEditorSeals()));
 		}
+		ref(ref, ref.getOrigin(), force);
 	}
 
 	@Timed("jasper.validate.ref")
