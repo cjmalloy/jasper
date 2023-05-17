@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An async service runs by querying a tag, and is marked as completed with the protected version of
@@ -37,7 +38,7 @@ public class Async {
 	@Autowired
 	Ingest ingest;
 
-	Instant lastModified = Instant.now().minus(1, ChronoUnit.DAYS);
+	Map<String, Instant> lastModified = new HashMap<>();
 
 	Map<String, AsyncRunner> tags = new HashMap<>();
 	Map<String, AsyncRunner> responses = new HashMap<>();
@@ -65,16 +66,21 @@ public class Async {
 		return String.join("|", plugins);
 	}
 
-	@Scheduled(fixedDelay = 3000)
+	@Scheduled(
+		fixedRateString = "${jasper.async-interval-min}",
+		initialDelayString = "${jasper.async-delay-min}",
+		timeUnit = TimeUnit.MINUTES)
 	public void drainAsyncTask() {
-		if (tags.isEmpty()) return;
-		while (true) {
+		if (tags.isEmpty() && responses.isEmpty()) return;
+		for (var origin : props.getScrapeOrigins()) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
+				.origin(origin)
 				.query(trackingQuery())
-				.modifiedAfter(lastModified).build().spec(), PageRequest.of(0, 1, Sort.by("modified")));
-			if (maybeRef.isEmpty()) return;
+				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
+				.build().spec(), PageRequest.of(0, 1, Sort.by("modified")));
+			if (maybeRef.isEmpty()) continue;
 			var ref = maybeRef.getContent().get(0);
-			lastModified = ref.getModified();
+			lastModified.put(origin, ref.getModified());
 			tags.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
 				ref.getTags().add("+" + k);

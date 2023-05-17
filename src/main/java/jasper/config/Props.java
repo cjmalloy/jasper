@@ -33,6 +33,12 @@ public class Props {
 	private int ingestMaxRetry = 5;
 	private String[] modSeals;
 	private String[] editorSeals;
+	private String asyncDelayMin = "2";
+	private String asyncIntervalMin = "0.3";
+	/**
+	 * Whitelist origins to run async tasks on.
+	 */
+	private String[] asyncOrigins = new String[]{""};
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
 	/**
