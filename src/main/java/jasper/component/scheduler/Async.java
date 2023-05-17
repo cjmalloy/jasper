@@ -1,5 +1,6 @@
 package jasper.component.scheduler;
 
+import jasper.component.Ingest;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
@@ -14,26 +15,59 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * An async service runs by querying a tag, and is marked as completed with the protected version of
+ * the same tag. If the tag is also a seal it will be removed on edit.
+ */
 @Component
 public class Async {
 	private static final Logger logger = LoggerFactory.getLogger(Async.class);
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
-	Props props;
+	Ingest ingest;
 
 	Instant lastModified = Instant.now().minus(1, ChronoUnit.DAYS);
 
-	Map<String, AsyncRunner> tasks = new HashMap<>();
+	Map<String, AsyncRunner> tags = new HashMap<>();
+	Map<String, AsyncRunner> responses = new HashMap<>();
+
+	/**
+	 * Register a runner for a tag.
+	 */
+	public void addAsyncTag(String plugin, AsyncRunner r) {
+		tags.put(plugin, r);
+	}
+
+	/**
+	 * Register a runner for a tag response.
+	 */
+	public void addAsyncResponse(String plugin, AsyncRunner r) {
+		responses.put(plugin, r);
+	}
+
+	/**
+	 * The tracking query the plugin tag but not the protected version.
+	 */
+	String trackingQuery() {
+		var plugins = new ArrayList<>(Arrays.asList(tags.keySet().stream().map(p -> p + ":!+" + p).toArray(String[]::new)));
+		plugins.addAll(responses.keySet());
+		return String.join("|", plugins);
+	}
 
 	@Scheduled(fixedDelay = 3000)
 	public void drainAsyncTask() {
-		if (tasks.isEmpty()) return;
+		if (tags.isEmpty()) return;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.query(trackingQuery())
@@ -41,23 +75,26 @@ public class Async {
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().get(0);
 			lastModified = ref.getModified();
-			tasks.forEach((k, v) -> {
+			tags.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
+				ref.getTags().add("+" + k);
+				ingest.update(ref, false);
 				try {
 					v.run(ref);
 				} catch (Exception e) {
-					logger.error("Error in async task {} ", k, e);
+					logger.error("Error in async tag {} ", k, e);
+				}
+			});
+			responses.forEach((k, v) -> {
+				if (!ref.getTags().contains(k)) return;
+				if (ref.hasPluginResponse("+" + k)) return;
+				try {
+					v.run(ref);
+				} catch (Exception e) {
+					logger.error("Error in async tag response {} ", k, e);
 				}
 			});
 		}
-	}
-
-	public void addAsync(String plugin, AsyncRunner r) {
-		tasks.put(plugin, r);
-	}
-
-	String trackingQuery() {
-		return String.join("|", tasks.keySet());
 	}
 
 	public interface AsyncRunner {

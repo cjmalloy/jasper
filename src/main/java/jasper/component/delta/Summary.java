@@ -46,12 +46,11 @@ public class Summary implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsync("plugin/summary", this);
+		async.addAsyncResponse("plugin/summary", this);
 	}
 
 	@Override
 	public void run(Ref ref) {
-		if (ref.hasPluginResponse("+plugin/summary")) return;
 		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())

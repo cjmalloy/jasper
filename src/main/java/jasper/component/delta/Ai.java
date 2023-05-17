@@ -63,12 +63,11 @@ public class Ai implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsync("plugin/ai", this);
+		async.addAsyncResponse("plugin/ai", this);
 	}
 
 	@Override
 	public void run(Ref ref) throws JsonProcessingException {
-		if (ref.hasPluginResponse("+plugin/ai")) return;
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
 		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
