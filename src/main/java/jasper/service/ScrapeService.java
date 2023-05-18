@@ -57,20 +57,27 @@ public class ScrapeService {
 	}
 
 	@PreAuthorize("hasRole('USER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "fetch"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void scrape(String url) throws URISyntaxException, IOException {
 		webScraper.fetch(url);
 	}
 
-	@Timed(value = "jasper.service", extraTags = {"service", "fetch"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public byte[] fetch(String url) throws URISyntaxException, IOException {
 		// Only require role for new scrapes
 		if (!webScraper.exists(url) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return webScraper.fetch(url).getData();
 	}
 
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public String rss(String url) throws URISyntaxException, IOException {
+		// Only require role for new scrapes
+		if (!webScraper.exists(url) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
+		return webScraper.rss(url);
+	}
+
 	@PreAuthorize("hasRole('USER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "cache"}, histogram = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String cache(byte[] data) {
 		var web = from(data);
 		webScraper.cache(web);

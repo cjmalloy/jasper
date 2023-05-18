@@ -42,6 +42,20 @@ public class WebScraper {
 	}
 
 	@Timed(value = "jasper.webscrape")
+	public String rss(String url) throws IOException, URISyntaxException {
+		var web = fetch(url);
+		if (web.getData() == null) return null;
+		var strData = new String(web.getData());
+		if (!strData.trim().startsWith("<")) return null;
+		var doc = Jsoup.parse(strData);
+		return doc.getElementsByTag("link").stream()
+			.filter(t -> t.attr("type").equals("application/rss+xml"))
+			.filter(t -> t.hasAttr("href"))
+			.map(t -> t.attr("href"))
+			.findFirst().orElse(null);
+	}
+
+	@Timed(value = "jasper.webscrape")
 	public Web fetch(String url) throws URISyntaxException, IOException {
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
