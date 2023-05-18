@@ -58,7 +58,7 @@ public class SmtpService {
 				PageRequest.of(0, 1, Sort.by(Sort.Order.desc(Ref_.PUBLISHED))));
 		if (!source.isEmpty()) {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
-			ref.addTags(List.of("internal", "plugin/thread"));
+			ref.addTags(List.of("internal"));
 		}
 		refService.create(ref, false);
 	}
@@ -82,7 +82,7 @@ public class SmtpService {
 	}
 
 	private List<String> emailToTags(SmtpWebhookDto msg) {
-		var tags = new ArrayList<>(List.of("plugin/email"));
+		var tags = new ArrayList<>(List.of("plugin/email", "plugin/thread"));
 		if (msg.getAddresses() != null) {
 			if (Optional.ofNullable(msg.getAddresses().getTo())
 				.map(SmtpWebhookDto.EmailAddress::getAddress).isPresent()) {
