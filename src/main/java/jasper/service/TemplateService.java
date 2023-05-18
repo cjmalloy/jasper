@@ -74,7 +74,6 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(
