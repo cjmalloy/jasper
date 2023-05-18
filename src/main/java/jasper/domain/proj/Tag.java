@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public interface Tag extends HasOrigin {
 	String REGEX = "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*";
 	String QTAG_REGEX = REGEX + HasOrigin.REGEX;
@@ -31,5 +33,17 @@ public interface Tag extends HasOrigin {
 				tags.remove(i);
 			}
 		}
+	}
+
+	static String localTag(String tag) {
+		if (isBlank(tag)) return tag;
+		if (!tag.contains("@")) return tag;
+		return tag.substring(0, tag.indexOf("@"));
+	}
+
+	static String tagOrigin(String tag) {
+		if (isBlank(tag)) return tag;
+		if (!tag.contains("@")) return "";
+		return tag.substring(tag.indexOf("@"));
 	}
 }
