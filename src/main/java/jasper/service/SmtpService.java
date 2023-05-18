@@ -90,7 +90,7 @@ public class SmtpService {
 			}
 			if (Optional.ofNullable(msg.getAddresses().getFrom())
 				.map(SmtpWebhookDto.EmailAddress::getAddress).isPresent()) {
-				tags.add(emailAddressToNotification(msg.getAddresses().getFrom().getAddress()));
+				tags.add(emailAddressFrom(msg.getAddresses().getFrom().getAddress()));
 			}
 			if (msg.getAddresses().getCc() != null) {
 				for (var e : msg.getAddresses().getCc()) {
@@ -109,7 +109,7 @@ public class SmtpService {
 			if (msg.getAddresses().getReplyTo() != null) {
 				for (var e : msg.getAddresses().getReplyTo()) {
 					if (e.getAddress() != null) {
-						tags.add(emailAddressToNotification(e.getAddress()));
+						tags.add(emailAddressFrom(e.getAddress()));
 					}
 				}
 			}
@@ -128,6 +128,11 @@ public class SmtpService {
 		} else {
 			return concat("plugin/outbox", remote, qt.tag);
 		}
+	}
+
+	private String emailAddressFrom(String email) {
+		var qt = selector(email);
+		return concat("plugin/from", qt.origin, qt.tag);
 	}
 
 }
