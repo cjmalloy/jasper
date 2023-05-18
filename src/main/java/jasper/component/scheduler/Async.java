@@ -72,13 +72,17 @@ public class Async {
 		timeUnit = TimeUnit.MINUTES)
 	public void drainAsyncTask() {
 		if (tags.isEmpty() && responses.isEmpty()) return;
-		for (var origin : props.getScrapeOrigins()) {
+		for (var origin : props.getScrapeOrigins()) drain(origin);
+	}
+
+	private void drain(String origin) {
+		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
 				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
 				.build().spec(), PageRequest.of(0, 1, Sort.by("modified")));
-			if (maybeRef.isEmpty()) continue;
+			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().get(0);
 			lastModified.put(origin, ref.getModified());
 			tags.forEach((k, v) -> {
