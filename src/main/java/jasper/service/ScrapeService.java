@@ -63,7 +63,7 @@ public class ScrapeService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public byte[] fetch(String url) throws URISyntaxException, IOException {
+	public byte[] fetch(String url) {
 		// Only require role for new scrapes
 		if (!webScraper.exists(url) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return webScraper.fetch(url).getData();

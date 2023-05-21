@@ -1,12 +1,10 @@
 package jasper.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.config.Props;
-import jasper.errors.NotFoundException;
 import jasper.plugin.Oembed;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -19,8 +17,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -47,11 +45,15 @@ public class OembedService {
 	@Cacheable("oembed")
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
-	public JsonNode get(Map<String, String> params) throws URISyntaxException, JsonProcessingException {
-		var config = getProvider(params.get("url"));
-		if (config == null) throw new NotFoundException("oembed");
+	public JsonNode get(Map<String, String> params) {
+		var config = getProvider(auth.getOrigin(), params.get("url"));
+		if (config == null) return null;
 		params.put("format", "json");
-		return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
+		try {
+			return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 	@Cacheable("oembed-provider")

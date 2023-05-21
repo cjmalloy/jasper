@@ -71,10 +71,14 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("fetch")
-	ResponseEntity<byte[]> fetch(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
-		return ResponseEntity.ok()
+	ResponseEntity<byte[]> fetch(@RequestParam @Length(max = URL_LEN) String url) {
+		var cache = scrapeService.fetch(url);
+		if (cache != null) return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
-			.body(scrapeService.fetch(url));
+			.body(cache);
+		return ResponseEntity.noContent()
+			.cacheControl(CacheControl.maxAge(2, TimeUnit.HOURS).cachePublic())
+			.build();
 	}
 
 	@ApiResponses({
@@ -95,7 +99,7 @@ public class ScrapeController {
 	@GetMapping
 	ResponseEntity<Void> scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
 		scrapeService.scrape(url);
-		return ResponseEntity.ok()
+		return ResponseEntity.noContent()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.build();
 	}

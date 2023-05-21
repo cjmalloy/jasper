@@ -1,6 +1,5 @@
 package jasper.web.rest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +33,7 @@ public class OEmbedController {
 	OembedService oembedService;
 
 	@GetMapping()
-	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) throws URISyntaxException, JsonProcessingException {
+	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) {
 		return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
 			.body(oembedService.get(params));

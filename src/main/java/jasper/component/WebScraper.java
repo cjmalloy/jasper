@@ -1,6 +1,5 @@
 package jasper.component;
 
-import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.WebScraperClient;
 import jasper.domain.Ref;
@@ -56,21 +55,22 @@ public class WebScraper {
 	}
 
 	@Timed(value = "jasper.webscrape")
-	public Web fetch(String url) throws URISyntaxException, IOException {
+	public Web fetch(String url) {
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
-		var result = new Web();
-		result.setUrl(url);
 		try {
 			var res = webScraperClient.scrape(new URI(url));
 			if (res.status() == 301 || res.status() == 304) {
 				res = webScraperClient.scrape(new URI(res.headers().get("Location").toString()));
 			}
+			var result = new Web();
+			result.setUrl(url);
 			result.setData(res.body().asInputStream().readAllBytes());
-		} catch (RetryableException e) {
+			return webRepository.saveAndFlush(result);
+		} catch (Exception e) {
 			logger.warn("Error fetching", e);
+			return null;
 		}
-		return webRepository.saveAndFlush(result);
 	}
 
 	@Timed(value = "jasper.webscrape")
