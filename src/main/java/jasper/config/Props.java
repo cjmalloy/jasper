@@ -52,10 +52,6 @@ public class Props {
 	 */
 	private String[] replicateOrigins = new String[]{""};
 	private int maxReplicateBatch = 5000;
-	/**
-	 * Whitelist origins to be allowed to lookup oembed using +plugin/oembed.
-	 */
-	private String[] oembedOrigins = new String[]{""};
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
 	private boolean multiTenant = false;

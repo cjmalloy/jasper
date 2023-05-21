@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
+import jasper.component.OembedProviders;
 import jasper.config.Props;
 import jasper.plugin.Oembed;
 import jasper.repository.RefRepository;
@@ -34,6 +35,9 @@ public class OembedService {
 	OembedClient oembedClient;
 
 	@Autowired
+	OembedProviders oembedProviders;
+
+	@Autowired
 	Auth auth;
 
 	@Autowired
@@ -56,24 +60,28 @@ public class OembedService {
 		}
 	}
 
+	@PreAuthorize("hasRole('MOD')")
+	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
+	public void restoreDefaults() throws IOException {
+		oembedProviders.defaults(auth.getOrigin());
+	}
+
 	@Cacheable("oembed-provider")
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
-	public Oembed.Endpoints getProvider(String url) {
-		for (var origin : props.getOembedOrigins()) {
-			var providers = refRepository.findAll(
-					auth.refReadSpec().and(RefFilter.builder()
-						.origin(origin)
-						.query("+plugin/oembed").build().spec())).stream()
-				.map(r -> r.getPlugins().get("+plugin/oembed"))
-				.map(p -> objectMapper.convertValue(p, Oembed.class)).toList();
-			for (var p : providers) {
-				for (var e : p.getEndpoints()) {
-					if (e.getSchemes() == null ) continue;
-					for (var s : e.getSchemes()) {
-						var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
-						if (url.matches(regex)) return e;
-					}
+	public Oembed.Endpoints getProvider(String origin, String url) {
+		var providers = refRepository.findAll(
+				auth.refReadSpec().and(RefFilter.builder()
+					.origin(origin)
+					.query("+plugin/oembed").build().spec())).stream()
+			.map(r -> r.getPlugins().get("+plugin/oembed"))
+			.map(p -> objectMapper.convertValue(p, Oembed.class)).toList();
+		for (var p : providers) {
+			for (var e : p.getEndpoints()) {
+				if (e.getSchemes() == null ) continue;
+				for (var s : e.getSchemes()) {
+					var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
+					if (url.matches(regex)) return e;
 				}
 			}
 		}
