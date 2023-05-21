@@ -84,7 +84,7 @@ public class ScrapeController {
 	@GetMapping("rss")
 	ResponseEntity<String> rss(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
 		return ResponseEntity.ok()
-			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(scrapeService.rss(url));
 	}
 
@@ -93,8 +93,11 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	void scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
+	ResponseEntity<Void> scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
 		scrapeService.scrape(url);
+		return ResponseEntity.ok()
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
+			.build();
 	}
 
 	@ApiResponses({
