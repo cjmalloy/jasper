@@ -224,14 +224,14 @@ public class OpenAi {
 
 	public ChatCompletionResult chat(List<ChatMessage> messages) throws JsonProcessingException {
 		var config = getConfig();
-		var model = isBlank(config.fineTunedModel) ? "gpt-3.5-turbo" : config.fineTunedModel;
+		var model = isBlank(config.fineTunedModel) ? "gpt-4" : config.fineTunedModel;
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(4096)
+			.maxTokens(8192)
 			.messages(messages)
 			.model(model)
 			.build();
