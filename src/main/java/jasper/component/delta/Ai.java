@@ -158,13 +158,13 @@ public class Ai implements Async.AsyncRunner {
 			messages.add(cm(ref.getOrigin(), "system", "Output format instructions", instructions, objectMapper));
 			var reply = "";
 			Object msg = null;
-			if (config.fineTuning == null) {
+			if (config.model.equals("gpt-4")) {
 				var res = openAi.chat(messages);
 				msg = res;
 				reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
 				response.setUrl("ai:" + res.getId());
 				logger.trace("Reply: " + reply);
-			} else {
+			} else if (config.model.equals("text-davinci-003")) {
 				var res = openAi.fineTunedCompletion(messages);
 				msg = res;
 				reply = res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n"));

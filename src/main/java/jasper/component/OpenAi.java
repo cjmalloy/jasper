@@ -293,6 +293,7 @@ public class OpenAi {
 	}
 
 	public static class AiConfig {
+		public String model;
 		public String systemPrompt;
 		public String fineTuning;
 		public String fileId;
