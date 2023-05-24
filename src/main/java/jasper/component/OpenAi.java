@@ -28,7 +28,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import retrofit2.Retrofit;
 
-import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -58,13 +57,6 @@ public class OpenAi {
 
 	@Autowired
 	ObjectMapper objectMapper;
-
-	@PostConstruct
-	public void init() {
-		try {
-			getConfig();
-		} catch (Exception e) { }
-	}
 
 	private AiConfig getConfig() {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
@@ -222,9 +214,7 @@ public class OpenAi {
 		}
 	}
 
-	public ChatCompletionResult chat(List<ChatMessage> messages) throws JsonProcessingException {
-		var config = getConfig();
-		var model = isBlank(config.fineTunedModel) ? "gpt-4" : config.fineTunedModel;
+	public ChatCompletionResult chat(String model, List<ChatMessage> messages) throws JsonProcessingException {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
@@ -233,7 +223,7 @@ public class OpenAi {
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
 			.maxTokens(8192)
 			.messages(messages)
-			.model(model)
+			.model("gpt-4")
 			.build();
 		try {
 			return service.createChatCompletion(completionRequest);

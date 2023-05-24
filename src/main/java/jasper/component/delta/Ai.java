@@ -167,7 +167,7 @@ public class Ai implements Async.AsyncRunner {
 			var reply = "";
 			Object msg = null;
 			if (config.model.equals("gpt-4")) {
-				var res = openAi.chat(messages);
+				var res = openAi.chat("gpt-4", messages);
 				msg = res;
 				reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
 				response.setUrl("ai:" + res.getId());
