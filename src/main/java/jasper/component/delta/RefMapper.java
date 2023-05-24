@@ -1,7 +1,11 @@
 package jasper.component.delta;
 
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
+import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
+import jasper.service.dto.TemplateDto;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -14,6 +18,9 @@ public abstract class RefMapper {
 
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
+
+	public abstract PluginDto domainToDto(Plugin ref);
+	public abstract TemplateDto domainToDto(Template ref);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget RefDto ref) {
