@@ -92,62 +92,62 @@ public class Ai implements Async.AsyncRunner {
 			t.getConfig().get("description")).collect(Collectors.joining(", ")) +
 		"}";
 		var instructions = """
-				Include your response as the comment field of a Ref.
-				Only reply with pure JSON. Do not include any text outside of the JSON Ref.
-				You may supply any title that is appropriate, but the usual is to prefix "Re:" to
-				the title of the source Ref (unless it is already prefixed, don't double prefix like "Re: Re:")
-				For example, in response to:
-				```json
-				{
-				  "url": "comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c",
-				  "origin": ""
-				  "title": "Say Hi!",
-				  "tags": [
-				    "public",
-				    "+user/chris",
-				    "plugin/inbox/ai"
-				  ],
-				  "published": "2023-04-22T13:24:06.786Z",
-				  "modified": "2023-04-22T13:24:06.895197Z"
-				  "created": "2023-04-22T13:24:06.895197Z"
+			Include your response as the comment field of a Ref.
+			Only reply with pure JSON. Do not include any text outside of the JSON Ref.
+			You may supply any title that is appropriate, but the usual is to prefix "Re:" to
+			the title of the source Ref (unless it is already prefixed, don't double prefix like "Re: Re:")
+			For example, in response to:
+			```json
+			{
+			  "url": "comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c",
+			  "origin": ""
+			  "title": "Say Hi!",
+			  "tags": [
+				"public",
+				"+user/chris",
+				"plugin/inbox/ai"
+			  ],
+			  "published": "2023-04-22T13:24:06.786Z",
+			  "modified": "2023-04-22T13:24:06.895197Z"
+			  "created": "2023-04-22T13:24:06.895197Z"
+			}
+			You could respond:
+			```json
+			{
+				"ref":[{
+					"url": "ai:f40b2a61-c9e1-4201-9a91-e00cf03f19d8",
+					"origin": "",
+					"sources": ["comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c"],
+					"title" "Re: Say Hi",
+					"comment": "Hi!",
+					"tags": [
+						"public",
+						"ai",
+						"+plugin/openai",
+						"plugin/inbox/user/chris"
+					]
+				}],
+				"ext":[],
+				"plugin":[],
+				"template":[],
+				"user":[]
 				}
-				You could respond:
-				```json
-				{
-					"ref":[{
-						"url": "ai:f40b2a61-c9e1-4201-9a91-e00cf03f19d8",
-						"origin": "",
-						"sources": ["comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c"],
-						"title" "Re: Say Hi",
-						"comment": "Hi!",
-						"tags": [
-							"public",
-							"ai",
-							"+plugin/openai",
-							"plugin/inbox/user/chris"
-						]
-					}],
-					"ext":[],
-					"plugin":[],
-					"template":[],
-					"user":[]
-					}
-				```
-				Also include any other entities (refs, exts, plugins, templates, and users) in your response and they
-				will be created. However, the first Ref should be considered your response and is the only required response.
-				All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
-				Always add the "+plugin/openai" tag, as that is your signature.
-				Never include a tag like "+user/chris", as that is impersonation.
-				You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/openai
-				Only add the "plugin/openai" tag to trigger an AI response to your comment as well (spawn an new
-				agent with your Ref as the prompt).
-				Include your response as the comment field of a Ref.
-				Never include metadata, only Jasper creates metadata asynchronously.
-				Only reply with pure JSON.
-				Do not include any text outside of the JSON Ref.
-				The first character of your reply should be {.
-				Only output valid JSON.
-			""";
+			```
+			Also include any other entities (refs, exts, plugins, templates, and users) in your response and they
+			will be created. However, the first Ref should be considered your response and is the only required response.
+			All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
+			Always add the "+plugin/openai" tag, as that is your signature.
+			Never include a tag like "+user/chris", as that is impersonation.
+			You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/openai
+			Only add the "plugin/openai" tag to trigger an AI response to your comment as well (spawn an new
+			agent with your Ref as the prompt).
+			Include your response as the comment field of a Ref.
+			Never include metadata, only Jasper creates metadata asynchronously.
+			Only reply with pure JSON.
+			Do not include any text outside of the JSON Ref.
+			The first character of your reply should be {.
+			Only output valid JSON.
+		""";
 		var response = new Ref();
 		try {
 			var messages = new ArrayList<>(List.of(
