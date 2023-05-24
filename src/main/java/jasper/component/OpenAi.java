@@ -12,8 +12,8 @@ import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.finetune.FineTuneRequest;
 import com.theokanning.openai.service.OpenAiService;
+import jasper.client.dto.RefDto;
 import jasper.config.Props;
-import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -142,7 +142,7 @@ public class OpenAi {
 	}
 
 
-	public CompletionResult completion(String systemPrompt, String prompt) throws JsonProcessingException {
+	public CompletionResult completion(String systemPrompt, String prompt) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
@@ -179,7 +179,7 @@ public class OpenAi {
 		}
 	}
 
-	public CompletionResult fineTunedCompletion(List<ChatMessage> messages) throws JsonProcessingException {
+	public CompletionResult fineTunedCompletion(List<ChatMessage> messages) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
@@ -221,23 +221,26 @@ public class OpenAi {
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(8192)
+			.maxTokens(4096)
 			.messages(messages)
 			.model("gpt-4")
 			.build();
 		try {
 			return service.createChatCompletion(completionRequest);
 		} catch (OpenAiHttpException e) {
+			logger.error("context_length_exceeded {}", 4096);
 			if ("context_length_exceeded".equals(e.code)) {
 				try {
 					completionRequest.setMaxTokens(400);
 					return service.createChatCompletion(completionRequest);
 				} catch (OpenAiHttpException second) {
+					logger.error("context_length_exceeded {}", 400);
 					if ("context_length_exceeded".equals(second.code)) {
 						try {
 							completionRequest.setMaxTokens(20);
 							return service.createChatCompletion(completionRequest);
 						} catch (OpenAiHttpException third) {
+							logger.error("context_length_exceeded {}", 20);
 							throw e;
 						}
 					}
@@ -263,7 +266,7 @@ public class OpenAi {
 	}
 
 	public static String ref(String origin, String role, String title, String content, ObjectMapper om) {
-		var result = new Ref();
+		var result = new RefDto();
 		result.setOrigin(origin);
 		result.setTitle(title);
 		result.setComment(content);
