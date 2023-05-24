@@ -60,19 +60,19 @@ public class OpenAi {
 	ObjectMapper objectMapper;
 
 	@PostConstruct
-	public void init() throws JsonProcessingException {
+	public void init() {
 		try {
 			getConfig();
 		} catch (Exception e) { }
 	}
 
-	private AiConfig getConfig() throws JsonProcessingException {
+	private AiConfig getConfig() {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai",  props.getLocalOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
+		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/openai",  props.getLocalOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
 		if (isBlank(config.fineTuning)) return config;
 
@@ -279,7 +279,7 @@ public class OpenAi {
 		result.setComment(content);
 		if (role.equals("system")) {
 			result.setUrl("system:instructions");
-			result.setTags(List.of("system", "internal", "notes", "+plugin/ai"));
+			result.setTags(List.of("system", "internal", "notes", "+plugin/openai"));
 		} else {
 			result.setUrl("system:user-instructions");
 			result.setTags(List.of("dm", "internal", "plugin/thread"));

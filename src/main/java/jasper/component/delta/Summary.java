@@ -50,6 +50,11 @@ public class Summary implements Async.AsyncRunner {
 	}
 
 	@Override
+	public String signature() {
+		return "+plugin/summary";
+	}
+
+	@Override
 	public void run(Ref ref) {
 		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);

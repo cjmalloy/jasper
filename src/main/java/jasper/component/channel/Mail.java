@@ -57,6 +57,11 @@ public class Mail implements Async.AsyncRunner {
 	}
 
 	@Override
+	public String signature() {
+		return "+plugin/email";
+	}
+
+	@Override
 	public void run(Ref ref) throws Exception {
 		var ts = new ArrayList<>(ref.getTags());
 		removePrefixTags(ts);
@@ -115,6 +120,7 @@ public class Mail implements Async.AsyncRunner {
 			.map(t -> t + "@" + host)
 			.orElse("no-reply@" + host)
 		);
+		// TODO: Add notifications as reply-to ?
 		message.setSubject(ref.getTitle());
 		message.setText(ref.getComment());
 		emailSender.send(message);

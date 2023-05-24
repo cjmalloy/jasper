@@ -87,7 +87,7 @@ public class Async {
 			lastModified.put(origin, ref.getModified());
 			tags.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
-				ref.getTags().add("+" + k);
+				ref.getTags().add(v.signature());
 				ingest.update(ref, false);
 				try {
 					v.run(ref);
@@ -97,7 +97,7 @@ public class Async {
 			});
 			responses.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
-				if (ref.hasPluginResponse("+" + k)) return;
+				if (ref.hasPluginResponse(v.signature())) return;
 				try {
 					v.run(ref);
 				} catch (Exception e) {
@@ -109,5 +109,6 @@ public class Async {
 
 	public interface AsyncRunner {
 		void run(Ref ref) throws Exception;
+		String signature();
 	}
 }

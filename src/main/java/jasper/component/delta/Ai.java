@@ -63,15 +63,20 @@ public class Ai implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/ai", this);
+		async.addAsyncResponse("plugin/inbox/ai", this);
+	}
+
+	@Override
+	public String signature() {
+		return "+plugin/openai";
 	}
 
 	@Override
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai"));
+		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/openai", ref.getOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		var sample = refMapper.domainToDto(ref);
 		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
@@ -100,7 +105,7 @@ public class Ai implements Async.AsyncRunner {
 				  "tags": [
 				    "public",
 				    "+user/chris",
-				    "plugin/poll"
+				    "plugin/inbox/ai"
 				  ],
 				  "published": "2023-04-22T13:24:06.786Z",
 				  "modified": "2023-04-22T13:24:06.895197Z"
@@ -116,16 +121,17 @@ public class Ai implements Async.AsyncRunner {
 					"comment": "Hi!",
 					"tags": [
 						"public",
-						"+plugin/ai",
+						"ai",
+						"+plugin/openai",
 						"plugin/inbox/user/chris"
 					]
 				}
 				```
 				All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
-				Always add the "+plugin/ai" tag, as that is your signature.
+				Always add the "+plugin/openai" tag, as that is your signature.
 				Never include a tag like "+user/chris", as that is impersonation.
-				You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/ai
-				Only add the "plugin/ai" tag to trigger an AI response to your comment as well (spawn an new
+				You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/openai
+				Only add the "plugin/openai" tag to trigger an AI response to your comment as well (spawn an new
 				agent with your Ref as the prompt).
 				Include your response as the comment field of a Ref.
 				Never include metadata, only Jasper creates metadata asynchronously.
@@ -166,7 +172,7 @@ public class Ai implements Async.AsyncRunner {
 				logger.trace("Reply: " + reply);
 			}
 			response.setComment(reply);
-			response.setPlugin("+plugin/ai", objectMapper.convertValue(msg, JsonNode.class));
+			response.setPlugin("+plugin/openai", objectMapper.convertValue(msg, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error invoking AI. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
@@ -183,11 +189,11 @@ public class Ai implements Async.AsyncRunner {
 				refArray = objectMapper.readValue(response.getComment(), new TypeReference<List<Ref>>() {});
 			}
 			refArray.get(0).setUrl(response.getUrl());
-			refArray.get(0).setPlugin("+plugin/ai", response.getPlugins().get("+plugin/ai"));
+			refArray.get(0).setPlugin("+plugin/openai", response.getPlugins().get("+plugin/openai"));
 		} catch (Exception e) {
 			logger.warn("Falling back: AI did not reply with JSON.");
 			logger.warn(response.getComment(), ex);
-			response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai", "plugin/latex")));
+			response.setTags(new ArrayList<>(List.of("plugin/debug", "ai", "+plugin/openai", "plugin/latex")));
 		}
 		response = refArray.get(0);
 		var tags = new ArrayList<String>();
@@ -207,6 +213,7 @@ public class Ai implements Async.AsyncRunner {
 			}
 		}
 		response.addTags(tags);
+		response.getTags().remove("plugin/inbox/ai");
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (response.getTags().contains("plugin/thread")) {
 			// Add top comment source
@@ -223,7 +230,7 @@ public class Ai implements Async.AsyncRunner {
 			aiReply.setOrigin(ref.getOrigin());
 			if (aiReply.getTags() != null) {
 				aiReply.setTags(new ArrayList<>(aiReply.getTags().stream().filter(
-					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/ai") || !t.startsWith("+") && !t.startsWith("_"))
+					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/openai") || !t.startsWith("+") && !t.startsWith("_"))
 				).toList()));
 			}
 
