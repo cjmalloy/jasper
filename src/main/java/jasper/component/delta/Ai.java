@@ -114,19 +114,27 @@ public class Ai implements Async.AsyncRunner {
 				You could respond:
 				```json
 				{
-					"url": "ai:f40b2a61-c9e1-4201-9a91-e00cf03f19d8",
-					"origin": "",
-					"sources": ["comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c"],
-					"title" "Re: Say Hi",
-					"comment": "Hi!",
-					"tags": [
-						"public",
-						"ai",
-						"+plugin/openai",
-						"plugin/inbox/user/chris"
-					]
-				}
+					"ref":[{
+						"url": "ai:f40b2a61-c9e1-4201-9a91-e00cf03f19d8",
+						"origin": "",
+						"sources": ["comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c"],
+						"title" "Re: Say Hi",
+						"comment": "Hi!",
+						"tags": [
+							"public",
+							"ai",
+							"+plugin/openai",
+							"plugin/inbox/user/chris"
+						]
+					}],
+					"ext":[],
+					"plugin":[],
+					"template":[],
+					"user":[]
+					}
 				```
+				Also include any other entities (refs, exts, plugins, templates, and users) in your response and they
+				will be created. However, the first Ref should be considered your response and is the only required response.
 				All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
 				Always add the "+plugin/openai" tag, as that is your signature.
 				Never include a tag like "+user/chris", as that is impersonation.
