@@ -2,7 +2,8 @@ package jasper.component.delta;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.completion.CompletionChoice;
+import com.theokanning.openai.completion.chat.ChatCompletionChoice;
+import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
@@ -63,14 +64,16 @@ public class Summary implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.completion("", String.join("\n\n",
-				config.getSystemPrompt(),
+			var res = openAi.chatCompletion(config.getSystemPrompt(), String.join("\n\n",
 				"Title: " + ref.getTitle(),
 				"Tags: " + String.join(", ", ref.getTags()),
 				ref.getComment()));
-			response.setComment(res.getChoices().stream().map(CompletionChoice::getText).collect(Collectors.joining("\n\n")));
+			response.setComment(res.getChoices().stream()
+				.map(ChatCompletionChoice::getMessage)
+				.map(ChatMessage::getContent)
+				.collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
-			response.setPlugin("+plugin/ai", objectMapper.convertValue(res, JsonNode.class));
+			response.setPlugin("+plugin/openai", objectMapper.convertValue(res, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error creating the summary. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
@@ -79,7 +82,6 @@ public class Summary implements Async.AsyncRunner {
 		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
-		response.setTags(new ArrayList<>(List.of("+plugin/summary")));
 		var tags = new ArrayList<String>();
 		if (ref.getTags().contains("public")) tags.add("public");
 		if (ref.getTags().contains("internal")) tags.add("internal");
@@ -96,6 +98,9 @@ public class Summary implements Async.AsyncRunner {
 				tags.add(t);
 			}
 		}
+		tags.add("+plugin/summary");
+		tags.add("+plugin/openai");
+		tags.remove("plugin/inbox/ai");
 		response.addTags(tags);
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (response.getTags().contains("plugin/thread")) {

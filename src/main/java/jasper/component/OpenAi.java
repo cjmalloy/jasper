@@ -149,11 +149,11 @@ public class OpenAi {
 		}
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		var completionRequest = CompletionRequest.builder()
+			.model("text-davinci-003")
 			.maxTokens(1024)
 			.prompt(systemPrompt + "\n\n" +
 				"Prompt: " + prompt + "\n\n" +
 				"Reply:")
-			.model("text-davinci-003")
 			.stop(List.of("Prompt:", "Reply:"))
 			.build();
 		try {
@@ -168,6 +168,44 @@ public class OpenAi {
 						completionRequest.setMaxTokens(20);
 						try {
 							return service.createCompletion(completionRequest);
+						} catch (OpenAiHttpException third) {
+							throw e;
+						}
+					}
+					throw e;
+				}
+			}
+			throw e;
+		}
+	}
+
+
+	public ChatCompletionResult chatCompletion(String systemPrompt, String prompt) {
+		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+		if (key.isEmpty()) {
+			throw new NotFoundException("requires openai api key");
+		}
+		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
+		var completionRequest = ChatCompletionRequest.builder()
+			.model("gpt-4")
+			.maxTokens(4096)
+			.messages(List.of(
+				cm("system", systemPrompt),
+				cm("user", prompt)
+			))
+			.build();
+		try {
+			return service.createChatCompletion(completionRequest);
+		} catch (OpenAiHttpException e) {
+			if ("context_length_exceeded".equals(e.code)) {
+				completionRequest.setMaxTokens(400);
+				try {
+					return service.createChatCompletion(completionRequest);
+				} catch (OpenAiHttpException second) {
+					if ("context_length_exceeded".equals(second.code)) {
+						completionRequest.setMaxTokens(20);
+						try {
+							return service.createChatCompletion(completionRequest);
 						} catch (OpenAiHttpException third) {
 							throw e;
 						}
