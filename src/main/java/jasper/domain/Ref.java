@@ -28,6 +28,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -176,20 +177,26 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
-	public Ref addTags(List<String> toAdd) {
-		if (toAdd == null) return this;
+	public Ref addTag(String tag) {
+		if (tag == null) return this;
 		if (tags == null) {
-			tags = toAdd;
+			tags = new ArrayList<>();
+			tags.add(tag);
 		} else {
-			for (var t : toAdd) {
-				if (t.startsWith("-")) {
-					tags.remove(t.substring(1));
-				}
-				else if (!tags.contains(t)) {
-					tags.add(t);
-				}
+			if (tag.startsWith("-")) {
+				tags.remove(tag.substring(1));
+			}
+			else if (!tags.contains(tag)) {
+				tags.add(tag);
 			}
 		}
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref addTags(List<String> toAdd) {
+		if (toAdd == null) return this;
+		for (var t : toAdd) addTag(t);
 		return this;
 	}
 

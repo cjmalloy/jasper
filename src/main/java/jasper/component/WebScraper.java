@@ -1,11 +1,13 @@
 package jasper.component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.WebScraperClient;
 import jasper.domain.Ref;
 import jasper.domain.Web;
 import jasper.repository.WebRepository;
 import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+
+import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 
 @Component
 public class WebScraper {
@@ -26,7 +30,16 @@ public class WebScraper {
 	@Autowired
 	WebScraperClient webScraperClient;
 
+	@Autowired
+	ObjectMapper objectMapper;
+
+	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
+		".article-body",
+		".f_blog_body",
+		".fl-module-fl-post-content",
+		".body.markup",
+		".single-feature-content",
 		".body__inner-container",
 		".showblog-body__content",
 		".article__body-text",
@@ -34,26 +47,50 @@ public class WebScraper {
 		".c-article-content",
 		".meteredContent",
 		".gnt_ar_b",
+		".views-article-body",
+		".elementor-widget-theme-post-content",
 		".l-article__text",
 		".article__text",
 		".sdc-article-body--story",
 		".rich-text",
+		".entrytext",
+		".entry-content",
+		".articleBody",
+		".content-body",
+		".post_page-content",
+		".post-body",
+		".td-post-content",
+		".post_content",
+		".tam__single-content-output",
+		".js_post-content",
+		".js_starterpost",
+		".sqs-layout",
+		"#content-blocks",
+		"#article-body-content",
+		"#article",
+		"#article-body",
 		"#main",
+		"#body",
 		"#mainbar",
 		"#maincontent",
 		"#bodyContent",
 		"#content",
 		".wysiwyg--all-content",
+		".hide-mentions",
 		"div[class^=article-body__content]",
 		"div[class^=article-body__container]",
+		"section[class^=ArticleBody_root]",
+		"div[class^=NodeContent_body]",
 		"div[class^=c-article-body]",
 		"div[class^=ArticlePageChunksContent]",
 		"div[class^=DraftjsBlocks_draftjs]",
 		".story",
+		".post-content",
 		".blog-content",
-		".article-content",
 		".article-body",
+		".article-content",
 		".page-content",
+		".post",
 		".grid-body",
 		".body",
 		"article",
@@ -62,15 +99,43 @@ public class WebScraper {
 	};
 
 	private final String[] removeSelectors = {
+		"nav",
+		"footer",
+		"aside",
 		"noscript",
+		".comment-link",
+		".date-info .updated",
 		".ad-container",
 		".ad-unit",
+		".af-slim-promo",
+		".wsj-ad",
 		".ad",
+		"div[class^=z-ad]",
+		".speaker-mute",
+		".z-trending-headline",
+		".support-us2",
+		".thm-piano-promo",
 		".hide-for-print",
+		".button-wrapper",
+		".subscription-widget-wrap",
+		".sam-pro-place",
+		".subscribe-widget",
+		"#trinity-audio-table",
+		".novashare-ctt",
+		".w-primis-article",
+		".article-btm-content",
+		".gb-container",
+		".pp-multiple-authors-wrapper",
 		".social-tools",
+		".meks_ess",
 		".pop-up-bar",
+		".fancy-box",
+		".van-image-figure",
+		".abh_box",
 		".linkstack",
+		".code-block",
 		".article-sharing",
+		".heateor_sssp_sharing_container",
 		".related",
 		".noprint",
 		".printfooter",
@@ -80,10 +145,20 @@ public class WebScraper {
 		".newsletter-component",
 		".thehill-promo-link",
 		".page-actions",
+		".post-tags",
+		".share-container",
+		".lsn-petitions",
+		".donate-callout",
 		".enhancement",
+		".div-related-embed",
 		".article-related-inline",
 		".author-endnote-container",
+		".newsletter-form-wrapper",
 		".related_topics",
+		".jp-relatedposts",
+		".post-tools-wrapper",
+		".js_alerts_modal",
+		".js_comments-iframe",
 		".share-label-text",
 		".share-toolbar-container",
 		".article-trust-bar",
@@ -95,9 +170,31 @@ public class WebScraper {
 		".overlay",
 		".control",
 		".inline-video",
+		".instream-native-video",
+		".embed-frame",
+		".ml-subscribe-form",
+		"section .related_posts",
+		".wp-block-algori-social-share-buttons-block-algori-social-share-buttons",
+		".related_title",
+		".tags .my_tag",
+		".relatedbox",
+		".blog-subscribe",
+		".ns-share-count",
+		".sharedaddy",
+		".scope-web\\|mobileapps",
 		"a[href^=https://www.foxnews.com/apps-products]",
 		"div[class^=article-body__top-toolbar-container]",
-		"div[class^=article-toolbar]"
+		"div[class^=frontend-components-DigestPostEmbed]",
+		"div[class^=article-toolbar]",
+		"div[class^=RelatedStories_relatedStories]",
+		"div[class^=ArticleWeb_shareBottom]",
+		"div[class^=RelatedTopics_relatedTopics]",
+		"div[class^=ArticleWeb_publishedDate]",
+		"p[class^=ArticleRelatedContentLink_root]"
+	};
+
+	private final String[] removeAfterSelectors = {
+		".elementor-location-single"
 	};
 
 	@Timed(value = "jasper.webscrape")
@@ -110,12 +207,23 @@ public class WebScraper {
 			if (!strData.trim().startsWith("<")) return result;
 			var doc = Jsoup.parse(strData);
 			result.setTitle(doc.title());
-			for (var s : removeSelectors) {
-				doc.select(s).remove();
+			var thumbnail = doc.select("figure.entry-thumbnail img").first();
+			if (thumbnail != null) {
+				// TODO: Parse thumbnail and published separately
+				result.addTag("plugin/thumbnail");
+				var thumb = objectMapper.createObjectNode();
+				thumb.set("url", valueOf(thumbnail.attr("src")));
+				result.setPlugin("plugin/thumbnail", thumb);
+				thumbnail.parent().remove();
 			}
+			for (var r : removeSelectors) doc.select(r).remove();
 			for (var s : websiteTextSelectors) {
-				if (!doc.body().select(s).isEmpty()) {
-					result.setComment(doc.body().select(s).first().html().trim());
+				var el = doc.body().select(s).first();
+				if (el != null) {
+					for (var r : removeAfterSelectors) el.select(r).remove();
+					var html = el.html().trim();
+					html = Jsoup.clean(html, url, Safelist.relaxed());
+					result.setComment(html);
 					return result;
 				}
 			}
@@ -140,6 +248,7 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public Web fetch(String url) {
+		url = fixUrl(url);
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
 		try {
@@ -159,13 +268,17 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public boolean exists(String url) {
-		return webRepository.existsById(url);
+		return webRepository.existsById(fixUrl(url));
 	}
 
 	@Async
 	@Timed(value = "jasper.webscrape")
 	public void cache(Web web) {
 		webRepository.save(web);
+	}
+
+	private String fixUrl(String url) {
+		return url.replaceAll("%20", "+");
 	}
 
 }
