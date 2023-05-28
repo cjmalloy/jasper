@@ -188,7 +188,7 @@ public class OpenAi {
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		var completionRequest = ChatCompletionRequest.builder()
 			.model("gpt-4")
-			.maxTokens(8192)
+			.maxTokens(4096)
 			.messages(List.of(
 				cm("system", systemPrompt),
 				cm("user", prompt)
@@ -259,7 +259,7 @@ public class OpenAi {
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(8192)
+			.maxTokens(4096)
 			.messages(messages)
 			.model("gpt-4")
 			.build();
