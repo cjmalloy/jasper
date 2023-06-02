@@ -26,6 +26,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -173,7 +175,7 @@ public class RssParser {
 			if (desc != null) {
 				comment = desc.getValue();
 				if (isHtml(desc)) {
-					comment = comment.replaceAll("(?m)^\\s+", "");
+					comment = Jsoup.clean(comment, Safelist.relaxed());
 				}
 			}
 		}
