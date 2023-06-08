@@ -7,7 +7,6 @@ import jasper.domain.Ref;
 import jasper.domain.Web;
 import jasper.repository.WebRepository;
 import org.jsoup.Jsoup;
-import org.jsoup.safety.Safelist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +28,9 @@ public class WebScraper {
 
 	@Autowired
 	WebScraperClient webScraperClient;
+
+	@Autowired
+	Sanitizer sanitizer;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -237,9 +239,7 @@ public class WebScraper {
 				var el = doc.body().select(s).first();
 				if (el != null) {
 					for (var r : removeAfterSelectors) el.select(r).remove();
-					var html = el.html().trim();
-					html = Jsoup.clean(html, url, Safelist.relaxed());
-					result.setComment(html);
+					result.setComment(sanitizer.clean(el.html(), url));
 					return result;
 				}
 			}

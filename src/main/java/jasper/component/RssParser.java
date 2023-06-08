@@ -26,8 +26,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.jsoup.Jsoup;
-import org.jsoup.safety.Safelist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,11 +38,7 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 public class RssParser {
@@ -55,6 +49,9 @@ public class RssParser {
 
 	@Autowired
 	Ingest ingest;
+
+	@Autowired
+	Sanitizer sanitizer;
 
 	@Autowired
 	RefRepository refRepository;
@@ -175,7 +172,7 @@ public class RssParser {
 			if (desc != null) {
 				comment = desc.getValue();
 				if (isHtml(desc)) {
-					comment = Jsoup.clean(comment, Safelist.relaxed());
+					comment = sanitizer.clean(comment);
 				}
 			}
 		}
