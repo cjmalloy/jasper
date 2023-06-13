@@ -239,8 +239,9 @@ public class Ref implements HasTags {
 		}
 	}
 
-	public void setPlugin(String tag, JsonNode jsonNode) {
+	public void setPlugin(String tag, Object jsonNode) {
 		if (plugins == null) plugins = om.createObjectNode();
-		plugins.set(tag, jsonNode);
+		addTag(tag);
+		plugins.set(tag, om.convertValue(jsonNode, JsonNode.class));
 	}
 }
