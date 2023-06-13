@@ -107,7 +107,12 @@ public class RssParser {
 					SyndFeed syndFeed = input.build(new XmlReader(stream));
 					Map<String, Object> feedImage = null;
 					if (syndFeed.getImage() != null) {
-						feedImage = Map.of("url", syndFeed.getImage().getUrl());
+						var image = syndFeed.getImage().getUrl();
+						feedImage = Map.of("url", image);
+						if (!feed.getTags().contains("plugin/thumbnail")) {
+							feed.setPlugin("plugin/thumbnail", feedImage);
+							refRepository.save(feed);
+						}
 					}
 					for (var entry : syndFeed.getEntries()) {
 						Ref ref;
