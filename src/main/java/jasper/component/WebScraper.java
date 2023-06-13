@@ -2,10 +2,15 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
-import jasper.client.WebScraperClient;
 import jasper.domain.Ref;
 import jasper.domain.Web;
 import jasper.repository.WebRepository;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.jsoup.Jsoup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +19,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
@@ -25,9 +29,6 @@ public class WebScraper {
 
 	@Autowired
 	WebRepository webRepository;
-
-	@Autowired
-	WebScraperClient webScraperClient;
 
 	@Autowired
 	Sanitizer sanitizer;
@@ -71,6 +72,8 @@ public class WebScraper {
 		".js_post-content",
 		".js_starterpost",
 		".sqs-layout",
+		"main#main .container-md dl",
+		"main .item-details-inner",
 		"#content-blocks",
 		"#article-body-content",
 		"#article",
@@ -81,6 +84,7 @@ public class WebScraper {
 		"#maincontent",
 		"#bodyContent",
 		"#content",
+		"#item-content-data",
 		".wysiwyg--all-content",
 		".hide-mentions",
 		"div[class^=article-body__content]",
@@ -215,6 +219,19 @@ public class WebScraper {
 		".elementor-location-single"
 	};
 
+	private final String[] imageSelectors = {
+		"#item-image #bigimage img",
+		".detail-item-img img",
+	};
+
+	private final String[] imageHrefSelectors = {
+		"#pvImageInner noscript a",
+	};
+
+	private final String[] thumbnailSelectors = {
+		"figure.entry-thumbnail img",
+	};
+
 	@Timed(value = "jasper.webscrape")
 	public Ref web(String url) throws IOException, URISyntaxException {
 		var result = new Ref();
@@ -223,16 +240,33 @@ public class WebScraper {
 		if (web.getData() != null) {
 			var strData = new String(web.getData());
 			if (!strData.trim().startsWith("<")) return result;
-			var doc = Jsoup.parse(strData);
+			var doc = Jsoup.parse(strData, url);
 			result.setTitle(doc.title());
-			var thumbnail = doc.select("figure.entry-thumbnail img").first();
-			if (thumbnail != null) {
-				// TODO: Parse thumbnail and published separately
-				result.addTag("plugin/thumbnail");
-				var thumb = objectMapper.createObjectNode();
-				thumb.set("url", valueOf(thumbnail.attr("src")));
-				result.setPlugin("plugin/thumbnail", thumb);
-				thumbnail.parent().remove();
+			// TODO: Parse plugins separately
+			for (var s : imageHrefSelectors) {
+				var a = doc.select(s).first();
+				if (a != null) {
+					var src = a.absUrl("href");
+					addPluginUrl(result, "plugin/image", getImage(src));
+					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+				}
+			}
+			for (var s : imageSelectors) {
+				var image = doc.select(s).first();
+				if (image != null) {
+					var src = image.absUrl("src");
+					addPluginUrl(result, "plugin/image", getImage(src));
+					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					image.parent().remove();
+				}
+			}
+			for (var s : thumbnailSelectors) {
+				var thumbnail = doc.select(s).first();
+				if (thumbnail != null) {
+					var src = thumbnail.absUrl("src");
+					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					thumbnail.parent().remove();
+				}
 			}
 			for (var r : removeSelectors) doc.select(r).remove();
 			for (var s : websiteTextSelectors) {
@@ -246,6 +280,16 @@ public class WebScraper {
 			result.setComment(doc.body().wholeText().trim());
 		}
 		return result;
+	}
+
+	private String getImage(String src) {
+		if (src.contains("/full/max/0/")) return src.replace("/full/max/0/", "/full/!1920,1080/0/");
+		return src;
+	}
+
+	private String getThumbnail(String src) {
+		if (src.contains("/full/max/0/")) return src.replace("/full/max/0/", "/full/!300,200/0/");
+		return src;
 	}
 
 	@Timed(value = "jasper.webscrape")
@@ -268,17 +312,33 @@ public class WebScraper {
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
 		try {
-			var res = webScraperClient.scrape(new URI(url));
-			if (res.status() == 301 || res.status() == 304) {
-				res = webScraperClient.scrape(new URI(res.headers().get("Location").toString()));
-			}
-			var result = new Web();
-			result.setUrl(url);
-			result.setData(res.body().asInputStream().readAllBytes());
-			return webRepository.saveAndFlush(result);
+			return webRepository.saveAndFlush(doScrape(url));
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
 			return null;
+		}
+	}
+
+	private Web doScrape(String url) throws IOException {
+		int timeout = 30 * 1000; // 30 seconds
+		RequestConfig requestConfig = RequestConfig
+			.custom()
+			.setConnectTimeout(timeout)
+			.setConnectionRequestTimeout(timeout)
+			.setSocketTimeout(timeout).build();
+		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
+		try (CloseableHttpClient client = builder.build()) {
+			HttpUriRequest request = new HttpGet(url);
+			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
+			try (var res = client.execute(request)) {
+				if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
+					return doScrape(res.getFirstHeader("Location").getElements()[0].getValue());
+				}
+				var result = new Web();
+				result.setUrl(url);
+				result.setData(res.getEntity().getContent().readAllBytes());
+				return result;
+			}
 		}
 	}
 
@@ -295,6 +355,13 @@ public class WebScraper {
 
 	private String fixUrl(String url) {
 		return url.replaceAll("%20", "+");
+	}
+
+	private void addPluginUrl(Ref ref, String tag, String url) {
+		ref.addTag(tag);
+		var img = objectMapper.createObjectNode();
+		img.set("url", valueOf(url));
+		ref.setPlugin(tag, img);
 	}
 
 }
