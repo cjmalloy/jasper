@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class WebScraper {
@@ -237,6 +239,10 @@ public class WebScraper {
 		".elementor-location-single"
 	};
 
+	private final String[] imageFixSelectors = {
+		"\\?w=\\d+&h=\\d+(&crop=\\d+)?",
+	};
+
 	private final String[] imageSelectors = {
 		"#item-image #bigimage img",
 		".detail-item-img img",
@@ -261,6 +267,20 @@ public class WebScraper {
 			var doc = Jsoup.parse(strData, url);
 			result.setTitle(doc.title());
 			// TODO: Parse plugins separately
+			var images = doc.select("img");
+			for (var image : images) {
+				var src = image.absUrl("src");
+				var dataSrc = image.absUrl("data-src");
+				if (isNotBlank(dataSrc)) {
+					image.attr("src", src = dataSrc);
+				}
+				for (var query : imageFixSelectors) {
+					if (src.matches(query)) {
+						image.attr("src", src.replaceAll(query, ""));
+						break;
+					}
+				}
+			}
 			for (var s : imageHrefSelectors) {
 				var a = doc.select(s).first();
 				if (a != null) {
