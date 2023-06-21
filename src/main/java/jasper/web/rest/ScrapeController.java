@@ -14,6 +14,7 @@ import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @RestController
 @RequestMapping("api/v1/scrape")
@@ -73,9 +75,10 @@ public class ScrapeController {
 	@GetMapping("fetch")
 	ResponseEntity<byte[]> fetch(@RequestParam @Length(max = URL_LEN) String url) {
 		var cache = scrapeService.fetch(url);
-		if (cache != null) return ResponseEntity.ok()
+		if (cache != null && cache.getData() != null) return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
-			.body(cache);
+			.contentType(isNotBlank(cache.getMime()) ? MediaType.valueOf(cache.getMime()) : null)
+			.body(cache.getData());
 		return ResponseEntity.noContent()
 			.cacheControl(CacheControl.maxAge(2, TimeUnit.HOURS).cachePublic())
 			.build();
@@ -109,7 +112,10 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping("cache")
-	String cache(@RequestBody byte[] data) {
-		return scrapeService.cache(data);
+	String cache(
+		@RequestParam(required = false) String mime,
+		@RequestBody byte[] data
+	) {
+		return scrapeService.cache(data, mime);
 	}
 }

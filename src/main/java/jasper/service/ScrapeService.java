@@ -5,6 +5,7 @@ import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.RssParser;
 import jasper.component.WebScraper;
+import jasper.domain.Web;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
@@ -63,10 +64,10 @@ public class ScrapeService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public byte[] fetch(String url) {
+	public Web fetch(String url) {
 		// Only require role for new scrapes
 		if (!webScraper.exists(url) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return webScraper.fetch(url).getData();
+		return webScraper.fetch(url);
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
@@ -78,9 +79,7 @@ public class ScrapeService {
 
 	@PreAuthorize("hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String cache(byte[] data) {
-		var web = from(data);
-		webScraper.cache(web);
-		return web.getUrl();
+	public String cache(byte[] data, String mime) {
+		return webScraper.cache(from(data, mime)).getUrl();
 	}
 }

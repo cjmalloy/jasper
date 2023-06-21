@@ -376,6 +376,7 @@ public class WebScraper {
 				}
 				var result = new Web();
 				result.setUrl(url);
+				result.setMime(res.getFirstHeader("Content-Type").getValue());
 				result.setData(res.getEntity().getContent().readAllBytes());
 				return result;
 			}
@@ -389,8 +390,8 @@ public class WebScraper {
 
 	@Async
 	@Timed(value = "jasper.webscrape")
-	public void cache(Web web) {
-		webRepository.save(web);
+	public Web cache(Web web) {
+		return webRepository.save(web);
 	}
 
 	private String fixUrl(String url) {

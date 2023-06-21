@@ -9,6 +9,7 @@
 			<column name="url" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
 			</column>
+			<column name="mime" type="TEXT"/>
 			<column name="data" type="BYTEA"/>
 		</createTable>
 	</changeSet>
