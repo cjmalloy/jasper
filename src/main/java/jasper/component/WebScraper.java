@@ -115,6 +115,7 @@ public class WebScraper {
 
 	private final String[] removeSelectors = {
 		"nav",
+		"header",
 		"footer",
 		"aside",
 		"noscript",
@@ -210,6 +211,7 @@ public class WebScraper {
 		".overlay",
 		".control",
 		".inline-video",
+		"div[data-component=video-block]",
 		".instream-native-video",
 		".embed-frame",
 		".ml-subscribe-form",
