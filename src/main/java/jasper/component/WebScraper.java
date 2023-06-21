@@ -38,6 +38,7 @@ public class WebScraper {
 
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
+		".article-body__content",
 		".article-body",
 		".f_blog_body",
 		".fl-module-fl-post-content",
@@ -121,8 +122,10 @@ public class WebScraper {
 		".ad-unit",
 		".af-slim-promo",
 		".wsj-ad",
+		".c-ad",
 		".ad",
 		"div[class^=z-ad]",
+		".liveBlogCards",
 		".speaker-mute",
 		".z-trending-headline",
 		".support-us2",
@@ -164,6 +167,7 @@ public class WebScraper {
 		".meks_ess",
 		".pop-up-bar",
 		".fancy-box",
+		".c-figure__expand",
 		".van-image-figure",
 		".abh_box",
 		".linkstack",
