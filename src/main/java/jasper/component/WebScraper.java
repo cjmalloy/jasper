@@ -224,7 +224,9 @@ public class WebScraper {
 		"div[class^=ArticleWeb_shareBottom]",
 		"div[class^=RelatedTopics_relatedTopics]",
 		"div[class^=ArticleWeb_publishedDate]",
-		"p[class^=ArticleRelatedContentLink_root]"
+		"p[class^=ArticleRelatedContentLink_root]",
+		"img[style^=width:1px;height:1px]",
+		"img[style^=position:absolute;width:1px;height:1px]"
 	};
 
 	private final String[] removeAfterSelectors = {
