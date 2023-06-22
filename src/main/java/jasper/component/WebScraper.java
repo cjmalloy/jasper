@@ -256,6 +256,9 @@ public class WebScraper {
 
 	private final String[] thumbnailSelectors = {
 		"figure.entry-thumbnail img",
+		".live-blog-above-main-content svg",
+		"figure.embed link[as=image][rel=preload]",
+		"amp-img",
 	};
 
 	@Timed(value = "jasper.webscrape")
@@ -275,6 +278,10 @@ public class WebScraper {
 				var dataSrc = image.absUrl("data-src");
 				if (isNotBlank(dataSrc)) {
 					image.attr("src", src = dataSrc);
+				}
+				var dataSrcset = image.absUrl("data-srcset");
+				if (isNotBlank(dataSrcset)) {
+					image.attr("src", src = getImage(dataSrcset.split(",")[0]));
 				}
 				for (var query : imageFixSelectors) {
 					if (src.matches(query)) {
@@ -303,8 +310,15 @@ public class WebScraper {
 			for (var s : thumbnailSelectors) {
 				var thumbnail = doc.select(s).first();
 				if (thumbnail != null) {
-					var src = thumbnail.absUrl("src");
-					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					if (thumbnail.tagName().equals("svg")) {
+						addPluginUrl(result, "plugin/thumbnail", svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
+					} else if (thumbnail.hasAttr("href")) {
+						var src = thumbnail.absUrl("href");
+						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					} else if (thumbnail.hasAttr("src")) {
+						var src = thumbnail.absUrl("src");
+						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					}
 					thumbnail.parent().remove();
 				}
 			}
@@ -396,6 +410,20 @@ public class WebScraper {
 
 	private String fixUrl(String url) {
 		return url.replaceAll("%20", "+");
+	}
+
+	private String svgToUrl(String svg) {
+		return "data:image/svg+xml," + svg
+			.replaceAll("<svg", svg.contains("xmlns") ? "<svg" : "<svg xmlns='http://www.w3.org/2000/svg'")
+			.replaceAll("viewbox", "viewBox")
+			.replaceAll("\"", "'")
+			.replaceAll("%", "%25")
+			.replaceAll("#", "%23")
+			.replaceAll("\\{", "%7B")
+			.replaceAll("}", "%7D")
+			.replaceAll("<", "%3C")
+			.replaceAll(">", "%3E")
+			.replaceAll("\s+"," ");
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
