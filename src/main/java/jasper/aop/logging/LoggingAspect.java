@@ -9,7 +9,6 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 
 import java.util.Arrays;
 
@@ -65,23 +64,12 @@ public class LoggingAspect {
      */
     @AfterThrowing(pointcut = "applicationPackagePointcut() && springBeanPointcut()", throwing = "e")
     public void logAfterThrowing(JoinPoint joinPoint, Throwable e) {
-        if (env.acceptsProfiles(Profiles.of("dev"))) {
-            logger(joinPoint)
-                .error(
-                    "Exception in {}() with cause = '{}' and exception = '{}'",
-                    joinPoint.getSignature().getName(),
-                    e.getCause() != null ? e.getCause() : "NULL",
-                    e.getMessage(),
-                    e
-                );
-        } else {
-            logger(joinPoint)
-                .error(
-                    "Exception in {}() with cause = {}",
-                    joinPoint.getSignature().getName(),
-                    e.getCause() != null ? e.getCause() : "NULL"
-                );
-        }
+		logger(joinPoint).debug(
+			"Exception in {}() with cause = {}",
+			joinPoint.getSignature().getName(),
+			e.getCause() != null ? e.getCause() : "NULL"
+		);
+		logger(joinPoint).trace("", e);
     }
 
     /**
