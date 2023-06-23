@@ -24,6 +24,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
@@ -343,6 +344,27 @@ public class WebScraper {
 					thumbnail.parent().remove();
 				}
 			}
+			var metaAudio = doc.select("meta[property=og:audio]").first();
+			if (metaAudio != null && isNotBlank(metaAudio.attr("content"))) {
+				addPluginUrl(result, "plugin/audio", metaAudio.absUrl("content"));
+			}
+			var metaVideo = doc.select("meta[property=og:video]").first();
+			if (metaVideo != null && isNotBlank(metaVideo.attr("content"))) {
+				addPluginUrl(result, "plugin/video", metaVideo.absUrl("content"));
+			}
+			var metaImage = doc.select("meta[property=og:image]").first();
+			if (metaImage != null && isNotBlank(metaImage.attr("content"))) {
+				addPluginUrl(result, "plugin/image", metaImage.absUrl("content"));
+				addWeakThumbnail(result, metaImage.absUrl("content"));
+			}
+			var metaPublished = doc.select("meta[property=og:article:published_time]").first();
+			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
+				result.setPublished(Instant.parse(metaPublished.attr("content")));
+			}
+			var metaReleased = doc.select("meta[property=og:book:release_date]").first();
+			if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
+				result.setPublished(Instant.parse(metaReleased.attr("content")));
+			}
 			for (var r : removeSelectors) doc.select(r).remove();
 			for (var s : websiteTextSelectors) {
 				var el = doc.body().select(s).first();
@@ -355,6 +377,12 @@ public class WebScraper {
 			result.setComment(doc.body().wholeText().trim());
 		}
 		return result;
+	}
+
+	private void addWeakThumbnail(Ref ref, String url) {
+		if (!ref.getTags().contains("plugin/thumbnail")) {
+			addPluginUrl(ref, "plugin/thumbnail", url);
+		}
 	}
 
 	private String getVideo(String src) {
@@ -481,6 +509,7 @@ public class WebScraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
+		fetch(url);
 		ref.addTag(tag);
 		var img = objectMapper.createObjectNode();
 		img.set("url", valueOf(url));
