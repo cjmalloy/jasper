@@ -20,6 +20,11 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.ArrayList;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -248,10 +253,11 @@ public class WebScraper {
 	private final String[] imageSelectors = {
 		"#item-image #bigimage img",
 		".detail-item-img img",
+		"#pvImageInner noscript a",
 	};
 
-	private final String[] imageHrefSelectors = {
-		"#pvImageInner noscript a",
+	private final String[] videoSelectors = {
+		"div.video[data-stream]",
 	};
 
 	private final String[] thumbnailSelectors = {
@@ -290,21 +296,31 @@ public class WebScraper {
 					}
 				}
 			}
-			for (var s : imageHrefSelectors) {
-				var a = doc.select(s).first();
-				if (a != null) {
-					var src = a.absUrl("href");
-					addPluginUrl(result, "plugin/image", getImage(src));
-					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
-				}
-			}
 			for (var s : imageSelectors) {
 				var image = doc.select(s).first();
-				if (image != null) {
+				if (image == null) continue;
+				if (image.tagName().equals("a")) {
+					var src = image.absUrl("href");
+					addPluginUrl(result, "plugin/image", getImage(src));
+					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+				} else {
 					var src = image.absUrl("src");
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 					image.parent().remove();
+				}
+			}
+			for (var s : videoSelectors) {
+				var video = doc.select(s).first();
+				if (video == null) continue;
+				if (video.tagName().equals("div")) {
+					var src = video.absUrl("data-stream");
+					addPluginUrl(result, "plugin/video", getVideo(src));
+				} else {
+					var src = video.absUrl("src");
+					addPluginUrl(result, "plugin/video", getVideo(src));
+					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					video.parent().remove();
 				}
 			}
 			for (var s : thumbnailSelectors) {
@@ -334,6 +350,10 @@ public class WebScraper {
 			result.setComment(doc.body().wholeText().trim());
 		}
 		return result;
+	}
+
+	private String getVideo(String src) {
+		return src;
 	}
 
 	private String getImage(String src) {
@@ -366,7 +386,7 @@ public class WebScraper {
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
 		try {
-			return webRepository.saveAndFlush(doScrape(url));
+			return webRepository.saveAndFlush(createArchive(doScrape(url)));
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
 			return null;
@@ -395,6 +415,32 @@ public class WebScraper {
 				return result;
 			}
 		}
+	}
+
+	private Web createArchive(Web source) {
+		// M3U8 Manifest
+		if (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL")) {
+			try {
+				var urlObj = new URL(source.getUrl());
+				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
+				// TODO: Set archive base URL
+				var basePath = "/api/v1/scrape/fetch?url=";
+				var buffer = new StringBuilder();
+				var lines = new String(source.getData()).split("\n");
+				for (String line : lines) {
+					if (line.startsWith("#")) {
+						buffer.append(line).append("\n");
+					} else {
+						if (!line.startsWith("http") && !line.startsWith("#")) {
+							line = hostPath + "/" + line;
+						}
+						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+					}
+				}
+				source.setData(buffer.toString().getBytes());
+			} catch (Exception e) {}
+		}
+		return source;
 	}
 
 	@Timed(value = "jasper.webscrape")
