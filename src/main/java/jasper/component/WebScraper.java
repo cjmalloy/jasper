@@ -27,7 +27,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -301,10 +300,12 @@ public class WebScraper {
 				if (image == null) continue;
 				if (image.tagName().equals("a")) {
 					var src = image.absUrl("href");
+					fetch(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 				} else {
 					var src = image.absUrl("src");
+					fetch(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 					image.parent().remove();
@@ -315,9 +316,11 @@ public class WebScraper {
 				if (video == null) continue;
 				if (video.tagName().equals("div")) {
 					var src = video.absUrl("data-stream");
+					fetch(src);
 					addPluginUrl(result, "plugin/video", getVideo(src));
 				} else {
 					var src = video.absUrl("src");
+					fetch(src);
 					addPluginUrl(result, "plugin/video", getVideo(src));
 					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 					video.parent().remove();
@@ -330,9 +333,11 @@ public class WebScraper {
 						addPluginUrl(result, "plugin/thumbnail", svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
 					} else if (thumbnail.hasAttr("href")) {
 						var src = thumbnail.absUrl("href");
+						fetch(src);
 						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 					} else if (thumbnail.hasAttr("src")) {
 						var src = thumbnail.absUrl("src");
+						fetch(src);
 						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
 					}
 					thumbnail.parent().remove();
@@ -418,6 +423,7 @@ public class WebScraper {
 	}
 
 	private Web createArchive(Web source) {
+		var moreScrape = new ArrayList<String>();
 		// M3U8 Manifest
 		if (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL")) {
 			try {
@@ -434,12 +440,14 @@ public class WebScraper {
 						if (!line.startsWith("http") && !line.startsWith("#")) {
 							line = hostPath + "/" + line;
 						}
+						moreScrape.add(line);
 						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
 					}
 				}
 				source.setData(buffer.toString().getBytes());
 			} catch (Exception e) {}
 		}
+		for (var m : moreScrape) fetch(m);
 		return source;
 	}
 
