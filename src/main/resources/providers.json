@@ -1,7 +1,23 @@
 [
+	{
+		"//": "Added Manually",
+		"provider_name": "Imgur",
+		"provider_url": "https://imgur.com",
+		"endpoints": [
+			{
+				"schemes": [
+					"https://imgur.com/*"
+				],
+				"url": "https://api.imgur.com/oembed.json",
+				"discovery": true
+			}
+		]
+	},
+
+
     {
-				"//": "https://oembed.com/providers.json",
-        "provider_name": "23HQ",
+		"//": "https://oembed.com/providers.json",
+		"provider_name": "23HQ",
         "provider_url": "http://www.23hq.com",
         "endpoints": [
             {
