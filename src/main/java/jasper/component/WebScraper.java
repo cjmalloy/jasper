@@ -1,7 +1,9 @@
 package jasper.component;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
+import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
 import jasper.domain.Web;
 import jasper.repository.WebRepository;
@@ -26,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.List;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -272,7 +275,7 @@ public class WebScraper {
 		var result = new Ref();
 		result.setUrl(url);
 		var web = fetch(url);
-		if (web.getData() != null) {
+		if (web != null && web.getData() != null) {
 			var strData = new String(web.getData());
 			if (!strData.trim().startsWith("<")) return result;
 			var doc = Jsoup.parse(strData, url);
@@ -354,8 +357,7 @@ public class WebScraper {
 			}
 			var metaImage = doc.select("meta[property=og:image]").first();
 			if (metaImage != null && isNotBlank(metaImage.attr("content"))) {
-				addPluginUrl(result, "plugin/image", metaImage.absUrl("content"));
-				addWeakThumbnail(result, metaImage.absUrl("content"));
+				addPluginUrl(result, "plugin/thumbnail", metaImage.absUrl("content"));
 			}
 			var metaPublished = doc.select("meta[property=og:article:published_time]").first();
 			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
@@ -366,6 +368,19 @@ public class WebScraper {
 				result.setPublished(Instant.parse(metaReleased.attr("content")));
 			}
 			for (var r : removeSelectors) doc.select(r).remove();
+			var jsonlds = doc.select("script[type=application/ld+json]");
+			for (var jsonld : jsonlds) {
+				var json = jsonld.html().trim().replaceAll("\n", " ");
+				try {
+					var configs = json.startsWith("{") ?
+						List.of(objectMapper.readValue(json, JsonLd.class)) :
+						objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
+					for (var c : configs) parseLd(result, c);
+				} catch (Exception e) {
+					logger.warn("Invalid LD+JSON. {}", e.getMessage());
+					logger.debug(json);
+				}
+			}
 			for (var s : websiteTextSelectors) {
 				var el = doc.body().select(s).first();
 				if (el != null) {
@@ -382,6 +397,76 @@ public class WebScraper {
 	private void addWeakThumbnail(Ref ref, String url) {
 		if (!ref.getTags().contains("plugin/thumbnail")) {
 			addPluginUrl(ref, "plugin/thumbnail", url);
+		}
+	}
+
+	private void parseLd(Ref result, JsonLd ld) {
+		if (isNotBlank(ld.getThumbnailUrl())) addWeakThumbnail(result, ld.getThumbnailUrl());
+		if ("NewsArticle".equals(ld.getType())) {
+			if (isNotBlank(ld.getDatePublished())) {
+				result.setPublished(Instant.parse(ld.getDatePublished()));
+			}
+		}
+		if ("AudioObject".equals(ld.getType())) {
+			if (isNotBlank(ld.getEmbedUrl())) {
+				addPluginUrl(result, "plugin/embed", ld.getEmbedUrl());
+			} else if (isNotBlank(ld.getUrl())) {
+				addPluginUrl(result, "plugin/audio", ld.getUrl());
+			}
+		}
+		if (("VideoObject".equals(ld.getType())) || "http://schema.org/VideoObject".equals(ld.getType())) {
+			if (isNotBlank(ld.getContentUrl())) {
+				addVideoUrl(result, ld.getContentUrl());
+				if (isBlank(ld.getThumbnailUrl())) addThumbnailUrl(result, ld.getContentUrl());
+			} else if (isNotBlank(ld.getEmbedUrl())) {
+				addPluginUrl(result, "plugin/embed", ld.getEmbedUrl());
+			}
+		}
+		if ("SocialMediaPosting".equals(ld.getType())) {
+		}
+		if ("ImageObject".equals(ld.getType())) {
+			if (isNotBlank(ld.getEmbedUrl())) {
+				addPluginUrl(result, "plugin/embed", ld.getEmbedUrl());
+			} else if (isNotBlank(ld.getContentUrl())) {
+				if (isBlank(ld.getThumbnailUrl())) {
+					addThumbnailUrl(result, ld.getContentUrl());
+				} else if (!hasMedia(result)) {
+					addPluginUrl(result, "plugin/image", ld.getContentUrl());
+				}
+			}
+		}
+		if (ld.getPublisher() != null) {
+			for (var p : ld.getPublisher()) {
+				if (p.isTextual()) continue;
+				var pub = objectMapper.convertValue(p, JsonLd.class);
+				if (pub.getLogo() != null) {
+					for (var icon : pub.getLogo().isArray() ? pub.getLogo() : List.of(pub.getLogo())) {
+						if (icon.isObject()) {
+							if (icon.has("url") && isNotBlank(icon.get("url").asText())) addWeakThumbnail(result, icon.get("url").asText());
+						} if (isNotBlank(icon.asText())) {
+							addWeakThumbnail(result, icon.asText());
+						}
+					}
+				}
+			}
+		}
+		if (ld.getImage() != null) {
+			for (var image : ld.getImage()) {
+				if (image.isTextual()) {
+					addPluginUrl(result, "plugin/image", image.textValue());
+				} else {
+					parseLd(result, objectMapper.convertValue(image, JsonLd.class));
+				}
+			}
+		}
+		if (ld.getVideo() != null) {
+			for (var video : ld.getVideo()) {
+				if (video.isTextual()) {
+					addPluginUrl(result, "plugin/video", video.textValue());
+				} else {
+					parseLd(result, objectMapper.convertValue(video, JsonLd.class));
+				}
+			}
 		}
 	}
 
