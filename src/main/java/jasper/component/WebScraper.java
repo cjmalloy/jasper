@@ -503,11 +503,16 @@ public class WebScraper {
 		url = fixUrl(url);
 		var maybeWeb = webRepository.findById(url);
 		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
+		List<String> scrapeMore = List.of();
 		try {
-			return webRepository.saveAndFlush(createArchive(doScrape(url)));
+			var web = doScrape(url);
+			scrapeMore = createArchive(web);
+			return webRepository.saveAndFlush(web);
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
 			return null;
+		} finally {
+			for (var m : scrapeMore) fetch(m);
 		}
 	}
 
@@ -535,10 +540,10 @@ public class WebScraper {
 		}
 	}
 
-	private Web createArchive(Web source) {
+	private List<String> createArchive(Web source) {
 		var moreScrape = new ArrayList<String>();
 		// M3U8 Manifest
-		if (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL")) {
+		if (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL") || source.getMime().equals("application/vnd.apple.mpegurl")) {
 			try {
 				var urlObj = new URL(source.getUrl());
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
@@ -560,8 +565,7 @@ public class WebScraper {
 				source.setData(buffer.toString().getBytes());
 			} catch (Exception e) {}
 		}
-		for (var m : moreScrape) fetch(m);
-		return source;
+		return moreScrape;
 	}
 
 	@Timed(value = "jasper.webscrape")
