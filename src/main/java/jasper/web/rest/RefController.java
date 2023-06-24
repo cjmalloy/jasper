@@ -243,9 +243,10 @@ public class RefController {
 	void patchRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam(required = false) boolean force,
 		@RequestBody JsonPatch patch
 	) {
-		refService.patch(url, origin, patch);
+		refService.patch(url, origin, patch, force);
 	}
 
 	@ApiResponses({

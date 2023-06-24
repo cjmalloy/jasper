@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
 
 import static jasper.repository.spec.QualifiedTag.selector;
 
@@ -134,7 +136,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void patch(String qualifiedTag, JsonPatch patch) {
+	public void patch(String qualifiedTag, JsonPatch patch, boolean force) {
 		var created = false;
 		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {
@@ -147,8 +149,21 @@ public class ExtService {
 		if (ext.getConfig() == null) {
 			ext.setConfig(validate.templateDefaults(qualifiedTag));
 		}
+		var patches = List.of(patch);
+		if (force) {
+			var ops = objectMapper.convertValue(patch, JsonNode[].class);
+			patches = Arrays.stream(ops).map(op -> objectMapper.convertValue(List.of(op), JsonPatch.class)).toList();
+		}
+		var patched = objectMapper.convertValue(ext, JsonNode.class);
+		for (var step : patches) {
+			try {
+				patched = step.apply(patched);
+			} catch (JsonPatchException e) {
+				if (!force) throw new InvalidPatchException("Ext " + qualifiedTag, e);
+				logger.debug(e.getMessage());
+			}
+		}
 		try {
-			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ext.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteTag(updated.getQualifiedTag())) throw new AccessDeniedException("Can't add new tags");
@@ -157,7 +172,7 @@ public class ExtService {
 			} else {
 				update(updated);
 			}
-		} catch (JsonPatchException | JsonProcessingException e) {
+		} catch (JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
 	}

@@ -120,6 +120,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/origin'
+        - name: force
+          in: query
+          required: false
+          schema:
+            type: boolean
       requestBody:
         content:
           application/json-patch+json:
@@ -785,6 +790,11 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag'
+        - name: force
+          in: query
+          required: false
+          schema:
+              type: boolean
       responses:
         '200':
           description: OK

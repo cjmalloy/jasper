@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -139,7 +141,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void patch(String url, String origin, JsonPatch patch) {
+	public void patch(String url, String origin, JsonPatch patch, boolean force) {
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
@@ -149,17 +151,31 @@ public class RefService {
 			ref.setOrigin(origin);
 		}
 		ref.setPlugins(validate.pluginDefaults(ref));
+
+		var patches = List.of(patch);
+		if (force) {
+			var ops = objectMapper.convertValue(patch, JsonNode[].class);
+			patches = Arrays.stream(ops).map(op -> objectMapper.convertValue(List.of(op), JsonPatch.class)).toList();
+		}
+		var patched = objectMapper.convertValue(ref, JsonNode.class);
+		for (var step : patches) {
+			try {
+				patched = step.apply(patched);
+			} catch (JsonPatchException e) {
+				if (!force) throw new InvalidPatchException("Ref " + origin + " " + url, e);
+				logger.debug(e.getMessage());
+			}
+		}
 		try {
-			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				create(updated, false);
+				create(updated, force);
 			} else {
-				update(updated, false);
+				update(updated, force);
 			}
-		} catch (JsonPatchException | JsonProcessingException e) {
+		} catch (JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}

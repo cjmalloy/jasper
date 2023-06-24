@@ -143,9 +143,10 @@ public class ExtController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestParam(required = false) boolean force,
 		@RequestBody JsonPatch patch
 	) {
-		extService.patch(tag, patch);
+		extService.patch(tag, patch, force);
 	}
 
 	@ApiResponses({
