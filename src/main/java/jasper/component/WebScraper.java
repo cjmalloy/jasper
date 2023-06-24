@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
+import static jasper.domain.proj.Tag.hasMedia;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -48,13 +50,20 @@ public class WebScraper {
 
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
+		"article .crawler",
+		"span[itemprop=articleBody]",
+		"section.content__body",
 		".article-body__content",
+		".article__content-body",
 		".article-body",
+		".details>.details-body",
 		".f_blog_body",
+		".caas-body",
 		".fl-module-fl-post-content",
 		".body.markup",
 		"main.ff-main-content section",
 		".single-feature-content",
+		".single-content-wrapper",
 		".body__inner-container",
 		".showblog-body__content",
 		".article__body-text",
@@ -70,7 +79,9 @@ public class WebScraper {
 		".sdc-article-body--story",
 		".wprm-recipe-container",
 		".tasty-recipes",
+		".storytext",
 		".rich-text",
+		".entry-summary",
 		".entrytext",
 		".entry-content",
 		".articleBody",
@@ -84,8 +95,13 @@ public class WebScraper {
 		".js_post-content",
 		".js_starterpost",
 		".sqs-layout",
+		".c-text",
+		".pmc-paywall",
+		".postcontent",
+		"article.article-body-wrapper-custom",
 		"main#main .container-md dl",
 		"main .item-details-inner",
+		"#liveblog-body",
 		"#content-blocks",
 		"#article-body-content",
 		"#article",
@@ -99,6 +115,8 @@ public class WebScraper {
 		"#item-content-data",
 		".wysiwyg--all-content",
 		".hide-mentions",
+		"div.article",
+		"div.content",
 		"div[class^=article-body__content]",
 		"div[class^=article-body__container]",
 		"section[class^=ArticleBody_root]",
@@ -106,6 +124,7 @@ public class WebScraper {
 		"div[class^=c-article-body]",
 		"div[class^=ArticlePageChunksContent]",
 		"div[class^=DraftjsBlocks_draftjs]",
+		"div[class^=index-module_storyContainer]",
 		".story",
 		".post-content",
 		".blog-content",
@@ -116,6 +135,7 @@ public class WebScraper {
 		".post",
 		".grid-body",
 		".body",
+		".body-text",
 		"article",
 		"main",
 		"section"
@@ -134,16 +154,25 @@ public class WebScraper {
 		".af-slim-promo",
 		".wsj-ad",
 		".c-ad",
+		".adLabelWrapperManual",
 		".ad",
+		"gu-island",
 		"div[class^=z-ad]",
+		"div[class^=ad_]",
 		".liveBlogCards",
 		".speaker-mute",
+		".brands-most-popular",
 		".z-trending-headline",
+		".subscriber-only.encrypted-content",
 		".support-us2",
 		".thm-piano-promo",
+		".article-content-cta-group",
+		".nlp-ignore-block",
 		".quickview__meta",
 		".stat__item--recipe-box",
 		".stat__item--print",
+		".internallink",
+		".credit-caption",
 		".js-is-sticky-social--bottom",
 		".js-kaf-share-widget",
 		".wprm-call-to-action",
@@ -151,9 +180,15 @@ public class WebScraper {
 		".tasty-recipes-buttons",
 		".recipe-bakers-hotline",
 		"#block-kafrecommendedrecipes",
+		"#news_letter_div",
 		"#firefly-poll-container",
 		"#in-article-trending",
 		"#in-article-related",
+		"#inline-article-recommend",
+		".inline-article",
+		".inline-collection",
+		".hidden-print",
+		"[data-block=doNotPrint]",
 		".apester-media",
 		".ff-fancy-header-container",
 		".entry-submit-correction",
@@ -169,12 +204,16 @@ public class WebScraper {
 		".sam-pro-place",
 		".subscribe-widget",
 		"#trinity-audio-table",
+		".trinity-skip-it",
+		".big-top",
+		"#tncms-region-article_instory_top",
 		".novashare-ctt",
 		".w-primis-article",
 		".article-btm-content",
 		".gb-container",
 		".pp-multiple-authors-wrapper",
 		".social-tools",
+		".subscriber-offers",
 		".meks_ess",
 		".pop-up-bar",
 		".fancy-box",
@@ -210,6 +249,7 @@ public class WebScraper {
 		".js_comments-iframe",
 		".share-label-text",
 		".share-toolbar-container",
+		".social-share-links",
 		".article-trust-bar",
 		".l-inlineStories",
 		".c-conversation-title",
@@ -222,7 +262,10 @@ public class WebScraper {
 		"div[data-component=video-block]",
 		".instream-native-video",
 		".embed-frame",
+		".video-schema",
+		".meta.player",
 		".ml-subscribe-form",
+		".dfm-trust-indicators-footer-links",
 		"section .related_posts",
 		".wp-block-algori-social-share-buttons-block-algori-social-share-buttons",
 		".related_title",
@@ -232,7 +275,17 @@ public class WebScraper {
 		".ns-share-count",
 		".sharedaddy",
 		".scope-web\\|mobileapps",
+		"[class*=SnippetSubheadline]",
+		"[class*=SnippetSignInText]",
+		"a[href^=https://subscribe.wsj.com/wsjsnippet]",
 		"a[href^=https://www.foxnews.com/apps-products]",
+		"a[href^=https://www.ctvnews.ca/newsletters]",
+		"a[href^=https://www.ctvnews.ca/app]",
+		"ul[class^=context-widget__tabs]",
+		"div[class^=index-module_shareColumn]",
+		"div[class^=index-module_overlayWrapper]",
+		"div[class^=UserWayButton]",
+		"div[class^=article-body__desktop-only]",
 		"div[class^=article-body__top-toolbar-container]",
 		"div[class^=frontend-components-DigestPostEmbed]",
 		"div[class^=article-toolbar]",
@@ -242,11 +295,23 @@ public class WebScraper {
 		"div[class^=ArticleWeb_publishedDate]",
 		"p[class^=ArticleRelatedContentLink_root]",
 		"img[style^=width:1px;height:1px]",
-		"img[style^=position:absolute;width:1px;height:1px]"
+		"img[style^=position:absolute;width:1px;height:1px]",
+		"div:empty",
+		"span:empty",
+		"li:empty",
+		"ul:empty",
+		"ol:empty",
+
+		// TODO: add image gallery plugin
+		".article-slideshow",
 	};
 
 	private final String[] removeAfterSelectors = {
 		".elementor-location-single"
+	};
+
+	private final String[] removeStyleSelectors = {
+		".subscriber-only"
 	};
 
 	private final String[] imageFixSelectors = {
@@ -260,13 +325,21 @@ public class WebScraper {
 	};
 
 	private final String[] videoSelectors = {
+		"video[src]",
+		"video source",
 		"div.video[data-stream]",
+	};
+
+	private final String[] audioSelectors = {
+		"audio[src]",
+		"audio source",
 	};
 
 	private final String[] thumbnailSelectors = {
 		"figure.entry-thumbnail img",
 		".live-blog-above-main-content svg",
 		"figure.embed link[as=image][rel=preload]",
+		"img.video__fallback",
 		"amp-img",
 	};
 
@@ -306,58 +379,81 @@ public class WebScraper {
 					var src = image.absUrl("href");
 					fetch(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
-					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					addThumbnailUrl(result, getThumbnail(src));
 				} else {
 					var src = image.absUrl("src");
 					fetch(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
-					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+					addThumbnailUrl(result, getThumbnail(src));
 					image.parent().remove();
 				}
 			}
-			for (var s : videoSelectors) {
-				var video = doc.select(s).first();
-				if (video == null) continue;
-				if (video.tagName().equals("div")) {
-					var src = video.absUrl("data-stream");
-					fetch(src);
-					addPluginUrl(result, "plugin/video", getVideo(src));
-				} else {
-					var src = video.absUrl("src");
-					fetch(src);
-					addPluginUrl(result, "plugin/video", getVideo(src));
-					addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
-					video.parent().remove();
-				}
-			}
 			for (var s : thumbnailSelectors) {
-				var thumbnail = doc.select(s).first();
-				if (thumbnail != null) {
+				for (var thumbnail : doc.select(s)) {
 					if (thumbnail.tagName().equals("svg")) {
-						addPluginUrl(result, "plugin/thumbnail", svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
+						addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
 					} else if (thumbnail.hasAttr("href")) {
 						var src = thumbnail.absUrl("href");
 						fetch(src);
-						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+						addThumbnailUrl(result, getThumbnail(src));
 					} else if (thumbnail.hasAttr("src")) {
 						var src = thumbnail.absUrl("src");
 						fetch(src);
-						addPluginUrl(result, "plugin/thumbnail", getThumbnail(src));
+						addThumbnailUrl(result, getThumbnail(src));
 					}
 					thumbnail.parent().remove();
 				}
 			}
-			var metaAudio = doc.select("meta[property=og:audio]").first();
-			if (metaAudio != null && isNotBlank(metaAudio.attr("content"))) {
+			for (var r : removeSelectors) doc.select(r).remove();
+			for (var r : removeStyleSelectors) doc.select(r).removeAttr("style");
+			for (var s : videoSelectors) {
+				for (var video : doc.select(s)) {
+					if (video.tagName().equals("div")) {
+						var src = video.absUrl("data-stream");
+						fetch(src);
+						addVideoUrl(result, getVideo(src));
+					} else if (video.hasAttr("src")) {
+						var src = video.absUrl("src");
+						fetch(src);
+						addVideoUrl(result, getVideo(src));
+						addWeakThumbnail(result, getThumbnail(src));
+						video.parent().remove();
+					}
+				}
+			}
+			for (var v : doc.select("video")) {
+				if (v.select("source").isEmpty()) v.remove();
+			}
+			for (var s : audioSelectors) {
+				for (var audio : doc.select(s)) {
+					if (audio.hasAttr("src")) {
+						var src = audio.absUrl("src");
+						fetch(src);
+						addPluginUrl(result, "plugin/audio", getVideo(src));
+						audio.parent().remove();
+					}
+				}
+			}
+			for (var a : doc.select("audio")) {
+				if (a.select("source").isEmpty()) a.remove();
+			}
+			for (var metaAudio : doc.select("meta[property=og:audio]")) {
+				if (isBlank(metaAudio.attr("content"))) continue;
 				addPluginUrl(result, "plugin/audio", metaAudio.absUrl("content"));
 			}
-			var metaVideo = doc.select("meta[property=og:video]").first();
-			if (metaVideo != null && isNotBlank(metaVideo.attr("content"))) {
-				addPluginUrl(result, "plugin/video", metaVideo.absUrl("content"));
+			for (var metaVideo : doc.select("meta[property=og:video]")) {
+				var videoUrl = metaVideo.absUrl("content");
+				if (isBlank(videoUrl)) continue;
+				// TODO: video filetypes
+				if (videoUrl.endsWith(".m3u8") || videoUrl.endsWith(".mp4")) {
+					addVideoUrl(result, videoUrl);
+				} else {
+					addPluginUrl(result, "plugin/embed", videoUrl);
+				}
 			}
-			var metaImage = doc.select("meta[property=og:image]").first();
-			if (metaImage != null && isNotBlank(metaImage.attr("content"))) {
-				addPluginUrl(result, "plugin/thumbnail", metaImage.absUrl("content"));
+			for (var metaImage : doc.select("meta[property=og:image]")) {
+				if (isBlank(metaImage.attr("content"))) continue;
+				addThumbnailUrl(result, metaImage.absUrl("content"));
 			}
 			var metaPublished = doc.select("meta[property=og:article:published_time]").first();
 			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
@@ -367,7 +463,6 @@ public class WebScraper {
 			if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
 				result.setPublished(Instant.parse(metaReleased.attr("content")));
 			}
-			for (var r : removeSelectors) doc.select(r).remove();
 			var jsonlds = doc.select("script[type=application/ld+json]");
 			for (var jsonld : jsonlds) {
 				var json = jsonld.html().trim().replaceAll("\n", " ");
@@ -395,9 +490,18 @@ public class WebScraper {
 	}
 
 	private void addWeakThumbnail(Ref ref, String url) {
-		if (!ref.getTags().contains("plugin/thumbnail")) {
-			addPluginUrl(ref, "plugin/thumbnail", url);
-		}
+		if (!ref.getTags().contains("plugin/thumbnail")) addThumbnailUrl(ref, url);
+	}
+
+	private void addThumbnailUrl(Ref ref, String url) {
+		if (url.endsWith(".com")) return;
+		addPluginUrl(ref, "plugin/thumbnail", url);
+	}
+
+	private void addVideoUrl(Ref ref, String url) {
+		if (isBlank(url)) return;
+		if (ref.getTags() != null && ref.getTags().contains("plugin/video") && url.endsWith(".m3u8") && !ref.getPlugins().get("plugin/video").get("url").asText().endsWith(".m3u8")) return;
+		addPluginUrl(ref, "plugin/video", url);
 	}
 
 	private void parseLd(Ref result, JsonLd ld) {
@@ -476,6 +580,7 @@ public class WebScraper {
 
 	private String getImage(String src) {
 		if (src.contains("/full/max/0/")) return src.replace("/full/max/0/", "/full/!1920,1080/0/");
+		if (src.contains("?resize")) return src.substring(0, src.indexOf("?resize"));
 		return src;
 	}
 
