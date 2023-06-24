@@ -3,8 +3,8 @@ package jasper.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
 import jasper.component.Validate;
@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -139,7 +141,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void patch(String url, String origin, JsonPatch patch) {
+	public void patch(String url, String origin, Patch patch) {
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
@@ -152,6 +154,8 @@ public class RefService {
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
+			// Tolerate duplicate tags
+			updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {

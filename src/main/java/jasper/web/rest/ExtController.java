@@ -1,6 +1,7 @@
 package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -144,6 +145,19 @@ public class ExtController {
 	void patchExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
 		@RequestBody JsonPatch patch
+	) {
+		extService.patch(tag, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void mergeExt(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestBody JsonMergePatch patch
 	) {
 		extService.patch(tag, patch);
 	}

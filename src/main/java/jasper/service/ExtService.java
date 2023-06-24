@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Validate;
 import jasper.domain.Ext;
@@ -134,7 +134,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void patch(String qualifiedTag, JsonPatch patch) {
+	public void patch(String qualifiedTag, Patch patch) {
 		var created = false;
 		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {

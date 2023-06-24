@@ -1,6 +1,7 @@
 package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -244,6 +245,21 @@ public class RefController {
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody JsonPatch patch
+	) {
+		refService.patch(url, origin, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void mergeRef(
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestBody JsonMergePatch patch
 	) {
 		refService.patch(url, origin, patch);
 	}
