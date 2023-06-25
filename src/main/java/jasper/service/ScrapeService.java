@@ -60,7 +60,7 @@ public class ScrapeService {
 	@PreAuthorize("hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void scrape(String url) throws URISyntaxException, IOException {
-		webScraper.fetch(url);
+		webScraper.scrape(url);
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
@@ -71,7 +71,7 @@ public class ScrapeService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String rss(String url) throws URISyntaxException, IOException {
+	public String rss(String url) {
 		// Only require role for new scrapes
 		if (!webScraper.exists(url) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return webScraper.rss(url);

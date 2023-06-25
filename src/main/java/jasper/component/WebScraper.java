@@ -48,6 +48,8 @@ public class WebScraper {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	WebScraper self = this;
+
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
 		"article .crawler",
@@ -378,12 +380,12 @@ public class WebScraper {
 				if (image == null) continue;
 				if (image.tagName().equals("a")) {
 					var src = image.absUrl("href");
-					fetch(src);
+					self.scrape(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
 				} else {
 					var src = image.absUrl("src");
-					fetch(src);
+					self.scrape(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
 					image.parent().remove();
@@ -395,11 +397,11 @@ public class WebScraper {
 						addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
 					} else if (thumbnail.hasAttr("href")) {
 						var src = thumbnail.absUrl("href");
-						fetch(src);
+						self.scrape(src);
 						addThumbnailUrl(result, getThumbnail(src));
 					} else if (thumbnail.hasAttr("src")) {
 						var src = thumbnail.absUrl("src");
-						fetch(src);
+						self.scrape(src);
 						addThumbnailUrl(result, getThumbnail(src));
 					}
 					thumbnail.parent().remove();
@@ -411,11 +413,11 @@ public class WebScraper {
 				for (var video : doc.select(s)) {
 					if (video.tagName().equals("div")) {
 						var src = video.absUrl("data-stream");
-						fetch(src);
+						self.scrape(src);
 						addVideoUrl(result, getVideo(src));
 					} else if (video.hasAttr("src")) {
 						var src = video.absUrl("src");
-						fetch(src);
+						self.scrape(src);
 						addVideoUrl(result, getVideo(src));
 						addWeakThumbnail(result, getThumbnail(src));
 						video.parent().remove();
@@ -429,7 +431,7 @@ public class WebScraper {
 				for (var audio : doc.select(s)) {
 					if (audio.hasAttr("src")) {
 						var src = audio.absUrl("src");
-						fetch(src);
+						self.scrape(src);
 						addPluginUrl(result, "plugin/audio", getVideo(src));
 						audio.parent().remove();
 					}
@@ -608,6 +610,13 @@ public class WebScraper {
 			.findFirst().orElse(null);
 	}
 
+	public void scrape(String url) {
+		if (isBlank(url)) return;
+		// TODO: Switch to async tag processor using "_scrape" tag
+		if (exists(url)) return;
+		this.fetch(url);
+	}
+
 	@Timed(value = "jasper.webscrape")
 	public Web fetch(String url) {
 		url = fixUrl(url);
@@ -622,7 +631,7 @@ public class WebScraper {
 			logger.warn("Error fetching", e);
 			return null;
 		} finally {
-			for (var m : scrapeMore) fetch(m);
+			for (var m : scrapeMore) self.scrape(m);
 		}
 	}
 
@@ -710,7 +719,7 @@ public class WebScraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		fetch(url);
+		self.scrape(url);
 		ref.addTag(tag);
 		var img = objectMapper.createObjectNode();
 		img.set("url", valueOf(url));
