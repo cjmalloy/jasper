@@ -690,7 +690,9 @@ public class WebScraper {
 	}
 
 	private String fixUrl(String url) {
-		return url.replaceAll("%20", "+");
+		// TODO: Add plugin to override like oembeds
+//		return url.replaceAll("%20", "+");
+		return url.replaceAll(" ", "%20");
 	}
 
 	private String svgToUrl(String svg) {
