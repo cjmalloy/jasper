@@ -118,6 +118,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
+			.headers()
+			.frameOptions()
+			.sameOrigin()
+		.and()
 			.cors().configurationSource(request -> {
 				var config = new CorsConfiguration();
 				config.addAllowedMethod("*");
