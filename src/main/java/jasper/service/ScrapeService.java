@@ -60,7 +60,7 @@ public class ScrapeService {
 	@PreAuthorize("hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void scrape(String url) throws URISyntaxException, IOException {
-		webScraper.fetch(url);
+		webScraper.scrape(url);
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)

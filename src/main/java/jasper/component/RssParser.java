@@ -153,7 +153,7 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
-		webScraper.fetch(l);
+		webScraper.scrape(l);
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
 		ref.setSources(List.of(feed.getUrl()));
@@ -201,28 +201,28 @@ public class RssParser {
 				}
 			}
 			if (plugins.containsKey("plugin/thumbnail")) {
-				webScraper.fetch(getUrl("plugin/thumbnail", plugins));
+				webScraper.scrape(getUrl("plugin/thumbnail", plugins));
 				ref.getTags().add("plugin/thumbnail");
 			}
 		}
 		if (config.isScrapeAudio()) {
 			parseAudio(entry, plugins);
 			if (plugins.containsKey("plugin/audio")) {
-				webScraper.fetch(getUrl("plugin/audio", plugins));
+				webScraper.scrape(getUrl("plugin/audio", plugins));
 				ref.getTags().add("plugin/audio");
 			}
 		}
 		if (config.isScrapeVideo()) {
 			parseVideo(entry, plugins);
 			if (plugins.containsKey("plugin/video")) {
-				webScraper.fetch(getUrl("plugin/video", plugins));
+				webScraper.scrape(getUrl("plugin/video", plugins));
 				ref.getTags().add("plugin/video");
 			}
 		}
 		if (config.isScrapeEmbed()) {
 			parseEmbed(entry, plugins);
 			if (plugins.containsKey("plugin/embed")) {
-				webScraper.fetch(getUrl("plugin/embed", plugins));
+				webScraper.scrape(getUrl("plugin/embed", plugins));
 				ref.getTags().add("plugin/embed");
 			}
 		}
