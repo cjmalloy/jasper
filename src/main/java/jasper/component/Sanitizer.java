@@ -17,7 +17,6 @@ public class Sanitizer {
 		"animateMotion",
 		"animateTransform",
 		"animation",
-		"audio",
 		"circle",
 		"clipPath",
 		"color-profile",
@@ -95,7 +94,6 @@ public class Sanitizer {
 		"tspan",
 		"unknown",
 		"use",
-		"video",
 		"view",
 		"vkern"
 	};
