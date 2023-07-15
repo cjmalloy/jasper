@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
-@Transactional(readOnly = true)
 public class OembedService {
 	private static final Logger logger = LoggerFactory.getLogger(OembedService.class);
 
@@ -47,6 +46,7 @@ public class OembedService {
 	ObjectMapper objectMapper;
 
 	@Cacheable("oembed")
+	@Transactional(readOnly = true)
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
@@ -67,6 +67,7 @@ public class OembedService {
 	}
 
 	@Cacheable("oembed-provider")
+	@Transactional(readOnly = true)
 	@PreAuthorize("hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public Oembed.Endpoints getProvider(String origin, String url) {

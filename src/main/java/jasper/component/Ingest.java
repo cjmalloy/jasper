@@ -15,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 
 @Component
 public class Ingest {
@@ -56,11 +57,11 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref) {
+	public void push(Ref ref, List<String> metadataPlugins) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
 		validate.ref(ref, true);
-		meta.update(ref, maybeExisting.orElse(null), null);
+		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
 	}
 

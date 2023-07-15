@@ -80,7 +80,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", props.getMaxSources(), ref.getSources().size());
 		}
-		ingest.push(ref);
+		ingest.push(ref, null);
 	}
 
 	@Transactional(readOnly = true)
