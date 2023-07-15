@@ -52,15 +52,16 @@ public class WebScraper {
 
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
-		"article .crawler",
 		"span[itemprop=articleBody]",
 		"section.content__body",
 		".article-body__content",
+		".article__content",
 		".article__content-body",
 		".article-body",
 		".details>.details-body",
 		".f_blog_body",
 		".caas-body",
+		"article .crawler",
 		".fl-module-fl-post-content",
 		".body.markup",
 		"main.ff-main-content section",
@@ -83,9 +84,9 @@ public class WebScraper {
 		".tasty-recipes",
 		".storytext",
 		".rich-text",
+		".entry-content",
 		".entry-summary",
 		".entrytext",
-		".entry-content",
 		".articleBody",
 		".mv-create-wrapper",
 		".content-body",
@@ -154,6 +155,7 @@ public class WebScraper {
 		".date-info .updated",
 		".ad-container",
 		".ad-unit",
+		".advert-wrapper",
 		".af-slim-promo",
 		".wsj-ad",
 		".c-ad",
@@ -166,11 +168,19 @@ public class WebScraper {
 		".speaker-mute",
 		".brands-most-popular",
 		".z-trending-headline",
+		".article__gallery-count",
+		".rail-component",
+		".read-more-container",
+		"#site_atribution",
+		"#site_attribution",
+		".article-extras",
+		"#firefly-poll-container",
 		".subscriber-only.encrypted-content",
 		".support-us2",
 		".thm-piano-promo",
 		".article-content-cta-group",
 		".nlp-ignore-block",
+		".block-ibtg-article",
 		".quickview__meta",
 		".stat__item--recipe-box",
 		".stat__item--print",
@@ -456,13 +466,18 @@ public class WebScraper {
 			}
 			for (var metaImage : doc.select("meta[property=og:image]")) {
 				if (isBlank(metaImage.attr("content"))) continue;
+				// TODO: In some cases load plugin/image
 				addThumbnailUrl(result, metaImage.absUrl("content"));
 			}
 			var metaTitle = doc.select("meta[property=og:title]").first();
 			if (metaTitle != null && isNotBlank(metaTitle.attr("content"))) {
 				result.setTitle(metaTitle.attr("content"));
 			}
-			var metaPublished = doc.select("meta[property=og:article:published_time]").first();
+			var metaPublished = doc.select("meta[property=article:published_time]").first();
+			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
+				result.setPublished(Instant.parse(metaPublished.attr("content")));
+			}
+			metaPublished = doc.select("meta[property=og:article:published_time]").first();
 			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
 				result.setPublished(Instant.parse(metaPublished.attr("content")));
 			}
