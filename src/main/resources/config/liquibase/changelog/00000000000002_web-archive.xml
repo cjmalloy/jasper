@@ -11,6 +11,9 @@
 			</column>
 			<column name="mime" type="TEXT"/>
 			<column name="data" type="BYTEA"/>
+			<column name="scraped" type="TIMESTAMP">
+				<constraints nullable="false"/>
+			</column>
 		</createTable>
 	</changeSet>
 
