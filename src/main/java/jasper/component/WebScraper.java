@@ -501,7 +501,7 @@ public class WebScraper {
 	}
 
 	private void addThumbnailUrl(Ref ref, String url) {
-		if (url.endsWith(".com")) return;
+		if (url.endsWith(".com") || url.endsWith(".m3u8")) return;
 		addPluginUrl(ref, "plugin/thumbnail", url);
 	}
 
@@ -662,15 +662,15 @@ public class WebScraper {
 	private List<String> createArchive(Web source) {
 		var moreScrape = new ArrayList<String>();
 		// M3U8 Manifest
-		if (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL") || source.getMime().equals("application/vnd.apple.mpegurl")) {
+		var data = new String(source.getData());
+		if (data.trim().startsWith("#") && (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL") || source.getMime().equals("application/vnd.apple.mpegurl"))) {
 			try {
 				var urlObj = new URL(source.getUrl());
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = "/api/v1/scrape/fetch?url=";
 				var buffer = new StringBuilder();
-				var lines = new String(source.getData()).split("\n");
-				for (String line : lines) {
+				for (String line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
 					} else {
