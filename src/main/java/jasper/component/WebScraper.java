@@ -631,7 +631,9 @@ public class WebScraper {
 		if (isBlank(url)) return;
 		// TODO: Switch to async tag processor using "_scrape" tag
 		if (exists(url)) return;
-		this.fetch(url);
+		try {
+			this.fetch(url);
+		} catch (Exception e) {}
 	}
 
 	@Timed(value = "jasper.webscrape")
