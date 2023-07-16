@@ -101,6 +101,7 @@ public class WebScraper {
 		".c-text",
 		".pmc-paywall",
 		".postcontent",
+		".post-content",
 		"article.article-body-wrapper-custom",
 		"main#main .container-md dl",
 		"main .item-details-inner",
