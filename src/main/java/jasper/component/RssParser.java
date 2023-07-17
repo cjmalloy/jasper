@@ -153,7 +153,12 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
-		webScraper.scrape(l);
+		try {
+			var web = webScraper.web(l);
+			if (web != null && config.isScrapeWebpage()) {
+				ref = web;
+			}
+		} catch (Exception ignored) {}
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
 		ref.setSources(List.of(feed.getUrl()));
