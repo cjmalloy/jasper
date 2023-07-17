@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
@@ -39,6 +40,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class RssParser {
@@ -153,11 +156,16 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
-		webScraper.scrape(l);
+		try {
+			var web = webScraper.web(l);
+			if (web != null && config.isScrapeWebpage()) {
+				ref = web;
+			}
+		} catch (Exception ignored) {}
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
 		ref.setSources(List.of(feed.getUrl()));
-		ref.setTags(new ArrayList<>(config.getAddTags()));
+		ref.addTags(config.getAddTags());
 		if (entry.getPublishedDate() != null) {
 			ref.setPublished(entry.getPublishedDate().toInstant());
 		} else if (l.contains("arxiv.org")) {
@@ -171,7 +179,7 @@ public class RssParser {
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
 		}
-		var comment = "";
+		var comment = isNotBlank(ref.getComment()) ? ref.getComment() : "";
 		if (config.isScrapeDescription() || config.isScrapeContents()) {
 			SyndContent desc = null;
 			if (config.isScrapeContents() && !entry.getContents().isEmpty()) {
@@ -192,7 +200,9 @@ public class RssParser {
 			comment += String.join(", ", dc.getCreators());
 		}
 		ref.setComment(comment);
-		var plugins = new HashMap<String, Object>();
+		var plugins = ref.getPlugins() == null
+			? new HashMap<String, Object>()
+			: objectMapper.convertValue(ref.getPlugins(), new TypeReference<HashMap<String, Object>>() {});
 		if (config.isScrapeThumbnail()) {
 			parseThumbnail(entry, plugins);
 			if (!plugins.containsKey("plugin/thumbnail")) {
