@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -28,7 +29,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static jasper.domain.proj.Tag.hasMedia;
@@ -49,6 +54,9 @@ public class WebScraper {
 	ObjectMapper objectMapper;
 
 	WebScraper self = this;
+
+	private BlockingQueue<String> scrapeLater = new LinkedBlockingQueue<>();
+	private Set<String> scraping = new HashSet<>();
 
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
@@ -392,12 +400,12 @@ public class WebScraper {
 				if (image == null) continue;
 				if (image.tagName().equals("a")) {
 					var src = image.absUrl("href");
-					self.scrape(src);
+					self.scrapeAsync(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
 				} else {
 					var src = image.absUrl("src");
-					self.scrape(src);
+					self.scrapeAsync(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
 					image.parent().remove();
@@ -409,11 +417,11 @@ public class WebScraper {
 						addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
 					} else if (thumbnail.hasAttr("href")) {
 						var src = thumbnail.absUrl("href");
-						self.scrape(src);
+						self.scrapeAsync(src);
 						addThumbnailUrl(result, getThumbnail(src));
 					} else if (thumbnail.hasAttr("src")) {
 						var src = thumbnail.absUrl("src");
-						self.scrape(src);
+						self.scrapeAsync(src);
 						addThumbnailUrl(result, getThumbnail(src));
 					}
 					thumbnail.parent().remove();
@@ -425,11 +433,11 @@ public class WebScraper {
 				for (var video : doc.select(s)) {
 					if (video.tagName().equals("div")) {
 						var src = video.absUrl("data-stream");
-						self.scrape(src);
+						self.scrapeAsync(src);
 						addVideoUrl(result, getVideo(src));
 					} else if (video.hasAttr("src")) {
 						var src = video.absUrl("src");
-						self.scrape(src);
+						self.scrapeAsync(src);
 						addVideoUrl(result, getVideo(src));
 						addWeakThumbnail(result, getThumbnail(src));
 						video.parent().remove();
@@ -443,7 +451,7 @@ public class WebScraper {
 				for (var audio : doc.select(s)) {
 					if (audio.hasAttr("src")) {
 						var src = audio.absUrl("src");
-						self.scrape(src);
+						self.scrapeAsync(src);
 						addPluginUrl(result, "plugin/audio", getVideo(src));
 						audio.parent().remove();
 					}
@@ -629,9 +637,21 @@ public class WebScraper {
 
 	public void scrape(String url) {
 		if (isBlank(url)) return;
-		// TODO: Switch to async tag processor using "_scrape" tag
 		if (exists(url)) return;
-		this.fetch(url);
+		fetch(url);
+	}
+
+	public void scrapeAsync(String url) {
+		if (isBlank(url)) return;
+		if (exists(url)) return;
+		scrapeLater.add(url);
+	}
+
+	@Scheduled(fixedDelay = 300)
+	public void drainAsyncScrape() {
+		scrapeLater.drainTo(scraping);
+		for (var url : scraping) scrape(url);
+		scraping.clear();
 	}
 
 	@Timed(value = "jasper.webscrape")
@@ -643,12 +663,12 @@ public class WebScraper {
 		try {
 			var web = doScrape(url);
 			scrapeMore = createArchive(web);
-			return webRepository.saveAndFlush(web);
+			return webRepository.save(web);
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
 			return null;
 		} finally {
-			for (var m : scrapeMore) self.scrape(m);
+			for (var m : scrapeMore) self.scrapeAsync(m);
 		}
 	}
 
@@ -736,7 +756,7 @@ public class WebScraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		self.scrape(url);
+		self.scrapeAsync(url);
 		ref.addTag(tag);
 		var img = objectMapper.createObjectNode();
 		img.set("url", valueOf(url));

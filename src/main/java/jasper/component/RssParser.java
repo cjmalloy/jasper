@@ -201,28 +201,28 @@ public class RssParser {
 				}
 			}
 			if (plugins.containsKey("plugin/thumbnail")) {
-				webScraper.scrape(getUrl("plugin/thumbnail", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/thumbnail", plugins));
 				ref.getTags().add("plugin/thumbnail");
 			}
 		}
 		if (config.isScrapeAudio()) {
 			parseAudio(entry, plugins);
 			if (plugins.containsKey("plugin/audio")) {
-				webScraper.scrape(getUrl("plugin/audio", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/audio", plugins));
 				ref.getTags().add("plugin/audio");
 			}
 		}
 		if (config.isScrapeVideo()) {
 			parseVideo(entry, plugins);
 			if (plugins.containsKey("plugin/video")) {
-				webScraper.scrape(getUrl("plugin/video", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/video", plugins));
 				ref.getTags().add("plugin/video");
 			}
 		}
 		if (config.isScrapeEmbed()) {
 			parseEmbed(entry, plugins);
 			if (plugins.containsKey("plugin/embed")) {
-				webScraper.scrape(getUrl("plugin/embed", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/embed", plugins));
 				ref.getTags().add("plugin/embed");
 			}
 		}
