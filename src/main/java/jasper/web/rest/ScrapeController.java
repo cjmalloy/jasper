@@ -64,8 +64,10 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("web")
-	RefDto scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException, URISyntaxException {
-		return scrapeService.webpage(url);
+	ResponseEntity<RefDto> scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException, URISyntaxException {
+		return ResponseEntity.ok()
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+			.body(scrapeService.webpage(url));
 	}
 
 	@ApiResponses({
@@ -89,7 +91,7 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("rss")
-	ResponseEntity<String> rss(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
+	ResponseEntity<String> rss(@RequestParam @Length(max = URL_LEN) String url) {
 		return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(scrapeService.rss(url));
