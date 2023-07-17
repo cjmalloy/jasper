@@ -2,6 +2,8 @@ package jasper.util;
 
 import jasper.domain.proj.HasModified;
 import jasper.service.dto.RefDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.reverse;
 
 public class RestUtil {
+	private static final Logger logger = LoggerFactory.getLogger(RestUtil.class);
 
 	public static CacheControl ifNotModifiedCacheControl = CacheControl
 			.noCache()
@@ -71,6 +74,7 @@ public class RestUtil {
 			if (prefix.length() == b.length()) {
 				etag.set(i, "");
 			} else if (isNotBlank(prefix)) {
+				logger.trace("Etag Compression: {}, {}, prefix: {}, suffix: {}", a, b, prefix, suffix);
 				etag.set(i, Integer.toHexString(prefix.length()) + "/" + b.substring(prefix.length(), b.length() - suffix.length()));
 			}
 		}
