@@ -71,7 +71,7 @@ public class RestUtil {
 			var b = etag.get(i);
 			var prefix = getCommonPrefix(a, b);
 			var suffix = reverse(getCommonPrefix(reverse(a), reverse(b)));
-			if (prefix.length() == b.length()) {
+			if (prefix.length() + suffix.length() >= b.length()) {
 				etag.set(i, "");
 			} else if (isNotBlank(prefix)) {
 				logger.trace("Etag Compression: {}, {}, prefix: {}, suffix: {}", a, b, prefix, suffix);
