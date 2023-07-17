@@ -668,13 +668,16 @@ public class WebScraper {
 	public void scrapeAsync(String url) {
 		if (isBlank(url)) return;
 		if (exists(url)) return;
+		var web = new Web();
+		web.setUrl(url);
+		webRepository.save(web);
 		scrapeLater.add(url);
 	}
 
 	@Scheduled(fixedDelay = 300)
 	public void drainAsyncScrape() {
 		scrapeLater.drainTo(scraping);
-		for (var url : scraping) scrape(url);
+		for (var url : scraping) fetch(url);
 		scraping.clear();
 	}
 
@@ -682,7 +685,7 @@ public class WebScraper {
 	public Web fetch(String url) {
 		url = fixUrl(url);
 		var maybeWeb = webRepository.findById(url);
-		if (maybeWeb.isPresent() && maybeWeb.get().getData() != null) return maybeWeb.get();
+		if (maybeWeb.isPresent()) return maybeWeb.get();
 		List<String> scrapeMore = List.of();
 		try {
 			var web = doScrape(url);
