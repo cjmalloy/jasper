@@ -156,6 +156,9 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
 		var l = entry.getLink();
+		if (config.isStripQuery() && l.contains("?")) {
+			l = l.substring(0, l.indexOf("?"));
+		}
 		try {
 			var web = webScraper.web(l);
 			if (web != null && config.isScrapeWebpage()) {

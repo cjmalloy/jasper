@@ -18,6 +18,7 @@ public class Feed {
 	private boolean disableEtag;
 	private String etag;
 	private Duration scrapeInterval;
+	private boolean stripQuery;
 	private boolean scrapeWebpage;
 	private boolean scrapeDescription;
 	private boolean scrapeContents;
