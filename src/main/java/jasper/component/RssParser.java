@@ -125,6 +125,10 @@ public class RssParser {
 						Ref ref;
 						try {
 							ref = parseEntry(feed, config, entry, feedImage);
+						} catch (AlreadyExistsException e) {
+							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
+								feed.getTitle(), entry.getTitle(), entry.getLink());
+							continue;
 						} catch (Exception e) {
 							logger.error("Error processing entry", e);
 							continue;
@@ -158,6 +162,9 @@ public class RssParser {
 		var l = entry.getLink();
 		if (config.isStripQuery() && l.contains("?")) {
 			l = l.substring(0, l.indexOf("?"));
+		}
+		if (refRepository.existsByUrlAndOrigin(l, feed.getOrigin())) {
+			throw new AlreadyExistsException();
 		}
 		try {
 			var web = webScraper.web(l);
