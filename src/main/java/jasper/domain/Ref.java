@@ -159,7 +159,7 @@ public class Ref implements HasTags {
 	}
 
 	public void removePrefixTags() {
-		removePrefixTags(this.tags);
+		removePrefixTags(tags);
 	}
 
 	@JsonIgnore

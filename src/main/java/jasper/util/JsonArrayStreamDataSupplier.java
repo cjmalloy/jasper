@@ -50,7 +50,7 @@ public class JsonArrayStreamDataSupplier<T> implements Iterator<T> {
 			if (!JsonToken.START_ARRAY.equals(token)) {
 				// return or throw exception
 				maybeHasNext = false;
-				throw new RuntimeException("Can't get any JSON Token fro array start");
+				throw new RuntimeException("Can't get any JSON Token from array start");
 			}
 		} catch (Exception e) {
 			maybeHasNext = false;

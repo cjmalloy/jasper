@@ -78,7 +78,7 @@ public class Template implements Tag {
 
 	@JsonIgnore
 	public String getQualifiedTag() {
-		return this.getTag() + getOrigin();
+		return getTag() + getOrigin();
 	}
 
 	@Override
