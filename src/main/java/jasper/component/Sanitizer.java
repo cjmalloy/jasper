@@ -183,6 +183,7 @@ public class Sanitizer {
 	};
 
 	private final String[] IMG_ATTRS = {
+		"srcset",
 		"style",
 		"width",
 		"height"

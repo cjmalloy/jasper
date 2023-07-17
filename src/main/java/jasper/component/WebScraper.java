@@ -403,7 +403,21 @@ public class WebScraper {
 					self.scrapeAsync(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
-				} else {
+				} else if (image.hasAttr("data-srcset")){
+					var srcset = image.absUrl("data-srcset").split(",");
+					var src = srcset[srcset.length - 1].split(" ")[0];
+					self.scrapeAsync(src);
+					addPluginUrl(result, "plugin/image", getImage(src));
+					addThumbnailUrl(result, getThumbnail(src));
+					image.parent().remove();
+				} else if (image.hasAttr("srcset")){
+					var srcset = image.absUrl("srcset").split(",");
+					var src = srcset[srcset.length - 1].split(" ")[0];
+					self.scrapeAsync(src);
+					addPluginUrl(result, "plugin/image", getImage(src));
+					addThumbnailUrl(result, getThumbnail(src));
+					image.parent().remove();
+				} else if (image.hasAttr("src")){
 					var src = image.absUrl("src");
 					self.scrapeAsync(src);
 					addPluginUrl(result, "plugin/image", getImage(src));
@@ -419,7 +433,17 @@ public class WebScraper {
 						var src = thumbnail.absUrl("href");
 						self.scrapeAsync(src);
 						addThumbnailUrl(result, getThumbnail(src));
-					} else if (thumbnail.hasAttr("src")) {
+					} else if (thumbnail.hasAttr("data-srcset")){
+						var srcset = thumbnail.absUrl("data-srcset").split(",");
+						var src = srcset[srcset.length - 1].split(" ")[0];
+						self.scrapeAsync(src);
+						addThumbnailUrl(result, getThumbnail(src));
+					} else if (thumbnail.hasAttr("srcset")){
+						var srcset = thumbnail.absUrl("srcset").split(",");
+						var src = srcset[srcset.length - 1].split(" ")[0];
+						self.scrapeAsync(src);
+						addThumbnailUrl(result, getThumbnail(src));
+					} else if (thumbnail.hasAttr("src")){
 						var src = thumbnail.absUrl("src");
 						self.scrapeAsync(src);
 						addThumbnailUrl(result, getThumbnail(src));
