@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WebRepository extends JpaRepository<Web, String> {
+	void deleteAllByDataIsNullAndMimeIsNull();
 }
