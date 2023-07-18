@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static jasper.domain.proj.Tag.hasMedia;
@@ -679,6 +680,11 @@ public class WebScraper {
 		scrapeLater.drainTo(scraping);
 		for (var url : scraping) fetch(url);
 		scraping.clear();
+	}
+
+	@Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+	public void clearFailed() {
+		webRepository.deleteAllByDataIsNullAndMimeIsNull();
 	}
 
 	@Timed(value = "jasper.webscrape")
