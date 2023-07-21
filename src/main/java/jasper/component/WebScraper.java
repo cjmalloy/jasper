@@ -56,8 +56,8 @@ public class WebScraper {
 
 	WebScraper self = this;
 
-	private BlockingQueue<String> scrapeLater = new LinkedBlockingQueue<>();
-	private Set<String> scraping = new HashSet<>();
+	private final BlockingQueue<String> scrapeLater = new LinkedBlockingQueue<>();
+	private final Set<String> scraping = new HashSet<>();
 
 	// TODO: Put config in plugin/scrape
 	private final String[] websiteTextSelectors = {
