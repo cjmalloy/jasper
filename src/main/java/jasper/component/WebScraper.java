@@ -552,6 +552,7 @@ public class WebScraper {
 
 	private void addThumbnailUrl(Ref ref, String url) {
 		if (url.endsWith(".com") || url.endsWith(".m3u8")) return;
+		// TODO: Fallback if image can't load
 		addPluginUrl(ref, "plugin/thumbnail", url);
 	}
 
@@ -684,6 +685,8 @@ public class WebScraper {
 
 	@Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
 	public void clearFailed() {
+		// TODO: Not cluster safe
+		// TODO: Make this run on a fixed interval regardless of how many instances are running
 		webRepository.deleteAllByDataIsNullAndMimeIsNull();
 	}
 
