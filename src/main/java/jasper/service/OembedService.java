@@ -79,7 +79,10 @@ public class OembedService {
 			.map(p -> objectMapper.convertValue(p, Oembed.class)).toList();
 		for (var p : providers) {
 			for (var e : p.getEndpoints()) {
-				if (e.getSchemes() == null ) continue;
+				if (e.getSchemes() == null || e.getSchemes().isEmpty()) {
+					if (url.startsWith(p.getProvider_url())) return e;
+					continue;
+				}
 				for (var s : e.getSchemes()) {
 					var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
 					if (url.matches(regex)) return e;
