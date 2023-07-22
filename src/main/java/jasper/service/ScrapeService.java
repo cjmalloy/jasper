@@ -54,7 +54,9 @@ public class ScrapeService {
 	@PreAuthorize("hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException, URISyntaxException {
-		return mapper.domainToDto(webScraper.web(url));
+		var config = webScraper.getConfig(auth.getOrigin(), url);
+		if (config == null) return null;
+		return mapper.domainToDto(webScraper.web(url, config));
 	}
 
 	@PreAuthorize("hasRole('USER')")

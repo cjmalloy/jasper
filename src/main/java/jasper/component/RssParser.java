@@ -167,9 +167,14 @@ public class RssParser {
 			throw new AlreadyExistsException();
 		}
 		try {
-			var web = webScraper.web(l);
-			if (web != null && config.isScrapeWebpage()) {
-				ref = web;
+			var scrapeConfig = webScraper.getConfig(feed.getOrigin(), l);
+			if (scrapeConfig == null) {
+				logger.warn("Scrape requested, but no config found.");
+			} else {
+				var web = webScraper.web(l, scrapeConfig);
+				if (web != null && config.isScrapeWebpage()) {
+					ref = web;
+				}
 			}
 		} catch (Exception ignored) {}
 		ref.setUrl(l);

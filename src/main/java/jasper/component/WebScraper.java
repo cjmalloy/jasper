@@ -6,7 +6,10 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
 import jasper.domain.Web;
+import jasper.plugin.Scrape;
+import jasper.repository.RefRepository;
 import jasper.repository.WebRepository;
+import jasper.repository.filter.RefFilter;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -14,12 +17,15 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -28,6 +34,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +42,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static jasper.domain.proj.Tag.hasMedia;
@@ -44,6 +52,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Autowired
 	WebRepository webRepository;
@@ -59,491 +70,280 @@ public class WebScraper {
 	private final BlockingQueue<String> scrapeLater = new LinkedBlockingQueue<>();
 	private final Set<String> scraping = new HashSet<>();
 
-	// TODO: Put config in plugin/scrape
-	private final String[] websiteTextSelectors = {
-		"span[itemprop=articleBody]",
-		"section.content__body",
-		".article-body__content",
-		".article__content",
-		".article__content-body",
-		".article-body",
-		".details>.details-body",
-		".f_blog_body",
-		".caas-body",
-		"article .crawler",
-		".fl-module-fl-post-content",
-		".body.markup",
-		"main.ff-main-content section",
-		".single-feature-content",
-		".single-content-wrapper",
-		".body__inner-container",
-		".showblog-body__content",
-		".article__body-text",
-		".article__content-container",
-		".c-article-content",
-		"#drr-container",
-		".meteredContent",
-		".gnt_ar_b",
-		".views-article-body",
-		".elementor-widget-theme-post-content",
-		".l-article__text",
-		".article__text",
-		".sdc-article-body--story",
-		".wprm-recipe-container",
-		".tasty-recipes",
-		".storytext",
-		".rich-text",
-		".entry-content",
-		".entry-summary",
-		".entrytext",
-		".articleBody",
-		".mv-create-wrapper",
-		".content-body",
-		".post_page-content",
-		".post-body",
-		".td-post-content",
-		".post_content",
-		".tam__single-content-output",
-		".js_post-content",
-		".js_starterpost",
-		".sqs-layout",
-		".c-text",
-		".pmc-paywall",
-		".postcontent",
-		".post-content",
-		"article.article-body-wrapper-custom",
-		"main#main .container-md dl",
-		"main .item-details-inner",
-		"#comic",
-		"#liveblog-body",
-		"#content-blocks",
-		"#article-body-content",
-		"#article",
-		"#article-body",
-		"#main",
-		"#body",
-		"#mainbar",
-		"#maincontent",
-		"#bodyContent",
-		"#content",
-		"#item-content-data",
-		".wysiwyg--all-content",
-		".hide-mentions",
-		"div.article",
-		"div.content",
-		"div[class^=article-body__content]",
-		"div[class^=article-body__container]",
-		"section[class^=ArticleBody_root]",
-		"div[class^=NodeContent_body]",
-		"div[class^=c-article-body]",
-		"div[class^=ArticlePageChunksContent]",
-		"div[class^=DraftjsBlocks_draftjs]",
-		"div[class^=index-module_storyContainer]",
-		".story",
-		".post-content",
-		".blog-content",
-		".article-body",
-		".article-content",
-		"main.main",
-		".page-content",
-		".post",
-		".grid-body",
-		".body",
-		".body-text",
-		"article",
-		"main",
-		"section"
-	};
-
-	private final String[] removeSelectors = {
-		"nav",
-		"header",
-		"footer",
-		"aside",
-		"noscript",
-		".comment-link",
-		".date-info .updated",
-		".ad-container",
-		".ad-unit",
-		".advert-wrapper",
-		".af-slim-promo",
-		".wsj-ad",
-		".c-ad",
-		".adLabelWrapperManual",
-		".ad",
-		"gu-island",
-		"div[class^=z-ad]",
-		"div[class^=ad_]",
-		".liveBlogCards",
-		".speaker-mute",
-		".heateor_sss_sharing_container",
-		".brands-most-popular",
-		".z-trending-headline",
-		".article__gallery-count",
-		".rail-component",
-		".read-more-container",
-		"#site_atribution",
-		"#site_attribution",
-		".article-extras",
-		"#firefly-poll-container",
-		".subscriber-only.encrypted-content",
-		".support-us2",
-		".thm-piano-promo",
-		".article-content-cta-group",
-		".nlp-ignore-block",
-		".block-ibtg-article",
-		".quickview__meta",
-		".stat__item--recipe-box",
-		".stat__item--print",
-		".internallink",
-		".credit-caption",
-		".js-is-sticky-social--bottom",
-		".js-kaf-share-widget",
-		".wprm-call-to-action",
-		".cwp-food-buttons",
-		".tasty-recipes-buttons",
-		".recipe-bakers-hotline",
-		"#block-kafrecommendedrecipes",
-		"#news_letter_div",
-		"#firefly-poll-container",
-		"#in-article-trending",
-		"#in-article-related",
-		"#inline-article-recommend",
-		".inline-article",
-		".inline-collection",
-		".hidden-print",
-		"[data-block=doNotPrint]",
-		".apester-media",
-		".ff-fancy-header-container",
-		".entry-submit-correction",
-		".correction-form",
-		".ff-truth-accuracy-text",
-		".author-info",
-		".type-commenting",
-		".sponsor",
-		".region-content-footer",
-		".hide-for-print",
-		".button-wrapper",
-		".subscription-widget-wrap",
-		".sam-pro-place",
-		".subscribe-widget",
-		"#trinity-audio-table",
-		".trinity-skip-it",
-		".big-top",
-		"#tncms-region-article_instory_top",
-		".novashare-ctt",
-		".w-primis-article",
-		".article-btm-content",
-		".gb-container",
-		".pp-multiple-authors-wrapper",
-		".social-tools",
-		".subscriber-offers",
-		".meks_ess",
-		".pop-up-bar",
-		".fancy-box",
-		".c-figure__expand",
-		".van-image-figure",
-		".abh_box",
-		".linkstack",
-		".code-block",
-		".article-sharing",
-		".heateor_sssp_sharing_container",
-		".related",
-		".noprint",
-		".printfooter",
-		".mw-editsection",
-		".catlinks",
-		".video-top-container",
-		".newsletter-component",
-		".thehill-promo-link",
-		".page-actions",
-		".post-tags",
-		".share-container",
-		".lsn-petitions",
-		".donate-callout",
-		".enhancement",
-		".div-related-embed",
-		".article-related-inline",
-		".author-endnote-container",
-		".newsletter-form-wrapper",
-		".related_topics",
-		".jp-relatedposts",
-		".post-tools-wrapper",
-		".js_alerts_modal",
-		".js_comments-iframe",
-		".share-label-text",
-		".share-toolbar-container",
-		".social-share-links",
-		".article-trust-bar",
-		".l-inlineStories",
-		".c-conversation-title",
-		".c-pullquote",
-		".c-signin",
-		".c-disclaimer",
-		".overlay",
-		".control",
-		".inline-video",
-		"div[data-component=video-block]",
-		".instream-native-video",
-		".embed-frame",
-		".video-schema",
-		".meta.player",
-		".ml-subscribe-form",
-		".dfm-trust-indicators-footer-links",
-		"section .related_posts",
-		".wp-block-algori-social-share-buttons-block-algori-social-share-buttons",
-		".related_title",
-		".tags .my_tag",
-		".relatedbox",
-		".blog-subscribe",
-		".ns-share-count",
-		".sharedaddy",
-		".scope-web\\|mobileapps",
-		"[class*=SnippetSubheadline]",
-		"[class*=SnippetSignInText]",
-		"a[href^=https://subscribe.wsj.com/wsjsnippet]",
-		"a[href^=https://www.foxnews.com/apps-products]",
-		"a[href^=https://www.ctvnews.ca/newsletters]",
-		"a[href^=https://www.ctvnews.ca/app]",
-		"ul[class^=context-widget__tabs]",
-		"div[class^=index-module_shareColumn]",
-		"div[class^=index-module_overlayWrapper]",
-		"div[class^=UserWayButton]",
-		"div[class^=article-body__desktop-only]",
-		"div[class^=article-body__top-toolbar-container]",
-		"div[class^=frontend-components-DigestPostEmbed]",
-		"div[class^=article-toolbar]",
-		"div[class^=RelatedStories_relatedStories]",
-		"div[class^=ArticleWeb_shareBottom]",
-		"div[class^=RelatedTopics_relatedTopics]",
-		"div[class^=ArticleWeb_publishedDate]",
-		"p[class^=ArticleRelatedContentLink_root]",
-		"img[style^=width:1px;height:1px]",
-		"img[style^=position:absolute;width:1px;height:1px]",
-		"div:empty",
-		"span:empty",
-		"li:empty",
-		"ul:empty",
-		"ol:empty",
-
-		// TODO: add image gallery plugin
-		".article-slideshow",
-	};
-
-	private final String[] removeAfterSelectors = {
-		".elementor-location-single"
-	};
-
-	private final String[] removeStyleSelectors = {
-		".subscriber-only"
-	};
-
-	private final String[] imageFixSelectors = {
-		"\\?w=\\d+&h=\\d+(&crop=\\d+)?",
-	};
-
-	private final String[] imageSelectors = {
-		"#item-image #bigimage img",
-		".detail-item-img img",
-		"#pvImageInner noscript a",
-	};
-
-	private final String[] videoSelectors = {
-		"video[src]",
-		"video source",
-		"div.video[data-stream]",
-	};
-
-	private final String[] audioSelectors = {
-		"audio[src]",
-		"audio source",
-	};
-
-	private final String[] thumbnailSelectors = {
-		"figure.entry-thumbnail img",
-		".live-blog-above-main-content svg",
-		"figure.embed link[as=image][rel=preload]",
-		"img.video__fallback",
-		"amp-img",
-	};
-
 	@Timed(value = "jasper.webscrape")
-	public Ref web(String url) throws IOException, URISyntaxException {
+	public Ref web(String url, Scrape config) throws IOException, URISyntaxException {
 		var result = new Ref();
 		result.setUrl(url);
 		var web = fetch(url);
-		if (web != null && web.getData() != null) {
-			var strData = new String(web.getData());
-			if (!strData.trim().startsWith("<")) return result;
-			var doc = Jsoup.parse(strData, url);
-			result.setTitle(doc.title());
-			// TODO: Parse plugins separately
-			var images = doc.select("img");
-			for (var image : images) {
+		if (web == null || web.getData() == null) return result;
+		var strData = new String(web.getData());
+		if (!strData.trim().startsWith("<")) return result;
+		var doc = Jsoup.parse(strData, url);
+		result.setTitle(doc.title());
+		fixImages(doc, config);
+		parseImages(result, doc, config);
+		parseThumbnails(result, doc, config);
+		parsePublished(result, doc, config);
+		removeSelectors(doc, config);
+		removeStyleSelectors(doc, config);
+		parseVideos(result, doc, config);
+		for (var v : doc.select("video")) {
+			if (v.select("source").isEmpty()) v.remove();
+		}
+		parseAudio(result, doc, config);
+		for (var a : doc.select("audio")) {
+			if (a.select("source").isEmpty()) a.remove();
+		}
+		parseOpenGraph(result, doc, config);
+		parseOembed(result, doc, config);
+		parseLinkedData(result, doc, config);
+		parseText(result, doc, config);
+		return result;
+	}
+
+	private void fixImages(Document doc, Scrape config) {
+		var images = doc.select("img");
+		for (var image : images) {
+			var src = image.absUrl("src");
+			var dataSrc = image.absUrl("data-src");
+			if (isNotBlank(dataSrc)) {
+				image.attr("src", src = dataSrc);
+			}
+			var dataSrcset = image.absUrl("data-srcset");
+			if (isNotBlank(dataSrcset)) {
+				image.attr("src", src = getImage(dataSrcset.split(",")[0]));
+			}
+			if (config.getImageFixRegex() == null) continue;
+			for (var query : config.getImageFixRegex()) {
+				if (src.matches(query)) {
+					image.attr("src", src.replaceAll(query, ""));
+					break;
+				}
+			}
+		}
+	}
+
+	private void parseImages(Ref result, Document doc, Scrape config) {
+		if (config.getImageSelectors() == null) return;
+		for (var s : config.getImageSelectors()) {
+			var image = doc.select(s).first();
+			if (image == null) continue;
+			if (image.tagName().equals("a")) {
+				var src = image.absUrl("href");
+				self.scrapeAsync(src);
+				addPluginUrl(result, "plugin/image", getImage(src));
+				addThumbnailUrl(result, getThumbnail(src));
+			} else if (image.hasAttr("data-srcset")){
+				var srcset = image.absUrl("data-srcset").split(",");
+				var src = srcset[srcset.length - 1].split(" ")[0];
+				self.scrapeAsync(src);
+				addPluginUrl(result, "plugin/image", getImage(src));
+				addThumbnailUrl(result, getThumbnail(src));
+				image.parent().remove();
+			} else if (image.hasAttr("srcset")){
+				var srcset = image.absUrl("srcset").split(",");
+				var src = srcset[srcset.length - 1].split(" ")[0];
+				self.scrapeAsync(src);
+				addPluginUrl(result, "plugin/image", getImage(src));
+				addThumbnailUrl(result, getThumbnail(src));
+				image.parent().remove();
+			} else if (image.hasAttr("src")){
 				var src = image.absUrl("src");
-				var dataSrc = image.absUrl("data-src");
-				if (isNotBlank(dataSrc)) {
-					image.attr("src", src = dataSrc);
-				}
-				var dataSrcset = image.absUrl("data-srcset");
-				if (isNotBlank(dataSrcset)) {
-					image.attr("src", src = getImage(dataSrcset.split(",")[0]));
-				}
-				for (var query : imageFixSelectors) {
-					if (src.matches(query)) {
-						image.attr("src", src.replaceAll(query, ""));
-						break;
-					}
-				}
+				self.scrapeAsync(src);
+				addPluginUrl(result, "plugin/image", getImage(src));
+				addThumbnailUrl(result, getThumbnail(src));
+				image.parent().remove();
 			}
-			for (var s : imageSelectors) {
-				var image = doc.select(s).first();
-				if (image == null) continue;
-				if (image.tagName().equals("a")) {
-					var src = image.absUrl("href");
+		}
+	}
+
+	private void parseThumbnails(Ref result, Document doc, Scrape config) {
+		if (config.getThumbnailSelectors() == null) return;
+		for (var s : config.getThumbnailSelectors()) {
+			for (var thumbnail : doc.select(s)) {
+				if (thumbnail.tagName().equals("svg")) {
+					addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), result.getUrl())));
+				} else if (thumbnail.hasAttr("href")) {
+					var src = thumbnail.absUrl("href");
 					self.scrapeAsync(src);
-					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
-				} else if (image.hasAttr("data-srcset")){
-					var srcset = image.absUrl("data-srcset").split(",");
+				} else if (thumbnail.hasAttr("data-srcset")){
+					var srcset = thumbnail.absUrl("data-srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
 					self.scrapeAsync(src);
-					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
-					image.parent().remove();
-				} else if (image.hasAttr("srcset")){
-					var srcset = image.absUrl("srcset").split(",");
+				} else if (thumbnail.hasAttr("srcset")){
+					var srcset = thumbnail.absUrl("srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
 					self.scrapeAsync(src);
-					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
-					image.parent().remove();
-				} else if (image.hasAttr("src")){
-					var src = image.absUrl("src");
+				} else if (thumbnail.hasAttr("src")){
+					var src = thumbnail.absUrl("src");
 					self.scrapeAsync(src);
-					addPluginUrl(result, "plugin/image", getImage(src));
 					addThumbnailUrl(result, getThumbnail(src));
-					image.parent().remove();
 				}
+				thumbnail.parent().remove();
 			}
-			for (var s : thumbnailSelectors) {
-				for (var thumbnail : doc.select(s)) {
-					if (thumbnail.tagName().equals("svg")) {
-						addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), url)));
-					} else if (thumbnail.hasAttr("href")) {
-						var src = thumbnail.absUrl("href");
-						self.scrapeAsync(src);
-						addThumbnailUrl(result, getThumbnail(src));
-					} else if (thumbnail.hasAttr("data-srcset")){
-						var srcset = thumbnail.absUrl("data-srcset").split(",");
-						var src = srcset[srcset.length - 1].split(" ")[0];
-						self.scrapeAsync(src);
-						addThumbnailUrl(result, getThumbnail(src));
-					} else if (thumbnail.hasAttr("srcset")){
-						var srcset = thumbnail.absUrl("srcset").split(",");
-						var src = srcset[srcset.length - 1].split(" ")[0];
-						self.scrapeAsync(src);
-						addThumbnailUrl(result, getThumbnail(src));
-					} else if (thumbnail.hasAttr("src")){
-						var src = thumbnail.absUrl("src");
-						self.scrapeAsync(src);
-						addThumbnailUrl(result, getThumbnail(src));
-					}
-					thumbnail.parent().remove();
-				}
-			}
-			for (var r : removeSelectors) doc.select(r).remove();
-			for (var r : removeStyleSelectors) doc.select(r).removeAttr("style");
-			for (var s : videoSelectors) {
-				for (var video : doc.select(s)) {
-					if (video.tagName().equals("div")) {
-						var src = video.absUrl("data-stream");
-						self.scrapeAsync(src);
-						addVideoUrl(result, getVideo(src));
-					} else if (video.hasAttr("src")) {
-						var src = video.absUrl("src");
-						self.scrapeAsync(src);
-						addVideoUrl(result, getVideo(src));
-						addWeakThumbnail(result, getThumbnail(src));
-						video.parent().remove();
-					}
-				}
-			}
-			for (var v : doc.select("video")) {
-				if (v.select("source").isEmpty()) v.remove();
-			}
-			for (var s : audioSelectors) {
-				for (var audio : doc.select(s)) {
-					if (audio.hasAttr("src")) {
-						var src = audio.absUrl("src");
-						self.scrapeAsync(src);
-						addPluginUrl(result, "plugin/audio", getVideo(src));
-						audio.parent().remove();
-					}
-				}
-			}
-			for (var a : doc.select("audio")) {
-				if (a.select("source").isEmpty()) a.remove();
-			}
-			for (var metaAudio : doc.select("meta[property=og:audio]")) {
-				if (isBlank(metaAudio.attr("content"))) continue;
-				addPluginUrl(result, "plugin/audio", metaAudio.absUrl("content"));
-			}
-			for (var metaVideo : doc.select("meta[property=og:video]")) {
-				var videoUrl = metaVideo.absUrl("content");
-				if (isBlank(videoUrl)) continue;
-				// TODO: video filetypes
-				if (videoUrl.endsWith(".m3u8") || videoUrl.endsWith(".mp4")) {
-					addVideoUrl(result, videoUrl);
-				} else {
-					addPluginUrl(result, "plugin/embed", videoUrl);
-				}
-			}
-			for (var metaImage : doc.select("meta[property=og:image]")) {
-				if (isBlank(metaImage.attr("content"))) continue;
-				// TODO: In some cases load plugin/image
-				addThumbnailUrl(result, metaImage.absUrl("content"));
-			}
-			var metaTitle = doc.select("meta[property=og:title]").first();
-			if (metaTitle != null && isNotBlank(metaTitle.attr("content"))) {
-				result.setTitle(metaTitle.attr("content"));
-			}
-			var metaPublished = doc.select("meta[property=article:published_time]").first();
-			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-				result.setPublished(Instant.parse(metaPublished.attr("content")));
-			}
-			metaPublished = doc.select("meta[property=og:article:published_time]").first();
-			if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-				result.setPublished(Instant.parse(metaPublished.attr("content")));
-			}
-			var metaReleased = doc.select("meta[property=og:book:release_date]").first();
-			if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
-				result.setPublished(Instant.parse(metaReleased.attr("content")));
-			}
-			var jsonlds = doc.select("script[type=application/ld+json]");
-			for (var jsonld : jsonlds) {
-				var json = jsonld.html().trim().replaceAll("\n", " ");
+		}
+	}
+
+	private void parsePublished(Ref result, Document doc, Scrape config) {
+		if (config.getPublishedSelectors() == null) return;
+		for (var s : config.getPublishedSelectors()) {
+			var published = doc.select(s).first();
+			if (published != null) {
 				try {
-					var configs = json.startsWith("{") ?
-						List.of(objectMapper.readValue(json, JsonLd.class)) :
-						objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
-					for (var c : configs) parseLd(result, c);
-				} catch (Exception e) {
-					logger.warn("Invalid LD+JSON. {}", e.getMessage());
-					logger.debug(json);
+					result.setPublished(Instant.parse(published.attr("datetime")));
+					break;
+				} catch (DateTimeParseException ignored) {}
+			}
+		}
+	}
+
+	private void removeSelectors(Document doc, Scrape config) {
+		if (config.getRemoveSelectors() == null) return;
+		for (var r : config.getRemoveSelectors()) doc.select(r).remove();
+	}
+
+	private void removeStyleSelectors(Document doc, Scrape config) {
+		if (config.getRemoveStyleSelectors() == null) return;
+		for (var r : config.getRemoveStyleSelectors()) doc.select(r).removeAttr("style");
+	}
+
+	private void parseVideos(Ref result, Document doc, Scrape config) {
+		if (config.getVideoSelectors() == null) return;
+		for (var s : config.getVideoSelectors()) {
+			for (var video : doc.select(s)) {
+				if (video.tagName().equals("div")) {
+					var src = video.absUrl("data-stream");
+					self.scrapeAsync(src);
+					addVideoUrl(result, getVideo(src));
+				} else if (video.hasAttr("src")) {
+					var src = video.absUrl("src");
+					self.scrapeAsync(src);
+					addVideoUrl(result, getVideo(src));
+					addWeakThumbnail(result, getThumbnail(src));
+					video.parent().remove();
 				}
 			}
-			for (var s : websiteTextSelectors) {
+		}
+	}
+
+	private void parseAudio(Ref result, Document doc, Scrape config) {
+		if (config.getAudioSelectors() == null) return;
+		for (var s : config.getAudioSelectors()) {
+			for (var audio : doc.select(s)) {
+				if (audio.hasAttr("src")) {
+					var src = audio.absUrl("src");
+					self.scrapeAsync(src);
+					addPluginUrl(result, "plugin/audio", getVideo(src));
+					audio.parent().remove();
+				}
+			}
+		}
+	}
+
+	private void parseOpenGraph(Ref result, Document doc, Scrape config) {
+		if (!config.isOpenGraph()) return;
+		for (var metaAudio : doc.select("meta[property=og:audio]")) {
+			if (isBlank(metaAudio.attr("content"))) continue;
+			addPluginUrl(result, "plugin/audio", metaAudio.absUrl("content"));
+		}
+		for (var metaVideo : doc.select("meta[property=og:video]")) {
+			var videoUrl = metaVideo.absUrl("content");
+			if (isBlank(videoUrl)) continue;
+			// TODO: video filetypes
+			if (videoUrl.endsWith(".m3u8") || videoUrl.endsWith(".mp4")) {
+				addVideoUrl(result, videoUrl);
+			} else {
+				addPluginUrl(result, "plugin/embed", videoUrl);
+			}
+		}
+		for (var metaImage : doc.select("meta[property=og:image]")) {
+			if (isBlank(metaImage.attr("content"))) continue;
+			// TODO: In some cases load plugin/image
+			addThumbnailUrl(result, metaImage.absUrl("content"));
+		}
+		var metaTitle = doc.select("meta[property=og:title]").first();
+		if (metaTitle != null && isNotBlank(metaTitle.attr("content"))) {
+			result.setTitle(metaTitle.attr("content"));
+		}
+		var metaPublished = doc.select("meta[property=article:published_time]").first();
+		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
+			result.setPublished(Instant.parse(metaPublished.attr("content")));
+		}
+		metaPublished = doc.select("meta[property=og:article:published_time]").first();
+		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
+			result.setPublished(Instant.parse(metaPublished.attr("content")));
+		}
+		var metaReleased = doc.select("meta[property=og:book:release_date]").first();
+		if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
+			result.setPublished(Instant.parse(metaReleased.attr("content")));
+		}
+	}
+
+	private void parseOembed(Ref result, Document doc, Scrape config) {
+		if (!config.isOembedJson()) return;
+		var oembed = doc.select("link[type=application/json+oembed]").first();
+		if (oembed != null) {
+			var oembedUrl = oembed.absUrl("href");
+			// TODO: embedded oembed
+		}
+	}
+
+	private void parseLinkedData(Ref result, Document doc, Scrape config) {
+		if (!config.isLdJson());
+		var jsonlds = doc.select("script[type=application/ld+json]");
+		for (var jsonld : jsonlds) {
+			var json = jsonld.html().trim().replaceAll("\n", " ");
+			try {
+				var configs = json.startsWith("{") ?
+					List.of(objectMapper.readValue(json, JsonLd.class)) :
+					objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
+				for (var c : configs) parseLd(result, c);
+			} catch (Exception e) {
+				logger.warn("Invalid LD+JSON. {}", e.getMessage());
+				logger.debug(json);
+			}
+		}
+	}
+
+	private void parseText(Ref result, Document doc, Scrape config) {
+		if (!config.isText()) return;
+		if (config.getTextSelectors() != null) {
+			for (var s : config.getTextSelectors()) {
 				var el = doc.body().select(s).first();
 				if (el != null) {
-					for (var r : removeAfterSelectors) el.select(r).remove();
-					result.setComment(sanitizer.clean(el.html(), url));
-					return result;
+					for (var r : config.getRemoveAfterSelectors()) el.select(r).remove();
+					result.setComment(sanitizer.clean(el.html(), result.getUrl()));
+					return;
 				}
 			}
-			result.setComment(doc.body().wholeText().trim());
 		}
-		return result;
+		result.setComment(doc.body().wholeText().trim());
+	}
+
+	@Cacheable("scrape-config")
+	@Transactional(readOnly = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public Scrape getConfig(String origin, String url) {
+		var configs = refRepository.findAll(
+				RefFilter.builder()
+					.origin(origin)
+					.query("+plugin/scrape").build().spec()).stream()
+			.map(r -> r.getPlugins().get("+plugin/scrape"))
+			.map(p -> objectMapper.convertValue(p, Scrape.class)).toList();
+		for (var c : configs) {
+			if (c.getSchemes() == null) continue;
+			for (var s : c.getSchemes()) {
+				var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
+				if (url.matches(regex)) return c;
+			}
+		}
+		return refRepository.findOneByUrlAndOrigin("config:scrape-catchall", origin)
+			.map(r -> r.getPlugins().get("+plugin/scrape"))
+			.map(p -> objectMapper.convertValue(p, Scrape.class))
+			.orElse(null);
 	}
 
 	private void addWeakThumbnail(Ref ref, String url) {
