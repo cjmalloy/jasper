@@ -18,6 +18,7 @@ public class TemplateDto implements Tag {
 	private String name;
 	private JsonNode config;
 	private JsonNode defaults;
+	@JsonInclude()
 	private ObjectNode schema;
 	private Instant modified;
 }

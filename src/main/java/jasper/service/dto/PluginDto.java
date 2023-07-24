@@ -18,6 +18,7 @@ public class PluginDto implements Tag {
 	private String name;
 	private JsonNode config;
 	private JsonNode defaults;
+	@JsonInclude()
 	private ObjectNode schema;
 	private boolean generateMetadata = false;
 	private boolean userUrl = false;
