@@ -116,7 +116,7 @@ public class TagQuery {
 	}
 
 	private void parse(String query) {
-		logger.debug(query);
+		logger.trace(query);
 		// TODO: compare performance with https://en.wikipedia.org/wiki/Shunting-yard_algorithm
 		var array = ("[\"" + query + "\"]")
 			.replaceAll("[|:()]", "\",\"$0\",\"")
@@ -124,7 +124,7 @@ public class TagQuery {
 			.replaceAll(",?\"\\)\",?", "]")
 			.replaceAll("\"\"", "");
 		try {
-			logger.debug(array);
+			logger.trace(array);
 			ast = (ArrayNode) objectMapper.readTree(array);
 		} catch (JsonProcessingException e) {
 			throw new UnsupportedOperationException(e);
