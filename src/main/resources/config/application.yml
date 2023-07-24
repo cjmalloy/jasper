@@ -198,14 +198,14 @@ jasper:
   ingest-max-retry: 5
   mod-seals: ['seal', '+seal', '_seal', '_moderated']
   editor-seals: ['plugin/qc']
-  replicate-delay-min: 0
+  replicate-delay-min: 20
   replicate-interval-min: 1
   replicate-origins: ['']
   max-replicate-batch: 5000
-  async-delay-min: 0
-  async-interval-min: 1
+  async-delay-sec: 120
+  async-interval-sec: 60
   async-origins: ['']
-  scrape-delay-min: 0
+  scrape-delay-min: 20
   scrape-interval-min: 1
   scrape-origins: ['']
   local-origin: ''
