@@ -75,6 +75,8 @@ server:
 jasper:
   replicate-delay-min: 0
   replicate-interval-min: 1
+  async-delay-sec: 0
+  async-interval-sec: 6
   scrape-delay-min: 5
   scrape-interval-min: 5
   # CORS is disabled by default on microservices, as you should access them through a gateway.

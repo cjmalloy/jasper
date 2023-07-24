@@ -67,9 +67,9 @@ public class Async {
 	}
 
 	@Scheduled(
-		fixedRateString = "${jasper.async-interval-min}",
-		initialDelayString = "${jasper.async-delay-min}",
-		timeUnit = TimeUnit.MINUTES)
+		fixedRateString = "${jasper.async-interval-sec}",
+		initialDelayString = "${jasper.async-delay-sec}",
+		timeUnit = TimeUnit.SECONDS)
 	public void drainAsyncTask() {
 		if (tags.isEmpty() && responses.isEmpty()) return;
 		for (var origin : props.getScrapeOrigins()) drain(origin);
