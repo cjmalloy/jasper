@@ -41,7 +41,7 @@ public class Template implements Tag {
 	@Column(updatable = false)
 	@Pattern(regexp = REGEX)
 	@Length(max = TAG_LEN)
-	private String tag;
+	private String tag = "";
 
 	@Id
 	@Column(updatable = false)
