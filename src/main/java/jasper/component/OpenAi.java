@@ -261,7 +261,7 @@ public class OpenAi {
 		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
 			.maxTokens(4096)
 			.messages(messages)
-			.model("gpt-4")
+			.model(model)
 			.build();
 		try {
 			return service.createChatCompletion(completionRequest);
