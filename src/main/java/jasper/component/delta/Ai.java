@@ -197,19 +197,8 @@ public class Ai implements Async.AsyncRunner {
 		List<Ref> refArray = List.of(response);
 		Exception ex = null;
 		try {
-			try {
-				// Try getting single Ref
-				refArray = List.of(objectMapper.readValue(response.getComment(), new TypeReference<Ref>(){}));
-			} catch (Exception e) {
-				ex = e;
-				try {
-					// Try with array
-					refArray = objectMapper.readValue(response.getComment(), new TypeReference<List<Ref>>() {});
-				} catch (Exception e2) {
-					// Try with AiReply
-					refArray = List.of(objectMapper.readValue(response.getComment(), new TypeReference<AiReply>() {}).ref);
-				}
-			}
+			var aiReply = objectMapper.readValue(response.getComment(), new TypeReference<AiReply>() {});
+			refArray = List.of(aiReply.ref);
 			refArray.get(0).setUrl(response.getUrl());
 			refArray.get(0).setPlugin("+plugin/openai", response.getPlugins().get("+plugin/openai"));
 		} catch (Exception e) {
