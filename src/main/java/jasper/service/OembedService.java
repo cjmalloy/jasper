@@ -13,6 +13,7 @@ import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,14 @@ public class OembedService {
 		}
 	}
 
-	@PreAuthorize("hasRole('MOD')")
+	@CacheEvict(value = {"oembed-provider", "oembed"}, allEntries = true)
+	@PreAuthorize("@auth.canAddTag('+plugin/oembed')")
+	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
+	public void clearCache() {
+		logger.info("Cleared oEmbed cache");
+	}
+
+	@PreAuthorize("@auth.canAddTag('+plugin/oembed')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public void restoreDefaults() throws IOException {
 		oembedProviders.defaults(auth.getOrigin());

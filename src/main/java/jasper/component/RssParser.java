@@ -169,6 +169,9 @@ public class RssParser {
 		try {
 			var scrapeConfig = webScraper.getConfig(feed.getOrigin(), l);
 			if (scrapeConfig == null) {
+				scrapeConfig = webScraper.getDefaultConfig(feed.getOrigin());
+			}
+			if (scrapeConfig == null) {
 				logger.warn("Scrape requested, but no config found.");
 			} else {
 				var web = webScraper.web(l, scrapeConfig);

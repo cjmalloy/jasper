@@ -21,6 +21,7 @@ import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -323,6 +324,11 @@ public class WebScraper {
 		result.setComment(doc.body().wholeText().trim());
 	}
 
+	@CacheEvict(value = {"scrape-config", "scrape-default-config"}, allEntries = true)
+	public void clearCache() {
+		logger.info("Cleared scrape config cache.");
+	}
+
 	@Cacheable("scrape-config")
 	@Transactional(readOnly = true)
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
@@ -340,6 +346,13 @@ public class WebScraper {
 				if (url.matches(regex)) return c;
 			}
 		}
+		return null;
+	}
+
+	@Cacheable("scrape-default-config")
+	@Transactional(readOnly = true)
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public Scrape getDefaultConfig(String origin) {
 		return refRepository.findOneByUrlAndOrigin("config:scrape-catchall", origin)
 			.map(r -> r.getPlugins().get("+plugin/scrape"))
 			.map(p -> objectMapper.convertValue(p, Scrape.class))

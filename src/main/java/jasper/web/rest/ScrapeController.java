@@ -120,4 +120,12 @@ public class ScrapeController {
 	) {
 		return scrapeService.cache(data, mime);
 	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("clear-config-cache")
+	void clearConfigCache() {
+		scrapeService.clearCache();
+	}
 }

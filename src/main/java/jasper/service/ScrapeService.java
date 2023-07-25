@@ -84,4 +84,10 @@ public class ScrapeService {
 	public String cache(byte[] data, String mime) {
 		return webScraper.cache(from(data, mime)).getUrl();
 	}
+
+	@PreAuthorize("@auth.canAddTag('+plugin/scrape')")
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public void clearCache() {
+		webScraper.clearCache();
+	}
 }
