@@ -1,9 +1,11 @@
 package jasper.config;
 
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jsontypedef.jtd.Validator;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zalando.problem.jackson.ProblemModule;
@@ -11,6 +13,11 @@ import org.zalando.problem.violations.ConstraintViolationProblemModule;
 
 @Configuration
 public class JacksonConfiguration {
+
+	@Bean
+	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
+		return builder -> builder.featuresToEnable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature());
+	}
 
     /**
      * Support for Java date and time API.
