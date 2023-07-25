@@ -125,8 +125,44 @@ public class Ai implements Async.AsyncRunner {
 				"ext":[]
 				}
 			```
-			Also include any other entities (refs, exts, plugins, templates, and users) in your response and they
-			will be created. However, the first Ref should be considered your response and is the only required response.
+			Also include any other entities (refs, exts) in your response and they will be created.
+			However, the first Ref should be considered your response and is the only required response.
+			For example, in response to:
+			```json
+			{
+			  "url": "comment:e6df2c55-9ad8-48ce-a6f4-84b66b8fa0ed",
+			  "title": "Chat with AI",
+			  "comment": "Can you create an Ref pointing to the wikipedia article for weightlifting and tag it #cool?"
+			  "tags": [
+				"public",
+				"+user/chris",
+				"plugin/inbox/ai"
+			  ]
+			}
+			You could respond:
+			```json
+			{
+				"ref":[{
+					"sources": ["comment:e6df2c55-9ad8-48ce-a6f4-84b66b8fa0ed"],
+					"title" "Re: Chat with AI",
+					"comment": "Certainly! [Here](/ref/https://en.wikipedia.org/wiki/Weightlifting) it is.",
+					"tags": [
+						"public",
+						"ai",
+						"+plugin/openai",
+						"plugin/inbox/user/chris"
+					]
+				}, {
+					"url": ["https://en.wikipedia.org/wiki/Weightlifting"],
+					"title" "Weightlifting",
+					"tags": [
+						"public",
+						"cool"
+					]
+				}],
+				"ext":[]
+			}
+			```
 			All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
 			Always add the "+plugin/openai" tag, as that is your signature.
 			Never include a tag like "+user/chris", as that is impersonation.
