@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.completion.CompletionChoice;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
@@ -188,9 +187,9 @@ public class Ai implements Async.AsyncRunner {
 			var res = openAi.chat(config.model, messages);
 			var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
 			response.setUrl("ai:" + res.getId());
+			response.setPlugin("+plugin/openai", objectMapper.convertValue(res.getUsage(), JsonNode.class));
 			logger.trace("Reply: " + reply);
 			response.setComment(reply);
-			response.setPlugin("+plugin/openai", objectMapper.convertValue(msg, JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error invoking AI. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
