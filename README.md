@@ -109,7 +109,7 @@ but would not match `['science', 'math']`
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
 ## Extending
-Allows extensive modification with server reuse. As extensions and plugins are done by creating
+Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
 This method of extensions means that only client changes are required. The same Jasper server,
 without any code modifications, can be used. The client can define and support its own Plugins
@@ -137,7 +137,7 @@ on their home page.
 ## Entities
 There are two types of entities in Jasper:
 1. Refs
-2. Tags
+2. Tags (including Exts, Plugins, Templates, and Users)
 
 ![entities](./docs/entities.png)
 Origins are used to facilitate replication and multi-tenant operation. Each origin represents a
