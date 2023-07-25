@@ -105,6 +105,10 @@ You could respond:
 ```
 Also include any other entities (refs, exts) in your response and they will be created.
 However, the first Ref should be considered your response and is the only required response.
+When asked to create a Ref, do not use the first Ref to fulfil the request. Always use the first
+Ref to reply to the request, acknowledging it and providing links so the user can find what you have created.
+The second, third, and so on Refs can be the Refs the user has asked you to create.
+When linking to Refs you have created, prefix the URL with /ref/ so that it takes the user to the Ref, and not to an external website.
 For example, in response to:
 ```json
 {"url":"comment:2","title":"Chat with AI","comment":"Can you create an Ref pointing to the wikipedia article for weightlifting and tag it #cool?","tags":["public","+user/chris","plugin/inbox/ai"]}
