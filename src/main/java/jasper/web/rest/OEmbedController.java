@@ -24,16 +24,16 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("api/v1/oembed")
 @Validated
 @Tag(name = "oEmbed")
-@ApiResponses({
-	@ApiResponse(responseCode = "200"),
-	@ApiResponse(responseCode = "400", content = @Content()),
-	@ApiResponse(responseCode = "404", content = @Content()),
-})
 public class OEmbedController {
 
 	@Autowired
 	OembedService oembedService;
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "400", content = @Content()),
+		@ApiResponse(responseCode = "404", content = @Content()),
+	})
 	@GetMapping()
 	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) {
 		return ResponseEntity.ok()
@@ -41,8 +41,20 @@ public class OEmbedController {
 			.body(oembedService.get(params));
 	}
 
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
 	@PostMapping("defaults")
 	void defaults() throws IOException {
 		oembedService.restoreDefaults();
+		oembedService.clearCache();
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+	})
+	@PostMapping("clear-cache")
+	void clearCache() {
+		oembedService.clearCache();
 	}
 }

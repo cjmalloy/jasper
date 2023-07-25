@@ -777,6 +777,14 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/clear-cache:
+      get:
+          tags:
+              - scrape
+          operationId: clearCache
+          responses:
+              '204':
+                  description: No Content
   /api/v1/ext:
     get:
       tags:
@@ -2148,11 +2156,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/oembed/twitter:
+  /api/v1/oembed:
     get:
       tags:
         - oEmbed
-      operationId: getTweet
+      operationId: oembed
       parameters:
         - name: params
           in: query
@@ -2172,30 +2180,22 @@ paths:
           description: Bad Request
         '404':
           description: Not Found
-  /api/v1/oembed/bitChute:
+  /api/v1/oembed/defaults:
     get:
       tags:
         - oEmbed
-      operationId: getBitChute
-      parameters:
-        - name: params
-          in: query
-          required: true
-          schema:
-            type: object
-            additionalProperties:
-              type: string
+      operationId: defaults
       responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: object
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
+        '204':
+          description: No Content
+  /api/v1/oembed/clear-cache:
+    get:
+      tags:
+        - oEmbed
+      operationId: clearCache
+      responses:
+        '204':
+          description: No Content
   /api/v1/webhook/smtp:
     post:
       tags:

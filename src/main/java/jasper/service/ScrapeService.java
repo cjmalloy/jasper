@@ -55,6 +55,9 @@ public class ScrapeService {
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException, URISyntaxException {
 		var config = webScraper.getConfig(auth.getOrigin(), url);
+		if (config == null) {
+			config = webScraper.getDefaultConfig(auth.getOrigin());
+		}
 		if (config == null) return null;
 		return mapper.domainToDto(webScraper.web(url, config));
 	}
@@ -83,5 +86,11 @@ public class ScrapeService {
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String cache(byte[] data, String mime) {
 		return webScraper.cache(from(data, mime)).getUrl();
+	}
+
+	@PreAuthorize("@auth.canAddTag('+plugin/scrape')")
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public void clearCache() {
+		webScraper.clearCache();
 	}
 }
