@@ -92,14 +92,6 @@ public class Ai implements Async.AsyncRunner {
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) {
 			sample.setPlugins(null);
 		}
-		var plugins = "{" + pluginRepository.findAll().stream().map(refMapper::domainToDto).map(p ->
-			"\"" + p.getTag() + "\": " +
-			p.getConfig().get("description")).collect(Collectors.joining(", ")) +
-		"}";
-		var templates = "{" + templateRepository.findAll().stream().map(refMapper::domainToDto).map(t ->
-			"\"" + t.getTag() + "\": " +
-			t.getConfig().get("description")).collect(Collectors.joining(", ")) +
-		"}";
 		var instructions = """
 			Include your response as the comment field of a Ref.
 			Only reply with pure JSON. Do not include any text outside of the JSON Ref.
@@ -109,23 +101,17 @@ public class Ai implements Async.AsyncRunner {
 			```json
 			{
 			  "url": "comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c",
-			  "origin": ""
 			  "title": "Say Hi!",
 			  "tags": [
 				"public",
 				"+user/chris",
 				"plugin/inbox/ai"
-			  ],
-			  "published": "2023-04-22T13:24:06.786Z",
-			  "modified": "2023-04-22T13:24:06.895197Z"
-			  "created": "2023-04-22T13:24:06.895197Z"
+			  ]
 			}
 			You could respond:
 			```json
 			{
 				"ref":[{
-					"url": "ai:f40b2a61-c9e1-4201-9a91-e00cf03f19d8",
-					"origin": "",
 					"sources": ["comment:116b2d94-aea3-4c4e-8c49-8eba5c45023c"],
 					"title" "Re: Say Hi",
 					"comment": "Hi!",
@@ -136,10 +122,7 @@ public class Ai implements Async.AsyncRunner {
 						"plugin/inbox/user/chris"
 					]
 				}],
-				"ext":[],
-				"plugin":[],
-				"template":[],
-				"user":[]
+				"ext":[]
 				}
 			```
 			Also include any other entities (refs, exts, plugins, templates, and users) in your response and they
@@ -166,8 +149,6 @@ public class Ai implements Async.AsyncRunner {
 					"You are following up on a previous ref to further a line of inquiry, " +
 					"suggest the next course of action, or resolve the matter in your reply.", objectMapper));
 			}
-			messages.add(cm(ref.getOrigin(), "system", "Installed Plugins List", plugins, objectMapper));
-			messages.add(cm(ref.getOrigin(), "system", "Installed Templates List", templates, objectMapper));
 			for (var p : parents) {
 				p.setMetadata(null);
 				if (p.getTags().contains("+plugin/openai")) {
