@@ -76,7 +76,8 @@ public abstract class DtoMapper {
 		if (auth.getUserTag() == null) return;
 		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
 		target.setUserUrls(source.getPlugins().entrySet().stream()
-			.filter(e -> e.getValue().stream().anyMatch(url -> url.startsWith(prefix)))
+			// TODO: how is null getting in here
+			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
 			.map(Map.Entry::getKey)
 			.toList()
 		);
