@@ -1581,11 +1581,19 @@ paths:
                 properties:
                   tag:
                     type: string
+                  sysadmin:
+                    type: boolean
                   admin:
                     type: boolean
                   mod:
                     type: boolean
                   editor:
+                    type: boolean
+                  user:
+                    type: boolean
+                  viewer:
+                    type: boolean
+                  debug:
                     type: boolean
         '403':
           $ref: '#/components/responses/Forbidden'
