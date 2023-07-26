@@ -98,6 +98,7 @@ public class QualifiedTag {
 	public static QualifiedTag qt(String qt) {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
 		if (qt.startsWith("*")) throw new UnsupportedOperationException();
+		if (qt.startsWith("@")) throw new UnsupportedOperationException();
 		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
 		if (!qt.contains("@")) qt += "@";
 		return new QualifiedTag(qt);
