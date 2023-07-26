@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.18
+  version: 1.2.19
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -730,7 +730,7 @@ paths:
     get:
       tags:
         - Scrape
-      operationId: fetch
+      operationId: scrape
       description: Immediately scrape a webpage if it is not in the cache.
       parameters:
         - name: url
@@ -751,7 +751,7 @@ paths:
     post:
       tags:
         - Scrape
-      operationId: fetch
+      operationId: cache
       description: Uploads a file to the cache and returns a generated random URI to access it with.
       parameters:
         - name: url
@@ -781,7 +781,7 @@ paths:
       get:
           tags:
               - scrape
-          operationId: clearCache
+          operationId: clearScrapeConfigCache
           responses:
               '204':
                   description: No Content
@@ -2200,7 +2200,7 @@ paths:
     get:
       tags:
         - oEmbed
-      operationId: clearCache
+      operationId: clearOembedProviderCache
       responses:
         '204':
           description: No Content
