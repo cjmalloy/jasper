@@ -12,6 +12,6 @@ indent_size = 2
 [*.{java,xml,json}]
 indent_size = 4
 
-[*.{md,yml,json}]
+[*.{md,yml,yaml,json}]
 indent_style = space
 trim_trailing_whitespace = false
