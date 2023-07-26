@@ -291,6 +291,11 @@
 			<artifactId>service</artifactId>
 			<version>${openapi-gpt.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>com.rubiconproject.oss</groupId>
+			<artifactId>jchronic</artifactId>
+			<version>0.2.8</version>
+		</dependency>
 
 		<!-- Spring Cloud -->
 		<dependency>

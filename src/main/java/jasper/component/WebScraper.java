@@ -2,6 +2,9 @@ package jasper.component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mdimension.jchronic.Chronic;
+import com.mdimension.jchronic.Options;
+import com.mdimension.jchronic.tags.Pointer;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
@@ -188,16 +191,24 @@ public class WebScraper {
 		}
 	}
 
+	private static Options opts = new Options(Pointer.PointerType.PAST);;
 	private void parsePublished(Ref result, Document doc, Scrape config) {
 		if (config.getPublishedSelectors() == null) return;
 		for (var s : config.getPublishedSelectors()) {
 			var published = doc.select(s).first();
-			if (published != null) {
-				try {
-					result.setPublished(Instant.parse(published.attr("datetime")));
-					break;
-				} catch (DateTimeParseException ignored) {}
+			if (published == null) continue;
+			String date = "";
+			if (published.tagName().equals("time")) {
+				date = published.attr("datetime");
+			} else {
+				result.setPublished(Instant.ofEpochSecond(Chronic.parse(published.text(), opts).getBegin()));
+				return;
 			}
+			if (isBlank(date)) continue;
+			try {
+				result.setPublished(Instant.parse(date));
+				return;
+			} catch (DateTimeParseException ignored) {}
 		}
 	}
 
