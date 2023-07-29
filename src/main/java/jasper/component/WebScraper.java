@@ -332,7 +332,11 @@ public class WebScraper {
 				}
 			}
 		}
-		result.setComment(doc.body().wholeText().trim());
+		result.setComment(doc.body()
+			.wholeText()
+			.trim()
+			.replaceAll("\t", "")
+			.replaceAll("[\n\r]", "\n\n"));
 	}
 
 	@CacheEvict(value = {"scrape-config", "scrape-default-config"}, allEntries = true)
