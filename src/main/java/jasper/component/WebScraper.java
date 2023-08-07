@@ -13,6 +13,7 @@ import jasper.plugin.Scrape;
 import jasper.repository.RefRepository;
 import jasper.repository.WebRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.security.Auth;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -56,6 +57,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	RefRepository refRepository;
@@ -546,13 +550,17 @@ public class WebScraper {
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(url);
+			var result = new Web();
+			result.setUrl(url);
+			if (!auth.validHost(request.getURI())) {
+				logger.info("Invalid host {}", request.getURI().getHost());
+				return result;
+			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (var res = client.execute(request)) {
 				if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
 					return doScrape(res.getFirstHeader("Location").getElements()[0].getValue());
 				}
-				var result = new Web();
-				result.setUrl(url);
 				result.setMime(res.getFirstHeader("Content-Type").getValue());
 				result.setData(res.getEntity().getContent().readAllBytes());
 				return result;
