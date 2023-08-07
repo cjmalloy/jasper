@@ -56,8 +56,9 @@ jobs:
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - uses: actions/setup-java@v1
+    - uses: actions/setup-java@v3
       with:
+        distribution: 'zulu'
         java-version: 17
     - name: Maven Build
       run:  ./mvnw -B package -Dmaven.test.skip
