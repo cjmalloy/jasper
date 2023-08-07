@@ -45,6 +45,14 @@ public class Props {
 	 * Whitelist origins to be allowed to scrape using +plugin/feed.
 	 */
 	private String[] scrapeOrigins = new String[]{""};
+	/**
+	 * Whitelist domains to be allowed to scrape.
+	 */
+	private String[] scrapeHostWhitelist = null;
+	/**
+	 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
+	 */
+	private String[] scrapeHostBlacklist = new String[]{"*.local"};
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
 	/**

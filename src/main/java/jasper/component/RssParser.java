@@ -20,6 +20,7 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
+import jasper.security.Auth;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -39,13 +40,19 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	Props props;
@@ -85,6 +92,11 @@ public class RssParser {
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
+			if (!auth.validHost(request.getURI())) {
+				logger.info("Invalid host {}", request.getURI().getHost());
+				return;
+			}
+
 			if (!config.isDisableEtag() && config.getEtag() != null) {
 				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
 			}
