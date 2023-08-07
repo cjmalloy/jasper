@@ -166,20 +166,20 @@ public class RssParser {
 		if (refRepository.existsByUrlAndOrigin(l, feed.getOrigin())) {
 			throw new AlreadyExistsException();
 		}
-		try {
-			var scrapeConfig = webScraper.getConfig(feed.getOrigin(), l);
-			if (scrapeConfig == null) {
-				scrapeConfig = webScraper.getDefaultConfig(feed.getOrigin());
-			}
-			if (scrapeConfig == null) {
-				logger.warn("Scrape requested, but no config found.");
-			} else {
-				var web = webScraper.web(l, scrapeConfig);
-				if (web != null && config.isScrapeWebpage()) {
-					ref = web;
+		if (config.isScrapeWebpage()) {
+			try {
+				var scrapeConfig = webScraper.getConfig(feed.getOrigin(), l);
+				if (scrapeConfig == null) {
+					scrapeConfig = webScraper.getDefaultConfig(feed.getOrigin());
 				}
-			}
-		} catch (Exception ignored) {}
+				if (scrapeConfig == null) {
+					logger.warn("Scrape requested, but no config found.");
+				} else {
+					var web = webScraper.web(l, scrapeConfig);
+					if (web != null) ref = web;
+				}
+			} catch (Exception ignored) {}
+		}
 		ref.setUrl(l);
 		ref.setTitle(entry.getTitle());
 		ref.setSources(List.of(feed.getUrl()));
