@@ -570,6 +570,7 @@ public class WebScraper {
 
 	private List<String> createArchive(Web source) {
 		var moreScrape = new ArrayList<String>();
+		if (source.getData() == null) return moreScrape;
 		// M3U8 Manifest
 		var data = new String(source.getData());
 		if (data.trim().startsWith("#") && (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL") || source.getMime().equals("application/vnd.apple.mpegurl"))) {
