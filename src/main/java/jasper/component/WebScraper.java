@@ -13,7 +13,7 @@ import jasper.plugin.Scrape;
 import jasper.repository.RefRepository;
 import jasper.repository.WebRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.security.Auth;
+import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -59,7 +59,7 @@ public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
 
 	@Autowired
-	Auth auth;
+	HostCheck hostCheck;
 
 	@Autowired
 	RefRepository refRepository;
@@ -140,26 +140,26 @@ public class WebScraper {
 				var src = image.absUrl("href");
 				self.scrapeAsync(src);
 				addPluginUrl(result, "plugin/image", getImage(src));
-				addThumbnailUrl(result, getThumbnail(src));
+				if (config.isUseImageAsThumbnail()) addThumbnailUrl(result, getThumbnail(src));
 			} else if (image.hasAttr("data-srcset")){
 				var srcset = image.absUrl("data-srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
 				self.scrapeAsync(src);
 				addPluginUrl(result, "plugin/image", getImage(src));
-				addThumbnailUrl(result, getThumbnail(src));
+				if (config.isUseImageAsThumbnail()) addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("srcset")){
 				var srcset = image.absUrl("srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
 				self.scrapeAsync(src);
 				addPluginUrl(result, "plugin/image", getImage(src));
-				addThumbnailUrl(result, getThumbnail(src));
+				if (config.isUseImageAsThumbnail()) addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("src")){
 				var src = image.absUrl("src");
 				self.scrapeAsync(src);
 				addPluginUrl(result, "plugin/image", getImage(src));
-				addThumbnailUrl(result, getThumbnail(src));
+				if (config.isUseImageAsThumbnail()) addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			}
 		}
@@ -552,7 +552,7 @@ public class WebScraper {
 			HttpUriRequest request = new HttpGet(url);
 			var result = new Web();
 			result.setUrl(url);
-			if (!auth.validHost(request.getURI())) {
+			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("Invalid host {}", request.getURI().getHost());
 				return result;
 			}
