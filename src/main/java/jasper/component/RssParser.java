@@ -20,7 +20,7 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
-import jasper.security.Auth;
+import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -52,7 +52,7 @@ public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
 
 	@Autowired
-	Auth auth;
+	HostCheck hostCheck;
 
 	@Autowired
 	Props props;
@@ -92,7 +92,7 @@ public class RssParser {
 		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
-			if (!auth.validHost(request.getURI())) {
+			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("Invalid host {}", request.getURI().getHost());
 				return;
 			}

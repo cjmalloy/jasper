@@ -13,7 +13,7 @@ import jasper.plugin.Scrape;
 import jasper.repository.RefRepository;
 import jasper.repository.WebRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.security.Auth;
+import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -59,7 +59,7 @@ public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
 
 	@Autowired
-	Auth auth;
+	HostCheck hostCheck;
 
 	@Autowired
 	RefRepository refRepository;
@@ -552,7 +552,7 @@ public class WebScraper {
 			HttpUriRequest request = new HttpGet(url);
 			var result = new Web();
 			result.setUrl(url);
-			if (!auth.validHost(request.getURI())) {
+			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("Invalid host {}", request.getURI().getHost());
 				return result;
 			}

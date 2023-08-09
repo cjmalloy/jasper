@@ -30,9 +30,6 @@ import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -123,7 +120,6 @@ public class Auth {
 	public static final String READ_ACCESS_HEADER = "Read-Access";
 	public static final String TAG_WRITE_ACCESS_HEADER = "Tag-Write-Access";
 	public static final String TAG_READ_ACCESS_HEADER = "Tag-Read-Access";
-	private static final int HOST_TIMEOUT_S = 30;
 
 	@Autowired
 	Props props;
@@ -794,38 +790,5 @@ public class Auth {
 
 	public static List<QualifiedTag> getQualifiedTags(String[] tags) {
 		return Stream.of(tags).map(QualifiedTag::selector).toList();
-	}
-
-	public boolean validHost(URI uri) {
-		try {
-			var host = InetAddress.getByName(uri.getHost());
-			if (isNotEmpty(props.getScrapeHostWhitelist())) {
-				if (!whitelisted(uri.getHost())) return false;
-			} else {
-				if (host.isLoopbackAddress()) return false;
-				if (host.isMulticastAddress()) return false;
-				if (host.isAnyLocalAddress()) return false;
-				if (host.isSiteLocalAddress()) return false;
-			}
-			if (props.getScrapeHostBlacklist() != null) {
-				for (var h : props.getScrapeHostBlacklist()) {
-					if (uri.getHost().equals(h)) return false;
-				}
-			}
-			if (!host.isReachable(HOST_TIMEOUT_S)) {
-				logger.info("Domain {} unreachable", uri.getHost());
-				return false;
-			}
-		} catch (IOException e) {
-			return false;
-		}
-		return true;
-	}
-
-	private boolean whitelisted(String host) {
-		for (var h : props.getScrapeHostWhitelist()) {
-			if (host.equals(h)) return true;
-		}
-		return false;
 	}
 }
