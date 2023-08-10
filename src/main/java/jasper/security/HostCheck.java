@@ -15,7 +15,6 @@ import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
 @Component
 public class HostCheck {
 	private static final Logger logger = LoggerFactory.getLogger(HostCheck.class);
-	private static final int HOST_TIMEOUT_S = 30;
 
 	@Autowired
 	Props props;
@@ -35,10 +34,6 @@ public class HostCheck {
 				for (var h : props.getScrapeHostBlacklist()) {
 					if (uri.getHost().equals(h)) return false;
 				}
-			}
-			if (!host.isReachable(HOST_TIMEOUT_S)) {
-				logger.info("Domain {} unreachable", uri.getHost());
-				return false;
 			}
 		} catch (IOException e) {
 			return false;
