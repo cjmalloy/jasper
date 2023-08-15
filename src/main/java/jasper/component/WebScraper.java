@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -602,7 +601,6 @@ public class WebScraper {
 		return webRepository.existsById(fixUrl(url));
 	}
 
-	@Async
 	@Timed(value = "jasper.webscrape")
 	public Web cache(Web web) {
 		return webRepository.save(web);
