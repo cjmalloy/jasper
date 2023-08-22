@@ -16,6 +16,8 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 spring:
+  profiles:
+    active: 'test'
   application:
     name: jasper
   datasource:
@@ -86,9 +88,10 @@ jasper:
   replicate-delay-min: 0
   replicate-interval-min: 1
   max-replicate-batch: 5000
+  async-delay-sec: 0
+  async-interval-sec: 1
   scrape-delay-min: 5
   scrape-interval-min: 1
-  oembed-origins: []
   logging:
     # To test json console appender
     use-json-format: false
