@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -750,10 +751,14 @@ public class Auth {
 
 	public Set<String> getAuthoritySet() {
 		if (roles == null) {
-			var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-			roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
+			if (getAuthentication() == null) {
+				roles = new HashSet<>();
+			} else {
+				var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
+				roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
 					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
 					userAuthorities);
+			}
 		}
 		return roles;
 	}

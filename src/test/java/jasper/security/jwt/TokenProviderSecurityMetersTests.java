@@ -50,7 +50,7 @@ class TokenProviderSecurityMetersTests {
         tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
         Key key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
-        ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("default", key));
+        ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("", key));
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", ONE_MINUTE);
     }
 
@@ -132,9 +132,9 @@ class TokenProviderSecurityMetersTests {
     }
 
     private String createUnsupportedToken() {
-        Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
+		var keys = (Map<String, Key>) ReflectionTestUtils.getField(tokenProvider, "keys");
 
-        return Jwts.builder().setPayload("payload").signWith(key, SignatureAlgorithm.HS256).compact();
+        return Jwts.builder().setPayload("payload").signWith(keys.get(""), SignatureAlgorithm.HS256).compact();
     }
 
     private String createMalformedToken() {

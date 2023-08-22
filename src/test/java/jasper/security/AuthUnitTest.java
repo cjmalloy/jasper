@@ -23,6 +23,7 @@ import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -39,6 +40,7 @@ public class AuthUnitTest {
 	Auth getAuth(String origin, User user, String ...roles) {
 		var a = new Auth();
 		a.props = new Props();
+		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);

@@ -23,6 +23,7 @@ import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,7 @@ public class AuthMultiTenantUnitTest {
 	Auth getAuth(User user, String ...roles) {
 		var a = new Auth();
 		a.props = new Props();
+		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.props.setMultiTenant(true);
 		a.props.setLocalOrigin(user.getOrigin());
 		a.principal = user.getQualifiedTag();

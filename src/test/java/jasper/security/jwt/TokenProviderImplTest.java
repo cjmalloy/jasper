@@ -46,7 +46,7 @@ class TokenProviderImplTest {
         tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
         key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
 
-        ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("default", key));
+        ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("", key));
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", ONE_MINUTE);
     }
 
@@ -107,8 +107,8 @@ class TokenProviderImplTest {
 
 		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
 
-        Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
-        assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));
+		var keys = (Map<String, Key>) ReflectionTestUtils.getField(tokenProvider, "keys");
+        assertThat(keys.get("")).isNotNull().isEqualTo(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
@@ -123,8 +123,8 @@ class TokenProviderImplTest {
 
 		TokenProviderImpl tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
 
-        Key key = (Key) ReflectionTestUtils.getField(tokenProvider, "key");
-        assertThat(key).isNotNull().isEqualTo(Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));
+        var keys = (Map<String, Key>) ReflectionTestUtils.getField(tokenProvider, "keys");
+        assertThat(keys.get("")).isNotNull().isEqualTo(Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));
     }
 
     private Authentication createAuthentication() {

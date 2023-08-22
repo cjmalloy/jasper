@@ -13,7 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -37,7 +38,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester"));
+		ref.setTags(Arrays.asList("+user/tester"));
 		refRepository.save(ref);
 
 		validate.ref(ref, false);
@@ -59,7 +60,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester", "plugin/test"));
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
 		assertThatThrownBy(() -> validate.ref(ref, false))
 			.isInstanceOf(InvalidPluginException.class);
@@ -81,7 +82,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester", "plugin/test"));
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "plugin/test")));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -109,7 +110,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester", "plugin/test"));
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -135,7 +136,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester", "plugin/test"));
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"plugin/test": {
@@ -169,7 +170,7 @@ public class ValidateRefIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ref.setTags(List.of("+user/tester", "plugin/test"));
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
 		validate.ref(ref, false);
 	}
