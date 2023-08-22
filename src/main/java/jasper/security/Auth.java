@@ -55,7 +55,6 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
-import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
@@ -585,7 +584,10 @@ public class Auth {
 			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader().toLowerCase();
-			} else if (isLoggedIn() && props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() && getPrincipal().contains("@")) {
+			} else if (isLoggedIn() &&
+				props.getSecurity().hasClient(origin) &&
+				props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() &&
+				getPrincipal().contains("@")) {
 				try {
 					origin = qt(getPrincipal()).origin;
 				} catch (UnsupportedOperationException ignored) {}
@@ -597,6 +599,9 @@ public class Auth {
 	public Client getClient() {
 		if (client == null) {
 			client = props.getSecurity().getClient(getOrigin());
+			if (client == null) {
+				client = props.getSecurity().getClient(props.getLocalOrigin());
+			}
 		}
 		return client;
 	}

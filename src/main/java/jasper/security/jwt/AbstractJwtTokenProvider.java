@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
@@ -91,7 +92,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 			origin = getOriginHeader().toLowerCase();
 		} else if (!isBlank(principal) && client.isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
-				var qt = qt(principal);
+				var qt = originSelector(principal);
 				if (qt.origin.matches(HasOrigin.REGEX)) {
 					origin = qt.origin;
 					principal = qt.tag;

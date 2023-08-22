@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static jasper.repository.spec.QualifiedTag.qt;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -44,7 +45,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	Props getProps(String localOrigin, boolean allowUsernameClaimOrigin) {
 		var props = new Props();
 		props.setLocalOrigin(localOrigin);
-		props.getSecurity().getClients().put(localOrigin, new Props.Security.Client());
+		props.getSecurity().getClients().put(isBlank(localOrigin) ? "default" : localOrigin.substring(1), new Props.Security.Client());
 		props.getSecurity().getClient(localOrigin).setAllowUsernameClaimOrigin(allowUsernameClaimOrigin);
 		props.getSecurity().getClient(localOrigin).setUsernameClaim("sub");
 		props.getSecurity().getClient(localOrigin).setAuthoritiesClaim("auth");

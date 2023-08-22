@@ -59,11 +59,12 @@ public class ExtServiceMTIT {
 
 	@BeforeEach
 	void clearDefaultPermissions() {
-		props.getSecurity().getClient("").setAllowUsernameClaimOrigin(true);
-		props.getSecurity().getClient("").setDefaultReadAccess(null);
-		props.getSecurity().getClient("").setDefaultWriteAccess(null);
-		props.getSecurity().getClient("").setDefaultTagReadAccess(null);
-		props.getSecurity().getClient("").setDefaultTagWriteAccess(null);
+		props.getSecurity().getClients().put("other", new Props.Security.Client());
+		props.getSecurity().getClient("@other").setAllowUsernameClaimOrigin(true);
+		props.getSecurity().getClient("@other").setDefaultReadAccess(null);
+		props.getSecurity().getClient("@other").setDefaultWriteAccess(null);
+		props.getSecurity().getClient("@other").setDefaultTagReadAccess(null);
+		props.getSecurity().getClient("@other").setDefaultTagWriteAccess(null);
 	}
 
 	@Test
@@ -364,7 +365,7 @@ public class ExtServiceMTIT {
 
 	@Test
 	void testPagePublicRemoteReadAccessExt() {
-		props.getSecurity().getClient("").setDefaultReadAccess(new String[]{"@remote"});
+		props.getSecurity().getClient("@other").setDefaultReadAccess(new String[]{"@remote"});
 		var ext = getExt();
 		ext.setTag("custom");
 		ext.setName("Custom");

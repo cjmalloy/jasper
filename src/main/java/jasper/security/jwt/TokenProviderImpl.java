@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public class TokenProviderImpl extends AbstractJwtTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
 
@@ -56,7 +58,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 			.setSubject(authentication.getName())
 			.setAudience(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId())
 			.claim(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), authorities)
-			.signWith(keys.get(getPartialOrigin()), SignatureAlgorithm.HS512)
+			.signWith(keys.get(isBlank(getPartialOrigin()) ? "default" : getPartialOrigin()), SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();
 	}

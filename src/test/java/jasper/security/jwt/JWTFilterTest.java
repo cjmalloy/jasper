@@ -18,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +31,7 @@ class JWTFilterTest {
     @BeforeEach
     public void setup() {
 		Props props = new Props();
-		props.getSecurity().getClients().put("", new Props.Security.Client());
+		props.getSecurity().getClients().put("default", new Props.Security.Client());
 		props.getSecurity().getClient("").getAuthentication().getJwt().setClientId("");
         String base64Secret = "fd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
         props.getSecurity().getClient("").getAuthentication().getJwt().setBase64Secret(base64Secret);
@@ -38,7 +39,7 @@ class JWTFilterTest {
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
         tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
-        ReflectionTestUtils.setField(tokenProvider, "key", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret)));
+        ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("default", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret))));
 
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", 60000);
         jwtFilter = new JWTFilter(tokenProvider);
