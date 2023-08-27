@@ -60,6 +60,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
 
+import javax.annotation.PostConstruct;
+
 /**
  * This single class is where all authorization decisions are made.
  * Authorization decisions are made based on six criteria:
@@ -143,6 +145,12 @@ public class Auth {
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
+
+	@PostConstruct
+	public void log() {
+		logger.debug("AUTH{} User: {} {} (hasUser: {})",
+			getOrigin(), getUserTag().tag + getUserTag().origin, getAuthoritySet(), getUser().isPresent());
+	}
 
 	/**
 	 * Is this origin local. Nulls and empty strings are both considered to
