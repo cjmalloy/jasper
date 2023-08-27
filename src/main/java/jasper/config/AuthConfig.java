@@ -52,7 +52,7 @@ public class AuthConfig {
 	}
 
 	@Bean
-	@Profile({"jwt", "default"})
+	@Profile("jwt")
 	TokenProvider tokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		return new TokenProviderImpl(props, userRepository, securityMetersService);
 	}
@@ -74,15 +74,15 @@ public class AuthConfig {
 		return new TokenProviderImplNoVerify(props, userRepository, securityMetersService);
 	}
 
+	@Primary
 	@Bean
-	@Profile("default-user")
-	TokenProvider defaultTokenProvider(Props props, UserRepository userRepository) {
-		return new TokenProviderImplDefault(props, userRepository);
+	@ConditionalOnMissingBean
+	TokenProvider fallbackTokenProvider(Props props, UserRepository userRepository) {
+		return new TokenProviderImplNop(props, userRepository);
 	}
 
 	@Bean
-	@ConditionalOnMissingBean
-	TokenProvider anonTokenProvider(Props props) {
-		return new TokenProviderImplAnon(props);
+	TokenProviderImplDefault defaultTokenProvider(Props props, UserRepository userRepository) {
+		return new TokenProviderImplDefault(props, userRepository);
 	}
 }

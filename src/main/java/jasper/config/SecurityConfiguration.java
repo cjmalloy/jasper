@@ -1,7 +1,6 @@
 package jasper.config;
 
-import jasper.security.jwt.JWTConfigurer;
-import jasper.security.jwt.TokenProvider;
+import jasper.security.jwt.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +46,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	@Autowired
 	TokenProvider tokenProvider;
+
+	@Autowired
+	TokenProviderImplDefault defaultTokenProvider;
 
 	@Value("${spring.profiles.active}")
 	String[] profiles;
@@ -133,7 +135,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private JWTConfigurer securityConfigurerAdapter() {
 		logger.info("Minimum Role: {}", props.getMinRole());
-		return new JWTConfigurer(props, tokenProvider);
+		return new JWTConfigurer(tokenProvider, defaultTokenProvider);
 	}
 
 	@Bean
