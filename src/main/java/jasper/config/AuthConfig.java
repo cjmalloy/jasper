@@ -4,10 +4,10 @@ import jasper.management.SecurityMetersService;
 import jasper.repository.UserRepository;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
-import jasper.security.jwt.TokenProviderImplAnon;
 import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplJwks;
 import jasper.security.jwt.TokenProviderImplNoVerify;
+import jasper.security.jwt.TokenProviderImplNop;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -16,6 +16,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
@@ -51,12 +52,14 @@ public class AuthConfig {
 		return new RestTemplate(requestFactory);
 	}
 
+	@Primary
 	@Bean
-	@Profile({"jwt", "default"})
+	@Profile("jwt")
 	TokenProvider tokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		return new TokenProviderImpl(props, userRepository, securityMetersService);
 	}
 
+	@Primary
 	@Bean
 	@Profile("jwks")
 	TokenProvider jwksTokenProvider(
@@ -68,21 +71,22 @@ public class AuthConfig {
 		return new TokenProviderImplJwks(props, userRepository, securityMetersService, restTemplate);
 	}
 
+	@Primary
 	@Bean
 	@Profile("jwt-no-verify")
 	TokenProvider noVerifyTokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
 		return new TokenProviderImplNoVerify(props, userRepository, securityMetersService);
 	}
 
+	@Primary
 	@Bean
-	@Profile("default-user")
-	TokenProvider defaultTokenProvider(Props props, UserRepository userRepository) {
-		return new TokenProviderImplDefault(props, userRepository);
+	@ConditionalOnMissingBean
+	TokenProvider fallbackTokenProvider(Props props, UserRepository userRepository) {
+		return new TokenProviderImplNop(props, userRepository);
 	}
 
 	@Bean
-	@ConditionalOnMissingBean
-	TokenProvider anonTokenProvider(Props props) {
-		return new TokenProviderImplAnon(props);
+	TokenProviderImplDefault defaultTokenProvider(Props props, UserRepository userRepository) {
+		return new TokenProviderImplDefault(props, userRepository);
 	}
 }

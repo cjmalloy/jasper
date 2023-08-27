@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
+import javax.annotation.PostConstruct;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
@@ -59,8 +60,6 @@ import static jasper.security.AuthoritiesConstants.USER;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
-
-import javax.annotation.PostConstruct;
 
 /**
  * This single class is where all authorization decisions are made.
