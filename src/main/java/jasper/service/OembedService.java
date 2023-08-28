@@ -48,7 +48,7 @@ public class OembedService {
 
 	@Cacheable("oembed")
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasRole('VIEWER')")
+	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
 		var config = getProvider(auth.getOrigin(), params.get("url"));
@@ -76,7 +76,7 @@ public class OembedService {
 
 	@Cacheable("oembed-provider")
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasRole('VIEWER')")
+	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public Oembed.Endpoints getProvider(String origin, String url) {
 		var providers = refRepository.findAll(

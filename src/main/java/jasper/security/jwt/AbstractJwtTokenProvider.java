@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 
 import static jasper.repository.spec.QualifiedTag.originSelector;
-import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
 import static jasper.security.Auth.getOriginHeader;

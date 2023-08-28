@@ -43,7 +43,7 @@ public class ScrapeService {
 	@Autowired
 	WebScraper webScraper;
 
-	@PreAuthorize("hasRole('MOD') and @auth.local(#origin)")
+	@PreAuthorize( "@auth.hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
@@ -51,7 +51,7 @@ public class ScrapeService {
 		rssParser.scrape(source);
 	}
 
-	@PreAuthorize("hasRole('USER')")
+	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException, URISyntaxException {
 		var config = webScraper.getConfig(auth.getOrigin(), url);
@@ -62,7 +62,7 @@ public class ScrapeService {
 		return mapper.domainToDto(webScraper.web(url, config));
 	}
 
-	@PreAuthorize("hasRole('USER')")
+	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void scrape(String url) throws URISyntaxException, IOException {
 		webScraper.scrape(url);
@@ -82,7 +82,7 @@ public class ScrapeService {
 		return webScraper.rss(url);
 	}
 
-	@PreAuthorize("hasRole('USER')")
+	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String cache(byte[] data, String mime) {
 		return webScraper.cache(from(data, mime)).getUrl();

@@ -35,7 +35,7 @@ public class PluginService {
 	@Autowired
 	DtoMapper mapper;
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void create(Plugin plugin) {
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
@@ -47,7 +47,7 @@ public class PluginService {
 		}
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void push(Plugin plugin) {
 		try {
@@ -74,7 +74,7 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasRole('VIEWER')")
+	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant cursor(String origin) {
 		return pluginRepository.getCursor(origin);
@@ -91,7 +91,7 @@ public class PluginService {
 			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
@@ -107,7 +107,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and hasRole('ADMIN')")
+	@PreAuthorize("@auth.sysAdmin() or @auth.local(#qualifiedTag) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

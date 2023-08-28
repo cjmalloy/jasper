@@ -42,7 +42,7 @@ public class OriginService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('MOD') and @auth.local(#origin)")
+	@PreAuthorize( "@auth.hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void push(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)

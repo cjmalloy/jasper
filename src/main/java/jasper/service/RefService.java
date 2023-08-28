@@ -94,7 +94,7 @@ public class RefService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasRole('VIEWER')")
+	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant cursor(String origin) {
 		return refRepository.getCursor(origin);

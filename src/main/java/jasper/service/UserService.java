@@ -84,7 +84,7 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasRole('VIEWER')")
+	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant cursor(String origin) {
 		return userRepository.getCursor(origin);
