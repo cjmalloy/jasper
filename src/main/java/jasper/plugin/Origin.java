@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Origin {
-	private String local;
-	private String remote;
+	private String local = "";
+	private String remote = "";
 	private String proxy;
 }
