@@ -67,6 +67,10 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void push(User user) {
+		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		if (maybeExisting.isPresent() && user.getKey() == null) {
+			user.setKey(maybeExisting.get().getKey());
+		}
 		try {
 			userRepository.save(user);
 		} catch (DataIntegrityViolationException e) {

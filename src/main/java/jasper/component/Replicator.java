@@ -129,6 +129,10 @@ public class Replicator {
 				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
 				for (var user : client.userPull(url, options)) {
 					pull.migrate(user, config);
+					var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+					if (maybeExisting.isPresent() && user.getKey() == null) {
+						user.setKey(maybeExisting.get().getKey());
+					}
 					userRepository.save(user);
 				}
 			} catch (Exception e) {
