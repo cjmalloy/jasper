@@ -491,7 +491,7 @@ public class Auth {
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().spec());
 		}
-		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec.or(notPrivateTag()).or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
