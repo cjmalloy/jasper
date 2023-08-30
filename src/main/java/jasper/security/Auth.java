@@ -30,6 +30,7 @@ import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -40,7 +41,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-import javax.annotation.PostConstruct;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
@@ -139,7 +139,7 @@ public class Auth {
 	protected String origin;
 	protected Client client;
 	protected Optional<User> user;
-	protected QualifiedTag publicTag;
+	protected List<QualifiedTag> publicTags;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -158,6 +158,21 @@ public class Auth {
 	public boolean local(String origin) {
 		if (!origin.startsWith("@")) origin = qt(origin).origin;
 		return getOrigin().equals(origin);
+	}
+
+	/**
+	 * Is this origin readable.
+	 * In single tenant mode all origins are readable.
+	 * In multi tenant mode only local tenants or whitelisted tenants are readable.
+	 */
+	public boolean tenantAccess(String origin) {
+		if (!props.isMultiTenant()) return true;
+		if (local(origin)) return true;
+		if (getClient().getTenantAccess() == null) return false;
+		for (var t : getClient().getTenantAccess()) {
+			if (t.equals(origin)) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -196,8 +211,6 @@ public class Auth {
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
 		var qualifiedTags = qtList(ref.getOrigin(), ref.getTags());
-		// Anyone can read ref if it is public
-		if (captures(getPublicTag(), qualifiedTags)) return true;
 		// Check if owner
 		if (owns(qualifiedTags)) return true;
 		// Check if user read access tags capture anything in the ref tags
@@ -347,7 +360,7 @@ public class Auth {
 		var qt = qt(qualifiedTag);
 		// In single tenant mode, non private tags are all readable
 		// In multi tenant mode, local non private tags are all readable
-		if (!isPrivateTag(qualifiedTag) && (!props.isMultiTenant() || local(qt.origin))) return true;
+		if (!isPrivateTag(qualifiedTag) && tenantAccess(qt.origin)) return true;
 		// In single tenant mode, mods can read anything
 		// In multi tenant mode, mods can ready anything in their origin
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
@@ -477,7 +490,7 @@ public class Auth {
 
 	public Specification<Ref> refReadSpec() {
 		if (sysMod()) return where(null);
-		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : getPublicTag().refSpec());
+		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : qt("public" + getOrigin()).refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
 		}
@@ -622,15 +635,19 @@ public class Auth {
 		return null;
 	}
 
-	public QualifiedTag getPublicTag() {
-		if (publicTag == null) {
+	public List<QualifiedTag> getPublicTags() {
+		if (publicTags == null) {
 			if (props.isMultiTenant()) {
-				return qt("public" + getOrigin());
+				publicTags = new ArrayList<>(List.of(qt("public" + getOrigin())));
+				if (getClient().getTenantAccess() == null) return publicTags;
+				for (var t : getClient().getTenantAccess()) {
+					publicTags.add(qt("public" + t));
+				}
 			} else {
-				return selector("public");
+				return List.of(selector("public"));
 			}
 		}
-		return publicTag;
+		return publicTags;
 	}
 
 	protected String getMultiTenantOrigin() {
@@ -639,7 +656,7 @@ public class Auth {
 
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
-			readAccess = new ArrayList<>();
+			readAccess = new ArrayList<>(getPublicTags());
 			if (getClient().getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
 			}
