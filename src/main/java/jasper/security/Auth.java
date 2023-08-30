@@ -578,8 +578,8 @@ public class Auth {
 
 	protected Optional<User> getUser() {
 		if (user == null) {
-			var auth = getAuthentication();
-			user = Optional.ofNullable((User) auth.getDetails());
+			var auth = Optional.ofNullable(getAuthentication());
+			user = auth.map(a -> (User) a.getDetails());
 			if (isLoggedIn() && user.isEmpty()) {
 				user = userRepository.findOneByQualifiedTag(getUserTag().toString());
 			}
