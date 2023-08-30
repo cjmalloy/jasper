@@ -263,7 +263,7 @@ public class Props {
 			private String tagReadAccessClaim = "tagReadAccess";
 			private String tagWriteAccessClaim = "tagWriteAccess";
 			private String defaultRole = "ROLE_ANONYMOUS";
-			private String defaultUser = "+user";
+			private String defaultUser = "";
 			private String[] tenantAccess;
 			private String[] defaultReadAccess;
 			private String[] defaultWriteAccess;
