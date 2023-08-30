@@ -15,16 +15,19 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.Map;
 
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class JWTFilterTest {
 
     private TokenProviderImpl tokenProvider;
+    private TokenProviderImplDefault defaultTokenProvider;
 
     private JWTFilter jwtFilter;
 
@@ -39,10 +42,11 @@ class JWTFilterTest {
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
         tokenProvider = new TokenProviderImpl(props, null, securityMetersService);
+        defaultTokenProvider = new TokenProviderImplDefault(props, null);
         ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret))));
 
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", 60000);
-        jwtFilter = new JWTFilter(tokenProvider, null);
+        jwtFilter = new JWTFilter(tokenProvider, defaultTokenProvider);
         SecurityContextHolder.getContext().setAuthentication(null);
     }
 
@@ -92,7 +96,8 @@ class JWTFilterTest {
         MockFilterChain filterChain = new MockFilterChain();
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
     }
 
     @Test
@@ -103,7 +108,8 @@ class JWTFilterTest {
         MockFilterChain filterChain = new MockFilterChain();
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
     }
 
     @Test
@@ -115,7 +121,8 @@ class JWTFilterTest {
         MockFilterChain filterChain = new MockFilterChain();
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
     }
 
     @Test
@@ -133,6 +140,7 @@ class JWTFilterTest {
         MockFilterChain filterChain = new MockFilterChain();
         jwtFilter.doFilter(request, response, filterChain);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
+		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
     }
 }
