@@ -58,9 +58,9 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void create(Ext ext) {
+	public void create(Ext ext, boolean force) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
-		validate.ext(ext);
+		validate.ext(ext, force);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
@@ -118,12 +118,12 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void update(Ext ext) {
+	public void update(Ext ext, boolean force) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
 		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
-		validate.ext(ext);
+		validate.ext(ext, force);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
@@ -153,9 +153,9 @@ public class ExtService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteTag(updated.getQualifiedTag())) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				create(updated);
+				create(updated, false);
 			} else {
-				update(updated);
+				update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);

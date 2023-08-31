@@ -86,7 +86,12 @@ public class Validate {
 
 	@Timed("jasper.validate.ext")
 	public void ext(Ext ext) {
-		ext(ext, ext.getOrigin(), false);
+		ext(ext,false);
+	}
+
+	@Timed("jasper.validate.ext")
+	public void ext(Ext ext, boolean stripOnError) {
+		ext(ext, ext.getOrigin(), stripOnError);
 	}
 
 	@Timed("jasper.validate.ext")
@@ -137,8 +142,7 @@ public class Validate {
 		return templates
 			.stream()
 			.map(Template::getDefaults)
-			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.reduce(null, this::merge);
 	}
 
 	private void template(Schema schema, String tag, JsonNode template) {
@@ -181,7 +185,10 @@ public class Validate {
 		}
 	}
 
-	private <T extends JsonNode> T merge(T a, JsonNode b) {
+	private <T extends JsonNode> T merge(T a, T b) {
+		if (a == null) return b;
+		if (b == null) return a;
+		if (!a.isObject() || !b.isObject()) return null;
 		try {
 			return objectMapper.updateValue(a, b);
 		} catch (JsonMappingException e) {
