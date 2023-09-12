@@ -22,6 +22,8 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
+			AND CAST(jsonb_object_field(t.config, 'deleted') as boolean) = false
+			AND CAST(jsonb_object_field(t.config, 'disabled') as boolean) = false
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
