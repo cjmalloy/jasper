@@ -38,16 +38,7 @@ public class Pull {
 	// TODO: copy to origin post-processing
 	// TODO: conditional tag/origin mapping
 
-	private void migrateEntity(HasOrigin entity, Origin config) {
-		entity.setOrigin(config.getLocal());
-	}
-
-	private void migrateTag(Tag tag, Origin config) {
-		migrateEntity(tag, config);
-	}
-
 	public void migrate(Ref ref, Origin config) {
-		migrateEntity(ref, config);
 		if (ref.getTags() != null && removeTags != null) {
 			ref.removePrefixTags();
 			migrateTags(ref.getTags(), ref.getPlugins());
@@ -69,20 +60,7 @@ public class Pull {
 		}
 	}
 
-	public void migrate(Ext ext, Origin config) {
-		migrateTag(ext, config);
-	}
-
-	public void migrate(Plugin plugin, Origin config) {
-		migrateTag(plugin, config);
-	}
-
-	public void migrate(Template template, Origin config) {
-		migrateEntity(template, config);
-	}
-
 	public void migrate(User user, Origin config) {
-		migrateTag(user, config);
 		migrateTags(user.getReadAccess(), null);
 		migrateTags(user.getWriteAccess(), null);
 		migrateTags(user.getTagReadAccess(), null);

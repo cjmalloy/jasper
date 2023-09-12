@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 
 @Component
 public class Replicator {
@@ -81,7 +82,7 @@ public class Replicator {
 
 		Map<String, Object> options = new HashMap<>();
 		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
-		var localOrigin = origin(config.getLocal());
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		options.put("size", pull.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), props.getMaxReplicateBatch()));
 		options.put("origin", config.getRemote());
@@ -89,17 +90,18 @@ public class Replicator {
 			try {
 				options.put("modifiedAfter", pluginRepository.getCursor(localOrigin));
 				for (var plugin : client.pluginPull(url, options)) {
-					pull.migrate(plugin, config);
+					plugin.setOrigin(localOrigin);
 					pluginRepository.save(plugin);
 				}
 				options.put("modifiedAfter", templateRepository.getCursor(localOrigin));
 				for (var template : client.templatePull(url, options)) {
-					pull.migrate(template, config);
+					template.setOrigin(localOrigin);
 					templateRepository.save(template);
 				}
 				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
 				for (var ref : client.refPull(url, options)) {
+					ref.setOrigin(localOrigin);
 					pull.migrate(ref, config);
 					if (pull.isGenerateMetadata()) {
 						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
@@ -116,7 +118,7 @@ public class Replicator {
 				}
 				options.put("modifiedAfter", extRepository.getCursor(localOrigin));
 				for (var ext : client.extPull(url, options)) {
-					pull.migrate(ext, config);
+					ext.setOrigin(localOrigin);
 					try {
 						if (pull.isValidateTemplates()) {
 							validate.ext(ext, pull.getValidationOrigin(), pull.isStripInvalidTemplates());
@@ -128,6 +130,7 @@ public class Replicator {
 				}
 				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
 				for (var user : client.userPull(url, options)) {
+					user.setOrigin(localOrigin);
 					pull.migrate(user, config);
 					var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 					if (maybeExisting.isPresent() && user.getKey() == null) {

@@ -1,5 +1,7 @@
 package jasper.domain.proj;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 public interface HasOrigin extends HasModified {
 	String REGEX_NOT_BLANK = "@[a-z0-9]+(?:[.][a-z0-9]+)*";
 	String REGEX = "(?:" + REGEX_NOT_BLANK + ")?";
@@ -11,5 +13,13 @@ public interface HasOrigin extends HasModified {
 	static String origin(String origin) {
 		if (origin == null) return "";
 		return origin;
+	}
+
+	static String subOrigin(String local, String origin) {
+		if (local == null) local = "";
+		if (origin == null) origin = "";
+		if (isBlank(local)) return origin;
+		if (!origin.startsWith("@")) origin = origin.substring(1);
+		return origin(local) + '.' + origin;
 	}
 }
