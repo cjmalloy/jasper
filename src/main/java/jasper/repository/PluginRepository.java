@@ -22,8 +22,8 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	@Query("""
 		FROM Plugin AS p
 		WHERE p.origin = :origin
-			AND CAST(jsonb_object_field(p.config, 'deleted') as boolean) = false
-			AND CAST(jsonb_object_field(p.config, 'disabled') as boolean) = false
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'deleted') as boolean), false) = false
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
 			AND p.tag = :tag""")
 	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
 
@@ -32,8 +32,8 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		SELECT p.tag
 		FROM Plugin AS p
 		WHERE p.origin = :origin
-			AND CAST(jsonb_object_field(p.config, 'deleted') as boolean) = false
-			AND CAST(jsonb_object_field(p.config, 'disabled') as boolean) = false
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'deleted') as boolean), false) = false
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
 			AND p.generateMetadata = true""")
 	List<String> findAllByGenerateMetadataByOrigin(String origin);
 }
