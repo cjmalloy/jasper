@@ -26,6 +26,7 @@ public class Metadata {
 	private List<String> responses;
 	private List<String> internalResponses;
 	private Map<String, List<String>> plugins;
+	private boolean obsolete = false;
 
 	public void addResponse(String url) {
 		if (responses == null) {

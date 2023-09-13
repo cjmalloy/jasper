@@ -39,6 +39,18 @@ public class RefSpec {
 						cb.literal(url))));
 	}
 
+	public static Specification<Ref> isNotObsolete() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(cb.function("jsonb_object_field", Object.class,
+					root.get(Ref_.metadata),
+					cb.literal("obsolete"))),
+				cb.isFalse(cb.function("jsonb_object_field", Object.class,
+					root.get(Ref_.metadata),
+					cb.literal("obsolete")).as(Boolean.class)));
+	}
+
 	public static Specification<Ref> isScheme(String scheme) {
 		return (root, query, cb) ->
 			cb.like(

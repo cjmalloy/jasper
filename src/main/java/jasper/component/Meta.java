@@ -52,6 +52,10 @@ public class Meta {
 				.build()
 			);
 
+			// Set Obsolete
+			ref.getMetadata().setObsolete(refRepository.existsByUrlAndModifiedGreaterThan(ref.getUrl(), ref.getModified()));
+			refRepository.setObsolete(ref.getUrl(), ref.getModified());
+
 			// Update sources
 			if (ref.getTags() == null) ref.setTags(new ArrayList<>());
 			var internal = ref.getTags().contains("internal");

@@ -11,24 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.RefSpec.endsWithTitle;
-import static jasper.repository.spec.RefSpec.fulltextEn;
-import static jasper.repository.spec.RefSpec.hasInternalResponse;
-import static jasper.repository.spec.RefSpec.hasNoPluginResponses;
-import static jasper.repository.spec.RefSpec.hasNoResponses;
-import static jasper.repository.spec.RefSpec.hasNoSources;
-import static jasper.repository.spec.RefSpec.hasNoTags;
-import static jasper.repository.spec.RefSpec.hasPluginResponses;
-import static jasper.repository.spec.RefSpec.hasResponse;
-import static jasper.repository.spec.RefSpec.hasSource;
-import static jasper.repository.spec.RefSpec.isCreatedAfter;
-import static jasper.repository.spec.RefSpec.isCreatedBefore;
-import static jasper.repository.spec.RefSpec.isPublishedAfter;
-import static jasper.repository.spec.RefSpec.isPublishedBefore;
-import static jasper.repository.spec.RefSpec.isResponseAfter;
-import static jasper.repository.spec.RefSpec.isResponseBefore;
-import static jasper.repository.spec.RefSpec.isScheme;
-import static jasper.repository.spec.RefSpec.isUrl;
+import static jasper.repository.spec.RefSpec.*;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -41,6 +24,7 @@ public class RefFilter implements Query {
 
 	private String origin;
 	private String url;
+	private boolean obsolete;
 	private String scheme;
 	private String query;
 	private String search;
@@ -66,6 +50,9 @@ public class RefFilter implements Query {
 		var result = Specification.<Ref>where(null);
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
+			result = result.and(isNotObsolete());
+		} else if (!obsolete) {
+			result = result.and(isNotObsolete());
 		}
 		if (isNotBlank(url)) {
 			result = result.and(isUrl(url));

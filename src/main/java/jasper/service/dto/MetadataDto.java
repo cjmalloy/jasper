@@ -17,4 +17,5 @@ public class MetadataDto {
 	private int internalResponses;
 	private Map<String, Integer> plugins;
 	private List<String> userUrls;
+	private boolean obsolete;
 }

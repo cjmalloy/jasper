@@ -104,6 +104,7 @@ public class RefController {
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
@@ -148,6 +149,7 @@ public class RefController {
 		return ifNotModifiedPage(request, refService.page(
 			RefFilter.builder()
 				.url(url)
+				.obsolete(obsolete)
 				.scheme(scheme)
 				.query(query)
 				.search(search)
@@ -178,6 +180,7 @@ public class RefController {
 	long countRefs(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(required = false) boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
@@ -201,6 +204,7 @@ public class RefController {
 				.query(query)
 				.search(search)
 				.url(url)
+				.obsolete(obsolete)
 				.scheme(scheme)
 				.sources(sources)
 				.responses(responses)

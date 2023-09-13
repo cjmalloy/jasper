@@ -94,6 +94,10 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
+	@Formula("metadata -> 'obsolete'")
+	@Setter(AccessLevel.NONE)
+	private Boolean obsolete;
+
 	@Formula("COALESCE(jsonb_array_length(tags), 0)")
 	@Setter(AccessLevel.NONE)
 	private String tagCount;

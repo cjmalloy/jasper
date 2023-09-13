@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,6 +21,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
+	boolean existsByUrlAndModifiedGreaterThan(String url, Instant modifiedAfter);
 
 	@Query(value = """
 		SELECT max(r.modified)
@@ -54,7 +56,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean existsByAlternateUrlAndOrigin(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
+		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
 		FROM ref
 		WHERE ref.origin = :origin
@@ -66,7 +68,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
+		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
 		FROM ref
 		WHERE ref.origin = :origin
@@ -78,7 +80,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsPullByOrigin(String origin);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
+		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
 		FROM ref
 		WHERE ref.origin = :origin
@@ -90,6 +92,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> oldestNeedsPushByOrigin(String origin);
 
 	@Modifying
+	@Transactional
 	@Query(nativeQuery = true, value = """
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
@@ -99,7 +102,8 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
 				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.tags, p.tag) = true)
-			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin))
+			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin)),
+			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified),
 		))""")
 	int backfill(String validationOrigin);
 
@@ -113,4 +117,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		LIMIT 1""")
 	Optional<RefUrl> originUrl(String origin, String remote);
 
+	@Modifying
+	@Transactional
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true)
+		WHERE r.url = :url
+			AND r.modified < :modified""")
+	int setObsolete(String url, Instant modified);
 }
