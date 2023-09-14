@@ -121,7 +121,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Transactional
 	@Query(nativeQuery = true, value = """
 		UPDATE ref r
-		SET metadata = jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true)
+		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
 		WHERE r.url = :url
 			AND r.modified < :modified""")
 	int setObsolete(String url, Instant modified);
