@@ -17,7 +17,7 @@ import java.util.UUID;
 @Entity
 @Getter
 @Setter
-public class Web {
+public class Web extends AbstractAuditingEntity {
 
 	@Id
 	@Column(updatable = false)

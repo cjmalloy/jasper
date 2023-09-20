@@ -32,7 +32,7 @@ import java.util.Objects;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Template implements Tag {
+public class Template extends AbstractAuditingEntity implements Tag {
 	public static final String REGEX = "(?:_?[a-z0-9]+(?:[./][a-z0-9]+)*)?";
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;

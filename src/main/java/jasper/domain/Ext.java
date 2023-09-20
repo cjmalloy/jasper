@@ -31,7 +31,7 @@ import java.util.Objects;
 @TypeDefs({
 	@TypeDef(name = "json", typeClass = JsonType.class)
 })
-public class Ext implements Tag {
+public class Ext extends AbstractAuditingEntity implements Tag {
 	public static final int NAME_LEN = 512;
 
 	@Id
