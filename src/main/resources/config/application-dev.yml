@@ -14,6 +14,9 @@ logging:
   level:
     ROOT: INFO
     jasper: DEBUG
+    org:
+      springframework:
+        security: DEBUG
 
 spring:
   devtools:
