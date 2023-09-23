@@ -36,6 +36,9 @@ public class Ingest {
 	@Autowired
 	Meta meta;
 
+	@Autowired
+	Messages messages;
+
 	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref, boolean force) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -46,6 +49,7 @@ public class Ingest {
 		meta.update(ref, null, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
+		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -57,6 +61,7 @@ public class Ingest {
 		validate.ref(ref, force);
 		meta.update(ref, maybeExisting.get(), null);
 		ensureUniqueModified(ref);
+		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -67,6 +72,7 @@ public class Ingest {
 		validate.ref(ref, true);
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
+		messages.updateRef(ref);
 	}
 
 	private void ensureUniqueModified(Ref ref) {

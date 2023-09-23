@@ -38,8 +38,7 @@ public class AuthUnitTest {
 	}
 
 	Auth getAuth(String origin, User user, String ...roles) {
-		var a = new Auth();
-		a.props = new Props();
+		var a = new Auth(new Props(), null, null, null);
 		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
