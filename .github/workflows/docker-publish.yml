@@ -18,6 +18,7 @@ jobs:
 
     runs-on: ubuntu-latest
     permissions:
+      pull-requests: write
       contents: read
       packages: write
       # This is used to complete the identity challenge
@@ -90,3 +91,15 @@ jobs:
 #        # This step uses the identity token to provision an ephemeral certificate
 #        # against the sigstore community Fulcio instance.
 #        run: cosign sign ${{ steps.meta.outputs.tags }}@${{ steps.build-and-push.outputs.digest }}
+
+      - name: PR message
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Built docker image: https://github.com/cjmalloy/jasper/pkgs/container/jasper/pr-${{ github.event.number }}'
+            })
