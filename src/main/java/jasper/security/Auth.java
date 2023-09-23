@@ -226,6 +226,8 @@ public class Auth {
 		// Mods can read anything in their local origin if multi tenant
 		// In single tenant mods and above can read anything
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
@@ -292,6 +294,8 @@ public class Auth {
 	 * Can subscribe to STOMP topic.
 	 */
 	public boolean canSubscribeTo(String destination) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		if (destination == null) return false;
 		if (destination.startsWith("/topic/tag/")) {
 			var tag = destination.substring("/topic/tag/".length()).replace('>', '_').replace('<', '+');
@@ -399,6 +403,8 @@ public class Auth {
 	 */
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		var qt = qt(qualifiedTag);
 		// In single tenant mode, non private tags are all readable
 		// In multi tenant mode, local non private tags are all readable
@@ -451,6 +457,8 @@ public class Auth {
 	 * be read.
 	 */
 	public boolean canReadQuery(Query filter) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		// Anyone can read the empty query (retrieve all Refs)
 		if (filter.getQuery() == null) return true;
 		// Mod
