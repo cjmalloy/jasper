@@ -31,6 +31,8 @@ public abstract class DtoMapper {
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
+	public abstract RefUpdateDto domainToUpdateDto(Ref ref);
+
 	@Mapping(target = "responses", source = "metadata.responses")
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
