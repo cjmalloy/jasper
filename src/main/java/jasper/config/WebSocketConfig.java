@@ -98,6 +98,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				var httpServletRequest = servletRequest.getServletRequest();
 				var token = httpServletRequest.getHeader(AUTHORIZATION_HEADER);
 				if (isNotBlank(token)) {
+					logger.debug(token);
 					attributes.put("jwt", token.substring("Bearer ".length()));
 				}
 			}
@@ -114,6 +115,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
 			logger.debug("STOMP Request Principal: " + request.getPrincipal());
 			var token = (String) attributes.get("jwt");
+			logger.debug(token);
 			TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
 			return t.getAuthentication(token);
 		}
@@ -131,6 +133,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if  (headers.containsKey("jwt")) {
 					var token = ((ArrayList<String>) headers.get("jwt")).get(0);
 					logger.debug("STOMP SUBSCRIBE Credentials Header");
+					logger.debug(token);
 					TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
 					auth.clear(t.getAuthentication(token));
 				} else if (accessor.getUser() instanceof Authentication authentication) {
