@@ -1,9 +1,7 @@
 package jasper.config;
 
 import jasper.management.SecurityMetersService;
-import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
-import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
 import jasper.security.jwt.TokenProviderImplDefault;
@@ -21,9 +19,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.context.annotation.ApplicationScope;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -36,11 +32,11 @@ import java.security.cert.X509Certificate;
 @Configuration
 public class AuthConfig {
 
-	@Bean("authSingleton")
-	@ApplicationScope
-	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
-		return new Auth(props, roleHierarchy, userRepository, refRepository);
-	}
+//	@Bean("authSingleton")
+//	@ApplicationScope
+//	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
+//		return new Auth(props, roleHierarchy, userRepository, refRepository);
+//	}
 
 	@Bean
 	@Profile("!no-ssl")

@@ -113,7 +113,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .antMatchers("/api/v1/scrape/fetch").permitAll()
             .antMatchers(HttpMethod.GET, "/api/v1/backup/**").permitAll()
             .antMatchers("/api/**").hasAuthority(props.getMinRole())
-            .antMatchers("/websocket").permitAll()
+//            .antMatchers("/websocket").permitAll()
             .antMatchers("/management/health").permitAll()
             .antMatchers("/management/health/**").permitAll()
             .antMatchers("/management/info").permitAll()

@@ -1,13 +1,11 @@
 package jasper.config;
 
-import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
 import org.apache.tomcat.websocket.server.WsSci;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.embedded.tomcat.TomcatContextCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
@@ -39,9 +37,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Autowired
 	TokenProviderImplDefault defaultTokenProvider;
 
-	@Autowired
-	@Qualifier("authSingleton")
-	Auth auth;
+//	@Autowired
+//	@Qualifier("authSingleton")
+//	Auth auth;
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -85,8 +83,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
 				var jwt = ((ArrayList<String>) message.getHeaders().get("nativeHeaders", Map.class).get("jwt")).get(0);
 				TokenProvider t = tokenProvider.validateToken(jwt) ? tokenProvider : defaultTokenProvider;
-				auth.clear(t.getAuthentication(jwt));
-				if (auth.canSubscribeTo(accessor.getDestination())) return message;
+//				auth.clear(t.getAuthentication(jwt));
+//				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
