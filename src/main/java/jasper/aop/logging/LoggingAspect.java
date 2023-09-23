@@ -41,6 +41,7 @@ public class LoggingAspect {
 	 * Pointcut that matches all Spring beans in the application's main packages.
 	 */
 	@Pointcut(
+		"within(jasper.client..*) || " +
 		"within(jasper.repository..*) || " +
 		"within(jasper.service..*) || " +
 		"within(jasper.web.rest..*)")
