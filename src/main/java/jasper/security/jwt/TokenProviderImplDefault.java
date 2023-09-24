@@ -12,14 +12,14 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 	}
 
 	@Override
-	public boolean validateToken(String jwt) {
+	public boolean validateToken(String jwt, String origin) {
 		return true;
 	}
 
 	@Override
-	public Authentication getAuthentication(String jwt) {
-		var principal = props.getSecurity().getClient(getPartialOrigin()).getDefaultUser();
-		var user = getUser(principal);
-		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user));
+	public Authentication getAuthentication(String jwt, String origin) {
+		var principal = props.getSecurity().getClient(origin).getDefaultUser();
+		var user = getUser(principal + origin);
+		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user, origin));
 	}
 }

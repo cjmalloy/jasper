@@ -31,13 +31,12 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 		super(props, userRepository, securityMetersService);
 		for (var c : props.getSecurity().clientList()) {
 			var client = c.getKey();
-			var key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getBase64Secret()));
+			var key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(c.getValue().getAuthentication().getJwt().getBase64Secret()));
 			keys.put(client, key);
 			jwtParser.put(client, Jwts.parserBuilder().setSigningKey(key).build());
 		}
-		tokenValidityInMilliseconds = 1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSeconds();
-		tokenValidityInMillisecondsForRememberMe =
-			1000 * props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
+		tokenValidityInMilliseconds = 1000 * props.getSecurity().getClient(props.getLocalOrigin()).getAuthentication().getJwt().getTokenValidityInSeconds();
+		tokenValidityInMillisecondsForRememberMe = 1000 * props.getSecurity().getClient(props.getLocalOrigin()).getAuthentication().getJwt().getTokenValidityInSecondsForRememberMe();
 	}
 
 	public String createToken(Authentication authentication, boolean rememberMe) {
@@ -54,26 +53,26 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 		return Jwts
 			.builder()
 			.setSubject(authentication.getName())
-			.setAudience(props.getSecurity().getClient(getPartialOrigin()).getAuthentication().getJwt().getClientId())
-			.claim(props.getSecurity().getClient(getPartialOrigin()).getAuthoritiesClaim(), authorities)
-			.signWith(keys.get(getPartialOrigin()), SignatureAlgorithm.HS512)
+			.setAudience(props.getSecurity().getClient("").getAuthentication().getJwt().getClientId())
+			.claim(props.getSecurity().getClient("").getAuthoritiesClaim(), authorities)
+			.signWith(keys.get(""), SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();
 	}
 
-	public Authentication getAuthentication(String token) {
-		var claims = jwtParser.get(getPartialOrigin()).parseClaimsJws(token).getBody();
-		var principal = getUsername(claims);
+	public Authentication getAuthentication(String token, String origin) {
+		var claims = jwtParser.get(origin).parseClaimsJws(token).getBody();
+		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
-		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
 	@Override
-	public boolean validateToken(String authToken) {
-		if (!props.getSecurity().hasClient(getPartialOrigin())) {
-			logger.error("No client for provider {}", getPartialOrigin());
+	public boolean validateToken(String authToken, String origin) {
+		if (!props.getSecurity().hasClient(origin)) {
+			logger.error("No client for provider {}", origin);
 			return false;
 		}
-		return super.validateToken(authToken);
+		return super.validateToken(authToken, origin);
 	}
 }
