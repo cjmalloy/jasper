@@ -94,8 +94,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
 		@Override
 		public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
+			logger.debug("STOMP Handshake");
 			if (request instanceof ServletServerHttpRequest servletRequest) {
 				var httpServletRequest = servletRequest.getServletRequest();
+				logger.debug("STOMP Handshake Header: {}", httpServletRequest.getHeader(AUTHORIZATION_HEADER));
 				var token = httpServletRequest.getHeader(AUTHORIZATION_HEADER);
 				if (isNotBlank(token)) {
 					attributes.put("jwt", token.substring("Bearer ".length()));
@@ -111,11 +113,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	class StompDefaultHandshakeHandler extends DefaultHandshakeHandler {
 		@Override
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
-			if (!attributes.containsKey("jwt")) return request.getPrincipal();
 			logger.debug("STOMP Request Principal: " + request.getPrincipal());
+			if (!attributes.containsKey("jwt")) return request.getPrincipal();
 			var token = (String) attributes.get("jwt");
-			TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
-			return t.getAuthentication(token);
+			return tokenProvider.validateToken(token) ? tokenProvider.getAuthentication(token) : request.getPrincipal();
 		}
 	}
 
@@ -129,6 +130,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
 				var headers = message.getHeaders().get("nativeHeaders", Map.class);
 				var token = ((ArrayList<String>) headers.get("jwt")).get(0);
+				logger.debug("STOMP SUBSCRIBE Header: {}", token);
 				if  (tokenProvider.validateToken(token)) {
 					logger.debug("STOMP SUBSCRIBE Credentials Header");
 					auth.clear(tokenProvider.getAuthentication(token));
@@ -141,6 +143,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.debug("Auth: {}", auth.getAuthentication());
+				logger.debug("Principal: {}", auth.getPrincipal());
+				logger.debug("type: {}", auth.getAuthentication().getClass());
+				logger.debug("Client: {}", auth.getClient());
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
