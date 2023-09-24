@@ -101,6 +101,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		private String resolveOrigin(HttpServletRequest request) {
 			var origin = props.getLocalOrigin();
 			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
+			logger.debug("STOMP Local Origin Header: {}", headerOrigin);
 			if (props.isAllowLocalOriginHeader() && headerOrigin != null) {
 				return headerOrigin.toLowerCase();
 			}
@@ -112,6 +113,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			logger.debug("STOMP Handshake");
 			if (request instanceof ServletServerHttpRequest servletRequest) {
 				var httpServletRequest = servletRequest.getServletRequest();
+				logger.debug("STOMP Handshake Header: {}", httpServletRequest.getHeader(AUTHORIZATION_HEADER));
 				var token = httpServletRequest.getHeader(AUTHORIZATION_HEADER);
 				if (isNotBlank(token)) {
 					attributes.put("jwt", token.substring("Bearer ".length()));
@@ -150,6 +152,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					var headers = message.getHeaders().get("nativeHeaders", Map.class);
 					var token = ((ArrayList<String>) headers.get("jwt")).get(0);
 					var origin = auth.getOrigin();
+					logger.debug("STOMP SUBSCRIBE Header: {}", token);
 					if  (tokenProvider.validateToken(token, origin)) {
 						logger.debug("STOMP SUBSCRIBE Credentials Header");
 						auth.clear(tokenProvider.getAuthentication(token, origin));
@@ -160,6 +163,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.debug("Auth: {}", auth.getAuthentication());
+				logger.debug("Principal: {}", auth.getPrincipal());
+				logger.debug("type: {}", auth.getAuthentication().getClass());
+				logger.debug("Client: {}", auth.getClient());
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
