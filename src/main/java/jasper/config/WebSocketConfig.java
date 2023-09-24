@@ -35,6 +35,7 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
@@ -47,6 +48,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	TokenProvider tokenProvider;
@@ -142,7 +146,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					throw new AccessDeniedException("No auth token");
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
-				logger.debug("Can't subscribe to " + accessor.getDestination());
+				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.debug("read access: {}", auth.getReadAccess());
+				logger.debug("tenant access: {}", Arrays.toString(props.getSecurity().getClient(auth.getOrigin()).getTenantAccess()));
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
