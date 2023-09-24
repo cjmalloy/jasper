@@ -154,7 +154,6 @@ public class Auth {
 		claims = null;
 		principal = null;
 		userTag = null;
-		origin = null;
 		client = null;
 		user = null;
 		publicTags = null;
@@ -162,6 +161,7 @@ public class Auth {
 		writeAccess = null;
 		tagReadAccess = null;
 		tagWriteAccess = null;
+		origin = qt(getPrincipal()).origin;
 	}
 
 	@PostConstruct
@@ -703,7 +703,7 @@ public class Auth {
 					publicTags.add(qt("public" + t));
 				}
 			} else {
-				return List.of(selector("public"));
+				publicTags = List.of(selector("public"));
 			}
 		}
 		return publicTags;
