@@ -180,6 +180,15 @@ public class Auth {
 	}
 
 	/**
+	 * Is this origin a sub-origin.
+	 */
+	public boolean subOrigin(String origin) {
+		if (isBlank(origin)) return false;
+		if (isBlank(getOrigin())) return true;
+		return origin.startsWith(getOrigin()+".");
+	}
+
+	/**
 	 * Is this origin readable.
 	 * In single tenant mode all origins are readable.
 	 * In multi tenant mode only local tenants or whitelisted tenants are readable.

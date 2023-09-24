@@ -50,7 +50,7 @@ public class OriginService {
 		replicator.push(source);
 	}
 
-	@PreAuthorize("@auth.sysMod() and @auth.local(#origin)")
+	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void pull(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
@@ -58,7 +58,7 @@ public class OriginService {
 		replicator.pull(source);
 	}
 
-	@PreAuthorize("@auth.sysMod()")
+	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void delete(String origin, Instant olderThan) {
 		refRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
