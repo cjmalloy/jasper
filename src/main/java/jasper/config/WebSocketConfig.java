@@ -142,7 +142,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					throw new AccessDeniedException("No auth token");
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
-				logger.debug("Can't subscribe to " + accessor.getDestination());
+				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.debug("read access: {}", auth.getReadAccess());
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
