@@ -141,6 +141,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.debug("Auth: {}", auth.getAuthentication());
+				logger.debug("Principal: {}", auth.getPrincipal());
+				logger.debug("type: {}", auth.getAuthentication().getClass());
+				logger.debug("Client: {}", auth.getClient());
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
 			}
