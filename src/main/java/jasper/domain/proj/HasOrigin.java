@@ -19,7 +19,8 @@ public interface HasOrigin extends HasModified {
 		if (local == null) local = "";
 		if (origin == null) origin = "";
 		if (isBlank(local)) return origin;
-		if (!origin.startsWith("@")) origin = origin.substring(1);
-		return origin(local) + '.' + origin;
+		if (isBlank(origin)) return local;
+		if (origin.startsWith("@")) origin = origin.substring(1);
+		return local + '.' + origin;
 	}
 }
