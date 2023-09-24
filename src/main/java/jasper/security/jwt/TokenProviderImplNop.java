@@ -4,7 +4,6 @@ import jasper.config.Props;
 import jasper.repository.UserRepository;
 import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
 public class TokenProviderImplNop extends AbstractTokenProvider {
 
@@ -13,12 +12,12 @@ public class TokenProviderImplNop extends AbstractTokenProvider {
 	}
 
 	@Override
-	public boolean validateToken(String jwt) {
+	public boolean validateToken(String jwt, String origin) {
 		return false;
 	}
 
 	@Override
-	public Authentication getAuthentication(String jwt) {
+	public Authentication getAuthentication(String jwt, String origin) {
 		throw new NotImplementedException();
 	}
 }
