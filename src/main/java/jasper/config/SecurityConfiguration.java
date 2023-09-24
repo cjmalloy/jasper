@@ -123,7 +123,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private JWTConfigurer securityConfigurerAdapter() {
 		logger.info("Minimum Role: {}", props.getMinRole());
-		return new JWTConfigurer(tokenProvider, defaultTokenProvider);
+		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider);
 	}
 
 	@Bean

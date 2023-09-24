@@ -32,11 +32,13 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
+import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -46,6 +48,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	TokenProvider tokenProvider;
@@ -79,11 +84,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
 		registry
 			.addEndpoint("/")
-			.setHandshakeHandler(new StompDefaultHandshakeHandler())
-			.addInterceptors(new StompHandshakeInterceptor())
+				.setHandshakeHandler(new StompDefaultHandshakeHandler())
+				.addInterceptors(new StompHandshakeInterceptor())
 				.setAllowedOriginPatterns("*")
-				.withSockJS()
-					.setSuppressCors(true);
+			.withSockJS()
+				.setSuppressCors(true);
 	}
 
 	@Override
@@ -92,14 +97,26 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
+
+		private String resolveOrigin(HttpServletRequest request) {
+			var origin = props.getLocalOrigin();
+			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
+			if (props.isAllowLocalOriginHeader() && headerOrigin != null) {
+				return headerOrigin.toLowerCase();
+			}
+			return origin;
+		}
+
 		@Override
 		public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
+			logger.debug("STOMP Handshake");
 			if (request instanceof ServletServerHttpRequest servletRequest) {
 				var httpServletRequest = servletRequest.getServletRequest();
 				var token = httpServletRequest.getHeader(AUTHORIZATION_HEADER);
 				if (isNotBlank(token)) {
 					attributes.put("jwt", token.substring("Bearer ".length()));
 				}
+				attributes.put("origin", resolveOrigin(httpServletRequest));
 			}
 			return true;
 		}
@@ -111,11 +128,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	class StompDefaultHandshakeHandler extends DefaultHandshakeHandler {
 		@Override
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
-			if (!attributes.containsKey("jwt")) return request.getPrincipal();
 			logger.debug("STOMP Request Principal: " + request.getPrincipal());
+			var origin = (String) attributes.get("origin");
+			if (!attributes.containsKey("jwt")) return defaultTokenProvider.getAuthentication(null, origin);
 			var token = (String) attributes.get("jwt");
-			TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
-			return t.getAuthentication(token);
+			return tokenProvider.validateToken(token, origin) ? tokenProvider.getAuthentication(token, origin) : defaultTokenProvider.getAuthentication(null, origin);
 		}
 	}
 
@@ -127,17 +144,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() == StompCommand.BEGIN) return null; // No Transactions
 				if (accessor.getCommand() == StompCommand.SEND) return null; // No Client Messages
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
-				var headers = message.getHeaders().get("nativeHeaders", Map.class);
-				var token = ((ArrayList<String>) headers.get("jwt")).get(0);
-				if  (tokenProvider.validateToken(token)) {
-					logger.debug("STOMP SUBSCRIBE Credentials Header");
-					auth.clear(tokenProvider.getAuthentication(token));
-				} else if (accessor.getUser() instanceof Authentication authentication) {
+				if (accessor.getUser() instanceof Authentication authentication) {
 					logger.debug("STOMP User Set");
 					auth.clear(authentication);
+					var headers = message.getHeaders().get("nativeHeaders", Map.class);
+					var token = ((ArrayList<String>) headers.get("jwt")).get(0);
+					var origin = auth.getOrigin();
+					if  (tokenProvider.validateToken(token, origin)) {
+						logger.debug("STOMP SUBSCRIBE Credentials Header");
+						auth.clear(tokenProvider.getAuthentication(token, origin));
+					}
 				} else {
 					logger.debug("STOMP Default auth");
-					auth.clear(defaultTokenProvider.getAuthentication(null));
+					auth.clear(defaultTokenProvider.getAuthentication(null, props.getLocalOrigin()));
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());

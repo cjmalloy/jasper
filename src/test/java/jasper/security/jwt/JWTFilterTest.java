@@ -46,7 +46,7 @@ class JWTFilterTest {
         ReflectionTestUtils.setField(tokenProvider, "keys", Map.of("", Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret))));
 
         ReflectionTestUtils.setField(tokenProvider, "tokenValidityInMilliseconds", 60000);
-        jwtFilter = new JWTFilter(tokenProvider, defaultTokenProvider);
+        jwtFilter = new JWTFilter(props, tokenProvider, defaultTokenProvider);
         SecurityContextHolder.getContext().setAuthentication(null);
     }
 
