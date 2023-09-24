@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.getHeader;
-import static jasper.security.Auth.getOriginHeader;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractTokenProvider implements TokenProvider {
@@ -35,8 +34,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		return userDetailsProvider.findOneByQualifiedTag(userTag).orElse(null);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(User user) {
-		var auth = getPartialAuthorities();
+	Collection<? extends GrantedAuthority> getAuthorities(User user, String origin) {
+		var auth = getPartialAuthorities(origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("User Roles: {}", user.getRole());
 			if (User.ROLES.contains(user.getRole().trim())) {
@@ -48,10 +47,10 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		return auth;
 	}
 
-	List<SimpleGrantedAuthority> getPartialAuthorities() {
-		var client = props.getSecurity().getClient(getPartialOrigin());
+	List<SimpleGrantedAuthority> getPartialAuthorities(String origin) {
+		var client = props.getSecurity().getClient(origin);
 		var authString = client == null ? "ROLE_ANONYMOUS" : client.getDefaultRole();
-		if (props.getSecurity().getClient(getPartialOrigin()).isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+		if (props.getSecurity().getClient(origin).isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
 			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
 			authString += ", " + getHeader(USER_ROLE_HEADER);
 		}
@@ -61,13 +60,5 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
-	}
-
-	public String getPartialOrigin() {
-		var origin = props.getLocalOrigin();
-		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
-			origin = getOriginHeader().toLowerCase();
-		}
-		return origin;
 	}
 }

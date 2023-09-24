@@ -161,7 +161,11 @@ public class Auth {
 		writeAccess = null;
 		tagReadAccess = null;
 		tagWriteAccess = null;
-		origin = qt(getPrincipal()).origin;
+		if (getPrincipal().startsWith("@")) {
+			origin = getPrincipal();
+		} else {
+			origin = qt(getPrincipal()).origin;
+		}
 	}
 
 	@PostConstruct
@@ -221,7 +225,7 @@ public class Auth {
 	 * a default user tag +user.
 	 */
 	public boolean isLoggedIn() {
-		return isNotBlank(getPrincipal());
+		return isNotBlank(getPrincipal()) && !getPrincipal().startsWith("@");
 	}
 
 	/**
@@ -734,8 +738,8 @@ public class Auth {
 			if (getClient().isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
+			readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
 			if (isLoggedIn()) {
-				readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
 				readAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
@@ -753,8 +757,8 @@ public class Auth {
 			if (getClient().isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
+			writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
 			if (isLoggedIn()) {
-				writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
 				writeAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getWriteAccess)
 						.orElse(List.of())));
@@ -772,8 +776,8 @@ public class Auth {
 			if (getClient().isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
+			tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
-				tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
 				tagReadAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagReadAccess)
 						.orElse(List.of())));
@@ -791,8 +795,8 @@ public class Auth {
 			if (getClient().isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
+			tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
-				tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
 				tagWriteAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
 						.map(User::getTagWriteAccess)
 						.orElse(List.of())));

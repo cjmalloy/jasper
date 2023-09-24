@@ -31,19 +31,19 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		}
 	}
 
-	public Authentication getAuthentication(String token) {
-		var claims = jwtParser.get(getPartialOrigin()).parseClaimsJws(token).getBody();
-		var principal = getUsername(claims);
+	public Authentication getAuthentication(String token, String origin) {
+		var claims = jwtParser.get(origin).parseClaimsJws(token).getBody();
+		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
-		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
 	@Override
-	public boolean validateToken(String authToken) {
-		if (!props.getSecurity().hasClient(getPartialOrigin())) {
-			logger.error("No client for provider {}", getPartialOrigin());
+	public boolean validateToken(String authToken, String origin) {
+		if (!props.getSecurity().hasClient(origin)) {
+			logger.error("No client for provider {}", origin);
 			return false;
 		}
-		return super.validateToken(authToken);
+		return super.validateToken(authToken, origin);
 	}
 }

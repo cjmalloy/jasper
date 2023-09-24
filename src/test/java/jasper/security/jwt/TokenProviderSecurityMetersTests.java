@@ -62,7 +62,7 @@ class TokenProviderSecurityMetersTests {
 
         String validToken = createValidToken();
 
-        tokenProvider.validateToken(validToken);
+        tokenProvider.validateToken(validToken, "");
 
         assertThat(aggregate(counters)).isZero();
     }
@@ -73,7 +73,7 @@ class TokenProviderSecurityMetersTests {
 
         String expiredToken = createExpiredToken();
 
-        tokenProvider.validateToken(expiredToken);
+        tokenProvider.validateToken(expiredToken, "");
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "expired").counter().count()).isEqualTo(1);
     }
@@ -84,7 +84,7 @@ class TokenProviderSecurityMetersTests {
 
         String unsupportedToken = createUnsupportedToken();
 
-        tokenProvider.validateToken(unsupportedToken);
+        tokenProvider.validateToken(unsupportedToken, "");
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "unsupported").counter().count()).isEqualTo(1);
     }
@@ -95,7 +95,7 @@ class TokenProviderSecurityMetersTests {
 
         String tokenWithDifferentSignature = createTokenWithDifferentSignature();
 
-        tokenProvider.validateToken(tokenWithDifferentSignature);
+        tokenProvider.validateToken(tokenWithDifferentSignature, "");
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "invalid-signature").counter().count()).isEqualTo(1);
     }
@@ -106,7 +106,7 @@ class TokenProviderSecurityMetersTests {
 
         String malformedToken = createMalformedToken();
 
-        tokenProvider.validateToken(malformedToken);
+        tokenProvider.validateToken(malformedToken, "");
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "malformed").counter().count()).isEqualTo(1);
     }
