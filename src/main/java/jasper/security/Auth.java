@@ -281,6 +281,8 @@ public class Auth {
 		if (!local(origin)) return false;
 		// Minimum role for writing Refs is USER
 		if (!hasRole(USER)) return false;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		// If we're creating, simply having the role USER is enough
 		if (maybeExisting.isEmpty()) return true;
@@ -325,6 +327,8 @@ public class Auth {
 	 * Does the user have permission to use a tag when tagging Refs?
 	 */
 	public boolean canAddTag(String tag) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
@@ -337,6 +341,8 @@ public class Auth {
 	 * Does the user have permission to use all tags when tagging Refs?
 	 */
 	public boolean canAddTags(List<String> tags) {
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		return tags.stream().allMatch(this::canAddTag);
@@ -348,6 +354,8 @@ public class Auth {
 	public boolean canTagAll(List<String> tags, String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		for (var tag : tags) {
@@ -366,6 +374,8 @@ public class Auth {
 	public boolean canTag(String tag, String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		if (hasRole(MOD)) return true;
 		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
@@ -434,6 +444,8 @@ public class Auth {
 		var qt = qt(qualifiedTag);
 		// Only writing to the local origin ever permitted
 		if (!local(qt.origin)) return false;
+		// Min Role
+		if (!hasRole(props.getMinRole())) return false;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		// Editors have special access to edit public tag Exts
