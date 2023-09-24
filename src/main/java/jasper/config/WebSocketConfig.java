@@ -24,7 +24,6 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -93,7 +92,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
-
 		@Override
 		public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
 			if (request instanceof ServletServerHttpRequest servletRequest) {
@@ -107,13 +105,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		}
 
 		@Override
-		public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) {
-		}
+		public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) { }
 	}
 
 	class StompDefaultHandshakeHandler extends DefaultHandshakeHandler {
 		@Override
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
+			if (!attributes.containsKey("jwt")) return request.getPrincipal();
 			logger.debug("STOMP Request Principal: " + request.getPrincipal());
 			var token = (String) attributes.get("jwt");
 			TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
@@ -131,15 +129,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
 				var headers = message.getHeaders().get("nativeHeaders", Map.class);
 				var token = ((ArrayList<String>) headers.get("jwt")).get(0);
-				if  (isNotBlank(token)) {
+				if  (tokenProvider.validateToken(token)) {
 					logger.debug("STOMP SUBSCRIBE Credentials Header");
-					TokenProvider t = tokenProvider.validateToken(token) ? tokenProvider : defaultTokenProvider;
-					auth.clear(t.getAuthentication(token));
+					auth.clear(tokenProvider.getAuthentication(token));
 				} else if (accessor.getUser() instanceof Authentication authentication) {
-					logger.debug("WS User Set");
+					logger.debug("STOMP User Set");
 					auth.clear(authentication);
 				} else {
-					throw new AccessDeniedException("No auth token");
+					logger.debug("STOMP Default auth");
+					auth.clear(defaultTokenProvider.getAuthentication(null));
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
