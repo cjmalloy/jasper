@@ -18,16 +18,16 @@ public class TokenProviderImplNoVerify extends AbstractJwtTokenProvider {
 		return token.substring(0, token.lastIndexOf('.') + 1);
 	}
 
-	public Authentication getAuthentication(String token) {
+	public Authentication getAuthentication(String token, String origin) {
 		var claims = jwtParser.get("").parseClaimsJwt(dropSig(token)).getBody();
-		var principal = getUsername(claims);
+		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
-		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user));
+		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
 	@Override
-	public boolean validateToken(String authToken) {
+	public boolean validateToken(String authToken, String origin) {
 		if (!StringUtils.hasText(authToken)) return false;
-		return super.validateToken(dropSig(authToken));
+		return super.validateToken(dropSig(authToken), origin);
 	}
 }
