@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
@@ -46,6 +47,7 @@ public class SmtpService {
 	@Autowired
 	RefRepository refRepository;
 
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "smtp"}, histogram = true)
 	public void create(SmtpWebhookDto email, String origin) {
 		var ref = smtpToDomain(email);

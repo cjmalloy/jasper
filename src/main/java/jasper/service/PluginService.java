@@ -81,6 +81,7 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository

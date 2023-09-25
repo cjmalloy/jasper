@@ -97,6 +97,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
@@ -108,6 +109,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public long count(TagFilter filter) {
 		return extRepository
