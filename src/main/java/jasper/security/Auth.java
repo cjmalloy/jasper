@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static jasper.repository.spec.OriginSpec.isAnyOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -136,6 +137,7 @@ public class Auth {
 	protected Client client;
 	protected Optional<User> user;
 	protected List<QualifiedTag> publicTags;
+	protected List<String> tenantAccessOrigins;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -586,7 +588,9 @@ public class Auth {
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().spec());
 		}
-		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec
+			.or(Specification.<T>where(isAnyOrigin(getTenantAccessOrigins())).and(notPrivateTag()))
+			.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
@@ -721,8 +725,7 @@ public class Auth {
 		if (publicTags == null) {
 			if (props.isMultiTenant()) {
 				publicTags = new ArrayList<>(List.of(qt("public" + getOrigin())));
-				if (getClient().getTenantAccess() == null) return publicTags;
-				for (var t : getClient().getTenantAccess()) {
+				for (var t : getTenantAccessOrigins()) {
 					publicTags.add(qt("public" + t));
 				}
 			} else {
@@ -730,6 +733,22 @@ public class Auth {
 			}
 		}
 		return publicTags;
+	}
+
+	public List<String> getTenantAccessOrigins() {
+		if (tenantAccessOrigins == null) {
+			if (props.isMultiTenant()) {
+				tenantAccessOrigins = new ArrayList<>(List.of(getOrigin()));
+				if (getClient().getTenantAccess() == null) return tenantAccessOrigins;
+				for (var t : getClient().getTenantAccess()) {
+					if (isBlank(t) || t.equals("@") || t.equals("default")) t = "";
+					tenantAccessOrigins.add(t);
+				}
+			} else {
+				tenantAccessOrigins = List.of("@*");
+			}
+		}
+		return tenantAccessOrigins;
 	}
 
 	protected String getMultiTenantOrigin() {
