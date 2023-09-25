@@ -240,7 +240,7 @@ public class Auth {
 		// In single tenant mods and above can read anything
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
@@ -286,7 +286,7 @@ public class Auth {
 		// Minimum role for writing Refs is USER
 		if (!hasRole(USER)) return false;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		// If we're creating, simply having the role USER is enough
 		if (maybeExisting.isEmpty()) return true;
@@ -310,7 +310,7 @@ public class Auth {
 	 */
 	public boolean canSubscribeTo(String destination) {
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		if (destination == null) return false;
 		if (destination.startsWith("/topic/tag/")) {
 			var tag = destination.substring("/topic/tag/".length()).replace('>', '_').replace('<', '+');
@@ -332,7 +332,7 @@ public class Auth {
 	 */
 	public boolean canAddTag(String tag) {
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
@@ -346,7 +346,7 @@ public class Auth {
 	 */
 	public boolean canAddTags(List<String> tags) {
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		return tags.stream().allMatch(this::canAddTag);
@@ -359,7 +359,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		if (hasRole(MOD)) return true;
 		if (!hasRole(USER)) return false;
 		for (var tag : tags) {
@@ -379,7 +379,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		if (hasRole(MOD)) return true;
 		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
@@ -427,7 +427,7 @@ public class Auth {
 	public boolean canReadTag(String qualifiedTag) {
 		if (hasRole(SA)) return true;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		var qt = qt(qualifiedTag);
 		// In single tenant mode, non private tags are all readable
 		// In multi tenant mode, local non private tags are all readable
@@ -449,7 +449,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt.origin)) return false;
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		// Editors have special access to edit public tag Exts
@@ -483,7 +483,7 @@ public class Auth {
 	 */
 	public boolean canReadQuery(Query filter) {
 		// Min Role
-		if (!hasRole(props.getMinRole())) return false;
+		if (!minRole()) return false;
 		// Anyone can read the empty query (retrieve all Refs)
 		if (filter.getQuery() == null) return true;
 		// Mod
@@ -499,7 +499,14 @@ public class Auth {
 	}
 
 	/**
-	 * Is the user Sysadmin role in multi tenant, Admin in single tenant
+	 * Has the minimum role.
+	 */
+	public boolean minRole() {
+		return hasRole(props.getMinRole());
+	}
+
+	/**
+	 * Is the user Sysadmin role in multi tenant, Admin in single tenant.
 	 */
 	public boolean sysAdmin() {
 		if (props.isMultiTenant()) return hasRole(SA);
@@ -507,7 +514,7 @@ public class Auth {
 	}
 
 	/**
-	 * Is the user Sysadmin role in multi tenant, Mod in single tenant
+	 * Is the user Sysadmin role in multi tenant, Mod in single tenant.
 	 */
 	public boolean sysMod() {
 		if (props.isMultiTenant()) return hasRole(SA);
@@ -822,6 +829,7 @@ public class Auth {
 	}
 
 	private boolean hasAnyAuthorityName(String prefix, String... roles) {
+		if (!minRole()) return false;
 		Set<String> roleSet = getAuthoritySet();
 		for (String role : roles) {
 			String defaultedRole = getRoleWithPrefix(prefix, role);
