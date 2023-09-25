@@ -1,6 +1,6 @@
 package jasper.util;
 
-import jasper.domain.proj.HasModified;
+import jasper.domain.proj.Cursor;
 import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,15 +29,15 @@ public class RestUtil {
 			.mustRevalidate()
 			.cachePrivate();
 
-	public static <T extends HasModified> ResponseEntity<T> ifNotModified(WebRequest request, T result) {
+	public static <T extends Cursor> ResponseEntity<T> ifNotModified(WebRequest request, T result) {
 		return ifNotModified(request, result, getModified(result));
 	}
 
-	public static <T extends HasModified> ResponseEntity<List<T>> ifNotModifiedList(WebRequest request, List<T> result) {
+	public static <T extends Cursor> ResponseEntity<List<T>> ifNotModifiedList(WebRequest request, List<T> result) {
 		return ifNotModified(request, result, getModifiedList(result));
 	}
 
-	public static <T extends HasModified> ResponseEntity<Page<T>> ifNotModifiedPage(WebRequest request, Page<T> result) {
+	public static <T extends Cursor> ResponseEntity<Page<T>> ifNotModifiedPage(WebRequest request, Page<T> result) {
 		return ifNotModified(request, result, getModifiedPage(result));
 	}
 
@@ -58,13 +58,13 @@ public class RestUtil {
 			.body(result);
 	}
 
-	private static <T extends HasModified> String getModifiedList(List<T> result) {
+	private static <T extends Cursor> String getModifiedList(List<T> result) {
 		return result.stream()
 			.map(RestUtil::getModified)
 			.collect(Collectors.joining(","));
 	}
 
-	private static <T extends HasModified> String getModifiedPage(Page<T> result) {
+	private static <T extends Cursor> String getModifiedPage(Page<T> result) {
 		if (result.getContent().size() > 500) return null;
 		var etag = new ArrayList<>(result.stream().map(RestUtil::getModified).toList());
 		for (var i = etag.size() - 1; i > 0; i--) {
@@ -84,7 +84,7 @@ public class RestUtil {
 			"," + result.isLast();
 	}
 
-	private static <T extends HasModified> String getModified(T result) {
+	private static <T extends Cursor> String getModified(T result) {
 		if (result == null) return "";
 		var modified = result.getModified().truncatedTo(ChronoUnit.MILLIS).toString();
 		if (!(result instanceof RefDto ref)) return modified;
