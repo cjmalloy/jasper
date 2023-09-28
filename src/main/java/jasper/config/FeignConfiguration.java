@@ -26,6 +26,11 @@ public class FeignConfiguration {
 
 	@Bean
 	public feign.httpclient.ApacheHttpClient feignHttpClient() {
-		return new feign.httpclient.ApacheHttpClient();
+		return new feign.httpclient.ApacheHttpClient(
+			org.apache.http.impl.client.HttpClientBuilder
+				.create()
+				.disableCookieManagement()
+				.disableConnectionState()
+				.build());
 	}
 }
