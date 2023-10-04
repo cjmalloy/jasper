@@ -492,7 +492,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		extService.create(ext, false);
+		extService.update(updated, false);
 
 		assertThat(extRepository.existsByQualifiedTag("+custom@other"))
 			.isTrue();
@@ -514,7 +514,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.create(ext, false))
+		assertThatThrownBy(() -> extService.update(ext, false))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("custom@other"))
@@ -537,7 +537,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		extService.create(ext, false);
+		extService.update(updated, false);
 
 		assertThat(extRepository.existsByQualifiedTag("+user/tester@other"))
 			.isTrue();
@@ -559,7 +559,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.create(ext, false))
+		assertThatThrownBy(() -> extService.update(ext, false))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("+user/other@other"))
@@ -587,7 +587,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		extService.create(ext, false);
+		extService.update(updated, false);
 
 		assertThat(extRepository.existsByQualifiedTag("_secret@other"))
 			.isTrue();
@@ -613,7 +613,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.create(ext, false))
+		assertThatThrownBy(() -> extService.update(ext, false))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("_secret@other"))
@@ -636,7 +636,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.create(ext, false))
+		assertThatThrownBy(() -> extService.update(ext, false))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("public@other"))

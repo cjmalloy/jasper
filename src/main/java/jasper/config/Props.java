@@ -224,6 +224,7 @@ public class Props {
 	@Getter
 	@Setter
 	public static class Security {
+		private static final Client defaultClient = new Client();
 		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
 		private final Map<String, Client> clients = new HashMap<>();
 		private final RememberMe rememberMe = new RememberMe();
@@ -246,8 +247,13 @@ public class Props {
 		}
 
 		public Client getClient(String origin) {
-			if (origin.equals("") && clients.containsKey("default")) return clients.get("default");
-			return clients.get(origin.substring(1));
+			if (origin.startsWith("@") && clients.containsKey(origin.substring(1))) {
+				return clients.get(origin.substring(1));
+			}
+			if (origin.equals("") && clients.containsKey("default")) {
+				return clients.get("default");
+			}
+			return defaultClient;
 		}
 
 		@Getter

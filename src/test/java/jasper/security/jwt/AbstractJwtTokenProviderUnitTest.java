@@ -192,7 +192,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice"), "@other"))
 			.isEqualTo("+user/alice@other");
 	}
 
@@ -200,7 +200,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Invalid() {
 		var tokenProvider = getTokenProvider("@main", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!"), "@main"))
 			.isNull();
 	}
 
@@ -208,7 +208,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Root_Invalid() {
 		var tokenProvider = getTokenProvider("@main", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!", "ROLE_ADMIN"), "@main"))
 			.isEqualTo("_user@main");
 	}
 
@@ -216,7 +216,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Invalid_Origin() {
 		var tokenProvider = getTokenProvider("@main", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!"), "@main"))
 			.isNull();
 	}
 
@@ -224,7 +224,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Invalid_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@main", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!@!!!!"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!@!!!!"), "@main"))
 			.isNull();
 	}
 
@@ -232,7 +232,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Root_Invalid_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@main", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!@!!!!!", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("!!!!!!!@!!!!!", "ROLE_ADMIN"), "@main"))
 			.isEqualTo("_user@main");
 	}
 
@@ -240,7 +240,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_InvalidOrigin() {
 		var tokenProvider = getTokenProvider("@main", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!!!"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!!!"), "@main"))
 			.isEqualTo("+user/alice@main");
 	}
 
@@ -248,7 +248,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Root_InvalidOrigin() {
 		var tokenProvider = getTokenProvider("@main", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!!!", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!!!", "ROLE_ADMIN"), "@main"))
 			.isEqualTo("+user/alice@main");
 	}
 
@@ -256,7 +256,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_InvalidOrigin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@main", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!"), "@main"))
 			.isEqualTo("+user/alice@main");
 	}
 
@@ -264,7 +264,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_Root_InvalidOrigin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@main", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@!!!!!", "ROLE_ADMIN"), "@main"))
 			.isEqualTo("+user/alice@main");
 	}
 
@@ -272,7 +272,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@main"), "@other"))
 			.isEqualTo("+user/alice@other");
 	}
 
@@ -280,7 +280,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Origin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("alice@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("alice@main"), "@other"))
 			.isEqualTo("+user/alice@main");
 	}
 
@@ -312,7 +312,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Blank_Origin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user"), "@other"))
 			.isNull();
 	}
 
@@ -320,7 +320,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Blank_Origin_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main"), "@other"))
 			.isNull();
 	}
 
@@ -352,7 +352,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_BlankProtected_Default_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main"), "@other"))
 			.isNull();
 	}
 
@@ -360,7 +360,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_BlankProtected_Origin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user"), "@other"))
 			.isNull();
 	}
 
@@ -368,7 +368,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_BlankProtected_Origin_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main"), "@other"))
 			.isNull();
 	}
 
@@ -376,7 +376,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_BlankProtected_Origin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main"), "@other"))
 			.isNull();
 	}
 
@@ -408,7 +408,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Root_Origin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("_user@other");
 	}
 
@@ -416,7 +416,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Root_Origin_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("@main", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("@main", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("_user@other");
 	}
 
@@ -424,7 +424,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_Root_Origin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("@main", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("@main", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("_user@main");
 	}
 
@@ -456,7 +456,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_RootProtected_Origin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("+user@other");
 	}
 
@@ -464,7 +464,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_RootProtected_Origin_NoClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", false);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("+user@other");
 	}
 
@@ -472,7 +472,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	void testGetUsername_RootProtected_Origin_ClaimOrigin() {
 		var tokenProvider = getTokenProvider("@other", true);
 
-		assertThat(tokenProvider.getUsername(getClaims("+user@main", "ROLE_ADMIN"), ""))
+		assertThat(tokenProvider.getUsername(getClaims("+user@main", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("+user@main");
 	}
 }

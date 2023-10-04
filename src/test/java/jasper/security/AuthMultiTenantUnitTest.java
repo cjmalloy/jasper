@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
@@ -45,6 +46,7 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	Set<String> getRoles(String ...roles) {
+		if (roles.length == 0) roles = new String[]{ ANONYMOUS };
 		var userAuthorities = Arrays.stream(roles)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
