@@ -65,10 +65,10 @@ public class UserController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createUser(
+	Instant createUser(
 		@RequestBody @Valid User user
 	) {
-		userService.create(user);
+		return userService.create(user);
 	}
 
 	@ApiResponses({
@@ -112,11 +112,10 @@ public class UserController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateUser(
+	Instant updateUser(
 		@RequestBody @Valid User user
 	) {
-		userService.update(user);
+		return userService.update(user);
 	}
 
 	@ApiResponses({
@@ -126,10 +125,10 @@ public class UserController {
 	})
 	@PostMapping("keygen")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void keygen(
+	Instant keygen(
 			@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) throws NoSuchAlgorithmException, IOException {
-		userService.keygen(tag);
+		return userService.keygen(tag);
 	}
 
 	@ApiResponses({

@@ -5,6 +5,7 @@ import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -27,6 +28,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -54,11 +56,12 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
-	public void create(User user) {
+	public Instant create(User user) {
 		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		user.setModified(Instant.now());
 		try {
 			userRepository.save(user);
+			return user.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -108,15 +111,18 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
-	public void update(User user) {
+	public Instant update(User user) {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
+		var existing = maybeExisting.get();
+		if (user.getModified() == null || !user.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("User " + user.getQualifiedTag());
 		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
 		user.setModified(Instant.now());
 		if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 		try {
 			userRepository.save(user);
+			return user.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -124,7 +130,7 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUser(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
-	public void keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
+	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
 		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
@@ -133,8 +139,10 @@ public class UserService {
 		KeyPair kp = kpg.generateKeyPair();
 		user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
 		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getTag()).getBytes());
+		user.setModified(Instant.now());
 		try {
 			userRepository.save(user);
+			return user.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}

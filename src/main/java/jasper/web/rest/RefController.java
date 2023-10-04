@@ -71,11 +71,11 @@ public class RefController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createRef(
+	Instant createRef(
 		@RequestBody @Valid Ref ref,
 		@RequestParam(defaultValue = "false") boolean force
 	) {
-		refService.create(ref, force);
+		return refService.create(ref, force);
 	}
 
 	@ApiResponses({
@@ -230,12 +230,11 @@ public class RefController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateRef(
+	Instant updateRef(
 		@RequestBody @Valid Ref ref,
 		@RequestParam(defaultValue = "false") boolean force
 	) {
-		refService.update(ref, force);
+		return refService.update(ref, force);
 	}
 
 	@ApiResponses({
@@ -244,13 +243,12 @@ public class RefController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/json-patch+json")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchRef(
+	Instant patchRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody JsonPatch patch
 	) {
-		refService.patch(url, origin, patch);
+		return refService.patch(url, origin, patch);
 	}
 
 	@ApiResponses({
@@ -259,13 +257,12 @@ public class RefController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/merge-patch+json")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void mergeRef(
+	Instant mergeRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody JsonMergePatch patch
 	) {
-		refService.patch(url, origin, patch);
+		return refService.patch(url, origin, patch);
 	}
 
 	@ApiResponses({

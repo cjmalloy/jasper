@@ -37,11 +37,12 @@ public class TemplateService {
 
 	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public void create(Template template) {
+	public Instant create(Template template) {
 		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		template.setModified(Instant.now());
 		try {
 			templateRepository.save(template);
+			return template.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -85,14 +86,15 @@ public class TemplateService {
 
 	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public void update(Template template) {
+	public Instant update(Template template) {
 		var maybeExisting = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Template "+ template.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (!template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Template");
+		if (template.getModified() == null || !template.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Template");
 		template.setModified(Instant.now());
 		try {
 			templateRepository.save(template);
+			return template.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}

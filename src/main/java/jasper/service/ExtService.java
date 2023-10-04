@@ -58,12 +58,13 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void create(Ext ext, boolean force) {
+	public Instant create(Ext ext, boolean force) {
 		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate.ext(ext, force);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
+			return ext.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -120,15 +121,16 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void update(Ext ext, boolean force) {
+	public Instant update(Ext ext, boolean force) {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (!ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
+		if (ext.getModified() == null || !ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
 		validate.ext(ext, force);
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
+			return existing.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -136,7 +138,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public void patch(String qualifiedTag, Patch patch) {
+	public Instant patch(String qualifiedTag, Patch patch) {
 		var created = false;
 		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {
@@ -155,9 +157,9 @@ public class ExtService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteTag(updated.getQualifiedTag())) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				create(updated, false);
+				return create(updated, false);
 			} else {
-				update(updated, false);
+				return update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);

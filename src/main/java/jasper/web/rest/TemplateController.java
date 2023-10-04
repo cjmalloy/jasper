@@ -59,10 +59,10 @@ public class TemplateController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createTemplate(
+	Instant createTemplate(
 		@RequestBody @Valid Template template
 	) {
-		templateService.create(template);
+		return templateService.create(template);
 	}
 
 	@ApiResponses({
@@ -109,11 +109,10 @@ public class TemplateController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateTemplate(
+	Instant updateTemplate(
 		@RequestBody @Valid Template template
 	) {
-		templateService.update(template);
+		return templateService.update(template);
 	}
 
 	@ApiResponses({

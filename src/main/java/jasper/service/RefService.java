@@ -66,12 +66,13 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void create(Ref ref, boolean force) {
+	public Instant create(Ref ref, boolean force) {
 		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
 			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
 		}
 		ingest.ingest(ref, force);
+		return ref.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
@@ -124,7 +125,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void update(Ref ref, boolean force) {
+	public Instant update(Ref ref, boolean force) {
 		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
 			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
@@ -132,16 +133,17 @@ public class RefService {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
-		if (!ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
+		if (ref.getModified() == null || !ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
 		var hiddenTags = auth.hiddenTags(existing.getTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
 		ingest.update(ref, force);
+		return ref.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public void patch(String url, String origin, Patch patch) {
+	public Instant patch(String url, String origin, Patch patch) {
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
@@ -159,9 +161,9 @@ public class RefService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				create(updated, false);
+				return create(updated, false);
 			} else {
-				update(updated, false);
+				return update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);

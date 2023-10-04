@@ -37,11 +37,12 @@ public class PluginService {
 
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
-	public void create(Plugin plugin) {
+	public Instant create(Plugin plugin) {
 		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		plugin.setModified(Instant.now());
 		try {
 			pluginRepository.save(plugin);
+			return plugin.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -94,14 +95,15 @@ public class PluginService {
 
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
-	public void update(Plugin plugin) {
+	public Instant update(Plugin plugin) {
 		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (!plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());
+		if (plugin.getModified() == null || !plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());
 		plugin.setModified(Instant.now());
 		try {
 			pluginRepository.save(plugin);
+			return plugin.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}

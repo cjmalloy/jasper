@@ -61,11 +61,11 @@ public class ExtController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createExt(
+	Instant createExt(
 		@RequestBody @Valid Ext ext,
 		@RequestParam(defaultValue = "false") boolean force
 	) {
-		extService.create(ext, force);
+		return extService.create(ext, force);
 	}
 
 	@ApiResponses({
@@ -130,12 +130,11 @@ public class ExtController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateExt(
+	Instant updateExt(
 		@RequestBody @Valid Ext ext,
 		@RequestParam(defaultValue = "false") boolean force
 	) {
-		extService.update(ext, force);
+		return extService.update(ext, force);
 	}
 
 	@ApiResponses({
@@ -143,12 +142,11 @@ public class ExtController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/json-patch+json")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchExt(
+	Instant patchExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
 		@RequestBody JsonPatch patch
 	) {
-		extService.patch(tag, patch);
+		return extService.patch(tag, patch);
 	}
 
 	@ApiResponses({
@@ -157,11 +155,11 @@ public class ExtController {
 	})
 	@PatchMapping(consumes = "application/merge-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void mergeExt(
+	Instant mergeExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
 		@RequestBody JsonMergePatch patch
 	) {
-		extService.patch(tag, patch);
+		return extService.patch(tag, patch);
 	}
 
 	@ApiResponses({

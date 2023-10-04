@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.20
+  version: 1.2.21
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.20
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.21
 paths:
   /api/v1/ref:
     get:
@@ -58,8 +58,8 @@ paths:
               $ref: '#/components/schemas/Ref'
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -86,7 +86,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created
+          $ref: '#/components/responses/Created'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -142,8 +142,8 @@ paths:
               type: object
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -797,6 +797,94 @@ paths:
           responses:
               '204':
                   description: No Content
+  /api/v1/origin/push:
+    post:
+      tags:
+        - Origin
+      operationId: push
+      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pushing
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/origin/pull:
+    post:
+      tags:
+        - Origin
+      operationId: pull
+      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Error pulling
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/origin/{origin}:
+    delete:
+      tags:
+        - Origin
+      operationId: deleteOrigin
+      parameters:
+        - name: origin
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/origin'
+        - name: olderThan
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/ext:
     get:
       tags:
@@ -840,8 +928,8 @@ paths:
               $ref: '#/components/schemas/Ext'
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -868,7 +956,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created
+          $ref: '#/components/responses/Created'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -912,8 +1000,8 @@ paths:
               type: object
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1092,8 +1180,8 @@ paths:
               $ref: '#/components/schemas/Plugin'
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1114,7 +1202,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created
+          $ref: '#/components/responses/Created'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1132,8 +1220,8 @@ paths:
           schema:
             $ref: '#/components/schemas/qtag-plugin'
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1237,8 +1325,8 @@ paths:
               $ref: '#/components/schemas/Template'
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -1259,7 +1347,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created
+          $ref: '#/components/responses/Created'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1387,8 +1475,8 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1409,7 +1497,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Created
+          $ref: '#/components/responses/Created'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -1426,94 +1514,6 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag-user'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /api/v1/origin/push:
-    post:
-      tags:
-        - Origin
-      operationId: push
-      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pushing
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/pull:
-    post:
-      tags:
-        - Origin
-      operationId: pull
-      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pulling
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/{origin}:
-    delete:
-      tags:
-        - Origin
-      operationId: deleteOrigin
-      parameters:
-        - name: origin
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/origin'
-        - name: olderThan
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date-time
       responses:
         '204':
           description: No Content
@@ -2769,6 +2769,20 @@ components:
           items:
             $ref: '#/components/schemas/EmailEmbeddedFile'
   responses:
+    Created:
+      description: Created
+      content:
+        'application/json':
+          schema:
+            type: string
+            format: date-time
+    Modified:
+      description: Modified
+      content:
+        'application/json':
+          schema:
+            type: string
+            format: date-time
     BadRequest:
       description: Bad Request
       content:

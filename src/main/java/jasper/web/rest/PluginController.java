@@ -58,10 +58,10 @@ public class PluginController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createPlugin(
+	Instant createPlugin(
 		@RequestBody @Valid Plugin plugin
 	) {
-		pluginService.create(plugin);
+		return pluginService.create(plugin);
 	}
 
 	@ApiResponses({
@@ -108,11 +108,10 @@ public class PluginController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updatePlugin(
+	Instant updatePlugin(
 		@RequestBody @Valid Plugin plugin
 	) {
-		pluginService.update(plugin);
+		return pluginService.update(plugin);
 	}
 
 	@ApiResponses({
