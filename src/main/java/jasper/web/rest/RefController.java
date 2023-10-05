@@ -246,9 +246,10 @@ public class RefController {
 	Instant patchRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return refService.patch(url, origin, patch);
+		return refService.patch(url, origin, cursor, patch);
 	}
 
 	@ApiResponses({
@@ -260,9 +261,10 @@ public class RefController {
 	Instant mergeRef(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return refService.patch(url, origin, patch);
+		return refService.patch(url, origin, cursor, patch);
 	}
 
 	@ApiResponses({

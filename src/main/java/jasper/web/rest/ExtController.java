@@ -144,9 +144,10 @@ public class ExtController {
 	@PatchMapping(consumes = "application/json-patch+json")
 	Instant patchExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return extService.patch(tag, patch);
+		return extService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({
@@ -157,9 +158,10 @@ public class ExtController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	Instant mergeExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return extService.patch(tag, patch);
+		return extService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({

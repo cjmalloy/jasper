@@ -138,7 +138,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant patch(String qualifiedTag, Patch patch) {
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
 		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {
@@ -147,6 +147,8 @@ public class ExtService {
 			var qt = selector(qualifiedTag);
 			ext.setTag(qt.tag);
 			ext.setOrigin(qt.origin);
+		} else {
+			if (!cursor.truncatedTo(ChronoUnit.SECONDS).equals(ext.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
 		}
 		if (ext.getConfig() == null) {
 			ext.setConfig(validate.templateDefaults(qualifiedTag));

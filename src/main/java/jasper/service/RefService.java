@@ -143,7 +143,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant patch(String url, String origin, Patch patch) {
+	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
@@ -151,6 +151,8 @@ public class RefService {
 			ref = new Ref();
 			ref.setUrl(url);
 			ref.setOrigin(origin);
+		} else {
+			if (!cursor.truncatedTo(ChronoUnit.SECONDS).equals(ref.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
 		}
 		ref.setPlugins(validate.pluginDefaults(ref));
 		try {
