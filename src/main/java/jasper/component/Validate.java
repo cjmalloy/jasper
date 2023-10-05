@@ -211,6 +211,7 @@ public class Validate {
 		}
 		var defaults = plugin
 			.map(Plugin::getDefaults)
+			.filter(n -> !n.isNull())
 			.orElse(objectMapper.getNodeFactory().objectNode());
 		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
 			if (ref.getPlugins() == null) {
