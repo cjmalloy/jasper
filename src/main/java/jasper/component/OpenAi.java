@@ -11,6 +11,8 @@ import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.finetune.FineTuneRequest;
+import com.theokanning.openai.image.CreateImageRequest;
+import com.theokanning.openai.image.ImageResult;
 import com.theokanning.openai.service.OpenAiService;
 import jasper.client.dto.RefDto;
 import jasper.config.Props;
@@ -217,6 +219,24 @@ public class OpenAi {
 		}
 	}
 
+
+	public ImageResult dale(String prompt, DalleConfig config) {
+		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+		if (key.isEmpty()) {
+			throw new NotFoundException("requires openai api key");
+		}
+		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
+		var imageRequest = CreateImageRequest.builder()
+			.prompt(prompt)
+			.size(config.size)
+			.build();
+		try {
+			return service.createImage(imageRequest);
+		} catch (OpenAiHttpException e) {
+			throw e;
+		}
+	}
+
 	public CompletionResult fineTunedCompletion(List<ChatMessage> messages) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
@@ -331,4 +351,9 @@ public class OpenAi {
 		public String ftId;
 		public String fineTunedModel;
 	}
+
+	public static class DalleConfig {
+		public String size = "1024x1024";
+	}
+
 }
