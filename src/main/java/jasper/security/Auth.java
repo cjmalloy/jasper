@@ -202,6 +202,7 @@ public class Auth {
 	public boolean tenantAccess(String origin) {
 		if (!props.isMultiTenant()) return true;
 		if (local(origin)) return true;
+		if (subOrigin(origin)) return true;
 		if (getClient().getTenantAccess() == null) return false;
 		for (var t : getClient().getTenantAccess()) {
 			if (t.equals(origin)) return true;
@@ -752,7 +753,9 @@ public class Auth {
 	}
 
 	protected String getMultiTenantOrigin() {
-		return props.isMultiTenant() ? getOrigin() : "@*";
+		return !props.isMultiTenant() ? "@*"
+			: getOrigin().isEmpty() ? ""
+			: getOrigin() + ".*";
 	}
 
 	public List<QualifiedTag> getReadAccess() {

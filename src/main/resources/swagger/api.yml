@@ -2275,7 +2275,7 @@ components:
       maxLength: 512
     origin:
       type: string
-      pattern: '@[a-z0-9]+(\.[a-z0-9])*'
+      pattern: '@[a-z0-9]+([.][a-z0-9])*'
       default: ''
       description: Origin
       example: '@origin'
@@ -2294,14 +2294,14 @@ components:
       maxLength: 65
     qtag:
       type: string
-      pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+(\.[a-z0-9])*)?'
+      pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+([.][a-z0-9]+)*)?'
       description: Optionally Qualified Tag
       example: 'tag@origin'
       maxLength: 127
     query:
       type: string
       description: Tag Query
-      pattern: '(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*)))*\))([ |:&](!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*|@\*)))*\)))*'
+      pattern: '(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*)))*\))([ |:&](!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*)))*\)))*'
       example: '(politics|science):!funny'
       maxLength: 512
     tag-template:
@@ -2312,7 +2312,7 @@ components:
       maxLength: 64
     qtag-template:
       type: string
-      pattern: '(_?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*)?'
+      pattern: '(_?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*)?'
       description: Optionally Qualified Template Tag
       example: 'kanban@origin'
       maxLength: 127
@@ -2324,7 +2324,7 @@ components:
       maxLength: 64
     qtag-plugin:
       type: string
-      pattern: '[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+(\.[a-z0-9])*)?'
+      pattern: '[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+([.][a-z0-9]+)*)?'
       description: Optionally Qualified Plugin Tag
       example: 'plugin/thumbnail@origin'
       maxLength: 127
@@ -2336,7 +2336,7 @@ components:
       maxLength: 64
     qtag-user:
       type: string
-      pattern: '[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+(\.[a-z0-9])*)?'
+      pattern: '[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*)?'
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127

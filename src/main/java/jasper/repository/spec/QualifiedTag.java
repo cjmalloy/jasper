@@ -17,7 +17,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class QualifiedTag {
-	public static final String SELECTOR = "(?:\\*|" + Tag.REGEX + "|(?:" + Tag.REGEX + ")?(?:" + HasOrigin.REGEX_NOT_BLANK + "|@\\*?))";
+	public static final String SELECTOR = "(?:\\*|" + Tag.REGEX + "|(?:" + Tag.REGEX + ")?(?:" + HasOrigin.REGEX_NOT_BLANK + "(?:[.][*])?|@\\*?))";
 
 	public final boolean not;
 	public final String tag;
@@ -70,7 +70,8 @@ public class QualifiedTag {
 
 	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
-		if (!origin.equals("@*") && !origin.equals(c.origin)) return not;
+		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;
+		if (origin.endsWith(".*") && !c.origin.equals(origin.substring(0, origin.length() - 2)) && !c.origin.startsWith(origin.substring(0, origin.length() - 1))) return not;
 		return !not;
 	}
 
