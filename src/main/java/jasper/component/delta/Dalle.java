@@ -4,18 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
+import jasper.component.WebScraper;
 import jasper.component.scheduler.Async;
-import jasper.domain.Ext;
-import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
-import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
-import lombok.Getter;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,19 +38,13 @@ public class Dalle implements Async.AsyncRunner {
 	OpenAi openAi;
 
 	@Autowired
-	RefRepository refRepository;
+	WebScraper webScraper;
 
 	@Autowired
 	PluginRepository pluginRepository;
 
 	@Autowired
-	TemplateRepository templateRepository;
-
-	@Autowired
 	ObjectMapper objectMapper;
-
-	@Autowired
-	RefMapper refMapper;
 
 	@PostConstruct
 	void init() {
@@ -126,15 +114,6 @@ public class Dalle implements Async.AsyncRunner {
 		response.setOrigin(ref.getOrigin());
 		ingest.ingest(response, false);
 		logger.debug("DALL-E reply sent ({})", response.getUrl());
-	}
-
-	@Getter
-	@Setter
-	private static class AiReply {
-		private Ref[] ref;
-		private Ext[] ext;
-		private Plugin[] plugin;
-		private Template[] template;
-		private User[] user;
+		webScraper.scrapeAsync(response.getUrl());
 	}
 }
