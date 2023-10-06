@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Profile("ai")
 @Component
 public class Dalle implements Async.AsyncRunner {
@@ -75,7 +77,7 @@ public class Dalle implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(dallePlugin.getConfig(), OpenAi.DalleConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.dale(ref.getTitle() + ": " + ref.getComment(), config);
+			var res = openAi.dale((isBlank(ref.getTitle()) ? "" : ref.getTitle() + ": ") + ref.getComment(), config);
 			response.setTitle("Re: " + ref.getTitle());
 			response.setUrl(res.getData().get(0).getUrl());
 		} catch (Exception e) {
