@@ -490,8 +490,8 @@ paths:
           schema:
             $ref: '#/components/schemas/origin'
       responses:
-        '201':
-          description: Created
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -521,8 +521,8 @@ paths:
           schema:
             $ref: '#/components/schemas/origin'
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -554,8 +554,8 @@ paths:
           schema:
             $ref: '#/components/schemas/origin'
       responses:
-        '204':
-          description: No Content
+        '200':
+          $ref: '#/components/responses/Modified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':

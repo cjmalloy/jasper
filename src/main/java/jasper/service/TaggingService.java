@@ -14,6 +14,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,36 +36,38 @@ public class TaggingService {
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void create(String tag, String url, String origin) {
+	public Instant create(String tag, String url, String origin) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
 		ref.addTags(List.of(tag));
 		ingest.update(ref, false);
+		return ref.getModified();
 	}
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void delete(String tag, String url, String origin) {
+	public Instant delete(String tag, String url, String origin) {
 		if (tag.equals("locked")) {
 			throw new AccessDeniedException("Cannot unlock Ref");
 		}
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		if (ref.getTags() == null || !ref.getTags().contains(tag)) return;
+		if (ref.getTags() == null || !ref.getTags().contains(tag)) return ref.getModified();
 		if (ref.getTags().contains("locked") && ref.getPlugins() != null && ref.getPlugins().has(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removePrefixTags();
 		ref.getTags().remove(tag);
 		ingest.update(ref, true);
+		return ref.getModified();
 	}
 
 	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void tag(List<String> tags, String url, String origin) {
+	public Instant tag(List<String> tags, String url, String origin) {
 		if (tags.contains("-locked")) {
 			throw new AccessDeniedException("Cannot unlock Ref");
 		}
@@ -81,6 +84,7 @@ public class TaggingService {
 		}
 		ref.addTags(tags);
 		ingest.update(ref, true);
+		return ref.getModified();
 	}
 
 	@PreAuthorize( "@auth.hasRole('USER') and @auth.canAddTag(#tag)")

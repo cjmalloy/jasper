@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.constraints.Pattern;
+import java.time.Instant;
 import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
@@ -43,42 +44,39 @@ public class TaggingController {
 	TaggingService taggingService;
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping
-	@ResponseStatus(HttpStatus.CREATED)
-	void createTags(
+	Instant createTags(
 		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		taggingService.create(tag, url, origin);
+		return taggingService.create(tag, url, origin);
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@DeleteMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void deleteTags(
+	Instant deleteTags(
 		@RequestParam @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String tag,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		taggingService.delete(tag, url, origin);
+		return taggingService.delete(tag, url, origin);
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PatchMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchTags(
+	Instant patchTags(
 		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		taggingService.tag(tags, url, origin);
+		return taggingService.tag(tags, url, origin);
 	}
 
 	@ApiResponses({
