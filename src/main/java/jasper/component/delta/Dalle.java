@@ -82,6 +82,7 @@ public class Dalle implements Async.AsyncRunner {
 		if (ref.getTags().contains("plugin/comment")) response.addTag("plugin/thread");
 		if (ref.getTags().contains("plugin/thread")) response.addTag("plugin/thread");
 		response.addTag("plugin/image");
+		response.addTag("plugin/thumbnail");
 		var chat = false;
 		for (var t : ref.getTags()) {
 			if (t.startsWith("chat/") || t.equals("chat")) {
