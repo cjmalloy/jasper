@@ -76,7 +76,7 @@ public class Async {
 	}
 
 	private void drain(String origin) {
-		while (true) {
+		for (var i = 0; i < props.getAsyncBatchSize(); i++) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
