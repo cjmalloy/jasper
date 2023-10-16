@@ -37,6 +37,9 @@ public class Ingest {
 	Meta meta;
 
 	@Autowired
+	Rng rng;
+
+	@Autowired
 	Messages messages;
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -46,6 +49,7 @@ public class Ingest {
 		ref.setCreated(Instant.now());
 		ref.setModified(Instant.now());
 		validate.ref(ref, force);
+		rng.update(ref, null);
 		meta.update(ref, null, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
@@ -59,6 +63,7 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		ref.setModified(Instant.now());
 		validate.ref(ref, force);
+		rng.update(ref, maybeExisting.get());
 		meta.update(ref, maybeExisting.get(), null);
 		ensureUniqueModified(ref);
 		messages.updateRef(ref);
@@ -70,6 +75,7 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		ref.setModified(Instant.now());
 		validate.ref(ref, true);
+		rng.update(ref, maybeExisting.orElse(null));
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
 		messages.updateRef(ref);
