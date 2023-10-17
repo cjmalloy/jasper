@@ -15,6 +15,7 @@ public class RefUpdateDto {
 	private String origin;
 	private String title;
 	private String comment;
+	private List<String> tags;
 	private List<String> sources;
 	private List<String> alternateUrls;
 	private Instant published;
