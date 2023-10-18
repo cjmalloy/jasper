@@ -68,10 +68,10 @@ public class BackupService {
 		backup.restore(id, options);
 	}
 
-	@PreAuthorize("@auth.sysMod()")
+	@PreAuthorize("@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
-	public void backfill(String validationOrigin) {
-		backup.backfill(validationOrigin);
+	public void backfill() {
+		backup.backfill(auth.getOrigin());
 	}
 
 	@PreAuthorize("@auth.sysAdmin()")

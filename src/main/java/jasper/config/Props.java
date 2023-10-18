@@ -34,6 +34,7 @@ public class Props {
 	private String[] modSeals;
 	private String[] editorSeals;
 	private int asyncBatchSize = 20;
+	private int backfillBatchSize = 1000;
 	private String asyncDelaySec = "120";
 	private String asyncIntervalSec = "40";
 	/**

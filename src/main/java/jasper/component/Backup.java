@@ -221,11 +221,24 @@ public class Backup {
 		Files.write(path, zipFile, StandardOpenOption.CREATE_NEW);
 	}
 
+	/**
+	 * Will first drop and then regenerate all metadata
+	 * for the given origin and all sub-origins.
+	 */
 	@Async
-	@Transactional
-	@Counted(value = "jasper.backfill")
-	public void backfill(String validationOrigin) {
-		refRepository.backfill(validationOrigin);
+	@Counted(value = "jasper.backup")
+	public void backfill(String origin) {
+		var start = Instant.now();
+		logger.info("{} Starting Backfill", origin);
+		refRepository.dropMetadata(origin);
+		logger.info("{} Cleared old metadata", origin);
+		int count = 0;
+		while (props.getBackfillBatchSize() == refRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
+			count += props.getBackfillBatchSize();
+			logger.info("{} Generating metadata... {} done", origin, count);
+		}
+		logger.info("{} Finished Backfill", origin);
+		logger.info("{} Backfill Duration {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)

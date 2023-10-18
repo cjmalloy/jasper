@@ -91,9 +91,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		LIMIT 1""")
 	Optional<Ref> oldestNeedsPushByOrigin(String origin);
 
-	@Modifying
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
 	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = NULL
+		WHERE metadata IS NOT NULL
+		AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	void dropMetadata(String origin);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Transactional
+	@Query(nativeQuery = true, value = """
+		WITH rows as (
+			SELECT url, origin from ref
+			WHERE metadata IS NULL
+			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+			LIMIT :batchSize
+		)
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
 			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
@@ -102,10 +117,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
 				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.tags, p.tag) = true)
-			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :validationOrigin)),
-			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified),
-		))""")
-	int backfill(String validationOrigin);
+			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
+			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
+		))
+		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)""")
+	int backfillMetadata(String origin, int batchSize);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
@@ -123,6 +139,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
 		WHERE r.url = :url
-			AND r.modified < :modified""")
-	int setObsolete(String url, Instant modified);
+			AND r.modified < :modified
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	int setObsolete(String url, Instant modified, String origin);
 }

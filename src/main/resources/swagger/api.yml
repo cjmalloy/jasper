@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.21
+  version: 1.2.22
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.21
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.22
 paths:
   /api/v1/ref:
     get:
@@ -628,33 +628,33 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
     patch:
-        tags:
-            - Tagging
-        operationId: patchResponse
-        parameters:
-            - name: tags
-              in: query
-              required: true
-              schema:
-                  type: array
-                  items:
-                      $ref: '#/components/schemas/tagPatch'
-            - name: url
-              in: query
-              required: true
-              schema:
-                  $ref: '#/components/schemas/url'
-        responses:
-            '204':
-                description: No Content
-            '400':
-                $ref: '#/components/responses/BadRequest'
-            '403':
-                $ref: '#/components/responses/Forbidden'
-            '404':
-                $ref: '#/components/responses/NotFound'
-            '409':
-                $ref: '#/components/responses/Conflict'
+      tags:
+        - Tagging
+      operationId: patchResponse
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/tagPatch'
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/scrape/feed:
     post:
       tags:
@@ -790,13 +790,13 @@ paths:
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/clear-cache:
-      get:
-          tags:
-              - scrape
-          operationId: clearScrapeConfigCache
-          responses:
-              '204':
-                  description: No Content
+    get:
+      tags:
+        - scrape
+      operationId: clearScrapeConfigCache
+      responses:
+        '204':
+          description: No Content
   /api/v1/origin/push:
     post:
       tags:
@@ -1752,12 +1752,6 @@ paths:
       tags:
         - Backup
       operationId: backfill
-      parameters:
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content

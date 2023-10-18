@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
@@ -21,6 +22,9 @@ import static jasper.repository.spec.RefSpec.isUrls;
 @Component
 public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -54,7 +58,7 @@ public class Meta {
 
 			// Set Obsolete
 			ref.getMetadata().setObsolete(refRepository.existsByUrlAndModifiedGreaterThan(ref.getUrl(), ref.getModified()));
-			refRepository.setObsolete(ref.getUrl(), ref.getModified());
+			refRepository.setObsolete(ref.getUrl(), ref.getModified(), props.isMultiTenant() ? ref.getOrigin() : "");
 
 			// Update sources
 			if (ref.getTags() == null) ref.setTags(new ArrayList<>());
