@@ -43,12 +43,13 @@ public class RefSpec {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(cb.function("jsonb_object_field", Object.class,
+				cb.isNull(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
 					cb.literal("obsolete"))),
-				cb.isFalse(cb.function("jsonb_object_field", Object.class,
+				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
-					cb.literal("obsolete")).as(Boolean.class)));
+					cb.literal("obsolete")),
+					cb.literal("true")));
 	}
 
 	public static Specification<Ref> isScheme(String scheme) {
