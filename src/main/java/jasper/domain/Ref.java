@@ -94,7 +94,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
-	@Formula("metadata -> 'obsolete'")
+	@Formula("metadata ->> 'obsolete' = 'true'")
 	@Setter(AccessLevel.NONE)
 	private Boolean obsolete;
 
