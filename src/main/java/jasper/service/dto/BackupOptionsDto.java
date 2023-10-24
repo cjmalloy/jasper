@@ -14,6 +14,8 @@ import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor
 public class BackupOptionsDto {
+	public static final String ID_INVALID_REGEX = "[./\\]";
+	public static final int ID_LEN = 256;
 	private boolean ref;
 	private boolean ext;
 	private boolean user;

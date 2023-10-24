@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.service.dto.BackupOptionsDto.ID_INVALID_REGEX;
+
 @Profile("storage")
 @Service
 public class BackupService {
@@ -45,7 +47,7 @@ public class BackupService {
 
 	@PreAuthorize("@auth.sysMod()")
 	public void uploadBackup(String id, byte[] zipFile) throws IOException {
-		backup.store(id, zipFile);
+		backup.store(id.replaceAll(ID_INVALID_REGEX, ""), zipFile);
 	}
 
 	@PreAuthorize("@auth.sysMod()")
@@ -55,15 +57,16 @@ public class BackupService {
 
 	@PreAuthorize("@auth.sysMod()")
 	public byte[] getBackup(String id) {
-		return backup.get(id);
+		return backup.get(id.replaceAll(ID_INVALID_REGEX, ""));
 	}
 
 	public byte[] getBackupPreauth(String id) {
-		return backup.get(id);
+		return backup.get(id.replaceAll(ID_INVALID_REGEX, ""));
 	}
 
 	@PreAuthorize("@auth.sysAdmin()")
 	public void restoreBackup(String id, BackupOptionsDto options) {
+		id = id.replaceAll(ID_INVALID_REGEX, "");
 		if (!backup.exists(id)) throw new NotFoundException("Backup " + id);
 		backup.restore(id, options);
 	}
@@ -76,6 +79,7 @@ public class BackupService {
 
 	@PreAuthorize("@auth.sysAdmin()")
 	public void deleteBackup(String id) throws IOException {
+		id = id.replaceAll(ID_INVALID_REGEX, "");
 		if (!backup.exists(id)) return; // Delete is idempotent
 		backup.delete(id);
 	}

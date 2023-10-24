@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
 import jasper.service.dto.BackupOptionsDto;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static jasper.service.dto.BackupOptionsDto.ID_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("storage")
@@ -75,7 +77,7 @@ public class BackupController {
 	})
 	@GetMapping(value = "{id}")
 	public ResponseEntity<byte[]> downloadBackup(
-		@PathVariable String id,
+		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestParam(defaultValue = "") String p
 	) {
 		if (id.endsWith(".zip")) {
@@ -123,7 +125,7 @@ public class BackupController {
 	@PostMapping("upload/{id}")
 	@ResponseStatus(HttpStatus.CREATED)
 	public void uploadBackup(
-		@PathVariable String id,
+		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestBody(required = false) byte[] zipFile
 	) throws IOException {
 		if (id.endsWith(".zip")) {
@@ -139,7 +141,7 @@ public class BackupController {
 	@PostMapping("restore/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void restoreBackup(
-		@PathVariable String id,
+		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestBody(required = false) BackupOptionsDto options) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
@@ -162,7 +164,7 @@ public class BackupController {
 	@DeleteMapping("{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deleteBackup(
-		@PathVariable String id
+		@PathVariable @Length(max = ID_LEN) String id
 	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
