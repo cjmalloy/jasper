@@ -1,6 +1,7 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.Notifications;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -35,6 +36,9 @@ public class PluginService {
 	@Autowired
 	DtoMapper mapper;
 
+	@Autowired
+	Notifications notifications;
+
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant create(Plugin plugin) {
@@ -42,6 +46,7 @@ public class PluginService {
 		plugin.setModified(Instant.now());
 		try {
 			pluginRepository.save(plugin);
+			notifications.notifyPlugin();
 			return plugin.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
@@ -53,6 +58,7 @@ public class PluginService {
 	public void push(Plugin plugin) {
 		try {
 			pluginRepository.save(plugin);
+			notifications.notifyPlugin();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -103,6 +109,7 @@ public class PluginService {
 		plugin.setModified(Instant.now());
 		try {
 			pluginRepository.save(plugin);
+			notifications.notifyPlugin();
 			return plugin.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();

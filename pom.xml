@@ -290,9 +290,9 @@
 			<version>0.3.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
+			<groupId>com.impossibl.pgjdbc-ng</groupId>
+			<artifactId>pgjdbc-ng</artifactId>
+			<version>0.8.9</version>
 		</dependency>
 		<dependency>
 			<groupId>com.theokanning.openai-gpt3-java</groupId>

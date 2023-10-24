@@ -1,5 +1,6 @@
 package jasper.repository;
 
+import jasper.domain.Ext;
 import jasper.domain.TagId;
 import jasper.domain.Template;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor<Ext>, OriginMixin {
 
 	@Query(value = """
 		SELECT max(t.modified)

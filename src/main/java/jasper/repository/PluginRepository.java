@@ -1,5 +1,6 @@
 package jasper.repository;
 
+import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
+public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor<Ext>, OriginMixin {
 
 	@Query(value = """
 		SELECT max(p.modified)

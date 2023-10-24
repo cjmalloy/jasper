@@ -23,7 +23,7 @@ spring:
   datasource:
       type: com.zaxxer.hikari.HikariDataSource
       driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-      url: jdbc:tc:postgresql:14.2:///jasper?TC_TMPFS=/testtmpfs:rw
+      url: jdbc:tc:pgsql:14.2:///jasper?TC_TMPFS=/testtmpfs:rw
       username: jasper
       password:
       hikari:

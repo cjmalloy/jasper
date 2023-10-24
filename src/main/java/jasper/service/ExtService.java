@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jasper.component.Notifications;
 import jasper.component.Validate;
 import jasper.domain.Ext;
 import jasper.errors.AlreadyExistsException;
@@ -56,6 +57,9 @@ public class ExtService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	Notifications notifications;
+
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant create(Ext ext, boolean force) {
@@ -64,6 +68,7 @@ public class ExtService {
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
+			notifications.notifyExt();
 			return ext.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
@@ -76,6 +81,7 @@ public class ExtService {
 		validate.ext(ext);
 		try {
 			extRepository.save(ext);
+			notifications.notifyExt();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -130,6 +136,7 @@ public class ExtService {
 		ext.setModified(Instant.now());
 		try {
 			extRepository.save(ext);
+			notifications.notifyExt();
 			return existing.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();

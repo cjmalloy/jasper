@@ -70,7 +70,7 @@ public class Replicator {
 	TunnelClient tunnel;
 
 	@Autowired
-	Messages messages;
+	Notifications notifications;
 
 	@Timed(value = "jasper.pull", histogram = true)
 	public void pull(Ref remote) {
@@ -95,11 +95,13 @@ public class Replicator {
 				for (var plugin : client.pluginPull(url, options)) {
 					plugin.setOrigin(localOrigin);
 					pluginRepository.save(plugin);
+					notifications.notifyPlugin();
 				}
 				options.put("modifiedAfter", templateRepository.getCursor(localOrigin));
 				for (var template : client.templatePull(url, options)) {
 					template.setOrigin(localOrigin);
 					templateRepository.save(template);
+					notifications.notifyTemplate();
 				}
 				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
@@ -115,9 +117,7 @@ public class Replicator {
 							validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
 						}
 						refRepository.save(ref);
-						if (pull.isGenerateMetadata()) {
-							messages.updateRef(ref);
-						}
+						notifications.notifyRef();
 					} catch (RuntimeException e) {
 						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					}
@@ -130,6 +130,7 @@ public class Replicator {
 							validate.ext(ext, pull.getValidationOrigin(), pull.isStripInvalidTemplates());
 						}
 						extRepository.save(ext);
+						notifications.notifyExt();
 					} catch (RuntimeException e) {
 						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag());
 					}
@@ -143,6 +144,7 @@ public class Replicator {
 						user.setKey(maybeExisting.get().getKey());
 					}
 					userRepository.save(user);
+					notifications.notifyUser();
 				}
 			} catch (Exception e) {
 				logger.error("Error pulling {} from {}", localOrigin, remoteOrigin, e);

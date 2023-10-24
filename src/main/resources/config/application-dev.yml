@@ -29,8 +29,9 @@ spring:
     serialization:
       indent-output: true
   datasource:
+    driver-class-name: com.impossibl.postgres.jdbc.PGDriver
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:postgresql://localhost:5432/jasper
+    url: jdbc:pgsql://localhost:5432/jasper
     username: jasper
     password: jasper
     hikari:

@@ -1,6 +1,7 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.Notifications;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -35,6 +36,9 @@ public class TemplateService {
 	@Autowired
 	DtoMapper mapper;
 
+	@Autowired
+	Notifications notifications;
+
 	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant create(Template template) {
@@ -42,6 +46,7 @@ public class TemplateService {
 		template.setModified(Instant.now());
 		try {
 			templateRepository.save(template);
+			notifications.notifyTemplate();
 			return template.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
@@ -53,6 +58,7 @@ public class TemplateService {
 	public void push(Template template) {
 		try {
 			templateRepository.save(template);
+			notifications.notifyTemplate();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -94,6 +100,7 @@ public class TemplateService {
 		template.setModified(Instant.now());
 		try {
 			templateRepository.save(template);
+			notifications.notifyTemplate();
 			return template.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
