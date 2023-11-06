@@ -11,19 +11,25 @@ the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/do
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
 
-## Knowledge Management System
-Jasper is an open source knowledge management (KMS) system. A KMS is similar to a Content Management
+## Knowledge Management
+Jasper is an open source knowledge management (KM) system. A KMS is similar to a Content Management
 System (CMS), but it does not store any content. Instead, a KMS stores links to content. This means
-that adding a KMS to your internal tools is quick and easy. It will index all of your content in a
-single place. Organize with hierarchical tags, track sources and citations and visualize as a graph.
+that adding a KM to your internal tools is quick and easy. It will create an overlay database, 
+which is a small and fast index of all your content sources. Extend functionality with custom plugins,
+or embed existing dashboard panels directly to create your central business intelligence dashboard.
 
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
 
 ### Centralized Business Intelligence
+Dumping all department-level data into a central data lake to perform analytics on is a hugely complicated
+task with no proven benefit. Instead, empower departments to run their own analytics and formalize the
+reporting format to allow centralized aggregation.
+
 Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
 both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics or alerts.
 Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
-to use your existing data structures and formats.
+to use your existing data structures and formats. Stitch together department-level resources to create
+a central overview that explicitly describes dependencies.
 
 ### Security
 Jasper uses Tag Based Access Control (TBAC) to assign fine grained access controls to any object in the
@@ -159,9 +165,9 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
     "plugin/thumbnail": {"url": "https://...jpg"}
   },
   "metadata": {
-    "responses": [],
-    "internalResponses": [],
-    "plugins": {...},
+    "responses": 0,
+    "internalResponses": 0,
+    "plugins": {},
     "modified": "2022-06-18T12:07:04.404272Z"
   },
   "published": "2022-06-18T12:00:07Z",
@@ -337,6 +343,9 @@ entity need to be considered. The identity fields are:
 1. Refs: (URL, Origin, Modified)
 2. Tags: (Tag, Origin, Modified)
 
+Together, the (Origin, Modified) keys represent the cursor of the entity, which is used in origin based
+replication. 
+
 ### Indexing Layer
 The indexing layer of the Jasper model adds tags to Refs. A system operating at this layer should support
 tag queries.
@@ -349,7 +358,7 @@ according to their schema.
 The plugin layer of the Jasper model is entirely client side. No server changes are required in order to
 support new plugins or templates.
 
-## Replication
+## Cursor Replication
 Distributed systems must make tradeoffs according to the [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
 According to the CAP theorem you may only provide two of these three guarantees: consistency, availability,
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
@@ -363,7 +372,8 @@ the remote instance where the modified date is after the last stored modified da
 date ascending. Users with the `MOD` role may also initiate a scrape.
 
 ### Duplicate Modified Date
-Jasper instances should enforce unique modified dates for each entity type. Otherwise, when receiving
+Jasper instances should enforce unique modified dates as the cursor for each entity type. Otherwise,
+when receiving
 a batch of entities, it's possible that the last entity you received has a modified date that is
 exactly the same as another entity. If that is the case, requesting the next batch after that modified
 date will skip such entities.
@@ -533,7 +543,8 @@ The origin may also be specified in the username if the `JASPER_ALLOW_USERNAME_C
 ```
 
 ## Backup / Restore
-Jasper has a built-in backup system for admin use. Non admin backups should instead replicate to a separate jasper instance.
+TODO: Mod backups
+Jasper has a built-in backup system for mod use. Non mods should instead replicate to a separate jasper instance.
 In order to use the backup system, the `storage` profile must be active.
 
 ## Validation
@@ -551,6 +562,7 @@ Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+ * Obsolete: flag set if another origin contains the newest version of this Ref
 
 ## RSS / Atom Scraping
 The `+plugin/feed` can be used to scrape RSS / Atom feeds when the `feed-burst` or `feed-schedule` profiles
@@ -597,7 +609,7 @@ The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a
 **Remote:** Remote origin to query, or blank for the default.  
 
 ## Replicating Remote Origin
-The `+plugin/origin/pull` can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
+The `+plugin/origin/pull` tag can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
 profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
@@ -634,7 +646,7 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
 
 ## Pushing to a Remote Origin
-The `+plugin/origin/push` can be used to replicate remote origins when the `push-burst` or `push-schedule`
+The `+plugin/origin/push` tag can be used to replicate remote origins when the `push-burst` or `push-schedule`
 profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
@@ -669,6 +681,20 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Last Modified User Written:** Modified date of last User pushed.    
 **Last Modified Plugin Written:** Modified date of last Plugin pushed.    
 **Last Modified Template Written:** Modified date of last Template pushed.    
+
+## Random Number Generator
+
+The `plugin/rng` tag can be used to generate random numbers. Random numbers are generated whenever editing, creating or
+pushing a Ref replaces an existing Ref of a different origin. When a new random number is generated it is represented in
+hex
+in the tag `+plugin/rng/6d7eb8ebb38a47d29c6a6cbc9156a1a3`, for example. When replicated, random numbers will not be
+overwritten so that
+spectators may verify the results. Editing of a Ref that is already the latest
+version across all origins will preserve the existing random number or lack thereof. This ensures random numbers can't
+be farmed, as you cannot generate a new number without cooperation from another origin.
+
+When delegating rng to a trusted server, users push their updates to that server and replicate the results.  
+When playing on mutually replicating servers, each server is trusted to generate their own rng.
 
 ## Release Notes
 * [v1.2](./docs/release-notes/jasper-1.2.md)
