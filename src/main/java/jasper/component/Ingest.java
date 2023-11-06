@@ -75,6 +75,7 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		ref.setModified(Instant.now());
 		validate.ref(ref, true);
+		ref.addTag("+seal/push");
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
