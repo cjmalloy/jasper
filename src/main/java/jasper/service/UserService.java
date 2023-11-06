@@ -128,6 +128,8 @@ public class UserService {
 		}
 	}
 
+	// TODO: merge
+
 	@PreAuthorize("@auth.canWriteUser(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
