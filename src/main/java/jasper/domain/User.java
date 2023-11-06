@@ -69,6 +69,8 @@ public class User implements Tag {
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
 
+	private String foreignId;
+
 	@Length(max = ROLE_LEN)
 	@Pattern(regexp = ROLE_REGEX)
 	private String role = "";
