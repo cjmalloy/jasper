@@ -29,9 +29,11 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static java.util.Optional.empty;
 
 @Component
 public class Replicator {
@@ -106,8 +108,9 @@ public class Replicator {
 				for (var ref : client.refPull(url, options)) {
 					ref.setOrigin(localOrigin);
 					pull.migrate(ref, config);
+					Optional<Ref> maybeExisting = empty();
 					if (pull.isGenerateMetadata()) {
-						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+                        maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 						meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 					}
 					try {
@@ -116,7 +119,7 @@ public class Replicator {
 						}
 						refRepository.save(ref);
 						if (pull.isGenerateMetadata()) {
-							messages.updateRef(ref);
+							messages.updateRef(ref, maybeExisting.orElse(null));
 						}
 					} catch (RuntimeException e) {
 						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());

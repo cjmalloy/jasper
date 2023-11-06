@@ -1,6 +1,7 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.Messages;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
@@ -54,6 +55,9 @@ public class UserService {
 	@Autowired
 	DtoMapper mapper;
 
+	@Autowired
+	Messages messages;
+
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
@@ -61,6 +65,7 @@ public class UserService {
 		user.setModified(Instant.now());
 		try {
 			userRepository.save(user);
+			messages.disconnectUser(user.getQualifiedTag());
 			return user.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
@@ -76,6 +81,7 @@ public class UserService {
 		}
 		try {
 			userRepository.save(user);
+			messages.disconnectUser(user.getQualifiedTag());
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
@@ -122,6 +128,7 @@ public class UserService {
 		if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 		try {
 			userRepository.save(user);
+			messages.disconnectUser(user.getQualifiedTag());
 			return user.getModified();
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();

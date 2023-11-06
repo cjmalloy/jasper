@@ -53,7 +53,7 @@ public class Ingest {
 		meta.update(ref, null, null);
 		ref.setCreated(Instant.now());
 		ensureUniqueModified(ref);
-		messages.updateRef(ref);
+		messages.updateRef(ref, null);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -66,7 +66,7 @@ public class Ingest {
 		rng.update(ref, maybeExisting.get());
 		meta.update(ref, maybeExisting.get(), null);
 		ensureUniqueModified(ref);
-		messages.updateRef(ref);
+		messages.updateRef(ref, maybeExisting.get());
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
@@ -78,7 +78,7 @@ public class Ingest {
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
-		messages.updateRef(ref);
+		messages.updateRef(ref, maybeExisting.get());
 	}
 
 	private void ensureUniqueModified(Ref ref) {

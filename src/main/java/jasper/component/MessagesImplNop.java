@@ -7,5 +7,8 @@ import org.springframework.stereotype.Component;
 @Profile("no-websocket")
 @Component
 public class MessagesImplNop implements Messages {
-	public void updateRef(Ref ref) { }
+	public void updateRef(Ref ref, Ref existing) { }
+
+	@Override
+	public void disconnectUser(String username) { }
 }
