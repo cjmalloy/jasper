@@ -21,6 +21,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.rometools.utils.Strings.isBlank;
 import static jasper.component.OpenAi.cm;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
@@ -167,7 +169,7 @@ Your reply should always start with {"ref":[{
 			}
 			messages.add(cm("user", objectMapper.writeValueAsString(sample)));
 			messages.add(cm(ref.getOrigin(), "system", "Output format instructions", instructions, objectMapper));
-			var res = openAi.chat(config.model, messages);
+			var res = openAi.chat(messages, config);
 			var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
 			response.setUrl("ai:" + res.getId());
 			response.setPlugin("+plugin/openai", objectMapper.convertValue(res.getUsage(), JsonNode.class));
@@ -246,7 +248,9 @@ Your reply should always start with {"ref":[{
 					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/openai") || !t.startsWith("+") && !t.startsWith("_"))
 				).collect(Collectors.toList()));
 			}
-
+			if (isBlank(aiReply.getUrl())) {
+				aiReply.setUrl("ai:" + UUID.randomUUID());
+			}
 			ingest.ingest(aiReply, false);
 			logger.debug("AI reply sent ({})", aiReply.getUrl());
 		}

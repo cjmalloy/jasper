@@ -60,89 +60,6 @@ public class OpenAi {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	private AiConfig getConfig() {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
-		if (key.isEmpty()) {
-			throw new NotFoundException("requires openai api key");
-		}
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/openai",  props.getLocalOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
-		var config = objectMapper.convertValue(aiPlugin.getConfig(), AiConfig.class);
-		if (isBlank(config.fineTuning)) return config;
-
-		ObjectMapper mapper = defaultObjectMapper();
-		OkHttpClient client = defaultClient(key.get(0).getComment(), Duration.ofSeconds(200));
-		Retrofit retrofit = defaultRetrofit(client, mapper);
-		var api = retrofit.create(OpenAiApi.class);
-		var service = new OpenAiService(api);
-		var fileId = config.fileId;
-//		if (fileId != null) {
-//			try {
-//				service.deleteFile(fileId);
-//			} catch (Exception e) {
-//				logger.warn("Deleting file {} failed.", fileId);
-//			}
-//			fileId = null;
-//		}
-		if (fileId == null) {
-			RequestBody purposeBody = RequestBody.create(okhttp3.MultipartBody.FORM, "fine-tune");
-			RequestBody fileBody = RequestBody.create(config.fineTuning, TEXT);
-			MultipartBody.Part body = MultipartBody.Part.createFormData("file", "fine-tune", fileBody);
-			fileId = execute(api.uploadFile(purposeBody, body)).getId();
-			config.fileId = fileId;
-		}
-//		for (var f : service.listFiles()) {
-//			if (!f.getId().equals(fileId)) {
-//				try {
-//					service.deleteFile(f.getId());
-//				} catch (Exception e) {
-//					logger.warn("Deleting file {} failed.", f.getId());
-//				}
-//			}
-//		}
-		var ftId = config.ftId;
-//		if (ftId != null) {
-//			try {
-//				service.deleteFineTune(ftId);
-//			} catch (Exception e) {
-//				logger.warn("Deleting fine tune {} failed.", ftId);
-//			}
-//			ftId = null;
-//		}
-		if (ftId == null) {
-			var fineTuneRequest = FineTuneRequest.builder()
-				.model("davinci")
-				.trainingFile(fileId)
-				.build();
-			ftId = service.createFineTune(fineTuneRequest).getId();
-			config.ftId = ftId;
-		}
-//		for (var ft : service.listFineTunes()) {
-//			if (!ft.getStatus().equals("cancelled") && !ft.getId().equals(ftId)) {
-//				try {
-//					service.deleteFineTune(ft.getId());
-//				} catch (Exception e) {
-//					logger.warn("Deleting fine tune {} failed.", ft.getId());
-//				}
-//			}
-//		}
-		var fineTunedModel = config.fineTunedModel;
-		if (fineTunedModel == null) {
-			var res = service.retrieveFineTune(ftId);
-			if (res.getStatus().equals("cancelled")) {
-				config.ftId = null;
-			} else {
-				if (res.getStatus().equals("succeeded")) {
-					fineTunedModel = res.getFineTunedModel();
-					config.fineTunedModel = fineTunedModel;
-				}
-			}
-		}
-		aiPlugin.setConfig(objectMapper.convertValue(config, JsonNode.class));
-		pluginRepository.save(aiPlugin);
-		return config;
-	}
-
 
 	public CompletionResult completion(String systemPrompt, String prompt) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
@@ -181,44 +98,23 @@ public class OpenAi {
 		}
 	}
 
-
-	public ChatCompletionResult chatCompletion(String systemPrompt, String prompt) {
+	public ChatCompletionResult chatCompletion(String prompt, AiConfig config) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
-		var completionRequest = ChatCompletionRequest.builder()
-			.model("gpt-4-1106-preview")
-			.maxTokens(64_000)
+		var completionRequest = ChatCompletionRequest
+			.builder()
+			.model(config.model)
+			.maxTokens(config.maxTokens)
 			.messages(List.of(
-				cm("system", systemPrompt),
+				cm("system", config.systemPrompt),
 				cm("user", prompt)
 			))
 			.build();
-		try {
-			return service.createChatCompletion(completionRequest);
-		} catch (OpenAiHttpException e) {
-			if ("context_length_exceeded".equals(e.code)) {
-				completionRequest.setMaxTokens(400);
-				try {
-					return service.createChatCompletion(completionRequest);
-				} catch (OpenAiHttpException second) {
-					if ("context_length_exceeded".equals(second.code)) {
-						completionRequest.setMaxTokens(20);
-						try {
-							return service.createChatCompletion(completionRequest);
-						} catch (OpenAiHttpException third) {
-							throw e;
-						}
-					}
-					throw e;
-				}
-			}
-			throw e;
-		}
+		return service.createChatCompletion(completionRequest);
 	}
-
 
 	public ImageResult dale(String prompt, DalleConfig config) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
@@ -228,85 +124,26 @@ public class OpenAi {
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		var imageRequest = CreateImageRequest.builder()
 			.prompt(prompt)
+			.model(config.model)
 			.size(config.size)
+			.quality(config.quality)
 			.build();
-		try {
-			return service.createImage(imageRequest);
-		} catch (OpenAiHttpException e) {
-			throw e;
-		}
+		return service.createImage(imageRequest);
 	}
 
-	public CompletionResult fineTunedCompletion(List<ChatMessage> messages) {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
-		if (key.isEmpty()) {
-			throw new NotFoundException("requires openai api key");
-		}
-		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
-		var completionRequest = CompletionRequest.builder()
-			.maxTokens(1024)
-			.prompt(messages.stream().map(ChatMessage::getContent).collect(Collectors.joining("\n")))
-			.model("text-davinci-003")
-			.stop(List.of("Prompt:", "Reply:"))
-			.build();
-		try {
-			return service.createCompletion(completionRequest);
-		} catch (OpenAiHttpException e) {
-			if ("context_length_exceeded".equals(e.code)) {
-				completionRequest.setMaxTokens(400);
-				try {
-					return service.createCompletion(completionRequest);
-				} catch (OpenAiHttpException second) {
-					if ("context_length_exceeded".equals(second.code)) {
-						completionRequest.setMaxTokens(20);
-						try {
-							return service.createCompletion(completionRequest);
-						} catch (OpenAiHttpException third) {
-							throw e;
-						}
-					}
-					throw e;
-				}
-			}
-			throw e;
-		}
-	}
-
-	public ChatCompletionResult chat(String model, List<ChatMessage> messages) throws JsonProcessingException {
+	public ChatCompletionResult chat(List<ChatMessage> messages, AiConfig config) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
 		OpenAiService service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
-		ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
-			.maxTokens(4096)
+		ChatCompletionRequest completionRequest = ChatCompletionRequest
+			.builder()
+			.model(config.model)
+			.maxTokens(config.maxTokens)
 			.messages(messages)
-			.model(model)
 			.build();
-		try {
-			return service.createChatCompletion(completionRequest);
-		} catch (OpenAiHttpException e) {
-			logger.error("context_length_exceeded {}", 4096);
-			if ("context_length_exceeded".equals(e.code)) {
-				try {
-					completionRequest.setMaxTokens(400);
-					return service.createChatCompletion(completionRequest);
-				} catch (OpenAiHttpException second) {
-					logger.error("context_length_exceeded {}", 400);
-					if ("context_length_exceeded".equals(second.code)) {
-						try {
-							completionRequest.setMaxTokens(20);
-							return service.createChatCompletion(completionRequest);
-						} catch (OpenAiHttpException third) {
-							logger.error("context_length_exceeded {}", 20);
-							throw e;
-						}
-					}
-					throw e;
-				}
-			}
-			throw e;
-		}
+		return service.createChatCompletion(completionRequest);
 	}
 
 	public static ChatMessage cm(String origin, String role, String title, String content, ObjectMapper om) {
@@ -344,16 +181,15 @@ public class OpenAi {
 	}
 
 	public static class AiConfig {
-		public String model;
+		public String model = "gpt-4-1106-preview";
+		public int maxTokens = 4096;
 		public String systemPrompt;
-		public String fineTuning;
-		public String fileId;
-		public String ftId;
-		public String fineTunedModel;
 	}
 
 	public static class DalleConfig {
 		public String size = "1024x1024";
+		public String model = "dall-e-3";
+		public String quality = "hd";
 	}
 
 }

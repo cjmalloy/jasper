@@ -6,24 +6,23 @@ import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
+import jasper.component.OpenAi.AiConfig;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
-import lombok.Getter;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.PostConstruct;
 
 @Profile("ai")
 @Component
@@ -64,10 +63,10 @@ public class Summary implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.chatCompletion(config.getSystemPrompt(), String.join("\n\n",
+			var res = openAi.chatCompletion(String.join("\n\n",
 				"Title: " + ref.getTitle(),
 				"Tags: " + String.join(", ", ref.getTags()),
-				ref.getComment()));
+				ref.getComment()), config);
 			response.setComment(res.getChoices().stream()
 				.map(ChatCompletionChoice::getMessage)
 				.map(ChatMessage::getContent)
@@ -79,7 +78,7 @@ public class Summary implements Async.AsyncRunner {
 			response.setUrl("internal:" + UUID.randomUUID());
 		}
 		var title = ref.getTitle();
-		if (!title.startsWith(config.getTitlePrefix())) title = config.titlePrefix + title;
+		if (!title.startsWith(config.titlePrefix)) title = config.titlePrefix + title;
 		response.setTitle(title);
 		response.setOrigin(ref.getOrigin());
 		var tags = new ArrayList<String>();
@@ -117,10 +116,7 @@ public class Summary implements Async.AsyncRunner {
 		ingest.ingest(response, false);
 	}
 
-	@Getter
-	@Setter
-	private static class SummaryConfig {
-		private String titlePrefix;
-		private String systemPrompt;
+	private static class SummaryConfig extends AiConfig {
+		public String titlePrefix;
 	}
 }

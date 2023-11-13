@@ -44,7 +44,7 @@
 		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.16.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<openai-gpt.version>0.16.1</openai-gpt.version>
+		<openai-gpt.version>0.17.0</openai-gpt.version>
 	</properties>
 
 	<dependencies>
