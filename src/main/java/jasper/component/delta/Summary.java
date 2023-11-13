@@ -98,8 +98,8 @@ public class Summary implements Async.AsyncRunner {
 			}
 		}
 		tags.add("+plugin/summary");
-		tags.add("+plugin/openai");
 		tags.remove("plugin/inbox/ai");
+		tags.remove("plugin/inbox/summary");
 		response.addTags(tags);
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (response.getTags().contains("plugin/thread")) {
