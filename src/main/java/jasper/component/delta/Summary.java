@@ -72,7 +72,7 @@ public class Summary implements Async.AsyncRunner {
 				.map(ChatMessage::getContent)
 				.collect(Collectors.joining("\n\n")));
 			response.setUrl("ai:" + res.getId());
-			response.setPlugin("+plugin/openai", objectMapper.convertValue(res, JsonNode.class));
+			response.setPlugin("+plugin/summary", objectMapper.convertValue(res.getUsage(), JsonNode.class));
 		} catch (Exception e) {
 			response.setComment("Error creating the summary. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
