@@ -61,7 +61,7 @@ public class Meta {
 			refRepository.setObsolete(ref.getUrl(), ref.getModified(), props.isMultiTenant() ? ref.getOrigin() : "");
 
 			// Update sources
-			var internal = ref.getTags().contains("internal");
+			var internal = ref.getTags() != null && ref.getTags().contains("internal");
 			List<String> plugins = metadataPlugins.stream()
 				.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
 				.toList();
