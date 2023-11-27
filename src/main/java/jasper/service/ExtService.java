@@ -125,7 +125,9 @@ public class ExtService {
 		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (ext.getModified() == null || !ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
+		if (!force && (ext.getModified() == null || !ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS)))) {
+			throw new ModifiedException("Ext " + ext.getQualifiedTag());
+		}
 		validate.ext(ext, force);
 		ext.setModified(Instant.now());
 		try {
