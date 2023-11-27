@@ -4,6 +4,7 @@ import jasper.config.Props;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.GenericFilterBean;
 
@@ -38,6 +39,10 @@ public class JWTFilter extends GenericFilterBean {
 	@Override
 	public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
 		var httpServletRequest = (HttpServletRequest) servletRequest;
+		if ("OPTIONS".equalsIgnoreCase(httpServletRequest.getMethod())) {
+			SecurityContextHolder.getContext().setAuthentication(new PreAuthenticatedAuthenticationToken("options", null));
+		}
+
 		var origin = resolveOrigin(httpServletRequest);
 		var jwt = resolveToken(httpServletRequest);
 		if (tokenProvider.validateToken(jwt, origin)) {
