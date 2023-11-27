@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -15,6 +16,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.context.annotation.ApplicationScope;
 import org.springframework.web.cors.CorsConfiguration;
@@ -87,8 +90,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     public void configure(HttpSecurity http) throws Exception {
         // @formatter:off
         http
-            .csrf()
-            .disable()
             .exceptionHandling()
                 .authenticationEntryPoint(problemSupport)
                 .accessDeniedHandler(problemSupport)
@@ -108,22 +109,30 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         .and()
 			.apply(securityConfigurerAdapter())
 		.and()
+			.authorizeRequests()
+			.antMatchers(HttpMethod.OPTIONS, "/api/v1/**").permitAll()
+		.and()
 			.headers()
 			.frameOptions()
 			.sameOrigin()
 		.and()
-			.cors().configurationSource(request -> {
-				var config = new CorsConfiguration();
-				config.addAllowedMethod("*");
-				config.applyPermitDefaultValues();
-				return config;
-			});
-        // @formatter:on
+			.csrf()
+			.csrfTokenRepository(csrfTokenRepository())
+			.ignoringAntMatchers("/api/v1/repl/**") // Public API
+		; // @formatter:on
     }
 
-	private JWTConfigurer securityConfigurerAdapter() {
+	@Bean
+	JWTConfigurer securityConfigurerAdapter() {
 		logger.info("Minimum Role: {}", props.getMinRole());
 		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider);
+	}
+
+	@Bean
+	CsrfTokenRepository csrfTokenRepository() {
+		var r = CookieCsrfTokenRepository.withHttpOnlyFalse();
+		r.setSecure(false); // Required when using SSL terminating gateway
+		return r;
 	}
 
 	@Bean
