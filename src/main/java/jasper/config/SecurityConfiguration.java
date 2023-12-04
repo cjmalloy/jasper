@@ -13,8 +13,8 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
@@ -37,7 +37,7 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @Import(SecurityProblemSupport.class)
-public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+public class SecurityConfiguration {
 	private final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
 	@Autowired
@@ -85,8 +85,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		return Arrays.asList(profiles).contains(profile);
 	}
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // @formatter:off
         http
             .exceptionHandling()
@@ -119,7 +119,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			.csrfTokenRepository(csrfTokenRepository())
 			.ignoringAntMatchers("/api/v1/repl/**") // Public API
 		; // @formatter:on
-    }
+		return http.build();
+	}
 
 	@Bean
 	JWTConfigurer securityConfigurerAdapter() {
