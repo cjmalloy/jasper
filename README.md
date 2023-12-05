@@ -2,7 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.22-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.23-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -688,8 +688,7 @@ The `plugin/rng` tag can be used to generate random numbers. Random numbers are 
 pushing a Ref replaces an existing Ref of a different origin. When a new random number is generated it is represented in
 hex
 in the tag `+plugin/rng/6d7eb8ebb38a47d29c6a6cbc9156a1a3`, for example. When replicated, random numbers will not be
-overwritten so that
-spectators may verify the results. Editing of a Ref that is already the latest
+overwritten so that spectators may verify the results. Editing of a Ref that is already the latest
 version across all origins will preserve the existing random number or lack thereof. This ensures random numbers can't
 be farmed, as you cannot generate a new number without cooperation from another origin.
 
