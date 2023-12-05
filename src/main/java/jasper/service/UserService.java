@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.SA;
@@ -173,6 +174,7 @@ public class UserService {
 			.editor(auth.hasRole(EDITOR))
 			.user(auth.hasRole(USER))
 			.viewer(auth.hasRole(VIEWER))
+			.banned(auth.hasRole(BANNED))
 			.build();
 	}
 }

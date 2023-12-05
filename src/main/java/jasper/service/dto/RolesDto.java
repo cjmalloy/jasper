@@ -14,4 +14,5 @@ public class RolesDto {
 	boolean editor;
 	boolean user;
 	boolean viewer;
+	boolean banned;
 }

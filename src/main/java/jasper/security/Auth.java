@@ -52,6 +52,7 @@ import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.notPrivateTag;
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
@@ -505,6 +506,8 @@ public class Auth {
 	 * Has the minimum role.
 	 */
 	public boolean minRole() {
+		// Don't call hasRole() from here or you get an infinite loop
+		if (hasAnyRole(BANNED)) return false;
 		return hasAnyRole(props.getMinRole());
 	}
 
@@ -531,9 +534,11 @@ public class Auth {
 	public boolean canWriteUser(String tag) {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
-		if (hasRole(MOD)) return true;
 		if (!canWriteTag(tag)) return false;
 		var role = userRepository.findOneByQualifiedTag(tag).map(User::getRole).orElse(null);
+		// Only Mods and above can unban
+		if (BANNED.equals(role)) return hasRole(MOD);
+		// Cannot edit user with higher role
 		return isBlank(role) || hasRole(role);
 	}
 
@@ -544,7 +549,9 @@ public class Auth {
 	 */
 	public boolean canWriteUser(User user) {
 		if (!canWriteUser(user.getQualifiedTag())) return false;
-		if (isNotBlank(user.getRole()) && !hasRole(user.getRole())) return false;
+		// Cannot add role higher than your own
+		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) return false;
+		// Mods can add any tag permissions
 		if (hasRole(MOD)) return true;
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		// No public tags in write access
@@ -843,6 +850,7 @@ public class Auth {
 	}
 
 	public boolean hasRole(String role) {
+		if (BANNED.equals(role) && hasAnyRole(BANNED)) return true;
 		return minRole() && hasAnyRole(role);
 	}
 
@@ -895,9 +903,8 @@ public class Auth {
 	}
 
 	private static String getRoleWithPrefix(String prefix, String role) {
-		if (role == null) return null;
-		if (prefix == null) return role;
-		if (prefix.length() == 0) return role;
+		if (isBlank(role)) return null;
+		if (isBlank(prefix)) return role;
 		if (role.startsWith(prefix)) return role;
 		return prefix + role;
 	}

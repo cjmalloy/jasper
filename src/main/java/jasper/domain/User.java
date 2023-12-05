@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
@@ -54,7 +55,7 @@ public class User implements Tag {
 	 * Valid roles for the User entities. Does not include SA as that would
 	 * allow multi-tenant users to get system-wide access.
 	 */
-	public static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER);
+	public static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER, BANNED);
 
 	@Id
 	@Column(updatable = false)
