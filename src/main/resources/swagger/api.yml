@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.22
+  version: 1.2.23
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.22
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.23
 paths:
   /api/v1/ref:
     get:
@@ -1757,7 +1757,7 @@ paths:
           description: No Content
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/ref:
+  /pub/api/v1/repl/ref:
     get:
       tags:
         - Repl
@@ -1818,7 +1818,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/ref/cursor:
+  /pub/api/v1/repl/ref/cursor:
     get:
       tags:
         - Repl
@@ -1841,7 +1841,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/ext:
+  /pub/api/v1/repl/ext:
     get:
       tags:
         - Repl
@@ -1902,7 +1902,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/ext/cursor:
+  /pub/api/v1/repl/ext/cursor:
     get:
       tags:
         - Repl
@@ -1925,7 +1925,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/plugin:
+  /pub/api/v1/repl/plugin:
     get:
       tags:
         - Repl
@@ -1986,7 +1986,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/plugin/cursor:
+  /pub/api/v1/repl/plugin/cursor:
     get:
       tags:
         - Repl
@@ -2009,7 +2009,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/template:
+  /pub/api/v1/repl/template:
     get:
       tags:
         - Repl
@@ -2075,7 +2075,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/template/cursor:
+  /pub/api/v1/repl/template/cursor:
     get:
       tags:
         - Repl
@@ -2098,7 +2098,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/user:
+  /pub/api/v1/repl/user:
     get:
       tags:
         - Repl
@@ -2159,7 +2159,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/repl/user/cursor:
+  /pub/api/v1/repl/user/cursor:
     get:
       tags:
         - Repl

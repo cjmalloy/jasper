@@ -109,7 +109,7 @@ public class SecurityConfiguration {
 			.apply(securityConfigurerAdapter())
 		.and()
 			.authorizeRequests()
-			.antMatchers(HttpMethod.OPTIONS, "/api/v1/**").permitAll()
+			.antMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 		.and()
 			.headers()
 			.frameOptions()
@@ -117,7 +117,7 @@ public class SecurityConfiguration {
 		.and()
 			.csrf()
 			.csrfTokenRepository(csrfTokenRepository())
-			.ignoringAntMatchers("/api/v1/repl/**") // Public API
+			.ignoringAntMatchers("/pub/api/**") // Public API
 		; // @formatter:on
 		return http.build();
 	}

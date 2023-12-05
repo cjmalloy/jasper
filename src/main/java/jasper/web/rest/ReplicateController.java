@@ -50,7 +50,7 @@ import static jasper.repository.filter.Query.QUERY_LEN;
 
 @CrossOrigin
 @RestController
-@RequestMapping("api/v1/repl")
+@RequestMapping("pub/pub/api/v1/repl")
 @Validated
 @Tag(name = "Repl")
 @ApiResponses({
