@@ -208,6 +208,8 @@ public class RssParser {
 			}
 			var publishMonth = publishDate.substring(2);
 			ref.setPublished(Instant.parse(publishYear + "-" + publishMonth + "-01T00:00:00.00Z"));
+		} else if (entry.getUpdatedDate() != null) {
+			ref.setPublished(entry.getUpdatedDate().toInstant());
 		}
 		var comment = isNotBlank(ref.getComment()) ? ref.getComment() : "";
 		if (config.isScrapeDescription() || config.isScrapeContents()) {
