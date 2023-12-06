@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Profile("feed-burst")
 @Component
 public class FeedScraperImplBurst {
@@ -28,9 +30,9 @@ public class FeedScraperImplBurst {
 		timeUnit = TimeUnit.MINUTES)
 	public void burstScrape() {
 		for (var origin : props.getScrapeOrigins()) {
-			logger.info("Scraping all {} feeds in a burst.", origin);
+			logger.info("Scraping all {} feeds in a burst.", formatOrigin(origin));
 			while (feedScraper.scrapeOrigin(origin));
-			logger.info("All {} feeds up to date.", origin);
+			logger.info("All {} feeds up to date.", formatOrigin(origin));
 		}
 	}
 

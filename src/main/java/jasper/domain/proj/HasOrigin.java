@@ -15,6 +15,11 @@ public interface HasOrigin {
 		return origin;
 	}
 
+	static String formatOrigin(String origin) {
+		if (isBlank(origin)) return "default";
+		return origin;
+	}
+
 	static String subOrigin(String local, String origin) {
 		if (local == null) local = "";
 		if (origin == null) origin = "";

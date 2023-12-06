@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Component
 public class OembedProviders {
 	private static final Logger logger = LoggerFactory.getLogger(OembedProviders.class);
@@ -42,7 +44,7 @@ public class OembedProviders {
 	}
 
 	public void create(String origin, List<Oembed> providers) {
-		logger.info("Restoring default oEmbed providers... (\"{}\")", origin);
+		logger.info("Restoring default oEmbed providers... (\"{}\")", formatOrigin(origin));
 		var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 		for (var p : providers) {
 			var ref = new Ref();

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Profile("push-schedule")
 @Component
 public class PushSchedule {
@@ -29,9 +31,9 @@ public class PushSchedule {
 	public void burst() {
 		logger.info("Pushing all remotes on schedule.");
 		for (var origin : props.getReplicateOrigins()) {
-			logger.info("Pushing all {} remotes on schedule", origin);
+			logger.info("Pushing all {} remotes on schedule", formatOrigin(origin));
 			if (!remotes.push(origin)) {
-				logger.info("All {} remotes pushed.", origin);
+				logger.info("All {} remotes pushed.", formatOrigin(origin));
 			}
 		}
 	}

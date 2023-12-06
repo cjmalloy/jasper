@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Profile("push-burst")
 @Component
 public class PushBurst {
@@ -29,9 +31,9 @@ public class PushBurst {
 	public void burst() {
 		logger.info("Pushing all remotes in a burst.");
 		for (var origin : props.getReplicateOrigins()) {
-			logger.info("Pushing all {} remotes in a burst.", origin);
+			logger.info("Pushing all {} remotes in a burst.", formatOrigin(origin));
 			while (remotes.push(origin));
-			logger.info("All {} remotes pushed.", origin);
+			logger.info("All {} remotes pushed.", formatOrigin(origin));
 		}
 	}
 

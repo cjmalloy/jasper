@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Profile("feed-schedule")
 @Component
 public class FeedScraperImplSchedule {
@@ -28,9 +30,9 @@ public class FeedScraperImplSchedule {
 		timeUnit = TimeUnit.MINUTES)
 	public void scheduleScrape() {
 		for (var origin : props.getScrapeOrigins()) {
-			logger.info("Scraping all {} feeds on schedule", origin);
+			logger.info("Scraping all {} feeds on schedule", formatOrigin(origin));
 			if (!feedScraper.scrapeOrigin(origin)) {
-				logger.info("All {} feeds up to date.", origin);
+				logger.info("All {} feeds up to date.", formatOrigin(origin));
 			}
 		}
 	}
