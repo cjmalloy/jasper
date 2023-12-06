@@ -12,6 +12,7 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements TokenProvider {
@@ -41,7 +42,7 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 	@Override
 	public boolean validateToken(String authToken, String origin) {
 		if (!props.getSecurity().hasClient(origin)) {
-			logger.error("No client for provider {}", origin);
+			logger.error("No client for provider {}", formatOrigin(origin));
 			return false;
 		}
 		return super.validateToken(authToken, origin);

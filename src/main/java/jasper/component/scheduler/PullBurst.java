@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 @Profile("pull-burst")
 @Component
 public class PullBurst {
@@ -28,9 +30,9 @@ public class PullBurst {
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
 		for (var origin : props.getReplicateOrigins()) {
-			logger.info("Pulling all {} remotes in a burst.", origin);
+			logger.info("Pulling all {} remotes in a burst.", formatOrigin(origin));
 			while (remotes.pull(origin));
-			logger.info("All {} remotes pulled.", origin);
+			logger.info("All {} remotes pulled.", formatOrigin(origin));
 		}
 	}
 

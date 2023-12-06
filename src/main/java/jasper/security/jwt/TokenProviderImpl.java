@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+
 public class TokenProviderImpl extends AbstractJwtTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
 
@@ -70,7 +72,7 @@ public class TokenProviderImpl extends AbstractJwtTokenProvider {
 	@Override
 	public boolean validateToken(String authToken, String origin) {
 		if (!props.getSecurity().hasClient(origin)) {
-			logger.error("No client for provider {}", origin);
+			logger.error("No client for provider {}", formatOrigin(origin));
 			return false;
 		}
 		return super.validateToken(authToken, origin);
