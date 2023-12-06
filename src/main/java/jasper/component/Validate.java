@@ -167,19 +167,19 @@ public class Validate {
 	}
 
 	private void plugins(Ref ref, String origin, boolean stripOnError) {
-		if (ref.getTags() == null) return;
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (field.equals("")) return;
-				if (!ref.getTags().contains(field)) {
+				if (ref.getTags() == null || !ref.getTags().contains(field)) {
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
 				}
 			});
 			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
+		if (ref.getTags() == null) return;
 		for (var tag : ref.getTags()) {
 			plugin(ref, tag, origin, stripOnError);
 		}
