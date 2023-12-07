@@ -22,7 +22,7 @@ public class Feed {
 	private boolean scrapeWebpage;
 	private boolean scrapeDescription;
 	private boolean scrapeContents;
-	private boolean scrapeAuthor;
+	private boolean scrapeAuthors;
 	private boolean scrapeThumbnail;
 	private boolean scrapeAudio;
 	private boolean scrapeVideo;

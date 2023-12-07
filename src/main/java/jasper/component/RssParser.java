@@ -227,7 +227,7 @@ public class RssParser {
 			}
 		}
 		var dc = (DCModule) entry.getModule(DCModule.URI);
-		if (config.isScrapeAuthor() && !dc.getCreators().isEmpty()) {
+		if (config.isScrapeAuthors() && !dc.getCreators().isEmpty()) {
 			if (!comment.isBlank()) comment += "\n\n\n\n";
 			comment += String.join(", ", dc.getCreators());
 		}
