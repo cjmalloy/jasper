@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
-import static jasper.domain.proj.Tag.hasMedia;
+import static jasper.domain.proj.HasTags.hasMedia;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 

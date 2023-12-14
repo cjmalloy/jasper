@@ -46,13 +46,4 @@ public interface Tag extends Cursor {
 		if (!tag.contains("@")) return "";
 		return tag.substring(tag.indexOf("@"));
 	}
-
-	static boolean hasMedia(HasTags hasTags) {
-		if (hasTags == null) return false;
-		if (hasTags.getTags() == null) return false;
-		return hasTags.getTags().contains("plugin/audio") ||
-			hasTags.getTags().contains("plugin/video") ||
-			hasTags.getTags().contains("plugin/image") ||
-			hasTags.getTags().contains("plugin/embed");
-	}
 }
