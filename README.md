@@ -518,8 +518,12 @@ Some public tags have special significance:
  * `locked`: No edits allowed (tagging is allowed)
 
 ### Multi-tenant
-When multi-tenant mode is active users will not have read-access to other origins by default.
-Access to some backup and profile services is restricted to users with the System Admin role.
+When multi-tenant mode is off users read-access to all other origins.  
+When multi-tenant is enabled users only have read-access to their own own origin and sub-origins.
+For example, if a tenant has origin `@test`, they can also read `@test.other`. As usual, writing to
+origins other than your own is never allowed.
+
+System-wide access is granted by the special System Admin role in multi-tenant mode.
 
 ### Access Tokens
 When running the system with JWT authentication, roles may be added as claims.  
