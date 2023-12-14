@@ -13,6 +13,21 @@
             }
         ]
     },
+    {
+        "//": "Added Manually",
+        "provider_name": "X",
+        "provider_url": "http://www.x.com/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://x.com/*",
+                    "https://x.com/*/status/*",
+                    "https://*.x.com/*/status/*"
+                ],
+                "url": "https://publish.x.com/oembed"
+            }
+        ]
+    },
 
 
     {
