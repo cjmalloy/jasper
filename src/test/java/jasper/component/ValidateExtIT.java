@@ -89,6 +89,26 @@ public class ValidateExtIT {
 	}
 
 	@Test
+	void testValidateTagWithTemplateAndNullConfig() throws IOException {
+		var template = new Template();
+		template.setTag("user");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"optionalProperties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("First");
+
+		validate.ext(ext);
+	}
+
+	@Test
 	void testValidatePrivateExt() {
 		var user = new User();
 		user.setTag("+user/tester");

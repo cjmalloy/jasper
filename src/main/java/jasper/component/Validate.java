@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
@@ -106,12 +107,11 @@ public class Validate {
 			.stream()
 			.map(Template::getDefaults)
 			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.reduce(null, this::merge);
 		if (ext.getConfig() == null) {
 			ext.setConfig(mergedDefaults);
-			stripOnError = false;
+			stripOnError = true;
 		}
-		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
 		var mergedSchemas = templates
 			.stream()
 			.map(Template::getSchema)
@@ -122,6 +122,7 @@ public class Validate {
 			try {
 				template(schema, ext.getTag(), mergedDefaults);
 			} catch (Exception e) {
+				logger.error("Defaults for {} Template do not pass validation", ext.getTag());
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
@@ -146,12 +147,20 @@ public class Validate {
 	}
 
 	private void template(Schema schema, String tag, JsonNode template) {
+		if (template == null || template.isNull()) {
+			// Allow null to stand in for empty config
+			if (schema.getOptionalProperties() != null) {
+				template = objectMapper.createObjectNode();
+			} else if (template == null) {
+				template = NullNode.getInstance();
+			}
+		}
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(template));
 			for (var error : errors) {
 				logger.debug("Error validating template {}: {}", tag, error);
 			}
-			if (errors.size() > 0) {
+			if (!errors.isEmpty()) {
 				throw new InvalidTemplateException(tag + ": " + errors);
 			}
 		} catch (MaxDepthExceededException e) {
@@ -171,7 +180,6 @@ public class Validate {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (field.equals("")) return;
 				if (ref.getTags() == null || !ref.getTags().contains(field)) {
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
@@ -188,7 +196,7 @@ public class Validate {
 	private <T extends JsonNode> T merge(T a, T b) {
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
-		if (!a.isObject() || !b.isObject()) return null;
+		if (!a.isObject() || !b.isObject()) return b.deepCopy();
 		try {
 			return objectMapper.updateValue(a, b);
 		} catch (JsonMappingException e) {
@@ -209,33 +217,27 @@ public class Validate {
 			}
 			return;
 		}
-		var defaults = plugin
-			.map(Plugin::getDefaults)
-			.filter(n -> !n.isNull())
-			.orElse(objectMapper.getNodeFactory().objectNode());
-		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
-			if (ref.getPlugins() == null) {
-				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
-			}
-			ref.getPlugins().set(tag, defaults);
-			stripOnError = false;
+		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
+		if (ref.getPlugin(tag) == null) {
+			ref.setPlugin(tag, defaults);
+			stripOnError = true;
 		}
 		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
 				plugin(schema, tag, defaults);
 			} catch (Exception e) {
+				logger.error("Defaults for {} Plugin do not pass validation", tag);
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			plugin(schema, tag, ref.getPlugins().get(tag));
+			plugin(schema, tag, ref.getPlugin(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			plugin(schema, tag, defaults);
-			ref.getPlugins().set(tag, defaults);
+			ref.setPlugin(tag, defaults);
 		}
 	}
 
@@ -263,12 +265,22 @@ public class Validate {
 	}
 
 	private void plugin(Schema schema, String tag, JsonNode plugin) {
+		if (plugin == null || plugin.isNull()) {
+			// Allow null to stand in for empty objects or arrays
+			if (schema.getOptionalProperties() != null) {
+				plugin = objectMapper.createObjectNode();
+			} else if (schema.getElements() != null) {
+				plugin = objectMapper.createArrayNode();
+			} else if (plugin == null) {
+				plugin = NullNode.getInstance();
+			}
+		}
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(plugin));
 			for (var error : errors) {
 				logger.debug("Error validating plugin {}: {}", tag, error);
 			}
-			if (errors.size() > 0) {
+			if (!errors.isEmpty()) {
 				throw new InvalidPluginException(tag + ": " + errors);
 			}
 		} catch (MaxDepthExceededException e) {

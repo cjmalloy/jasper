@@ -60,7 +60,7 @@ public class Plugin implements Tag {
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")
-	private JsonNode config;
+	private ObjectNode config;
 
 	@Type(type = "json")
 	@Column(columnDefinition = "jsonb")

@@ -72,7 +72,7 @@ public class Template implements Tag {
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1)")
+	@Formula("CASE WHEN tag = '' THEN 0 ELSE ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1) END")
 	@Setter(AccessLevel.NONE)
 	private int levels;
 

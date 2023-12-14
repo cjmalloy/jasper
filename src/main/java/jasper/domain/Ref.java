@@ -245,9 +245,20 @@ public class Ref implements HasTags {
 
 	// TODO: Remove static mapper
 	private static ObjectMapper om = new ObjectMapper();
+	@JsonIgnore
 	public void setPlugin(String tag, Object jsonNode) {
+		if (jsonNode == null && plugins != null) {
+			plugins.remove(tag);
+			return;
+		}
 		if (plugins == null) plugins = om.createObjectNode();
 		addTag(tag);
 		plugins.set(tag, om.convertValue(jsonNode, JsonNode.class));
+	}
+
+	@JsonIgnore
+	public JsonNode getPlugin(String tag) {
+		if (plugins == null) return null;
+		return plugins.get(tag);
 	}
 }
