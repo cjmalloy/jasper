@@ -46,4 +46,12 @@ public interface Tag extends Cursor {
 		if (!tag.contains("@")) return "";
 		return tag.substring(tag.indexOf("@"));
 	}
+
+	static String reverseOrigin(String qualifiedTag) {
+		var origin = tagOrigin(qualifiedTag);
+		var tag = localTag(qualifiedTag);
+		if (isBlank(origin)) return tag;
+		if (isBlank(tag)) tag = "user";
+		return origin.substring(1) + "/" + tag;
+	}
 }
