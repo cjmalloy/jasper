@@ -116,7 +116,7 @@ public class Validate {
 			.stream()
 			.map(Template::getSchema)
 			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.reduce(null, this::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
@@ -186,8 +186,8 @@ public class Validate {
 	}
 
 	private <T extends JsonNode> T merge(T a, T b) {
-		if (a == null) return b;
-		if (b == null) return a;
+		if (a == null) return b.deepCopy();
+		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return null;
 		try {
 			return objectMapper.updateValue(a, b);
