@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Tag extends Cursor {
 	String REGEX = "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*";
@@ -45,6 +46,15 @@ public interface Tag extends Cursor {
 		if (isBlank(tag)) return tag;
 		if (!tag.contains("@")) return "";
 		return tag.substring(tag.indexOf("@"));
+	}
+
+	static String defaultOrigin(String tag, String origin) {
+		if (isBlank(tag)) return tag;
+		if (tag.endsWith("@")) return localTag(tag);
+		if (isNotBlank(tagOrigin(tag))) return tag;
+		if (isBlank(origin)) return tag;
+		if ("@".equals(origin)) return tag;
+		return tag + origin;
 	}
 
 	static String reverseOrigin(String qualifiedTag) {

@@ -10,6 +10,7 @@ import lombok.Setter;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Tunnel {
-	private String user;
+	private String remoteUser;
 	private String sshHost;
+	private int sshPort = 22;
 }
