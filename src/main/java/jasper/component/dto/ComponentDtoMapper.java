@@ -15,7 +15,7 @@ public abstract class ComponentDtoMapper {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	public abstract RefUpdateDto domainToUpdateDto(Ref ref);
+	public abstract RefUpdateDto dtoToUpdateDto(RefDto ref);
 
 	@AfterMapping
 	protected void publicTags(@MappingTarget RefUpdateDto ref) {
