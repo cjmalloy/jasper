@@ -1,8 +1,10 @@
 package jasper.config;
 
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
+import jasper.service.dto.RefDto;
 import org.apache.tomcat.websocket.server.WsSci;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +18,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -33,6 +37,8 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,6 +67,31 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Autowired
 	@Qualifier("authSingleton")
 	Auth auth;
+
+	@Autowired
+	SimpMessagingTemplate stomp;
+
+	@Autowired
+	ComponentDtoMapper mapper;
+
+	@ServiceActivator(inputChannel = "refRxChannel")
+	public void handleRefUpdate(Message<RefDto> message) {
+		var encodedUrl = URLEncoder.encode((String) message.getHeaders().get("url"), StandardCharsets.UTF_8);
+		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
+		stomp.convertAndSend("/topic/ref/" + message.getHeaders().get("origin") + "/" + encodedUrl, updateDto);
+	}
+
+	@ServiceActivator(inputChannel = "tagRxChannel")
+	public void handleTagUpdate(Message<String> message) {
+		var encodedTag = URLEncoder.encode((String) message.getHeaders().get("tag"), StandardCharsets.UTF_8);
+		stomp.convertAndSend("/topic/tag/" + message.getHeaders().get("origin") + "/" + encodedTag, message.getPayload());
+	}
+
+	@ServiceActivator(inputChannel = "responseRxChannel")
+	public void handleResponseUpdate(Message<String> message) {
+		var encodedSource = URLEncoder.encode((String) message.getHeaders().get("response"), StandardCharsets.UTF_8);
+		stomp.convertAndSend("/topic/response/" + message.getHeaders().get("origin") + "/" + encodedSource, message.getPayload());
+	}
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
