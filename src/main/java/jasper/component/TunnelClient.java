@@ -2,6 +2,8 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ref;
+import jasper.domain.User;
+import jasper.errors.InvalidTunnelException;
 import jasper.plugin.Origin;
 import jasper.plugin.Tunnel;
 import jasper.repository.UserRepository;
@@ -19,8 +21,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasTags.authors;
+import static jasper.domain.proj.Tag.defaultOrigin;
 import static jasper.domain.proj.Tag.reverseOrigin;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.sshd.common.NamedResource.ofName;
@@ -29,6 +34,8 @@ import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIden
 @Component
 public class TunnelClient {
 	private static final Logger logger = LoggerFactory.getLogger(TunnelClient.class);
+
+	private static final int LOCAL_HTTP_PORT = 38080;
 
 	@Autowired
 	UserRepository userRepository;
@@ -48,40 +55,47 @@ public class TunnelClient {
 		if (tunnel == null) {
 			request.go(url);
 		} else {
-			var user = userRepository.findOneByQualifiedTag(tunnel.getUser());
+			var users = authors(remote);
+			if (users.isEmpty()) {
+				throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
+			}
+			var user = userRepository.findOneByQualifiedTag(users.get(0));
 			if (user.isEmpty() || user.get().getKey() == null) {
-				logger.error("Tunnel requested, but user {} does not have a private key set.", tunnel.getUser());
-				return;
+				throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 			}
 			try (var client = SshClient.setUpDefaultClient()) {
-				final int[] httpPort = {8022};
+				final int[] httpPort = {38022};
 				client.setUserInteraction(new GetBanner() {
 					@Override
 					public void banner(String banner) {
 						logger.info("Received SSH banner: {}", banner);
-						httpPort[0] = Integer.parseInt(banner);
+						try {
+							httpPort[0] = Integer.parseInt(banner);
+						} catch (Exception e) {
+							logger.warn("Could not parse tunnel port from banner. Using default {}", httpPort[0]);
+						}
 					}
 				});
 				client.start();
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
-				var username = linuxUsername(user.get().getTag() + config.getRemote());
-				try (var session = client.connect(username, host, 22).verify(30, TimeUnit.SECONDS).getSession()) {
+				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
+				try (var session = client.connect(username, host, tunnel.getSshPort()).verify(30, TimeUnit.SECONDS).getSession()) {
 					loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(user.get().getKey()), null)
 						.forEach(session::addPublicKeyIdentity);
 					session.auth().verify(30, TimeUnit.SECONDS);
-					try (var tracker = session.createLocalPortForwardingTracker(38080, new SshdSocketAddress("localhost", httpPort[0]))) {
+					try (var tracker = session.createLocalPortForwardingTracker(LOCAL_HTTP_PORT, new SshdSocketAddress("localhost", httpPort[0]))) {
 						logger.debug("Opened reverse proxy in SSH tunnel.");
-						request.go(new URI("http://localhost:38080"));
+						request.go(new URI("http://localhost:" + LOCAL_HTTP_PORT));
 					} catch (URISyntaxException e) {
-						throw new RuntimeException(e);
+						throw new InvalidTunnelException("Error creating tunnel tracker", e);
 					}
 				} catch (IOException | GeneralSecurityException e) {
-					throw new RuntimeException(e);
+					throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 				} finally {
 					client.stop();
 				}
 			} catch (IOException e) {
-				throw new RuntimeException(e);
+				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 			}
 		}
 	}
