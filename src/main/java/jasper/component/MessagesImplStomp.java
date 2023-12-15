@@ -24,7 +24,8 @@ public class MessagesImplStomp implements Messages {
 
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
-		stomp.convertAndSend("/topic/ref/" + (isNotBlank(ref.getOrigin()) ? ref.getOrigin() : "default") + "/" + ref.getUrl(), mapper.domainToUpdateDto(ref));
+		var encodedUrl = URLEncoder.encode(ref.getUrl(), StandardCharsets.UTF_8);
+		stomp.convertAndSend("/topic/ref/" + (isNotBlank(ref.getOrigin()) ? ref.getOrigin() : "default") + "/" + encodedUrl, mapper.domainToUpdateDto(ref));
 		if (ref.getTags() != null)
 		for (var tag : ref.getTags()) {
 			var encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8);
