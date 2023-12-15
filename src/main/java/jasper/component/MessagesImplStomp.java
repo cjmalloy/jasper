@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -24,12 +27,13 @@ public class MessagesImplStomp implements Messages {
 		stomp.convertAndSend("/topic/ref/" + (isNotBlank(ref.getOrigin()) ? ref.getOrigin() : "default") + "/" + ref.getUrl(), mapper.domainToUpdateDto(ref));
 		if (ref.getTags() != null)
 		for (var tag : ref.getTags()) {
-			// TODO: workaround +_ in destination
-			stomp.convertAndSend("/topic/tag/" + tag.replace('_', '>').replace('+', '<'), tag);
+			var encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8);
+			stomp.convertAndSend("/topic/tag/" + encodedTag, tag);
 		}
 		if (ref.getSources() != null)
 		for (var source : ref.getSources()) {
-			stomp.convertAndSend("/topic/response/" + source, ref.getUrl());
+			var encodedSource = URLEncoder.encode(source, StandardCharsets.UTF_8);
+			stomp.convertAndSend("/topic/response/" + encodedSource, ref.getUrl());
 		}
 	}
 }
