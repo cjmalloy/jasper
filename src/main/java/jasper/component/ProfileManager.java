@@ -3,6 +3,13 @@ package jasper.component;
 import jasper.service.dto.ProfileDto;
 import org.springframework.data.domain.Page;
 
+/**
+ * Interface for managing external user sources.
+ *
+ * Externals users will not be queried during authorization or authentication.
+ * This must be set by the external source customizing the JWT token
+ * or HTTP headers as applicable.
+ */
 public interface ProfileManager {
 	void createUser(String userName, String password, String[] roles);
 	ProfileDto getUser(String userName);
