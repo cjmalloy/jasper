@@ -7,6 +7,7 @@ import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.config.Props;
 import jasper.domain.Ref;
+import jasper.domain.Ref_;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Origin;
 import jasper.plugin.Pull;
@@ -22,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -32,6 +32,7 @@ import java.util.Map;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Replicator {
@@ -178,7 +179,7 @@ public class Replicator {
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
-						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
 				logger.debug("Pushing {} users to {}", pluginList.size(), remoteOrigin);
 				if (!pluginList.isEmpty()) {
@@ -193,7 +194,7 @@ public class Replicator {
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
-						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
 				logger.debug("Pushing {} templates to {}", templateList.size(), remoteOrigin);
 				if (!templateList.isEmpty()) {
@@ -208,7 +209,7 @@ public class Replicator {
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
-						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.map(jasperMapper::domainToDto)
 					.getContent();
 				logger.debug("Pushing {} refs to {}", refList.size(), remoteOrigin);
@@ -224,7 +225,7 @@ public class Replicator {
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
-						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
 				logger.debug("Pushing {} exts to {}", extList.size(), remoteOrigin);
 				if (!extList.isEmpty()) {
@@ -239,7 +240,7 @@ public class Replicator {
 							.query(push.getQuery())
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
-						PageRequest.of(0, size, Sort.Direction.ASC, "modified"))
+						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.map(jasperMapper::domainToDto)
 					.getContent();
 				logger.debug("Pushing {} users to {}", userList.size(), remoteOrigin);

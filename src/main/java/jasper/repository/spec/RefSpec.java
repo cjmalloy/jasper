@@ -249,7 +249,7 @@ public class RefSpec {
 		return (root, query, cb) ->
 			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
-					cb.literal("modified")),
+					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
 	}
 
@@ -258,7 +258,7 @@ public class RefSpec {
 		return (root, query, cb) ->
 			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
-					cb.literal("modified")),
+					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
 	}
 }

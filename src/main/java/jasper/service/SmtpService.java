@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +26,8 @@ import java.util.UUID;
 
 import static jasper.repository.spec.QualifiedTag.concat;
 import static jasper.repository.spec.QualifiedTag.selector;
+import static org.springframework.data.domain.Sort.Order.desc;
+import static org.springframework.data.domain.Sort.by;
 
 @Service
 public class SmtpService {
@@ -57,7 +58,7 @@ public class SmtpService {
 						.query("plugin/email:!internal")
 						.endsTitle(ref.getTitle())
 						.publishedBefore(ref.getPublished()).build().spec(),
-				PageRequest.of(0, 1, Sort.by(Sort.Order.desc(Ref_.PUBLISHED))));
+				PageRequest.of(0, 1, by(desc(Ref_.PUBLISHED))));
 		if (!source.isEmpty()) {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
 			ref.addTags(List.of("internal"));

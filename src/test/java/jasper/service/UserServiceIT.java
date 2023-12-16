@@ -2,6 +2,7 @@ package jasper.service;
 
 import jasper.IntegrationTest;
 import jasper.domain.User;
+import jasper.domain.User_;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -19,6 +20,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.data.domain.Sort.by;
 
 @WithMockUser("+user/tester")
 @IntegrationTest
@@ -379,7 +381,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -398,7 +400,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -418,7 +420,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -448,7 +450,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -478,7 +480,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -502,7 +504,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);

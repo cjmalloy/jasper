@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -47,6 +48,7 @@ import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static org.springframework.data.domain.Sort.by;
 
 @CrossOrigin
 @RestController
@@ -89,7 +91,7 @@ public class ReplicateController {
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
+				PageRequest.of(0, size, by(Ref_.MODIFIED)))
 			.getContent();
 	}
 
@@ -140,7 +142,7 @@ public class ReplicateController {
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
+				PageRequest.of(0, size, by(Ref_.MODIFIED)))
 			.getContent();
 	}
 
@@ -191,7 +193,7 @@ public class ReplicateController {
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
+				PageRequest.of(0, size, by(Ref_.MODIFIED)))
 			.getContent();
 	}
 
@@ -242,7 +244,7 @@ public class ReplicateController {
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
+				PageRequest.of(0, size, by(Ref_.MODIFIED)))
 			.getContent();
 	}
 
@@ -293,7 +295,7 @@ public class ReplicateController {
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
-				PageRequest.of(0, size, Direction.ASC, "modified"))
+				PageRequest.of(0, size, by(Ref_.MODIFIED)))
 			.getContent();
 	}
 

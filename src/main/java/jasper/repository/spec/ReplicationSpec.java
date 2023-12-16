@@ -1,5 +1,6 @@
 package jasper.repository.spec;
 
+import jasper.domain.Ref_;
 import jasper.domain.proj.Cursor;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -11,7 +12,7 @@ public class ReplicationSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 			cb.greaterThan(
-				root.get("modified"),
+				root.get(Ref_.MODIFIED),
 				i);
 	}
 
@@ -19,7 +20,7 @@ public class ReplicationSpec {
 		if (i == null) return null;
 		return (root, query, cb) ->
 			cb.lessThan(
-				root.get("modified"),
+				root.get(Ref_.MODIFIED),
 				i);
 	}
 }

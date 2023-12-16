@@ -10,11 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+
+import static org.springframework.data.domain.Sort.Order.desc;
+import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Rng {
@@ -34,7 +36,7 @@ public class Rng {
 				.url(ref.getUrl())
 				.obsolete(true)
 				.modifiedAfter(existing.getModified())
-				.build().spec(), PageRequest.of(0, 1, Sort.by(Sort.Order.desc(Ref_.MODIFIED))));
+				.build().spec(), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (remotes.isEmpty() || remotes.getContent().get(0).getOrigin().equals(ref.getOrigin())) {
 				ref.removeTags(List.of("plugin/rng"));
 				for (var t : existing.getTags()) {

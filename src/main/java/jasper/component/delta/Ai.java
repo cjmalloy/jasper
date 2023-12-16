@@ -12,6 +12,7 @@ import jasper.component.scheduler.Async;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
@@ -21,12 +22,10 @@ import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -39,6 +38,7 @@ import static com.rometools.utils.Strings.isBlank;
 import static jasper.component.OpenAi.cm;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
+import static org.springframework.data.domain.Sort.by;
 
 @Profile("ai")
 @Component
@@ -87,7 +87,7 @@ public class Ai implements Async.AsyncRunner {
 			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
-		var parents = refRepository.findAll(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl())), Sort.by("published"))
+		var parents = refRepository.findAll(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl())), by(Ref_.PUBLISHED))
 			.stream().map(refMapper::domainToDto).toList();
 		var sample = refMapper.domainToDto(ref);
 		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());

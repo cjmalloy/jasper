@@ -3,13 +3,13 @@ package jasper.component.scheduler;
 import jasper.component.Ingest;
 import jasper.config.Props;
 import jasper.domain.Ref;
+import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +20,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import static org.springframework.data.domain.Sort.by;
 
 /**
  * An async service runs by querying a tag, and is marked as completed with the protected version of
@@ -81,7 +83,7 @@ public class Async {
 				.origin(origin)
 				.query(trackingQuery())
 				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
-				.build().spec(), PageRequest.of(0, 1, Sort.by("modified")));
+				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().get(0);
 			lastModified.put(origin, ref.getModified());

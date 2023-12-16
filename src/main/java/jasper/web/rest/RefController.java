@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Ref_;
 import jasper.domain.proj.HasOrigin;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
@@ -19,8 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -51,6 +50,8 @@ import static jasper.repository.filter.Query.SEARCH_LEN;
 import static jasper.util.RestUtil.ifNotModified;
 import static jasper.util.RestUtil.ifNotModifiedPage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.domain.Sort.Order.desc;
+import static org.springframework.data.domain.Sort.by;
 
 @RestController
 @RequestMapping("api/v1/ref")
@@ -132,15 +133,13 @@ public class RefController {
 				pageable = PageRequest.of(
 					pageable.getPageNumber(),
 					pageable.getPageSize(),
-					Sort.by(
-						Direction.DESC,
-						"modified"));
+					by(desc(Ref_.MODIFIED)));
 			} else {
 				// Remove rank order
 				pageable = PageRequest.of(
 					pageable.getPageNumber(),
 					pageable.getPageSize(),
-					Sort.by(pageable.getSort()
+					by(pageable.getSort()
 						.stream()
 						.filter(o -> !o.getProperty().equals("rank"))
 						.toList()));
