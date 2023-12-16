@@ -30,6 +30,9 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.PostConstruct;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -317,14 +320,16 @@ public class Auth {
 		if (!minRole()) return false;
 		if (destination == null) return false;
 		if (destination.startsWith("/topic/tag/")) {
-			var tag = destination.substring("/topic/tag/".length()).replace('>', '_').replace('<', '+');
-            return canReadTag(tag);
+			var tag = destination.substring("/topic/tag/".length());
+			var decodedTag = URLDecoder.decode(tag, StandardCharsets.UTF_8);
+            return canReadTag(decodedTag);
 		} else if (destination.startsWith("/topic/ref/")) {
-			var ref = destination.substring("/topic/ref/".length());
-			var origin = ref.substring(0, ref.indexOf('/'));
+			var topic = destination.substring("/topic/ref/".length());
+			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
-			var url = ref.substring(ref.indexOf('/') + 1);
-			return canReadRef(url, origin);
+			var url = topic.substring(topic.indexOf('/') + 1);
+			var decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+			return canReadRef(decodedUrl, origin);
 		} else if (destination.startsWith("/topic/response/")) {
 			return true;
 		}
