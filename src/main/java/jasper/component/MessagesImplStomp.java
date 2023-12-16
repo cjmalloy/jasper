@@ -1,5 +1,6 @@
 package jasper.component;
 
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ref;
 import jasper.service.dto.DtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,7 @@ public class MessagesImplStomp implements Messages {
 	SimpMessagingTemplate stomp;
 
 	@Autowired
-	DtoMapper mapper;
+	ComponentDtoMapper mapper;
 
 	public void updateRef(Ref ref) {
 		// TODO: Debounce

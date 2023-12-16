@@ -31,16 +31,6 @@ public abstract class DtoMapper {
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
-	public abstract RefUpdateDto domainToUpdateDto(Ref ref);
-
-	@AfterMapping
-	protected void publicTags(@MappingTarget RefUpdateDto ref) {
-		if (ref.getTags() == null) return;
-		var filtered = new ArrayList<>(ref.getTags().stream().filter(t -> !t.startsWith("_")).toList());
-		ref.setTags(filtered);
-		Ref.removePrefixTags(ref.getTags());
-	}
-
 	@Mapping(target = "responses", source = "metadata.responses")
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
