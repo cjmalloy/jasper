@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.domain.Ref;
-import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.GraphService;
 import jasper.service.dto.RefNodeDto;
@@ -26,7 +25,6 @@ import javax.validation.constraints.Size;
 import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
-import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.util.RestUtil.ifNotModifiedList;
 
 @RestController
@@ -47,12 +45,11 @@ public class GraphController {
 	@GetMapping("list")
 	HttpEntity<List<RefNodeDto>> getGraphList(
 		WebRequest request,
-		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls
 	) {
 		return ifNotModifiedList(request, urls.stream().map(url -> {
 			try {
-				return graphService.get(url, origin);
+				return graphService.get(url);
 			} catch (NotFoundException | AccessDeniedException e) {
 				return null;
 			}
