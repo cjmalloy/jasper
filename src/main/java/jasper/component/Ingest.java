@@ -8,14 +8,23 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import javax.persistence.EntityExistsException;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceException;
 
 @Component
 public class Ingest {
@@ -31,6 +40,9 @@ public class Ingest {
 	PluginRepository pluginRepository;
 
 	@Autowired
+	EntityManager em;
+
+	@Autowired
 	Validate validate;
 
 	@Autowired
@@ -42,6 +54,12 @@ public class Ingest {
 	@Autowired
 	Messages messages;
 
+	@Autowired
+	private PlatformTransactionManager transactionManager;
+
+	// Exposed for testing
+	Clock ensureUniqueModifiedClock = Clock.systemUTC();
+
 	@Timed(value = "jasper.ref", histogram = true)
 	public void ingest(Ref ref, boolean force) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
@@ -52,7 +70,7 @@ public class Ingest {
 		rng.update(ref, null);
 		meta.update(ref, null, null);
 		ref.setCreated(Instant.now());
-		ensureUniqueModified(ref);
+		ensureUniqueModified(ref, true);
 		messages.updateRef(ref);
 	}
 
@@ -65,7 +83,7 @@ public class Ingest {
 		validate.ref(ref, force);
 		rng.update(ref, maybeExisting.get());
 		meta.update(ref, maybeExisting.get(), null);
-		ensureUniqueModified(ref);
+		ensureUniqueModified(ref, false);
 		messages.updateRef(ref);
 	}
 
@@ -81,18 +99,33 @@ public class Ingest {
 		messages.updateRef(ref);
 	}
 
-	private void ensureUniqueModified(Ref ref) {
+	void ensureUniqueModified(Ref ref, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
-				ref.setModified(Instant.now());
-				refRepository.save(ref);
+				ref.setModified(Instant.now(ensureUniqueModifiedClock));
+				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+				transactionTemplate.execute(status -> {
+					if (create) {
+						em.persist(ref);
+						em.flush();
+					} else {
+						refRepository.saveAndFlush(ref);
+					}
+					return null;
+				});
 				break;
-			} catch (DataIntegrityViolationException e) {
-				if (count > props.getIngestMaxRetry()) {
-					throw new DuplicateModifiedDateException();
+			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e.getCause() instanceof ConstraintViolationException c) {
+					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
 				}
+				throw e;
 			}
 		}
 	}

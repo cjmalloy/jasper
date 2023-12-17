@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester@other")
 @MultiTenantIntegrationTest
-@Transactional
 public class RefServiceMTIT {
 
 	@Autowired
@@ -73,6 +71,13 @@ public class RefServiceMTIT {
 		var plugin = new Plugin();
 		plugin.setOrigin("@other");
 		return plugin;
+	}
+
+	@BeforeEach
+	void init() {
+		refRepository.deleteAll();
+		pluginRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	@BeforeEach
@@ -1205,7 +1210,7 @@ public class RefServiceMTIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isEmpty();
+			.isNull();
 	}
 
 	@Test
@@ -1275,7 +1280,7 @@ public class RefServiceMTIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isEmpty();
+			.isNull();
 		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
 			.isEmpty();
 	}

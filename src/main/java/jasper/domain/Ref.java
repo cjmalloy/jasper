@@ -18,7 +18,6 @@ import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.TypeDefs;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -131,7 +130,6 @@ public class Ref implements HasTags {
 	@Column(updatable = false)
 	private Instant created = Instant.now();
 
-	@LastModifiedDate
 	private Instant modified = Instant.now();
 
 	@Type(type = "tsvector")
