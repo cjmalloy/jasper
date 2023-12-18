@@ -1,5 +1,8 @@
 package jasper.repository;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
 import jasper.domain.proj.RefUrl;
@@ -23,7 +26,37 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean existsByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndModifiedGreaterThan(String url, Instant modifiedAfter);
 
-	@Query(value = """
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			title = :title,
+			comment = :comment,
+			tags = :tags,
+			sources = :sources,
+			alternateUrls = :alternateUrls,
+			plugins = :plugins,
+			metadata = :metadata,
+			published = :published,
+			modified = :modified
+		WHERE
+			url = :url AND
+			origin = :origin AND
+			modified = :cursor""")
+	int optimisticUpdate(
+		Instant cursor,
+		String url,
+		String origin,
+		String title,
+		String comment,
+		ArrayNode tags,
+		ArrayNode sources,
+		ArrayNode alternateUrls,
+		ObjectNode plugins,
+		Metadata metadata,
+		Instant published,
+		Instant modified);
+
+	@Query("""
 		SELECT max(r.modified)
 		FROM Ref r
 		WHERE r.origin = :origin""")

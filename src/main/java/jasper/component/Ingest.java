@@ -1,5 +1,7 @@
 package jasper.component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.domain.Ref;
@@ -20,8 +22,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.List;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
@@ -30,9 +30,6 @@ import javax.persistence.PersistenceException;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
-
-
-	private static final TemporalUnit CURSOR_PRECISION = ChronoUnit.MICROS;
 
 	@Autowired
 	Props props;
@@ -57,6 +54,9 @@ public class Ingest {
 
 	@Autowired
 	Messages messages;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
@@ -106,7 +106,7 @@ public class Ingest {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					ref.setModified(Instant.now(ensureUniqueModifiedClock).truncatedTo(CURSOR_PRECISION));
+					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ref);
 					em.flush();
 					return null;
@@ -134,13 +134,23 @@ public class Ingest {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					var existing = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
-						.orElseThrow(() -> new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl()));
-					if (!cursorEquals(cursor, existing.getModified())) {
+					ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					var updated = refRepository.optimisticUpdate(
+						cursor,
+						ref.getUrl(),
+						ref.getOrigin(),
+						ref.getTitle(),
+						ref.getComment(),
+						ref.getTitle() == null ? null : objectMapper.convertValue(ref.getTags(), ArrayNode.class),
+						ref.getSources() == null ? null : objectMapper.convertValue(ref.getSources(), ArrayNode.class),
+						ref.getAlternateUrls() == null ? null : objectMapper.convertValue(ref.getAlternateUrls(), ArrayNode.class),
+						ref.getPlugins(),
+						ref.getMetadata(),
+						ref.getPublished(),
+						ref.getModified());
+					if (updated == 0) {
 						throw new ModifiedException("Ref");
 					}
-					ref.setModified(Instant.now(ensureUniqueModifiedClock).truncatedTo(CURSOR_PRECISION));
-					refRepository.saveAndFlush(ref);
 					return null;
 				});
 				break;
@@ -154,11 +164,6 @@ public class Ingest {
 				throw e;
 			}
 		}
-	}
-
-	private boolean cursorEquals(Instant a, Instant b) {
-		if (a.getEpochSecond() != b.getEpochSecond()) return false;
-		return Math.abs(a.getNano() - b.getNano()) < CURSOR_PRECISION.getDuration().getNano();
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)

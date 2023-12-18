@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -188,6 +189,47 @@ public class IngestIT {
 		Thread.sleep(1);
 		assertThatThrownBy(() -> ingest.update(update2, false))
 			.isInstanceOf(ModifiedException.class);
+	}
+
+	@Test
+	void testConcurrentModifiedOptimisticLock() throws InterruptedException {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ingest.ingest(ref, false);
+		var update1 = new Ref();
+		update1.setUrl(URL);
+		update1.setTitle("M1");
+		update1.setModified(ref.getModified());
+		var update2 = new Ref();
+		update2.setUrl(URL);
+		update2.setTitle("M2");
+		update2.setModified(ref.getModified());
+
+		AtomicBoolean firstException = new AtomicBoolean(false);
+		AtomicBoolean secondException = new AtomicBoolean(false);
+
+		var thread1 = new Thread(() -> {
+			try {
+				ingest.update(update1, false);
+			} catch (ModifiedException t) {
+				firstException.set(true);
+			}
+		});
+		var thread2 = new Thread(() -> {
+			try {
+				ingest.update(update2, false);
+			} catch (ModifiedException t) {
+				secondException.set(true);
+			}
+		});
+		thread1.start();
+		thread2.start();
+		thread1.join();
+		thread2.join();
+
+		assertThat(firstException.get())
+			.isNotEqualTo(secondException.get());
 	}
 
 }
