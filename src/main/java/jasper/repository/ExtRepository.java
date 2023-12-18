@@ -34,7 +34,7 @@ public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMi
 		JsonNode config,
 		Instant modified);
 
-	@Query(value = """
+	@Query("""
 		SELECT max(e.modified)
 		FROM Ext e
 		WHERE e.origin = :origin""")

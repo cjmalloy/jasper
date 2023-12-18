@@ -42,7 +42,7 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		boolean userUrl,
 		Instant modified);
 
-	@Query(value = """
+	@Query("""
 		SELECT max(p.modified)
 		FROM Plugin p
 		WHERE p.origin = :origin""")

@@ -83,12 +83,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<String> findAllResponsesWithoutTag(String url, String tag);
 
 	@Query(nativeQuery = true, value = """
-		SELECT count(*) > 0 FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.alternate_urls, :url)""")
-	boolean existsByAlternateUrlAndOrigin(String url, String origin);
-
-	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
 		FROM ref

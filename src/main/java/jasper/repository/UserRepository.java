@@ -45,7 +45,7 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		byte[] key,
 		byte[] pubKey);
 
-	@Query(value = """
+	@Query("""
 		SELECT max(u.modified)
 		FROM User u
 		WHERE u.origin = :origin""")

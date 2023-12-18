@@ -37,7 +37,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		JsonNode defaults,
 		Instant modified);
 
-	@Query(value = """
+	@Query("""
 		SELECT max(t.modified)
 		FROM Template t
 		WHERE t.origin = :origin""")
