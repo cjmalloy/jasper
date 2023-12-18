@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -24,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester@other")
 @MultiTenantIntegrationTest
-@Transactional
 public class ExtServiceMTIT {
 
 	@Autowired
@@ -55,6 +53,12 @@ public class ExtServiceMTIT {
 		var t = new Template();
 		t.setOrigin("@other");
 		return t;
+	}
+
+	@BeforeEach
+	void init() {
+		extRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	@BeforeEach

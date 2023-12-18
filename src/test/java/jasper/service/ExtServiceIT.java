@@ -7,12 +7,12 @@ import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester")
 @IntegrationTest
-@Transactional
 public class ExtServiceIT {
 
 	@Autowired
@@ -32,6 +31,12 @@ public class ExtServiceIT {
 
 	@Autowired
 	UserRepository userRepository;
+
+	@BeforeEach
+	void init() {
+		extRepository.deleteAll();
+		userRepository.deleteAll();
+	}
 
 	@Test
 	void testCreateExt() {

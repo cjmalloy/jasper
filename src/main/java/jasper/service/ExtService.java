@@ -1,19 +1,15 @@
 package jasper.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.Validate;
+import jasper.component.IngestExt;
+import jasper.config.Props;
 import jasper.domain.Ext;
-import jasper.errors.AlreadyExistsException;
-import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPatchException;
-import jasper.errors.InvalidTemplateException;
-import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.filter.TagFilter;
@@ -23,7 +19,6 @@ import jasper.service.dto.ExtDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,7 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+
+import javax.persistence.EntityManager;
 
 import static jasper.repository.spec.QualifiedTag.selector;
 
@@ -42,13 +38,19 @@ public class ExtService {
 	private static final Logger logger = LoggerFactory.getLogger(ExtService.class);
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	ExtRepository extRepository;
 
 	@Autowired
-	Auth auth;
+	IngestExt ingest;
 
 	@Autowired
-	Validate validate;
+	EntityManager em;
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	DtoMapper mapper;
@@ -59,26 +61,14 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant create(Ext ext, boolean force) {
-		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
-		validate.ext(ext, force);
-		ext.setModified(Instant.now());
-		try {
-			extRepository.save(ext);
-			return ext.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.create(ext, force);
+		return ext.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void push(Ext ext) {
-		validate.ext(ext);
-		try {
-			extRepository.save(ext);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.push(ext);
 	}
 
 	@Transactional(readOnly = true)
@@ -122,20 +112,8 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant update(Ext ext, boolean force) {
-		var maybeExisting = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Ext " + ext.getQualifiedTag());
-		var existing = maybeExisting.get();
-		if (!force && (ext.getModified() == null || !ext.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS)))) {
-			throw new ModifiedException("Ext " + ext.getQualifiedTag());
-		}
-		validate.ext(ext, force);
-		ext.setModified(Instant.now());
-		try {
-			extRepository.save(ext);
-			return existing.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.update(ext, force);
+		return ext.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
@@ -149,11 +127,6 @@ public class ExtService {
 			var qt = selector(qualifiedTag);
 			ext.setTag(qt.tag);
 			ext.setOrigin(qt.origin);
-		} else {
-			if (!cursor.truncatedTo(ChronoUnit.SECONDS).equals(ext.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ext " + ext.getQualifiedTag());
-		}
-		if (ext.getConfig() == null) {
-			ext.setConfig(validate.templateDefaults(qualifiedTag));
 		}
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
@@ -163,6 +136,7 @@ public class ExtService {
 			if (created) {
 				return create(updated, false);
 			} else {
+				updated.setModified(cursor);
 				return update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
@@ -178,14 +152,6 @@ public class ExtService {
 			extRepository.deleteByQualifiedTag(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
-		}
-	}
-
-	private <T extends JsonNode> T merge(T a, JsonNode b) {
-		try {
-			return objectMapper.updateValue(a, b);
-		} catch (JsonMappingException e) {
-			throw new InvalidTemplateException("Merging Template schemas", e);
 		}
 	}
 }
