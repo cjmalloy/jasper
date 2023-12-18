@@ -65,7 +65,7 @@ public class Ingest {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void ingest(Ref ref, boolean force) {
+	public void create(Ref ref, boolean force) {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
 		ref.setCreated(Instant.now());
@@ -97,6 +97,14 @@ public class Ingest {
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
 		refRepository.save(ref);
 		messages.updateRef(ref);
+	}
+
+	@Timed(value = "jasper.ref", histogram = true)
+	public void delete(String url, String origin) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeExisting.isEmpty()) return;
+		meta.update(null, maybeExisting.get(), null);
+		refRepository.deleteByUrlAndOrigin(url, origin);
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
@@ -164,14 +172,6 @@ public class Ingest {
 				throw e;
 			}
 		}
-	}
-
-	@Timed(value = "jasper.ref", histogram = true)
-	public void delete(String url, String origin) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.isEmpty()) return;
-		meta.update(null, maybeExisting.get(), null);
-		refRepository.deleteByUrlAndOrigin(url, origin);
 	}
 
 }

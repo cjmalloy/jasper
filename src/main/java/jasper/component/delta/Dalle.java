@@ -113,7 +113,7 @@ public class Dalle implements Async.AsyncRunner {
 		}
 		response.setSources(sources);
 		response.setOrigin(ref.getOrigin());
-		ingest.ingest(response, false);
+		ingest.create(response, false);
 		logger.debug("DALL-E reply sent ({})", response.getUrl());
 		webScraper.scrapeAsync(response.getUrl());
 	}

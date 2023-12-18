@@ -251,7 +251,7 @@ Your reply should always start with {"ref":[{
 			if (isBlank(aiReply.getUrl())) {
 				aiReply.setUrl("ai:" + UUID.randomUUID());
 			}
-			ingest.ingest(aiReply, false);
+			ingest.create(aiReply, false);
 			logger.debug("AI reply sent ({})", aiReply.getUrl());
 		}
 	}

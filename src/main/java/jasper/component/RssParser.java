@@ -153,7 +153,7 @@ public class RssParser {
 						}
 						ref.setOrigin(feed.getOrigin());
 						try {
-							ingest.ingest(ref, false);
+							ingest.create(ref, false);
 						} catch (AlreadyExistsException e) {
 							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getTitle(), ref.getTitle(), ref.getUrl());

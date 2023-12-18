@@ -113,7 +113,7 @@ public class Summary implements Async.AsyncRunner {
 			}
 		}
 		response.setSources(sources);
-		ingest.ingest(response, false);
+		ingest.create(response, false);
 	}
 
 	private static class SummaryConfig extends AiConfig {

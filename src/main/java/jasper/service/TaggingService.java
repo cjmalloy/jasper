@@ -134,7 +134,7 @@ public class TaggingService {
 				ref.setOrigin(auth.getOrigin());
 				ref.setSources(new ArrayList<>(List.of(url)));
 				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
-				ingest.ingest(ref, false);
+				ingest.create(ref, false);
 				return ref;
 			});
 	}

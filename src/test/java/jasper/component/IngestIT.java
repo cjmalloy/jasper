@@ -46,7 +46,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 
-		ingest.ingest(ref, false);
+		ingest.create(ref, false);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
@@ -60,7 +60,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 
-		assertThatThrownBy(() -> ingest.ingest(ref, false))
+		assertThatThrownBy(() -> ingest.create(ref, false))
 			.isInstanceOf(AlreadyExistsException.class);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
@@ -112,12 +112,12 @@ public class IngestIT {
 			var ref1 = new Ref();
 			ref1.setUrl(URL);
 			ref1.setTitle("First");
-			ingest.ingest(ref1, false);
+			ingest.create(ref1, false);
 			var ref2 = new Ref();
 			ref2.setUrl(OTHER_URL);
 			ref2.setTitle("Second");
 
-			assertThatThrownBy(() -> ingest.ingest(ref2, false))
+			assertThatThrownBy(() -> ingest.create(ref2, false))
 				.isInstanceOf(DuplicateModifiedDateException.class);
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
@@ -141,12 +141,12 @@ public class IngestIT {
 			var ref1 = new Ref();
 			ref1.setUrl(URL);
 			ref1.setTitle("First");
-			ingest.ingest(ref1, false);
+			ingest.create(ref1, false);
 			setField(ingest, "ensureUniqueModifiedClock", fixedClock);
 			var ref2 = new Ref();
 			ref2.setUrl(OTHER_URL);
 			ref2.setTitle("Second");
-			ingest.ingest(ref2, false);
+			ingest.create(ref2, false);
 			var update = new Ref();
 			update.setUrl(URL);
 			update.setTitle("Modified");
@@ -175,7 +175,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ingest.ingest(ref, false);
+		ingest.create(ref, false);
 		var update1 = new Ref();
 		update1.setUrl(URL);
 		update1.setTitle("M1");
@@ -196,7 +196,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ingest.ingest(ref, false);
+		ingest.create(ref, false);
 		var update1 = new Ref();
 		update1.setUrl(URL);
 		update1.setTitle("M1");

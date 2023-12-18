@@ -12,7 +12,6 @@ import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
-import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -32,7 +31,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
@@ -71,7 +69,7 @@ public class RefService {
 			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
 		}
-		ingest.ingest(ref, force);
+		ingest.create(ref, force);
 		return ref.getModified();
 	}
 
