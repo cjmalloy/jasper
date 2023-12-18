@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -16,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @WithMockUser(value = "admin", roles = "ADMIN")
 @IntegrationTest
-@Transactional
 public class PluginServiceIT {
 
 	@Autowired
@@ -24,6 +24,11 @@ public class PluginServiceIT {
 
 	@Autowired
 	PluginRepository pluginRepository;
+
+	@BeforeEach
+	void init() {
+		pluginRepository.deleteAll();
+	}
 
 	@Test
 	void testCreatePluginWithSchema() throws IOException {

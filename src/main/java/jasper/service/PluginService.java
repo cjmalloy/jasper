@@ -1,10 +1,8 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
-import jasper.errors.AlreadyExistsException;
-import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
@@ -12,7 +10,6 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,13 +18,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Service
 public class PluginService {
 
 	@Autowired
 	PluginRepository pluginRepository;
+
+	@Autowired
+	IngestPlugin ingest;
 
 	@Autowired
 	Auth auth;
@@ -38,24 +37,14 @@ public class PluginService {
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant create(Plugin plugin) {
-		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
-		plugin.setModified(Instant.now());
-		try {
-			pluginRepository.save(plugin);
-			return plugin.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.create(plugin);
+		return plugin.getModified();
 	}
 
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void push(Plugin plugin) {
-		try {
-			pluginRepository.save(plugin);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.push(plugin);
 	}
 
 	@Transactional(readOnly = true)
@@ -89,17 +78,8 @@ public class PluginService {
 	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant update(Plugin plugin) {
-		var maybeExisting = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
-		if (maybeExisting.isEmpty()) throw new NotFoundException("Plugin " + plugin.getQualifiedTag());
-		var existing = maybeExisting.get();
-		if (plugin.getModified() == null || !plugin.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Plugin " + plugin.getQualifiedTag());
-		plugin.setModified(Instant.now());
-		try {
-			pluginRepository.save(plugin);
-			return plugin.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.update(plugin);
+		return plugin.getModified();
 	}
 
 	@Transactional

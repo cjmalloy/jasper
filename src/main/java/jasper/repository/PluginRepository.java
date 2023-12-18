@@ -1,8 +1,11 @@
 package jasper.repository;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Plugin;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -12,6 +15,32 @@ import java.util.Optional;
 
 @Repository
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
+
+	@Modifying
+	@Query("""
+		UPDATE Plugin SET
+			name = :name,
+			config = :config,
+			schema = :schema,
+			defaults = :defaults,
+			generateMetadata = :generateMetadata,
+			userUrl = :userUrl,
+			modified = :modified
+		WHERE
+			tag = :tag AND
+			origin = :origin AND
+			modified = :cursor""")
+	int optimisticUpdate(
+		Instant cursor,
+		String tag,
+		String origin,
+		String name,
+		JsonNode config,
+		ObjectNode schema,
+		JsonNode defaults,
+		boolean generateMetadata,
+		boolean userUrl,
+		Instant modified);
 
 	@Query(value = """
 		SELECT max(p.modified)
