@@ -5,6 +5,7 @@ import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -15,12 +16,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.List;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
@@ -29,6 +30,9 @@ import javax.persistence.PersistenceException;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
+
+
+	private static final TemporalUnit CURSOR_PRECISION = ChronoUnit.MICROS;
 
 	@Autowired
 	Props props;
@@ -55,7 +59,7 @@ public class Ingest {
 	Messages messages;
 
 	@Autowired
-	private PlatformTransactionManager transactionManager;
+	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -65,12 +69,10 @@ public class Ingest {
 		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.addHierarchicalTags();
 		ref.setCreated(Instant.now());
-		ref.setModified(Instant.now());
 		validate.ref(ref, force);
 		rng.update(ref, null);
 		meta.update(ref, null, null);
-		ref.setCreated(Instant.now());
-		ensureUniqueModified(ref, true);
+		ensureCreateUniqueModified(ref);
 		messages.updateRef(ref);
 	}
 
@@ -79,11 +81,10 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
-		ref.setModified(Instant.now());
 		validate.ref(ref, force);
 		rng.update(ref, maybeExisting.get());
 		meta.update(ref, maybeExisting.get(), null);
-		ensureUniqueModified(ref, false);
+		ensureUpdateUniqueModified(ref);
 		messages.updateRef(ref);
 	}
 
@@ -91,7 +92,6 @@ public class Ingest {
 	public void push(Ref ref, List<String> metadataPlugins) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		ref.setModified(Instant.now());
 		validate.ref(ref, true);
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
@@ -99,20 +99,16 @@ public class Ingest {
 		messages.updateRef(ref);
 	}
 
-	void ensureUniqueModified(Ref ref, boolean create) {
+	void ensureCreateUniqueModified(Ref ref) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
-				ref.setModified(Instant.now(ensureUniqueModifiedClock));
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					if (create) {
-						em.persist(ref);
-						em.flush();
-					} else {
-						refRepository.saveAndFlush(ref);
-					}
+					ref.setModified(Instant.now(ensureUniqueModifiedClock).truncatedTo(CURSOR_PRECISION));
+					em.persist(ref);
+					em.flush();
 					return null;
 				});
 				break;
@@ -128,6 +124,41 @@ public class Ingest {
 				throw e;
 			}
 		}
+	}
+
+	void ensureUpdateUniqueModified(Ref ref) {
+		var cursor = ref.getModified();
+		var count = 0;
+		while (true) {
+			try {
+				count++;
+				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+				transactionTemplate.execute(status -> {
+					var existing = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
+						.orElseThrow(() -> new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl()));
+					if (!cursorEquals(cursor, existing.getModified())) {
+						throw new ModifiedException("Ref");
+					}
+					ref.setModified(Instant.now(ensureUniqueModifiedClock).truncatedTo(CURSOR_PRECISION));
+					refRepository.saveAndFlush(ref);
+					return null;
+				});
+				break;
+			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e.getCause() instanceof ConstraintViolationException c) {
+					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
+				throw e;
+			}
+		}
+	}
+
+	private boolean cursorEquals(Instant a, Instant b) {
+		if (a.getEpochSecond() != b.getEpochSecond()) return false;
+		return Math.abs(a.getNano() - b.getNano()) < CURSOR_PRECISION.getDuration().getNano();
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)

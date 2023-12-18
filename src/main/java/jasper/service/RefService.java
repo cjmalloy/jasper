@@ -133,9 +133,6 @@ public class RefService {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
-		if (!force && (ref.getModified() == null || !ref.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS)))) {
-			throw new ModifiedException("Ref");
-		}
 		var hiddenTags = auth.hiddenTags(existing.getTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
@@ -153,8 +150,6 @@ public class RefService {
 			ref = new Ref();
 			ref.setUrl(url);
 			ref.setOrigin(origin);
-		} else {
-			if (!cursor.truncatedTo(ChronoUnit.SECONDS).equals(ref.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("Ref");
 		}
 		ref.setPlugins(validate.pluginDefaults(ref));
 		try {
@@ -167,6 +162,7 @@ public class RefService {
 			if (created) {
 				return create(updated, false);
 			} else {
+				updated.setModified(cursor);
 				return update(updated, false);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
