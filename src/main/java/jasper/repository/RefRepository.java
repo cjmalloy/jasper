@@ -120,11 +120,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref r
-		SET metadata = NULL
-		WHERE metadata IS NOT NULL
-		AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		UPDATE Ref ref
+		SET ref.metadata = NULL
+		WHERE ref.metadata IS NOT NULL
+		AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
