@@ -94,7 +94,11 @@ public class Ingest {
 		validate.ref(ref, true);
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
-		refRepository.save(ref);
+		try {
+			refRepository.save(ref);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 		messages.updateRef(ref);
 	}
 

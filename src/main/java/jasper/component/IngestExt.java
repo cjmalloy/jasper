@@ -59,7 +59,11 @@ public class IngestExt {
 	@Timed(value = "jasper.ext", histogram = true)
 	public void push(Ext ext) {
 		validate.ext(ext, true);
-		extRepository.save(ext);
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {

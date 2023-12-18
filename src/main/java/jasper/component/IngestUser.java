@@ -58,7 +58,11 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void push(User user) {
-		userRepository.save(user);
+		try {
+			userRepository.save(user);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	void ensureCreateUniqueModified(User user) {

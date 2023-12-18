@@ -2,7 +2,6 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
-import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -54,7 +53,11 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void push(Plugin plugin) {
-		pluginRepository.save(plugin);
+		try {
+			pluginRepository.save(plugin);
+		} catch (DataIntegrityViolationException e) {
+			throw new DuplicateModifiedDateException();
+		}
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {
