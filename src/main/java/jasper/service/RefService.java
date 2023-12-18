@@ -86,10 +86,10 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
-		var result = refRepository.findOneByUrlAndOrigin(url, origin)
+		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
+			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		return mapper.domainToDto(result);
 	}
 
 	@Transactional(readOnly = true)
