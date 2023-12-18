@@ -1,11 +1,9 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.IngestUser;
 import jasper.config.Props;
 import jasper.domain.User;
-import jasper.errors.AlreadyExistsException;
-import jasper.errors.DuplicateModifiedDateException;
-import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -14,7 +12,6 @@ import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +25,6 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
@@ -50,6 +46,9 @@ public class UserService {
 	UserRepository userRepository;
 
 	@Autowired
+	IngestUser ingest;
+
+	@Autowired
 	Auth auth;
 
 	@Autowired
@@ -58,37 +57,23 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
-		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
-		user.setModified(Instant.now());
-		try {
-			userRepository.save(user);
-			return user.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.create(user);
+		return user.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void push(User user) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		if (maybeExisting.isPresent() && user.getKey() == null) {
-			user.setKey(maybeExisting.get().getKey());
-		}
-		try {
-			userRepository.save(user);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.push(user);
 	}
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
-		var result = userRepository.findOneByQualifiedTag(qualifiedTag)
-								   .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
-		return mapper.domainToDto(result);
+		return userRepository.findOneByQualifiedTag(qualifiedTag)
+							 .map(mapper::domainToDto)
+							 .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
 	}
 
 	@Transactional(readOnly = true)
@@ -116,17 +101,11 @@ public class UserService {
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		var existing = maybeExisting.get();
-		if (user.getModified() == null || !user.getModified().truncatedTo(ChronoUnit.SECONDS).equals(existing.getModified().truncatedTo(ChronoUnit.SECONDS))) throw new ModifiedException("User " + user.getQualifiedTag());
-		user.addReadAccess(auth.hiddenTags(maybeExisting.get().getReadAccess()));
-		user.addWriteAccess(auth.hiddenTags(maybeExisting.get().getWriteAccess()));
-		user.setModified(Instant.now());
-		if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
-		try {
-			userRepository.save(user);
-			return user.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		user.addReadAccess(auth.hiddenTags(existing.getReadAccess()));
+		user.addWriteAccess(auth.hiddenTags(existing.getWriteAccess()));
+		if (user.getKey() == null) user.setKey(existing.getKey());
+		ingest.update(user);
+		return user.getModified();
 	}
 
 	// TODO: merge
@@ -142,13 +121,8 @@ public class UserService {
 		KeyPair kp = kpg.generateKeyPair();
 		user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
 		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getTag()).getBytes());
-		user.setModified(Instant.now());
-		try {
-			userRepository.save(user);
-			return user.getModified();
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+		ingest.update(user);
+		return user.getModified();
 	}
 
 	@Transactional
