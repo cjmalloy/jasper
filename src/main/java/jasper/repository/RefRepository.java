@@ -97,6 +97,17 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	boolean existsByUrlAndModifiedGreaterThan(String url, String origin, Instant modified);
 
+	// TODO: Sync cache
+	@Modifying
+	@Transactional
+	@Query(nativeQuery = true, value = """
+		UPDATE ref r
+		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
+		WHERE r.url = :url
+			AND r.modified < :modified
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	int setObsolete(String url, String origin, Instant modified);
+
 	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
@@ -174,14 +185,4 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 				OR plugins->'+plugin/origin'->>'local' = :remote
 		LIMIT 1""")
 	Optional<RefUrl> originUrl(String origin, String remote);
-
-	@Modifying
-	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref r
-		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
-		WHERE r.url = :url
-			AND r.modified < :modified
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	int setObsolete(String url, String origin, Instant modified);
 }
