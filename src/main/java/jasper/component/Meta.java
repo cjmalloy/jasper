@@ -44,21 +44,21 @@ public class Meta {
 			ref.setMetadata(Metadata
 				.builder()
 				// TODO: multi-tenant filter instead of all origins
-				.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), "internal"))
-				.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), "internal"))
+				.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
+				.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
 				.plugins(metadataPlugins
 					.stream()
 					.map(tag -> new Pair<>(
 						tag,
-						refRepository.findAllResponsesWithTag(ref.getUrl(), tag)))
+						refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), tag)))
 					.filter(p -> !p.getValue1().isEmpty())
 					.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
 				.build()
 			);
 
 			// Set Obsolete
-			ref.getMetadata().setObsolete(refRepository.existsByUrlAndModifiedGreaterThan(ref.getUrl(), ref.getModified()));
-			refRepository.setObsolete(ref.getUrl(), ref.getModified(), props.isMultiTenant() ? ref.getOrigin() : "");
+			ref.getMetadata().setObsolete(refRepository.existsByUrlAndModifiedGreaterThan(ref.getUrl(), ref.getOrigin(), ref.getModified()));
+			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), ref.getModified());
 
 			// Update sources
 			var internal = ref.getTags() != null && ref.getTags().contains("internal");

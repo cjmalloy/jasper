@@ -291,15 +291,17 @@ public class Validate {
 	private void sources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sources = refRepository.findAllByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getPublished());
-			for (var source : sources) {
-				ref.setPublished(source.getPublished().plusMillis(1));
+			var sourcePublished = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
+			for (var published : sourcePublished) {
+				if (published.isAfter(ref.getPublished())) {
+					ref.setPublished(published.plusMillis(1));
+				}
 			}
 		}
 	}
 
 	private void responses(Ref ref) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getPublished());
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getOrigin(), ref.getPublished());
 		for (var response : responses) {
 			throw new PublishDateException(response, ref.getUrl());
 		}

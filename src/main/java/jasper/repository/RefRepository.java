@@ -24,7 +24,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
-	boolean existsByUrlAndModifiedGreaterThan(String url, Instant modifiedAfter);
 
 	@Modifying
 	@Query("""
@@ -62,25 +61,41 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
 
-	List<Ref> findAllByUrlAndPublishedGreaterThanEqual(String url, Instant date);
+	@Query(nativeQuery = true, value = """
+		SELECT modified FROM Ref ref
+		WHERE url = :url
+			AND published >= :published
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
+			""")
+	List<Instant> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
 		WHERE ref.published <= :date
-			AND jsonb_exists(ref.sources, :url)""")
-	List<String> findAllResponsesPublishedBeforeThanEqual(String url, Instant date);
+			AND jsonb_exists(ref.sources, :url)
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	List<String> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant date);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
 		WHERE jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag)""")
-	List<String> findAllResponsesWithTag(String url, String tag);
+			AND jsonb_exists(ref.tags, :tag)
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
 		WHERE jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag) = false""")
-	List<String> findAllResponsesWithoutTag(String url, String tag);
+			AND jsonb_exists(ref.tags, :tag) = false
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
+
+	@Query("""
+		SELECT COUNT(ref) > 0 FROM Ref ref
+		WHERE ref.url = :url
+			AND ref.modified > :modified
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	boolean existsByUrlAndModifiedGreaterThan(String url, String origin, Instant modified);
 
 	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
@@ -168,5 +183,5 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url = :url
 			AND r.modified < :modified
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	int setObsolete(String url, Instant modified, String origin);
+	int setObsolete(String url, String origin, Instant modified);
 }
