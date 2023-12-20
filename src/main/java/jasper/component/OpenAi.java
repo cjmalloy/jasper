@@ -1,16 +1,13 @@
 package jasper.component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.OpenAiApi;
 import com.theokanning.openai.OpenAiHttpException;
 import com.theokanning.openai.completion.CompletionRequest;
 import com.theokanning.openai.completion.CompletionResult;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
-import com.theokanning.openai.finetune.FineTuneRequest;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.image.ImageResult;
 import com.theokanning.openai.service.OpenAiService;
@@ -20,26 +17,16 @@ import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import retrofit2.Retrofit;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import static com.theokanning.openai.service.OpenAiService.defaultClient;
-import static com.theokanning.openai.service.OpenAiService.defaultObjectMapper;
-import static com.theokanning.openai.service.OpenAiService.defaultRetrofit;
-import static com.theokanning.openai.service.OpenAiService.execute;
 import static jasper.repository.spec.QualifiedTag.selector;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("ai")
 @Component
@@ -182,6 +169,7 @@ public class OpenAi {
 
 	public static class AiConfig {
 		public String model = "gpt-4-1106-preview";
+		public List<String> fallback;
 		public int maxTokens = 4096;
 		public String systemPrompt;
 	}
