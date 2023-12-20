@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.theokanning.openai.OpenAiHttpException;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
@@ -135,7 +137,9 @@ public class Ai implements Async.AsyncRunner {
 					response.setComment(reply);
 					response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai")));
 				}
-				response.setPlugin("+plugin/openai", objectMapper.convertValue(res.getUsage(), JsonNode.class));
+				var responsePlugin = objectMapper.convertValue(res.getUsage(), ObjectNode.class);
+				responsePlugin.set("model", TextNode.valueOf(config.model));
+				response.setPlugin("+plugin/openai", responsePlugin);
 				break;
 			} catch (Exception e) {
 				if (e instanceof OpenAiHttpException o) {
