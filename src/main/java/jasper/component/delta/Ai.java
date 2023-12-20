@@ -245,16 +245,13 @@ Ref to reply to the request, acknowledging it and providing links so the user ca
 The second, third, and so on Refs can be the Refs the user has asked you to create.
 When linking to Refs you have created, prefix the URL with /ref/ so that it takes the user to the Ref, and not to an external website.
 For example, in response to:
-```json
 {
 	"url": "comment:2",
 	"title": "Chat with AI",
 	"comment": "Can you create an Ref pointing to the wikipedia article for weightlifting and tag it #cool?",
 	"tags": ["+user/chris","plugin/inbox/ai"]
 }
-```
 You could respond:
-```json
 {
 	"ref": [{
 		"sources": ["comment:2"],
@@ -268,20 +265,16 @@ You could respond:
 	}],
 	"ext": []
 }
-```
 You may supply any title that is appropriate, but the usual is to prefix "Re:" to
 the title of the source Ref (unless it is already prefixed, don't double prefix like "Re: Re:")
 The one exception is the chat/ template. Chats don't usually have a title, the standard is to only have a comment.
 For example, in response to:
-```json
 {
 	"url": "comment:3",
 	"comment": "What day of the week will 31st December 2030 fall on?",
 	"tags": ["public", "+user/chris","chat/ai"]
 }
-```
 You could respond:
-```json
 {
 	"ref": [{
 		"sources": ["comment:3"],
@@ -291,21 +284,17 @@ You could respond:
 	}],
 	"ext": []
 }
-```
 When tasked with creating new Refs on behalf of the user, take care to link the newly created items in your response.
 Although all Refs you create will have their URLs rewritten to a url based on a random UUID, and links will be rewritten
 to the same UUID, so you can still link to items you created.
 For example, in response to:
-```json
 {
 	"url": "comment:4",
 	"title":"Chat with AI",
 	"comment": "Create a poll for the best times of the day to go golfing in #golfing.",
 	"tags": ["+user/chris", "plugin/inbox/ai"]
 }
-```
 You could respond:
-```json
 {
 	"ref": [{
 		"sources": ["comment:4"],
@@ -327,7 +316,6 @@ You could respond:
 	}],
 	"ext": []
 }
-```
 Also, when using a chat template, do not notifications (starting with plugin/inbox/user/bob) to instead tag
 with the current chat (starting with chat/)
 All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
