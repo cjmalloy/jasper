@@ -20,6 +20,7 @@ import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.errors.NotFoundException;
+import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -35,6 +36,8 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -61,6 +64,9 @@ public class Ai implements Async.AsyncRunner {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	ExtRepository extRepository;
 
 	@Autowired
 	PluginRepository pluginRepository;
@@ -94,6 +100,21 @@ public class Ai implements Async.AsyncRunner {
 		// TODO: compress pages if too long
 		var parents = refRepository.findAll(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl())), by(Ref_.PUBLISHED))
 			.stream().map(refMapper::domainToDto).toList();
+		var exts = new HashMap<String, Ext>();
+		if (ref.getTags() != null) {
+			for (var t : ref.getTags()) {
+				var qt = t + ref.getOrigin();
+				var ext = extRepository.findOneByQualifiedTag(qt);
+				if (ext.isPresent()) exts.put(qt, extRepository.findOneByQualifiedTag(qt).get());
+			}
+		}
+		for (var p : parents) {
+			for (var t : p.getTags()) {
+				var qt = t + ref.getOrigin();
+				var ext = extRepository.findOneByQualifiedTag(qt);
+				if (ext.isPresent()) exts.put(qt, extRepository.findOneByQualifiedTag(qt).get());
+			}
+		}
 		var sample = refMapper.domainToDto(ref);
 		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) { // TODO: set max plugin len as prop
@@ -112,7 +133,7 @@ public class Ai implements Async.AsyncRunner {
 		List<Ref> refArray = List.of(response);
 		for (var model : models) {
 			config.model = model;
-			var messages = getChatMessages(ref, model.equals("gpt-4-1106-preview"), plugins, templates, config, parents, author, sample);
+			var messages = getChatMessages(ref, model.equals("gpt-4-1106-preview"), exts.values(), plugins, templates, config, parents, author, sample);
 			try {
 				var res = openAi.chat(messages, config);
 				var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
@@ -214,7 +235,7 @@ public class Ai implements Async.AsyncRunner {
 	}
 
 	@NotNull
-	private ArrayList<ChatMessage> getChatMessages(Ref ref, boolean listMods, List<Plugin> plugins, List<Template> templates, OpenAi.AiConfig config, List<RefDto> parents, String author, RefDto sample) throws JsonProcessingException {
+	private ArrayList<ChatMessage> getChatMessages(Ref ref, boolean listMods, Collection<Ext> exts, List<Plugin> plugins, List<Template> templates, OpenAi.AiConfig config, List<RefDto> parents, String author, RefDto sample) throws JsonProcessingException {
 		var instructions = """
 Include your response as the comment field of a Ref.
 Only reply with pure JSON. Do not include any text outside of the JSON Ref.
@@ -338,11 +359,17 @@ Your reply should always start with {"ref":[{
    """ + objectMapper.writeValueAsString(plugins) + """
 			The installed templates are:
 	""" + objectMapper.writeValueAsString(templates);
+		var extsPrompt = """
+   The referenced Exts are:
+	""" + objectMapper.writeValueAsString(exts);
 		var messages = new ArrayList<>(List.of(
 			cm(ref.getOrigin(), "system", "System Prompt", config.systemPrompt, objectMapper)
 		));
 		if (listMods) {
 			messages.add(cm(ref.getOrigin(), "system", "System Mods", modsPrompt, objectMapper));
+		}
+		if (exts.isEmpty()) {
+			messages.add(cm(ref.getOrigin(), "system", "Exts", extsPrompt, objectMapper));
 		}
 		for (var p : parents) {
 			p.setMetadata(null);
