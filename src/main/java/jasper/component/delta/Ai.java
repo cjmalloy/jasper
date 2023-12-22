@@ -203,13 +203,15 @@ public class Ai implements Async.AsyncRunner {
 		response.setSources(sources);
 		for (var aiReply : refArray) {
 			var oldUrl = aiReply.getUrl();
-			aiReply.setUrl("ai:" + UUID.randomUUID());
-			if (!isBlank(oldUrl)) {
-				for (var rewrite : refArray) {
-					if (isBlank(rewrite.getComment())) continue;
-					rewrite.setComment(rewrite
-						.getComment().replace("](" + oldUrl + ")", "](" + aiReply.getUrl() + ")")
-						.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")"));
+			if (isBlank(oldUrl) || !oldUrl.startsWith("http:") && !oldUrl.startsWith("https:")) {
+				aiReply.setUrl("ai:" + UUID.randomUUID());
+				if (!isBlank(oldUrl)) {
+					for (var rewrite : refArray) {
+						if (isBlank(rewrite.getComment())) continue;
+						rewrite.setComment(rewrite
+							.getComment().replace("](" + oldUrl + ")", "](" + aiReply.getUrl() + ")")
+							.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")"));
+					}
 				}
 			}
 			aiReply.setOrigin(ref.getOrigin());
@@ -297,8 +299,8 @@ You could respond:
 	"ext": []
 }
 When tasked with creating new Refs on behalf of the user, take care to link the newly created items in your response.
-Although all Refs you create will have their URLs rewritten to a url based on a random UUID, and links will be rewritten
-to the same UUID, so you can still link to items you created.
+If you create a ref with an http or https url, it will not be rewritten. If you want the url rewritten, use a url like ai:<uuid>.
+All markdown links matching rewritten urls will also be updated.
 For example, in response to:
 {
 	"url": "comment:4",
@@ -325,6 +327,28 @@ You could respond:
 				"d": "Night",
 			}
 		}
+	}],
+	"ext": []
+}
+However, in response to requests to create web links, use http or https urls to prevent rewriting.
+For example, in response to:
+{
+	"url": "comment:5",
+	"title":"Chat with AI",
+	"comment": "Create a link to the Wikipedia entry for Sparkline and tag it #data.",
+	"tags": ["+user/chris", "plugin/inbox/ai"]
+}
+You could respond:
+{
+	"ref": [{
+		"sources": ["comment:4"],
+		"title": "Re: Chat with AI",
+		"comment": "Sure! [Here](/ref/https://en.wikipedia.org/wiki/Sparkline) it is.",
+		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
+	}, {
+		"url": "https://en.wikipedia.org/wiki/Sparkline"
+		"title": "Sparkline - Wikipedia",
+		"tags": ["public", "data"]
 	}],
 	"ext": []
 }
