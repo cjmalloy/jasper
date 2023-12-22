@@ -234,25 +234,22 @@ public class Ai implements Async.AsyncRunner {
 Include your response as the comment field of a Ref.
 Only reply with pure JSON. Do not include any text outside of the JSON Ref.
 For example, in response to:
-```json
 {
 	"url": "comment:1",
 	"title": "Say Hi!",
 	"tags": ["public", "+user/chris", "plugin/inbox/ai"]
 }
-```
+
 You could respond:
-```json
 {
 	"ref": [{
 		"sources": ["comment:1"],
 		"title": "Re: Say Hi",
 		"comment":"Hi!",
-		"tags": ["public", "+plugin/openai", "plugin/inbox/user/chris"]
+		"tags": ["public", "plugin/inbox/user/chris", "+plugin/openai"]
 	}],
 	"ext": []
 }
-```
 Also include any other entities (refs, exts) in your response and they will be created.
 However, the first Ref should be considered your response and is the only required response.
 When asked to create a Ref, do not use the first Ref to fulfil the request. Always use the first
@@ -272,7 +269,7 @@ You could respond:
 		"sources": ["comment:2"],
 		"title": "Re: Chat with AI",
 		"comment": "Certainly! [Here](/ref/https://en.wikipedia.org/wiki/Weightlifting) it is.",
-		"tags": ["+plugin/openai", "plugin/inbox/user/chris"]
+		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
 	}, {
 		"url": ["https://en.wikipedia.org/wiki/Weightlifting"],
 		"title": "Weightlifting",
@@ -315,7 +312,7 @@ You could respond:
 		"sources": ["comment:4"],
 		"title": "Re: Chat with AI",
 		"comment": "Sure! [Here](/ref/ai:1) is the poll.",
-		"tags": ["+plugin/openai"]
+		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
 	}, {
 		"url": "ai:1"
 		"title": "Best time to golf?",
