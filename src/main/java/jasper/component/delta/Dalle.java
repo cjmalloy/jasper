@@ -8,6 +8,7 @@ import jasper.component.WebScraper;
 import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.domain.proj.Tag;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
@@ -72,24 +73,11 @@ public class Dalle implements Async.AsyncRunner {
 			response.setComment("Error invoking DALL-E. " + e.getMessage());
 			response.setUrl("internal:" + UUID.randomUUID());
 		}
-		if (ref.getTags().contains("public")) response.addTag("public");
-		if (ref.getTags().contains("internal")) response.addTag("internal");
-		if (ref.getTags().contains("dm")) response.addTag("dm");
-		if (ref.getTags().contains("dm")) response.addTag("plugin/thread");
-		if (ref.getTags().contains("plugin/email")) response.addTag("plugin/email");
-		if (ref.getTags().contains("plugin/email")) response.addTag("plugin/thread");
-		if (ref.getTags().contains("plugin/comment")) response.addTag("plugin/comment");
-		if (ref.getTags().contains("plugin/comment")) response.addTag("plugin/thread");
-		if (ref.getTags().contains("plugin/thread")) response.addTag("plugin/thread");
+		response.addTags(ref.getTags().stream().filter(Tag::publicTag).toList());
+		response.addTag("plugin/thread");
 		response.addTag("plugin/image");
 		response.addTag("plugin/thumbnail");
-		var chat = false;
-		for (var t : ref.getTags()) {
-			if (t.startsWith("chat/") || t.equals("chat")) {
-				chat = true;
-				response.addTag(t);
-			}
-		}
+		var chat = ref.getTags().stream().anyMatch(t -> t.startsWith("chat/") || t.equals("chat"));
 		if (!chat) {
 			if (author != null) response.addTag("plugin/inbox/" + author.substring(1));
 			for (var t : ref.getTags()) {
@@ -101,9 +89,9 @@ public class Dalle implements Async.AsyncRunner {
 		response.addTag("+plugin/dalle");
 		response.getTags().remove("plugin/inbox/dalle");
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
-		if (response.getTags().contains("plugin/thread")) {
+		if (ref.getTags().contains("plugin/thread") || ref.getTags().contains("plugin/comment")) {
 			// Add top comment source
-			if (ref.getSources() != null && ref.getSources().size() > 0) {
+			if (ref.getSources() != null && !ref.getSources().isEmpty()) {
 				if (ref.getSources().size() > 1) {
 					sources.add(ref.getSources().get(1));
 				} else {

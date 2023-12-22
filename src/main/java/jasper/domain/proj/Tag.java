@@ -36,6 +36,11 @@ public interface Tag extends Cursor {
 		}
 	}
 
+	static boolean publicTag(String tag) {
+		if (isBlank(tag)) return false;
+		return !tag.startsWith("_") && !tag.startsWith("+");
+	}
+
 	static String localTag(String tag) {
 		if (isBlank(tag)) return tag;
 		if (!tag.contains("@")) return tag;

@@ -178,13 +178,7 @@ public class Ai implements Async.AsyncRunner {
 		if (ref.getTags().contains("plugin/email")) response.addTag("plugin/thread");
 		if (ref.getTags().contains("plugin/comment")) response.addTag("plugin/comment");
 		if (ref.getTags().contains("plugin/thread")) response.addTag("plugin/thread");
-		var chat = false;
-		for (var t : ref.getTags()) {
-			if (t.startsWith("chat/") || t.equals("chat")) {
-				chat = true;
-				response.addTag(t);
-			}
-		}
+		var chat = ref.getTags().stream().anyMatch(t -> t.startsWith("chat/") || t.equals("chat"));
 		if (!chat) {
 			if (author != null) response.addTag("plugin/inbox/" + author.substring(1));
 			for (var t : ref.getTags()) {
@@ -196,7 +190,7 @@ public class Ai implements Async.AsyncRunner {
 		response.addTag("+plugin/openai");
 		response.getTags().remove("plugin/inbox/ai");
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
-		if (response.getTags().contains("plugin/thread") || response.getTags().contains("plugin/comment")) {
+		if (ref.getTags().contains("plugin/thread") || ref.getTags().contains("plugin/comment")) {
 			// Add top comment source
 			if (ref.getSources() != null && !ref.getSources().isEmpty()) {
 				if (ref.getSources().size() > 1) {
