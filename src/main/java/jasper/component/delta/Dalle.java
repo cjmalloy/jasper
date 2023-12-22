@@ -67,7 +67,7 @@ public class Dalle implements Async.AsyncRunner {
 		var response = new Ref();
 		try {
 			var res = openAi.dale((isBlank(ref.getTitle()) ? "" : ref.getTitle() + ": ") + ref.getComment(), config);
-			response.setTitle("Re: " + ref.getTitle());
+			response.setTitle("Re: " + (isBlank(ref.getTitle()) ? "" : ref.getTitle()));
 			response.setUrl(res.getData().get(0).getUrl());
 		} catch (Exception e) {
 			response.setComment("Error invoking DALL-E. " + e.getMessage());
