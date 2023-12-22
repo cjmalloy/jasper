@@ -7,8 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.theokanning.openai.OpenAiHttpException;
-import com.theokanning.openai.completion.chat.ChatCompletionChoice;
-import com.theokanning.openai.completion.chat.ChatMessage;
+import com.theokanning.openai.messages.MessageContent;
+import com.theokanning.openai.messages.MessageRequest;
+import com.theokanning.openai.messages.content.Text;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.scheduler.Async;
@@ -42,7 +43,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static jasper.component.OpenAi.cm;
+import static jasper.component.OpenAi.m;
+import static jasper.component.OpenAi.ref;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -100,6 +102,13 @@ public class Ai implements Async.AsyncRunner {
 		// TODO: compress pages if too long
 		var parents = refRepository.findAll(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl())), by(Ref_.PUBLISHED))
 			.stream().map(refMapper::domainToDto).toList();
+		var thread = parents.stream()
+			.filter(p -> p.getTags() != null && p.getTags().contains("+plugin/openai"))
+			.findFirst()
+			.map(t -> t.getPlugins().get("+plugin/openai"))
+			.map(t -> objectMapper.convertValue(t, ObjectNode.class));
+		var assistantId = thread.map(t -> t.get("assistantId").asText()).orElse(config.assistantId);
+		var threadId = thread.map(t -> t.get("threadId").asText()).orElse(null);
 		var exts = new HashMap<String, Ext>();
 		if (ref.getTags() != null) {
 			for (var t : ref.getTags()) {
@@ -133,10 +142,22 @@ public class Ai implements Async.AsyncRunner {
 		List<Ref> refArray = List.of(response);
 		for (var model : models) {
 			config.model = model;
-			var messages = getChatMessages(ref, model.equals("gpt-4-1106-preview"), exts.values(), plugins, templates, config, parents, author, sample);
+			var instructions = getInstructions(ref.getOrigin(), config);
+			var context = getThreadContext(exts.values(), plugins, templates, parents);
 			try {
-				var res = openAi.chat(messages, config);
-				var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
+				var res = openAi.assistant(context, m(sample, objectMapper), instructions, assistantId, threadId, config);
+				if (res.hasMore || res.getData().size() > 1) {
+					logger.error("Multiple responses");
+				}
+				var m = res.getData().get(0);
+				threadId = m.getThreadId();
+				assistantId = m.getAssistantId();
+				if (!assistantId.equals(config.assistantId)) {
+					config.assistantId = assistantId;
+					aiPlugin.setConfig(objectMapper.convertValue(config, ObjectNode.class));
+					pluginRepository.save(aiPlugin);
+				}
+				var reply = m.getContent().stream().map(MessageContent::getText).map(Text::getValue).collect(Collectors.joining("\n\n"));
 				logger.debug("AI Reply: " + reply);
 				try {
 					var json = objectMapper.readValue(reply, JsonNode.class);
@@ -158,14 +179,16 @@ public class Ai implements Async.AsyncRunner {
 					response.setComment(reply);
 					response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai")));
 				}
-				var responsePlugin = objectMapper.convertValue(res.getUsage(), ObjectNode.class);
+				var responsePlugin = objectMapper.createObjectNode();
 				responsePlugin.set("model", TextNode.valueOf(config.model));
+				responsePlugin.set("assistantId", TextNode.valueOf(assistantId));
+				responsePlugin.set("threadId", TextNode.valueOf(threadId));
 				response.setPlugin("+plugin/openai", responsePlugin);
 				break;
 			} catch (Exception e) {
 				if (e instanceof OpenAiHttpException o) {
-					if (o.code.equals("rate_limit_exceeded")) continue;
-					if (o.code.equals("model_not_found")) continue;
+					if ("rate_limit_exceeded".equals(o.code)) continue;
+					if ("model_not_found".equals(o.code)) continue;
 				}
 				response.setComment("Error invoking AI. " + e.getMessage());
 				response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai")));
@@ -235,7 +258,7 @@ public class Ai implements Async.AsyncRunner {
 	}
 
 	@NotNull
-	private ArrayList<ChatMessage> getChatMessages(Ref ref, boolean listMods, Collection<Ext> exts, List<Plugin> plugins, List<Template> templates, OpenAi.AiConfig config, List<RefDto> parents, String author, RefDto sample) throws JsonProcessingException {
+	private String getInstructions(String origin, OpenAi.AiConfig config) {
 		var instructions = """
 Include your response as the comment field of a Ref.
 Only reply with pure JSON. Do not include any text outside of the JSON Ref.
@@ -351,45 +374,28 @@ Only reply with valid JSON.
 Do not include any text outside of the JSON Ref.
 Your reply should always start with {"ref":[{
 		""";
-		var modsPrompt = """
-   The system has been modified from the default Jasper configuration.
-   The installed mods (groups of plugins and templates) are as follows.
-   The installed plugins are:
+		return ref(origin, "system", "Instructions", config.systemPrompt + instructions, objectMapper);
+	}
 
-   """ + objectMapper.writeValueAsString(plugins) + """
-			The installed templates are:
-	""" + objectMapper.writeValueAsString(templates);
-		var extsPrompt = """
-   The referenced Exts are:
-	""" + objectMapper.writeValueAsString(exts);
-		var messages = new ArrayList<>(List.of(
-			cm(ref.getOrigin(), "system", "System Prompt", config.systemPrompt, objectMapper)
-		));
-		if (listMods) {
-			messages.add(cm(ref.getOrigin(), "system", "System Mods", modsPrompt, objectMapper));
+	@NotNull
+	private ArrayList<MessageRequest> getThreadContext(Collection<Ext> exts, List<Plugin> plugins, List<Template> templates, List<RefDto> parents) throws JsonProcessingException {
+		var result = new ArrayList<MessageRequest>();
+		for (var t : templates) {
+			result.add(m(t, objectMapper));
 		}
-		if (exts.isEmpty()) {
-			messages.add(cm(ref.getOrigin(), "system", "Exts", modsPrompt, objectMapper));
+		for (var p : plugins) {
+			result.add(m(p, objectMapper));
+		}
+		for (var ext : exts) {
+			result.add(m(ext, objectMapper));
 		}
 		for (var p : parents) {
 			p.setMetadata(null);
-			if (p.getTags().contains("+plugin/openai")) {
-				messages.add(cm("assistant", objectMapper.writeValueAsString(p)));
-			} else {
-				messages.add(cm("user", objectMapper.writeValueAsString(p)));
+			if (!p.getTags().contains("+plugin/openai")) {
+				result.add(m(p, objectMapper));
 			}
 		}
-		if (author == null) {
-			messages.add(cm(ref.getOrigin(), "system", "Spawning Agent Prompt",
-				"You are following up on a previous ref to further a line of inquiry, " +
-					"suggest the next course of action, or resolve the matter in your reply.", objectMapper));
-		} else {
-			messages.add(cm(ref.getOrigin(), "system", "Explanation of signature tag",
-				"When you see the tag " + author + " it is the signature for the author of the Ref you must respond to.", objectMapper));
-		}
-		messages.add(cm("user", objectMapper.writeValueAsString(sample)));
-		messages.add(cm(ref.getOrigin(), "system", "Output format instructions", instructions, objectMapper));
-		return messages;
+		return result;
 	}
 
 	@Getter
