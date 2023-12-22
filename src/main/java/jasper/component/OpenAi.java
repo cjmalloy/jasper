@@ -171,6 +171,7 @@ public class OpenAi {
 		public String model = "gpt-4-1106-preview";
 		public List<String> fallback;
 		public int maxTokens = 4096;
+		public int maxContext = 7;
 		public String systemPrompt;
 	}
 

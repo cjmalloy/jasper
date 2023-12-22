@@ -106,7 +106,7 @@ public class Ai implements Async.AsyncRunner {
 		var parents = refRepository.findAll(isNotObsolete().and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))), by(Ref_.PUBLISHED))
 			.stream().map(refMapper::domainToDto).toList();
 		parents.forEach(p -> context.put(p.getUrl(), p));
-		for (var i = 0; i < 7; i++) {
+		for (var i = 0; i < config.maxContext; i++) {
 			if (parents.isEmpty()) break;
 			var grandParents = parents.stream().flatMap(p -> refRepository.findAll(isNotObsolete().and(hasResponse(p.getUrl()).or(hasInternalResponse(p.getUrl()))), by(Ref_.PUBLISHED)).stream())
 				.map(refMapper::domainToDto).toList();
