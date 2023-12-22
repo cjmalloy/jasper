@@ -27,6 +27,7 @@ import jasper.repository.TemplateRepository;
 import jasper.service.dto.RefDto;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,8 @@ import java.util.stream.Collectors;
 import static jasper.component.OpenAi.cm;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Stream.concat;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -133,7 +136,7 @@ public class Ai implements Async.AsyncRunner {
 		List<Ref> refArray = List.of(response);
 		for (var model : models) {
 			config.model = model;
-			var messages = getChatMessages(ref, model.equals("gpt-4-1106-preview"), exts.values(), plugins, templates, config, parents, author, sample);
+			var messages = getChatMessages(ref, exts.values(), plugins, templates, config, parents, author, sample);
 			try {
 				var res = openAi.chat(messages, config);
 				var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
@@ -231,7 +234,17 @@ public class Ai implements Async.AsyncRunner {
 	}
 
 	@NotNull
-	private ArrayList<ChatMessage> getChatMessages(Ref ref, boolean listMods, Collection<Ext> exts, List<Plugin> plugins, List<Template> templates, OpenAi.AiConfig config, List<RefDto> parents, String author, RefDto sample) throws JsonProcessingException {
+	private ArrayList<ChatMessage> getChatMessages(Ref ref, Collection<Ext> exts, List<Plugin> plugins, List<Template> templates, OpenAi.AiConfig config, List<RefDto> parents, String author, RefDto sample) throws JsonProcessingException {
+		var modsPrompt = concat(
+			plugins.stream().map(Plugin::getConfig),
+			templates.stream().map(Template::getConfig)
+		)
+			.flatMap(nc -> ofNullable(nc)
+				.map(c -> c.get("aiInstructions"))
+				.map(JsonNode::asText)
+				.stream())
+			.filter(StringUtils::isNotBlank)
+			.reduce("", (a, b) -> a + "\n\n" + b);
 		var instructions = """
 Include your response as the comment field of a Ref.
 Only reply with pure JSON. Do not include any text outside of the JSON Ref.
@@ -354,6 +367,7 @@ You could respond:
 }
 Also, when using a chat template, do not notifications (starting with plugin/inbox/user/bob) to instead tag
 with the current chat (starting with chat/)
+""" + modsPrompt + """
 All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
 Always add the "+plugin/openai" tag, as that is your signature.
 Never include a tag like "+user/chris", as that is impersonation.
@@ -366,23 +380,12 @@ Only reply with valid JSON.
 Do not include any text outside of the JSON Ref.
 Your reply should always start with {"ref":[{
 		""";
-		var modsPrompt = """
-   The system has been modified from the default Jasper configuration.
-   The installed mods (groups of plugins and templates) are as follows.
-   The installed plugins are:
-
-   """ + objectMapper.writeValueAsString(plugins) + """
-			The installed templates are:
-	""" + objectMapper.writeValueAsString(templates);
 		var extsPrompt = """
    The referenced Exts are:
 	""" + objectMapper.writeValueAsString(exts);
 		var messages = new ArrayList<>(List.of(
 			cm(ref.getOrigin(), "system", "System Prompt", config.systemPrompt, objectMapper)
 		));
-		if (listMods) {
-			messages.add(cm(ref.getOrigin(), "system", "System Mods", modsPrompt, objectMapper));
-		}
 		if (exts.isEmpty()) {
 			messages.add(cm(ref.getOrigin(), "system", "Exts", extsPrompt, objectMapper));
 		}
