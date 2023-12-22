@@ -97,15 +97,14 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	boolean existsByUrlAndModifiedGreaterThan(String url, String origin, Instant modified);
 
-	// TODO: Sync cache
 	@Modifying
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref r
-		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
-		WHERE r.url = :url
-			AND r.modified < :olderThan
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		UPDATE Ref ref
+		SET ref.metadata = COALESCE(jsonb_set(ref.metadata, '{obsolete}', cast_to_jsonb('true'), true), cast_to_jsonb('{"obsolete":true}'))
+		WHERE ref.url = :url
+			AND ref.modified < :olderThan
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	int setObsolete(String url, String origin, Instant olderThan);
 
 	@Query(nativeQuery = true, value = """
