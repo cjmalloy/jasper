@@ -104,9 +104,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
 		WHERE r.url = :url
-			AND r.modified < :modified
+			AND r.modified < :olderThan
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	int setObsolete(String url, String origin, Instant modified);
+	int setObsolete(String url, String origin, Instant olderThan);
 
 	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,

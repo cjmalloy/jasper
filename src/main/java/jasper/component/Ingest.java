@@ -70,8 +70,9 @@ public class Ingest {
 		ref.setCreated(Instant.now());
 		validate.ref(ref, force);
 		rng.update(ref, null);
-		meta.update(ref, null, null);
+		meta.ref(ref, null);
 		ensureCreateUniqueModified(ref);
+		meta.sources(ref, null, null);
 		messages.updateRef(ref);
 	}
 
@@ -82,8 +83,9 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		validate.ref(ref, force);
 		rng.update(ref, maybeExisting.get());
-		meta.update(ref, maybeExisting.get(), null);
+		meta.ref(ref, null);
 		ensureUpdateUniqueModified(ref);
+		meta.sources(ref, maybeExisting.get(), null);
 		messages.updateRef(ref);
 	}
 
@@ -93,12 +95,13 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		validate.ref(ref, true);
 		rng.update(ref, maybeExisting.orElse(null));
-		meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
+		meta.ref(ref, metadataPlugins);
 		try {
 			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
+		meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
 		messages.updateRef(ref);
 	}
 
@@ -106,8 +109,8 @@ public class Ingest {
 	public void delete(String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		meta.update(null, maybeExisting.get(), null);
 		refRepository.deleteByUrlAndOrigin(url, origin);
+		meta.sources(null, maybeExisting.get(), null);
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {

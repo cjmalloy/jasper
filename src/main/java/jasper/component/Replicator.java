@@ -29,9 +29,11 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
 @Component
@@ -107,9 +109,10 @@ public class Replicator {
 				for (var ref : client.refPull(url, options)) {
 					ref.setOrigin(localOrigin);
 					pull.migrate(ref, config);
+					Optional<Ref> maybeExisting = empty();
 					if (pull.isGenerateMetadata()) {
-						var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-						meta.update(ref, maybeExisting.orElse(null), metadataPlugins);
+						maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+						meta.ref(ref, metadataPlugins);
 					}
 					try {
 						if (pull.isValidatePlugins()) {
@@ -117,6 +120,7 @@ public class Replicator {
 						}
 						refRepository.save(ref);
 						if (pull.isGenerateMetadata()) {
+							meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
 							messages.updateRef(ref);
 						}
 					} catch (RuntimeException e) {
