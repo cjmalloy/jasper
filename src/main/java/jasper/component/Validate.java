@@ -291,10 +291,10 @@ public class Validate {
 	private void sources(Ref ref) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sourcePublished = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
-			for (var published : sourcePublished) {
-				if (published.isAfter(ref.getPublished())) {
-					ref.setPublished(published.plusMillis(1));
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
+			for (var source : sources) {
+				if (source.getPublished().isAfter(ref.getPublished())) {
+					ref.setPublished(source.getPublished().plusMillis(1));
 				}
 			}
 		}

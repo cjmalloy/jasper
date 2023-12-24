@@ -61,13 +61,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
 
-	@Query(nativeQuery = true, value = """
-		SELECT modified FROM Ref ref
-		WHERE url = :url
-			AND published >= :published
+	@Query(value = """
+		SELECT ref FROM Ref ref
+		WHERE ref.url = :url
+			AND ref.published >= :published
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
 			""")
-	List<Instant> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
+	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
