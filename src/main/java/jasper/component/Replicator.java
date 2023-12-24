@@ -124,7 +124,7 @@ public class Replicator {
 							messages.updateRef(ref);
 						}
 					} catch (RuntimeException e) {
-						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
 					}
 				}
 				options.put("modifiedAfter", extRepository.getCursor(localOrigin));
@@ -136,7 +136,7 @@ public class Replicator {
 						}
 						extRepository.save(ext);
 					} catch (RuntimeException e) {
-						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag());
+						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag(), e);
 					}
 				}
 				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
