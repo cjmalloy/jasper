@@ -120,7 +120,7 @@ public class UserService {
 		kpg.initialize(4096);
 		KeyPair kp = kpg.generateKeyPair();
 		user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
-		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getTag()).getBytes());
+		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getQualifiedTag()).getBytes());
 		ingest.update(user);
 		return user.getModified();
 	}
