@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
@@ -50,4 +51,6 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		FROM User u
 		WHERE u.origin = :origin""")
 	Instant getCursor(String origin);
+
+	List<User> findAllByOriginAndPubKeyIsNotNull(String origin);
 }
