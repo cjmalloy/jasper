@@ -86,6 +86,7 @@ public class OembedService {
 			.map(r -> r.getPlugins().get("+plugin/oembed"))
 			.map(p -> objectMapper.convertValue(p, Oembed.class)).toList();
 		for (var p : providers) {
+			if (p == null) continue;
 			for (var e : p.getEndpoints()) {
 				if (e.getSchemes() == null || e.getSchemes().isEmpty()) {
 					if (url.startsWith(p.getProvider_url())) return e;
