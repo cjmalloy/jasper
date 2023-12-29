@@ -157,6 +157,9 @@ public class Ai implements Async.AsyncRunner {
 				var res = openAi.chat(messages, config);
 				var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
 				logger.debug("AI Reply: " + reply);
+				if (reply.startsWith("```json")) {
+					reply = reply.substring("```json".length(), reply.length() - "```".length());
+				}
 				try {
 					var json = objectMapper.readValue(reply, JsonNode.class);
 					if (json.has("ref")) {
