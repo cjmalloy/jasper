@@ -84,7 +84,7 @@ public class Meta {
 			for (var source : sources) {
 				var metadata = source.getMetadata();
 				if (metadata == null) {
-					logger.warn("Ref missing metadata: {}", ref.getUrl());
+					logger.debug("Ref missing metadata: {}", ref.getUrl());
 					metadata = Metadata
 						.builder()
 						.responses(new ArrayList<>())
