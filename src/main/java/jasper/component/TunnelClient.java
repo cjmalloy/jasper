@@ -16,10 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.HasTags.authors;
@@ -84,18 +82,17 @@ public class TunnelClient {
 					try (var tracker = session.createLocalPortForwardingTracker(LOCAL_HTTP_PORT, new SshdSocketAddress("localhost", httpPort[0]))) {
 						logger.debug("Opened reverse proxy in SSH tunnel.");
 						request.go(new URI("http://localhost:" + LOCAL_HTTP_PORT));
-					} catch (URISyntaxException e) {
+					} catch (Exception e) {
 						logger.debug("Error creating tunnel tracker", e);
 						throw new InvalidTunnelException("Error creating tunnel tracker", e);
 					}
-				} catch (IOException | GeneralSecurityException e) {
+				} catch (Exception e) {
 					logger.debug("Error creating tunnel SSH session", e);
-					logger.debug(e.getMessage());
 					throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 				} finally {
 					client.stop();
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				logger.debug("Error creating tunnel SSH client", e);
 				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 			}
