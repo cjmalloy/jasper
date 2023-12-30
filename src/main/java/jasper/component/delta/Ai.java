@@ -144,9 +144,7 @@ public class Ai implements Async.AsyncRunner {
 		var models = new ArrayList<String>();
 		models.add(config.model);
 		if (config.fallback != null) {
-			for (var fallback : config.fallback) {
-				models.add(fallback);
-			}
+			models.addAll(config.fallback);
 		}
 		var response = new Ref();
 		List<Ref> refArray = List.of(response);
