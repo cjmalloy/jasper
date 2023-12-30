@@ -54,8 +54,12 @@ public class TunnelServer {
 				.append("\n");
 			for (var u : userRepository.findAllByOriginAndPubKeyIsNotNull(origin)) {
 				if (u.getPubKey().length == 0) continue;
+				var parts = new String(u.getPubKey()).split("\\s+");
+				var pubKey = parts[0] + parts[1];
 				result
-					.append(new String(u.getPubKey()))
+					.append(pubKey)
+					.append(" ")
+					.append(u.getQualifiedTag())
 					.append("\n");
 			}
 		}
