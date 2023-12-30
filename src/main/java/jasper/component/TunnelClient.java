@@ -90,6 +90,7 @@ public class TunnelClient {
 					}
 				} catch (IOException | GeneralSecurityException e) {
 					logger.debug("Error creating tunnel SSH session", e);
+					logger.debug(e.getMessage());
 					throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 				} finally {
 					client.stop();
