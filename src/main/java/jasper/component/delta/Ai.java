@@ -38,6 +38,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -150,7 +151,7 @@ public class Ai implements Async.AsyncRunner {
 		List<Ref> refArray = List.of(response);
 		for (var model : models) {
 			config.model = model;
-			var messages = getChatMessages(ref, exts.values(), plugins, templates, config, context.values(), author, sample);
+			var messages = getChatMessages(ref, exts.values(), plugins, templates, config, new ArrayList<>(context.values()), author, sample);
 			try {
 				var res = openAi.chat(messages, config);
 				var reply = res.getChoices().stream().map(ChatCompletionChoice::getMessage).map(ChatMessage::getContent).collect(Collectors.joining("\n\n"));
@@ -251,7 +252,7 @@ public class Ai implements Async.AsyncRunner {
 	}
 
 	@NotNull
-	private ArrayList<ChatMessage> getChatMessages(Ref ref, Collection<Ext> exts, Collection<Plugin> plugins, Collection<Template> templates, OpenAi.AiConfig config, Collection<RefDto> context, String author, RefDto sample) throws JsonProcessingException {
+	private ArrayList<ChatMessage> getChatMessages(Ref ref, Collection<Ext> exts, Collection<Plugin> plugins, Collection<Template> templates, OpenAi.AiConfig config, List<RefDto> context, String author, RefDto sample) throws JsonProcessingException {
 		var modsPrompt = concat(
 			plugins.stream().map(Plugin::getConfig),
 			templates.stream().map(Template::getConfig)
@@ -406,6 +407,7 @@ Your reply should always start with {"ref":[{
 		if (exts.isEmpty()) {
 			messages.add(cm(ref.getOrigin(), "system", "Exts", extsPrompt, objectMapper));
 		}
+		context.sort(Comparator.comparing(RefDto::getPublished));
 		for (var p : context) {
 			p.setMetadata(null);
 			if (p.getTags().contains("+plugin/openai")) {
