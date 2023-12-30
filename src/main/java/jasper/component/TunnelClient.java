@@ -85,14 +85,17 @@ public class TunnelClient {
 						logger.debug("Opened reverse proxy in SSH tunnel.");
 						request.go(new URI("http://localhost:" + LOCAL_HTTP_PORT));
 					} catch (URISyntaxException e) {
+						logger.debug("Error creating tunnel tracker", e);
 						throw new InvalidTunnelException("Error creating tunnel tracker", e);
 					}
 				} catch (IOException | GeneralSecurityException e) {
+					logger.debug("Error creating tunnel SSH session", e);
 					throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 				} finally {
 					client.stop();
 				}
 			} catch (IOException e) {
+				logger.debug("Error creating tunnel SSH client", e);
 				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 			}
 		}
