@@ -8,3 +8,5 @@ logging:
         security: DEBUG
         web: DEBUG
         cors: DEBUG
+    io:
+      fabric8: DEBUG

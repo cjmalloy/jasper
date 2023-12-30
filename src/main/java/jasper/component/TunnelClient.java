@@ -2,7 +2,6 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ref;
-import jasper.domain.User;
 import jasper.errors.InvalidTunnelException;
 import jasper.plugin.Origin;
 import jasper.plugin.Tunnel;
@@ -21,7 +20,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.HasTags.authors;

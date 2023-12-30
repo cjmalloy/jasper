@@ -4,6 +4,7 @@ import jasper.component.Ingest;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
@@ -93,6 +94,8 @@ public class Async {
 				ingest.update(ref, false);
 				try {
 					v.run(ref);
+				} catch (NotFoundException e) {
+					logger.debug("Plugin not installed {} ", e.getMessage());
 				} catch (Exception e) {
 					logger.error("Error in async tag {} ", k, e);
 				}
@@ -102,6 +105,8 @@ public class Async {
 				if (ref.hasPluginResponse(v.signature())) return;
 				try {
 					v.run(ref);
+				} catch (NotFoundException e) {
+					logger.debug("Plugin not installed {} ", e.getMessage());
 				} catch (Exception e) {
 					logger.error("Error in async tag response {} ", k, e);
 				}

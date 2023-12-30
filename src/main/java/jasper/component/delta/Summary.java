@@ -104,7 +104,7 @@ public class Summary implements Async.AsyncRunner {
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (response.getTags().contains("plugin/thread")) {
 			// Add top comment source
-			if (ref.getSources() != null && ref.getSources().size() > 0) {
+			if (ref.getSources() != null && !ref.getSources().isEmpty()) {
 				if (ref.getSources().size() > 1) {
 					sources.add(ref.getSources().get(1));
 				} else {

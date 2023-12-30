@@ -61,6 +61,14 @@ public class Props {
 	 * Whitelist origins to be allowed to replicate using +plugin/origin.
 	 */
 	private String[] replicateOrigins = new String[]{""};
+	private String sshDelaySec = "120";
+	private String sshIntervalSec = "40";
+	private String sshConfigNamespace = "default";
+	private String sshConfigMapName = "ssh-authorized-keys";
+	/**
+	 * Whitelist origins to be allowed to open SSH tunnels.
+	 */
+	private String[] sshOrigins = new String[]{""};
 	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;

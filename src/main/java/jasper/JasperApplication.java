@@ -6,8 +6,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cloud.kubernetes.fabric8.discovery.KubernetesCatalogWatchAutoConfiguration;
+import org.springframework.cloud.kubernetes.fabric8.discovery.KubernetesDiscoveryClientAutoConfiguration;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = { KubernetesDiscoveryClientAutoConfiguration.class, KubernetesCatalogWatchAutoConfiguration.class })
 @EnableConfigurationProperties({ LiquibaseProperties.class, Props.class })
 @EnableCaching
 public class JasperApplication {
