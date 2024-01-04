@@ -264,7 +264,7 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
 {
   "tag": "plugin/thumbnail",
   "origin": "",
-  "name": "Thumbnail Plugin",
+  "name": "⭕️ Thumbnail",
   "config": {...},
   "defaults": {},
   "schema": {
