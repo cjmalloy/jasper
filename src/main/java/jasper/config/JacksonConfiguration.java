@@ -16,7 +16,10 @@ public class JacksonConfiguration {
 
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
-		return builder -> builder.featuresToEnable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature());
+		return builder -> builder.featuresToEnable(
+			JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(),
+			JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER.mappedFeature()
+		);
 	}
 
     /**
