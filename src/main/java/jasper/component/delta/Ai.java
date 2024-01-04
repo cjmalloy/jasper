@@ -240,10 +240,10 @@ public class Ai implements Async.AsyncRunner {
 				aiReply.setTags(aiReply.getTags().stream().distinct().filter(
 					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/openai") || !t.startsWith("+") && !t.startsWith("_"))
 				).collect(Collectors.toList()));
+				if (aiReply.getTags().contains("plugin/comment")) aiReply.addTag("internal");
+				if (aiReply.getTags().contains("plugin/thread")) aiReply.addTag("internal");
+				if (aiReply.getTags().contains("dm")) aiReply.addTag("plugin/thread");
 			}
-			if (aiReply.getTags().contains("plugin/comment")) aiReply.addTag("internal");
-			if (aiReply.getTags().contains("plugin/thread")) aiReply.addTag("internal");
-			if (aiReply.getTags().contains("dm")) aiReply.addTag("plugin/thread");
 		}
 		for (var aiReply : refArray) {
 			ingest.create(aiReply, true);
