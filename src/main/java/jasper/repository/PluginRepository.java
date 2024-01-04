@@ -58,6 +58,14 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 
 	// TODO: Cache this, it rarely changes
 	@Query("""
+		FROM Plugin AS p
+		WHERE p.origin = :origin
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'deleted') as boolean), false) = false
+			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false""")
+	List<Plugin> findAllByOrigin(String origin);
+
+	// TODO: Cache this, it rarely changes
+	@Query("""
 		SELECT p.tag
 		FROM Plugin AS p
 		WHERE p.origin = :origin

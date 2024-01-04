@@ -46,6 +46,14 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
+			AND COALESCE(CAST(jsonb_object_field(t.config, 'deleted') as boolean), false) = false
+			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+		ORDER BY t.levels ASC""")
+	List<Template> findAllByOrigin(String origin);
+
+	@Query("""
+		FROM Template AS t
+		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'deleted') as boolean), false) = false
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false

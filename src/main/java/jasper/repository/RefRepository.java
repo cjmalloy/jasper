@@ -62,7 +62,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Instant getCursor(String origin);
 
 	@Query(value = """
-		SELECT ref FROM Ref ref
+		FROM Ref ref
 		WHERE ref.url = :url
 			AND ref.published >= :published
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))

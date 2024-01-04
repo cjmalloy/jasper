@@ -140,8 +140,8 @@ public class Ai implements Async.AsyncRunner {
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) { // TODO: set max plugin len as prop
 			sample.setPlugins(null);
 		}
-		var plugins = pluginRepository.findAll();
-		var templates = templateRepository.findAll();
+		var plugins = pluginRepository.findAllByOrigin(ref.getOrigin());
+		var templates = templateRepository.findAllByOrigin(ref.getOrigin());
 		var models = new ArrayList<String>();
 		models.add(config.model);
 		if (config.fallback != null) {
