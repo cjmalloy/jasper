@@ -24,7 +24,7 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
-		<lombok.version>1.18.28</lombok.version>
+		<lombok.version>1.18.30</lombok.version>
 		<testcontainers.version>1.18.3</testcontainers.version>
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.6</jackson-databind-nullable.version>
