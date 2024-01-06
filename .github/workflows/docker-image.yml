@@ -29,6 +29,7 @@ jobs:
     - name: Publish Unit Test Results
       uses: dorny/test-reporter@v1
       if: always()
+      continue-on-error: true
       with:
         name: Test Results
         path: "tests/*.xml"
