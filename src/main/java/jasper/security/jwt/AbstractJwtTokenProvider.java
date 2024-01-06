@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.security.Auth.USER_TAG_HEADER;
@@ -32,6 +33,7 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.security.AuthoritiesConstants.SA;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -84,7 +86,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 			return getHeader(USER_TAG_HEADER);
 		}
 		logger.debug("Sub: {}", client.getUsernameClaim());
-		var principal = claims.get(client.getUsernameClaim(), String.class);
+		var principal = ofNullable(claims.get(client.getUsernameClaim(), String.class)).orElse("");
 		logger.debug("Principal: {}", principal);
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader();
@@ -130,8 +132,9 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		if (!StringUtils.hasText(authToken)) return false;
 		var client = props.getSecurity().getClient(origin);
 		try {
-			var claims = jwtParser.get(origin).parseClaimsJws(authToken).getBody();
-			if (!client.getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
+			var claims = jwtParser.get(origin).parseSignedClaims(authToken).getPayload();
+			var aud = ofNullable(claims.getAudience()).orElse(Set.of(""));
+			if (!aud.contains(client.getAuthentication().getJwt().getClientId())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else {
