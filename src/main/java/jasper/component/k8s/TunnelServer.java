@@ -37,7 +37,7 @@ public class TunnelServer {
 		timeUnit = TimeUnit.SECONDS)
 	public void generateConfig() {
 		var changed = false;
-		StringBuilder result = new StringBuilder();
+		var result = new StringBuilder();
 		for (var origin : props.getSshOrigins()) {
 			var cursor = userRepository.getCursor(origin);
 			if (cursor != null) {
@@ -65,8 +65,15 @@ public class TunnelServer {
 			}
 		}
 		try (var client = new DefaultKubernetesClient()) {
-			client.configMaps().inNamespace(props.getSshConfigNamespace()).withName(props.getSshConfigMapName())
-				.edit(c -> new ConfigMapBuilder(c).addToData("authorized_keys", result.toString()).build());
+			client.configMaps()
+				.inNamespace(props.getSshConfigNamespace())
+				.resource(new ConfigMapBuilder()
+					.withNewMetadata()
+						.withName(props.getSshConfigMapName())
+					.and()
+					.addToData("authorized_keys", result.toString())
+					.build())
+				.serverSideApply();
 		}
 	}
 
