@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+	<changeSet author="chris" id="00000000000003" dbms="postgresql">
+		<addColumn tableName="ref">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+		<addColumn tableName="ext">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+		<addColumn tableName="users">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+		<addColumn tableName="plugin">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+		<addColumn tableName="template">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+		<addColumn tableName="web">
+			<column name="created_by" type="text"/>
+			<column name="last_modified_by" type="text"/>
+		</addColumn>
+	</changeSet>
+
+</databaseChangeLog>

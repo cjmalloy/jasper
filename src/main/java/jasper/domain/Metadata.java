@@ -28,6 +28,8 @@ public class Metadata {
 	private Map<String, List<String>> plugins;
 	private boolean obsolete = false;
 
+	// TODO: other origins (And dedupe check)
+
 	public void addResponse(String url) {
 		if (responses == null) {
 			responses = new ArrayList<>();

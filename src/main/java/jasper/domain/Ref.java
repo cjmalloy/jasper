@@ -41,7 +41,7 @@ import static jasper.domain.proj.Tag.TAG_LEN;
 	@TypeDef(name = "json", typeClass = JsonType.class),
 	@TypeDef(name = "tsvector", typeClass = PostgreSQLTSVectorType.class)
 })
-public class Ref implements HasTags {
+public class Ref extends AbstractAuditingEntity implements HasTags {
 	public static final String REGEX = "^[^:/?#]+:(?://[^/?#]*)?[^?#]*(?:\\?[^#]*)?(?:#.*)?";
 	public static final String SCHEME_REGEX = "^[^:/?#]+:";
 	public static final int URL_LEN = 4096;
