@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.component.HttpCache;
 import jasper.domain.Template;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
@@ -37,8 +38,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/template")
@@ -51,6 +50,8 @@ public class TemplateController {
 
 	@Autowired
 	TemplateService templateService;
+	@Autowired
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -76,7 +77,7 @@ public class TemplateController {
 		WebRequest request,
 		@RequestParam(defaultValue = "") @Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, templateService.get(tag));
+		return httpCache.ifNotModified(request, templateService.get(tag));
 	}
 
 	@ApiResponses({
@@ -93,7 +94,7 @@ public class TemplateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, templateService.page(
+		return httpCache.ifNotModifiedPage(request, templateService.page(
 			TemplateFilter.builder()
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)

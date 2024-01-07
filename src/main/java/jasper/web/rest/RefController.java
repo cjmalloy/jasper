@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.component.HttpCache;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -47,8 +48,6 @@ import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
@@ -64,6 +63,9 @@ public class RefController {
 
 	@Autowired
 	RefService refService;
+
+	@Autowired
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -91,7 +93,7 @@ public class RefController {
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		return ifNotModified(request, refService.get(url, origin));
+		return httpCache.ifNotModified(request, refService.get(url, origin));
 	}
 
 	@ApiResponses({
@@ -145,7 +147,7 @@ public class RefController {
 						.toList()));
 			}
 		}
-		return ifNotModifiedPage(request, refService.page(
+		return httpCache.ifNotModifiedPage(request, refService.page(
 			RefFilter.builder()
 				.url(url)
 				.obsolete(obsolete)

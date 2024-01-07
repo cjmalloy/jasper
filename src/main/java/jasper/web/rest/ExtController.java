@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jasper.component.HttpCache;
 import jasper.domain.Ext;
 import jasper.domain.proj.Tag;
 import jasper.repository.filter.TagFilter;
@@ -39,8 +40,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/ext")
@@ -54,6 +53,9 @@ public class ExtController {
 
 	@Autowired
 	ExtService extService;
+
+	@Autowired
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -78,7 +80,7 @@ public class ExtController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, extService.get(tag));
+		return httpCache.ifNotModified(request, extService.get(tag));
 	}
 
 	@ApiResponses({
@@ -94,7 +96,7 @@ public class ExtController {
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, extService.page(
+		return httpCache.ifNotModifiedPage(request, extService.page(
 			TagFilter.builder()
 				.query(query)
 				.search(search)
