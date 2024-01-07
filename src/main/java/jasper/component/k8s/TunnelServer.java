@@ -65,8 +65,14 @@ public class TunnelServer {
 			}
 		}
 		try (var client = new DefaultKubernetesClient()) {
-			client.configMaps().inNamespace(props.getSshConfigNamespace()).withName(props.getSshConfigMapName())
-				.edit(c -> new ConfigMapBuilder(c).addToData("authorized_keys", result.toString()).build());
+			client.configMaps()
+				.createOrReplace(new ConfigMapBuilder()
+					.withNewMetadata()
+						.withName(props.getSshConfigMapName())
+					    .withNamespace(props.getSshConfigNamespace())
+					.and()
+					.addToData("authorized_keys", result.toString())
+					.build());
 		}
 	}
 
