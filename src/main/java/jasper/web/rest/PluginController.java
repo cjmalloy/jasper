@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.component.HttpCache;
 import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
@@ -36,8 +37,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/plugin")
@@ -50,6 +49,9 @@ public class PluginController {
 
 	@Autowired
 	PluginService pluginService;
+
+	@Autowired
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -75,7 +77,7 @@ public class PluginController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, pluginService.get(tag));
+		return httpCache.ifNotModified(request, pluginService.get(tag));
 	}
 
 	@ApiResponses({
@@ -92,7 +94,7 @@ public class PluginController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, pluginService.page(
+		return httpCache.ifNotModifiedPage(request, pluginService.page(
 			TagFilter.builder()
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)

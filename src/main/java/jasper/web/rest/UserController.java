@@ -5,9 +5,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.component.HttpCache;
 import jasper.domain.User;
 import jasper.repository.filter.TagFilter;
-import jasper.security.Auth;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
@@ -40,8 +40,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/user")
@@ -55,9 +53,8 @@ public class UserController {
 
 	@Autowired
 	UserService userService;
-
 	@Autowired
-	Auth auth;
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -81,7 +78,7 @@ public class UserController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, userService.get(tag));
+		return httpCache.ifNotModified(request, userService.get(tag));
 	}
 
 	@ApiResponses({
@@ -97,7 +94,7 @@ public class UserController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, userService.page(
+		return httpCache.ifNotModifiedPage(request, userService.page(
 			TagFilter.builder()
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)

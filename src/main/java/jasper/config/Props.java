@@ -30,6 +30,7 @@ public class Props {
 	private boolean debug = false;
 	private int maxSources = 1000;
 	private int backupBufferSize = 1000000;
+	private int maxEtagPageSize = 300;
 	private int ingestMaxRetry = 5;
 	private String[] modSeals;
 	private String[] editorSeals;

@@ -1,13 +1,16 @@
-package jasper.util;
+package jasper.component;
 
+import jasper.config.Props;
 import jasper.domain.proj.Cursor;
 import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.Instant;
@@ -21,31 +24,35 @@ import static org.apache.commons.lang3.StringUtils.getCommonPrefix;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.reverse;
 
-public class RestUtil {
-	private static final Logger logger = LoggerFactory.getLogger(RestUtil.class);
+@Component
+public class HttpCache {
+	private static final Logger logger = LoggerFactory.getLogger(HttpCache.class);
 
 	public static CacheControl ifNotModifiedCacheControl = CacheControl
 			.noCache()
 			.mustRevalidate()
 			.cachePrivate();
 
-	public static <T extends Cursor> ResponseEntity<T> ifNotModified(WebRequest request, T result) {
+	@Autowired
+	Props props;
+
+	public <T extends Cursor> ResponseEntity<T> ifNotModified(WebRequest request, T result) {
 		return ifNotModified(request, result, getModified(result));
 	}
 
-	public static <T extends Cursor> ResponseEntity<List<T>> ifNotModifiedList(WebRequest request, List<T> result) {
+	public <T extends Cursor> ResponseEntity<List<T>> ifNotModifiedList(WebRequest request, List<T> result) {
 		return ifNotModified(request, result, getModifiedList(result));
 	}
 
-	public static <T extends Cursor> ResponseEntity<Page<T>> ifNotModifiedPage(WebRequest request, Page<T> result) {
+	public <T extends Cursor> ResponseEntity<Page<T>> ifNotModifiedPage(WebRequest request, Page<T> result) {
 		return ifNotModified(request, result, getModifiedPage(result));
 	}
 
-	public static <T> ResponseEntity<T> ifNotModified(WebRequest request, T result, GetModified<T> m) {
+	public <T> ResponseEntity<T> ifNotModified(WebRequest request, T result, GetModified<T> m) {
 		return ifNotModified(request, result, m.getModified(result));
 	}
 
-	public static <T> ResponseEntity<T> ifNotModified(WebRequest request, T result, String modified) {
+	public <T> ResponseEntity<T> ifNotModified(WebRequest request, T result, String modified) {
 		if (modified == null) return ResponseEntity.ok(result);
 		if (request.checkNotModified(modified)) {
 			return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
@@ -58,15 +65,15 @@ public class RestUtil {
 			.body(result);
 	}
 
-	private static <T extends Cursor> String getModifiedList(List<T> result) {
+	private <T extends Cursor> String getModifiedList(List<T> result) {
 		return result.stream()
-			.map(RestUtil::getModified)
+			.map(this::getModified)
 			.collect(Collectors.joining(","));
 	}
 
-	private static <T extends Cursor> String getModifiedPage(Page<T> result) {
-		if (result.getContent().size() > 500) return null;
-		var etag = new ArrayList<>(result.stream().map(RestUtil::getModified).toList());
+	private <T extends Cursor> String getModifiedPage(Page<T> result) {
+		if (result.getContent().size() > props.getMaxEtagPageSize()) return null;
+		var etag = new ArrayList<>(result.stream().map(this::getModified).toList());
 		for (var i = etag.size() - 1; i > 0; i--) {
 			var a = etag.get(i - 1);
 			var b = etag.get(i);
@@ -84,7 +91,7 @@ public class RestUtil {
 			"," + result.isLast();
 	}
 
-	private static <T extends Cursor> String getModified(T result) {
+	private <T extends Cursor> String getModified(T result) {
 		if (result == null) return "";
 		var modified = result.getModified().truncatedTo(ChronoUnit.MILLIS).toString();
 		if (!(result instanceof RefDto ref)) return modified;

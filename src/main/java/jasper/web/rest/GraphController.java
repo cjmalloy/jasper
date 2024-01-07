@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.component.HttpCache;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.service.GraphService;
@@ -25,7 +26,6 @@ import javax.validation.constraints.Size;
 import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
-import static jasper.util.RestUtil.ifNotModifiedList;
 
 @RestController
 @RequestMapping("api/v1/graph")
@@ -39,6 +39,9 @@ public class GraphController {
 	@Autowired
 	GraphService graphService;
 
+	@Autowired
+	HttpCache httpCache;
+
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
 	})
@@ -47,7 +50,7 @@ public class GraphController {
 		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls
 	) {
-		return ifNotModifiedList(request, urls.stream().map(url -> {
+		return httpCache.ifNotModifiedList(request, urls.stream().map(url -> {
 			try {
 				return graphService.get(url);
 			} catch (NotFoundException | AccessDeniedException e) {
