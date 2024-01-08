@@ -40,7 +40,7 @@
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>4.5.14</apache-httpclient.version>
-		<commons-io.version>2.13.0</commons-io.version>
+		<commons-io.version>2.15.1</commons-io.version>
 		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.16.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
