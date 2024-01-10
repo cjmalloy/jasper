@@ -43,20 +43,21 @@ public class Async {
 
 	Map<String, Instant> lastModified = new HashMap<>();
 
-	Map<String, AsyncRunner> tags = new HashMap<>();
-	Map<String, AsyncRunner> responses = new HashMap<>();
+	Map<String, AsyncWatcher> tags = new HashMap<>();
+	Map<String, AsyncWatcher> responses = new HashMap<>();
+
 
 	/**
 	 * Register a runner for a tag.
 	 */
-	public void addAsyncTag(String plugin, AsyncRunner r) {
+	public void addAsyncTag(String plugin, AsyncWatcher r) {
 		tags.put(plugin, r);
 	}
 
 	/**
 	 * Register a runner for a tag response.
 	 */
-	public void addAsyncResponse(String plugin, AsyncRunner r) {
+	public void addAsyncResponse(String plugin, AsyncWatcher r) {
 		responses.put(plugin, r);
 	}
 
@@ -90,8 +91,10 @@ public class Async {
 			lastModified.put(origin, ref.getModified());
 			tags.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
-				ref.getTags().add(v.signature());
-				ingest.update(ref, false);
+				if (v instanceof AsyncRunner r) {
+					ref.getTags().add(r.signature());
+					ingest.update(ref, false);
+				}
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
@@ -102,7 +105,9 @@ public class Async {
 			});
 			responses.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
-				if (ref.hasPluginResponse(v.signature())) return;
+				if (v instanceof AsyncRunner r) {
+					if (ref.hasPluginResponse(r.signature())) return;
+				}
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
@@ -114,8 +119,11 @@ public class Async {
 		}
 	}
 
-	public interface AsyncRunner {
+	public interface AsyncWatcher {
 		void run(Ref ref) throws Exception;
+	}
+
+	public interface AsyncRunner extends AsyncWatcher {
 		String signature();
 	}
 }
