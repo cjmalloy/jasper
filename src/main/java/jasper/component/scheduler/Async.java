@@ -75,7 +75,7 @@ public class Async {
 		timeUnit = TimeUnit.SECONDS)
 	public void drainAsyncTask() {
 		if (tags.isEmpty() && responses.isEmpty()) return;
-		for (var origin : props.getScrapeOrigins()) drain(origin);
+		for (var origin : props.getAsyncOrigins()) drain(origin);
 	}
 
 	private void drain(String origin) {
