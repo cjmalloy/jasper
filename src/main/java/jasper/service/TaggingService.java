@@ -123,7 +123,7 @@ public class TaggingService {
 		var userUrl = urlForUser(url, auth.getUserTag().tag);
 		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
 				if (!ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags().contains("plugin/deleted")) {
+				if (ref.getTags() != null && ref.getTags().contains("plugin/deleted")) {
 					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
 				}
 				return ref;
