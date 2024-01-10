@@ -100,16 +100,14 @@ public class Async {
 
 	private void drain(String origin) {
 		if (changes.get(origin) == null) return;
+		changes.remove(origin);
 		for (var i = 0; i < props.getAsyncBatchSize(); i++) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
 				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
 				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
-			if (maybeRef.isEmpty()) {
-				changes.remove(origin);
-				return;
-			}
+			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().get(0);
 			lastModified.put(origin, ref.getModified());
 			tags.forEach((k, v) -> {
@@ -140,6 +138,8 @@ public class Async {
 				}
 			});
 		}
+		// Did not exhaust Refs
+		changes.put(origin, true);
 	}
 
 	public interface AsyncWatcher {
