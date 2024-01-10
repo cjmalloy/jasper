@@ -40,25 +40,25 @@ public class RedisConfig {
 	ObjectMapper objectMapper;
 
 	@Autowired
-	private RedisConnectionFactory redisConnectionFactory;
+	RedisConnectionFactory redisConnectionFactory;
 
 	@Autowired
-	private MessageChannel refTxChannel;
+	MessageChannel refTxChannel;
 
 	@Autowired
-	private MessageChannel refRxChannel;
+	MessageChannel refRxChannel;
 
 	@Autowired
-	private MessageChannel tagTxChannel;
+	MessageChannel tagTxChannel;
 
 	@Autowired
-	private MessageChannel tagRxChannel;
+	MessageChannel tagRxChannel;
 
 	@Autowired
-	private MessageChannel responseTxChannel;
+	MessageChannel responseTxChannel;
 
 	@Autowired
-	private MessageChannel responseRxChannel;
+	MessageChannel responseRxChannel;
 
 	@Bean
 	public IntegrationFlow redisPublishRefFlow() {
