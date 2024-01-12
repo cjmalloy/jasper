@@ -16,6 +16,7 @@ import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,20 +47,38 @@ public abstract class DtoMapper {
 	@AfterMapping
 	protected void filterTags(@MappingTarget HasTags ref) {
 		if (ref.getTags() == null) return;
-		var filtered = new ArrayList<>(auth.filterTags(ref.getTags()));
-		if (ref.getPlugins() != null && filtered.size() < ref.getTags().size()) {
-			var filteredPlugins = objectMapper.createObjectNode();
-			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (filtered.contains(field)) filteredPlugins.set(field, ref.getPlugins().get(field));
-			});
-			if (filteredPlugins.isEmpty()) {
-				ref.setPlugins(null);
-			} else {
-				ref.setPlugins(filteredPlugins);
-			}
-		}
-		ref.setTags(filtered);
+		ref.setTags(new ArrayList<>(auth.filterTags(ref.getTags())));
 		Ref.removePrefixTags(ref.getTags());
+	}
+
+	@AfterMapping
+	protected void filterPlugins(@MappingTarget HasTags ref) {
+		if (ref.getPlugins() == null) return;
+		var filteredPlugins = objectMapper.createObjectNode();
+		ref.getPlugins().fieldNames().forEachRemaining(tag -> {
+			if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.getPlugins().get(tag));
+		});
+		if (filteredPlugins.isEmpty()) {
+			ref.setPlugins(null);
+		} else {
+			ref.setPlugins(filteredPlugins);
+		}
+	}
+
+	@AfterMapping
+	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
+		if (metadata.getPlugins() == null) return;
+		var filteredPlugins = new HashMap<String, Integer>();
+		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
+			if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
+				filteredPlugins.put(e.getKey(), e.getValue());
+			}
+		});
+		if (filteredPlugins.isEmpty()) {
+			metadata.setPlugins(null);
+		} else {
+			metadata.setPlugins(filteredPlugins);
+		}
 	}
 
 	public abstract UserDto domainToDto(User user);
