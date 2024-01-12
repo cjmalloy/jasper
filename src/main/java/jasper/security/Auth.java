@@ -31,7 +31,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.PostConstruct;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -290,26 +289,27 @@ public class Auth {
 	public boolean canWriteRef(String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
-		// Minimum role for writing Refs is USER
-		if (!hasRole(USER)) return false;
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing Refs is USER
+		if (!hasRole(USER)) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		// If we're creating, simply having the role USER is enough
-		if (maybeExisting.isEmpty()) return true;
-		var existing = maybeExisting.get();
-		if (existing.getTags() != null) {
-			// First write check of an existing Ref must be for the locked tag
-			if (existing.getTags().contains("locked")) return false;
-			// Mods can write anything in their origin
-			if (hasRole(MOD)) return true;
-			var qualifiedTags = qtList(origin, existing.getTags());
-			// Check if owner
-			if (owns(qualifiedTags)) return true;
-			// Check access tags
-			return captures(getWriteAccess(), qualifiedTags);
+		if (maybeExisting.isEmpty()) {
+			if (url.startsWith("tag:/")) return hasRole(MOD) || url.startsWith("tag:/" + getUserTag().tag + "?");
+			// If we're creating, simply having the role USER is enough
+			return true;
 		}
-		return false;
+		var existing = maybeExisting.get();
+		if (existing.getTags() == null) return true;
+		// First write check of an existing Ref must be for the locked tag
+		if (existing.getTags().contains("locked")) return false;
+		// Mods can write anything in their origin
+		if (hasRole(MOD)) return true;
+		var qualifiedTags = qtList(origin, existing.getTags());
+		// Check if owner
+		if (owns(qualifiedTags)) return true;
+		// Check access tags
+		return captures(getWriteAccess(), qualifiedTags);
 	}
 
 	/**
