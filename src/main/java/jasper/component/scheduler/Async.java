@@ -99,7 +99,7 @@ public class Async {
 	}
 
 	private void drain(String origin) {
-		if (changes.get(origin) == null) return;
+		if (changes.get(origin) == null || lastModified.get(origin) == null) return;
 		changes.remove(origin);
 		for (var i = 0; i < props.getAsyncBatchSize(); i++) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
