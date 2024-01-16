@@ -129,6 +129,7 @@ public class Ai implements Async.AsyncRunner {
 			}
 		}
 		for (var p : context.values()) {
+			if (p.getTags() == null) continue;
 			for (var t : p.getTags()) {
 				var qt = t + ref.getOrigin();
 				var ext = extRepository.findOneByQualifiedTag(qt);
