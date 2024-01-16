@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 import static jasper.component.OpenAi.cm;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
+import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Stream.concat;
@@ -104,8 +105,14 @@ public class Ai implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
 		var context = new HashMap<String, RefDto>();
-		var parents = refRepository.findAll(isNotObsolete().and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))), by(Ref_.PUBLISHED))
-			.stream().map(refMapper::domainToDto).toList();
+		var parents = refRepository
+			.findAll(
+				isNotObsolete()
+				.and(hasResponse(ref.getUrl())
+				.or(hasInternalResponse(ref.getUrl()))), by(Ref_.PUBLISHED))
+			.stream()
+			.map(refMapper::domainToDto)
+			.toList();
 		parents.forEach(p -> context.put(p.getUrl(), p));
 		for (var i = 0; i < config.maxContext; i++) {
 			if (parents.isEmpty()) break;
@@ -119,6 +126,21 @@ public class Ai implements Async.AsyncRunner {
 				}
 			}
 			parents = newParents;
+		}
+		if (ref.getTags().contains("plugin/thread")) {
+			var source = ref.getUrl();
+			if (ref.getSources().size() > 1) {
+				source = ref.getSources().get(1);
+			} else if (!ref.getSources().isEmpty()) {
+				source = ref.getSources().get(0);
+			}
+			refRepository
+				.findAll(
+					isNotObsolete()
+						.and(hasSource(source)), by(Ref_.PUBLISHED))
+				.stream()
+				.map(refMapper::domainToDto)
+				.forEach(p -> context.put(p.getUrl(), p));
 		}
 		var exts = new HashMap<String, Ext>();
 		if (ref.getTags() != null) {
