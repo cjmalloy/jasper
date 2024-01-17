@@ -13,7 +13,7 @@ public interface Query {
 	String GROUP3S = GROUP3 + "(?:[|:]" + GROUP3 + ")*";
 	String REGEX = GROUP3S;
 
-	int QUERY_LEN = 512;
+	int QUERY_LEN = 1024;
 	int SEARCH_LEN = 512;
 
 	String getQuery();
