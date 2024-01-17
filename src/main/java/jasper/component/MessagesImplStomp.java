@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import static jasper.domain.proj.HasOrigin.originHierarchy;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -25,18 +26,28 @@ public class MessagesImplStomp implements Messages {
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
 		var encodedUrl = URLEncoder.encode(ref.getUrl(), StandardCharsets.UTF_8);
-		stomp.convertAndSend("/topic/ref/" + (isNotBlank(ref.getOrigin()) ? ref.getOrigin() : "default") + "/" + encodedUrl, mapper.domainToUpdateDto(ref));
+		var origins = originHierarchy(ref.getOrigin());
+		for (var o : origins) {
+			var origin = isNotBlank(o) ? o : "default";
+			stomp.convertAndSend("/topic/ref/" + origin + "/" + encodedUrl, mapper.domainToUpdateDto(ref));
+		}
 		if (ref.getTags() != null){
 			ref.addHierarchicalTags();
 			for (var tag : ref.getTags()) {
 				var encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8);
-				stomp.convertAndSend("/topic/tag/" + encodedTag, tag);
+				for (var o : origins) {
+					var origin = isNotBlank(o) ? o : "default";
+					stomp.convertAndSend("/topic/tag/" + origin + "/" + encodedTag, tag);
+				}
 			}
 		}
 		if (ref.getSources() != null)
 		for (var source : ref.getSources()) {
 			var encodedSource = URLEncoder.encode(source, StandardCharsets.UTF_8);
-			stomp.convertAndSend("/topic/response/" + encodedSource, ref.getUrl());
+			for (var o : origins) {
+				var origin = isNotBlank(o) ? o : "default";
+				stomp.convertAndSend("/topic/response/" + origin + "/" + encodedSource, ref.getUrl());
+			}
 		}
 	}
 }

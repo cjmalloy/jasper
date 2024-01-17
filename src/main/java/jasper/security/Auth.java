@@ -192,8 +192,8 @@ public class Auth {
 	 * Is this origin a sub-origin.
 	 */
 	public boolean subOrigin(String origin) {
-		if (isBlank(origin)) return false;
 		if (isBlank(getOrigin())) return true;
+		if (local(origin)) return true;
 		return origin.startsWith(getOrigin()+".");
 	}
 
@@ -204,7 +204,6 @@ public class Auth {
 	 */
 	public boolean tenantAccess(String origin) {
 		if (!props.isMultiTenant()) return true;
-		if (local(origin)) return true;
 		if (subOrigin(origin)) return true;
 		if (getClient().getTenantAccess() == null) return false;
 		for (var t : getClient().getTenantAccess()) {
@@ -320,9 +319,12 @@ public class Auth {
 		if (!minRole()) return false;
 		if (destination == null) return false;
 		if (destination.startsWith("/topic/tag/")) {
-			var tag = destination.substring("/topic/tag/".length());
+			var topic = destination.substring("/topic/ref/".length());
+			var origin = topic.substring(0, topic.indexOf('/'));
+			if (origin.equals("default")) origin = "";
+			var tag = topic.substring(topic.indexOf('/') + 1);
 			var decodedTag = URLDecoder.decode(tag, StandardCharsets.UTF_8);
-            return canReadTag(decodedTag);
+            return canReadTag(decodedTag + origin);
 		} else if (destination.startsWith("/topic/ref/")) {
 			var topic = destination.substring("/topic/ref/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
@@ -331,7 +333,10 @@ public class Auth {
 			var decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
 			return canReadRef(decodedUrl, origin);
 		} else if (destination.startsWith("/topic/response/")) {
-			return true;
+			var topic = destination.substring("/topic/response/".length());
+			var origin = topic.substring(0, topic.indexOf('/'));
+			if (origin.equals("default")) origin = "";
+			return subOrigin(origin);
 		}
 		return false;
 	}

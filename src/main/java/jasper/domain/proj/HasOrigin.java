@@ -1,5 +1,8 @@
 package jasper.domain.proj;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface HasOrigin {
@@ -27,5 +30,17 @@ public interface HasOrigin {
 		if (isBlank(origin)) return local;
 		if (origin.startsWith("@")) origin = origin.substring(1);
 		return local + '.' + origin;
+	}
+
+	static List<String> originHierarchy(String origin) {
+		if (isBlank(origin)) return List.of("");
+		var result = new ArrayList<String>();
+		result.add(origin);
+		while (origin.contains(".")) {
+			origin = origin.substring(0, origin.lastIndexOf("."));
+			result.add(origin);
+		}
+		result.add("");
+		return result;
 	}
 }
