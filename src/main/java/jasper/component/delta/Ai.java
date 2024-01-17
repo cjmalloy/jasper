@@ -222,8 +222,10 @@ public class Ai implements Async.AsyncRunner {
 		if (ref.getTags().contains("plugin/email")) response.addTag("plugin/thread");
 		if (ref.getTags().contains("plugin/comment")) response.addTag("plugin/comment");
 		if (ref.getTags().contains("plugin/thread")) response.addTag("plugin/thread");
-		var chat = ref.getTags().stream().anyMatch(t -> t.startsWith("chat/") || t.equals("chat"));
-		if (!chat) {
+		var chat = ref.getTags().stream().filter(t -> t.startsWith("chat/") || t.equals("chat")).findFirst();
+		if (chat.isPresent()) {
+			response.addTag(chat.get());
+		} else {
 			if (author != null) response.addTag("plugin/inbox/" + author.substring(1));
 			for (var t : ref.getTags()) {
 				if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
