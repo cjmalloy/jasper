@@ -2,7 +2,6 @@ package jasper.component;
 
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ref;
-import jasper.service.dto.DtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -27,10 +26,12 @@ public class MessagesImplStomp implements Messages {
 		// TODO: Debounce
 		var encodedUrl = URLEncoder.encode(ref.getUrl(), StandardCharsets.UTF_8);
 		stomp.convertAndSend("/topic/ref/" + (isNotBlank(ref.getOrigin()) ? ref.getOrigin() : "default") + "/" + encodedUrl, mapper.domainToUpdateDto(ref));
-		if (ref.getTags() != null)
-		for (var tag : ref.getTags()) {
-			var encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8);
-			stomp.convertAndSend("/topic/tag/" + encodedTag, tag);
+		if (ref.getTags() != null){
+			ref.addHierarchicalTags();
+			for (var tag : ref.getTags()) {
+				var encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8);
+				stomp.convertAndSend("/topic/tag/" + encodedTag, tag);
+			}
 		}
 		if (ref.getSources() != null)
 		for (var source : ref.getSources()) {
