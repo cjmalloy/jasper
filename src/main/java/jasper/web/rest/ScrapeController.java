@@ -82,7 +82,7 @@ public class ScrapeController {
 			.contentType(isNotBlank(cache.getMime()) ? MediaType.valueOf(cache.getMime()) : null)
 			.body(cache.getData());
 		return ResponseEntity.noContent()
-			.cacheControl(CacheControl.maxAge(2, TimeUnit.HOURS).cachePublic())
+			.cacheControl(CacheControl.noCache())
 			.build();
 	}
 
