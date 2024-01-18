@@ -67,7 +67,7 @@ public class Dalle implements Async.AsyncRunner {
 		var response = new Ref();
 		try {
 			var res = openAi.dale((isBlank(ref.getTitle()) ? "" : ref.getTitle() + ": ") + ref.getComment(), config);
-			response.setTitle("Re: " + (isBlank(ref.getTitle()) ? "" : ref.getTitle()));
+			response.setTitle(isBlank(ref.getTitle()) ? "" : (ref.getTitle().startsWith("Re:") ? "" : "Re: ") + ref.getTitle());
 			response.setUrl(res.getData().get(0).getUrl());
 		} catch (Exception e) {
 			response.setComment("Error invoking DALL-E. " + e.getMessage());
@@ -77,8 +77,10 @@ public class Dalle implements Async.AsyncRunner {
 		response.addTag("plugin/thread");
 		response.addTag("plugin/image");
 		response.addTag("plugin/thumbnail");
-		var chat = ref.getTags().stream().anyMatch(t -> t.startsWith("chat/") || t.equals("chat"));
-		if (!chat) {
+		var chat = ref.getTags().stream().filter(t -> t.startsWith("chat/") || t.equals("chat")).findFirst();
+		if (chat.isPresent()) {
+			response.addTag(chat.get());
+		} else {
 			if (author != null) response.addTag("plugin/inbox/" + author.substring(1));
 			for (var t : ref.getTags()) {
 				if (t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/")) {
