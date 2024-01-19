@@ -49,20 +49,20 @@ public class Dalle implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/inbox/dalle", this);
+		async.addAsyncResponse("plugin/inbox/ai/dalle", this);
 	}
 
 	@Override
 	public String signature() {
-		return "+plugin/dalle";
+		return "+plugin/ai/dalle";
 	}
 
 	@Override
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var dallePlugin = pluginRepository.findByTagAndOrigin("+plugin/dalle", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/dalle"));
+		var dallePlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/dalle", ref.getOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/ai/dalle"));
 		var config = objectMapper.convertValue(dallePlugin.getConfig(), OpenAi.DalleConfig.class);
 		var response = new Ref();
 		try {
@@ -88,8 +88,9 @@ public class Dalle implements Async.AsyncRunner {
 				}
 			}
 		}
-		response.addTag("+plugin/dalle");
-		response.getTags().remove("plugin/inbox/dalle");
+		response.addTag("+plugin/ai/dalle");
+		response.getTags().remove("plugin/inbox/ai");
+		response.getTags().remove("plugin/inbox/ai/dalle");
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (ref.getTags().contains("plugin/thread") || ref.getTags().contains("plugin/comment")) {
 			// Add top comment source

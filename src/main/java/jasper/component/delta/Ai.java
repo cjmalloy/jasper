@@ -88,20 +88,20 @@ public class Ai implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/inbox/ai", this);
+		async.addAsyncResponse("plugin/inbox/ai/openai", this);
 	}
 
 	@Override
 	public String signature() {
-		return "+plugin/openai";
+		return "+plugin/ai/openai";
 	}
 
 	@Override
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/openai", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/openai"));
+		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/openai", ref.getOrigin())
+			.orElseThrow(() -> new NotFoundException("+plugin/ai/openai"));
 		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
 		var context = new HashMap<String, RefDto>();
@@ -200,11 +200,11 @@ public class Ai implements Async.AsyncRunner {
 					logger.warn("Falling back: AI did not reply with JSON.");
 					logger.warn(reply, e);
 					response.setComment(reply);
-					response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai")));
+					response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai/openai")));
 				}
 				var responsePlugin = objectMapper.convertValue(res.getUsage(), ObjectNode.class);
 				responsePlugin.set("model", TextNode.valueOf(config.model));
-				response.setPlugin("+plugin/openai", responsePlugin);
+				response.setPlugin("+plugin/ai/openai", responsePlugin);
 				break;
 			} catch (Exception e) {
 				if (e instanceof OpenAiHttpException o) {
@@ -212,7 +212,7 @@ public class Ai implements Async.AsyncRunner {
 					if (o.code.equals("model_not_found")) continue;
 				}
 				response.setComment("Error invoking AI. " + e.getMessage());
-				response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/openai")));
+				response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai/openai")));
 			}
 		}
 		if (ref.getTags().contains("public")) response.addTag("public");
@@ -233,8 +233,9 @@ public class Ai implements Async.AsyncRunner {
 				}
 			}
 		}
-		response.addTag("+plugin/openai");
+		response.addTag("+plugin/ai/openai");
 		response.getTags().remove("plugin/inbox/ai");
+		response.getTags().remove("plugin/inbox/ai/openai");
 		var sources = new ArrayList<>(List.of(ref.getUrl()));
 		if (ref.getTags().contains("plugin/thread") || ref.getTags().contains("plugin/comment")) {
 			// Add top comment source
@@ -263,7 +264,7 @@ public class Ai implements Async.AsyncRunner {
 			aiReply.setOrigin(ref.getOrigin());
 			if (aiReply.getTags() != null) {
 				aiReply.setTags(aiReply.getTags().stream().distinct().filter(
-					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/openai") || !t.startsWith("+") && !t.startsWith("_"))
+					t -> t.matches(Tag.REGEX) && (t.equals("+plugin/ai/openai") || !t.startsWith("+") && !t.startsWith("_"))
 				).collect(Collectors.toList()));
 				if (aiReply.getTags().contains("plugin/comment")) aiReply.addTag("internal");
 				if (aiReply.getTags().contains("plugin/thread")) aiReply.addTag("internal");
@@ -870,7 +871,7 @@ When playing on mutually replicating servers, each server is trusted to generate
 
 End of GitHub Readme.
 
-You will reply when a notification is sent to you via your inbox tag, plugin/inbox/ai.
+You will reply when a notification is sent to you via your inbox tag, plugin/inbox/ai/openai.
 Include your response as the comment field of a Ref. Remember, the comment field is a string
 which by default is intended to be parsed as markdown.
 Only reply with pure JSON.
@@ -878,7 +879,7 @@ For example, in response to:
 {
 	"url": "comment:1",
 	"title": "Say Hi!",
-	"tags": ["public", "+user/chris", "plugin/inbox/ai"]
+	"tags": ["public", "+user/chris", "plugin/inbox/ai/openai"]
 }
 
 You could respond:
@@ -887,7 +888,7 @@ You could respond:
 		"sources": ["comment:1"],
 		"title": "Re: Say Hi",
 		"comment":"Hi!",
-		"tags": ["public", "plugin/inbox/user/chris", "+plugin/openai"]
+		"tags": ["public", "plugin/inbox/user/chris", "+plugin/ai/openai"]
 	}],
 	"ext": []
 }
@@ -902,7 +903,7 @@ For example, in response to:
 	"url": "comment:2",
 	"title": "Chat with AI",
 	"comment": "Can you create an Ref pointing to the wikipedia article for weightlifting and tag it #cool?",
-	"tags": ["+user/chris","plugin/inbox/ai"]
+	"tags": ["+user/chris","plugin/inbox/ai/openai"]
 }
 You could respond:
 {
@@ -910,7 +911,7 @@ You could respond:
 		"sources": ["comment:2"],
 		"title": "Re: Chat with AI",
 		"comment": "Certainly! [Here](/ref/https://en.wikipedia.org/wiki/Weightlifting) it is.",
-		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
+		"tags": ["plugin/inbox/user/chris", "+plugin/ai/openai"]
 	}, {
 		"url": ["https://en.wikipedia.org/wiki/Weightlifting"],
 		"title": "Weightlifting",
@@ -933,7 +934,7 @@ You could respond:
 		"sources": ["comment:3"],
 		"title": "Re: Chat with AI",
 		"comment": "Tuesday",
-		"tags": ["public", "+plugin/openai", "chat/ai"]
+		"tags": ["public", "+plugin/ai/openai", "chat/ai"]
 	}],
 	"ext": []
 }
@@ -945,7 +946,7 @@ For example, in response to:
 	"url": "comment:4",
 	"title":"Chat with AI",
 	"comment": "Create a poll for the best times of the day to go golfing in #golfing.",
-	"tags": ["+user/chris", "plugin/inbox/ai"]
+	"tags": ["+user/chris", "plugin/inbox/ai/openai"]
 }
 You could respond:
 {
@@ -953,7 +954,7 @@ You could respond:
 		"sources": ["comment:4"],
 		"title": "Re: Chat with AI",
 		"comment": "Sure! [Here](/ref/ai:1) is the poll.",
-		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
+		"tags": ["plugin/inbox/user/chris", "+plugin/ai/openai"]
 	}, {
 		"url": "ai:1"
 		"title": "Best time to golf?",
@@ -975,7 +976,7 @@ For example, in response to:
 	"url": "comment:5",
 	"title":"Chat with AI",
 	"comment": "Create a link to the Wikipedia entry for Sparkline and tag it #data.",
-	"tags": ["+user/chris", "plugin/inbox/ai"]
+	"tags": ["+user/chris", "plugin/inbox/ai/openai"]
 }
 You could respond:
 {
@@ -983,7 +984,7 @@ You could respond:
 		"sources": ["comment:4"],
 		"title": "Re: Chat with AI",
 		"comment": "Sure! [Here](/ref/https://en.wikipedia.org/wiki/Sparkline) it is.",
-		"tags": ["plugin/inbox/user/chris", "+plugin/openai"]
+		"tags": ["plugin/inbox/user/chris", "+plugin/ai/openai"]
 	}, {
 		"url": "https://en.wikipedia.org/wiki/Sparkline"
 		"title": "Sparkline - Wikipedia",
@@ -995,10 +996,10 @@ Also, when using a chat template, do not notifications (starting with plugin/inb
 with the current chat (starting with chat/)
 """ + modsPrompt + """
 All date times are ISO format Zulu time like: "2023-04-22T20:38:19.480464Z"
-Always add the "+plugin/openai" tag, as that is your signature.
+Always add the "+plugin/ai/openai" tag, as that is your signature.
 Never include a tag like "+user/chris", as that is impersonation.
-You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/openai
-Only add the "plugin/inbox/ai" tag to trigger an AI response to your comment as well (spawn an new
+You may only use public tags (starting with a lowercase letter or number) and your protected signature tag: +plugin/ai/openai
+Only add the "plugin/inbox/ai/openai" tag to trigger an AI response to your comment as well (spawn an new
 agent with your Ref as the prompt).
 Include your response as the comment field of a Ref.
 Do not add metadata to a response, that is generated by Jasper.
@@ -1018,7 +1019,7 @@ Your reply should always start with {"ref":[{
 		context.sort(Comparator.comparing(RefDto::getPublished));
 		for (var p : context) {
 			p.setMetadata(null);
-			if (p.getTags().contains("+plugin/openai")) {
+			if (p.getTags().contains("+plugin/ai/openai")) {
 				messages.add(cm("assistant", objectMapper.writeValueAsString(p)));
 			} else {
 				messages.add(cm("user", objectMapper.writeValueAsString(p)));
