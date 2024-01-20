@@ -1019,7 +1019,7 @@ Your reply should always start with {"ref":[{
 		context.sort(Comparator.comparing(RefDto::getPublished));
 		for (var p : context) {
 			p.setMetadata(null);
-			if (p.getTags().contains("+plugin/ai/openai")) {
+			if (p.getTags() != null && p.getTags().contains("+plugin/ai/openai")) {
 				messages.add(cm("assistant", objectMapper.writeValueAsString(p)));
 			} else {
 				messages.add(cm("user", objectMapper.writeValueAsString(p)));
