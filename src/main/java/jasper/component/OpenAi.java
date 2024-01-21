@@ -181,7 +181,7 @@ public class OpenAi {
 		public String size = "1024x1024";
 		public String model = "dall-e-3";
 		public String quality = "hd";
-		public String style = "natural";
+		public String style = "vivid";
 	}
 
 }
