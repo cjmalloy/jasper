@@ -111,9 +111,11 @@ public class OpenAi {
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		var imageRequest = CreateImageRequest.builder()
 			.prompt(prompt)
+			.responseFormat("b64_json")
 			.model(config.model)
 			.size(config.size)
 			.quality(config.quality)
+			.style(config.style)
 			.build();
 		return service.createImage(imageRequest);
 	}
@@ -179,6 +181,7 @@ public class OpenAi {
 		public String size = "1024x1024";
 		public String model = "dall-e-3";
 		public String quality = "hd";
+		public String style = "natural";
 	}
 
 }

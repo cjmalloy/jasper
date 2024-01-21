@@ -41,4 +41,12 @@ public class Web {
 		result.data = data;
 		return result;
 	}
+
+	public static Web from(String url, byte[] data, String mime) {
+		var result = new Web();
+		result.url = url;
+		result.mime = mime;
+		result.data = data;
+		return result;
+	}
 }
