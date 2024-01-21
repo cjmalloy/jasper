@@ -66,7 +66,7 @@ public class Dalle implements Async.AsyncRunner {
 		var config = objectMapper.convertValue(dallePlugin.getConfig(), OpenAi.DalleConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.dale((isBlank(ref.getTitle()) ? "" : ref.getTitle() + ": ") + ref.getComment(), config);
+			var res = openAi.dale(getPrompt(ref.getTitle(), ref.getComment()), config);
 			response.setTitle(getTitle(ref.getTitle(), ref.getComment()));
 			response.setUrl(res.getData().get(0).getUrl());
 		} catch (Exception e) {
@@ -106,6 +106,12 @@ public class Dalle implements Async.AsyncRunner {
 		response.setOrigin(ref.getOrigin());
 		ingest.create(response, false);
 		logger.debug("DALL-E reply sent ({})", response.getUrl());
+	}
+
+	private String getPrompt(String title, String comment) {
+		if (isBlank(title)) return comment;
+		if (isBlank(comment)) return title;
+		return title + ": " + comment;
 		webScraper.fetch(response.getUrl());
 	}
 
