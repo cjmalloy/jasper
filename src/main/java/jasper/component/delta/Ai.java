@@ -257,7 +257,12 @@ public class Ai implements Async.AsyncRunner {
 						if (isBlank(rewrite.getComment())) continue;
 						rewrite.setComment(rewrite
 							.getComment().replace("](" + oldUrl + ")", "](" + aiReply.getUrl() + ")")
-							.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")"));
+							.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")")
+							.replace("url=" + oldUrl, "url=" + oldUrl)
+							.replace("sources/" + oldUrl, "sources/" + oldUrl)
+							.replace("responses/" + oldUrl, "responses/" + oldUrl)
+							.replace("sources%2F" + oldUrl, "sources%2F" + oldUrl)
+							.replace("responses%2F" + oldUrl, "responses%2F" + oldUrl));
 					}
 				}
 			}
