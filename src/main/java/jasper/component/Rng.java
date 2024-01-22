@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.data.domain.Sort.Order.desc;
@@ -38,7 +37,7 @@ public class Rng {
 				.modifiedAfter(existing.getModified())
 				.build().spec(), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (remotes.isEmpty() || remotes.getContent().get(0).getOrigin().equals(ref.getOrigin())) {
-				ref.removeTags(List.of("plugin/rng"));
+				ref.removeTag("plugin/rng");
 				for (var t : existing.getTags()) {
 					if (t.startsWith("+plugin/rng/")) {
 						ref.addTag(t);
@@ -54,7 +53,7 @@ public class Rng {
 				return;
 			}
 		}
-		ref.removeTags(List.of("+plugin/rng"));
+		ref.removeTag("+plugin/rng");
 		ref.addTag("+plugin/rng/" + UUID.randomUUID().toString().toLowerCase().replaceAll("\\W", ""));
 	}
 }

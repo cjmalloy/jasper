@@ -2,8 +2,6 @@ package jasper.domain.proj;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.util.List;
-
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -25,15 +23,6 @@ public interface Tag extends Cursor {
 
 	static String urlForUser(String url, String user) {
 		return "tag:/" + user + "?url=" + url;
-	}
-
-	static void removeTag(List<String> tags, String tag) {
-		for (var i = tags.size() - 1; i >= 0; i--) {
-			var t = tags.get(i);
-			if (t.equals(tag) || t.startsWith(tag + "/")) {
-				tags.remove(i);
-			}
-		}
 	}
 
 	static boolean publicTag(String tag) {

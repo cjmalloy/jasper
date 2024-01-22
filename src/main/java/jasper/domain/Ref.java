@@ -165,16 +165,21 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
-	public Ref removeTags(List<String> toRemove) {
-		if (tags == null || toRemove == null) return this;
-		for (var r : toRemove) {
-			tags.remove(r);
-			for (int i = tags.size() - 1; i >= 0; i--) {
-				if (tags.get(i).startsWith(r + "/")) {
-					tags.remove(i);
-				}
+	public Ref removeTag(String tag) {
+		if (tags == null || tag == null) return this;
+		tags.remove(tag);
+		for (int i = tags.size() - 1; i >= 0; i--) {
+			if (tags.get(i).startsWith(tag + "/")) {
+				tags.remove(i);
 			}
 		}
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref removeTags(List<String> toRemove) {
+		if (tags == null || toRemove == null) return this;
+		for (var r : toRemove) removeTag(r);
 		return this;
 	}
 
@@ -182,6 +187,7 @@ public class Ref implements HasTags {
 	public Ref addTag(String tag) {
 		if (tag == null) return this;
 		if (tags == null) {
+			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
 			tags.add(tag);
 		} else {

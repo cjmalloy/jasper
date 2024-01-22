@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import static jasper.domain.proj.Tag.removeTag;
 import static jasper.domain.proj.Tag.urlForUser;
 
 @Service
@@ -101,29 +100,23 @@ public class TaggingService {
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
 		var ref = getResponseRef(url);
-		removeTag(ref.getTags(), tag);
+		ref.removeTag(tag);
 		ingest.update(ref, true);
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER') and@auth.canAddTags(@auth.tagPatch(#tags))")
+	@PreAuthorize( "@auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
 		var ref = getResponseRef(url);
-		for (var tag : tags) {
-			if (tag.startsWith("-")) {
-				removeTag(ref.getTags(), tag.substring(1));
-			} else if (!ref.getTags().contains(tag)) {
-				ref.getTags().add(tag);
-			}
-		}
+		for (var tag : tags) ref.addTag(tag);
 		ingest.update(ref, true);
 	}
 
 	private Ref getResponseRef(String url) {
 		var userUrl = urlForUser(url, auth.getUserTag().tag);
 		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
-				if (!ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags() != null && ref.getTags().contains("plugin/deleted")) {
+				if (ref.getSources() == null || !ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
+				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
 					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
 				}
 				return ref;
