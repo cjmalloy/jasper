@@ -16,11 +16,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.Clock;
-import java.time.Instant;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceException;
+import java.time.Clock;
+import java.time.Instant;
+
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.deletorTag;
+import static jasper.component.Replicator.isDeletorTag;
 
 @Component
 public class IngestExt {
@@ -46,6 +50,11 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext, boolean force) {
+		if (isDeletorTag(ext.getTag())) {
+			if (extRepository.existsByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin())) throw new AlreadyExistsException();
+		} else {
+			delete(deletorTag(ext.getTag()) + ext.getOrigin());
+		}
 		validate.ext(ext, force);
 		ensureCreateUniqueModified(ext);
 	}
@@ -64,6 +73,16 @@ public class IngestExt {
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
+		if (isDeletorTag(ext.getTag())) {
+			delete(deletedTag(ext.getTag()) + ext.getOrigin());
+		} else {
+			delete(deletorTag(ext.getTag()) + ext.getOrigin());
+		}
+	}
+
+	@Timed(value = "jasper.ext", histogram = true)
+	public void delete(String qualifiedTag) {
+		extRepository.deleteByQualifiedTag(qualifiedTag);
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {

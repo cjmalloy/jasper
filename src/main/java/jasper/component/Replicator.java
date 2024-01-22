@@ -33,6 +33,8 @@ import java.util.Optional;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
 import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
@@ -98,11 +100,17 @@ public class Replicator {
 				for (var plugin : client.pluginPull(url, options)) {
 					plugin.setOrigin(localOrigin);
 					pluginRepository.save(plugin);
+					if (isDeletorTag(plugin.getTag())) {
+						pluginRepository.deleteByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin());
+					}
 				}
 				options.put("modifiedAfter", templateRepository.getCursor(localOrigin));
 				for (var template : client.templatePull(url, options)) {
 					template.setOrigin(localOrigin);
 					templateRepository.save(template);
+					if (isDeletorTag(template.getTag())) {
+						pluginRepository.deleteByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin());
+					}
 				}
 				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
@@ -135,6 +143,9 @@ public class Replicator {
 							validate.ext(ext, pull.getValidationOrigin(), pull.isStripInvalidTemplates());
 						}
 						extRepository.save(ext);
+						if (isDeletorTag(ext.getTag())) {
+							pluginRepository.deleteByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin());
+						}
 					} catch (RuntimeException e) {
 						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag(), e);
 					}
@@ -148,6 +159,9 @@ public class Replicator {
 						user.setKey(maybeExisting.get().getKey());
 					}
 					userRepository.save(user);
+					if (isDeletorTag(user.getTag())) {
+						pluginRepository.deleteByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin());
+					}
 				}
 			} catch (Exception e) {
 				logger.error("Error pulling {} from {}", localOrigin, remoteOrigin, e);
@@ -302,6 +316,18 @@ public class Replicator {
 			return false;
 		}
 		return true;
+	}
+
+	public static boolean isDeletorTag(String tag) {
+		return localTag(tag).endsWith("/deleted");
+	}
+
+	public static String deletorTag(String tag) {
+		return localTag(tag) + "/deleted" + tagOrigin(tag);
+	}
+
+	public static String deletedTag(String deletor) {
+		return localTag(deletor).substring("/deleted".length()) + tagOrigin(deletor);
 	}
 
 }

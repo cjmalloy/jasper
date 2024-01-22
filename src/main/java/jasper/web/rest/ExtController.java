@@ -92,6 +92,7 @@ public class ExtController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -99,6 +100,7 @@ public class ExtController {
 		return httpCache.ifNotModifiedPage(request, extService.page(
 			TagFilter.builder()
 				.query(query)
+				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter).build(),
@@ -111,9 +113,8 @@ public class ExtController {
 	})
 	@GetMapping("count")
 	long countExts(
-		WebRequest request,
-		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -121,6 +122,7 @@ public class ExtController {
 		return extService.count(
 			TagFilter.builder()
 				.query(query)
+				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter).build());

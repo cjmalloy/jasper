@@ -128,9 +128,9 @@ public class UserService {
 	@Transactional
 	@PreAuthorize("@auth.sysMod() or @auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
-	public void delete(String tag) {
+	public void delete(String qualifiedTag) {
 		try {
-			userRepository.deleteByQualifiedTag(tag);
+			ingest.delete(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
