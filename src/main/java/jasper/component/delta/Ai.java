@@ -943,7 +943,7 @@ You could respond:
 	}],
 	"ext": []
 }
-When tasked with creating new Refs on behalf of the user, take care to link the newly created items in your response.
+When tasked with creating new Refs on behalf of the user, it is very important to link the newly created items in your response.
 If you create a ref with an http or https url, it will not be rewritten. If you want the url rewritten, use a url like ai:<uuid>.
 All markdown links matching rewritten urls will also be updated.
 For example, in response to:
