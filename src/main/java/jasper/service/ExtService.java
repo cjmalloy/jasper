@@ -149,7 +149,7 @@ public class ExtService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
-			extRepository.deleteByQualifiedTag(qualifiedTag);
+			ingest.delete(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

@@ -87,7 +87,7 @@ public class PluginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
-			pluginRepository.deleteByQualifiedTag(qualifiedTag);
+			ingest.delete(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

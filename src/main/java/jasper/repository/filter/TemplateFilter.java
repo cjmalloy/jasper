@@ -13,7 +13,9 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
+import static jasper.repository.spec.TagSpec.tagEndsWith;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.jpa.domain.Specification.not;
 
 @Builder
 @Getter
@@ -23,6 +25,7 @@ public class TemplateFilter implements Query {
 
 	private String origin;
 	private String query;
+	private Boolean deleted;
 	private String search;
 	private Instant modifiedBefore;
 	private Instant modifiedAfter;
@@ -34,6 +37,9 @@ public class TemplateFilter implements Query {
 		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).templateSpec());
+		}
+		if (deleted == null || !deleted) {
+			result = result.and(not(tagEndsWith("deleted")));
 		}
 		if (isNotBlank(search)) {
 			result = result.and(searchTagOrName(search));

@@ -18,11 +18,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.Clock;
-import java.time.Instant;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceException;
+import java.time.Clock;
+import java.time.Instant;
+
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.deletorTag;
+import static jasper.component.Replicator.isDeletorTag;
 
 @Component
 public class IngestUser {
@@ -48,6 +52,11 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
+		if (isDeletorTag(user.getTag())) {
+			if (userRepository.existsByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin())) throw new AlreadyExistsException();
+		} else {
+			delete(deletorTag(user.getTag()) + user.getOrigin());
+		}
 		ensureCreateUniqueModified(user);
 	}
 
@@ -63,6 +72,14 @@ public class IngestUser {
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
+		if (isDeletorTag(user.getTag())) {
+			delete(deletedTag(user.getTag()) + user.getOrigin());
+		}
+	}
+
+	@Timed(value = "jasper.user", histogram = true)
+	public void delete(String qualifiedTag) {
+		userRepository.deleteByQualifiedTag(qualifiedTag);
 	}
 
 	void ensureCreateUniqueModified(User user) {

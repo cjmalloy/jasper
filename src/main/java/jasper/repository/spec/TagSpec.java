@@ -35,6 +35,17 @@ public class TagSpec {
 					tag + "/%"));
 	}
 
+	public static <T extends Tag> Specification<T> tagEndsWith(String tag) {
+		return (root, query, cb) ->
+			cb.or(
+				cb.equal(
+					root.get("tag"),
+					tag),
+				cb.like(
+					root.get("tag"),
+					"%/" + tag));
+	}
+
 	public static <T extends Tag> Specification<T> isAnyTag(List<String> tags) {
 		if (tags == null || tags.isEmpty()) return null;
 		if (tags.size() == 1) return isTag(tags.get(0));
