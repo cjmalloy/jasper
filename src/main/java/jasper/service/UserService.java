@@ -110,7 +110,7 @@ public class UserService {
 
 	// TODO: merge
 
-	@PreAuthorize("@auth.canWriteUser(#qualifiedTag)")
+	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
 		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
@@ -126,7 +126,7 @@ public class UserService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.sysMod() or @auth.canWriteUser(#tag)")
+	@PreAuthorize("@auth.sysMod() or @auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String tag) {
 		try {

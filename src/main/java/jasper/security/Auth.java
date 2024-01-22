@@ -541,7 +541,7 @@ public class Auth {
 	 * Can this user be updated?
 	 * Check if the user can write this tag, and that their role is not smaller.
 	 */
-	public boolean canWriteUser(String tag) {
+	public boolean canWriteUserTag(String tag) {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
@@ -558,7 +558,7 @@ public class Auth {
 	 * Do not allow public tags to be given write access.
 	 */
 	public boolean canWriteUser(User user) {
-		if (!canWriteUser(user.getQualifiedTag())) return false;
+		if (!canWriteUserTag(user.getQualifiedTag())) return false;
 		// Cannot add role higher than your own
 		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) return false;
 		// Mods can add any tag permissions
