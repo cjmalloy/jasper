@@ -36,6 +36,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -250,14 +252,18 @@ public class Ai implements Async.AsyncRunner {
 		response.setSources(sources);
 		for (var aiReply : refArray) {
 			var oldUrl = aiReply.getUrl();
+			var encodedOldUrl = URLEncoder.encode(oldUrl, StandardCharsets.UTF_8);
 			if (isBlank(oldUrl) || !oldUrl.startsWith("http:") && !oldUrl.startsWith("https:")) {
 				aiReply.setUrl("ai:" + UUID.randomUUID());
+				var encodedNewUrl = URLEncoder.encode(aiReply.getUrl(), StandardCharsets.UTF_8);
 				if (!isBlank(oldUrl)) {
 					for (var rewrite : refArray) {
 						if (isBlank(rewrite.getComment())) continue;
 						rewrite.setComment(rewrite
 							.getComment().replace("](" + oldUrl + ")", "](" + aiReply.getUrl() + ")")
-							.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")"));
+							.replace("](/ref/" + oldUrl + ")", "](/ref/" + aiReply.getUrl() + ")")
+							.replace("=" + encodedOldUrl, "=" + encodedNewUrl)
+							.replace("%2F" + encodedOldUrl, "%2F" + encodedNewUrl));
 					}
 				}
 			}
