@@ -170,7 +170,7 @@ public class OpenAi {
 	}
 
 	public static class AiConfig {
-		public String model = "gpt-4-1106-preview";
+		public String model = "gpt-4-turbo-preview";
 		public List<String> fallback;
 		public int maxTokens = 4096;
 		public int maxContext = 7;
