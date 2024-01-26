@@ -11,6 +11,7 @@ import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
+import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +19,12 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
-import static jasper.domain.Web.from;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("ai")
@@ -42,6 +43,9 @@ public class Dalle implements Async.AsyncRunner {
 
 	@Autowired
 	WebScraper webScraper;
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Autowired
 	PluginRepository pluginRepository;
@@ -66,16 +70,23 @@ public class Dalle implements Async.AsyncRunner {
 		var dallePlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/dalle", ref.getOrigin())
 			.orElseThrow(() -> new NotFoundException("+plugin/ai/dalle"));
 		var config = objectMapper.convertValue(dallePlugin.getConfig(), OpenAi.DalleConfig.class);
-		var response = new Ref();
-		var data = "";
+		Ref response;
 		try {
 			var res = openAi.dale(getPrompt(ref.getTitle(), ref.getComment()), config);
-			data = res.getData().get(0).getB64Json();
+			var data = res.getData().get(0).getB64Json();
+			var image = Base64.getDecoder().decode(data);
+			try {
+				var cache = webScraper.cache(ref.getOrigin(), image, "image/png", "+plugin/ai/dalle");
+				response = refRepository.findOneByUrlAndOrigin("internal:" + cache.getId(), ref.getOrigin())
+					.orElseThrow(() -> new NotFoundException("internal:" + cache.getId()));
+			} catch (IOException e) {
+				logger.error("Failed to cache DALL-E image", e);
+				throw e;
+			}
 		} catch (Exception e) {
+			response = new Ref();
 			response.setComment("Error invoking DALL-E. " + e.getMessage());
-			response.setUrl("internal:" + UUID.randomUUID());
 		}
-		var image = Base64.getDecoder().decode(data);
 		response.setTitle(getTitle(ref.getTitle(), ref.getComment()));
 		response.addTags(ref.getTags().stream().filter(Tag::publicTag).toList());
 		response.addTag("plugin/thread");
@@ -109,8 +120,7 @@ public class Dalle implements Async.AsyncRunner {
 		response.setSources(sources);
 		response.setOrigin(ref.getOrigin());
 		response.setUrl("dalle:" + UUID.randomUUID());
-		webScraper.cache(from(response.getUrl(), image, "image/png"));
-		ingest.create(response, false);
+        ingest.create(response, false);
 		logger.debug("DALL-E reply sent ({})", response.getUrl());
 	}
 

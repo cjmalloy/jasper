@@ -13,8 +13,8 @@ import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +24,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -66,7 +68,7 @@ public class ScrapeController {
 	@GetMapping("web")
 	ResponseEntity<RefDto> scrapeWebpage(@RequestParam @Length(max = URL_LEN) @URL String url) throws IOException, URISyntaxException {
 		return ResponseEntity.ok()
-			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(scrapeService.webpage(url));
 	}
 
@@ -75,15 +77,25 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("fetch")
-	ResponseEntity<byte[]> fetch(@RequestParam @Length(max = URL_LEN) String url) {
+	void fetch(
+		WebRequest request,
+		HttpServletResponse response,
+		@RequestParam @Length(max = URL_LEN) String url) throws IOException {
+		response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.MINUTES).mustRevalidate().cachePrivate().getHeaderValue());
 		var cache = scrapeService.fetch(url);
-		if (cache != null && cache.getData() != null) return ResponseEntity.ok()
-			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
-			.contentType(isNotBlank(cache.getMime()) ? MediaType.valueOf(cache.getMime()) : null)
-			.body(cache.getData());
-		return ResponseEntity.noContent()
-			.cacheControl(CacheControl.noCache())
-			.build();
+		if (cache != null) {
+			response.setHeader(HttpHeaders.ETAG, "\"" + cache.getId() + "\"");
+			if (isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
+			if (request.checkNotModified(cache.getId())) {
+				response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
+				response.sendError(HttpStatus.NOT_MODIFIED.value());
+			} else {
+				response.setStatus(HttpStatus.OK.value());
+				scrapeService.fetch(url, response.getOutputStream());
+			}
+		} else {
+			response.setStatus(HttpStatus.OK.value());
+		}
 	}
 
 	@ApiResponses({
@@ -98,15 +110,23 @@ public class ScrapeController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	ResponseEntity<Void> scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
-		scrapeService.scrape(url);
-		return ResponseEntity.noContent()
+	ResponseEntity<String> scrape(@RequestParam @Length(max = URL_LEN) String url) throws URISyntaxException, IOException {
+		return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
-			.build();
+			.body(scrapeService.scrape(url));
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PostMapping("refresh")
+	String refresh(@RequestParam @Length(max = URL_LEN) String url) throws IOException {
+		return scrapeService.refresh(url);
 	}
 
 	@ApiResponses({
@@ -117,7 +137,7 @@ public class ScrapeController {
 	String cache(
 		@RequestParam(required = false) String mime,
 		@RequestBody byte[] data
-	) {
+	) throws IOException {
 		return scrapeService.cache(data, mime);
 	}
 

@@ -148,16 +148,7 @@ public class Ref implements HasTags {
 	}
 
 	public void addHierarchicalTags() {
-		if (tags == null) return;
-		for (var i = tags.size() - 1; i >= 0; i--) {
-			var t = tags.get(i);
-			while (t.contains("/")) {
-				t = t.substring(0, t.lastIndexOf("/"));
-				if (!tags.contains(t)) {
-					tags.add(t);
-				}
-			}
-		}
+		addTags(getHierarchicalTags(this.tags));
 	}
 
 	public void removePrefixTags() {
@@ -234,6 +225,21 @@ public class Ref implements HasTags {
 		return Objects.hash(url, origin);
 	}
 
+	public static List<String> getHierarchicalTags(List<String> tags) {
+		if (tags == null) return new ArrayList<>();
+		var result = new ArrayList<>(tags);
+		for (var i = result.size() - 1; i >= 0; i--) {
+			var t = result.get(i);
+			while (t.contains("/")) {
+				t = t.substring(0, t.lastIndexOf("/"));
+				if (!result.contains(t) && !result.contains(t)) {
+					result.add(t);
+				}
+			}
+		}
+		return result;
+	}
+
 	public static void removePrefixTags(List<String> tags) {
 		if (tags == null) return;
 		for (int i = tags.size() - 1; i >= 0; i--) {
@@ -250,19 +256,25 @@ public class Ref implements HasTags {
 	// TODO: Remove static mapper
 	private static ObjectMapper om = new ObjectMapper();
 	@JsonIgnore
-	public void setPlugin(String tag, Object jsonNode) {
+	public Ref setPlugin(String tag, Object jsonNode) {
 		if (jsonNode == null && plugins != null) {
 			plugins.remove(tag);
-			return;
+			return this;
 		}
 		if (plugins == null) plugins = om.createObjectNode();
 		addTag(tag);
 		plugins.set(tag, om.convertValue(jsonNode, JsonNode.class));
+		return this;
 	}
 
 	@JsonIgnore
 	public JsonNode getPlugin(String tag) {
 		if (plugins == null) return null;
 		return plugins.get(tag);
+	}
+
+	@JsonIgnore
+	public boolean hasTag(String tag) {
+		return getHierarchicalTags(this.tags).contains(tag);
 	}
 }

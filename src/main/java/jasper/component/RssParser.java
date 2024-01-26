@@ -126,7 +126,7 @@ public class RssParser {
 					Map<String, Object> feedImage = null;
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
-						webScraper.fetch(image);
+						webScraper.fetch(image, feed.getOrigin());
 						feedImage = Map.of("url", image);
 						if (!feed.getTags().contains("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", feedImage);
@@ -171,35 +171,35 @@ public class RssParser {
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
 		var ref = new Ref();
-		var l = entry.getLink();
-		if (config.isStripQuery() && l.contains("?")) {
-			l = l.substring(0, l.indexOf("?"));
+		var link = entry.getLink();
+		if (config.isStripQuery() && link.contains("?")) {
+			link = link.substring(0, link.indexOf("?"));
 		}
-		if (refRepository.existsByUrlAndOrigin(l, feed.getOrigin())) {
+		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
 			throw new AlreadyExistsException();
 		}
 		if (config.isScrapeWebpage()) {
 			try {
-				var scrapeConfig = webScraper.getConfig(feed.getOrigin(), l);
+				var scrapeConfig = webScraper.getConfig(feed.getOrigin(), link);
 				if (scrapeConfig == null) {
 					scrapeConfig = webScraper.getDefaultConfig(feed.getOrigin());
 				}
 				if (scrapeConfig == null) {
 					logger.warn("Scrape requested, but no config found.");
 				} else {
-					var web = webScraper.web(l, scrapeConfig);
+					var web = webScraper.web(link, feed.getOrigin(), scrapeConfig);
 					if (web != null) ref = web;
 				}
 			} catch (Exception ignored) {}
 		}
-		ref.setUrl(l);
+		ref.setUrl(link);
 		ref.setTitle(entry.getTitle());
 		ref.setSources(List.of(feed.getUrl()));
 		ref.addTags(config.getAddTags());
 		if (entry.getPublishedDate() != null) {
 			ref.setPublished(entry.getPublishedDate().toInstant());
-		} else if (l.contains("arxiv.org")) {
-			var publishDate = l.substring(l.lastIndexOf("/") + 1, l.lastIndexOf("/") + 5);
+		} else if (link.contains("arxiv.org")) {
+			var publishDate = link.substring(link.lastIndexOf("/") + 1, link.lastIndexOf("/") + 5);
 			var publishYear = publishDate.substring(0, 2);
 			if (Integer.parseInt("20" + publishYear) > Year.now().getValue() + 10) {
 				publishYear = "19" + publishYear;
@@ -243,28 +243,28 @@ public class RssParser {
 				}
 			}
 			if (plugins.containsKey("plugin/thumbnail")) {
-				webScraper.scrapeAsync(getUrl("plugin/thumbnail", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/thumbnail", plugins), feed.getOrigin());
 				ref.getTags().add("plugin/thumbnail");
 			}
 		}
 		if (config.isScrapeAudio()) {
 			parseAudio(entry, plugins);
 			if (plugins.containsKey("plugin/audio")) {
-				webScraper.scrapeAsync(getUrl("plugin/audio", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/audio", plugins), feed.getOrigin());
 				ref.getTags().add("plugin/audio");
 			}
 		}
 		if (config.isScrapeVideo()) {
 			parseVideo(entry, plugins);
 			if (plugins.containsKey("plugin/video")) {
-				webScraper.scrapeAsync(getUrl("plugin/video", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/video", plugins), feed.getOrigin());
 				ref.getTags().add("plugin/video");
 			}
 		}
 		if (config.isScrapeEmbed()) {
 			parseEmbed(entry, plugins);
 			if (plugins.containsKey("plugin/embed")) {
-				webScraper.scrapeAsync(getUrl("plugin/embed", plugins));
+				webScraper.scrapeAsync(getUrl("plugin/embed", plugins), feed.getOrigin());
 				ref.getTags().add("plugin/embed");
 			}
 		}

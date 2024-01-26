@@ -1,5 +1,8 @@
 package jasper.config;
 
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -29,4 +32,18 @@ public class ScrapeConfig {
 		return new ConcurrentTaskExecutor(executor);
 	}
 
+	@Bean
+	public CloseableHttpClient httpClient() {
+		int timeout = 5 * 60 * 1000; // 5
+		return HttpClients
+			.custom()
+			.disableCookieManagement()
+			.setDefaultRequestConfig(RequestConfig
+				.custom()
+				.setConnectTimeout(timeout)
+				.setConnectionRequestTimeout(timeout)
+				.setSocketTimeout(timeout)
+				.build())
+			.build();
+	}
 }

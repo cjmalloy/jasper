@@ -198,7 +198,7 @@ public class Ai implements Async.AsyncRunner {
 					}
 				} catch (Exception e) {
 					logger.warn("Falling back: AI did not reply with JSON.");
-					logger.warn(reply, e);
+					logger.trace(reply, e);
 					response.setComment(reply);
 					response.setTags(new ArrayList<>(List.of("plugin/debug", "+plugin/ai/openai")));
 				}
