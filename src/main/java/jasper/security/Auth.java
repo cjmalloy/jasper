@@ -6,6 +6,7 @@ import jasper.config.Props;
 import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
 import jasper.domain.proj.Tag;
 import jasper.errors.FreshLoginException;
@@ -708,7 +709,7 @@ public class Auth {
 		if (origin == null) {
 			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
-				origin = getOriginHeader().toLowerCase();
+				origin = getOriginHeader();
 			} else if (isLoggedIn() &&
 				props.getSecurity().hasClient(origin) &&
 				props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() &&
@@ -734,7 +735,9 @@ public class Auth {
 	public static String getOriginHeader() {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
-			return attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
+			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER).toLowerCase();
+			if (isBlank(originHeader) || "default".equals(originHeader)) return "";
+			if (originHeader.matches(HasOrigin.REGEX)) return originHeader;
 		}
 		return null;
 	}

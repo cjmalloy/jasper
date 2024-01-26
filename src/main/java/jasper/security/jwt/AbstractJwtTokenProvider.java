@@ -87,7 +87,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		var principal = claims.get(client.getUsernameClaim(), String.class);
 		logger.debug("Principal: {}", principal);
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
-			origin = getOriginHeader().toLowerCase();
+			origin = getOriginHeader();
 		} else if (!isBlank(principal) && client.isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
 				var qt = originSelector(principal);
