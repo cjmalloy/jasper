@@ -155,7 +155,7 @@ public class Ingest {
 						ref.getOrigin(),
 						ref.getTitle(),
 						ref.getComment(),
-						ref.getTitle() == null ? null : objectMapper.convertValue(ref.getTags(), ArrayNode.class),
+						ref.getTags() == null ? null : objectMapper.convertValue(ref.getTags(), ArrayNode.class),
 						ref.getSources() == null ? null : objectMapper.convertValue(ref.getSources(), ArrayNode.class),
 						ref.getAlternateUrls() == null ? null : objectMapper.convertValue(ref.getAlternateUrls(), ArrayNode.class),
 						ref.getPlugins(),
