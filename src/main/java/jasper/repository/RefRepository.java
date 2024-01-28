@@ -61,20 +61,20 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
 
-	@Query(value = """
+	@Query("""
 		FROM Ref ref
 		WHERE ref.url = :url
 			AND ref.published >= :published
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
-			""")
+		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
-		SELECT url FROM ref
-		WHERE ref.published <= :date
+		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
+		FROM ref
+		WHERE ref.published <= :published
 			AND jsonb_exists(ref.sources, :url)
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	List<String> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant date);
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref

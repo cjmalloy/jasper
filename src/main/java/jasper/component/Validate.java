@@ -81,8 +81,10 @@ public class Validate {
 	public void ref(Ref ref, String validationOrigin, boolean force) {
 		tags(ref);
 		plugins(ref, validationOrigin, force);
-		sources(ref);
-		responses(ref);
+		sources(ref, true);
+		responses(ref, true);
+		sources(ref, false);
+		responses(ref, false);
 	}
 
 	@Timed("jasper.validate.ext")
@@ -288,11 +290,12 @@ public class Validate {
 		}
 	}
 
-	private void sources(Ref ref) {
+	private void sources(Ref ref, boolean fix) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
 			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
 			for (var source : sources) {
+				if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
 				if (source.getPublished().isAfter(ref.getPublished())) {
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
@@ -300,10 +303,13 @@ public class Validate {
 		}
 	}
 
-	private void responses(Ref ref) {
+	private void responses(Ref ref, boolean fix) {
 		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getOrigin(), ref.getPublished());
 		for (var response : responses) {
-			throw new PublishDateException(response, ref.getUrl());
+			if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
+			if (response.getPublished().isBefore(ref.getPublished())) {
+				ref.setPublished(response.getPublished().minusMillis(1));
+			}
 		}
 	}
 }
