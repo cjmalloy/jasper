@@ -185,4 +185,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 				OR plugins->'+plugin/origin'->>'local' = :remote
 		LIMIT 1""")
 	Optional<RefUrl> originUrl(String origin, String remote);
+
+	@Query(nativeQuery = true, value = """
+		SELECT COUNT(ref) > 0 FROM ref
+		WHERE ref.plugins->'_plugin/cache'->>'id' = :id
+			AND ref.plugins->'_plugin/cache'->>'ban' != 'true'
+			AND ref.plugins->'_plugin/cache'->>'noStore' != 'true'""")
+	boolean cacheExists(String id);
 }

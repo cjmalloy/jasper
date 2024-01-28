@@ -37,7 +37,7 @@ public class OEmbedController {
 	@GetMapping()
 	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) {
 		return ResponseEntity.ok()
-			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(oembedService.get(params));
 	}
 

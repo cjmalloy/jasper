@@ -6,20 +6,22 @@ import com.mdimension.jchronic.Chronic;
 import com.mdimension.jchronic.Options;
 import com.mdimension.jchronic.tags.Pointer;
 import io.micrometer.core.annotation.Timed;
+import io.vavr.Tuple;
+import io.vavr.Tuple2;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
-import jasper.domain.Web;
+import jasper.plugin.Cache;
 import jasper.plugin.Scrape;
 import jasper.repository.RefRepository;
-import jasper.repository.WebRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.HostCheck;
+import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.http.HttpHeaders;
-import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
@@ -30,8 +32,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -45,7 +49,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
@@ -64,7 +67,10 @@ public class WebScraper {
 	RefRepository refRepository;
 
 	@Autowired
-	WebRepository webRepository;
+	Ingest ingest;
+
+	@Autowired
+	Storage storage;
 
 	@Autowired
 	Sanitizer sanitizer;
@@ -72,20 +78,37 @@ public class WebScraper {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	CloseableHttpClient client;
+
 	WebScraper self = this;
 
-	private final BlockingQueue<String> scrapeLater = new LinkedBlockingQueue<>();
-	private final Set<String> scraping = new HashSet<>();
+	private final BlockingQueue<Tuple2<String, String>> scrapeLater = new LinkedBlockingQueue<>();
+	private final Set<Tuple2<String, String>> scraping = new HashSet<>();
 
 	@Timed(value = "jasper.webscrape")
-	public Ref web(String url, Scrape config) throws IOException, URISyntaxException {
+	public Ref web(String url, String origin, Scrape config) throws IOException, URISyntaxException {
 		var result = new Ref();
 		result.setUrl(url);
-		var web = fetch(url);
-		if (web == null || web.getData() == null) return result;
-		var strData = new String(web.getData());
-		if (!strData.trim().startsWith("<")) return result;
-		var doc = Jsoup.parse(strData, url);
+		String data;
+		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeRef.isPresent()) {
+			result = maybeRef.get();
+			var cache = result.hasTag("_plugin/cache") ? objectMapper.convertValue(result.getPlugin("_plugin/cache"), Cache.class) : null;
+			if (cache == null || isBlank(cache.getId())) {
+				cache = fetch(result.getUrl(), result.getOrigin());
+				if (cache == null) return result;
+				result.setPlugin("_plugin/cache", cache);
+				ingest.update(result, false);
+			}
+			data = new String(storage.get(origin, cache.getId()));
+		} else {
+			var res = doScrape(url);
+			if (res == null) return result;
+			data = new String(res.getEntity().getContent().readAllBytes());
+		}
+		if (!data.trim().startsWith("<")) return result;
+		var doc = Jsoup.parse(data, url);
 		result.setTitle(doc.title());
 		fixImages(doc, config);
 		parseImages(result, doc, config);
@@ -137,26 +160,26 @@ public class WebScraper {
 			if (image == null) continue;
 			if (image.tagName().equals("a")) {
 				var src = image.absUrl("href");
-				self.scrapeAsync(src);
+				self.scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 			} else if (image.hasAttr("data-srcset")){
 				var srcset = image.absUrl("data-srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
-				self.scrapeAsync(src);
+				self.scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("srcset")){
 				var srcset = image.absUrl("srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
-				self.scrapeAsync(src);
+				self.scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("src")){
 				var src = image.absUrl("src");
-				self.scrapeAsync(src);
+				self.scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
@@ -172,21 +195,21 @@ public class WebScraper {
 					addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), result.getUrl())));
 				} else if (thumbnail.hasAttr("href")) {
 					var src = thumbnail.absUrl("href");
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("data-srcset")){
 					var srcset = thumbnail.absUrl("data-srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("srcset")){
 					var srcset = thumbnail.absUrl("srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("src")){
 					var src = thumbnail.absUrl("src");
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				}
 				thumbnail.parent().remove();
@@ -231,11 +254,11 @@ public class WebScraper {
 			for (var video : doc.select(s)) {
 				if (video.tagName().equals("div")) {
 					var src = video.absUrl("data-stream");
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
 				} else if (video.hasAttr("src")) {
 					var src = video.absUrl("src");
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
 					addWeakThumbnail(result, getThumbnail(src));
 					video.parent().remove();
@@ -250,7 +273,7 @@ public class WebScraper {
 			for (var audio : doc.select(s)) {
 				if (audio.hasAttr("src")) {
 					var src = audio.absUrl("src");
-					self.scrapeAsync(src);
+					self.scrapeAsync(src, result.getOrigin());
 					addPluginUrl(result, "plugin/audio", getVideo(src));
 					audio.parent().remove();
 				}
@@ -350,7 +373,7 @@ public class WebScraper {
 	@Cacheable("scrape-config")
 	@Transactional(readOnly = true)
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Scrape getConfig(String origin, String url) {
+	public Scrape getConfig(String url, String origin) {
 		var configs = refRepository.findAll(
 				RefFilter.builder()
 					.origin(origin)
@@ -479,10 +502,10 @@ public class WebScraper {
 	}
 
 	@Timed(value = "jasper.webscrape")
-	public String rss(String url) {
-		var web = fetch(url);
-		if (web.getData() == null) return null;
-		var strData = new String(web.getData());
+	public String rss(String url, String origin) {
+		var cache = fetch(url, origin);
+		if (isBlank(cache.getId())) return null;
+		var strData = new String(storage.get(origin, cache.getId()));
 		if (!strData.trim().startsWith("<")) return null;
 		var doc = Jsoup.parse(strData);
 		return doc.getElementsByTag("link").stream()
@@ -492,89 +515,147 @@ public class WebScraper {
 			.findFirst().orElse(null);
 	}
 
-	public void scrape(String url) {
-		if (isBlank(url)) return;
-		if (exists(url)) return;
-		fetch(url);
+	public Cache scrape(String url, String origin) {
+		if (isBlank(url) || exists(url, origin)) return null;
+		return fetch(url, origin);
 	}
 
-	public void scrapeAsync(String url) {
+	public Cache refresh(String url, String origin) {
+		if (isBlank(url)) return null;
+		return fetch(url, origin, true);
+	}
+
+	private boolean exists(String url, String origin) {
+		return refRepository.exists(RefFilter.builder()
+			.url(url)
+			.origin(origin)
+			.query("_plugin/cache")
+			.build().spec());
+	}
+
+	public void scrapeAsync(String url, String origin) {
+		// TODO: set source cache ref?
 		if (isBlank(url)) return;
-		if (exists(url)) return;
-		var web = new Web();
-		web.setUrl(url);
-		webRepository.save(web);
-		scrapeLater.add(url);
+		url = fixUrl(url);
+		scrapeLater.add(Tuple.of(url, origin));
 	}
 
 	@Scheduled(fixedDelay = 300)
 	public void drainAsyncScrape() {
 		scrapeLater.drainTo(scraping);
-		for (var url : scraping) fetch(url);
+		for (var s : scraping) fetch(s._1, s._2, true);
 		scraping.clear();
 	}
 
-	@Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
-	public void clearFailed() {
-		// TODO: Not cluster safe
-		// TODO: Make this run on a fixed interval regardless of how many instances are running
-		webRepository.deleteAllByDataIsNullAndMimeIsNull();
+	@Timed(value = "jasper.webscrape")
+	public Cache fetch(String url, String origin) {
+		return fetch(url, origin, null, false);
 	}
 
 	@Timed(value = "jasper.webscrape")
-	public Web fetch(String url) {
-		url = fixUrl(url);
-		var maybeWeb = webRepository.findById(url);
-		if (maybeWeb.isPresent()) return maybeWeb.get();
+	public Cache fetch(String url, String origin, OutputStream os) {
+		return fetch(url, origin, os, false);
+	}
+
+	@Timed(value = "jasper.webscrape")
+	public Cache fetch(String url, String origin, boolean refresh) {
+		return fetch(url, origin, null, refresh);
+	}
+
+	@Timed(value = "jasper.webscrape")
+	public Cache fetch(String url, String origin, OutputStream os, boolean refresh) {
+		Ref ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		Cache existingCache = null;
+		if (ref != null) {
+			if (ref.getTags() == null) {
+				logger.error("null tags");
+				ingest.delete(url, origin);
+				return null;
+			}
+			if (ref.hasTag("_plugin/cache")) {
+				existingCache = objectMapper.convertValue(ref.getPlugin("_plugin/cache"), Cache.class);
+				if (existingCache.isBan()) return existingCache;
+				if (!refresh && !existingCache.isNoStore()) {
+					if (isBlank(existingCache.getId())) {
+						// If id is blank the last scrape must have failed
+						// Wait for the user to manually refresh
+						return existingCache;
+					}
+					if (os != null) storage.stream(origin, existingCache.getId(), os);
+					return existingCache;
+				}
+			}
+			ref.addTag("_plugin/cache");
+		}
+		if (!url.startsWith("http:") && !url.startsWith("https:")) return existingCache;
 		List<String> scrapeMore = List.of();
-		try {
-			var web = doScrape(url);
-			scrapeMore = createArchive(web);
-			return webRepository.save(web);
+		try (var res = doScrape(url)) {
+			if (res == null) return existingCache;
+			var mimeType = res.getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
+			var contentLength = res.getEntity().getContentLength();
+			var cos = (CountingOutputStream) (os != null && contentLength <= 0 ? os = new CountingOutputStream(os) : null);
+			if (existingCache != null && existingCache.isNoStore()) {
+				if (os != null) StreamUtils.copy(res.getEntity().getContent(), os);
+				if (cos != null) contentLength = cos.getByteCount();
+				EntityUtils.consume(res.getEntity());
+				return Cache.builder()
+					.id(res.getFirstHeader(HttpHeaders.ETAG).getValue())
+					.mimeType(mimeType)
+					.contentLength(contentLength <= 0 ? null : contentLength)
+					.build();
+			} else {
+				var id = storage.store(origin, res.getEntity().getContent());
+				EntityUtils.consume(res.getEntity());
+				if (os != null) storage.stream(origin, id, os);
+				if (cos != null) contentLength = cos.getByteCount();
+				var cache = Cache.builder()
+					.id(id)
+					.mimeType(mimeType)
+					.contentLength(contentLength <= 0 ? storage.size(origin, id) : contentLength)
+					.build();
+				scrapeMore = createArchive(url, origin, cache);
+				if (ref == null) {
+					ingest.create(from(url, origin, cache), false);
+				} else {
+					if (refresh && existingCache != null && isNotBlank(existingCache.getId())) {
+						storage.delete(origin, existingCache.getId());
+					}
+					ref.setPlugin("_plugin/cache", cache);
+				}
+				return cache;
+			}
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
-			return null;
+			return existingCache;
 		} finally {
-			for (var m : scrapeMore) self.scrapeAsync(m);
+			for (var m : scrapeMore) self.scrapeAsync(m, origin);
+			if (ref != null) ingest.update(ref, false);
 		}
 	}
 
-	private Web doScrape(String url) throws IOException {
-		int timeout = 30 * 1000; // 30 seconds
-		RequestConfig requestConfig = RequestConfig
-			.custom()
-			.setConnectTimeout(timeout)
-			.setConnectionRequestTimeout(timeout)
-			.setSocketTimeout(timeout).build();
-		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
-		try (CloseableHttpClient client = builder.build()) {
-			HttpUriRequest request = new HttpGet(url);
-			var result = new Web();
-			result.setUrl(url);
-			if (!hostCheck.validHost(request.getURI())) {
-				logger.info("Invalid host {}", request.getURI().getHost());
-				return result;
-			}
-			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
-			try (var res = client.execute(request)) {
-				if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
-					return doScrape(res.getFirstHeader("Location").getElements()[0].getValue());
-				}
-				result.setMime(res.getFirstHeader("Content-Type").getValue());
-				result.setData(res.getEntity().getContent().readAllBytes());
-				return result;
-			}
+	@Timed(value = "jasper.webscrape")
+	public CloseableHttpResponse doScrape(String url) throws IOException {
+		HttpUriRequest request = new HttpGet(url);
+		if (!hostCheck.validHost(request.getURI())) {
+			logger.info("Invalid host {}", request.getURI().getHost());
+			return null;
 		}
+		request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
+		var res = client.execute(request);
+		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
+			return doScrape(res.getFirstHeader("Location").getElements()[0].getValue());
+		}
+		return res;
 	}
 
-	private List<String> createArchive(Web source) {
+	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (source.getData() == null) return moreScrape;
+		if (isBlank(cache.getId())) return moreScrape;
 		// M3U8 Manifest
-		var data = new String(source.getData());
-		if (data.trim().startsWith("#") && (source.getUrl().endsWith(".m3u8") || source.getMime().equals("application/x-mpegURL") || source.getMime().equals("application/vnd.apple.mpegurl"))) {
+		var data = new String(storage.get(origin, cache.getId()));
+		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equals("application/x-mpegURL") || cache.getMimeType().equals("application/vnd.apple.mpegurl"))) {
 			try {
-				var urlObj = new URL(source.getUrl());
+				var urlObj = new URL(url);
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = "/api/v1/scrape/fetch?url=";
@@ -590,20 +671,21 @@ public class WebScraper {
 						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
 					}
 				}
-				source.setData(buffer.toString().getBytes());
+				storage.overwrite(origin, cache.getId(), buffer.toString().getBytes());
 			} catch (Exception e) {}
 		}
 		return moreScrape;
 	}
 
 	@Timed(value = "jasper.webscrape")
-	public boolean exists(String url) {
-		return webRepository.existsById(fixUrl(url));
-	}
-
-	@Timed(value = "jasper.webscrape")
-	public Web cache(Web web) {
-		return webRepository.save(web);
+	public Cache cache(String origin, byte[] data, String mimeType, String user) throws IOException {
+		var id = storage.store(origin, data);
+		var cache = Cache.builder()
+			.id(id).mimeType(mimeType)
+			.contentLength((long) data.length)
+			.build();
+		ingest.create(from("internal:" + id, origin, cache, user), false);
+		return cache;
 	}
 
 	private String fixUrl(String url) {
@@ -627,11 +709,25 @@ public class WebScraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		self.scrapeAsync(url);
+		self.scrapeAsync(url, ref.getOrigin());
 		ref.addTag(tag);
 		var img = objectMapper.createObjectNode();
 		img.set("url", valueOf(url));
 		ref.setPlugin(tag, img);
+	}
+
+	public static Ref from(String url, String origin, Cache cache, String ...tags) {
+		return from(url, origin, tags).setPlugin("_plugin/cache", cache);
+	}
+
+	public static Ref from(String url, String origin, String ...tags) {
+		var result = new Ref();
+		result.setUrl(url);
+		result.setOrigin(origin);
+		result.addTag("_plugin/cache");
+		result.addTag("internal");
+		for (var tag : tags) result.addTag(tag);
+		return result;
 	}
 
 }
