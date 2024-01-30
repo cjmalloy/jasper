@@ -10,7 +10,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
-import jasper.errors.NotFoundException;
+import jasper.domain.proj.Cursor;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -27,31 +27,26 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StreamUtils;
 
 import javax.persistence.EntityManager;
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
 @Profile("storage")
 @Component
 public class Backup {
 	private final Logger logger = LoggerFactory.getLogger(Backup.class);
+	private static final String BACKUPS = "backups";
 
 	@Autowired
 	Props props;
@@ -69,126 +64,111 @@ public class Backup {
 	ObjectMapper objectMapper;
 	@Autowired
 	EntityManager entityManager;
+	@Autowired
+	Storage storage;
 
 	@Async
 	@Transactional(readOnly = true)
 	@Counted(value = "jasper.backup")
-	public void createBackup(String id, BackupOptionsDto options) throws IOException {
+	public void createBackup(String origin, String id, BackupOptionsDto options) throws IOException {
 		var start = Instant.now();
 		logger.info("Creating Backup");
-		Files.createDirectories(dir());
-		try (FileSystem zipfs = FileSystems.newFileSystem(zipfs("_" + id), Map.of("create", "true"))) {
+		try (var zipped = storage.zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, options.getNewerThan(), zipfs.getPath("/ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("/ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, options.getNewerThan(), zipfs.getPath("/ext.json"));
+				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("/ext.json"));
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, options.getNewerThan(), zipfs.getPath("/user.json"));
+				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("/user.json"));
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, options.getNewerThan(), zipfs.getPath("/plugin.json"));
+				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("/plugin.json"));
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, options.getNewerThan(), zipfs.getPath("/template.json"));
+				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("/template.json"));
 			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
 		}
-		// Remove underscore to indicate writing has finished
-		Files.move(path("_" + id), path(id));
 		logger.info("Finished Backup");
 		logger.info("Backup Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path) throws IOException {
-		backupRepo(repo, newerThan, path, true);
+	private void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
+		backupRepo(repo, origin, newerThan, out, true);
 	}
 
-	private void backupRepo(StreamMixin<?> repo, Instant newerThan, Path path, boolean evict) throws IOException {
-		logger.debug("Backing up {}", path.toString());
-		var firstElementProcessed = new AtomicBoolean(false);
-		Files.write(path, "[".getBytes(), StandardOpenOption.CREATE);
-		var buf = new StringBuilder();
-		var buffSize = props.getBackupBufferSize();
-		Stream<?> stream;
-		if (newerThan != null) {
-			stream = repo.streamAllByModifiedGreaterThanEqualOrderByModifiedDesc(newerThan);
-		} else {
-			stream = repo.streamAllByOrderByModifiedDesc();
-		}
-		stream.forEach(entity -> {
-			try {
-				if (firstElementProcessed.getAndSet(true)) {
-					buf.append(",\n");
-				}
-				buf.append(objectMapper.writeValueAsString(entity));
-				if (buf.length() > buffSize) {
-					logger.debug("Flushing buffer {} bytes", buf.length());
-					Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
-					buf.setLength(0);
-					entityManager.clear();
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+	private void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out, boolean evict) throws IOException {
+		try (out) {
+			var firstElementProcessed = new AtomicBoolean(false);
+			var buf = new StringBuilder();
+			buf.append("[");
+			var buffSize = props.getBackupBufferSize();
+			Stream<?> stream;
+			if (newerThan != null) {
+				stream = repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
+			} else {
+				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);
 			}
-			if (evict) {
-				entityManager.detach(entity);
-			}
-		});
-		if (buf.length() > 0) {
+			stream.forEach(entity -> {
+				try {
+					if (firstElementProcessed.getAndSet(true)) {
+						buf.append(",\n");
+					}
+					buf.append(objectMapper.writeValueAsString(entity));
+					if (buf.length() > buffSize) {
+						logger.debug("Flushing buffer {} bytes", buf.length());
+						StreamUtils.copy(buf.toString().getBytes(), out);
+						buf.setLength(0);
+						entityManager.clear();
+					}
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+				if (evict) {
+					entityManager.detach(entity);
+				}
+			});
+			buf.append("]");
 			logger.debug("Flushing buffer {} bytes", buf.length());
-			Files.write(path, buf.toString().getBytes(), StandardOpenOption.APPEND);
-			buf.setLength(0);
+			StreamUtils.copy(buf.toString().getBytes(), out);
 		}
-		Files.write(path, "]\n".getBytes(), StandardOpenOption.APPEND);
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
-	public byte[] get(String id) {
-		try {
-			return Files.readAllBytes(path(id));
-		} catch (IOException e) {
-			throw new NotFoundException("Backup " + id);
-		}
+	public byte[] get(String origin, String id) {
+		return storage.get(origin, BACKUPS, id + ".zip");
 	}
 
-	public boolean exists(String id) {
-		return path(id).toFile().exists();
+	public boolean exists(String origin, String id) {
+		return storage.exists(origin, BACKUPS, id + ".zip");
 	}
 
-	public List<String> listBackups() {
-		try (var list = Files.list(dir())) {
-			return list
-				.map(f -> f.getFileName().toString())
-				.filter(n -> n.endsWith(".zip"))
-				.collect(Collectors.toList());
-		} catch (IOException e) {
-			return Collections.emptyList();
-		}
+	public List<String> listBackups(String origin) {
+		return storage.listStorage(origin, BACKUPS).stream()
+			.filter(n -> n.endsWith(".zip")).toList();
 	}
 
 	@Async
 	@Counted(value = "jasper.backup")
-	public void restore(String id, BackupOptionsDto options) {
+	public void restore(String origin, String id, BackupOptionsDto options) {
 		var start = Instant.now();
 		logger.info("Restoring Backup");
-		try (FileSystem zipfs = FileSystems.newFileSystem(path(id))) {
+		try (var zipped = storage.streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, zipfs.getPath("/ref.json"), Ref.class);
+				restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, zipfs.getPath("/ext.json"), Ext.class);
+				restoreRepo(extRepository, origin, zipped.in("/ext.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, zipfs.getPath("/user.json"), User.class);
+				restoreRepo(userRepository, origin, zipped.in("/user.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, zipfs.getPath("/plugin.json"), Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped.in("/plugin.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, zipfs.getPath("/template.json"), Template.class);
+				restoreRepo(templateRepository, origin, zipped.in("/template.json"), Template.class);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -197,30 +177,26 @@ public class Backup {
 		logger.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private <T> void restoreRepo(JpaRepository<T, ?> repo, Path path, Class<T> type) {
-		try {
-			new JsonArrayStreamDataSupplier<>(Files.newInputStream(path), type, objectMapper)
-				.forEachRemaining(t -> {
-					try {
-						repo.save(t);
-					} catch (Exception e) {
-						try {
-							logger.error("Skipping {} due to constraint violation", objectMapper.writeValueAsString(t), e);
-						} catch (JsonProcessingException ex) {
-							logger.error("Skipping {} due to constraint violation", t, e);
-						}
-					}
-				});
-		} catch (IOException e) {
-			// Backup not present in zip, silently skip
-		}
-	}
+	private <T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+		if (file == null) return; // Silently ignore missing files
+        var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
+		it.forEachRemaining(t -> {
+			try {
+				if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+				repo.save(t);
+			} catch (Exception e) {
+				try {
+					logger.error("Skipping {} due to constraint violation", objectMapper.writeValueAsString(t), e);
+				} catch (JsonProcessingException ex) {
+					logger.error("Skipping {} due to constraint violation", t, e);
+				}
+			}
+		});
+    }
 
 	@Timed(value = "jasper.backup", histogram = true)
-	public void store(String id, byte[] zipFile) throws IOException {
-		var path = path(id);
-		Files.createDirectories(path.getParent());
-		Files.write(path, zipFile, StandardOpenOption.CREATE_NEW);
+	public void store(String origin, String id, InputStream zipFile) throws IOException {
+		storage.storeAt(origin, BACKUPS, id+ ".zip", zipFile);
 	}
 
 	/**
@@ -244,21 +220,7 @@ public class Backup {
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
-	public void delete(String id) throws IOException {
-		Files.delete(path(id));
-	}
-
-	Path dir() {
-		return Paths.get(props.getStorage(), "backups");
-	}
-
-	Path path(String id) {
-		if (id.contains("/") || id.contains("\\")) throw new NotFoundException("Illegal characters");
-		return Paths.get(props.getStorage(), "backups", id + ".zip");
-	}
-
-	URI zipfs(String id) {
-		if (id.contains("/") || id.contains("\\")) throw new NotFoundException("Illegal characters");
-		return URI.create("jar:file:" + props.getStorage() + "/backups/" + id + ".zip");
+	public void delete(String origin, String id) throws IOException {
+		storage.delete(origin, BACKUPS, id + ".zip");
 	}
 }

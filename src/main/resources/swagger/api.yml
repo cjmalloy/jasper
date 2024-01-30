@@ -1605,8 +1605,6 @@ paths:
                 properties:
                   tag:
                     type: string
-                  sysadmin:
-                    type: boolean
                   admin:
                     type: boolean
                   mod:

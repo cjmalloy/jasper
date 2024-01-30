@@ -691,8 +691,8 @@ Roles are hierarchical, so they include any permissions granted to a preceding r
  * `ROLE_USER`: can post refs. Has read/write access to their user tag.
  * `ROLE_EDITOR`: can add/remove public tags to any post they have read access to.
  * `ROLE_MOD`: can read/write any tag or ref except plugins and templates.
- * `ROLE_ADMIN`: complete access. Can read/write plugins and templates, perform backups and restores.
- * `ROLE_SYSADMIN`: complete access in multi-tenant mode.
+ * `ROLE_ADMIN`: complete access to origin and sub-origins. Root admin can access all origins Can read/write plugins
+and templates, perform backups and restores.
 
 Tags are used to provide fine-grained access to resources. For Refs, the list of tags are considered.
 For Tags entities, their tag is considered.

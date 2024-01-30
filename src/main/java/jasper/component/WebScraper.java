@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
@@ -59,6 +61,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class WebScraper {
 	private static final Logger logger = LoggerFactory.getLogger(WebScraper.class);
+	private static final String CACHE = "cache";
 
 	@Autowired
 	HostCheck hostCheck;
@@ -86,6 +89,26 @@ public class WebScraper {
 	private final BlockingQueue<Tuple2<String, String>> scrapeLater = new LinkedBlockingQueue<>();
 	private final Set<Tuple2<String, String>> scraping = new HashSet<>();
 
+	@Scheduled(fixedDelay = 24, initialDelay = 24, timeUnit = TimeUnit.HOURS)
+	public void clearDeleted() {
+		storage.visitTenants(this::clearDeleted);
+	}
+
+	@Timed(value = "jasper.webscrape")
+	public void clearDeleted(String origin) {
+		var deleteLater = new ArrayList<String>();
+		storage.visitStorage(origin, CACHE, id -> {
+			if (!refRepository.cacheExists(id)) deleteLater.add(id);
+		});
+		deleteLater.forEach(id -> {
+			try {
+				storage.delete(origin, CACHE, id);
+			} catch (IOException e) {
+				logger.error("Cannot delete file", e);
+			}
+		});
+	}
+
 	@Timed(value = "jasper.webscrape")
 	public Ref web(String url, String origin, Scrape config) throws IOException, URISyntaxException {
 		var result = new Ref();
@@ -101,7 +124,7 @@ public class WebScraper {
 				result.setPlugin("_plugin/cache", cache);
 				ingest.update(result, false);
 			}
-			data = new String(storage.get(origin, cache.getId()));
+			data = new String(storage.get(origin, CACHE, cache.getId()));
 		} else {
 			var res = doScrape(url);
 			if (res == null) return result;
@@ -505,7 +528,7 @@ public class WebScraper {
 	public String rss(String url, String origin) {
 		var cache = fetch(url, origin);
 		if (isBlank(cache.getId())) return null;
-		var strData = new String(storage.get(origin, cache.getId()));
+		var strData = new String(storage.get(origin, CACHE, cache.getId()));
 		if (!strData.trim().startsWith("<")) return null;
 		var doc = Jsoup.parse(strData);
 		return doc.getElementsByTag("link").stream()
@@ -581,7 +604,7 @@ public class WebScraper {
 						// Wait for the user to manually refresh
 						return existingCache;
 					}
-					if (os != null) storage.stream(origin, existingCache.getId(), os);
+					if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 					return existingCache;
 				}
 			}
@@ -604,21 +627,21 @@ public class WebScraper {
 					.contentLength(contentLength <= 0 ? null : contentLength)
 					.build();
 			} else {
-				var id = storage.store(origin, res.getEntity().getContent());
+				var id = storage.store(origin, CACHE, res.getEntity().getContent());
 				EntityUtils.consume(res.getEntity());
-				if (os != null) storage.stream(origin, id, os);
+				if (os != null) storage.stream(origin, CACHE, id, os);
 				if (cos != null) contentLength = cos.getByteCount();
 				var cache = Cache.builder()
 					.id(id)
 					.mimeType(mimeType)
-					.contentLength(contentLength <= 0 ? storage.size(origin, id) : contentLength)
+					.contentLength(contentLength <= 0 ? storage.size(origin, CACHE, id) : contentLength)
 					.build();
 				scrapeMore = createArchive(url, origin, cache);
 				if (ref == null) {
 					ingest.create(from(url, origin, cache), false);
 				} else {
 					if (refresh && existingCache != null && isNotBlank(existingCache.getId())) {
-						storage.delete(origin, existingCache.getId());
+						storage.delete(origin, CACHE, existingCache.getId());
 					}
 					ref.setPlugin("_plugin/cache", cache);
 				}
@@ -652,7 +675,7 @@ public class WebScraper {
 		var moreScrape = new ArrayList<String>();
 		if (isBlank(cache.getId())) return moreScrape;
 		// M3U8 Manifest
-		var data = new String(storage.get(origin, cache.getId()));
+		var data = new String(storage.get(origin, CACHE, cache.getId()));
 		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equals("application/x-mpegURL") || cache.getMimeType().equals("application/vnd.apple.mpegurl"))) {
 			try {
 				var urlObj = new URL(url);
@@ -671,7 +694,7 @@ public class WebScraper {
 						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
 					}
 				}
-				storage.overwrite(origin, cache.getId(), buffer.toString().getBytes());
+				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes());
 			} catch (Exception e) {}
 		}
 		return moreScrape;
@@ -679,10 +702,21 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public Cache cache(String origin, byte[] data, String mimeType, String user) throws IOException {
-		var id = storage.store(origin, data);
+		var id = storage.store(origin, CACHE, data);
 		var cache = Cache.builder()
 			.id(id).mimeType(mimeType)
 			.contentLength((long) data.length)
+			.build();
+		ingest.create(from("internal:" + id, origin, cache, user), false);
+		return cache;
+	}
+
+	@Timed(value = "jasper.webscrape")
+	public Cache cache(String origin, InputStream in, String mimeType, String user) throws IOException {
+		var id = storage.store(origin, CACHE, in);
+		var cache = Cache.builder()
+			.id(id).mimeType(mimeType)
+			.contentLength(storage.size(origin, CACHE, id))
 			.build();
 		ingest.create(from("internal:" + id, origin, cache, user), false);
 		return cache;

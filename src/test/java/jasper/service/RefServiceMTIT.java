@@ -312,20 +312,6 @@ public class RefServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "+user/tester", roles = {"SYSADMIN"})
-	void testGetUntaggedRemoteRefSysAdmin() {
-		var ref = getRef();
-		ref.setUrl(URL);
-		ref.setOrigin("@remote");
-		refRepository.save(ref);
-
-		var fetch = refService.get(ref.getUrl(), ref.getOrigin());
-
-		assertThat(fetch)
-			.isNotNull();
-	}
-
-	@Test
 	void testGetPageUntaggedRef() {
 		var ref = getRef();
 		ref.setUrl(URL);
@@ -399,22 +385,6 @@ public class RefServiceMTIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"SYSADMIN"})
-	void testGetPageUntaggedRemoteRef_SysAdmin() {
-		var ref = getRef();
-		ref.setUrl(URL);
-		ref.setOrigin("@remote");
-		refRepository.save(ref);
-
-		var page = refService.page(
-			RefFilter.builder().build(),
-			PageRequest.of(0, 10));
-
-		assertThat(page.getTotalElements())
-			.isEqualTo(1);
 	}
 
 	Ref refWithTags(String... tags) {

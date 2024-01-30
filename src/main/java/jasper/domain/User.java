@@ -52,8 +52,7 @@ public class User implements Tag {
 	public static final int PUB_KEY_LEN = 4096;
 
 	/**
-	 * Valid roles for the User entities. Does not include SA as that would
-	 * allow multi-tenant users to get system-wide access.
+	 * Valid roles for the User entities.
 	 */
 	public static final Set<String> ROLES = Sets.newHashSet(ADMIN, MOD, EDITOR, USER, VIEWER, BANNED);
 

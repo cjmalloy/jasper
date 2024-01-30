@@ -44,7 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static jasper.repository.spec.OriginSpec.isAnyOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -54,12 +54,10 @@ import static jasper.repository.spec.QualifiedTag.selectors;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.notPrivateTag;
-import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
-import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -70,7 +68,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * Authorization decisions are made based on six criteria:
  * 1. The user tag
  * 2. The local origin (always the same as the user tag origin)
- * 3. The user role (SYSADMIN, ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS)
+ * 3. The user role (ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS)
  * 4. The user access tags
  * 5. Is multi-tenant enabled?
  * 6. Is the JWT token fresh? (less than 15 minutes old)
@@ -140,8 +138,6 @@ public class Auth {
 	protected String origin;
 	protected Client client;
 	protected Optional<User> user;
-	protected List<QualifiedTag> publicTags;
-	protected List<String> tenantAccessOrigins;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -162,7 +158,6 @@ public class Auth {
 		userTag = null;
 		client = null;
 		user = null;
-		publicTags = null;
 		readAccess = null;
 		writeAccess = null;
 		tagReadAccess = null;
@@ -181,10 +176,18 @@ public class Auth {
 	}
 
 	/**
+	 * Is this origin "".
+	 */
+	public boolean root() {
+		return isBlank(getOrigin());
+	}
+
+	/**
 	 * Is this origin local. Nulls and empty strings are both considered to
 	 * be the default origin.
 	 */
 	public boolean local(String origin) {
+		if (isBlank(origin)) return isBlank(this.getOrigin());
 		if (!origin.startsWith("@")) origin = qt(origin).origin;
 		return getOrigin().equals(origin);
 	}
@@ -193,9 +196,7 @@ public class Auth {
 	 * Is this origin a sub-origin.
 	 */
 	public boolean subOrigin(String origin) {
-		if (isBlank(getOrigin())) return true;
-		if (local(origin)) return true;
-		return origin.startsWith(getOrigin()+".");
+		return isSubOrigin(getOrigin(), origin);
 	}
 
 	/**
@@ -227,8 +228,7 @@ public class Auth {
 	/**
 	 * Is the current user logged in? Only if they have a user tag which is not blank.
 	 * Otherwise, an anonymous request is being made and no user tag should be expected.
-	 * Mods, Admins and SysAdmins cannot make anonymous requests, as they will be
-	 * a default user tag +user.
+	 * Mods and Admins cannot make anonymous requests, as they will default to user tag +user.
 	 */
 	public boolean isLoggedIn() {
 		return isNotBlank(getPrincipal()) && !getPrincipal().startsWith("@");
@@ -240,8 +240,6 @@ public class Auth {
 	 * the database version.
 	 */
 	public boolean canReadRef(HasTags ref) {
-		// Sysadmin can always read anything
-		if (hasRole(SA)) return true;
 		// Mods can read anything in their local origin if multi tenant
 		// In single tenant mods and above can read anything
 		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
@@ -440,7 +438,6 @@ public class Auth {
 	 * In multi-tenant mode you have no read access outside your origin by default.
 	 */
 	public boolean canReadTag(String qualifiedTag) {
-		if (hasRole(SA)) return true;
 		// Min Role
 		if (!minRole()) return false;
 		var qt = qt(qualifiedTag);
@@ -523,19 +520,10 @@ public class Auth {
 	}
 
 	/**
-	 * Is the user Sysadmin role in multi tenant, Admin in single tenant.
+	 * Admin in the root origin.
 	 */
-	public boolean sysAdmin() {
-		if (props.isMultiTenant()) return hasRole(SA);
-		return hasRole(ADMIN);
-	}
-
-	/**
-	 * Is the user Sysadmin role in multi tenant, Mod in single tenant.
-	 */
-	public boolean sysMod() {
-		if (props.isMultiTenant()) return hasRole(SA);
-		return hasRole(MOD);
+	public boolean rootMod() {
+		return root() && hasRole(MOD);
 	}
 
 	/**
@@ -592,8 +580,9 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		if (sysMod()) return where(null);
-		var spec = where(hasRole(MOD) ? isOrigin(getMultiTenantOrigin()) : qt("public" + getOrigin()).refSpec());
+		var spec = where(hasRole(MOD)
+			? isOrigin(getMultiTenantOrigin())
+			: selector("public" + getMultiTenantOrigin()).refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
 		}
@@ -601,15 +590,12 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		if (sysMod()) return where(null);
 		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().spec());
 		}
-		return spec
-			.or(Specification.<T>where(isAnyOrigin(getTenantAccessOrigins())).and(notPrivateTag()))
-			.or(isAnyQualifiedTag(getTagReadAccess()));
+		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
@@ -744,45 +730,15 @@ public class Auth {
 		return null;
 	}
 
-	public List<QualifiedTag> getPublicTags() {
-		if (publicTags == null) {
-			if (props.isMultiTenant()) {
-				publicTags = new ArrayList<>(List.of(qt("public" + getOrigin())));
-				for (var t : getTenantAccessOrigins()) {
-					publicTags.add(qt("public" + t));
-				}
-			} else {
-				publicTags = List.of(selector("public"));
-			}
-		}
-		return publicTags;
-	}
-
-	public List<String> getTenantAccessOrigins() {
-		if (tenantAccessOrigins == null) {
-			if (props.isMultiTenant()) {
-				tenantAccessOrigins = new ArrayList<>(List.of(getOrigin()));
-				if (getClient().getTenantAccess() == null) return tenantAccessOrigins;
-				for (var t : getClient().getTenantAccess()) {
-					if (isBlank(t) || t.equals("@") || t.equals("default")) t = "";
-					tenantAccessOrigins.add(t);
-				}
-			} else {
-				tenantAccessOrigins = List.of("@*");
-			}
-		}
-		return tenantAccessOrigins;
-	}
-
 	protected String getMultiTenantOrigin() {
-		return !props.isMultiTenant() ? "@*"
-			: getOrigin().isEmpty() ? ""
+		return !props.isMultiTenant() || getOrigin().isEmpty()
+			? "@*"
 			: getOrigin() + ".*";
 	}
 
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
-			readAccess = new ArrayList<>(getPublicTags());
+			readAccess = new ArrayList<>(List.of(selector("public" + getMultiTenantOrigin())));
 			if (getClient().getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
 			}
@@ -909,9 +865,9 @@ public class Auth {
 				roles = new HashSet<>();
 			} else {
 				var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-				roles = AuthorityUtils.authorityListToSet(roleHierarchy != null ?
-					roleHierarchy.getReachableGrantedAuthorities(userAuthorities) :
-					userAuthorities);
+				roles = AuthorityUtils.authorityListToSet(roleHierarchy != null
+					? roleHierarchy.getReachableGrantedAuthorities(userAuthorities)
+					: userAuthorities);
 			}
 		}
 		return roles;

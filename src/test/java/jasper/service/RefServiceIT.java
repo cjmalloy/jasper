@@ -367,22 +367,6 @@ public class RefServiceIT {
 			.isEqualTo(1);
 	}
 
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"SYSADMIN"})
-	void testGetPageUntaggedRemoteRef_SysAdmin() {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setOrigin("@remote");
-		refRepository.save(ref);
-
-		var page = refService.page(
-			RefFilter.builder().build(),
-			PageRequest.of(0, 10));
-
-		assertThat(page.getTotalElements())
-			.isEqualTo(1);
-	}
-
 	Ref refWithTags(String... tags) {
 		var ref = new Ref();
 		ref.setUrl(URL + UUID.randomUUID());
