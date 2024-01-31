@@ -1,10 +1,7 @@
 package jasper.repository;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Ext;
-import jasper.domain.Metadata;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -39,4 +36,11 @@ public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMi
 		FROM Ext e
 		WHERE e.origin = :origin""")
 	Instant getCursor(String origin);
+
+	@Modifying
+	@Query("""
+		DELETE FROM Ext ext
+		WHERE ext.origin = :origin
+			AND ext.modified <= :olderThan""")
+	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 }

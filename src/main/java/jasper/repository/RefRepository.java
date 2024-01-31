@@ -61,6 +61,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Modifying
+	@Query("""
+		DELETE FROM Ref ref
+		WHERE ref.origin = :origin
+			AND ref.modified <= :olderThan""")
+	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
+
 	@Query("""
 		FROM Ref ref
 		WHERE ref.url = :url

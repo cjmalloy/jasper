@@ -43,6 +43,13 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		WHERE t.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Modifying
+	@Query("""
+		DELETE FROM Template template
+		WHERE template.origin = :origin
+			AND template.modified <= :olderThan""")
+	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
+
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
