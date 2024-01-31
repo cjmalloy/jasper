@@ -107,10 +107,13 @@ public class Meta {
 			}
 		} else {
 			// Deleting
-			var latest = refRepository.findAll(isUrl(existing.getUrl()), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
-			if (!latest.isEmpty()) {
-				latest.getContent().get(0).getMetadata().setObsolete(false);
-				refRepository.save(latest.getContent().get(0));
+			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
+			if (!maybeLatest.isEmpty()) {
+				var latest = maybeLatest.getContent().get(0);
+				if (latest.getMetadata() != null) {
+					latest.getMetadata().setObsolete(false);
+					refRepository.save(latest);
+				}
 			}
 		}
 
