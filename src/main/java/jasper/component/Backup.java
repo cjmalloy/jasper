@@ -19,16 +19,15 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.service.dto.BackupOptionsDto;
 import jasper.util.JsonArrayStreamDataSupplier;
+import org.hibernate.SessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StreamUtils;
 
 import javax.persistence.EntityManager;
@@ -160,19 +159,19 @@ public class Backup {
 		logger.info("Restoring Backup");
 		try (var zipped = storage.streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
+				restoreRepo(origin, zipped.in("/ref.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.in("/ext.json"), Ext.class);
+				restoreRepo(origin, zipped.in("/ext.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.in("/user.json"), User.class);
+				restoreRepo(origin, zipped.in("/user.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.in("/plugin.json"), Plugin.class);
+				restoreRepo(origin, zipped.in("/plugin.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.in("/template.json"), Template.class);
+				restoreRepo(origin, zipped.in("/template.json"), Template.class);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -181,34 +180,34 @@ public class Backup {
 		logger.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private <T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+	private <T extends Cursor> void restoreRepo(String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
-		AtomicBoolean done = new AtomicBoolean(false);
+		var sessionFactory = entityManager.getEntityManagerFactory().unwrap(SessionFactory.class);
+
+		var done = false;
 		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
-		int count = 0;
-		try {
-			while (!done.get()) {
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
-					for (var i = 0; i < this.props.getRestoreBatchSize(); i++) {
-						if (!it.hasNext()) {
-							done.set(true);
-							break;
-						}
-						var t = it.next();
+		try (var statelessSession = sessionFactory.openStatelessSession()) {
+			int count = 0;
+			while (!done) {
+				var transaction = statelessSession.beginTransaction();
+				for (var i = 0; i < this.props.getRestoreBatchSize(); i++) {
+					if (!it.hasNext()) {
+						done = true;
+						break;
+					}
+					var t = it.next();
+					try {
+						if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+						statelessSession.insert(t);
+					} catch (Exception e) {
 						try {
-							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
-							repo.save(t);
-						} catch (Exception e) {
-							try {
-								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
-							} catch (JsonProcessingException ex) {
-								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
-							}
+							logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
+						} catch (JsonProcessingException ex) {
+							logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
 						}
 					}
-					return null;
-				});
+				}
+				transaction.commit();
 				count++;
 				logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * this.props.getRestoreBatchSize());
 			}
