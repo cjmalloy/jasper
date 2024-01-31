@@ -39,6 +39,7 @@ public class AuthUnitTest {
 	}
 
 	Auth getAuth(String origin, User user, String ...roles) {
+		user.setOrigin(origin);
 		var a = new Auth(new Props(), null, null, null);
 		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.principal = user.getQualifiedTag();
@@ -117,11 +118,21 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_CustomOrigin() {
+		var auth = getAuth(getUser("+user/test"));
+		var ref = getRef("public");
+		ref.setOrigin("@custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_CustomOriginFailed() {
 		var auth = getAuth("@custom", getUser("+user/test"));
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
-			.isTrue();
+			.isFalse();
 	}
 
 	@Test
@@ -158,7 +169,7 @@ public class AuthUnitTest {
 	@Test
 	void testCanReadRef_AuthReadAccessRemote() {
 		var auth = getAuth(getUser("+user/test"), VIEWER);
-		auth.readAccess = List.of(selector("+custom@remote"));
+		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
 		ref.setOrigin("@remote");
 
@@ -168,9 +179,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_AuthReadAccessRemoteFailed() {
-		var auth = getAuth(getUser("+user/test"), VIEWER);
-		auth.readAccess = List.of(selector("+custom@remote"));
+		var auth = getAuth("@other", getUser("+user/test"), VIEWER);
+		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
+		ref.setOrigin("@remote");
 
 		assertThat(auth.canReadRef(ref))
 			.isFalse();

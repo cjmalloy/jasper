@@ -541,8 +541,8 @@ A User is a Tag-like entity representing a user.
 ```
 Only the "tag", "origin", and "modified" fields are required.
 
-A User contains the access control information for the system. In multi-tenant mode access tags
-are for the same origin as the user. In normal mode access tags are for all origins.
+A User contains the access control information for the system. Access tags work in all
+sub-origins.
 
 **Tag:** The tag of this User. Must match the regex `[_+]user/[a-z0-9]+([./][a-z0-9]+)*`
 **Origin:** The Origin this User was replicated from, or the empty string for local.
@@ -683,8 +683,7 @@ is unique.
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
 hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Viewer. The
-Anonymous role is given to users who are not logged in. The System Administrator role is used
-in multi-tenant mode to grant complete access to all origins.
+Anonymous role is given to users who are not logged in.
 Roles are hierarchical, so they include any permissions granted to a preceding role.
  * `ROLE_ANONYMOUS`: read access to public tags and Refs.
  * `ROLE_VIEWER`: logged in user. Can be given access to private tags and Refs.
@@ -719,12 +718,9 @@ Some public tags have special significance:
  * `locked`: No edits allowed (tagging is allowed)
 
 ### Multi-tenant
-When multi-tenant mode is off users read-access to all other origins.
-When multi-tenant is enabled users only have read-access to their own own origin and sub-origins.
+Users only have read-access to their own origin and sub-origins.
 For example, if a tenant has origin `@test`, they can also read `@test.other`. As usual, writing to
 origins other than your own is never allowed.
-
-System-wide access is granted by the special System Admin role in multi-tenant mode.
 
 ## Validation
 When ingesting entities, Jasper performs the following validation:

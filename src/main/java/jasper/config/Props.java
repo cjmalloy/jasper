@@ -73,7 +73,6 @@ public class Props {
 	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
-	private boolean multiTenant = false;
 	/**
 	 * Minimum role for basic access.
 	 */
@@ -281,7 +280,6 @@ public class Props {
 			private String tagWriteAccessClaim = "tagWriteAccess";
 			private String defaultRole = "ROLE_ANONYMOUS";
 			private String defaultUser = "";
-			private String[] tenantAccess;
 			private String[] defaultReadAccess;
 			private String[] defaultWriteAccess;
 			private String[] defaultTagReadAccess;

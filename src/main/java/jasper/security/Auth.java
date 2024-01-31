@@ -46,7 +46,6 @@ import java.util.stream.Stream;
 
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.QualifiedTag.originSelector;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
 import static jasper.repository.spec.QualifiedTag.selector;
@@ -70,8 +69,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 2. The local origin (always the same as the user tag origin)
  * 3. The user role (ADMIN, MOD, EDITOR, USER, VIEWER, ANONYMOUS)
  * 4. The user access tags
- * 5. Is multi-tenant enabled?
- * 6. Is the JWT token fresh? (less than 15 minutes old)
+ * 5. Is the JWT token fresh? (less than 15 minutes old)
  *
  * These criteria may be sourced in three cascading steps:
  * 1. Application properties (set by command line, environment variables, or default value)
@@ -84,21 +82,20 @@ import static org.springframework.data.jpa.domain.Specification.where;
  *
  * The application properties that can be configured are:
  * 1. localOrigin (""): set the local origin
- * 2. multiTenant (false): enable or disable multi-tenant
- * 3. defaultRole ("ROLE_ANONYMOUS"): set the default role
- * 4. defaultReadAccess ([]): set the default read access tags
- * 5. defaultWriteAccess ([]): set the default write access tags
- * 6. defaultTagReadAccess ([]): set the default tag read access tags
- * 7. defaultTagWriteAccess ([]): set the default tag write access tags
- * 8. usernameClaim ("sub"): the JWT claim to use as a username
- * 9. allowUsernameClaimOrigin (false): allow the JWT username claim to set the local origin
- * 10. authoritiesClaim ("auth"): the JWT claim to use as a role
- * 11. readAccessClaim ("readAccess"): the JWT claim to use as read access tags
- * 12. readAccessClaim ("writeAccess"): the JWT claim to use as write access tags
- * 13. tagReadAccessClaim ("tagReadAccess"): the JWT claim to use as tag read access tags
- * 14. tagWriteAccessClaim ("tagWriteAccess"): the JWT claim to use as tag write access tags
- * 15. allowLocalOriginHeader (false): enable setting the local origin in the header
- * 16. allowAuthHeaders (false): enable setting the user access tags in the header
+ * 2. defaultRole ("ROLE_ANONYMOUS"): set the default role
+ * 3. defaultReadAccess ([]): set the default read access tags
+ * 4. defaultWriteAccess ([]): set the default write access tags
+ * 5. defaultTagReadAccess ([]): set the default tag read access tags
+ * 6. defaultTagWriteAccess ([]): set the default tag write access tags
+ * 7. usernameClaim ("sub"): the JWT claim to use as a username
+ * 8. allowUsernameClaimOrigin (false): allow the JWT username claim to set the local origin
+ * 9. authoritiesClaim ("auth"): the JWT claim to use as a role
+ * 10. readAccessClaim ("readAccess"): the JWT claim to use as read access tags
+ * 11. readAccessClaim ("writeAccess"): the JWT claim to use as write access tags
+ * 12. tagReadAccessClaim ("tagReadAccess"): the JWT claim to use as tag read access tags
+ * 13. tagWriteAccessClaim ("tagWriteAccess"): the JWT claim to use as tag write access tags
+ * 14. allowLocalOriginHeader (false): enable setting the local origin in the header
+ * 15. allowAuthHeaders (false): enable setting the user access tags in the header
  *
  * The following headers are checked if enabled:
  * 1. User-Tag
@@ -200,21 +197,6 @@ public class Auth {
 	}
 
 	/**
-	 * Is this origin readable.
-	 * In single tenant mode all origins are readable.
-	 * In multi tenant mode only local tenants or whitelisted tenants are readable.
-	 */
-	public boolean tenantAccess(String origin) {
-		if (!props.isMultiTenant()) return true;
-		if (subOrigin(origin)) return true;
-		if (getClient().getTenantAccess() == null) return false;
-		for (var t : getClient().getTenantAccess()) {
-			if (t.equals(origin)) return true;
-		}
-		return false;
-	}
-
-	/**
 	 * Has the user logged in within 15 minutes?
 	 */
 	public boolean freshLogin() {
@@ -240,9 +222,10 @@ public class Auth {
 	 * the database version.
 	 */
 	public boolean canReadRef(HasTags ref) {
-		// Mods can read anything in their local origin if multi tenant
-		// In single tenant mods and above can read anything
-		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(originSelector(ref.getOrigin()))) return true;
+		// Only origin and sub origins can be read
+		if (!subOrigin(ref.getOrigin())) return false;
+		// Mods can read anything
+		if (hasRole(MOD)) return true;
 		// Min Role
 		if (!minRole()) return false;
 		// No tags, only mods can read
@@ -259,6 +242,8 @@ public class Auth {
 	 * Can the user read a ref by tags.
 	 */
 	public boolean canReadRef(String url, String origin) {
+		// Only origin and sub origins can be read
+		if (!subOrigin(origin)) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
@@ -435,18 +420,17 @@ public class Auth {
 	/**
 	 * Can the user read the given qualified tag and any associated entities? (Ext, User, Plugin, Template)
 	 * A selector is a tag that may contain an origin, or an origin with no tag.
-	 * In multi-tenant mode you have no read access outside your origin by default.
 	 */
 	public boolean canReadTag(String qualifiedTag) {
 		// Min Role
 		if (!minRole()) return false;
 		var qt = qt(qualifiedTag);
-		// In single tenant mode, non private tags are all readable
-		// In multi tenant mode, local non private tags are all readable
-		if (!isPrivateTag(qualifiedTag) && tenantAccess(qt.origin)) return true;
-		// In single tenant mode, mods can read anything
-		// In multi tenant mode, mods can ready anything in their origin
-		if (hasRole(MOD) && originSelector(getMultiTenantOrigin()).captures(qt)) return true;
+		// Only origin and sub origins can be read
+		if (!subOrigin(qt.origin)) return false;
+		// All non-private tags can be read
+		if (!isPrivateTag(qualifiedTag)) return true;
+		// Mod can read anything
+		if (hasRole(MOD)) return true;
 		// Can read own user tag
 		if (isUser(qualifiedTag)) return true;
 		// Finally check access tags
@@ -581,8 +565,8 @@ public class Auth {
 
 	public Specification<Ref> refReadSpec() {
 		var spec = where(hasRole(MOD)
-			? isOrigin(getMultiTenantOrigin())
-			: selector("public" + getMultiTenantOrigin()).refSpec());
+			? isOrigin(getSubOrigins())
+			: selector("public" + getSubOrigins()).refSpec());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().refSpec());
 		}
@@ -590,7 +574,7 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		var spec = Specification.<T>where(isOrigin(getMultiTenantOrigin()));
+		var spec = Specification.<T>where(isOrigin(getSubOrigins()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().spec());
@@ -730,15 +714,13 @@ public class Auth {
 		return null;
 	}
 
-	protected String getMultiTenantOrigin() {
-		return !props.isMultiTenant() || getOrigin().isEmpty()
-			? "@*"
-			: getOrigin() + ".*";
+	protected String getSubOrigins() {
+		return getOrigin().isEmpty() ? "@*" : getOrigin() + ".*";
 	}
 
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
-			readAccess = new ArrayList<>(List.of(selector("public" + getMultiTenantOrigin())));
+			readAccess = new ArrayList<>(List.of(selector("public" + getSubOrigins())));
 			if (getClient().getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
 			}
@@ -747,7 +729,7 @@ public class Auth {
 			}
 			readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
 			if (isLoggedIn()) {
-				readAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
+				readAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
 			}
@@ -766,7 +748,7 @@ public class Auth {
 			}
 			writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
 			if (isLoggedIn()) {
-				writeAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
+				writeAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getWriteAccess)
 						.orElse(List.of())));
 			}
@@ -785,7 +767,7 @@ public class Auth {
 			}
 			tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
-				tagReadAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
+				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getTagReadAccess)
 						.orElse(List.of())));
 			}
@@ -804,7 +786,7 @@ public class Auth {
 			}
 			tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
-				tagWriteAccess.addAll(selectors(getMultiTenantOrigin(), getUser()
+				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getTagWriteAccess)
 						.orElse(List.of())));
 			}

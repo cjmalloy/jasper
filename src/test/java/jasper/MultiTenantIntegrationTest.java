@@ -13,7 +13,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(classes = JasperApplication.class, properties = {
-	"jasper.multi-tenant=true",
 	"jasper.local-origin=@other"
 })
 public @interface MultiTenantIntegrationTest {

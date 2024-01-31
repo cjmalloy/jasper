@@ -47,7 +47,6 @@ public class Meta {
 		}
 		ref.setMetadata(Metadata
 			.builder()
-			// TODO: multi-tenant filter instead of all origins
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
 			.plugins(metadataPlugins
