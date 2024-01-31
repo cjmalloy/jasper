@@ -26,7 +26,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StreamUtils;
 
 import javax.persistence.EntityManager;
@@ -64,6 +66,8 @@ public class Backup {
 	ObjectMapper objectMapper;
 	@Autowired
 	EntityManager entityManager;
+	@Autowired
+	PlatformTransactionManager transactionManager;
 	@Autowired
 	Storage storage;
 
@@ -179,19 +183,38 @@ public class Backup {
 
 	private <T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
-        var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
-		it.forEachRemaining(t -> {
-			try {
-				if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
-				repo.save(t);
-			} catch (Exception e) {
-				try {
-					logger.error("Skipping {} due to constraint violation", objectMapper.writeValueAsString(t), e);
-				} catch (JsonProcessingException ex) {
-					logger.error("Skipping {} due to constraint violation", t, e);
-				}
+		AtomicBoolean done = new AtomicBoolean(false);
+		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
+		int count = 0;
+		try {
+			while (!done.get()) {
+				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+				transactionTemplate.execute(status -> {
+					for (var i = 0; i < this.props.getRestoreBatchSize(); i++) {
+						if (!it.hasNext()) {
+							done.set(true);
+							break;
+						}
+						var t = it.next();
+						try {
+							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+							repo.save(t);
+						} catch (Exception e) {
+							try {
+								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
+							} catch (JsonProcessingException ex) {
+								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
+							}
+						}
+					}
+					return null;
+				});
+				count++;
+				logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * this.props.getRestoreBatchSize());
 			}
-		});
+		} catch (Exception e) {
+			logger.error("Failed to restore", e);
+		}
     }
 
 	@Timed(value = "jasper.backup", histogram = true)

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
@@ -31,11 +32,11 @@ public class OriginService {
 	@Autowired
 	ExtRepository extRepository;
 	@Autowired
+	UserRepository userRepository;
+	@Autowired
 	PluginRepository pluginRepository;
 	@Autowired
 	TemplateRepository templateRepository;
-	@Autowired
-	UserRepository userRepository;
 
 	@Autowired
 	Replicator replicator;
@@ -63,6 +64,7 @@ public class OriginService {
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void delete(String origin, Instant olderThan) {
+		var start = Instant.now();
 		logger.info("Deleting origin {} older than {}", origin, olderThan);
 		refRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		extRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
@@ -72,5 +74,6 @@ public class OriginService {
 			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		}
 		logger.info("Finished deleting origin {} older than {}", origin, olderThan);
+		logger.info("Deleting Duration {}", Duration.between(start, Instant.now()));
 	}
 }
