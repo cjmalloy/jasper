@@ -31,7 +31,6 @@ import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
-import static jasper.security.AuthoritiesConstants.SA;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -40,7 +39,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	private static final String INVALID_JWT_TOKEN = "Invalid JWT token.";
 
-	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN, SA };
+	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
 	Map<String, JwtParser> jwtParser = new HashMap<>();
 

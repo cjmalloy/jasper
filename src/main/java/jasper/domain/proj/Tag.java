@@ -37,7 +37,7 @@ public interface Tag extends Cursor {
 	}
 
 	static String tagOrigin(String tag) {
-		if (isBlank(tag)) return tag;
+		if (isBlank(tag)) return "";
 		if (!tag.contains("@")) return "";
 		return tag.substring(tag.indexOf("@"));
 	}

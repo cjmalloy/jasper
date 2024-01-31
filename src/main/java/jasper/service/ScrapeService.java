@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URISyntaxException;
 
@@ -101,8 +102,14 @@ public class ScrapeService {
 
 	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String cache(byte[] data, String mime) throws IOException {
-		return "internal:" + webScraper.cache(auth.getOrigin(), data, mime, auth.getUserTag().tag).getId();
+	public String cache(InputStream in, String mime) throws IOException {
+		return "internal:" + webScraper.cache(auth.getOrigin(), in, mime, auth.getUserTag().tag).getId();
+	}
+
+	@PreAuthorize( "@auth.hasRole('MOD')")
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public void clearDeleted() {
+		webScraper.clearDeleted(auth.getOrigin());
 	}
 
 	@PreAuthorize("@auth.canAddTag('+plugin/scrape')")

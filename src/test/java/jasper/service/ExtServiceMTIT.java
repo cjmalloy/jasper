@@ -347,27 +347,6 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "+user/tester", roles = "SYSADMIN")
-	void testPagePublicRemoteExtSysAdmin() {
-		var ext = getExt();
-		ext.setTag("custom");
-		ext.setName("Custom");
-		extRepository.save(ext);
-		var remote = getExt();
-		remote.setTag("extra");
-		remote.setOrigin("@remote");
-		remote.setName("Extra");
-		extRepository.save(remote);
-
-		var page = extService.page(
-			TagFilter.builder().build(),
-			PageRequest.of(0, 10));
-
-		assertThat(page.getTotalElements())
-			.isEqualTo(2);
-	}
-
-	@Test
 	void testPagePublicRemoteReadAccessExt() {
 		props.getSecurity().getClient("@other").setDefaultReadAccess(new String[]{"@remote"});
 		var ext = getExt();

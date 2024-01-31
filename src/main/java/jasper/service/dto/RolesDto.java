@@ -8,7 +8,6 @@ import lombok.Getter;
 public class RolesDto {
 	boolean debug;
 	String tag;
-	boolean sysadmin;
 	boolean admin;
 	boolean mod;
 	boolean editor;

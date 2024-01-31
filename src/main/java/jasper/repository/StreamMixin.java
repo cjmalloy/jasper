@@ -19,7 +19,7 @@ public interface StreamMixin<T> {
 		@QueryHint(name = HINT_READONLY, value = "true"),
 		@QueryHint(name = HINT_PASS_DISTINCT_THROUGH, value = "false")
 	})
-	Stream<T> streamAllByModifiedGreaterThanEqualOrderByModifiedDesc(Instant newerThan);
+	Stream<T> streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(String origin, Instant newerThan);
 
 	@QueryHints(value = {
 		@QueryHint(name = HINT_FETCH_SIZE, value = "500"),
@@ -27,5 +27,5 @@ public interface StreamMixin<T> {
 		@QueryHint(name = HINT_READONLY, value = "true"),
 		@QueryHint(name = HINT_PASS_DISTINCT_THROUGH, value = "false")
 	})
-	Stream<T> streamAllByOrderByModifiedDesc();
+	Stream<T> streamAllByOriginOrderByModifiedDesc(String origin);
 }

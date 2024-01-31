@@ -3,6 +3,7 @@ package jasper.domain.proj;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.tagOrigin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface HasOrigin {
@@ -30,6 +31,14 @@ public interface HasOrigin {
 		if (isBlank(origin)) return local;
 		if (origin.startsWith("@")) origin = origin.substring(1);
 		return local + '.' + origin;
+	}
+
+	static boolean isSubOrigin(String local, String origin) {
+		if (isBlank(local)) return true;
+		origin = tagOrigin(origin);
+		if (isBlank(origin)) return isBlank(local);
+		if (origin.equals(local)) return true;
+		return origin.startsWith(local+".");
 	}
 
 	static List<String> originHierarchy(String origin) {

@@ -30,7 +30,6 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
-import static jasper.security.AuthoritiesConstants.SA;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static jasper.util.Crypto.writeRsaPrivatePem;
@@ -126,7 +125,7 @@ public class UserService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.sysMod() or @auth.canWriteUserTag(#qualifiedTag)")
+	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag) or @auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
@@ -142,7 +141,6 @@ public class UserService {
 			.builder()
 			.debug(props.isDebug())
 			.tag(auth.isLoggedIn() ? auth.getUserTag().toString() : auth.getOrigin())
-			.sysadmin(auth.hasRole(SA))
 			.admin(auth.hasRole(ADMIN))
 			.mod(auth.hasRole(MOD))
 			.editor(auth.hasRole(EDITOR))

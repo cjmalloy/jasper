@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
 import jasper.service.dto.BackupOptionsDto;
@@ -14,7 +15,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,13 +25,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.constraints.Pattern;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.io.InputStream;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.service.dto.BackupOptionsDto.ID_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -47,26 +46,23 @@ public class BackupController {
 	@Autowired
 	BackupService backupService;
 
-	// TODO: add clustered option
-	private static String backupKey;
-	private static Instant backupKeyCreated;
-
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
 	})
 	@PostMapping
 	public String createBackup(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody(required = false) BackupOptionsDto options
 	) throws IOException {
-		return backupService.createBackup(options);
+		return backupService.createBackup(origin, options);
 	}
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping
-	public List<String> listBackups() {
-		return backupService.listBackups();
+	public List<String> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
+		return backupService.listBackups(origin);
 	}
 
 	@ApiResponses({
@@ -77,6 +73,7 @@ public class BackupController {
 	})
 	@GetMapping(value = "{id}")
 	public ResponseEntity<byte[]> downloadBackup(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestParam(defaultValue = "") String p
 	) {
@@ -85,9 +82,9 @@ public class BackupController {
 		}
 		byte[] file;
 		if (isBlank(p)) {
-			file = backupService.getBackup(id);
+			file = backupService.getBackup(origin, id);
 		} else {
-			if (!p.equals(backupKey)) throw new NotFoundException(id);
+			if (!backupService.unlock(p)) throw new NotFoundException(id);
 			file = backupService.getBackupPreauth(id);
 		}
 		return ResponseEntity.ok()
@@ -106,17 +103,7 @@ public class BackupController {
 	public String getBackupKey(
 		@RequestParam(defaultValue = "") String key
 	) {
-		if (key.equals(backupKey)) return key;
-		backupKeyCreated = Instant.now();
-		return backupKey = UUID.randomUUID().toString();
-	}
-
-	@Scheduled(fixedRate = 1, timeUnit = TimeUnit.MINUTES)
-	public void clearBackupKey() {
-		if (backupKey == null) return;
-		if (backupKeyCreated != null && backupKeyCreated.isAfter(Instant.now().minus(15, ChronoUnit.SECONDS))) return;
-		backupKey = null;
-		backupKeyCreated = null;
+		return backupService.getKey(key);
 	}
 
 	@ApiResponses({
@@ -125,13 +112,14 @@ public class BackupController {
 	@PostMapping("upload/{id}")
 	@ResponseStatus(HttpStatus.CREATED)
 	public void uploadBackup(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
-		@RequestBody(required = false) byte[] zipFile
+		InputStream zipFile
 	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		backupService.uploadBackup(id, zipFile);
+		backupService.uploadBackup(origin, id, zipFile);
 	}
 
 	@ApiResponses({
@@ -141,12 +129,13 @@ public class BackupController {
 	@PostMapping("restore/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void restoreBackup(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestBody(required = false) BackupOptionsDto options) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		backupService.restoreBackup(id, options);
+		backupService.restoreBackup(origin, id, options);
 	}
 
 	@ApiResponses({
@@ -154,8 +143,8 @@ public class BackupController {
 	})
 	@PostMapping("backfill")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void backfill() {
-		backupService.backfill();
+	void backfill(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
+		backupService.backfill(origin);
 	}
 
 	@ApiResponses({
@@ -164,11 +153,12 @@ public class BackupController {
 	@DeleteMapping("{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deleteBackup(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id
 	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		backupService.deleteBackup(id);
+		backupService.deleteBackup(origin, id);
 	}
 }
