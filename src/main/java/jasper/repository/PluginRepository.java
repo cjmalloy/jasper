@@ -48,6 +48,13 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		WHERE p.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Modifying(clearAutomatically = true)
+	@Query("""
+		DELETE FROM Plugin plugin
+		WHERE plugin.origin = :origin
+			AND plugin.modified <= :olderThan""")
+	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
+
 	@Query("""
 		FROM Plugin AS p
 		WHERE p.origin = :origin

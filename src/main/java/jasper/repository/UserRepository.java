@@ -52,5 +52,12 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		WHERE u.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Modifying(clearAutomatically = true)
+	@Query("""
+		DELETE FROM User user
+		WHERE user.origin = :origin
+			AND user.modified <= :olderThan""")
+	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
+
 	List<User> findAllByOriginAndPubKeyIsNotNull(String origin);
 }
