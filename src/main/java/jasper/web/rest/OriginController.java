@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -72,10 +71,10 @@ public class OriginController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
 	})
-	@DeleteMapping("{origin}")
+	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void deleteOrigin(
-		@PathVariable @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) Instant olderThan
 	) {
 		if (olderThan == null) olderThan = Instant.now();
