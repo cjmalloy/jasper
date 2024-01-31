@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.time.Instant;
 
+import static jasper.security.AuthoritiesConstants.ADMIN;
+
 @Service
 public class OriginService {
 	private static final Logger logger = LoggerFactory.getLogger(OriginService.class);
@@ -61,10 +63,14 @@ public class OriginService {
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void delete(String origin, Instant olderThan) {
+		logger.info("Deleting origin {} older than {}", origin, olderThan);
 		refRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		extRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
-		pluginRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
-		templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		userRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+		if (!auth.local(origin) || auth.hasRole(ADMIN)) {
+			pluginRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+		}
+		logger.info("Finished deleting origin {} older than {}", origin, olderThan);
 	}
 }
