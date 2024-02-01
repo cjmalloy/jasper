@@ -1,4 +1,4 @@
-package jasper.component.k8s;
+package jasper.component.delta;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
