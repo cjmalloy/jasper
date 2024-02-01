@@ -15,6 +15,7 @@ public interface Storage {
 	byte[] get(String origin, String namespace, String id);
 	boolean exists(String origin, String namespace, String id);
 	long size(String origin, String namespace, String id);
+	InputStream stream(String origin, String namespace, String id);
 	long stream(String origin, String namespace, String id, OutputStream os);
 	Zipped streamZip(String origin, String namespace, String id) throws IOException;
 	public void visitTenants(StorageImplLocal.PathVisitor v);

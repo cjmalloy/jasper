@@ -27,6 +27,11 @@ public class StorageImplNop implements Storage {
 	}
 
 	@Override
+	public InputStream stream(String origin, String namespace, String id) {
+		return null;
+	}
+
+	@Override
 	public long stream(String origin, String namespace, String id, OutputStream os) {
 		return 0;
 	}

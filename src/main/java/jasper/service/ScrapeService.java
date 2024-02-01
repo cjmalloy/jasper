@@ -87,10 +87,10 @@ public class ScrapeService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Cache fetch(String url, OutputStream os) {
+	public Cache fetch(String url, boolean thumbnail, OutputStream os) throws IOException {
 		// Only require role for new scrapes
 		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin()) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return webScraper.fetch(url, auth.getOrigin(), os);
+		return webScraper.fetch(url, thumbnail, auth.getOrigin(), os);
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)

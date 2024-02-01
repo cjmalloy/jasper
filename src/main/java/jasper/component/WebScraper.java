@@ -10,6 +10,7 @@ import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
+import jasper.errors.NotFoundException;
 import jasper.plugin.Cache;
 import jasper.plugin.Scrape;
 import jasper.repository.RefRepository;
@@ -82,6 +83,9 @@ public class WebScraper {
 
 	@Autowired
 	CloseableHttpClient client;
+
+	@Autowired
+	Images images;
 
 	WebScraper self = this;
 
@@ -575,6 +579,40 @@ public class WebScraper {
 	}
 
 	@Timed(value = "jasper.webscrape")
+	public Cache fetch(String url, boolean thumbnail, String origin, OutputStream os) throws IOException {
+		var fullSize = fetch(url, origin, false);
+		if (!thumbnail || fullSize == null || fullSize.isThumbnail()) return fetch(url, origin, os, false);
+		var thumbnailId = "t_" + fullSize.getId();
+		var thumbnailUrl = "internal:" + thumbnailId;
+		if (storage.exists(origin, CACHE, thumbnailId)) {
+			return fetch(thumbnailUrl, origin, os);
+		} else {
+			var data = images.thumbnail(storage.stream(origin, CACHE, fullSize.getId()));
+			if (data == null) {
+				storage.stream(origin, CACHE, fullSize.getId(), os);
+				// Set this as a thumbnail to disable future attempts
+				Ref ref = refRepository.findOneByUrlAndOrigin(url, origin)
+					.orElseThrow(() -> new NotFoundException("Ref deleted while fetching"));
+				fullSize.setThumbnail(true);
+				ref.setPlugin("_plugin/cache", fullSize);
+				ref.addTag("_plugin/error/thumbnail");
+				ingest.update(ref, false);
+				return fullSize;
+			}
+			storage.storeAt(origin, CACHE, thumbnailId, data);
+			if (os != null) StreamUtils.copy(data, os);
+			var cache = Cache.builder()
+				.id(thumbnailId)
+				.thumbnail(true)
+				.mimeType("image/png")
+				.contentLength((long) data.length)
+				.build();
+			ingest.create(from(thumbnailUrl, origin, cache, "plugin/thumbnail"), false);
+			return cache;
+		}
+	}
+
+	@Timed(value = "jasper.webscrape")
 	public Cache fetch(String url, String origin, boolean refresh) {
 		return fetch(url, origin, null, refresh);
 	}
@@ -698,7 +736,8 @@ public class WebScraper {
 	public Cache cache(String origin, byte[] data, String mimeType, String user) throws IOException {
 		var id = storage.store(origin, CACHE, data);
 		var cache = Cache.builder()
-			.id(id).mimeType(mimeType)
+			.id(id)
+			.mimeType(mimeType)
 			.contentLength((long) data.length)
 			.build();
 		ingest.create(from("internal:" + id, origin, cache, user), false);
@@ -709,7 +748,8 @@ public class WebScraper {
 	public Cache cache(String origin, InputStream in, String mimeType, String user) throws IOException {
 		var id = storage.store(origin, CACHE, in);
 		var cache = Cache.builder()
-			.id(id).mimeType(mimeType)
+			.id(id)
+			.mimeType(mimeType)
 			.contentLength(storage.size(origin, CACHE, id))
 			.build();
 		ingest.create(from("internal:" + id, origin, cache, user), false);

@@ -80,18 +80,20 @@ public class ScrapeController {
 	void fetch(
 		WebRequest request,
 		HttpServletResponse response,
-		@RequestParam @Length(max = URL_LEN) String url) throws IOException {
+		@RequestParam @Length(max = URL_LEN) String url,
+		@RequestParam(defaultValue = "false") boolean thumbnail
+	) throws IOException {
 		response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.MINUTES).mustRevalidate().cachePrivate().getHeaderValue());
 		var cache = scrapeService.fetch(url);
 		if (cache != null) {
 			response.setHeader(HttpHeaders.ETAG, "\"" + cache.getId() + "\"");
 			if (isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
 			if (request.checkNotModified(cache.getId())) {
-				response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
+				if (cache.getContentLength() != null) response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
 				response.sendError(HttpStatus.NOT_MODIFIED.value());
 			} else {
 				response.setStatus(HttpStatus.OK.value());
-				scrapeService.fetch(url, response.getOutputStream());
+				scrapeService.fetch(url, thumbnail, response.getOutputStream());
 			}
 		} else {
 			response.setStatus(HttpStatus.OK.value());

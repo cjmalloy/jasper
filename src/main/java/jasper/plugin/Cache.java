@@ -19,5 +19,6 @@ public class Cache {
 	private String mimeType;
 	private boolean ban;
 	private boolean noStore;
+	private boolean thumbnail;
 	private Long contentLength;
 }

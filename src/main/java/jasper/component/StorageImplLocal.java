@@ -58,6 +58,15 @@ public class StorageImplLocal implements Storage {
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
+	public InputStream stream(String origin, String namespace, String id) {
+		try {
+			return new FileInputStream(path(origin, namespace, id).toFile());
+		} catch (IOException e) {
+			throw new NotFoundException("Storage file (" + namespace + ") " + id);
+		}
+	}
+
+	@Timed(value = "jasper.storage", histogram = true)
 	public long stream(String origin, String namespace, String id, OutputStream os) {
 		try {
 			return StreamUtils.copy(new FileInputStream(path(origin, namespace, id).toFile()), os);
