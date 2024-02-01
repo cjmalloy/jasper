@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
@@ -88,11 +87,6 @@ public class WebScraper {
 
 	private final BlockingQueue<Tuple2<String, String>> scrapeLater = new LinkedBlockingQueue<>();
 	private final Set<Tuple2<String, String>> scraping = new HashSet<>();
-
-	@Scheduled(fixedDelay = 24, initialDelay = 24, timeUnit = TimeUnit.HOURS)
-	public void clearDeleted() {
-		storage.visitTenants(this::clearDeleted);
-	}
 
 	@Timed(value = "jasper.webscrape")
 	public void clearDeleted(String origin) {
