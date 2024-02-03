@@ -125,9 +125,11 @@ public class WebScraper {
 			}
 			data = new String(storage.get(origin, CACHE, cache.getId()));
 		} else {
-			var res = doScrape(url);
-			if (res == null) return result;
-			data = new String(res.getEntity().getContent().readAllBytes());
+			try (var res = doScrape(url)) {
+				if (res == null) return result;
+				data = new String(res.getEntity().getContent().readAllBytes());
+				EntityUtils.consumeQuietly(res.getEntity());
+			}
 		}
 		if (!data.trim().startsWith("<")) return result;
 		var doc = Jsoup.parse(data, url);

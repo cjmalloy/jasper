@@ -41,7 +41,7 @@ public class ScrapeConfig {
 			.setDefaultRequestConfig(RequestConfig
 				.custom()
 				.setConnectTimeout(timeout)
-				.setConnectionRequestTimeout(timeout)
+				.setConnectionRequestTimeout(5 * 1000)
 				.setSocketTimeout(timeout)
 				.build())
 			.build();
