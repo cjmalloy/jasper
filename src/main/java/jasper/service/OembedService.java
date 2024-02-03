@@ -83,8 +83,8 @@ public class OembedService {
 				auth.refReadSpec().and(RefFilter.builder()
 					.origin(origin)
 					.query("+plugin/oembed").build().spec())).stream()
-			.map(r -> r.getPlugins().get("+plugin/oembed"))
-			.map(p -> objectMapper.convertValue(p, Oembed.class)).toList();
+			.map(r -> r.getPlugin("+plugin/oembed", Oembed.class))
+			.toList();
 		for (var p : providers) {
 			if (p == null) continue;
 			for (var e : p.getEndpoints()) {

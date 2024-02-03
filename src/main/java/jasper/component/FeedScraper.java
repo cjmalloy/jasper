@@ -35,21 +35,18 @@ public class FeedScraper {
 		var maybeFeed = refRepository.oldestNeedsScrapeByOrigin(origin);
 		if (maybeFeed.isEmpty()) return false;
 		var feed = maybeFeed.get();
-		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
+		var config = feed.getPlugin("+plugin/feed", Feed.class);
 		var minutesOld = config.getLastScrape() == null ? 0 : Duration.between(config.getLastScrape(), Instant.now()).toMinutes();
 		try {
 			logger.info("Scraping {} minute old {} feed: {}.", minutesOld, feed.getTitle(), feed.getUrl());
 			rssParser.scrape(feed);
 			logger.info("Finished scraping feed: {}.", feed.getUrl());
 		} catch (IOException e) {
-			e.printStackTrace();
-			logger.error("Error loading feed.");
+			logger.error("Error loading feed.", e);
 		} catch (FeedException e) {
-			e.printStackTrace();
-			logger.error("Error parsing feed.");
+			logger.error("Error parsing feed.", e);
 		} catch (Throwable e) {
-			e.printStackTrace();
-			logger.error("Unexpected error scraping feed.");
+			logger.error("Unexpected error scraping feed.", e);
 		}
 		return true;
 	}

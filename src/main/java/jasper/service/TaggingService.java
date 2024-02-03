@@ -55,7 +55,7 @@ public class TaggingService {
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() == null || !ref.getTags().contains(tag)) return ref.getModified();
-		if (ref.getTags().contains("locked") && ref.getPlugins() != null && ref.getPlugins().has(tag)) {
+		if (ref.getTags().contains("locked") && ref.hasPlugin(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removePrefixTags();
@@ -76,7 +76,7 @@ public class TaggingService {
 		ref.removePrefixTags();
 		if (ref.getTags() != null && ref.getTags().contains("locked")) {
 			for (var t : tags) {
-				if (t.startsWith("-") && ref.getPlugins() != null && ref.getPlugins().has(t.substring(1))) {
+				if (t.startsWith("-") && ref.hasPlugin(t.substring(1))) {
 					throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 				}
 			}

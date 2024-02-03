@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Cache;
 import jasper.plugin.Scrape;
+import jasper.plugin.Video;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.HostCheck;
@@ -48,12 +49,12 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
-import static com.fasterxml.jackson.databind.node.TextNode.valueOf;
 import static jasper.domain.proj.HasTags.hasMedia;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -115,7 +116,7 @@ public class WebScraper {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isPresent()) {
 			result = maybeRef.get();
-			var cache = result.hasTag("_plugin/cache") ? objectMapper.convertValue(result.getPlugin("_plugin/cache"), Cache.class) : null;
+			var cache = result.getPlugin("_plugin/cache", Cache.class);
 			if (cache == null || isBlank(cache.getId())) {
 				cache = fetch(result.getUrl(), result.getOrigin());
 				if (cache == null) return result;
@@ -399,8 +400,8 @@ public class WebScraper {
 				RefFilter.builder()
 					.origin(origin)
 					.query("+plugin/scrape").build().spec()).stream()
-			.map(r -> r.getPlugins().get("+plugin/scrape"))
-			.map(p -> objectMapper.convertValue(p, Scrape.class)).toList();
+			.map(r -> r.getPlugin("+plugin/scrape", Scrape.class))
+			.toList();
 		for (var c : configs) {
 			if (c.getSchemes() == null) continue;
 			for (var s : c.getSchemes()) {
@@ -416,8 +417,7 @@ public class WebScraper {
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public Scrape getDefaultConfig(String origin) {
 		return refRepository.findOneByUrlAndOrigin("config:scrape-catchall", origin)
-			.map(r -> r.getPlugins().get("+plugin/scrape"))
-			.map(p -> objectMapper.convertValue(p, Scrape.class))
+			.map(r -> r.getPlugin("+plugin/scrape", Scrape.class))
 			.orElse(null);
 	}
 
@@ -433,7 +433,8 @@ public class WebScraper {
 
 	private void addVideoUrl(Ref ref, String url) {
 		if (isBlank(url)) return;
-		if (ref.getTags() != null && ref.getTags().contains("plugin/video") && url.endsWith(".m3u8") && !ref.getPlugins().get("plugin/video").get("url").asText().endsWith(".m3u8")) return;
+		if (ref.hasTag("plugin/video") && url.endsWith(".m3u8")
+			&& !ref.getPlugin("plugin/video", Video.class).getUrl().endsWith(".m3u8")) return;
 		addPluginUrl(ref, "plugin/video", url);
 	}
 
@@ -628,7 +629,7 @@ public class WebScraper {
 				return null;
 			}
 			if (ref.hasTag("_plugin/cache")) {
-				existingCache = objectMapper.convertValue(ref.getPlugin("_plugin/cache"), Cache.class);
+				existingCache = ref.getPlugin("_plugin/cache", Cache.class);
 				if (existingCache.isBan()) return existingCache;
 				if (!refresh && !existingCache.isNoStore()) {
 					if (isBlank(existingCache.getId())) {
@@ -778,10 +779,7 @@ public class WebScraper {
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
 		self.scrapeAsync(url, ref.getOrigin());
-		ref.addTag(tag);
-		var img = objectMapper.createObjectNode();
-		img.set("url", valueOf(url));
-		ref.setPlugin(tag, img);
+		ref.setPlugin(tag, Map.of("url", url));
 	}
 
 	public static Ref from(String url, String origin, Cache cache, String ...tags) {

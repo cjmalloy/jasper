@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
@@ -83,13 +82,13 @@ public class Replicator {
 			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}
-		var pull = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin/pull"), Pull.class);
+		var pull = remote.getPlugin("+plugin/origin/pull", Pull.class);
 		pull.setLastPull(Instant.now());
-		remote.getPlugins().set("+plugin/origin/pull", objectMapper.convertValue(pull, JsonNode.class));
+		remote.setPlugin("+plugin/origin/pull", pull);
 		refRepository.save(remote);
 
 		Map<String, Object> options = new HashMap<>();
-		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
+		var config = remote.getPlugin("+plugin/origin", Origin.class);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		options.put("size", pull.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), props.getMaxReplicateBatch()));
@@ -175,12 +174,12 @@ public class Replicator {
 			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}
-		var push = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin/push"), Push.class);
+		var push = remote.getPlugin("+plugin/origin/push", Push.class);
 		push.setLastPush(Instant.now());
-		remote.getPlugins().set("+plugin/origin/push", objectMapper.convertValue(push, JsonNode.class));
+		remote.setPlugin("+plugin/origin/push", push);
 		refRepository.save(remote);
 
-		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
+		var config = remote.getPlugin("+plugin/origin", Origin.class);
 		var localOrigin = origin(config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
@@ -270,7 +269,7 @@ public class Replicator {
 				logger.error("Error pushing {} to origin {}", localOrigin, remoteOrigin, e);
 			}
 		});
-		remote.getPlugins().set("+plugin/origin/push", objectMapper.convertValue(push, JsonNode.class));
+		remote.setPlugin("+plugin/origin/push", push);
 		refRepository.save(remote);
 	}
 

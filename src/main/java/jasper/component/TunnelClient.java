@@ -40,14 +40,14 @@ public class TunnelClient {
 	ObjectMapper objectMapper;
 
 	public void proxy(Ref remote, ProxyRequest request) {
-		var config = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin"), Origin.class);
+		var config = remote.getPlugin("+plugin/origin", Origin.class);
 		URI url = null;
 		try {
 			url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
-		var tunnel = objectMapper.convertValue(remote.getPlugins().get("+plugin/origin/tunnel"), Tunnel.class);
+		var tunnel = remote.getPlugin("+plugin/origin/tunnel", Tunnel.class);
 		if (tunnel == null) {
 			request.go(url);
 		} else {

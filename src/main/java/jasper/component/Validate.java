@@ -213,14 +213,14 @@ public class Validate {
 		});
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
-			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) {
+			if (ref.hasPlugin(tag)) {
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
 			return;
 		}
 		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
-		if (ref.getPlugin(tag) == null) {
+		if (!ref.hasPlugin(tag)) {
 			ref.setPlugin(tag, defaults);
 			stripOnError = true;
 		}

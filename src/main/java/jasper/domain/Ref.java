@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 
 @Entity
@@ -253,24 +254,37 @@ public class Ref implements HasTags {
 		}
 	}
 
-	// TODO: Remove static mapper
-	private static ObjectMapper om = new ObjectMapper();
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
 		if (jsonNode == null && plugins != null) {
 			plugins.remove(tag);
 			return this;
 		}
-		if (plugins == null) plugins = om.createObjectNode();
+		if (plugins == null) plugins = om().createObjectNode();
 		addTag(tag);
-		plugins.set(tag, om.convertValue(jsonNode, JsonNode.class));
+		plugins.set(tag, om().convertValue(jsonNode, JsonNode.class));
 		return this;
+	}
+
+	@JsonIgnore
+	public boolean hasPlugin(String tag) {
+		if (plugins == null) return false;
+		if (!plugins.has(tag)) return false;
+		return plugins.get(tag) != null;
 	}
 
 	@JsonIgnore
 	public JsonNode getPlugin(String tag) {
 		if (plugins == null) return null;
+		if (!plugins.has(tag)) return null;
 		return plugins.get(tag);
+	}
+
+	@JsonIgnore
+	public <T> T getPlugin(String tag, Class<T> toValueType) {
+		if (plugins == null) return null;
+		if (!plugins.has(tag)) return null;
+        return om().convertValue(plugins.get(tag), toValueType);
 	}
 
 	@JsonIgnore

@@ -1,7 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
@@ -18,7 +16,11 @@ import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.OperationForbiddenOnOriginException;
+import jasper.plugin.Audio;
+import jasper.plugin.Embed;
 import jasper.plugin.Feed;
+import jasper.plugin.Thumbnail;
+import jasper.plugin.Video;
 import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
@@ -41,7 +43,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -78,10 +79,11 @@ public class RssParser {
 			logger.debug("Scrape origins: {}", (Object) props.getScrapeOrigins());
 			throw new OperationForbiddenOnOriginException(feed.getOrigin());
 		}
-		var config = objectMapper.convertValue(feed.getPlugins().get("+plugin/feed"), Feed.class);
+		var config = feed.getPlugin("+plugin/feed", Feed.class);
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
-		saveConfig(feed, config);
+		feed.setPlugin("+plugin/feed", config);
+		refRepository.save(feed);
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
@@ -115,19 +117,21 @@ public class RssParser {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null) {
 							config.setEtag(etag.getValue());
-							saveConfig(feed, config);
+							feed.setPlugin("+plugin/feed", config);
+							refRepository.save(feed);
 						} else if (config.getEtag() != null) {
 							config.setEtag(null);
-							saveConfig(feed, config);
+							feed.setPlugin("+plugin/feed", config);
+							refRepository.save(feed);
 						}
 					}
 					SyndFeedInput input = new SyndFeedInput();
 					SyndFeed syndFeed = input.build(new XmlReader(stream));
-					Map<String, Object> feedImage = null;
+					Thumbnail feedImage = null;
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						webScraper.fetch(image, feed.getOrigin());
-						feedImage = Map.of("url", image);
+						feedImage = Thumbnail.builder().url(image).build();
 						if (!feed.getTags().contains("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", feedImage);
 							refRepository.save(feed);
@@ -164,12 +168,7 @@ public class RssParser {
 		}
 	}
 
-	private void saveConfig(Ref feed, Feed config) {
-		feed.getPlugins().set("+plugin/feed", objectMapper.convertValue(config, JsonNode.class));
-		refRepository.save(feed);
-	}
-
-	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Map<String, Object> defaultThumbnail) {
+	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();
 		var link = entry.getLink();
 		if (config.isStripQuery() && link.contains("?")) {
@@ -232,49 +231,39 @@ public class RssParser {
 			comment += String.join(", ", dc.getCreators());
 		}
 		ref.setComment(comment);
-		var plugins = ref.getPlugins() == null
-			? new HashMap<String, Object>()
-			: objectMapper.convertValue(ref.getPlugins(), new TypeReference<HashMap<String, Object>>() {});
 		if (config.isScrapeThumbnail()) {
-			parseThumbnail(entry, plugins);
-			if (!plugins.containsKey("plugin/thumbnail")) {
+			parseThumbnail(entry, ref);
+			if (!ref.hasPlugin("plugin/thumbnail")) {
 				if (defaultThumbnail != null) {
-					plugins.put("plugin/thumbnail", defaultThumbnail);
+					ref.setPlugin("plugin/thumbnail", defaultThumbnail);
 				}
 			}
-			if (plugins.containsKey("plugin/thumbnail")) {
-				webScraper.scrapeAsync(getUrl("plugin/thumbnail", plugins), feed.getOrigin());
-				ref.getTags().add("plugin/thumbnail");
+			if (ref.hasPlugin("plugin/thumbnail")) {
+				webScraper.scrapeAsync(ref.getPlugin("plugin/thumbnail", Thumbnail.class).getUrl(), feed.getOrigin());
 			}
 		}
 		if (config.isScrapeAudio()) {
-			parseAudio(entry, plugins);
-			if (plugins.containsKey("plugin/audio")) {
-				webScraper.scrapeAsync(getUrl("plugin/audio", plugins), feed.getOrigin());
+			parseAudio(entry, ref);
+			if (ref.hasPlugin("plugin/audio")) {
+				webScraper.scrapeAsync(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
 				ref.getTags().add("plugin/audio");
 			}
 		}
 		if (config.isScrapeVideo()) {
-			parseVideo(entry, plugins);
-			if (plugins.containsKey("plugin/video")) {
-				webScraper.scrapeAsync(getUrl("plugin/video", plugins), feed.getOrigin());
+			parseVideo(entry, ref);
+			if (ref.hasPlugin("plugin/video")) {
+				webScraper.scrapeAsync(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
 				ref.getTags().add("plugin/video");
 			}
 		}
 		if (config.isScrapeEmbed()) {
-			parseEmbed(entry, plugins);
-			if (plugins.containsKey("plugin/embed")) {
-				webScraper.scrapeAsync(getUrl("plugin/embed", plugins), feed.getOrigin());
+			parseEmbed(entry, ref);
+			if (ref.hasPlugin("plugin/embed")) {
+				webScraper.scrapeAsync(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
 				ref.getTags().add("plugin/embed");
 			}
 		}
-		ref.setPlugins(objectMapper.valueToTree(plugins));
 		return ref;
-	}
-
-	private String getUrl(String tag, Map<String, Object> plugins) {
-		if (!(plugins instanceof Map)) return null;
-		return ((Map<String, Object>) plugins.get(tag)).get("url").toString();
 	}
 
 	private SyndContent getPreferredType(List<SyndContent> contents) {
@@ -294,11 +283,11 @@ public class RssParser {
 		return t == null || t.equals("text/plain");
 	}
 
-	private void parseThumbnail(SyndEntry entry, Map<String, Object> plugins) {
+	private void parseThumbnail(SyndEntry entry, Ref ref) {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("image/jpg".equals(e.getType()) || "image/png".equals(e.getType())) {
-					plugins.put("plugin/thumbnail",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/thumbnail",  Thumbnail.builder().url(e.getUrl()).build());
 					return;
 				}
 			}
@@ -306,7 +295,7 @@ public class RssParser {
 		var itunes = (ITunes) entry.getModule(ITunes.URI);
 		if (itunes != null &&
 			itunes.getImageUri() != null) {
-			plugins.put("plugin/thumbnail", Map.of("url", itunes.getImageUri()));
+			ref.setPlugin("plugin/thumbnail", Map.of("url", itunes.getImageUri()));
 			return;
 		}
 		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
@@ -314,14 +303,14 @@ public class RssParser {
 		if (media.getMetadata() != null &&
 			media.getMetadata().getThumbnail() != null &&
 			media.getMetadata().getThumbnail().length != 0) {
-			plugins.put("plugin/thumbnail", Map.of("url", media.getMetadata().getThumbnail()[0].getUrl()));
+			ref.setPlugin("plugin/thumbnail", Map.of("url", media.getMetadata().getThumbnail()[0].getUrl()));
 			return;
 		}
 		if (media.getMetadata() != null &&
 			media.getMediaContents() != null) {
 			for (var c : media.getMediaContents()) {
 				if ("image".equals(c.getMedium()) || "image/jpeg".equals(c.getType()) || "application/octet-stream".equals(c.getType())) {
-					plugins.put("plugin/thumbnail", c.getReference());
+					ref.setPlugin("plugin/thumbnail", c.getReference());
 					return;
 				}
 			}
@@ -329,33 +318,33 @@ public class RssParser {
 		if (media.getMediaGroups().length == 0) return;
 		var group = media.getMediaGroups()[0];
 		if (group.getMetadata().getThumbnail().length == 0) return;
-		plugins.put("plugin/thumbnail", Map.of("url", group.getMetadata().getThumbnail()[0].getUrl()));
+		ref.setPlugin("plugin/thumbnail", Map.of("url", group.getMetadata().getThumbnail()[0].getUrl()));
 	}
 
-	private void parseAudio(SyndEntry entry, Map<String, Object> plugins) {
+	private void parseAudio(SyndEntry entry, Ref ref) {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if (e.getType() == null) continue;
 				if (e.getType().startsWith("audio/")) {
-					plugins.put("plugin/audio",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/audio",  Map.of("url", e.getUrl()));
 					return;
 				}
 			}
 		}
 	}
 
-	private void parseVideo(SyndEntry entry, Map<String, Object> plugins) {
+	private void parseVideo(SyndEntry entry, Ref ref) {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("video/mp4".equals(e.getType())) {
-					plugins.put("plugin/video",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/video",  Map.of("url", e.getUrl()));
 					return;
 				}
 			}
 		}
 	}
 
-	private void parseEmbed(SyndEntry entry, Map<String, Object> plugins) {
+	private void parseEmbed(SyndEntry entry, Ref ref) {
 		var youtubeEmbed = entry
 			.getForeignMarkup()
 			.stream()
@@ -363,7 +352,7 @@ public class RssParser {
 			.filter(e -> "yt".equals(e.getNamespacePrefix()))
 			.findFirst();
 		if (youtubeEmbed.isPresent()) {
-			plugins.put("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
+			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
 			return;
 		}
 
@@ -371,6 +360,6 @@ public class RssParser {
 		if (media == null) return;
 		if (media.getMetadata() == null) return;
 		if (media.getMetadata().getEmbed() == null) return;
-		plugins.put("plugin/embed", media.getMetadata().getEmbed());
+		ref.setPlugin("plugin/embed", media.getMetadata().getEmbed());
 	}
 }

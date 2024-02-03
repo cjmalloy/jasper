@@ -1,6 +1,7 @@
 package jasper.config;
 
 import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -13,6 +14,12 @@ import org.zalando.problem.violations.ConstraintViolationProblemModule;
 
 @Configuration
 public class JacksonConfiguration {
+	static ObjectMapper om = null;
+
+	public static ObjectMapper om() {
+		assert om != null;
+		return om;
+	}
 
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
