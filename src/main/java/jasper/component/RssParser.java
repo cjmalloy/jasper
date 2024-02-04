@@ -246,21 +246,18 @@ public class RssParser {
 			parseAudio(entry, ref);
 			if (ref.hasPlugin("plugin/audio")) {
 				webScraper.scrapeAsync(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
-				ref.getTags().add("plugin/audio");
 			}
 		}
 		if (config.isScrapeVideo()) {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				webScraper.scrapeAsync(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
-				ref.getTags().add("plugin/video");
 			}
 		}
 		if (config.isScrapeEmbed()) {
 			parseEmbed(entry, ref);
 			if (ref.hasPlugin("plugin/embed")) {
 				webScraper.scrapeAsync(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
-				ref.getTags().add("plugin/embed");
 			}
 		}
 		return ref;
