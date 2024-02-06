@@ -3,8 +3,6 @@ package jasper.component;
 import io.micrometer.core.annotation.Timed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
@@ -13,17 +11,10 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
-@Profile("storage")
 @Component
 public class Images {
 	private static final Logger logger = LoggerFactory.getLogger(Images.class);
 	private static final int THUMBNAIL_SIZE = 192;
-
-	@Autowired
-	Ingest ingest;
-
-	@Autowired
-	Storage storage;
 
 	@Timed(value = "jasper.images")
 	public byte[] thumbnail(InputStream image) {
