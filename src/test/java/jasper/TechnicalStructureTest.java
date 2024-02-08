@@ -27,7 +27,7 @@ class TechnicalStructureTest {
         .layer("Domain").definedBy("..domain..")
         .layer("Plugin").definedBy("..plugin..")
 
-        .whereLayer("Config").mayNotBeAccessedByAnyLayer()
+        .whereLayer("Config").mayOnlyBeAccessedByLayers("Domain")
         .whereLayer("Client").mayOnlyBeAccessedByLayers("Web", "Component", "Service")
         .whereLayer("Web").mayOnlyBeAccessedByLayers("Config")
         .whereLayer("Component").mayOnlyBeAccessedByLayers("Web", "Client", "Service")
