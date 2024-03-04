@@ -87,6 +87,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		logger.debug("Principal: {}", principal);
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader();
+			logger.debug("Origin set by header {}", origin);
 		} else if (!isBlank(principal) && client.isAllowUsernameClaimOrigin() && principal.contains("@")) {
 			try {
 				var qt = originSelector(principal);
@@ -94,6 +95,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 					origin = qt.origin;
 					principal = qt.tag;
 				}
+				logger.debug("Origin set by user tag {}", origin);
 			} catch (UnsupportedOperationException ignored) {}
 		}
 		if (principal.contains("@")) {
