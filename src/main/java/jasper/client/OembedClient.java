@@ -1,6 +1,5 @@
 package jasper.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import feign.QueryMap;
 import feign.RequestLine;
 import org.springframework.cloud.openfeign.FeignClient;

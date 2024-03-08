@@ -2,7 +2,6 @@ package jasper.config;
 
 import org.hibernate.dialect.function.SQLFunctionTemplate;
 import org.hibernate.dialect.function.StandardSQLFunction;
-import org.hibernate.type.BooleanType;
 import org.hibernate.type.DurationType;
 import org.hibernate.type.StandardBasicTypes;
 import tech.jhipster.domain.util.FixedPostgreSQL95Dialect;

@@ -3,13 +3,8 @@ package jasper.plugin;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import jasper.domain.Ext;
-import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
 import jasper.domain.User;
-import jasper.domain.proj.HasOrigin;
-import jasper.domain.proj.Tag;
 import lombok.Getter;
 import lombok.Setter;
 
