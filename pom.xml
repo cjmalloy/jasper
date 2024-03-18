@@ -33,7 +33,7 @@
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.11.5</jjwt.version>
 		<spring-cloud.version>2021.0.9</spring-cloud.version>
-		<problem-spring-web.version>0.27.0</problem-spring-web.version>
+		<problem-spring-web.version>0.28.0</problem-spring-web.version>
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>0.23.1</archunit-junit5.version>
