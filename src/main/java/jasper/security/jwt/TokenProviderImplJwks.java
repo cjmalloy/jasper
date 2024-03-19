@@ -28,12 +28,12 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		for (var c : props.getSecurity().clientList()) {
 			var client = c.getKey();
 			String jwksUri = c.getValue().getAuthentication().getJwt().getJwksUri();
-			if (isNotBlank(jwksUri)) jwtParser.put(client, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build());
+			if (isNotBlank(jwksUri)) jwtParser.put(client, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(jwksUri), restTemplate)).build());
 		}
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = jwtParser.get(origin).parseClaimsJws(token).getBody();
+		var claims = jwtParser.get(origin).parseClaimsJws(token).getPayload();
 		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));

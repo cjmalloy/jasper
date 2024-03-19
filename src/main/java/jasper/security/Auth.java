@@ -1,7 +1,6 @@
 package jasper.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.config.Props;
 import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
@@ -44,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static io.jsonwebtoken.Jwts.claims;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -835,7 +835,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = new DefaultClaims();
+				claims = claims().build();
 			}
 		}
 		return claims;

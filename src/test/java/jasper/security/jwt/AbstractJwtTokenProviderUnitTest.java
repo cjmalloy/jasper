@@ -1,7 +1,6 @@
 package jasper.security.jwt;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.User;
@@ -12,9 +11,9 @@ import org.springframework.security.core.Authentication;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import static io.jsonwebtoken.Jwts.claims;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,15 +30,16 @@ public class AbstractJwtTokenProviderUnitTest {
 	}
 
 	Claims getClaims(String sub) {
-		var claims = new DefaultClaims();
-		claims.setSubject(sub);
-		return claims;
+		return claims()
+			.add("sub", sub)
+			.build();
 	}
 
 	Claims getClaims(String sub, String auth) {
-		var claims = new DefaultClaims(Map.of("auth", auth));
-		claims.setSubject(sub);
-		return claims;
+		return claims()
+			.add("sub", sub)
+			.add("auth", auth)
+			.build();
 	}
 
 	Props getProps(String localOrigin, boolean allowUsernameClaimOrigin) {
