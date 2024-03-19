@@ -300,10 +300,6 @@ Here is the GitHub Readme:
 # Jasper
 Knowledge Management Server
 
-[![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.23-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
-
 ## Quickstart
 To start the server, client and database with a single admin user, run
 the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/docker-compose.yaml)
@@ -311,8 +307,8 @@ docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) fo
 electron wrapper.
 
 ## Knowledge Management
-Jasper is an open source knowledge management (KM) system. A KMS is similar to a Content Management
-System (CMS), but it does not store any content. Instead, a KMS stores links to content. This means
+Jasper is an open source knowledge management (KM) system. A KM is similar to a Content Management
+System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
 that adding a KM to your internal tools is quick and easy. It will create an overlay database,
 which is a small and fast index of all your content sources. Extend functionality with custom plugins,
 or embed existing dashboard panels directly to create your central business intelligence dashboard.
