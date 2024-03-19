@@ -12,8 +12,8 @@ docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) fo
 electron wrapper.
 
 ## Knowledge Management
-Jasper is an open source knowledge management (KM) system. A KMS is similar to a Content Management
-System (CMS), but it does not store any content. Instead, a KMS stores links to content. This means
+Jasper is an open source knowledge management (KM) system. A KM system is similar to a Content Management
+System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
 that adding a KM to your internal tools is quick and easy. It will create an overlay database, 
 which is a small and fast index of all your content sources. Extend functionality with custom plugins,
 or embed existing dashboard panels directly to create your central business intelligence dashboard.
