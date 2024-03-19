@@ -15,7 +15,7 @@ class TechnicalStructureTest {
 
     // prettier-ignore
     @ArchTest
-    static final ArchRule respectsTechnicalArchitectureLayers = layeredArchitecture()
+    static final ArchRule respectsTechnicalArchitectureLayers = layeredArchitecture().consideringAllDependencies()
         .layer("Util").definedBy("..util..")
         .layer("Config").definedBy("..config..")
         .layer("Client").definedBy("..client..")
