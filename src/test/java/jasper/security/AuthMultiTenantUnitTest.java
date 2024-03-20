@@ -105,6 +105,26 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_PublicRemote() {
+		var auth = getAuth(getUser("+user/test@other"));
+		var ref = getRef("public");
+		ref.setOrigin(ref.getOrigin() + ".remote");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_PublicOriginFailed() {
+		var auth = getAuth(getUser("+user/test@other"));
+		var ref = getRef("public");
+		ref.setOrigin("@inaccessible");
+
+		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadRef_NonPublicFailed() {
 		var auth = getAuth(getUser("+user/test@other"));
 		var ref = getRef();

@@ -108,6 +108,16 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_PublicRemote() {
+		var auth = getAuth(getUser("+user/test"));
+		var ref = getRef("public");
+		ref.setOrigin("@other");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
 	void testCanReadRef_NonPublicFailed() {
 		var auth = getAuth(getUser("+user/test"));
 		var ref = getRef();
@@ -595,6 +605,15 @@ public class AuthUnitTest {
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("custom"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_PublicRemote() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("custom@remote"))
 			.isTrue();
 	}
 
