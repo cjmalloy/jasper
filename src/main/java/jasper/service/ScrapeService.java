@@ -93,11 +93,10 @@ public class ScrapeService {
 		return webScraper.fetch(url, thumbnail, auth.getOrigin(), os);
 	}
 
+	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String rss(String url) {
-		// Only require role for new scrapes
-		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin()) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return webScraper.rss(url, auth.getOrigin());
+	public String rss(String url) throws IOException {
+		return webScraper.rss(url);
 	}
 
 	@PreAuthorize( "@auth.hasRole('USER')")

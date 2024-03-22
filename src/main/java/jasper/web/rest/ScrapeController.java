@@ -105,7 +105,7 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("rss")
-	ResponseEntity<String> rss(@RequestParam @Length(max = URL_LEN) String url) {
+	ResponseEntity<String> rss(@RequestParam @Length(max = URL_LEN) String url) throws IOException {
 		return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(scrapeService.rss(url));

@@ -525,18 +525,20 @@ public class WebScraper {
 		return src;
 	}
 
-	@Timed(value = "jasper.webscrape")
-	public String rss(String url, String origin) {
-		var cache = fetch(url, origin);
-		if (isBlank(cache.getId())) return null;
-		var strData = new String(storage.get(origin, CACHE, cache.getId()));
-		if (!strData.trim().startsWith("<")) return null;
-		var doc = Jsoup.parse(strData);
-		return doc.getElementsByTag("link").stream()
-			.filter(t -> t.attr("type").equals("application/rss+xml"))
-			.filter(t -> t.hasAttr("href"))
-			.map(t -> t.attr("href"))
-			.findFirst().orElse(null);
+	@Timed(value = "jasper.rssscrape")
+	public String rss(String url) throws IOException {
+		try (var res = doScrape(url)) {
+			if (res == null) return null;
+			var strData = new String(res.getEntity().getContent().readAllBytes());
+			EntityUtils.consumeQuietly(res.getEntity());
+			if (!strData.trim().startsWith("<")) return null;
+			var doc = Jsoup.parse(strData, url);
+			return doc.getElementsByTag("link").stream()
+				.filter(t -> t.attr("type").equals("application/rss+xml"))
+				.filter(t -> t.hasAttr("href"))
+				.map(t -> t.absUrl("href"))
+				.findFirst().orElse(null);
+		}
 	}
 
 	public Cache scrape(String url, String origin) {
