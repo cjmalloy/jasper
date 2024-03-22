@@ -179,7 +179,7 @@ public class RssParser {
 		}
 		if (config.isScrapeWebpage()) {
 			try {
-				var scrapeConfig = webScraper.getConfig(feed.getOrigin(), link);
+				var scrapeConfig = webScraper.getConfig(link, feed.getOrigin());
 				if (scrapeConfig == null) {
 					scrapeConfig = webScraper.getDefaultConfig(feed.getOrigin());
 				}
