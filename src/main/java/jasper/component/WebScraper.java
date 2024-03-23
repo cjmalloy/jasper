@@ -121,7 +121,6 @@ public class WebScraper {
 				cache = fetch(result.getUrl(), result.getOrigin());
 				if (cache == null) return result;
 				result.setPlugin("_plugin/cache", cache);
-				ingest.update(result, false);
 			}
 			data = new String(storage.get(origin, CACHE, cache.getId()));
 		} else {
