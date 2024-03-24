@@ -2,6 +2,7 @@ package jasper.component.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ref;
+import jasper.service.dto.RefDto;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
