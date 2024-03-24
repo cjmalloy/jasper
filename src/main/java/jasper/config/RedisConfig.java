@@ -90,7 +90,8 @@ public class RedisConfig {
 		container.addMessageListener((message, pattern) -> {
 			try {
 				var ref = objectMapper.readValue(message.getBody(), RefDto.class);
-				var origin = new String(message.getChannel(), StandardCharsets.UTF_8).split("/")[1];
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
 				refRxChannel.send(MessageBuilder.createMessage(ref, refHeaders(origin, ref)));
 			} catch (IOException e) {
 				logger.error("Error parsing RefUpdateDto from redis.");
@@ -123,7 +124,8 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			var tag = new String(message.getBody(), StandardCharsets.UTF_8);
-			var origin = new String(message.getChannel(), StandardCharsets.UTF_8).split("/")[1];
+			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+			var origin = parts[1];
 			tagRxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
 		}, of("tag/*"));
 		return container;
@@ -136,7 +138,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
 				protected String getTopic(Message<String> message) {
-					return "response/" + message.getHeaders().get("response");
+					return "response/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("response");
 				}
 
 				@Override
@@ -153,8 +155,9 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			var response = new String(message.getBody(), StandardCharsets.UTF_8);
-			var origin = new String(message.getChannel(), StandardCharsets.UTF_8).split("/")[1];
-			var source = new String(message.getChannel(), StandardCharsets.UTF_8).split("/")[2];
+			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+			var origin = parts[1];
+			var source = parts[2];
 			responseRxChannel.send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
 		}, of("response/*"));
 		return container;
