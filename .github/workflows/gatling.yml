@@ -1,0 +1,55 @@
+name: Load Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+#      - name: Build and start Jasper
+#        run: docker-compose up -d
+      - name: Build the gatling image
+        run: docker build . --file Dockerfile --target gatling --tag gatling
+      - name: Run the test container
+        run: docker run --name gatling -v /var/run/docker.sock:/var/run/docker.sock gatling
+      - name: Copy the report from the container
+        if: always()
+        run: docker cp gatling:/report report
+      - name: Upload PR Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-reports-pr-${{ github.event.pull_request.number }}
+          path: report
+          retention-days: 7
+      - name: Upload Reports
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
+          path: report
+          retention-days: 90
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 Load test results available at: ${url}`
+            });

@@ -6,31 +6,47 @@ on:
   pull_request:
     branches: [ master ]
 
-jobs:
+permissions:
+  contents: read
 
+jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . -t ${{ github.repository }}:$(date +%s)
+      - uses: actions/checkout@v4
+      - name: Build the Docker image
+        run: docker build . -t ${{ github.repository }}:$(date +%s)
 
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the testing image
-      run: docker build . --file Dockerfile --target test --tag test
-    - name: Run the test container
-      run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
-    - name: Copy the tests from the container
-      if: always()
-      run: docker cp test:/tests tests
-    - name: Publish Unit Test Results
-      uses: dorny/test-reporter@v1.9.1
-      if: always()
-      continue-on-error: true
-      with:
-        name: Test Results
-        path: "tests/*.xml"
-        reporter: java-junit
+      - uses: actions/checkout@v4
+      - name: Build the testing image
+        run: docker build . --file Dockerfile --target test --tag test
+      - name: Run the test container
+        run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
+      - name: Copy the tests from the container
+        if: always()
+        run: docker cp test:/tests tests
+      - name: Publish Unit Test Results
+        uses: dorny/test-reporter@v1.9.1
+        if: always()
+        continue-on-error: true
+        with:
+          name: Test Results
+          path: "tests/*.xml"
+          reporter: java-junit
+      - name: Upload PR Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-pr-${{ github.event.pull_request.number }}
+          path: reports
+          retention-days: 7
+      - name: Upload Reports
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
+          path: reports
+          retention-days: 90
