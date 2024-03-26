@@ -23,6 +23,8 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
+		<gatling-maven-plugin.version>4.6.0</gatling-maven-plugin.version>
+		<gatling.version>3.9.5</gatling.version>
 		<jhipster-framework.version>7.7.0</jhipster-framework.version>
 		<lombok.version>1.18.34</lombok.version>
 		<testcontainers.version>1.20.0</testcontainers.version>
@@ -367,6 +369,12 @@
 			<artifactId>postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>io.gatling.highcharts</groupId>
+			<artifactId>gatling-charts-highcharts</artifactId>
+			<version>${gatling.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -420,6 +428,28 @@
 					</includes>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>io.gatling</groupId>
+				<artifactId>gatling-maven-plugin</artifactId>
+			</plugin>
 		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>io.gatling</groupId>
+					<artifactId>gatling-maven-plugin</artifactId>
+					<version>${gatling-maven-plugin.version}</version>
+					<configuration>
+						<runMultipleSimulations>true</runMultipleSimulations>
+						<configFolder>${project.basedir}/src/test/gatling/conf</configFolder>
+						<resourcesFolder>${project.basedir}/src/test/resources/gatling</resourcesFolder>
+						<simulationsFolder>${project.basedir}src/test/java/simulations/computerdatabase</simulationsFolder>
+						<includes>
+							<include>simulations.computerdatabase.ComputerDatabaseSimulation</include>
+						</includes>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
 </project>
