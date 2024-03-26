@@ -1,0 +1,82 @@
+name: Load Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # For gh-pages updates
+      pull-requests: write # For PR comments
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Start Jasper server
+      - name: Build and start Jasper
+        run: docker-compose up -d
+      
+      # Run Gatling tests
+      - name: Run Gatling Tests
+        run: mvn gatling:test
+      
+      # Archive raw results
+      - name: Archive Gatling Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: gatling-results
+          path: target/gatling/*
+          retention-days: 30
+
+      # For PRs: Create temporary report directory
+      - if: github.event_name == 'pull_request'
+        name: Generate PR Report Path
+        run: echo "REPORT_PATH=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+
+      # For master: Use main report directory
+      - if: github.event_name == 'push'
+        name: Generate Main Report Path
+        run: echo "REPORT_PATH=performance" >> $GITHUB_ENV
+
+      # Checkout gh-pages to separate directory
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      # Copy reports
+      - name: Copy Performance Reports
+        if: success()
+        run: |
+          mkdir -p gh-pages/${{ env.REPORT_PATH }}
+          cp -R target/gatling/* gh-pages/${{ env.REPORT_PATH }}/
+
+      # Commit and push to gh-pages
+      - name: Commit Performance Reports
+        if: success()
+        run: |
+          cd gh-pages
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git add ${{ env.REPORT_PATH }}/
+          git commit -m "Update performance reports" || true
+          git push
+
+      # Add PR comment with report link
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/${process.env.REPORT_PATH}/`
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 Load test results available at: ${url}`
+            })
