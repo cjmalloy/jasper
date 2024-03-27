@@ -6,6 +6,7 @@ logging:
     org:
       springframework:
         security: DEBUG
+        integration: DEBUG
         web: DEBUG
         cors: DEBUG
     io:

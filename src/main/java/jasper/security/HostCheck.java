@@ -1,6 +1,7 @@
 package jasper.security;
 
-import jasper.config.Props;
+import jasper.component.ConfigCache;
+import jasper.plugin.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,19 +11,22 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 
-import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
-
 @Component
 public class HostCheck {
 	private static final Logger logger = LoggerFactory.getLogger(HostCheck.class);
 
 	@Autowired
-	Props props;
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	public boolean validHost(URI uri) {
+		var root = root();
 		try {
 			var host = InetAddress.getByName(uri.getHost());
-			if (isNotEmpty(props.getScrapeHostWhitelist())) {
+			if (!root.getScrapeHostWhitelist().isEmpty()) {
 				if (!whitelisted(uri.getHost())) return false;
 			} else {
 				if (host.isLoopbackAddress()) return false;
@@ -30,8 +34,8 @@ public class HostCheck {
 				if (host.isAnyLocalAddress()) return false;
 				if (host.isSiteLocalAddress()) return false;
 			}
-			if (props.getScrapeHostBlacklist() != null) {
-				for (var h : props.getScrapeHostBlacklist()) {
+			if (root.getScrapeHostBlacklist() != null) {
+				for (var h : root.getScrapeHostBlacklist()) {
 					if (uri.getHost().equals(h)) return false;
 				}
 			}
@@ -42,7 +46,7 @@ public class HostCheck {
 	}
 
 	private boolean whitelisted(String host) {
-		for (var h : props.getScrapeHostWhitelist()) {
+		for (var h : root().getScrapeHostWhitelist()) {
 			if (host.equals(h)) return true;
 		}
 		return false;

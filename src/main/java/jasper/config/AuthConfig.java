@@ -1,5 +1,6 @@
 package jasper.config;
 
+import jasper.component.ConfigCache;
 import jasper.management.SecurityMetersService;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
@@ -38,8 +39,8 @@ public class AuthConfig {
 
 	@Bean("authSingleton")
 	@ApplicationScope
-	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
-		return new Auth(props, roleHierarchy, userRepository, refRepository);
+	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
+		return new Auth(props, roleHierarchy, configs, refRepository);
 	}
 
 	@Bean

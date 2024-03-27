@@ -3,11 +3,11 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.plugin.Root;
 import jasper.repository.UserRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -33,19 +33,26 @@ public class IngestUser {
 	private static final Logger logger = LoggerFactory.getLogger(IngestUser.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
+
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -58,11 +65,13 @@ public class IngestUser {
 			delete(deletorTag(user.getTag()) + user.getOrigin());
 		}
 		ensureCreateUniqueModified(user);
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
 		ensureUpdateUniqueModified(user);
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)
@@ -75,6 +84,7 @@ public class IngestUser {
 		if (isDeletorTag(user.getTag())) {
 			delete(deletedTag(user.getTag()) + user.getOrigin());
 		}
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)
@@ -100,7 +110,7 @@ public class IngestUser {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
@@ -140,7 +150,7 @@ public class IngestUser {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}

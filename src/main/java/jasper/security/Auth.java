@@ -2,6 +2,7 @@ package jasper.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
@@ -11,7 +12,6 @@ import jasper.domain.proj.HasTags;
 import jasper.domain.proj.Tag;
 import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
-import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
 import jasper.security.jwt.JwtAuthentication;
@@ -58,6 +58,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
@@ -123,7 +124,7 @@ public class Auth {
 
 	Props props;
 	RoleHierarchy roleHierarchy;
-	UserRepository userRepository;
+	ConfigCache configs;
 	RefRepository refRepository;
 
 	// Cache
@@ -140,10 +141,10 @@ public class Auth {
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
 
-	public Auth(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
+	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
 		this.props = props;
 		this.roleHierarchy = roleHierarchy;
-		this.userRepository = userRepository;
+		this.configs = configs;
 		this.refRepository = refRepository;
 	}
 
@@ -518,7 +519,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
-		var role = userRepository.findOneByQualifiedTag(tag).map(User::getRole).orElse(null);
+		var role = ofNullable(configs.getUser(tag)).map(User::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role
@@ -536,7 +537,7 @@ public class Auth {
 		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) return false;
 		// Mods can add any tag permissions
 		if (hasRole(MOD)) return true;
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = ofNullable(configs.getUser(user.getQualifiedTag()));
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
@@ -666,10 +667,10 @@ public class Auth {
 
 	protected Optional<User> getUser() {
 		if (user == null) {
-			var auth = Optional.ofNullable(getAuthentication());
+			var auth = ofNullable(getAuthentication());
 			user = auth.map(a -> (User) a.getDetails());
 			if (isLoggedIn() && user.isEmpty()) {
-				user = userRepository.findOneByQualifiedTag(getUserTag().toString());
+				user = ofNullable(configs.getUser(getUserTag().toString()));
 			}
 		}
 		return user;

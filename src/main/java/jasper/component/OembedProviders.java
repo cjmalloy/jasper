@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.Oembed;
-import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +30,7 @@ public class OembedProviders {
 	Ingest ingest;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	ConfigCache configs;
 
 	@Value("classpath:providers.json")
 	Resource defaultProviders;
@@ -45,7 +44,7 @@ public class OembedProviders {
 
 	public void create(String origin, List<Oembed> providers) {
 		logger.info("Restoring default oEmbed providers... (\"{}\")", formatOrigin(origin));
-		var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
+		var metadataPlugins = configs.getMetadataPlugins(origin);
 		for (var p : providers) {
 			var ref = new Ref();
 			ref.setUrl(p.getProvider_url());

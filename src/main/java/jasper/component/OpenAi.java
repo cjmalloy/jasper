@@ -14,7 +14,6 @@ import com.theokanning.openai.service.OpenAiService;
 import jasper.client.dto.RefDto;
 import jasper.config.Props;
 import jasper.errors.NotFoundException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import okhttp3.MediaType;
 import org.slf4j.Logger;
@@ -42,11 +41,7 @@ public class OpenAi {
 	RefRepository refRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
 	ObjectMapper objectMapper;
-
 
 	public CompletionResult completion(String systemPrompt, String prompt) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());

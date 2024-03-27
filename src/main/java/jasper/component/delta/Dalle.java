@@ -2,15 +2,14 @@ package jasper.component.delta;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.WebScraper;
-import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.errors.NotFoundException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +47,7 @@ public class Dalle implements Async.AsyncRunner {
 	RefRepository refRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	ConfigCache configs;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -67,9 +66,7 @@ public class Dalle implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("DALL-E replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var dallePlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/dalle", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai/dalle"));
-		var config = objectMapper.convertValue(dallePlugin.getConfig(), OpenAi.DalleConfig.class);
+		var config = configs.getPlugin("+plugin/ai/dalle", ref.getOrigin(), OpenAi.DalleConfig.class);
 		Ref response;
 		try {
 			var res = openAi.dale(getPrompt(ref.getTitle(), ref.getComment()), config);

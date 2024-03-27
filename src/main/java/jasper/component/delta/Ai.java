@@ -9,9 +9,9 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.theokanning.openai.OpenAiHttpException;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
-import jasper.component.scheduler.Async;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -19,11 +19,8 @@ import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
-import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
 import jasper.service.dto.RefDto;
 import lombok.Getter;
 import lombok.Setter;
@@ -75,10 +72,7 @@ public class Ai implements Async.AsyncRunner {
 	ExtRepository extRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
-	TemplateRepository templateRepository;
+	ConfigCache configs;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -100,9 +94,7 @@ public class Ai implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/openai", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai/openai"));
-		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
+		var config = configs.getPlugin("+plugin/ai/openai", ref.getOrigin(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
 		var context = new HashMap<String, RefDto>();
 		var parents = refRepository
@@ -163,8 +155,8 @@ public class Ai implements Async.AsyncRunner {
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) { // TODO: set max plugin len as prop
 			sample.setPlugins(null);
 		}
-		var plugins = pluginRepository.findAllByOrigin(ref.getOrigin());
-		var templates = templateRepository.findAllByOrigin(ref.getOrigin());
+		var plugins = configs.getAllPlugins(ref.getOrigin());
+		var templates = configs.getAllTemplates(ref.getOrigin());
 		var models = new ArrayList<String>();
 		models.add(config.model);
 		if (config.fallback != null) {

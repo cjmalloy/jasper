@@ -3,7 +3,6 @@ package jasper.component;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
@@ -23,9 +22,6 @@ public class Rng {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	PluginRepository pluginRepository;
 
 	@Timed(value = "jasper.rng.update", histogram = true)
 	public void update(Ref ref, Ref existing) {

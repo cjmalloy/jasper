@@ -1,10 +1,11 @@
 package jasper.component.channel;
 
 import io.vavr.Tuple;
-import jasper.component.scheduler.Async;
-import jasper.config.Props;
+import jasper.component.ConfigCache;
+import jasper.component.delta.Async;
 import jasper.domain.Ref;
 import jasper.domain.proj.RefUrl;
+import jasper.plugin.Root;
 import jasper.repository.ExtRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.TagQuery;
@@ -37,9 +38,6 @@ public class Mail implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Mail.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	Async async;
 
 	@Autowired
@@ -50,6 +48,13 @@ public class Mail implements Async.AsyncRunner {
 
 	@Autowired
 	JavaMailSender emailSender;
+
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	@PostConstruct
 	void init() {
@@ -113,7 +118,7 @@ public class Mail implements Async.AsyncRunner {
 			} catch (URISyntaxException e) {
 				return null;
 			}
-		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), props.getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
+		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
 		message.setFrom(ts.stream()
 			.filter(t -> t.startsWith("+user/") || t.startsWith("+user") || t.startsWith("_user/") || t.startsWith("_user"))
 			.findFirst()

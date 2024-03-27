@@ -1,7 +1,8 @@
 package jasper.component.scheduler;
 
+import jasper.component.ConfigCache;
 import jasper.component.FeedScraper;
-import jasper.config.Props;
+import jasper.plugin.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,14 +23,18 @@ public class FeedScraperImplBurst {
 	FeedScraper feedScraper;
 
 	@Autowired
-	Props props;
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	@Scheduled(
 		fixedRateString = "${jasper.scrape-interval-min}",
 		initialDelayString = "${jasper.scrape-delay-min}",
 		timeUnit = TimeUnit.MINUTES)
 	public void burstScrape() {
-		for (var origin : props.getScrapeOrigins()) {
+		for (var origin : root().getScrapeOrigins()) {
 			logger.info("Scraping all {} feeds in a burst.", formatOrigin(origin));
 			while (feedScraper.scrapeOrigin(origin));
 			logger.info("All {} feeds up to date.", formatOrigin(origin));

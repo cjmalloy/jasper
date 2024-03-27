@@ -46,7 +46,7 @@ public class OembedService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Cacheable("oembed")
+	@Cacheable("config-cache")
 	@Transactional(readOnly = true)
 	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
@@ -61,7 +61,7 @@ public class OembedService {
 		}
 	}
 
-	@CacheEvict(value = {"oembed-provider", "oembed"}, allEntries = true)
+	@CacheEvict(value = "config-cache", allEntries = true)
 	@PreAuthorize("@auth.canAddTag('+plugin/oembed')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public void clearCache() {
@@ -74,7 +74,7 @@ public class OembedService {
 		oembedProviders.defaults(auth.getOrigin());
 	}
 
-	@Cacheable("oembed-provider")
+	@Cacheable("config-cache")
 	@Transactional(readOnly = true)
 	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)

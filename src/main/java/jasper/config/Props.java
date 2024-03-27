@@ -26,52 +26,21 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
-	private String emailHost = "jasper.local";
 	private boolean debug = false;
-	private int maxSources = 1000;
+	private int maxEtagPageSize = 300;
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
-	private int maxEtagPageSize = 300;
-	private int ingestMaxRetry = 5;
-	private String[] modSeals;
-	private String[] editorSeals;
-	private int asyncBatchSize = 20;
 	private int backfillBatchSize = 1000;
 	private String asyncDelaySec = "120";
 	private String asyncIntervalSec = "40";
-	/**
-	 * Whitelist origins to run async tasks on.
-	 */
-	private String[] asyncOrigins = new String[]{""};
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
-	/**
-	 * Whitelist origins to be allowed to scrape using +plugin/feed.
-	 */
-	private String[] scrapeOrigins = new String[]{""};
-	/**
-	 * Whitelist domains to be allowed to scrape.
-	 */
-	private String[] scrapeHostWhitelist = null;
-	/**
-	 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
-	 */
-	private String[] scrapeHostBlacklist = new String[]{"*.local"};
 	private String replicateDelayMin = "5";
 	private String replicateIntervalMin = "1";
-	/**
-	 * Whitelist origins to be allowed to replicate using +plugin/origin.
-	 */
-	private String[] replicateOrigins = new String[]{""};
 	private String sshDelaySec = "120";
 	private String sshIntervalSec = "40";
 	private String sshConfigNamespace = "default";
 	private String sshConfigMapName = "ssh-authorized-keys";
-	/**
-	 * Whitelist origins to be allowed to open SSH tunnels.
-	 */
-	private String[] sshOrigins = new String[]{""};
-	private int maxReplicateBatch = 5000;
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
 	/**
@@ -253,16 +222,16 @@ public class Props {
 		}
 
 		public boolean hasClient(String origin) {
-			if (origin.equals("") && clients.containsKey("default")) return true;
+			if (isBlank(origin) && clients.containsKey("default")) return true;
 			return clients.containsKey(origin.substring(1));
 		}
 
 		public Client getClient(String origin) {
-			if (origin.startsWith("@") && clients.containsKey(origin.substring(1))) {
-				return clients.get(origin.substring(1));
-			}
-			if (origin.equals("") && clients.containsKey("default")) {
+			if (isBlank(origin) && clients.containsKey("default")) {
 				return clients.get("default");
+			}
+			if (origin != null && origin.startsWith("@") && clients.containsKey(origin.substring(1))) {
+				return clients.get(origin.substring(1));
 			}
 			return defaultClient;
 		}

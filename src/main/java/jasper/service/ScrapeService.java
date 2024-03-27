@@ -110,10 +110,4 @@ public class ScrapeService {
 	public void clearDeleted() {
 		webScraper.clearDeleted(auth.getOrigin());
 	}
-
-	@PreAuthorize("@auth.canAddTag('+plugin/scrape')")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public void clearCache() {
-		webScraper.clearCache();
-	}
 }
