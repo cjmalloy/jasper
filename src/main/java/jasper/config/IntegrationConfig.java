@@ -2,7 +2,6 @@ package jasper.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.messaging.MessageChannel;
@@ -18,7 +17,7 @@ public class IntegrationConfig {
 
 	@Bean
 	public MessageChannel refRxChannel() {
-		return new QueueChannel();
+		return new DirectChannel();
 	}
 
 	@Bean
@@ -28,7 +27,7 @@ public class IntegrationConfig {
 
 	@Bean
 	public MessageChannel tagRxChannel() {
-		return new QueueChannel();
+		return new DirectChannel();
 	}
 
 	@Bean
@@ -38,6 +37,36 @@ public class IntegrationConfig {
 
 	@Bean
 	public MessageChannel responseRxChannel() {
-		return new QueueChannel();
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel userTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel userRxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel pluginTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel pluginRxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel templateTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel templateRxChannel() {
+		return new DirectChannel();
 	}
 }

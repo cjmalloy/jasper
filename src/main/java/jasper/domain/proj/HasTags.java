@@ -7,6 +7,7 @@ import java.util.List;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface HasTags extends Cursor {
+	String getTitle();
 	String getUrl();
 	List<String> getTags();
 	void setTags(List<String> tags);

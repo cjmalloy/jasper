@@ -1,11 +1,11 @@
 package jasper.security;
 
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
-import jasper.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -84,13 +84,13 @@ public class AuthMultiTenantUnitTest {
 		return mock;
 	}
 
-	UserRepository getUserRepo(User ...users) {
-		var mock = mock(UserRepository.class);
-		when(mock.findOneByQualifiedTag(anyString()))
-			.thenReturn(Optional.empty());
+	ConfigCache getConfigs(User ...users) {
+		var mock = mock(ConfigCache.class);
+		when(mock.getUser(anyString()))
+			.thenReturn(null);
 		for (var user : users) {
-			when(mock.findOneByQualifiedTag(user.getQualifiedTag()))
-				.thenReturn(Optional.of(user));
+			when(mock.getUser(user.getQualifiedTag()))
+				.thenReturn(user);
 		}
 		return mock;
 	}
@@ -1010,7 +1010,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
@@ -1024,7 +1024,7 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
@@ -1038,7 +1038,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("custom");
@@ -1053,7 +1053,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("custom");
@@ -1068,7 +1068,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
@@ -1082,7 +1082,7 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
@@ -1096,7 +1096,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("+custom");
@@ -1111,7 +1111,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("+custom");
@@ -1125,7 +1125,7 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("+custom");
@@ -1140,7 +1140,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
@@ -1154,7 +1154,7 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
@@ -1168,7 +1168,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getReadAccess().add("_custom");
@@ -1183,7 +1183,7 @@ public class AuthMultiTenantUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("_custom");
@@ -1197,7 +1197,7 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice@other");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigs(alice);
 
 		var aliceMod = getUser("+user/alice@other");
 		aliceMod.getWriteAccess().add("_custom");

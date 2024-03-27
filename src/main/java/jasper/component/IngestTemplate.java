@@ -1,11 +1,11 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.plugin.Root;
 import jasper.repository.TemplateRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -31,16 +31,23 @@ public class IngestTemplate {
 	private static final Logger logger = LoggerFactory.getLogger(IngestTemplate.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	TemplateRepository templateRepository;
 
 	@Autowired
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
+
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -53,11 +60,13 @@ public class IngestTemplate {
 			delete(deletorTag(template.getTag()) + template.getOrigin());
 		}
 		ensureCreateUniqueModified(template);
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
 		ensureUpdateUniqueModified(template);
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
@@ -70,6 +79,7 @@ public class IngestTemplate {
 		if (isDeletorTag(template.getTag())) {
 			delete(deletedTag(template.getTag()) + template.getOrigin());
 		}
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
@@ -95,7 +105,7 @@ public class IngestTemplate {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("template_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
@@ -131,7 +141,7 @@ public class IngestTemplate {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("template_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}

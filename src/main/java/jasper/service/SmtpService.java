@@ -1,9 +1,10 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
+import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.plugin.Root;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -34,9 +35,6 @@ public class SmtpService {
 	private static final Logger logger = LoggerFactory.getLogger(SmtpService.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	Auth auth;
 
 	DateTimeFormatter smtp1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
@@ -47,6 +45,13 @@ public class SmtpService {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "smtp"}, histogram = true)
@@ -121,10 +126,11 @@ public class SmtpService {
 	}
 
 	private String emailAddressToNotification(String email) {
+		var root = root();
 		var qt = selector(email);
 		var remote = qt.origin;
-		if (remote.endsWith("." + props.getEmailHost())) {
-			remote = remote.substring(0, remote.length() - props.getEmailHost().length() - 1);
+		if (remote.endsWith("." + root.getEmailHost())) {
+			remote = remote.substring(0, remote.length() - root.getEmailHost().length() - 1);
 		}
 		if (auth.local(remote)) {
 			return concat("plugin/inbox", qt.tag);

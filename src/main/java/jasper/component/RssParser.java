@@ -12,13 +12,13 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Audio;
 import jasper.plugin.Embed;
 import jasper.plugin.Feed;
+import jasper.plugin.Root;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
@@ -42,10 +42,10 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.origin;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -54,9 +54,6 @@ public class RssParser {
 
 	@Autowired
 	HostCheck hostCheck;
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	Ingest ingest;
@@ -73,10 +70,18 @@ public class RssParser {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
+
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
-		if (Arrays.stream(props.getScrapeOrigins()).noneMatch(feed.getOrigin()::equals)) {
-			logger.debug("Scrape origins: {}", (Object) props.getScrapeOrigins());
+		var root = root();
+		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin()))) {
+			logger.debug("Scrape origins: {}", root.getScrapeOrigins());
 			throw new OperationForbiddenOnOriginException(feed.getOrigin());
 		}
 		var config = feed.getPlugin("+plugin/feed", Feed.class);

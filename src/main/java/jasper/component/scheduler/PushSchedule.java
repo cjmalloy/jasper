@@ -1,7 +1,8 @@
 package jasper.component.scheduler;
 
+import jasper.component.ConfigCache;
 import jasper.component.Remotes;
-import jasper.config.Props;
+import jasper.plugin.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,11 @@ public class PushSchedule {
 	Remotes remotes;
 
 	@Autowired
-	Props props;
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	@Scheduled(
 		fixedRateString = "${jasper.replicate-interval-min}",
@@ -30,7 +35,7 @@ public class PushSchedule {
 		timeUnit = TimeUnit.MINUTES)
 	public void burst() {
 		logger.info("Pushing all remotes on schedule.");
-		for (var origin : props.getReplicateOrigins()) {
+		for (var origin : root().getReplicateOrigins()) {
 			logger.info("Pushing all {} remotes on schedule", formatOrigin(origin));
 			if (!remotes.push(origin)) {
 				logger.info("All {} remotes pushed.", formatOrigin(origin));

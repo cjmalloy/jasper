@@ -40,6 +40,8 @@ public abstract class DtoMapper {
 
 	public abstract ExtDto domainToDto(Ext ext);
 
+	public abstract UserDto domainToDto(User user);
+
 	public abstract PluginDto domainToDto(Plugin plugin);
 
 	public abstract TemplateDto domainToDto(Template plugin);
@@ -80,8 +82,6 @@ public abstract class DtoMapper {
 			metadata.setPlugins(filteredPlugins);
 		}
 	}
-
-	public abstract UserDto domainToDto(User user);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget UserDto userDto) {

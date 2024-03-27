@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Origin;
 import jasper.plugin.Pull;
 import jasper.plugin.Push;
+import jasper.plugin.Root;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -25,7 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -40,9 +39,6 @@ import static org.springframework.data.domain.Sort.by;
 @Component
 public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -76,10 +72,18 @@ public class Replicator {
 	@Autowired
 	Messages messages;
 
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
+
 	@Timed(value = "jasper.pull", histogram = true)
 	public void pull(Ref remote) {
-		if (Arrays.stream(props.getReplicateOrigins()).noneMatch(remote.getOrigin()::equals)) {
-			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
+		var root = root();
+		if (!root.getReplicateOrigins().contains(origin(remote.getOrigin()))) {
+			logger.debug("Replicate origins: {}", root.getReplicateOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}
 		var pull = remote.getPlugin("+plugin/origin/pull", Pull.class);
@@ -91,7 +95,7 @@ public class Replicator {
 		var config = remote.getPlugin("+plugin/origin", Origin.class);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		options.put("size", pull.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), props.getMaxReplicateBatch()));
+		options.put("size", pull.getBatchSize() == 0 ? root.getMaxReplicateBatch() : Math.min(pull.getBatchSize(), root.getMaxReplicateBatch()));
 		options.put("origin", config.getRemote());
 		tunnel.proxy(remote, url -> {
 			try {
@@ -170,8 +174,9 @@ public class Replicator {
 
 	@Timed(value = "jasper.push", histogram = true)
 	public void push(Ref remote) {
-		if (Arrays.stream(props.getReplicateOrigins()).noneMatch(remote.getOrigin()::equals)) {
-			logger.debug("Replicate origins: {}", (Object) props.getReplicateOrigins());
+		var root = root();
+		if (!root.getReplicateOrigins().contains(origin(remote.getOrigin()))) {
+			logger.debug("Replicate origins: {}", root.getReplicateOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}
 		var push = remote.getPlugin("+plugin/origin/push", Push.class);
@@ -182,7 +187,7 @@ public class Replicator {
 		var config = remote.getPlugin("+plugin/origin", Origin.class);
 		var localOrigin = origin(config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		var size = push.getBatchSize() == 0 ? props.getMaxReplicateBatch() : Math.min(push.getBatchSize(), props.getMaxReplicateBatch());
+		var size = push.getBatchSize() == 0 ? root.getMaxReplicateBatch() : Math.min(push.getBatchSize(), root.getMaxReplicateBatch());
 		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
 			logger.debug("Skipping push, up to date {}", remoteOrigin);
 			return;

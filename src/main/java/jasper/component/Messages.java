@@ -1,6 +1,9 @@
 package jasper.component;
 
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
+import jasper.domain.User;
 import jasper.domain.proj.HasTags;
 import jasper.service.dto.DtoMapper;
 import org.slf4j.Logger;
@@ -21,28 +24,40 @@ public class Messages {
 	private final Logger logger = LoggerFactory.getLogger(Messages.class);
 
 	@Autowired
-	private MessageChannel refTxChannel;
+	MessageChannel refTxChannel;
 
 	@Autowired
-	private MessageChannel tagTxChannel;
+	MessageChannel tagTxChannel;
 
 	@Autowired
-	private MessageChannel responseTxChannel;
+	MessageChannel responseTxChannel;
+
+	@Autowired
+	MessageChannel userTxChannel;
+
+	@Autowired
+	MessageChannel pluginTxChannel;
+
+	@Autowired
+	MessageChannel templateTxChannel;
 
 	@Autowired
 	DtoMapper mapper;
 
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
+		// TODO: With Spring Integration DirectChannels, sending twice is required???
 		var update = mapper.domainToDto(ref);
 		var origins = originHierarchy(ref.getOrigin());
 		for (var o : origins) {
+			refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(o, update)));
 			refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(o, update)));
 		}
 		if (ref.getTags() != null) {
 			ref.addHierarchicalTags();
 			for (var tag : ref.getTags()) {
 				for (var o : origins) {
+					tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(o, tag)));
 					tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(o, tag)));
 				}
 			}
@@ -51,8 +66,36 @@ public class Messages {
 			for (var source : ref.getSources()) {
 				for (var o : origins) {
 					responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(o, source)));
+					responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(o, source)));
 				}
 			}
+		}
+	}
+
+	public void updateUser(User user) {
+		var update = mapper.domainToDto(user);
+		var origins = originHierarchy(user.getOrigin());
+		for (var o : origins) {
+			userTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, user.getTag())));
+			userTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, user.getTag())));
+		}
+	}
+
+	public void updatePlugin(Plugin plugin) {
+		var update = mapper.domainToDto(plugin);
+		var origins = originHierarchy(plugin.getOrigin());
+		for (var o : origins) {
+			pluginTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, plugin.getTag())));
+			pluginTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, plugin.getTag())));
+		}
+	}
+
+	public void updateTemplate(Template template) {
+		var update = mapper.domainToDto(template);
+		var origins = originHierarchy(template.getOrigin());
+		for (var o : origins) {
+			templateTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, template.getTag())));
+			templateTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, template.getTag())));
 		}
 	}
 

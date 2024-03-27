@@ -1,11 +1,11 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.plugin.Root;
 import jasper.repository.PluginRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -31,16 +31,23 @@ public class IngestPlugin {
 	private static final Logger logger = LoggerFactory.getLogger(IngestPlugin.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	PluginRepository pluginRepository;
 
 	@Autowired
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
+
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -53,11 +60,13 @@ public class IngestPlugin {
 			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
 		}
 		ensureCreateUniqueModified(plugin);
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
 		ensureUpdateUniqueModified(plugin);
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
@@ -70,6 +79,7 @@ public class IngestPlugin {
 		if (isDeletorTag(plugin.getTag())) {
 			delete(deletedTag(plugin.getTag()) + plugin.getOrigin());
 		}
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
@@ -95,7 +105,7 @@ public class IngestPlugin {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
@@ -133,7 +143,7 @@ public class IngestPlugin {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}

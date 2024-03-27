@@ -6,13 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Validate;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
 import jasper.errors.NotFoundException;
+import jasper.plugin.Root;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -42,9 +43,6 @@ public class RefService {
 	private static final Logger logger = LoggerFactory.getLogger(RefService.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -62,12 +60,20 @@ public class RefService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
+
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant create(Ref ref, boolean force) {
-		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
+		var root = root();
+		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
+			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
+			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
 		}
 		ingest.create(ref, force);
 		return ref.getModified();
@@ -76,8 +82,9 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void push(Ref ref) {
-		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
-			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", props.getMaxSources(), ref.getSources().size());
+		var root = root();
+		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
+			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
 		ingest.push(ref, null);
 	}
@@ -124,9 +131,10 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant update(Ref ref, boolean force) {
-		if (ref.getSources() != null && ref.getSources().size() > props.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(props.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(props.getMaxSources(), ref.getSources().size()).clear();
+		var root = root();
+		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
+			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
+			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
 		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());

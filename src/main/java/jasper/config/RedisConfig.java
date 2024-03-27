@@ -2,8 +2,10 @@ package jasper.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jasper.component.dto.RefUpdateDto;
+import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,22 +62,40 @@ public class RedisConfig {
 	@Autowired
 	MessageChannel responseRxChannel;
 
+	@Autowired
+	MessageChannel userTxChannel;
+
+	@Autowired
+	MessageChannel userRxChannel;
+
+	@Autowired
+	MessageChannel pluginTxChannel;
+
+	@Autowired
+	MessageChannel pluginRxChannel;
+
+	@Autowired
+	MessageChannel templateTxChannel;
+
+	@Autowired
+	MessageChannel templateRxChannel;
+
 	@Bean
 	public IntegrationFlow redisPublishRefFlow() {
 		return IntegrationFlows
 			.from(refTxChannel)
-			.handle(new CustomPublishingMessageHandler<RefUpdateDto>() {
+			.handle(new CustomPublishingMessageHandler<RefDto>() {
 				@Override
-				protected String getTopic(Message<RefUpdateDto> message) {
+				protected String getTopic(Message<RefDto> message) {
 					return "ref/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("url");
 				}
 
 				@Override
-				protected byte[] getMessage(Message<RefUpdateDto> message) {
+				protected byte[] getMessage(Message<RefDto> message) {
 					try {
 						return objectMapper.writeValueAsBytes(message.getPayload());
 					} catch (JsonProcessingException e) {
-						logger.error("Cannot serialize RefUpdateDto.");
+						logger.error("Cannot serialize RefDto.");
 						throw new RuntimeException(e);
 					}
 				}
@@ -94,7 +114,7 @@ public class RedisConfig {
 				var origin = parts[1];
 				refRxChannel.send(MessageBuilder.createMessage(ref, refHeaders(origin, ref)));
 			} catch (IOException e) {
-				logger.error("Error parsing RefUpdateDto from redis.");
+				logger.error("Error parsing RefDto from redis.");
 			}
 		}, of("ref/*"));
 		return container;
@@ -160,6 +180,129 @@ public class RedisConfig {
 			var source = parts[2];
 			responseRxChannel.send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
 		}, of("response/*"));
+		return container;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishUserFlow() {
+		return IntegrationFlows
+			.from(userTxChannel)
+			.handle(new CustomPublishingMessageHandler<UserDto>() {
+				@Override
+				protected String getTopic(Message<UserDto> message) {
+					return "user/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+				}
+
+				@Override
+				protected byte[] getMessage(Message<UserDto> message) {
+					try {
+						return objectMapper.writeValueAsBytes(message.getPayload());
+					} catch (JsonProcessingException e) {
+						logger.error("Cannot serialize UserDto.");
+						throw new RuntimeException(e);
+					}
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisUserRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			try {
+				var user = objectMapper.readValue(message.getBody(), UserDto.class);
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
+				var tag = parts[2];
+				userRxChannel.send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
+			} catch (IOException e) {
+				logger.error("Error parsing UserDto from redis.");
+			}
+		}, of("user/*"));
+		return container;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishPluginFlow() {
+		return IntegrationFlows
+			.from(pluginTxChannel)
+			.handle(new CustomPublishingMessageHandler<PluginDto>() {
+				@Override
+				protected String getTopic(Message<PluginDto> message) {
+					return "plugin/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+				}
+
+				@Override
+				protected byte[] getMessage(Message<PluginDto> message) {
+					try {
+						return objectMapper.writeValueAsBytes(message.getPayload());
+					} catch (JsonProcessingException e) {
+						logger.error("Cannot serialize PluginDto.");
+						throw new RuntimeException(e);
+					}
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisPluginRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			try {
+				var plugin = objectMapper.readValue(message.getBody(), PluginDto.class);
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
+				var tag = parts[2];
+				pluginRxChannel.send(MessageBuilder.createMessage(plugin, tagHeaders(origin, tag)));
+			} catch (IOException e) {
+				logger.error("Error parsing PluginDto from redis.");
+			}
+		}, of("plugin/*"));
+		return container;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishTemplateFlow() {
+		return IntegrationFlows
+			.from(templateTxChannel)
+			.handle(new CustomPublishingMessageHandler<TemplateDto>() {
+				@Override
+				protected String getTopic(Message<TemplateDto> message) {
+					return "template/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+				}
+
+				@Override
+				protected byte[] getMessage(Message<TemplateDto> message) {
+					try {
+						return objectMapper.writeValueAsBytes(message.getPayload());
+					} catch (JsonProcessingException e) {
+						logger.error("Cannot serialize PluginDto.");
+						throw new RuntimeException(e);
+					}
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisTemplateRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			try {
+				var template = objectMapper.readValue(message.getBody(), TemplateDto.class);
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
+				var tag = parts[2];
+				templateRxChannel.send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
+			} catch (IOException e) {
+				logger.error("Error parsing TemplateDto from redis.");
+			}
+		}, of("plugin/*"));
 		return container;
 	}
 

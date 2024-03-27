@@ -1,8 +1,10 @@
-package jasper.component.delta;
+package jasper.component.scheduler;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
+import jasper.plugin.Root;
 import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,13 @@ public class TunnelServer {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configs;
+
+	Root root() {
+		return configs.getTemplate("", "", Root.class);
+	}
+
 	Map<String, Instant> lastModified = new HashMap<>();
 
 	@Scheduled(
@@ -36,9 +45,10 @@ public class TunnelServer {
 		initialDelayString = "${jasper.async-delay-sec}",
 		timeUnit = TimeUnit.SECONDS)
 	public void generateConfig() {
+		var root = root();
 		var changed = false;
 		var result = new StringBuilder();
-		for (var origin : props.getSshOrigins()) {
+		for (var origin : root.getSshOrigins()) {
 			var cursor = userRepository.getCursor(origin);
 			if (cursor != null) {
 				changed |= !lastModified.containsKey(origin) || lastModified.get(origin).isBefore(cursor);
@@ -47,7 +57,7 @@ public class TunnelServer {
 		}
 		if (!changed) return;
 		logger.info("Generating new authorized_keys");
-		for (var origin : props.getSshOrigins()) {
+		for (var origin : root.getSshOrigins()) {
 			result
 				.append("\n# ")
 				.append(isBlank(origin) ? "default" : origin)
