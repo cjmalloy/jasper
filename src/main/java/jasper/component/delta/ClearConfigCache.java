@@ -3,6 +3,9 @@ package jasper.component.delta;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.plugin.Root;
+import jasper.service.dto.PluginDto;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
@@ -29,21 +32,21 @@ public class ClearConfigCache {
 	}
 
 	@ServiceActivator(inputChannel = "userRxChannel")
-	public void handleUserUpdate(Message<String> message) {
+	public void handleUserUpdate(Message<UserDto> message) {
 		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
 			configs.clearUserCache();
 		}
 	}
 
 	@ServiceActivator(inputChannel = "pluginRxChannel")
-	public void handlePluginUpdate(Message<String> message) {
+	public void handlePluginUpdate(Message<PluginDto> message) {
 		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
 			configs.clearConfigCache();
 		}
 	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<String> message) {
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
 			configs.clearConfigCache();
 		}

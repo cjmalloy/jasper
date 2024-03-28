@@ -3,6 +3,7 @@ package jasper.config;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
+import jasper.service.dto.UserDto;
 import org.apache.tomcat.websocket.server.WsSci;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -25,18 +27,25 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -61,6 +70,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Autowired
 	@Qualifier("authSingleton")
 	Auth auth;
+
+	private Set<WebSocketSession> sessions = new HashSet<>();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -94,6 +105,30 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Override
 	public void configureClientInboundChannel(ChannelRegistration registration) {
 		registration.interceptors(new JwtChannelInterceptor());
+	}
+
+	@Override
+	public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+		registration.addDecoratorFactory(handler -> new WebSocketHandlerDecorator(handler) {
+			@Override
+			public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+				sessions.add(session);
+				super.afterConnectionEstablished(session);
+			}
+		});
+	}
+
+	@ServiceActivator(inputChannel = "userRxChannel")
+	public void handleUserUpdate(Message<UserDto> message) {
+		// Just drop all sessions for now
+		sessions.forEach(s -> {
+            try {
+                s.close(CloseStatus.SERVICE_RESTARTED);
+            } catch (IOException e) {
+                logger.warn("Could not close websocket session.", e);
+            }
+        });
+		sessions.clear();
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {

@@ -72,7 +72,7 @@ public class SingleNodeConfig {
 	@Bean
 	public IntegrationFlow directUserFlow() {
 		return IntegrationFlows.from(userTxChannel)
-							   .channel(responseRxChannel)
+							   .channel(userRxChannel)
 							   .get();
 	}
 
