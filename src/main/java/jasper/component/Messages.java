@@ -46,11 +46,9 @@ public class Messages {
 
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
-		// TODO: With Spring Integration DirectChannels, sending twice is required???
 		var update = mapper.domainToDto(ref);
 		var origins = originHierarchy(ref.getOrigin());
 		for (var o : origins) {
-			refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(o, update)));
 			refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(o, update)));
 		}
 		if (ref.getTags() != null) {
@@ -58,14 +56,12 @@ public class Messages {
 			for (var tag : ref.getTags()) {
 				for (var o : origins) {
 					tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(o, tag)));
-					tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(o, tag)));
 				}
 			}
 		}
 		if (ref.getSources() != null) {
 			for (var source : ref.getSources()) {
 				for (var o : origins) {
-					responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(o, source)));
 					responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(o, source)));
 				}
 			}
@@ -77,7 +73,6 @@ public class Messages {
 		var origins = originHierarchy(user.getOrigin());
 		for (var o : origins) {
 			userTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, user.getTag())));
-			userTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, user.getTag())));
 		}
 	}
 
@@ -86,7 +81,6 @@ public class Messages {
 		var origins = originHierarchy(plugin.getOrigin());
 		for (var o : origins) {
 			pluginTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, plugin.getTag())));
-			pluginTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, plugin.getTag())));
 		}
 	}
 
@@ -94,7 +88,6 @@ public class Messages {
 		var update = mapper.domainToDto(template);
 		var origins = originHierarchy(template.getOrigin());
 		for (var o : origins) {
-			templateTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, template.getTag())));
 			templateTxChannel.send(MessageBuilder.createMessage(update, tagHeaders(o, template.getTag())));
 		}
 	}
