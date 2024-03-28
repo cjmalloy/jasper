@@ -13,16 +13,16 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
+import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,8 +60,8 @@ public class Validate {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	@Timed("jasper.validate.ref")
@@ -107,7 +107,7 @@ public class Validate {
 		}
 		var mergedDefaults = templates
 			.stream()
-			.map(Template::getDefaults)
+			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
 		if (ext.getConfig() == null) {
@@ -116,7 +116,7 @@ public class Validate {
 		}
 		var mergedSchemas = templates
 			.stream()
-			.map(Template::getSchema)
+			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
@@ -144,7 +144,7 @@ public class Validate {
 		var templates = configs.getSchemas(qt.tag, qt.origin);
 		return templates
 			.stream()
-			.map(Template::getDefaults)
+			.map(TemplateDto::getDefaults)
 			.reduce(null, this::merge);
 	}
 

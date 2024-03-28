@@ -1,11 +1,11 @@
 package jasper.component;
 
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
-import jasper.service.dto.DtoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +42,7 @@ public class Messages {
 	MessageChannel templateTxChannel;
 
 	@Autowired
-	DtoMapper mapper;
+	ComponentDtoMapper mapper;
 
 	public void updateRef(Ref ref) {
 		// TODO: Debounce

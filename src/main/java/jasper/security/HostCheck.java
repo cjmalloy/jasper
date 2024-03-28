@@ -1,7 +1,7 @@
 package jasper.security;
 
 import jasper.component.ConfigCache;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,15 +18,15 @@ public class HostCheck {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	public boolean validHost(URI uri) {
 		var root = root();
 		try {
 			var host = InetAddress.getByName(uri.getHost());
-			if (!root.getScrapeHostWhitelist().isEmpty()) {
+			if (root.getScrapeHostWhitelist() != null && !root.getScrapeHostWhitelist().isEmpty()) {
 				if (!whitelisted(uri.getHost())) return false;
 			} else {
 				if (host.isLoopbackAddress()) return false;

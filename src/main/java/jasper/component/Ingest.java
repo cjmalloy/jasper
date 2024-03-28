@@ -8,7 +8,7 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.repository.RefRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -58,8 +58,8 @@ public class Ingest {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	// Exposed for testing

@@ -16,16 +16,16 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class Root implements Serializable {
+public class Config implements Serializable {
 	private String emailHost = "jasper.local";
 	private int maxSources = 1000;
 	private int ingestMaxRetry = 5;
 	private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
 	private List<String> editorSeals = List.of("plugin/qc");
 	/**
-	 * Tags to cache Refs for.
+	 * Tags for config Refs to be cached.
 	 */
-	private List<String> cacheTags = List.of("_plugin/cache", "+plugin/scrape", "+plugin/oembed");
+	private List<String> cacheTags = List.of("_config", "+plugin/scrape", "+plugin/oembed");
 	/**
 	 * Whitelist origins to run async tasks on.
 	 */

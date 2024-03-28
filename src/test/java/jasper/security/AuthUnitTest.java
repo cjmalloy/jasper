@@ -6,6 +6,7 @@ import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
+import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -34,13 +35,13 @@ public class AuthUnitTest {
 
 	RoleHierarchy roleHierarchy = new SecurityConfiguration().roleHierarchy();
 
-	Auth getAuth(User user, String ...roles) {
+	Auth getAuth(UserDto user, String ...roles) {
 		return getAuth(user.getOrigin(), user, roles);
 	}
 
-	Auth getAuth(String origin, User user, String ...roles) {
+	Auth getAuth(String origin, UserDto user, String ...roles) {
 		user.setOrigin(origin);
-		var a = new Auth(new Props(), null, null, null);
+		var a = new Auth(new Props(), null, null, null, null);
 		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
@@ -55,6 +56,18 @@ public class AuthUnitTest {
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
 		return AuthorityUtils.authorityListToSet(roleHierarchy.getReachableGrantedAuthorities(userAuthorities));
+	}
+
+	UserDto getUserDto(String userTag, String ...tags) {
+		var u = new UserDto();
+		var qt = qt(userTag);
+		u.setTag(qt.tag);
+		u.setOrigin(qt.origin);
+		u.setReadAccess(new ArrayList<>(List.of(tags)));
+		u.setWriteAccess(new ArrayList<>(List.of(tags)));
+		u.setTagReadAccess(new ArrayList<>(List.of(tags)));
+		u.setTagWriteAccess(new ArrayList<>(List.of(tags)));
+		return u;
 	}
 
 	User getUser(String userTag, String ...tags) {
@@ -87,7 +100,7 @@ public class AuthUnitTest {
 		return mock;
 	}
 
-	ConfigCache getConfigCache(User ...users) {
+	ConfigCache getConfigCache(UserDto ...users) {
 		var mock = mock(ConfigCache.class);
 		when(mock.getUser(anyString()))
 			.thenReturn(null);
@@ -100,7 +113,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_Public() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUserDto("+user/test"));
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
@@ -109,7 +122,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_PublicRemote() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUserDto("+user/test"));
 		var ref = getRef("public");
 		ref.setOrigin("@other");
 
@@ -119,7 +132,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_NonPublicFailed() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUserDto("+user/test"));
 		var ref = getRef();
 
 		assertThat(auth.canReadRef(ref))
@@ -128,7 +141,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_CustomOrigin() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUserDto("+user/test"));
 		var ref = getRef("public");
 		ref.setOrigin("@custom");
 
@@ -138,7 +151,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_CustomOriginFailed() {
-		var auth = getAuth("@custom", getUser("+user/test"));
+		var auth = getAuth("@custom", getUserDto("+user/test"));
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
@@ -147,7 +160,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_RemoteRef() {
-		var auth = getAuth(getUser("+user/test"));
+		var auth = getAuth(getUserDto("+user/test"));
 		var ref = getRef("public");
 		ref.setOrigin("@remote");
 
@@ -157,7 +170,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_ReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getReadAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -168,7 +181,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_AuthReadAccess() {
-		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var auth = getAuth(getUserDto("+user/test"), VIEWER);
 		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
 
@@ -178,7 +191,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_AuthReadAccessRemote() {
-		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var auth = getAuth(getUserDto("+user/test"), VIEWER);
 		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
 		ref.setOrigin("@remote");
@@ -189,7 +202,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_AuthReadAccessRemoteFailed() {
-		var auth = getAuth("@other", getUser("+user/test"), VIEWER);
+		var auth = getAuth("@other", getUserDto("+user/test"), VIEWER);
 		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
 		ref.setOrigin("@remote");
@@ -200,7 +213,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_WriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -211,7 +224,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_TagReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -222,7 +235,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_TagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, VIEWER);
 		var ref = getRef("+custom");
@@ -233,7 +246,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_WriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -245,7 +258,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -256,7 +269,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_RemoteFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		ref.setOrigin("@remote");
@@ -268,7 +281,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_PrivateUserTag() {
-		var user = getUser("_user/test");
+		var user = getUserDto("_user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -279,7 +292,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_ReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -291,7 +304,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_TagReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -303,7 +316,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_TagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -315,7 +328,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_LockedFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom", "locked");
@@ -327,7 +340,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_AddPublic() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
@@ -339,7 +352,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_AddProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -350,7 +363,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_AllowExistingProtected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test", "+custom");
 		auth.refRepository = getRefRepo(ref);
@@ -361,7 +374,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_AddPrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -372,7 +385,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteRef_AllowExistingPrivate() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test", "_custom");
 		auth.refRepository = getRefRepo(ref);
@@ -383,7 +396,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("custom"))
@@ -392,7 +405,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("_custom"))
@@ -401,7 +414,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -411,7 +424,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateTagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -421,7 +434,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_ProtectedTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -431,7 +444,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_ProtectedTagWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -441,7 +454,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_ViewerFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -451,7 +464,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("+user/test"))
@@ -460,7 +473,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanAddTag_PrivateUserTag() {
-		var user = getUser("_user/test");
+		var user = getUserDto("_user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("_user/test"))
@@ -469,7 +482,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -481,7 +494,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_PublicRemoteFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -494,7 +507,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_PublicRemotePermissionFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("custom@remote");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -507,7 +520,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_PublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef();
@@ -519,7 +532,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -531,7 +544,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
@@ -543,7 +556,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+user/test");
 		auth.refRepository = getRefRepo(ref);
@@ -554,7 +567,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_EditorPublic() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("public");
 		auth.refRepository = getRefRepo(ref);
@@ -565,7 +578,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_EditorMakePublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getReadAccess().add("custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -577,7 +590,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_EditorMakeLockedFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getReadAccess().add("custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -589,7 +602,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanTag_EditorProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("+custom");
 		var auth = getAuth(user, EDITOR);
 		var ref = getRef("custom");
@@ -601,7 +614,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("custom"))
@@ -610,7 +623,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_PublicRemote() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("custom@remote"))
@@ -619,7 +632,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("+custom"))
@@ -628,7 +641,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -638,7 +651,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("_custom"))
@@ -647,7 +660,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadTag_UserTag() {
-		var user = getUser("_user/test");
+		var user = getUserDto("_user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("_user/test"))
@@ -656,7 +669,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 
@@ -666,7 +679,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_PublicFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("custom"))
@@ -675,7 +688,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_PublicEditor() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, EDITOR);
 
 		assertThat(auth.canWriteTag("custom"))
@@ -684,7 +697,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_Protected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 
@@ -694,7 +707,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_ProtectedFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("+custom"))
@@ -703,7 +716,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_Private() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 
@@ -713,7 +726,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("_custom"))
@@ -722,7 +735,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteTag_UserTag() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canWriteTag("+user/test"))
@@ -731,7 +744,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "custom"))
@@ -740,7 +753,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_Protected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "+custom"))
@@ -749,7 +762,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_Private() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -759,7 +772,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_UserTag() {
-		var user = getUser("_user/test");
+		var user = getUserDto("_user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadQuery(() -> "_user/test"))
@@ -768,7 +781,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadQuery_PrivateFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canReadQuery(() -> "_custom"))
@@ -777,7 +790,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_Public() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("custom")))
@@ -786,7 +799,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_Protected() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("+custom")))
@@ -795,7 +808,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateTagReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -805,7 +818,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -815,7 +828,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateWriteAccessHidden() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
@@ -825,7 +838,7 @@ public class AuthUnitTest {
 
 	@Test
 	void testGetHiddenTags_PrivateHidden() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.hiddenTags(List.of("_custom")))
@@ -834,11 +847,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -849,10 +862,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -863,10 +876,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -877,11 +890,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPublicWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -892,11 +905,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -907,10 +920,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -921,10 +934,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -935,11 +948,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedWriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -950,10 +963,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddProtectedWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -964,11 +977,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -979,10 +992,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -993,10 +1006,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateReadAccessFailedUser() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -1007,11 +1020,11 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateWriteAccess() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
@@ -1022,10 +1035,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanWriteUser_AddPrivateWriteAccessFailed() {
-		var user = getUser("+user/test");
+		var user = getUserDto("+user/test");
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
-		var alice = getUser("+user/alice");
+		var alice = getUserDto("+user/alice");
 		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
