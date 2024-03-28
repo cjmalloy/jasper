@@ -91,6 +91,7 @@ public class Async {
 			if (v instanceof AsyncRunner r) {
 				taggingService.create(ud.getUrl(), ud.getOrigin(), r.signature());
 			}
+			logger.debug("Async Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
 			try {
 				v.run(fetch(ud));
 			} catch (NotFoundException e) {
@@ -103,9 +104,10 @@ public class Async {
 			if (!ud.getTags().contains(k)) return;
 			if (v instanceof AsyncRunner r) {
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
-					.orElseThrow(() -> new NotFoundException("Async signature"));
-				if (ref.hasPluginResponse(r.signature())) return;
+					.orElse(null);
+				if (ref != null && ref.hasPluginResponse(r.signature())) return;
 			}
+			logger.debug("Async Response Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
 			try {
 				v.run(fetch(ud));
 			} catch (NotFoundException e) {
@@ -117,7 +119,7 @@ public class Async {
 	}
 
 	private Ref fetch(RefDto ud) {
-		return this.refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
+		return this.refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
 			.orElseThrow(() -> new NotFoundException("Async"));
 	}
 

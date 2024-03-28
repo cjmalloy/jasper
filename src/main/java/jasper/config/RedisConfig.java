@@ -9,20 +9,25 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.util.CallerBlocksPolicy;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +42,10 @@ import static org.springframework.data.redis.listener.PatternTopic.of;
 @Configuration
 public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
+
+	@Qualifier("integration")
+	@Autowired
+	TaskExecutor taskExecutor;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -80,6 +89,20 @@ public class RedisConfig {
 	@Autowired
 	MessageChannel templateRxChannel;
 
+	@Bean("integration")
+	public TaskExecutor taskExecutor() {
+		var executor = new ThreadPoolTaskExecutor();
+		executor.setThreadNamePrefix("int-");
+		executor.setCorePoolSize(4);
+		executor.setMaxPoolSize(10);
+		executor.setQueueCapacity(4);
+		executor.setWaitForTasksToCompleteOnShutdown(true);
+		executor.setAwaitTerminationSeconds(60);
+		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
+		executor.initialize();
+		return executor;
+	}
+
 	@Bean
 	public IntegrationFlow redisPublishRefFlow() {
 		return IntegrationFlows
@@ -100,6 +123,13 @@ public class RedisConfig {
 					}
 				}
 			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeRefFlow() {
+		return IntegrationFlows.from(refRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
 			.get();
 	}
 
@@ -139,6 +169,13 @@ public class RedisConfig {
 	}
 
 	@Bean
+	public IntegrationFlow redisSubscribeTagFlow() {
+		return IntegrationFlows.from(tagRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.get();
+	}
+
+	@Bean
 	public RedisMessageListenerContainer redisTagRxAdapter(RedisConnectionFactory redisConnectionFactory) {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
@@ -166,6 +203,13 @@ public class RedisConfig {
 					return message.getPayload().getBytes();
 				}
 			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeResponseFlow() {
+		return IntegrationFlows.from(responseRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
 			.get();
 	}
 
@@ -203,6 +247,13 @@ public class RedisConfig {
 					}
 				}
 			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeUserFlow() {
+		return IntegrationFlows.from(userRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
 			.get();
 	}
 
@@ -248,6 +299,13 @@ public class RedisConfig {
 	}
 
 	@Bean
+	public IntegrationFlow redisSubscribePluginFlow() {
+		return IntegrationFlows.from(pluginRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.get();
+	}
+
+	@Bean
 	public RedisMessageListenerContainer redisPluginRxAdapter(RedisConnectionFactory redisConnectionFactory) {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
@@ -285,6 +343,13 @@ public class RedisConfig {
 					}
 				}
 			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeTemplateFlow() {
+		return IntegrationFlows.from(templateRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
 			.get();
 	}
 
