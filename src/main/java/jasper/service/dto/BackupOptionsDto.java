@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 @Getter
@@ -13,7 +14,7 @@ import java.time.Instant;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class BackupOptionsDto {
+public class BackupOptionsDto implements Serializable {
 	public static final int ID_LEN = 256;
 	private boolean ref;
 	private boolean ext;

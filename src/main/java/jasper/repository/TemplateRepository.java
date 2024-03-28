@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
@@ -53,7 +54,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'deleted') as boolean), false) = false
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
 		ORDER BY t.levels ASC""")
 	List<Template> findAllByOrigin(String origin);
@@ -62,7 +62,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'deleted') as boolean), false) = false
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
 			AND (t.tag = ''
 				OR t.tag = :tag
@@ -72,4 +71,11 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
 		ORDER BY t.levels ASC""")
 	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
+
+	@Query("""
+		FROM Template AS t
+		WHERE t.origin = :origin
+			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND t.tag = :template""")
+	Optional<Template> findByTemplateAndOrigin(String template, String origin);
 }

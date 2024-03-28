@@ -9,9 +9,10 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.theokanning.openai.OpenAiHttpException;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
-import jasper.component.scheduler.Async;
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -19,12 +20,11 @@ import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
-import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
+import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
+import jasper.service.dto.TemplateDto;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -75,16 +75,13 @@ public class Ai implements Async.AsyncRunner {
 	ExtRepository extRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
-	TemplateRepository templateRepository;
+	ConfigCache configs;
 
 	@Autowired
 	ObjectMapper objectMapper;
 
 	@Autowired
-	RefMapper refMapper;
+	ComponentDtoMapper dtoMapper;
 
 	@PostConstruct
 	void init() {
@@ -100,9 +97,7 @@ public class Ai implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var aiPlugin = pluginRepository.findByTagAndOrigin("+plugin/ai/openai", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/ai/openai"));
-		var config = objectMapper.convertValue(aiPlugin.getConfig(), OpenAi.AiConfig.class);
+		var config = configs.getPlugin("+plugin/ai/openai", ref.getOrigin(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
 		var context = new HashMap<String, RefDto>();
 		var parents = refRepository
@@ -111,13 +106,13 @@ public class Ai implements Async.AsyncRunner {
 				.and(hasResponse(ref.getUrl())
 				.or(hasInternalResponse(ref.getUrl()))), by(Ref_.PUBLISHED))
 			.stream()
-			.map(refMapper::domainToDto)
+			.map(dtoMapper::domainToDto)
 			.toList();
 		parents.forEach(p -> context.put(p.getUrl(), p));
 		for (var i = 0; i < config.maxContext; i++) {
 			if (parents.isEmpty()) break;
 			var grandParents = parents.stream().flatMap(p -> refRepository.findAll(isNotObsolete().and(hasResponse(p.getUrl()).or(hasInternalResponse(p.getUrl()))), by(Ref_.PUBLISHED)).stream())
-				.map(refMapper::domainToDto).toList();
+				.map(dtoMapper::domainToDto).toList();
 			var newParents = new ArrayList<RefDto>();
 			for (var p : grandParents) {
 				if (!context.containsKey(p.getUrl())) {
@@ -139,7 +134,7 @@ public class Ai implements Async.AsyncRunner {
 					isNotObsolete()
 						.and(hasSource(source)), by(Ref_.PUBLISHED))
 				.stream()
-				.map(refMapper::domainToDto)
+				.map(dtoMapper::domainToDto)
 				.forEach(p -> context.put(p.getUrl(), p));
 		}
 		var exts = new HashMap<String, Ext>();
@@ -158,13 +153,13 @@ public class Ai implements Async.AsyncRunner {
 				if (ext.isPresent()) exts.put(qt, extRepository.findOneByQualifiedTag(qt).get());
 			}
 		}
-		var sample = refMapper.domainToDto(ref);
+		var sample = dtoMapper.domainToDto(ref);
 		var pluginString = objectMapper.writeValueAsString(ref.getPlugins());
 		if (pluginString.length() > 2000 || pluginString.contains(";base64,")) { // TODO: set max plugin len as prop
 			sample.setPlugins(null);
 		}
-		var plugins = pluginRepository.findAllByOrigin(ref.getOrigin());
-		var templates = templateRepository.findAllByOrigin(ref.getOrigin());
+		var plugins = configs.getAllPlugins(ref.getOrigin());
+		var templates = configs.getAllTemplates(ref.getOrigin());
 		var models = new ArrayList<String>();
 		models.add(config.model);
 		if (config.fallback != null) {
@@ -283,10 +278,10 @@ public class Ai implements Async.AsyncRunner {
 	}
 
 	@NotNull
-	private ArrayList<ChatMessage> getChatMessages(Ref ref, Collection<Ext> exts, Collection<Plugin> plugins, Collection<Template> templates, OpenAi.AiConfig config, List<RefDto> context, String author, RefDto sample) throws JsonProcessingException {
+	private ArrayList<ChatMessage> getChatMessages(Ref ref, Collection<Ext> exts, Collection<PluginDto> plugins, Collection<TemplateDto> templates, OpenAi.AiConfig config, List<RefDto> context, String author, RefDto sample) throws JsonProcessingException {
 		var modsPrompt = concat(
-			plugins.stream().map(Plugin::getConfig),
-			templates.stream().map(Template::getConfig)
+			plugins.stream().map(PluginDto::getConfig),
+			templates.stream().map(TemplateDto::getConfig)
 		)
 			.flatMap(nc -> ofNullable(nc)
 				.map(c -> c.get("aiInstructions"))

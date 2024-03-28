@@ -25,6 +25,8 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
+import static jasper.config.JacksonConfiguration.om;
+
 @Entity
 @Getter
 @Setter
@@ -92,5 +94,11 @@ public class Template implements Tag {
 	@Override
 	public int hashCode() {
 		return Objects.hash(tag, origin);
+	}
+
+	@JsonIgnore
+	public <T> T getConfig(Class<T> toValueType) {
+		if (config == null) return null;
+		return om().convertValue(config, toValueType);
 	}
 }

@@ -10,20 +10,19 @@ import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
+import jasper.plugin.Config;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
 import jasper.security.Auth;
+import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +30,6 @@ import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -45,9 +43,6 @@ public class Validate {
 	private static final Logger logger = LoggerFactory.getLogger(Validate.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	Auth auth;
 
 	@Autowired
@@ -57,22 +52,27 @@ public class Validate {
 	PluginRepository pluginRepository;
 
 	@Autowired
-	TemplateRepository templateRepository;
-
-	@Autowired
 	Validator validator;
 
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	ConfigCache configs;
+
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
+	}
+
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
+		var root = root();
 		try {
-			if (!auth.hasRole(MOD)) ref.removeTags(Arrays.asList(props.getModSeals()));
-			if (!auth.hasRole(EDITOR)) ref.removeTags(Arrays.asList(props.getEditorSeals()));
+			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
+			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
 		} catch (ScopeNotActiveException e) {
-			ref.removeTags(Arrays.asList(props.getModSeals()));
-			ref.removeTags(Arrays.asList(props.getEditorSeals()));
+			ref.removeTags(root.getModSeals());
+			ref.removeTags(root.getEditorSeals());
 		}
 		ref(ref, ref.getOrigin(), force);
 	}
@@ -99,7 +99,7 @@ public class Validate {
 
 	@Timed("jasper.validate.ext")
 	public void ext(Ext ext, String origin, boolean stripOnError) {
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
+		var templates = configs.getSchemas(ext.getTag(), origin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
@@ -107,7 +107,7 @@ public class Validate {
 		}
 		var mergedDefaults = templates
 			.stream()
-			.map(Template::getDefaults)
+			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
 		if (ext.getConfig() == null) {
@@ -116,7 +116,7 @@ public class Validate {
 		}
 		var mergedSchemas = templates
 			.stream()
-			.map(Template::getSchema)
+			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
@@ -141,10 +141,10 @@ public class Validate {
 
 	public JsonNode templateDefaults(String qualifiedTag) {
 		var qt = qt(qualifiedTag);
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(qt.tag, qt.origin);
+		var templates = configs.getSchemas(qt.tag, qt.origin);
 		return templates
 			.stream()
-			.map(Template::getDefaults)
+			.map(TemplateDto::getDefaults)
 			.reduce(null, this::merge);
 	}
 

@@ -3,9 +3,11 @@ package jasper.service.dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
-public class SmtpWebhookDto {
+public class SmtpWebhookDto implements Serializable {
 	private String spf;
 	private String[] references;
 

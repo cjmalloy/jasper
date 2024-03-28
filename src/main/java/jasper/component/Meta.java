@@ -5,7 +5,6 @@ import jasper.config.Props;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
@@ -36,14 +35,14 @@ public class Meta {
 	RefRepository refRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	ConfigCache configs;
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(Ref ref, List<String> metadataPlugins) {
 		if (ref == null) return;
 		// Creating or updating (not deleting)
 		if (metadataPlugins == null) {
-			metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(ref.getOrigin());
+			metadataPlugins = configs.getMetadataPlugins(ref.getOrigin());
 		}
 		ref.setMetadata(Metadata
 			.builder()
@@ -67,7 +66,7 @@ public class Meta {
 	public void sources(Ref ref, Ref existing, List<String> metadataPlugins) {
 		if (metadataPlugins == null) {
 			var origin = ref != null ? ref.getOrigin() : existing.getOrigin();
-			metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
+			metadataPlugins = configs.getMetadataPlugins(origin);
 		}
 		if (ref != null) {
 			// Creating or updating (not deleting)
