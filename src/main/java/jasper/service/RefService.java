@@ -13,7 +13,7 @@ import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -63,8 +63,8 @@ public class RefService {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")

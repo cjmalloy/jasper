@@ -10,7 +10,7 @@ import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Origin;
 import jasper.plugin.Pull;
 import jasper.plugin.Push;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -75,8 +75,8 @@ public class Replicator {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	@Timed(value = "jasper.pull", histogram = true)

@@ -5,7 +5,7 @@ import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.service.TaggingService;
@@ -48,8 +48,8 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	Map<String, AsyncWatcher> tags = new HashMap<>();

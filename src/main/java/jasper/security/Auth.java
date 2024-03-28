@@ -3,6 +3,7 @@ package jasper.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.component.ConfigCache;
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Props;
 import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
@@ -15,6 +16,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
 import jasper.security.jwt.JwtAuthentication;
+import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,6 +128,7 @@ public class Auth {
 	RoleHierarchy roleHierarchy;
 	ConfigCache configs;
 	RefRepository refRepository;
+	ComponentDtoMapper dtoMapper;
 
 	// Cache
 	protected Authentication authentication;
@@ -135,17 +138,18 @@ public class Auth {
 	protected QualifiedTag userTag;
 	protected String origin;
 	protected Client client;
-	protected Optional<User> user;
+	protected Optional<UserDto> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
 
-	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
+	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository, ComponentDtoMapper dtoMapper) {
 		this.props = props;
 		this.roleHierarchy = roleHierarchy;
 		this.configs = configs;
 		this.refRepository = refRepository;
+		this.dtoMapper = dtoMapper;
 	}
 
 	public void clear(Authentication authentication) {
@@ -519,7 +523,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
-		var role = ofNullable(configs.getUser(tag)).map(User::getRole).orElse(null);
+		var role = ofNullable(configs.getUser(tag)).map(UserDto::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role
@@ -541,10 +545,10 @@ public class Auth {
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getTagReadAccess(), maybeExisting.map(UserDto::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(UserDto::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(UserDto::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(UserDto::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
 		return true;
 	}
 
@@ -665,10 +669,11 @@ public class Auth {
 		return userTag;
 	}
 
-	protected Optional<User> getUser() {
+	protected Optional<UserDto> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> (User) a.getDetails());
+			user = auth.map(a -> (User) a.getDetails())
+				.map(dtoMapper::domainToDto);
 			if (isLoggedIn() && user.isEmpty()) {
 				user = ofNullable(configs.getUser(getUserTag().toString()));
 			}
@@ -731,7 +736,7 @@ public class Auth {
 			readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
 			if (isLoggedIn()) {
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getReadAccess)
+						.map(UserDto::getReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -750,7 +755,7 @@ public class Auth {
 			writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
 			if (isLoggedIn()) {
 				writeAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getWriteAccess)
+						.map(UserDto::getWriteAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -769,7 +774,7 @@ public class Auth {
 			tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getTagReadAccess)
+						.map(UserDto::getTagReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -788,7 +793,7 @@ public class Auth {
 			tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getTagWriteAccess)
+						.map(UserDto::getTagWriteAccess)
 						.orElse(List.of())));
 			}
 		}

@@ -18,7 +18,7 @@ import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Audio;
 import jasper.plugin.Embed;
 import jasper.plugin.Feed;
-import jasper.plugin.Root;
+import jasper.plugin.Config;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
@@ -73,8 +73,8 @@ public class RssParser {
 	@Autowired
 	ConfigCache configs;
 
-	Root root() {
-		return configs.getTemplate("", "", Root.class);
+	Config root() {
+		return configs.getTemplate("_config", "", Config.class);
 	}
 
 	@Timed("jasper.feed")
