@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import static jasper.domain.proj.HasOrigin.originHierarchy;
+
 @Component
 public class Stomp {
 
@@ -25,19 +27,28 @@ public class Stomp {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
-		stomp.convertAndSend("/topic/ref/" + message.getHeaders().get("origin") + "/" + e(message.getHeaders().get("url")), updateDto);
+		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		for (var o : origins) {
+			stomp.convertAndSend("/topic/ref/" + o + "/" + e(message.getHeaders().get("url")), updateDto);
+		}
 	}
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
-		stomp.convertAndSend("/topic/tag/" + message.getHeaders().get("origin") + "/" + e(message.getHeaders().get("tag")), message.getPayload());
+		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		for (var o : origins) {
+			stomp.convertAndSend("/topic/tag/" + o + "/" + e(message.getHeaders().get("tag")), message.getPayload());
+		}
 	}
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "responseRxChannel")
 	public void handleResponseUpdate(Message<String> message) {
-		stomp.convertAndSend("/topic/response/" + message.getHeaders().get("origin") + "/" + e(message.getHeaders().get("response")), message.getPayload());
+		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		for (var o : origins) {
+			stomp.convertAndSend("/topic/response/" + o + "/" + e(message.getHeaders().get("response")), message.getPayload());
+		}
 	}
 
 	private String e(Object o) {

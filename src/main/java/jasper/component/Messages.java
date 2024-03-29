@@ -47,23 +47,16 @@ public class Messages {
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);
-		var origins = originHierarchy(ref.getOrigin());
-		for (var o : origins) {
-			refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(o, update)));
-		}
+		refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(ref.getOrigin(), update)));
 		if (ref.getTags() != null) {
 			ref.addHierarchicalTags();
 			for (var tag : ref.getTags()) {
-				for (var o : origins) {
-					tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(o, tag)));
-				}
+				tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(ref.getOrigin(), tag)));
 			}
 		}
 		if (ref.getSources() != null) {
 			for (var source : ref.getSources()) {
-				for (var o : origins) {
-					responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(o, source)));
-				}
+				responseTxChannel.send(MessageBuilder.createMessage(ref.getUrl(), responseHeaders(ref.getOrigin(), source)));
 			}
 		}
 	}
