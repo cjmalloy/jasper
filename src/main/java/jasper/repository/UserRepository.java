@@ -26,7 +26,8 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 			tagWriteAccess = :tagWriteAccess,
 			modified = :modified,
 			key = :key,
-			pubKey = :pubKey
+			pubKey = :pubKey,
+			authorizedKeys = :authorizedKeys
 		WHERE
 			tag = :tag AND
 			origin = :origin AND
@@ -43,7 +44,8 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		ArrayNode tagWriteAccess,
 		Instant modified,
 		byte[] key,
-		byte[] pubKey);
+		byte[] pubKey,
+		String authorizedKeys);
 
 	@Query("""
 		SELECT max(u.modified)
@@ -58,5 +60,5 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 			AND user.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	List<User> findAllByOriginAndPubKeyIsNotNull(String origin);
+	List<User> findAllByOriginAndAuthorizedKeysIsNotNull(String origin);
 }
