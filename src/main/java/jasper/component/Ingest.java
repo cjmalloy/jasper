@@ -3,12 +3,12 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.RefRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -30,6 +30,9 @@ import java.util.List;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -54,13 +57,6 @@ public class Ingest {
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
-
-	@Autowired
-	ConfigCache configs;
-
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -133,7 +129,7 @@ public class Ingest {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
@@ -173,7 +169,7 @@ public class Ingest {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}

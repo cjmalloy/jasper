@@ -3,11 +3,11 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.UserRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -33,6 +33,9 @@ public class IngestUser {
 	private static final Logger logger = LoggerFactory.getLogger(IngestUser.class);
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
@@ -46,13 +49,6 @@ public class IngestUser {
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
-
-	@Autowired
-	ConfigCache configs;
-
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -110,7 +106,7 @@ public class IngestUser {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
@@ -150,7 +146,7 @@ public class IngestUser {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > root().getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
 					}
 				}
