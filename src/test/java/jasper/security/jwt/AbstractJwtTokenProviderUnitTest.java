@@ -53,7 +53,7 @@ public class AbstractJwtTokenProviderUnitTest {
 	}
 
 	AbstractJwtTokenProvider getTokenProvider(Props props) {
-		return new AbstractJwtTokenProvider(props, null, null) {
+		return new AbstractJwtTokenProvider(props, null, null, null) {
 			@Override
 			public Authentication getAuthentication(String jwt, String origin) {
 				return null;

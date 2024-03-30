@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.component.ConfigCache;
 import jasper.component.dto.ComponentDtoMapper;
+import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
 import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
@@ -175,6 +176,10 @@ public class Auth {
 	public void log() {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
 			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
+	}
+
+	public SecurityConfig security() {
+		return configs.getTemplate("_config/security", getOrigin(), SecurityConfig.class);
 	}
 
 	/**
@@ -727,13 +732,13 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>(List.of(selector("public" + getSubOrigins())));
-			if (getClient().getDefaultReadAccess() != null) {
-				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
+			if (security().getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(security().getDefaultReadAccess()));
 			}
 			if (getClient().isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
-			readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
+			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(UserDto::getReadAccess)
@@ -746,13 +751,13 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
-			if (getClient().getDefaultWriteAccess() != null) {
-				writeAccess.addAll(getQualifiedTags(getClient().getDefaultWriteAccess()));
+			if (security().getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(security().getDefaultWriteAccess()));
 			}
 			if (getClient().isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
-			writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
+			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
 			if (isLoggedIn()) {
 				writeAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(UserDto::getWriteAccess)
@@ -765,13 +770,13 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
-			if (getClient().getDefaultTagReadAccess() != null) {
-				tagReadAccess.addAll(getQualifiedTags(getClient().getDefaultTagReadAccess()));
+			if (security().getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(security().getDefaultTagReadAccess()));
 			}
 			if (getClient().isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
-			tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
+			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(UserDto::getTagReadAccess)
@@ -784,13 +789,13 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
-			if (getClient().getDefaultTagWriteAccess() != null) {
-				tagWriteAccess.addAll(getQualifiedTags(getClient().getDefaultTagWriteAccess()));
+			if (security().getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(security().getDefaultTagWriteAccess()));
 			}
 			if (getClient().isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
-			tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
+			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(UserDto::getTagWriteAccess)

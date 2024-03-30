@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -45,8 +46,8 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	private final SecurityMetersService securityMetersService;
 
-	AbstractJwtTokenProvider(Props props, UserDetailsProvider userDetailsProvider, SecurityMetersService securityMetersService) {
-		super(props, userDetailsProvider);
+	AbstractJwtTokenProvider(Props props, UserDetailsProvider userDetailsProvider, SecurityMetersService securityMetersService, ConfigCache caches) {
+		super(props, userDetailsProvider, caches);
 		this.securityMetersService = securityMetersService;
 	}
 
@@ -65,8 +66,7 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims, String origin) {
 		var auth = getPartialAuthorities(origin);
-		var client = props.getSecurity().getClient(origin);
-		var authClaim = claims.get(client.getAuthoritiesClaim(), String.class);
+		var authClaim = claims.get(security(origin).getAuthoritiesClaim(), String.class);
 		if (isNotBlank(authClaim)) {
 			Arrays.stream(authClaim.split(","))
 				.filter(r -> !r.isBlank())
@@ -82,8 +82,8 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 		if (client.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
 			return getHeader(USER_TAG_HEADER);
 		}
-		logger.debug("Sub: {}", client.getUsernameClaim());
-		var principal = claims.get(client.getUsernameClaim(), String.class);
+		logger.debug("Sub: {}", security(origin).getUsernameClaim());
+		var principal = claims.get(security(origin).getUsernameClaim(), String.class);
 		logger.debug("Principal: {}", principal);
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader();
@@ -129,10 +129,9 @@ public abstract class AbstractJwtTokenProvider extends AbstractTokenProvider imp
 	@Override
 	public boolean validateToken(String authToken, String origin) {
 		if (!StringUtils.hasText(authToken)) return false;
-		var client = props.getSecurity().getClient(origin);
 		try {
 			var claims = jwtParser.get(origin).parseClaimsJws(authToken).getBody();
-			if (!client.getAuthentication().getJwt().getClientId().equals(claims.getAudience())) {
+			if (!security(origin).getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else {

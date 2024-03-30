@@ -1,6 +1,7 @@
 package jasper.security.jwt;
 
 import io.jsonwebtoken.Jwts;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.management.SecurityMetersService;
 import jasper.repository.UserRepository;
@@ -22,9 +23,10 @@ public class TokenProviderImplJwks extends AbstractJwtTokenProvider implements T
 		Props props,
 		UserRepository userRepository,
 		SecurityMetersService securityMetersService,
-		RestTemplate restTemplate
+		RestTemplate restTemplate,
+		ConfigCache caches
 	) throws URISyntaxException {
-		super(props, userRepository, securityMetersService);
+		super(props, userRepository, securityMetersService, caches);
 		for (var c : props.getSecurity().clientList()) {
 			var client = c.getKey();
 			String jwksUri = c.getValue().getAuthentication().getJwt().getJwksUri();

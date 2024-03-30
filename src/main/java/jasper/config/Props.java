@@ -8,9 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 import tech.jhipster.config.JHipsterDefaults;
 
-import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
 	private boolean debug = false;
+	private int ingestMaxRetry = 5;
 	private int maxEtagPageSize = 300;
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
@@ -57,10 +55,7 @@ public class Props {
 	private final ApiDocs apiDocs = new ApiDocs();
 	private final Logging logging = new Logging();
 	private final CorsConfiguration cors = new CorsConfiguration();
-	private final Social social = new Social();
 	private final Gateway gateway = new Gateway();
-	private final Registry registry = new Registry();
-	private final ClientApp clientApp = new ClientApp();
 	private final AuditEvents auditEvents = new AuditEvents();
 
 	@Getter
@@ -207,8 +202,6 @@ public class Props {
 		private static final Client defaultClient = new Client();
 		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
 		private final Map<String, Client> clients = new HashMap<>();
-		private final RememberMe rememberMe = new RememberMe();
-		private final OAuth2 oauth2 = new OAuth2();
 
 		public static String getOrigin(String client) {
 			if (isBlank(client) || client.equals("default")) return "";
@@ -239,72 +232,10 @@ public class Props {
 		@Getter
 		@Setter
 		public static class Client {
-			private final ClientAuthorization clientAuthorization = new ClientAuthorization();
-			private final Authentication authentication = new Authentication();
-			private String scimEndpoint;
-			private String usernameClaim = "sub";
-			private String authoritiesClaim = "auth";
-			private String readAccessClaim = "readAccess";
-			private String writeAccessClaim = "writeAccess";
-			private String tagReadAccessClaim = "tagReadAccess";
-			private String tagWriteAccessClaim = "tagWriteAccess";
-			private String defaultRole = "ROLE_ANONYMOUS";
-			private String defaultUser = "";
-			private String[] defaultReadAccess;
-			private String[] defaultWriteAccess;
-			private String[] defaultTagReadAccess;
-			private String[] defaultTagWriteAccess;
 			private boolean allowUsernameClaimOrigin = false;
 			private boolean allowUserTagHeader = false;
 			private boolean allowUserRoleHeader = false;
 			private boolean allowAuthHeaders = false;
-
-			@Getter
-			@Setter
-			public static class ClientAuthorization {
-				private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
-				private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
-				private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
-				private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
-			}
-
-			@Getter
-			@Setter
-			public static class Authentication {
-				private final Jwt jwt = new Jwt();
-
-				@Getter
-				@Setter
-				public static class Jwt {
-					private String clientId = null;
-					private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
-					private String secret = null;
-					private String jwksUri = null;
-					private String tokenEndpoint = null;
-					private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
-					private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
-
-					public String getSecret() {
-						if (secret == null) {
-							secret = new String(Base64.getDecoder().decode(base64Secret));
-						}
-						return secret;
-					}
-				}
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class RememberMe {
-			@NotNull
-			private String key = JHipsterDefaults.Security.RememberMe.key;
-		}
-
-		@Getter
-		@Setter
-		public static class OAuth2 {
-			private List<String> audience = new ArrayList<>();
 		}
 	}
 
@@ -342,12 +273,6 @@ public class Props {
 
 	@Getter
 	@Setter
-	public static class Social {
-		private String redirectAfterSignIn = JHipsterDefaults.Social.redirectAfterSignIn;
-	}
-
-	@Getter
-	@Setter
 	public static class Gateway {
 		private final RateLimiting rateLimiting = new RateLimiting();
 		private Map<String, List<String>> authorizedMicroservicesEndpoints = JHipsterDefaults.Gateway.authorizedMicroservicesEndpoints;
@@ -359,18 +284,6 @@ public class Props {
 			private long limit = JHipsterDefaults.Gateway.RateLimiting.limit;
 			private int durationInSeconds = JHipsterDefaults.Gateway.RateLimiting.durationInSeconds;
 		}
-	}
-
-	@Getter
-	@Setter
-	public static class Registry {
-		private String password = JHipsterDefaults.Registry.password;
-	}
-
-	@Getter
-	@Setter
-	public static class ClientApp {
-		private String name = JHipsterDefaults.ClientApp.name;
 	}
 
 	@Getter
