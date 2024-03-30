@@ -49,10 +49,6 @@ public class SmtpService {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
-
 	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "smtp"}, histogram = true)
 	public void create(SmtpWebhookDto email, String origin) {
@@ -126,7 +122,7 @@ public class SmtpService {
 	}
 
 	private String emailAddressToNotification(String email) {
-		var root = root();
+		var root = configs.root();
 		var qt = selector(email);
 		var remote = qt.origin;
 		if (remote.endsWith("." + root.getEmailHost())) {

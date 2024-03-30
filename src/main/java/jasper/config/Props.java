@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 import tech.jhipster.config.JHipsterDefaults;
 
-import java.util.HashMap;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -29,23 +29,34 @@ public class Props {
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
 	private int backfillBatchSize = 1000;
-	private String asyncDelaySec = "120";
-	private String asyncIntervalSec = "40";
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
-	private String replicateDelayMin = "5";
-	private String replicateIntervalMin = "1";
-	private String sshDelaySec = "120";
-	private String sshIntervalSec = "40";
-	private String sshConfigNamespace = "default";
-	private String sshConfigMapName = "ssh-authorized-keys";
+	private int pushCooldownSec = 1;
+	private String pullDelayMin = "5";
+	private String pullIntervalMin = "1";
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
+	private boolean allowUserTagHeader = false;
+	private boolean allowUserRoleHeader = false;
+	private boolean allowAuthHeaders = false;
 	/**
 	 * Minimum role for basic access.
 	 */
 	private String minRole = "ROLE_ANONYMOUS";
+	/**
+	 * Default role given to every user.
+	 */
+	private String defaultRole = "ROLE_ANONYMOUS";
 	private String storage = "/var/lib/jasper";
+	private String[] defaultReadAccess;
+	private String[] defaultWriteAccess;
+	private String[] defaultTagReadAccess;
+	private String[] defaultTagWriteAccess;
+
+	private String sshConfigNamespace = "default";
+	private String sshConfigMapName = "ssh-authorized-keys";
+
+	private final Overrides override = new Overrides();
 	private final Async async = new Async();
 	private final Http http = new Http();
 	private final Database database = new Database();
@@ -57,6 +68,35 @@ public class Props {
 	private final CorsConfiguration cors = new CorsConfiguration();
 	private final Gateway gateway = new Gateway();
 	private final AuditEvents auditEvents = new AuditEvents();
+
+	@Getter
+	@Setter
+	public static class Overrides {
+		/**
+		 * Override any security settings for all origins.
+		 */
+		private final SecurityOverrides security = new SecurityOverrides();
+	}
+
+	@Getter
+	@Setter
+	public static class SecurityOverrides {
+		private String mode = "";
+		private String clientId = "";
+		private String base64Secret = "";
+		private String secret = "";
+		private String jwksUri = "";
+		private String usernameClaim = "";
+		private String tokenEndpoint = "";
+		private String scimEndpoint = "";
+
+		public String getSecret() {
+			if (isBlank(secret)) {
+				secret = new String(Base64.getDecoder().decode(base64Secret));
+			}
+			return secret;
+		}
+	}
 
 	@Getter
 	@Setter
@@ -199,44 +239,7 @@ public class Props {
 	@Getter
 	@Setter
 	public static class Security {
-		private static final Client defaultClient = new Client();
 		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
-		private final Map<String, Client> clients = new HashMap<>();
-
-		public static String getOrigin(String client) {
-			if (isBlank(client) || client.equals("default")) return "";
-			return "@" + client;
-		}
-
-		public List<Map.Entry<String, Client>> clientList() {
-			return clients.entrySet().stream()
-				.map(e -> Map.entry(getOrigin(e.getKey()), e.getValue()))
-				.toList();
-		}
-
-		public boolean hasClient(String origin) {
-			if (isBlank(origin) && clients.containsKey("default")) return true;
-			return clients.containsKey(origin.substring(1));
-		}
-
-		public Client getClient(String origin) {
-			if (isBlank(origin) && clients.containsKey("default")) {
-				return clients.get("default");
-			}
-			if (origin != null && origin.startsWith("@") && clients.containsKey(origin.substring(1))) {
-				return clients.get(origin.substring(1));
-			}
-			return defaultClient;
-		}
-
-		@Getter
-		@Setter
-		public static class Client {
-			private boolean allowUsernameClaimOrigin = false;
-			private boolean allowUserTagHeader = false;
-			private boolean allowUserRoleHeader = false;
-			private boolean allowAuthHeaders = false;
-		}
 	}
 
 	@Getter

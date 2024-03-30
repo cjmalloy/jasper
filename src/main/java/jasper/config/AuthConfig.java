@@ -9,8 +9,6 @@ import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
 import jasper.security.jwt.TokenProviderImplDefault;
-import jasper.security.jwt.TokenProviderImplJwks;
-import jasper.security.jwt.TokenProviderImplNoVerify;
 import jasper.security.jwt.TokenProviderImplNop;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
@@ -29,7 +27,6 @@ import org.springframework.web.context.annotation.ApplicationScope;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -67,38 +64,19 @@ public class AuthConfig {
 	@Primary
 	@Bean
 	@Profile("jwt")
-	TokenProvider tokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
-		return new TokenProviderImpl(props, userRepository, securityMetersService);
-	}
-
-	@Primary
-	@Bean
-	@Profile("jwks")
-	TokenProvider jwksTokenProvider(
-		Props props,
-		UserRepository userRepository,
-		SecurityMetersService securityMetersService,
-		RestTemplate restTemplate
-	) throws URISyntaxException {
-		return new TokenProviderImplJwks(props, userRepository, securityMetersService, restTemplate);
-	}
-
-	@Primary
-	@Bean
-	@Profile("jwt-no-verify")
-	TokenProvider noVerifyTokenProvider(Props props, UserRepository userRepository, SecurityMetersService securityMetersService) {
-		return new TokenProviderImplNoVerify(props, userRepository, securityMetersService);
+	TokenProvider tokenProvider(Props props, ConfigCache configs, UserRepository userRepository, SecurityMetersService securityMetersService, RestTemplate restTemplate) {
+		return new TokenProviderImpl(props, configs, userRepository, securityMetersService, restTemplate);
 	}
 
 	@Primary
 	@Bean
 	@ConditionalOnMissingBean
-	TokenProvider fallbackTokenProvider(Props props, UserRepository userRepository) {
-		return new TokenProviderImplNop(props, userRepository);
+	TokenProvider fallbackTokenProvider(Props props, ConfigCache configs, UserRepository userRepository) {
+		return new TokenProviderImplNop(props, configs, userRepository);
 	}
 
 	@Bean
-	TokenProviderImplDefault defaultTokenProvider(Props props, UserRepository userRepository) {
-		return new TokenProviderImplDefault(props, userRepository);
+	TokenProviderImplDefault defaultTokenProvider(Props props, ConfigCache configs, UserRepository userRepository) {
+		return new TokenProviderImplDefault(props, configs, userRepository);
 	}
 }

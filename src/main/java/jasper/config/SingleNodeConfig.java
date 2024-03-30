@@ -23,6 +23,12 @@ public class SingleNodeConfig {
 	TaskExecutor taskExecutor;
 
 	@Autowired
+	MessageChannel cursorTxChannel;
+
+	@Autowired
+	MessageChannel cursorRxChannel;
+
+	@Autowired
 	MessageChannel refTxChannel;
 
 	@Autowired
@@ -45,6 +51,12 @@ public class SingleNodeConfig {
 
 	@Autowired
 	MessageChannel userRxChannel;
+
+	@Autowired
+	MessageChannel extTxChannel;
+
+	@Autowired
+	MessageChannel extRxChannel;
 
 	@Autowired
 	MessageChannel pluginTxChannel;
@@ -70,6 +82,14 @@ public class SingleNodeConfig {
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 		executor.initialize();
 		return executor;
+	}
+
+	@Bean
+	public IntegrationFlow directCursorFlow() {
+		return IntegrationFlows.from(cursorTxChannel)
+							   .channel(new ExecutorChannel(taskExecutor))
+							   .channel(cursorRxChannel)
+							   .get();
 	}
 
 	@Bean
@@ -101,6 +121,14 @@ public class SingleNodeConfig {
 		return IntegrationFlows.from(userTxChannel)
 							   .channel(new ExecutorChannel(taskExecutor))
 							   .channel(userRxChannel)
+							   .get();
+	}
+
+	@Bean
+	public IntegrationFlow directExtFlow() {
+		return IntegrationFlows.from(extTxChannel)
+							   .channel(new ExecutorChannel(taskExecutor))
+							   .channel(extRxChannel)
 							   .get();
 	}
 

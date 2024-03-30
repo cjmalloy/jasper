@@ -1,10 +1,12 @@
 package jasper.component.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
@@ -27,6 +29,8 @@ public abstract class ComponentDtoMapper {
 	public abstract RefDto domainToDto(Ref ref);
 
 	public abstract UserDto domainToDto(User ref);
+
+	public abstract ExtDto domainToDto(Ext ref);
 
 	public abstract PluginDto domainToDto(Plugin ref);
 

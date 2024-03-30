@@ -61,7 +61,7 @@ public class ProfileManagerScim implements ProfileManager {
 
 	private URI baseUri() {
 		try {
-			return new URI(auth.getClient().getScimEndpoint());
+			return new URI(auth.security().getScimEndpoint());
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
@@ -69,15 +69,15 @@ public class ProfileManagerScim implements ProfileManager {
 
 	private ObjectNode getClaims(String[] roles) {
 		var claims = objectMapper.createObjectNode();
-		return claims.set(auth.getClient().getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
+		return claims.set(auth.security().getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
 	}
 
 	private String[] getRoles(ScimUserResource user) {
 		if (user.getCustomClaims() != null &&
-			user.getCustomClaims().get(props.getSecurity().getClient(auth.getOrigin()).getAuthoritiesClaim()) != null) {
-			return user.getCustomClaims().get(props.getSecurity().getClient(auth.getOrigin()).getAuthoritiesClaim()).asText().split(",");
+			user.getCustomClaims().get(auth.security().getAuthoritiesClaim()) != null) {
+			return user.getCustomClaims().get(auth.security().getAuthoritiesClaim()).asText().split(",");
 		}
-		return new String[] { auth.getClient().getDefaultRole() };
+		return new String[] { props.getDefaultRole(), auth.security().getDefaultRole() };
 	}
 
 	@Override
@@ -161,7 +161,7 @@ public class ProfileManagerScim implements ProfileManager {
 		if (claims == null || claims.isNull()) {
 			claims = getClaims(roles);
 		} else {
-			claims.set(props.getSecurity().getClient(auth.getOrigin()).getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
+			claims.set(auth.security().getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
 		}
 		var patch = ScimPatchOp.builder().operations(List.of(
 			ScimPatchOp.Operation.builder()

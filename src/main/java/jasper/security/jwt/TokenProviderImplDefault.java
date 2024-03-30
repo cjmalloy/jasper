@@ -1,5 +1,6 @@
 package jasper.security.jwt;
 
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
 import org.slf4j.Logger;
@@ -10,8 +11,8 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 public class TokenProviderImplDefault extends AbstractTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImplDefault.class);
 
-	public TokenProviderImplDefault(Props props, UserRepository userRepository) {
-		super(props, userRepository);
+	public TokenProviderImplDefault(Props props, ConfigCache configs, UserRepository userRepository) {
+		super(props, configs, userRepository);
 	}
 
 	@Override
@@ -22,7 +23,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 	@Override
 	public Authentication getAuthentication(String jwt, String origin) {
 		logger.debug("Origin set by default or header {}", origin);
-		var principal = props.getSecurity().getClient(origin).getDefaultUser() + origin;
+		var principal = configs.security(origin).getDefaultUser() + origin;
 		var user = getUser(principal);
 		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user, origin));
 	}

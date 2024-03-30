@@ -83,14 +83,16 @@ server:
   address: localhost
 
 jasper:
-  clientApp:
-    name: 'jasperApp'
-  replicate-delay-min: 0
-  replicate-interval-min: 1
-  async-delay-sec: 0
-  async-interval-sec: 1
+  pull-delay-min: 0
+  pull-interval-min: 1
   scrape-delay-min: 5
   scrape-interval-min: 1
+  default-role: ROLE_USER
+  override:
+    security:
+      mode: 'jwt'
+      clientId: ''
+      base64-secret: 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM='
   logging:
     # To test json console appender
     use-json-format: false
@@ -99,14 +101,3 @@ jasper:
       host: localhost
       port: 5000
       queue-size: 512
-  security:
-    clients:
-      default:
-        default-role: ROLE_USER
-        username-claim: sub
-        authentication:
-          jwt:
-            # This token must be encoded using Base64 (you can type `echo 'secret-key'|base64` on your command line)
-            base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
-            # Token is valid 24 hours
-            token-validity-in-seconds: 86400

@@ -192,10 +192,9 @@ info:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
-  replicate-delay-min: 20
-  replicate-interval-min: 1
-  async-delay-sec: 120
-  async-interval-sec: 60
+  push-cooldown-sec: 1
+  pull-delay-min: 20
+  pull-interval-min: 1
   scrape-delay-min: 20
   scrape-interval-min: 1
   local-origin: ''
@@ -228,8 +227,3 @@ jasper:
         url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
-    clients:
-      default:
-        default-role: ROLE_ANONYMOUS
-        username-claim: sub
-        authorities-claim: auth

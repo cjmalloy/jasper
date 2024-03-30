@@ -1,5 +1,6 @@
 package jasper.domain.proj;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +42,8 @@ public interface HasOrigin {
 		return origin.startsWith(local+".");
 	}
 
-	static List<String> originHierarchy(String origin) {
+	static List<String> originHierarchy(@Nullable Object o) {
+		var origin = origin((String) o);
 		if (isBlank(origin)) return List.of("");
 		var result = new ArrayList<String>();
 		result.add(origin);

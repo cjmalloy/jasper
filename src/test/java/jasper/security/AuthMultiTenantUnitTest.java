@@ -1,6 +1,8 @@
 package jasper.security;
 
 import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
@@ -25,7 +27,6 @@ import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -36,8 +37,7 @@ public class AuthMultiTenantUnitTest {
 	RoleHierarchy roleHierarchy = new SecurityConfiguration().roleHierarchy();
 
 	Auth getAuth(UserDto user, String ...roles) {
-		var a = new Auth(new Props(), null, null, null, null);
-		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
+		var a = new Auth(new Props(), null, getConfigs(user), null, null);
 		a.props.setLocalOrigin(user.getOrigin());
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
@@ -98,14 +98,19 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	ConfigCache getConfigs(UserDto ...users) {
-		var mock = mock(ConfigCache.class);
-		when(mock.getUser(anyString()))
+		var configCache = mock(ConfigCache.class);
+		when(configCache.getUser(anyString()))
 			.thenReturn(null);
 		for (var user : users) {
-			when(mock.getUser(user.getQualifiedTag()))
+			when(configCache.getUser(user.getQualifiedTag()))
 				.thenReturn(user);
 		}
-		return mock;
+		var root = new ServerConfig();
+		var security = new SecurityConfig();
+		security.setMode("jwt");
+		when(configCache.root()).thenReturn(root);
+		when(configCache.security(anyString())).thenReturn(security);
+		return configCache;
 	}
 
 	@Test

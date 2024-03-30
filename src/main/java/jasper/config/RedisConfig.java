@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
@@ -32,6 +33,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import static jasper.component.Messages.originHeaders;
 import static jasper.component.Messages.refHeaders;
 import static jasper.component.Messages.responseHeaders;
 import static jasper.component.Messages.tagHeaders;
@@ -52,6 +54,12 @@ public class RedisConfig {
 
 	@Autowired
 	RedisConnectionFactory redisConnectionFactory;
+
+	@Autowired
+	MessageChannel cursorTxChannel;
+
+	@Autowired
+	MessageChannel cursorRxChannel;
 
 	@Autowired
 	MessageChannel refTxChannel;
@@ -78,6 +86,12 @@ public class RedisConfig {
 	MessageChannel userRxChannel;
 
 	@Autowired
+	MessageChannel extTxChannel;
+
+	@Autowired
+	MessageChannel extRxChannel;
+
+	@Autowired
 	MessageChannel pluginTxChannel;
 
 	@Autowired
@@ -101,6 +115,44 @@ public class RedisConfig {
 		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
 		executor.initialize();
 		return executor;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishCursorFlow() {
+		return IntegrationFlows
+			.from(cursorTxChannel)
+			.handle(new CustomPublishingMessageHandler<String>() {
+				@Override
+				protected String getTopic(Message<String> message) {
+					return "cursor/" + message.getHeaders().get("origin");
+				}
+
+				@Override
+				protected byte[] getMessage(Message<String> message) {
+					return message.getPayload().getBytes();
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeCursorFlow() {
+		return IntegrationFlows.from(cursorRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisCursorRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			var cursor = new String(message.getBody());
+			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+			var origin = parts[1];
+			cursorRxChannel.send(MessageBuilder.createMessage(cursor, originHeaders(origin)));
+		}, of("cursor/*"));
+		return container;
 	}
 
 	@Bean
@@ -272,6 +324,54 @@ public class RedisConfig {
 				logger.error("Error parsing UserDto from redis.");
 			}
 		}, of("user/*"));
+		return container;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishExtFlow() {
+		return IntegrationFlows
+			.from(extTxChannel)
+			.handle(new CustomPublishingMessageHandler<ExtDto>() {
+				@Override
+				protected String getTopic(Message<ExtDto> message) {
+					return "ext/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+				}
+
+				@Override
+				protected byte[] getMessage(Message<ExtDto> message) {
+					try {
+						return objectMapper.writeValueAsBytes(message.getPayload());
+					} catch (JsonProcessingException e) {
+						logger.error("Cannot serialize ExtDto.");
+						throw new RuntimeException(e);
+					}
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeExtFlow() {
+		return IntegrationFlows.from(extRxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisExtRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			try {
+				var user = objectMapper.readValue(message.getBody(), ExtDto.class);
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
+				var tag = parts[2];
+				userRxChannel.send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
+			} catch (IOException e) {
+				logger.error("Error parsing ExtDto from redis.");
+			}
+		}, of("ext/*"));
 		return container;
 	}
 

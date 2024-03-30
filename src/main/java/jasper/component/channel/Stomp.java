@@ -24,10 +24,16 @@ public class Stomp {
 	ComponentDtoMapper mapper;
 
 	@Order(0)
+	@ServiceActivator(inputChannel = "cursorRxChannel")
+	public void handleCursorUpdate(Message<String> message) {
+		stomp.convertAndSend("/topic/cursor/" + message.getHeaders().get("origin"), message.getPayload());
+	}
+
+	@Order(0)
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
-		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
 			stomp.convertAndSend("/topic/ref/" + o + "/" + e(message.getHeaders().get("url")), updateDto);
 		}
@@ -36,7 +42,7 @@ public class Stomp {
 	@Order(0)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
-		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
 			stomp.convertAndSend("/topic/tag/" + o + "/" + e(message.getHeaders().get("tag")), message.getPayload());
 		}
@@ -45,7 +51,7 @@ public class Stomp {
 	@Order(0)
 	@ServiceActivator(inputChannel = "responseRxChannel")
 	public void handleResponseUpdate(Message<String> message) {
-		var origins = originHierarchy(message.getHeaders().get("origin").toString());
+		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
 			stomp.convertAndSend("/topic/response/" + o + "/" + e(message.getHeaders().get("response")), message.getPayload());
 		}

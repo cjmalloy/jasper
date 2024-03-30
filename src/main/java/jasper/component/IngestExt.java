@@ -43,6 +43,9 @@ public class IngestExt {
 	Validate validate;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
@@ -57,12 +60,14 @@ public class IngestExt {
 		}
 		validate.ext(ext, force);
 		ensureCreateUniqueModified(ext);
+		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void update(Ext ext, boolean force) {
 		validate.ext(ext, force);
 		ensureUpdateUniqueModified(ext);
+		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
@@ -78,6 +83,7 @@ public class IngestExt {
 		} else {
 			delete(deletorTag(ext.getTag()) + ext.getOrigin());
 		}
+		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)

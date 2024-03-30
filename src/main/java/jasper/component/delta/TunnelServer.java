@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.UserRepository;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -32,10 +31,6 @@ public class TunnelServer {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
-
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
 		generateConfig();
@@ -50,7 +45,7 @@ public class TunnelServer {
 
 	public void generateConfig() {
 		logger.info("Generating new authorized_keys");
-		var root = root();
+		var root = configs.root();
 		var result = new StringBuilder();
 		for (var origin : root.getSshOrigins()) {
 			result

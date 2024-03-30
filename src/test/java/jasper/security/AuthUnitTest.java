@@ -1,6 +1,8 @@
 package jasper.security;
 
 import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
@@ -25,7 +27,6 @@ import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -41,13 +42,22 @@ public class AuthUnitTest {
 
 	Auth getAuth(String origin, UserDto user, String ...roles) {
 		user.setOrigin(origin);
-		var a = new Auth(new Props(), null, null, null, null);
-		a.props.getSecurity().getClients().put(isBlank(user.getOrigin()) ? "default" : user.getOrigin().substring(1), new Props.Security.Client());
+		var a = new Auth(new Props(), null, configCache, null, null);
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
 		a.origin = origin;
 		return a;
+	}
+
+	ConfigCache configCache = getConfigs();
+	ConfigCache getConfigs() {
+		var root = new ServerConfig();
+		var security = new SecurityConfig();
+		var configCache = mock(ConfigCache.class);
+		when(configCache.root()).thenReturn(root);
+		when(configCache.security(anyString())).thenReturn(security);
+		return configCache;
 	}
 
 	Set<String> getRoles(String ...roles) {
@@ -101,14 +111,13 @@ public class AuthUnitTest {
 	}
 
 	ConfigCache getConfigCache(UserDto ...users) {
-		var mock = mock(ConfigCache.class);
-		when(mock.getUser(anyString()))
+		when(configCache.getUser(anyString()))
 			.thenReturn(null);
 		for (var user : users) {
-			when(mock.getUser(user.getQualifiedTag()))
+			when(configCache.getUser(user.getQualifiedTag()))
 				.thenReturn(user);
 		}
-		return mock;
+		return configCache;
 	}
 
 	@Test

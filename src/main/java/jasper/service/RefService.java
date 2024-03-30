@@ -9,7 +9,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Validate;
-import jasper.config.Config.ServerConfig;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
@@ -63,14 +62,10 @@ public class RefService {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "", ServerConfig.class);
-	}
-
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant create(Ref ref, boolean force) {
-		var root = root();
+		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
@@ -82,7 +77,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void push(Ref ref) {
-		var root = root();
+		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
@@ -100,7 +95,7 @@ public class RefService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.hasRole('VIEWER')")
+	@PreAuthorize( "@auth.canReadOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant cursor(String origin) {
 		return refRepository.getCursor(origin);
@@ -131,7 +126,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant update(Ref ref, boolean force) {
-		var root = root();
+		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();

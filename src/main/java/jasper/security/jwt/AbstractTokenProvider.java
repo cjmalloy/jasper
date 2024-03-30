@@ -1,7 +1,6 @@
 package jasper.security.jwt;
 
 import jasper.component.ConfigCache;
-import jasper.config.Config.*;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.security.UserDetailsProvider;
@@ -28,18 +27,10 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	public UserDetailsProvider userDetailsProvider;
 
-	AbstractTokenProvider(Props props, UserDetailsProvider userDetailsProvider, ConfigCache configs) {
+	AbstractTokenProvider(Props props, ConfigCache configs, UserDetailsProvider userDetailsProvider) {
 		this.props = props;
-		this.userDetailsProvider = userDetailsProvider;
 		this.configs = configs;
-	}
-
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "", ServerConfig.class);
-	}
-
-	SecurityConfig security(String origin) {
-		return configs.getTemplate("_config/security", origin, SecurityConfig.class);
+		this.userDetailsProvider = userDetailsProvider;
 	}
 
 	User getUser(String userTag) {
@@ -61,14 +52,13 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(String origin) {
-		var client = props.getSecurity().getClient(origin);
-		var authString = client == null ? "ROLE_ANONYMOUS" : security(origin).getDefaultRole();
-		if (client.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+		var roles = props.getDefaultRole() + ',' + configs.security(origin).getDefaultRole();
+		if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
 			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
-			authString += ", " + getHeader(USER_ROLE_HEADER);
+			roles += ", " + getHeader(USER_ROLE_HEADER);
 		}
 		return Arrays
-			.stream(authString.split(","))
+			.stream(roles.split(","))
 			.filter(r -> !r.isBlank())
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)

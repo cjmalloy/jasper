@@ -5,7 +5,6 @@ import jasper.component.ConfigCache;
 import jasper.component.delta.Async;
 import jasper.domain.Ref;
 import jasper.domain.proj.RefUrl;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.ExtRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.TagQuery;
@@ -51,10 +50,6 @@ public class Mail implements Async.AsyncRunner {
 
 	@Autowired
 	ConfigCache configs;
-
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
 
 	@PostConstruct
 	void init() {
@@ -118,7 +113,7 @@ public class Mail implements Async.AsyncRunner {
 			} catch (URISyntaxException e) {
 				return null;
 			}
-		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
+		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), configs.root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
 		message.setFrom(ts.stream()
 			.filter(t -> t.startsWith("+user/") || t.startsWith("+user") || t.startsWith("_user/") || t.startsWith("_user"))
 			.findFirst()

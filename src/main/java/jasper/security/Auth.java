@@ -6,7 +6,6 @@ import jasper.component.ConfigCache;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
-import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -47,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -77,33 +77,47 @@ import static org.springframework.data.jpa.domain.Specification.where;
  *
  * These criteria may be sourced in three cascading steps:
  * 1. Application properties (set by command line, environment variables, or default value)
- * 2. JWT token claims
- * 3. Request headers
+ * 2. {@link SecurityConfig}
+ * 3. JWT token claims
+ * 4. Request headers
  *
- * The local origin is set by headers with the highest precedence, then JWT and
- * finally application properties.
+ * The local origin is set by headers with the highest precedence, then JWT, then
+ * installed configs and finally application properties.
  * Roles and access tags merge to be the more elevated role.
  *
  * The application properties that can be configured are:
  * 1. localOrigin (""): set the local origin
+ * 2. minRole ("ROLE_ANONYMOUS"): set the minimum role
+ * 3. defaultRole ("ROLE_ANONYMOUS"): set the default role
+ * 4. defaultReadAccess ([]): set the default read access tags
+ * 5. defaultWriteAccess ([]): set the default write access tags
+ * 6. defaultTagReadAccess ([]): set the default tag read access tags
+ * 7. defaultTagWriteAccess ([]): set the default tag write access tags
+ * 8. allowLocalOriginHeader (false): enable setting the local origin in the header
+ * 9. allowUserTagHeader (false): enable setting the user tag in the header
+ * 10. allowUserRoleHeader (false): enable setting the user role in the header
+ * 11. allowAuthHeaders (false): enable setting the user access tags in the header
+ *
+ * The {@link SecurityConfig} fields that can be configured are:
+ * 1. minRole ("ROLE_ANONYMOUS"): set the minimum role
  * 2. defaultRole ("ROLE_ANONYMOUS"): set the default role
- * 3. defaultReadAccess ([]): set the default read access tags
- * 4. defaultWriteAccess ([]): set the default write access tags
- * 5. defaultTagReadAccess ([]): set the default tag read access tags
- * 6. defaultTagWriteAccess ([]): set the default tag write access tags
- * 7. usernameClaim ("sub"): the JWT claim to use as a username
- * 8. allowUsernameClaimOrigin (false): allow the JWT username claim to set the local origin
- * 9. authoritiesClaim ("auth"): the JWT claim to use as a role
- * 10. readAccessClaim ("readAccess"): the JWT claim to use as read access tags
- * 11. readAccessClaim ("writeAccess"): the JWT claim to use as write access tags
- * 12. tagReadAccessClaim ("tagReadAccess"): the JWT claim to use as tag read access tags
- * 13. tagWriteAccessClaim ("tagWriteAccess"): the JWT claim to use as tag write access tags
- * 14. allowLocalOriginHeader (false): enable setting the local origin in the header
- * 15. allowAuthHeaders (false): enable setting the user access tags in the header
+ * 3. defaultUser (""): set the default user if logged out
+ * 4. defaultReadAccess ([]): set the default read access tags
+ * 5. defaultWriteAccess ([]): set the default write access tags
+ * 6. defaultTagReadAccess ([]): set the default tag read access tags
+ * 7. defaultTagWriteAccess ([]): set the default tag write access tags
+ *
+ * As well {@link SecurityConfig} has other fields for setting the token
+ * claim names.
+ * When merging values between application properties and
+ * {@link SecurityConfig}, the effect is additive. So for minRole, the
+ * effective min role is the lower of the two. For defaultRole, both
+ * roles are added, so effectively the larger of the two. For all the default
+ * access fields, the tags are all combined.
  *
  * The following headers are checked if enabled:
- * 1. User-Tag
- * 2. Local-Origin
+ * 1. Local-Origin
+ * 2. User-Tag
  * 3. User-Role
  * 4. Write-Access
  * 5. Read-Access
@@ -111,6 +125,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 7. Tag-Read-Access
  *
  * If no username is not set and the role is at least MOD it will default to +user.
+ * Otherwise the username will remain unset.
  */
 @Component
 @RequestScope
@@ -138,7 +153,6 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
-	protected Client client;
 	protected Optional<UserDto> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
@@ -159,7 +173,6 @@ public class Auth {
 		claims = null;
 		principal = null;
 		userTag = null;
-		client = null;
 		user = null;
 		readAccess = null;
 		writeAccess = null;
@@ -176,10 +189,13 @@ public class Auth {
 	public void log() {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
 			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(configs.security(getOrigin())));
+		}
 	}
 
 	public SecurityConfig security() {
-		return configs.getTemplate("_config/security", getOrigin(), SecurityConfig.class);
+		return configs.security(getOrigin());
 	}
 
 	/**
@@ -224,6 +240,14 @@ public class Auth {
 	 */
 	public boolean isLoggedIn() {
 		return isNotBlank(getPrincipal()) && !getPrincipal().startsWith("@");
+	}
+
+	/**
+	 * Can the current user access this origin?
+	 */
+	public boolean canReadOrigin(String origin) {
+		if (!subOrigin(origin)) return false;
+		return minRole();
 	}
 
 	/**
@@ -312,8 +336,12 @@ public class Auth {
 		// Min Role
 		if (!minRole()) return false;
 		if (destination == null) return false;
-		if (destination.startsWith("/topic/tag/")) {
-			var topic = destination.substring("/topic/ref/".length());
+		if (destination.startsWith("/topic/cursor/")) {
+			var origin = destination.substring("/topic/cursor/".length());
+			if (origin.equals("default")) origin = "";
+			return canReadOrigin(origin);
+		} else if (destination.startsWith("/topic/tag/")) {
+			var topic = destination.substring("/topic/tag/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var tag = topic.substring(topic.indexOf('/') + 1);
@@ -510,7 +538,7 @@ public class Auth {
 	public boolean minRole() {
 		// Don't call hasRole() from here or you get an infinite loop
 		if (hasAnyRole(BANNED)) return false;
-		return hasAnyRole(props.getMinRole());
+		return hasAnyRole(props.getMinRole()) && hasAnyRole(security().getMinRole());
 	}
 
 	/**
@@ -677,7 +705,8 @@ public class Auth {
 	protected Optional<UserDto> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> (User) a.getDetails())
+			user = auth
+				.map(a -> a.getDetails() instanceof User ? (User) a.getDetails() : null)
 				.map(dtoMapper::domainToDto);
 			if (isLoggedIn() && user.isEmpty()) {
 				user = ofNullable(configs.getUser(getUserTag().toString()));
@@ -691,26 +720,9 @@ public class Auth {
 			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader();
-			} else if (isLoggedIn() &&
-				props.getSecurity().hasClient(origin) &&
-				props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() &&
-				getPrincipal().contains("@")) {
-				try {
-					origin = qt(getPrincipal()).origin;
-				} catch (UnsupportedOperationException ignored) {}
 			}
 		}
 		return origin;
-	}
-
-	public Client getClient() {
-		if (client == null) {
-			client = props.getSecurity().getClient(getOrigin());
-			if (client == null) {
-				client = props.getSecurity().getClient(props.getLocalOrigin());
-			}
-		}
-		return client;
 	}
 
 	public static String getOriginHeader() {
@@ -732,10 +744,13 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>(List.of(selector("public" + getSubOrigins())));
+			if (props.getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
+			}
 			if (security().getDefaultReadAccess() != null) {
 				readAccess.addAll(getQualifiedTags(security().getDefaultReadAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
@@ -751,10 +766,13 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
+			if (props.getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
+			}
 			if (security().getDefaultWriteAccess() != null) {
 				writeAccess.addAll(getQualifiedTags(security().getDefaultWriteAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
 			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
@@ -770,10 +788,13 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
+			if (props.getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
+			}
 			if (security().getDefaultTagReadAccess() != null) {
 				tagReadAccess.addAll(getQualifiedTags(security().getDefaultTagReadAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
 			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
@@ -789,10 +810,13 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
+			if (props.getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
+			}
 			if (security().getDefaultTagWriteAccess() != null) {
 				tagWriteAccess.addAll(getQualifiedTags(security().getDefaultTagWriteAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (props.isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
 			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));

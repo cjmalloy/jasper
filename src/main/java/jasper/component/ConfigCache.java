@@ -3,8 +3,9 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.component.dto.ComponentDtoMapper;
+import jasper.config.Config.*;
+import jasper.config.Props;
 import jasper.domain.Template;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -26,6 +27,9 @@ import java.util.List;
 @Component
 public class ConfigCache {
 	private static final Logger logger = LoggerFactory.getLogger(ConfigCache.class);
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	RefRepository refRepository;
@@ -119,6 +123,19 @@ public class ConfigCache {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(r -> r.getConfig(toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
+	}
+
+	@Cacheable(value = "template-cache", key = "'_config/server'")
+	@Transactional(readOnly = true)
+	public ServerConfig root() {
+		return getTemplate("_config/server", "",  ServerConfig.class);
+	}
+
+	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
+	@Transactional(readOnly = true)
+	public SecurityConfig security(String origin) {
+		return getTemplate("_config/security", origin, SecurityConfig.class)
+			.wrap(props);
 	}
 
 	@Cacheable("schemas-cache")

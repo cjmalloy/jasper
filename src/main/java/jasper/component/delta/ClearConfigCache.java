@@ -2,7 +2,6 @@ package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.config.Config.ServerConfig;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -13,6 +12,8 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
+import static net.logstash.logback.util.StringUtils.isBlank;
+
 @Component
 public class ClearConfigCache {
 
@@ -22,14 +23,11 @@ public class ClearConfigCache {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
-
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
-		if (root().getCacheTags().contains((String) message.getHeaders().get("tag"))) {
+		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
+		if (configs.root().getCacheTags().contains((String) message.getHeaders().get("tag"))) {
 			configs.clearConfigCache();
 		}
 	}
@@ -37,24 +35,21 @@ public class ClearConfigCache {
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
-			configs.clearUserCache();
-		}
+		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
+		configs.clearUserCache();
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
-		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
-			configs.clearConfigCache();
-		}
+		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
+		configs.clearConfigCache();
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (props.getSecurity().hasClient((String) message.getHeaders().get("origin"))) {
-			configs.clearConfigCache();
-		}
+		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
+		configs.clearConfigCache();
 	}
 }

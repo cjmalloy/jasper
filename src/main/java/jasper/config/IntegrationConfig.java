@@ -12,6 +12,16 @@ import org.springframework.messaging.MessageChannel;
 public class IntegrationConfig {
 
 	@Bean
+	public MessageChannel cursorTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel cursorRxChannel() {
+		return new PublishSubscribeChannel();
+	}
+
+	@Bean
 	public MessageChannel refTxChannel() {
 		return new DirectChannel();
 	}
@@ -48,6 +58,16 @@ public class IntegrationConfig {
 
 	@Bean
 	public MessageChannel userRxChannel() {
+		return new PublishSubscribeChannel();
+	}
+
+	@Bean
+	public MessageChannel extTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel extRxChannel() {
 		return new PublishSubscribeChannel();
 	}
 

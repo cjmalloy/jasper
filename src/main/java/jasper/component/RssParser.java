@@ -16,7 +16,6 @@ import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Audio;
-import jasper.config.Config.ServerConfig;
 import jasper.plugin.Embed;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
@@ -73,13 +72,9 @@ public class RssParser {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
-
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
-		var root = root();
+		var root = configs.root();
 		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin()))) {
 			logger.debug("Scrape origins: {}", root.getScrapeOrigins());
 			throw new OperationForbiddenOnOriginException(feed.getOrigin());

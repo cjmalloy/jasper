@@ -18,7 +18,6 @@ import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
@@ -60,13 +59,9 @@ public class Validate {
 	@Autowired
 	ConfigCache configs;
 
-	ServerConfig root() {
-		return configs.getTemplate("_config/server", "",  ServerConfig.class);
-	}
-
 	@Timed("jasper.validate.ref")
 	public void ref(Ref ref, boolean force) {
-		var root = root();
+		var root = configs.root();
 		try {
 			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
 			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
