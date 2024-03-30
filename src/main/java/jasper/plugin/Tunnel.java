@@ -11,5 +11,5 @@ import lombok.Setter;
 public class Tunnel {
 	private String remoteUser;
 	private String sshHost;
-	private int sshPort = 22;
+	private int sshPort = 8022;
 }
