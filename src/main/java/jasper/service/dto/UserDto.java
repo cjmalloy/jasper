@@ -23,4 +23,5 @@ public class UserDto implements Tag, Serializable {
 	private List<String> tagWriteAccess;
 	private Instant modified;
 	private byte[] pubKey;
+	private String authorizedKeys;
 }

@@ -49,7 +49,7 @@ public class User implements Tag {
 	public static final String QTAG_REGEX = REGEX + HasOrigin.REGEX;
 	public static final int NAME_LEN = 512;
 	public static final int ROLE_LEN = 32;
-	public static final int PUB_KEY_LEN = 4096;
+	public static final int AUTHORIZED_KEYS_LEN = 65000;
 
 	/**
 	 * Valid roles for the User entities.
@@ -105,8 +105,10 @@ public class User implements Tag {
 
 	private byte[] key;
 
-	@Size(max = PUB_KEY_LEN)
 	private byte[] pubKey;
+
+	@Size(max = AUTHORIZED_KEYS_LEN)
+	private String authorizedKeys;
 
 	@JsonIgnore
 	public String getQualifiedTag() {
