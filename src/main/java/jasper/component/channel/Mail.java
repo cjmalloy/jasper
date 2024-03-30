@@ -5,7 +5,7 @@ import jasper.component.ConfigCache;
 import jasper.component.delta.Async;
 import jasper.domain.Ref;
 import jasper.domain.proj.RefUrl;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.repository.ExtRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.TagQuery;
@@ -52,8 +52,8 @@ public class Mail implements Async.AsyncRunner {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@PostConstruct

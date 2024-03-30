@@ -2,7 +2,7 @@ package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -22,8 +22,8 @@ public class ClearConfigCache {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)

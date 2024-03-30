@@ -2,7 +2,7 @@ package jasper.component.scheduler;
 
 import jasper.component.ConfigCache;
 import jasper.component.Remotes;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +25,8 @@ public class PullSchedule {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@Scheduled(

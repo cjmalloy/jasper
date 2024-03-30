@@ -7,7 +7,7 @@ import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.OperationForbiddenOnOriginException;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.plugin.Origin;
 import jasper.plugin.Pull;
 import jasper.plugin.Push;
@@ -75,8 +75,8 @@ public class Replicator {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@Timed(value = "jasper.pull", histogram = true)

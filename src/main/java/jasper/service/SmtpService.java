@@ -4,7 +4,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -49,8 +49,8 @@ public class SmtpService {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@PreAuthorize("@auth.hasRole('USER')")

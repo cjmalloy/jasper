@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Template;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -50,7 +50,7 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config", "").isEmpty()) {
+		if (templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
 			ingest.push(config());
 		}
 	}
@@ -140,9 +140,9 @@ public class ConfigCache {
 	}
 
 	private Template config() {
-		var config = objectMapper.convertValue(objectMapper.createObjectNode(), Config.class);
+		var config = objectMapper.convertValue(objectMapper.createObjectNode(),  ServerConfig.class);
 		var template = new Template();
-		template.setTag("_config");
+		template.setTag("_config/server");
 		template.setName("Server Config");
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
 		return template;

@@ -9,11 +9,11 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Validate;
+import jasper.config.Config.ServerConfig;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Config;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -63,8 +63,8 @@ public class RefService {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "", ServerConfig.class);
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")

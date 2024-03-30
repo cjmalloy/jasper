@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.plugin.Config;
+import jasper.config.Config.ServerConfig;
 import jasper.repository.UserRepository;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -32,8 +32,8 @@ public class TunnelServer {
 	@Autowired
 	ConfigCache configs;
 
-	Config root() {
-		return configs.getTemplate("_config", "", Config.class);
+	ServerConfig root() {
+		return configs.getTemplate("_config/server", "",  ServerConfig.class);
 	}
 
 	@ServiceActivator(inputChannel = "userRxChannel")
@@ -43,7 +43,7 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (isBlank((String) message.getHeaders().get("origin")) && message.getPayload().getTag().equals("_config")) {
+		if (isBlank((String) message.getHeaders().get("origin")) && message.getPayload().getTag().equals("_config/server")) {
 			generateConfig();
 		}
 	}
