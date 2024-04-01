@@ -3,13 +3,15 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.component.dto.ComponentDtoMapper;
-import jasper.config.Config.*;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.domain.Template;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
+import jasper.repository.filter.RefFilter;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -59,16 +61,7 @@ public class ConfigCache {
 		}
 	}
 
-	@CacheEvict(value = {
-		"config-cache",
-		"plugin-cache",
-		"metadata-cache",
-		"all-plugins-cache",
-		"template-cache",
-		"schemas-cache",
-		"all-templates-cache",
-	},
-		allEntries = true)
+	@CacheEvict(value = "config-cache", allEntries = true)
 	public void clearConfigCache() {
 		logger.info("Cleared config cache.");
 	}
@@ -76,6 +69,27 @@ public class ConfigCache {
 	@CacheEvict(value = "user-cache", allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
+	}
+
+	@CacheEvict(value = {
+		"plugin-cache",
+		"metadata-cache",
+		"all-plugins-cache",
+	},
+		allEntries = true)
+	public void clearPluginCache() {
+		logger.info("Cleared plugin cache.");
+	}
+
+	@CacheEvict(value = {
+		"template-cache",
+		"template-cache-wrapped",
+		"schemas-cache",
+		"all-templates-cache",
+	},
+		allEntries = true)
+	public void clearTemplateCache() {
+		logger.info("Cleared template cache.");
 	}
 
 	@Cacheable("user-cache")
@@ -92,6 +106,17 @@ public class ConfigCache {
 		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.map(r -> r.getPlugin(tag, toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
+	}
+
+	@Cacheable(value = "config-cache", key = "#tag + #origin")
+	@Transactional(readOnly = true)
+	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
+		return refRepository.findAll(
+				RefFilter.builder()
+					.origin(origin)
+					.query(tag).build().spec()).stream()
+			.map(r -> r.getPlugin(tag, toValueType))
+			.toList();
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")

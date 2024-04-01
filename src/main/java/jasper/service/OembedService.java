@@ -6,9 +6,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.component.OembedProviders;
 import jasper.config.Props;
-import jasper.plugin.Oembed;
 import jasper.repository.RefRepository;
-import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @Service
 public class OembedService {
@@ -45,12 +42,12 @@ public class OembedService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Cacheable("config-cache")
+	@Cacheable("oembed-cache")
 	@Transactional(readOnly = true)
 	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
-		var config = getProvider(auth.getOrigin(), params.get("url"));
+		var config = oembedProviders.getProvider(auth.getOrigin(), params.get("url"));
 		if (config == null) return null;
 		params.put("format", "json");
 		try {
@@ -64,32 +61,5 @@ public class OembedService {
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public void restoreDefaults() throws IOException {
 		oembedProviders.defaults(auth.getOrigin());
-	}
-
-	@Cacheable("config-cache")
-	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.hasRole('VIEWER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
-	public Oembed.Endpoints getProvider(String origin, String url) {
-		var providers = refRepository.findAll(
-				auth.refReadSpec().and(RefFilter.builder()
-					.origin(origin)
-					.query("+plugin/oembed").build().spec())).stream()
-			.map(r -> r.getPlugin("+plugin/oembed", Oembed.class))
-			.toList();
-		for (var p : providers) {
-			if (p == null) continue;
-			for (var e : p.getEndpoints()) {
-				if (e.getSchemes() == null || e.getSchemes().isEmpty()) {
-					if (url.startsWith(p.getProvider_url())) return e;
-					continue;
-				}
-				for (var s : e.getSchemes()) {
-					var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
-					if (url.matches(regex)) return e;
-				}
-			}
-		}
-		return null;
 	}
 }

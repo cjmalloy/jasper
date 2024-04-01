@@ -43,13 +43,13 @@ public class ClearConfigCache {
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
 		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
-		configs.clearConfigCache();
+		configs.clearPluginCache();
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
-		configs.clearConfigCache();
+		configs.clearTemplateCache();
 	}
 }

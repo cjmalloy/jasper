@@ -29,7 +29,6 @@ import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +64,9 @@ public class WebScraper {
 
 	@Autowired
 	HostCheck hostCheck;
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
 	RefRepository refRepository;
@@ -390,29 +392,15 @@ public class WebScraper {
 	@Transactional(readOnly = true)
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public Scrape getConfig(String url, String origin) {
-		var configs = refRepository.findAll(
-				RefFilter.builder()
-					.origin(origin)
-					.query("+plugin/scrape").build().spec()).stream()
-			.map(r -> r.getPlugin("+plugin/scrape", Scrape.class))
-			.toList();
-		for (var c : configs) {
+		var providers = configs.getAllConfigs(origin, "+plugin/scrape", Scrape.class);
+		for (var c : providers) {
 			if (c.getSchemes() == null) continue;
 			for (var s : c.getSchemes()) {
 				var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
 				if (url.matches(regex)) return c;
 			}
 		}
-		return null;
-	}
-
-	@Cacheable("config-cache")
-	@Transactional(readOnly = true)
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Scrape getDefaultConfig(String origin) {
-		return refRepository.findOneByUrlAndOrigin("config:scrape-catchall", origin)
-			.map(r -> r.getPlugin("+plugin/scrape", Scrape.class))
-			.orElse(null);
+		return configs.getConfig("config:scrape-catchall", origin, "+plugin/scrape", Scrape.class);
 	}
 
 	private void addWeakThumbnail(Ref ref, String url) {

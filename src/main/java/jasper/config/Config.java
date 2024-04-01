@@ -32,7 +32,7 @@ public interface Config {
 		/**
 		 * Tags for config Refs to be cached.
 		 */
-		private List<String> cacheTags = List.of("_config/server", "_config/security", "+plugin/scrape", "+plugin/oembed");
+		private List<String> cacheTags = List.of("+plugin/scrape", "+plugin/oembed");
 		/**
 		 * Whitelist origins to be allowed web access.
 		 */
