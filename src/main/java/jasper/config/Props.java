@@ -10,7 +10,6 @@ import tech.jhipster.config.JHipsterDefaults;
 
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -57,16 +56,11 @@ public class Props {
 	private String sshConfigMapName = "ssh-authorized-keys";
 
 	private final Overrides override = new Overrides();
-	private final Async async = new Async();
 	private final Http http = new Http();
-	private final Database database = new Database();
-	private final Cache cache = new Cache();
 	private final Mail mail = new Mail();
 	private final Security security = new Security();
 	private final ApiDocs apiDocs = new ApiDocs();
-	private final Logging logging = new Logging();
 	private final CorsConfiguration cors = new CorsConfiguration();
-	private final Gateway gateway = new Gateway();
 	private final AuditEvents auditEvents = new AuditEvents();
 
 	@Getter
@@ -98,13 +92,6 @@ public class Props {
 		}
 	}
 
-	@Getter
-	@Setter
-	public static class Async {
-		private int corePoolSize = JHipsterDefaults.Async.corePoolSize;
-		private int maxPoolSize = JHipsterDefaults.Async.maxPoolSize;
-		private int queueCapacity = JHipsterDefaults.Async.queueCapacity;
-	}
 
 	@Getter
 	@Setter
@@ -117,117 +104,6 @@ public class Props {
 			private int timeToLiveInDays = JHipsterDefaults.Http.Cache.timeToLiveInDays;
 		}
 	}
-
-	@Getter
-	@Setter
-	public static class Database {
-		private final Couchbase couchbase = new Couchbase();
-
-		@Getter
-		@Setter
-		public static class Couchbase {
-			private String bucketName;
-			private String scopeName;
-		}
-	}
-
-	@Getter
-	@Setter
-	public static class Cache {
-		private final Hazelcast hazelcast = new Hazelcast();
-		private final Caffeine caffeine = new Caffeine();
-		private final Ehcache ehcache = new Ehcache();
-		private final Infinispan infinispan = new Infinispan();
-		private final Memcached memcached = new Memcached();
-		private final Redis redis = new Redis();
-
-		@Getter
-		@Setter
-		public static class Hazelcast {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Hazelcast.timeToLiveSeconds;
-			private int backupCount = JHipsterDefaults.Cache.Hazelcast.backupCount;
-		}
-
-		@Getter
-		@Setter
-		public static class Caffeine {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Caffeine.timeToLiveSeconds;
-			private long maxEntries = JHipsterDefaults.Cache.Caffeine.maxEntries;
-		}
-
-		@Getter
-		@Setter
-		public static class Ehcache {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Ehcache.timeToLiveSeconds;
-			private long maxEntries = JHipsterDefaults.Cache.Ehcache.maxEntries;
-		}
-
-		@Getter
-		@Setter
-		public static class Infinispan {
-			private String configFile = JHipsterDefaults.Cache.Infinispan.configFile;
-			private boolean statsEnabled = JHipsterDefaults.Cache.Infinispan.statsEnabled;
-			private final Local local = new Local();
-			private final Distributed distributed = new Distributed();
-			private final Replicated replicated = new Replicated();
-
-			@Getter
-			@Setter
-			public static class Local {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Local.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Local.maxEntries;
-			}
-
-			@Getter
-			@Setter
-			public static class Distributed {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Distributed.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Distributed.maxEntries;
-				private int instanceCount = JHipsterDefaults.Cache.Infinispan.Distributed.instanceCount;
-			}
-
-			@Getter
-			@Setter
-			public static class Replicated {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Replicated.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Replicated.maxEntries;
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class Memcached {
-			private boolean enabled = JHipsterDefaults.Cache.Memcached.enabled;
-			/**
-			 * Comma or whitespace separated list of servers' addresses.
-			 */
-			private String servers = JHipsterDefaults.Cache.Memcached.servers;
-			private int expiration = JHipsterDefaults.Cache.Memcached.expiration;
-			private boolean useBinaryProtocol = JHipsterDefaults.Cache.Memcached.useBinaryProtocol;
-			private Authentication authentication = new Authentication();
-
-			@Getter
-			@Setter
-			public static class Authentication {
-				private boolean enabled = JHipsterDefaults.Cache.Memcached.Authentication.enabled;
-				private String username;
-				private String password;
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class Redis {
-			private String[] server = JHipsterDefaults.Cache.Redis.server;
-			private int expiration = JHipsterDefaults.Cache.Redis.expiration;
-			private boolean cluster = JHipsterDefaults.Cache.Redis.cluster;
-			private int connectionPoolSize = JHipsterDefaults.Cache.Redis.connectionPoolSize;
-			private int connectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.connectionMinimumIdleSize;
-			private int subscriptionConnectionPoolSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionPoolSize;
-			private int subscriptionConnectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionMinimumIdleSize;
-		}
-	}
-
 	@Getter
 	@Setter
 	public static class Mail {
@@ -256,37 +132,6 @@ public class Props {
 		private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
 		private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
 		private List<Server> servers;
-	}
-
-	@Getter
-	@Setter
-	public static class Logging {
-		private boolean useJsonFormat = JHipsterDefaults.Logging.useJsonFormat;
-		private final Logstash logstash = new Logstash();
-
-		@Getter
-		@Setter
-		public static class Logstash {
-			private boolean enabled = JHipsterDefaults.Logging.Logstash.enabled;
-			private String host = JHipsterDefaults.Logging.Logstash.host;
-			private int port = JHipsterDefaults.Logging.Logstash.port;
-			private int queueSize = JHipsterDefaults.Logging.Logstash.queueSize;
-		}
-	}
-
-	@Getter
-	@Setter
-	public static class Gateway {
-		private final RateLimiting rateLimiting = new RateLimiting();
-		private Map<String, List<String>> authorizedMicroservicesEndpoints = JHipsterDefaults.Gateway.authorizedMicroservicesEndpoints;
-
-		@Getter
-		@Setter
-		public static class RateLimiting {
-			private boolean enabled = JHipsterDefaults.Gateway.RateLimiting.enabled;
-			private long limit = JHipsterDefaults.Gateway.RateLimiting.limit;
-			private int durationInSeconds = JHipsterDefaults.Gateway.RateLimiting.durationInSeconds;
-		}
 	}
 
 	@Getter

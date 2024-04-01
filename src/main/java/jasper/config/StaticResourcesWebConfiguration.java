@@ -49,10 +49,6 @@ public class StaticResourcesWebConfiguration implements WebMvcConfigurer {
     }
 
     protected CacheControl getCacheControl() {
-        return CacheControl.maxAge(getJHipsterHttpCacheProperty(), TimeUnit.DAYS).cachePublic();
-    }
-
-    private int getJHipsterHttpCacheProperty() {
-        return props.getHttp().getCache().getTimeToLiveInDays();
+        return CacheControl.maxAge(props.getHttp().getCache().getTimeToLiveInDays(), TimeUnit.DAYS).cachePublic();
     }
 }

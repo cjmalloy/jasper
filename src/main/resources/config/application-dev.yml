@@ -92,11 +92,5 @@ jasper:
     exposed-headers: "Authorization,Link,X-Total-Count"
     allow-credentials: true
     max-age: 1800
-  logging:
-    use-json-format: false # By default, logs are not in Json format
-    logstash: # Forward logs to logstash over a socket, used by LoggingConfiguration
-      enabled: false
-      host: localhost
-      port: 5000
-      queue-size: 512
+
 
