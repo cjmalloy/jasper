@@ -41,8 +41,6 @@ management:
             'health',
             'info',
             'jhimetrics',
-            'jhiopenapigroups',
-            'logfile',
             'loggers',
             'prometheus',
             'threaddump',
