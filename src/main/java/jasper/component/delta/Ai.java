@@ -36,6 +36,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -272,6 +273,7 @@ public class Ai implements Async.AsyncRunner {
 			}
 		}
 		for (var aiReply : refArray) {
+			aiReply.setPublished(Instant.now());
 			ingest.create(aiReply, true);
 			logger.debug("AI reply sent ({})", aiReply.getUrl());
 		}
