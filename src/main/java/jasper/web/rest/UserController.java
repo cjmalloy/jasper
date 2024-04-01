@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.component.HttpCache;
 import jasper.domain.User;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -78,7 +80,12 @@ public class UserController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
-		return httpCache.ifNotModified(request, userService.get(tag));
+		try {
+			return httpCache.ifNotModified(request, userService.get(tag));
+		} catch (NotFoundException e) {
+			// Catch to avoid error logging
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@ApiResponses({

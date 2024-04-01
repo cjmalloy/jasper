@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jasper.component.HttpCache;
 import jasper.domain.Ext;
 import jasper.domain.proj.Tag;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import jasper.service.dto.ExtDto;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,7 +82,12 @@ public class ExtController {
 		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
-		return httpCache.ifNotModified(request, extService.get(tag));
+		try {
+			return httpCache.ifNotModified(request, extService.get(tag));
+		} catch (NotFoundException e) {
+			// Catch to avoid error logging
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@ApiResponses({
