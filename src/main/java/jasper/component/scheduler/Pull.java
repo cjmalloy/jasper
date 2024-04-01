@@ -33,7 +33,7 @@ public class Pull {
 			for (var i = 0; i < root.getScrapeBatchSize(); i++) {
 				if (!remotes.pull(origin)) {
 					logger.info("All {} remotes pulled.", formatOrigin(origin));
-					return;
+					break;
 				}
 			}
 			logger.info("Finished pulling {} remotes.", formatOrigin(origin));

@@ -46,7 +46,7 @@ public class FeedScraper {
 			for (var i = 0; i < root.getScrapeBatchSize(); i++) {
 				if (!scrapeOrigin(origin)) {
 					logger.info("All {} RSS feeds up to date.", formatOrigin(origin));
-					return;
+					break;
 				}
 			}
 			logger.info("Finished scraping {} RSS feeds.", formatOrigin(origin));
