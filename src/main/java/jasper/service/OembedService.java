@@ -42,7 +42,7 @@ public class OembedService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Cacheable("oembed-cache")
+	@Cacheable(value = "oembed-cache", key = "#params.get('theme') + '-' + #params.get('maxwidth') + '-' + #params.get('maxheight') + '-' + #params.get('url')")
 	@Transactional(readOnly = true)
 	@PreAuthorize( "@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
