@@ -152,13 +152,4 @@ public class ScrapeController {
 	void clearDeleted() {
 		scrapeService.clearDeleted();
 	}
-
-	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
-	})
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	@PostMapping("clear-config-cache")
-	void clearConfigCache() {
-		scrapeService.clearCache();
-	}
 }

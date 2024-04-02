@@ -3,10 +3,8 @@ package jasper.component;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.Oembed;
-import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 
@@ -25,13 +24,10 @@ public class OembedProviders {
 	private static final Logger logger = LoggerFactory.getLogger(OembedProviders.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	Ingest ingest;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	ConfigCache configs;
 
 	@Value("classpath:providers.json")
 	Resource defaultProviders;
@@ -45,7 +41,6 @@ public class OembedProviders {
 
 	public void create(String origin, List<Oembed> providers) {
 		logger.info("Restoring default oEmbed providers... (\"{}\")", formatOrigin(origin));
-		var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 		for (var p : providers) {
 			var ref = new Ref();
 			ref.setUrl(p.getProvider_url());
@@ -55,8 +50,26 @@ public class OembedProviders {
 			plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
 			ref.setPlugins(plugins);
 			ref.setOrigin(origin);
-			ingest.push(ref, metadataPlugins);
+			ingest.push(ref, null);
 		}
 		logger.info("Done restoring default oEmbed providers.");
+	}
+
+	public Oembed.Endpoints getProvider(String origin, String url) {
+		var providers = configs.getAllConfigs(origin, "+plugin/oembed", Oembed.class);
+		for (var p : providers) {
+			if (p == null) continue;
+			for (var e : p.getEndpoints()) {
+				if (e.getSchemes() == null || e.getSchemes().isEmpty()) {
+					if (url.startsWith(p.getProvider_url())) return e;
+					continue;
+				}
+				for (var s : e.getSchemes()) {
+					var regex = Pattern.quote(s).replace("*", "\\E.*\\Q");
+					if (url.matches(regex)) return e;
+				}
+			}
+		}
+		return null;
 	}
 }

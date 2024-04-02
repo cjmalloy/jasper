@@ -34,17 +34,17 @@ public class AccessToken {
 
 	private URI baseUri() {
 		try {
-			return new URI(auth.getClient().getAuthentication().getJwt().getTokenEndpoint());
+			return new URI(auth.security().getTokenEndpoint());
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
 	private String getSecret() {
-		return props.getSecurity().getClient(props.getLocalOrigin()).getAuthentication().getJwt().getSecret();
+		return auth.security().getSecret();
 	}
 
 	private String getClientId() {
-		return props.getSecurity().getClient(props.getLocalOrigin()).getAuthentication().getJwt().getClientId();
+		return auth.security().getClientId();
 	}
 }

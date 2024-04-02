@@ -2,19 +2,18 @@ package jasper.component.delta;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -29,25 +28,26 @@ public class TunnelServer {
 	@Autowired
 	UserRepository userRepository;
 
-	Map<String, Instant> lastModified = new HashMap<>();
+	@Autowired
+	ConfigCache configs;
 
-	@Scheduled(
-		fixedRateString = "${jasper.async-interval-sec}",
-		initialDelayString = "${jasper.async-delay-sec}",
-		timeUnit = TimeUnit.SECONDS)
-	public void generateConfig() {
-		var changed = false;
-		var result = new StringBuilder();
-		for (var origin : props.getSshOrigins()) {
-			var cursor = userRepository.getCursor(origin);
-			if (cursor != null) {
-				changed |= !lastModified.containsKey(origin) || lastModified.get(origin).isBefore(cursor);
-				lastModified.put(origin, cursor);
-			}
+	@ServiceActivator(inputChannel = "userRxChannel")
+	public void handleUserUpdate(Message<UserDto> message) {
+		generateConfig();
+	}
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		if (isBlank((String) message.getHeaders().get("origin")) && message.getPayload().getTag().equals("_config/server")) {
+			generateConfig();
 		}
-		if (!changed) return;
+	}
+
+	public void generateConfig() {
 		logger.info("Generating new authorized_keys");
-		for (var origin : props.getSshOrigins()) {
+		var root = configs.root();
+		var result = new StringBuilder();
+		for (var origin : root.getSshOrigins()) {
 			result
 				.append("\n# ")
 				.append(isBlank(origin) ? "default" : origin)

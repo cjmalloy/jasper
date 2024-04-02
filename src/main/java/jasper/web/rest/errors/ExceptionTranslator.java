@@ -1,7 +1,6 @@
 package jasper.web.rest.errors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessException;
@@ -44,9 +43,6 @@ public class ExceptionTranslator implements ProblemHandling, SecurityAdviceTrait
     private static final String MESSAGE_KEY = "message";
     private static final String PATH_KEY = "path";
     private static final String VIOLATIONS_KEY = "violations";
-
-    @Value("${jasper.clientApp.name}")
-    private String applicationName;
 
     private final Environment env;
 
@@ -121,7 +117,7 @@ public class ExceptionTranslator implements ProblemHandling, SecurityAdviceTrait
         return create(
             ex,
             request,
-            HeaderUtil.createFailureAlert(applicationName, true, ex.getEntityName(), ex.getErrorKey(), ex.getMessage())
+            HeaderUtil.createFailureAlert("jasper", true, ex.getEntityName(), ex.getErrorKey(), ex.getMessage())
         );
     }
 

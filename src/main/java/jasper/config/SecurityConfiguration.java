@@ -1,6 +1,9 @@
 package jasper.config;
 
-import jasper.security.jwt.*;
+import jasper.component.ConfigCache;
+import jasper.security.jwt.JWTConfigurer;
+import jasper.security.jwt.TokenProvider;
+import jasper.security.jwt.TokenProviderImplDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +37,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -43,6 +47,9 @@ public class SecurityConfiguration {
 
 	@Autowired
     Props props;
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
     SecurityProblemSupport problemSupport;
@@ -58,7 +65,7 @@ public class SecurityConfiguration {
 
 	@PostConstruct
 	void init() {
-		var unsafeSecret = profile("dev") && profile("jwt");
+		var unsafeSecret = profile("dev") && isNotBlank(props.getOverride().getSecurity().getSecret());
 		if (!props.isDebug()) props.setDebug(unsafeSecret);
 		if (props.isDebug()) {
 			logger.error("==================================================");
@@ -120,7 +127,7 @@ public class SecurityConfiguration {
 	@Bean
 	JWTConfigurer securityConfigurerAdapter() {
 		logger.info("Minimum Role: {}", props.getMinRole());
-		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider);
+		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider, configs);
 	}
 
 	@Bean

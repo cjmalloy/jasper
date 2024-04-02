@@ -41,7 +41,6 @@
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>4.5.14</apache-httpclient.version>
 		<commons-io.version>2.15.1</commons-io.version>
-		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.17.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<openai-gpt.version>0.18.2</openai-gpt.version>
@@ -78,6 +77,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.liquibase</groupId>
@@ -133,11 +136,6 @@
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.vavr</groupId>
-			<artifactId>vavr</artifactId>
-			<version>${varv.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openapitools</groupId>
@@ -330,6 +328,18 @@
 			<artifactId>spring-security-data</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-integration</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.integration</groupId>
+			<artifactId>spring-integration-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-registry-prometheus</artifactId>
 		</dependency>
@@ -351,6 +361,11 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.integration</groupId>
+			<artifactId>spring-integration-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

@@ -9,7 +9,6 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -37,9 +36,6 @@ public class Ingest {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	PluginRepository pluginRepository;
 
 	@Autowired
 	EntityManager em;

@@ -4,14 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
 import jasper.component.OpenAi.AiConfig;
-import jasper.component.scheduler.Async;
 import jasper.domain.Ref;
 import jasper.domain.User;
-import jasper.errors.NotFoundException;
-import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +37,7 @@ public class Summary implements Async.AsyncRunner {
 	OpenAi openAi;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	ConfigCache configs;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -58,9 +56,7 @@ public class Summary implements Async.AsyncRunner {
 	public void run(Ref ref) {
 		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var summaryPlugin = pluginRepository.findByTagAndOrigin("+plugin/summary", ref.getOrigin())
-			.orElseThrow(() -> new NotFoundException("+plugin/summary"));
-		var config = objectMapper.convertValue(summaryPlugin.getConfig(), SummaryConfig.class);
+		var config = configs.getPluginConfig("+plugin/summary", ref.getOrigin(), SummaryConfig.class);
 		var response = new Ref();
 		try {
 			var res = openAi.chatCompletion(String.join("\n\n",

@@ -40,6 +40,9 @@ public class IngestPlugin {
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
@@ -53,11 +56,13 @@ public class IngestPlugin {
 			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
 		}
 		ensureCreateUniqueModified(plugin);
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
 		ensureUpdateUniqueModified(plugin);
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
@@ -70,6 +75,7 @@ public class IngestPlugin {
 		if (isDeletorTag(plugin.getTag())) {
 			delete(deletedTag(plugin.getTag()) + plugin.getOrigin());
 		}
+		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)

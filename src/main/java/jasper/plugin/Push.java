@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -12,7 +13,7 @@ import java.time.Instant;
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Push {
+public class Push implements Serializable {
 	private String query;
 	private Duration pushInterval;
 	private Instant lastPush;

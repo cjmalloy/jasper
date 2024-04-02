@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.List;
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Feed {
+public class Feed implements Serializable {
 	private List<String> addTags;
 	private Instant lastScrape;
 	private boolean disableEtag;

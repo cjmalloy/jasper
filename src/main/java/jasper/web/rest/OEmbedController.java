@@ -47,14 +47,5 @@ public class OEmbedController {
 	@PostMapping("defaults")
 	void defaults() throws IOException {
 		oembedService.restoreDefaults();
-		oembedService.clearCache();
-	}
-
-	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
-	})
-	@PostMapping("clear-cache")
-	void clearCache() {
-		oembedService.clearCache();
 	}
 }

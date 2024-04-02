@@ -1,5 +1,6 @@
 package jasper.config;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
@@ -20,6 +21,15 @@ public class JacksonConfiguration {
 		assert om != null;
 		return om;
 	}
+
+	public static String dump(Object any) {
+        try {
+            return om().writeValueAsString(any);
+        } catch (JsonProcessingException e) {
+			e.printStackTrace();
+            return "{error}" + any.getClass().getName();
+        }
+    }
 
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {

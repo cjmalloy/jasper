@@ -40,6 +40,9 @@ public class IngestTemplate {
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
@@ -53,11 +56,13 @@ public class IngestTemplate {
 			delete(deletorTag(template.getTag()) + template.getOrigin());
 		}
 		ensureCreateUniqueModified(template);
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
 		ensureUpdateUniqueModified(template);
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
@@ -70,6 +75,7 @@ public class IngestTemplate {
 		if (isDeletorTag(template.getTag())) {
 			delete(deletedTag(template.getTag()) + template.getOrigin());
 		}
+		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)

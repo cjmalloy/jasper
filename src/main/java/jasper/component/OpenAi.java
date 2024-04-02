@@ -14,7 +14,6 @@ import com.theokanning.openai.service.OpenAiService;
 import jasper.client.dto.RefDto;
 import jasper.config.Props;
 import jasper.errors.NotFoundException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import okhttp3.MediaType;
 import org.slf4j.Logger;
@@ -23,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
 
@@ -42,11 +42,7 @@ public class OpenAi {
 	RefRepository refRepository;
 
 	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
 	ObjectMapper objectMapper;
-
 
 	public CompletionResult completion(String systemPrompt, String prompt) {
 		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
@@ -169,7 +165,7 @@ public class OpenAi {
 		}
 	}
 
-	public static class AiConfig {
+	public static class AiConfig implements Serializable {
 		public String model = "gpt-4-turbo-preview";
 		public List<String> fallback;
 		public int maxTokens = 4096;
@@ -177,7 +173,7 @@ public class OpenAi {
 		public String systemPrompt;
 	}
 
-	public static class DalleConfig {
+	public static class DalleConfig implements Serializable {
 		public String size = "1024x1024";
 		public String model = "dall-e-3";
 		public String quality = "hd";

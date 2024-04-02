@@ -1,17 +1,23 @@
-package jasper.component;
+package jasper.component.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
+import jasper.component.ConfigCache;
+import jasper.component.RssParser;
 import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
+
+import static jasper.domain.proj.HasOrigin.formatOrigin;
 
 @Component
 public class FeedScraper {
@@ -25,6 +31,27 @@ public class FeedScraper {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	ConfigCache configs;
+
+	@Scheduled(
+		fixedRateString = "${jasper.scrape-interval-min}",
+		initialDelayString = "${jasper.scrape-delay-min}",
+		timeUnit = TimeUnit.MINUTES)
+	public void scheduleScrape() {
+		var root = configs.root();
+		for (var origin : root.getScrapeOrigins()) {
+			logger.info("Scraping {} {} RSS feeds", root.getScrapeBatchSize(), formatOrigin(origin));
+			for (var i = 0; i < root.getScrapeBatchSize(); i++) {
+				if (!scrapeOrigin(origin)) {
+					logger.info("All {} RSS feeds up to date.", formatOrigin(origin));
+					break;
+				}
+			}
+			logger.info("Finished scraping {} RSS feeds.", formatOrigin(origin));
+		}
+	}
 
 	/**
 	 * Scrape a feed.

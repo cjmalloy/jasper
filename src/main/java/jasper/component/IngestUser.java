@@ -42,6 +42,9 @@ public class IngestUser {
 	EntityManager em;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@Autowired
@@ -58,11 +61,13 @@ public class IngestUser {
 			delete(deletorTag(user.getTag()) + user.getOrigin());
 		}
 		ensureCreateUniqueModified(user);
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
 		ensureUpdateUniqueModified(user);
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)
@@ -75,6 +80,7 @@ public class IngestUser {
 		if (isDeletorTag(user.getTag())) {
 			delete(deletedTag(user.getTag()) + user.getOrigin());
 		}
+		messages.updateUser(user);
 	}
 
 	@Timed(value = "jasper.user", histogram = true)

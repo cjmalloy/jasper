@@ -2,8 +2,9 @@ package jasper.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
+import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
-import jasper.config.Props.Security.Client;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -11,10 +12,10 @@ import jasper.domain.proj.HasTags;
 import jasper.domain.proj.Tag;
 import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
-import jasper.repository.UserRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
 import jasper.security.jwt.JwtAuthentication;
+import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -58,6 +60,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
@@ -73,33 +76,47 @@ import static org.springframework.data.jpa.domain.Specification.where;
  *
  * These criteria may be sourced in three cascading steps:
  * 1. Application properties (set by command line, environment variables, or default value)
- * 2. JWT token claims
- * 3. Request headers
+ * 2. {@link SecurityConfig}
+ * 3. JWT token claims
+ * 4. Request headers
  *
- * The local origin is set by headers with the highest precedence, then JWT and
- * finally application properties.
+ * The local origin is set by headers with the highest precedence, then JWT, then
+ * installed configs and finally application properties.
  * Roles and access tags merge to be the more elevated role.
  *
  * The application properties that can be configured are:
  * 1. localOrigin (""): set the local origin
+ * 2. minRole ("ROLE_ANONYMOUS"): set the minimum role
+ * 3. defaultRole ("ROLE_ANONYMOUS"): set the default role
+ * 4. defaultReadAccess ([]): set the default read access tags
+ * 5. defaultWriteAccess ([]): set the default write access tags
+ * 6. defaultTagReadAccess ([]): set the default tag read access tags
+ * 7. defaultTagWriteAccess ([]): set the default tag write access tags
+ * 8. allowLocalOriginHeader (false): enable setting the local origin in the header
+ * 9. allowUserTagHeader (false): enable setting the user tag in the header
+ * 10. allowUserRoleHeader (false): enable setting the user role in the header
+ * 11. allowAuthHeaders (false): enable setting the user access tags in the header
+ *
+ * The {@link SecurityConfig} fields that can be configured are:
+ * 1. minRole ("ROLE_ANONYMOUS"): set the minimum role
  * 2. defaultRole ("ROLE_ANONYMOUS"): set the default role
- * 3. defaultReadAccess ([]): set the default read access tags
- * 4. defaultWriteAccess ([]): set the default write access tags
- * 5. defaultTagReadAccess ([]): set the default tag read access tags
- * 6. defaultTagWriteAccess ([]): set the default tag write access tags
- * 7. usernameClaim ("sub"): the JWT claim to use as a username
- * 8. allowUsernameClaimOrigin (false): allow the JWT username claim to set the local origin
- * 9. authoritiesClaim ("auth"): the JWT claim to use as a role
- * 10. readAccessClaim ("readAccess"): the JWT claim to use as read access tags
- * 11. readAccessClaim ("writeAccess"): the JWT claim to use as write access tags
- * 12. tagReadAccessClaim ("tagReadAccess"): the JWT claim to use as tag read access tags
- * 13. tagWriteAccessClaim ("tagWriteAccess"): the JWT claim to use as tag write access tags
- * 14. allowLocalOriginHeader (false): enable setting the local origin in the header
- * 15. allowAuthHeaders (false): enable setting the user access tags in the header
+ * 3. defaultUser (""): set the default user if logged out
+ * 4. defaultReadAccess ([]): set the default read access tags
+ * 5. defaultWriteAccess ([]): set the default write access tags
+ * 6. defaultTagReadAccess ([]): set the default tag read access tags
+ * 7. defaultTagWriteAccess ([]): set the default tag write access tags
+ *
+ * As well {@link SecurityConfig} has other fields for setting the token
+ * claim names.
+ * When merging values between application properties and
+ * {@link SecurityConfig}, the effect is additive. So for minRole, the
+ * effective min role is the lower of the two. For defaultRole, both
+ * roles are added, so effectively the larger of the two. For all the default
+ * access fields, the tags are all combined.
  *
  * The following headers are checked if enabled:
- * 1. User-Tag
- * 2. Local-Origin
+ * 1. Local-Origin
+ * 2. User-Tag
  * 3. User-Role
  * 4. Write-Access
  * 5. Read-Access
@@ -107,6 +124,7 @@ import static org.springframework.data.jpa.domain.Specification.where;
  * 7. Tag-Read-Access
  *
  * If no username is not set and the role is at least MOD it will default to +user.
+ * Otherwise the username will remain unset.
  */
 @Component
 @RequestScope
@@ -123,7 +141,7 @@ public class Auth {
 
 	Props props;
 	RoleHierarchy roleHierarchy;
-	UserRepository userRepository;
+	ConfigCache configs;
 	RefRepository refRepository;
 
 	// Cache
@@ -133,17 +151,16 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
-	protected Client client;
-	protected Optional<User> user;
+	protected Optional<UserDto> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
 
-	public Auth(Props props, RoleHierarchy roleHierarchy, UserRepository userRepository, RefRepository refRepository) {
+	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
 		this.props = props;
 		this.roleHierarchy = roleHierarchy;
-		this.userRepository = userRepository;
+		this.configs = configs;
 		this.refRepository = refRepository;
 	}
 
@@ -153,7 +170,6 @@ public class Auth {
 		claims = null;
 		principal = null;
 		userTag = null;
-		client = null;
 		user = null;
 		readAccess = null;
 		writeAccess = null;
@@ -170,6 +186,13 @@ public class Auth {
 	public void log() {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
 			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(configs.security(getOrigin())));
+		}
+	}
+
+	public SecurityConfig security() {
+		return configs.security(getOrigin());
 	}
 
 	/**
@@ -214,6 +237,14 @@ public class Auth {
 	 */
 	public boolean isLoggedIn() {
 		return isNotBlank(getPrincipal()) && !getPrincipal().startsWith("@");
+	}
+
+	/**
+	 * Can the current user access this origin?
+	 */
+	public boolean canReadOrigin(String origin) {
+		if (!subOrigin(origin)) return false;
+		return minRole();
 	}
 
 	/**
@@ -302,8 +333,12 @@ public class Auth {
 		// Min Role
 		if (!minRole()) return false;
 		if (destination == null) return false;
-		if (destination.startsWith("/topic/tag/")) {
-			var topic = destination.substring("/topic/ref/".length());
+		if (destination.startsWith("/topic/cursor/")) {
+			var origin = destination.substring("/topic/cursor/".length());
+			if (origin.equals("default")) origin = "";
+			return canReadOrigin(origin);
+		} else if (destination.startsWith("/topic/tag/")) {
+			var topic = destination.substring("/topic/tag/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var tag = topic.substring(topic.indexOf('/') + 1);
@@ -500,7 +535,7 @@ public class Auth {
 	public boolean minRole() {
 		// Don't call hasRole() from here or you get an infinite loop
 		if (hasAnyRole(BANNED)) return false;
-		return hasAnyRole(props.getMinRole());
+		return hasAnyRole(props.getMinRole()) && hasAnyRole(security().getMinRole());
 	}
 
 	/**
@@ -518,7 +553,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
-		var role = userRepository.findOneByQualifiedTag(tag).map(User::getRole).orElse(null);
+		var role = ofNullable(configs.getUser(tag)).map(UserDto::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role
@@ -536,14 +571,14 @@ public class Auth {
 		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) return false;
 		// Mods can add any tag permissions
 		if (hasRole(MOD)) return true;
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = ofNullable(configs.getUser(user.getQualifiedTag()));
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getTagReadAccess(), maybeExisting.map(UserDto::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(UserDto::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(UserDto::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(UserDto::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
 		return true;
 	}
 
@@ -664,12 +699,14 @@ public class Auth {
 		return userTag;
 	}
 
-	protected Optional<User> getUser() {
+	protected Optional<UserDto> getUser() {
 		if (user == null) {
-			var auth = Optional.ofNullable(getAuthentication());
-			user = auth.map(a -> (User) a.getDetails());
+			var auth = ofNullable(getAuthentication());
+			user = auth.map(a -> a.getDetails() instanceof UserDto
+				? (UserDto) a.getDetails()
+				: null);
 			if (isLoggedIn() && user.isEmpty()) {
-				user = userRepository.findOneByQualifiedTag(getUserTag().toString());
+				user = ofNullable(configs.getUser(getUserTag().toString()));
 			}
 		}
 		return user;
@@ -680,26 +717,9 @@ public class Auth {
 			origin = props.getLocalOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 				origin = getOriginHeader();
-			} else if (isLoggedIn() &&
-				props.getSecurity().hasClient(origin) &&
-				props.getSecurity().getClient(origin).isAllowUsernameClaimOrigin() &&
-				getPrincipal().contains("@")) {
-				try {
-					origin = qt(getPrincipal()).origin;
-				} catch (UnsupportedOperationException ignored) {}
 			}
 		}
 		return origin;
-	}
-
-	public Client getClient() {
-		if (client == null) {
-			client = props.getSecurity().getClient(getOrigin());
-			if (client == null) {
-				client = props.getSecurity().getClient(props.getLocalOrigin());
-			}
-		}
-		return client;
 	}
 
 	public static String getOriginHeader() {
@@ -721,16 +741,19 @@ public class Auth {
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
 			readAccess = new ArrayList<>(List.of(selector("public" + getSubOrigins())));
-			if (getClient().getDefaultReadAccess() != null) {
-				readAccess.addAll(getQualifiedTags(getClient().getDefaultReadAccess()));
+			if (props.getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (security().getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(security().getDefaultReadAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
 				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
 			}
-			readAccess.addAll(getClaimQualifiedTags(getClient().getReadAccessClaim()));
+			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getReadAccess)
+						.map(UserDto::getReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -740,16 +763,19 @@ public class Auth {
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
 			writeAccess = new ArrayList<>();
-			if (getClient().getDefaultWriteAccess() != null) {
-				writeAccess.addAll(getQualifiedTags(getClient().getDefaultWriteAccess()));
+			if (props.getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (security().getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(security().getDefaultWriteAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
 				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
 			}
-			writeAccess.addAll(getClaimQualifiedTags(getClient().getWriteAccessClaim()));
+			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
 			if (isLoggedIn()) {
 				writeAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getWriteAccess)
+						.map(UserDto::getWriteAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -759,16 +785,19 @@ public class Auth {
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
 			tagReadAccess = new ArrayList<>(getReadAccess());
-			if (getClient().getDefaultTagReadAccess() != null) {
-				tagReadAccess.addAll(getQualifiedTags(getClient().getDefaultTagReadAccess()));
+			if (props.getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (security().getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(security().getDefaultTagReadAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
 				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
 			}
-			tagReadAccess.addAll(getClaimQualifiedTags(getClient().getTagReadAccessClaim()));
+			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getTagReadAccess)
+						.map(UserDto::getTagReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -778,16 +807,19 @@ public class Auth {
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
 			tagWriteAccess = new ArrayList<>(getWriteAccess());
-			if (getClient().getDefaultTagWriteAccess() != null) {
-				tagWriteAccess.addAll(getQualifiedTags(getClient().getDefaultTagWriteAccess()));
+			if (props.getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
 			}
-			if (getClient().isAllowAuthHeaders()) {
+			if (security().getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(security().getDefaultTagWriteAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
 				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
 			}
-			tagWriteAccess.addAll(getClaimQualifiedTags(getClient().getTagWriteAccessClaim()));
+			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(User::getTagWriteAccess)
+						.map(UserDto::getTagWriteAccess)
 						.orElse(List.of())));
 			}
 		}

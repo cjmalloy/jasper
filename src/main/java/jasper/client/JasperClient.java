@@ -17,7 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-@FeignClient(value = "jasper", url = "https://jasperkms.info")
+@FeignClient(value = "jasper", url = "https://jasperkm.info")
 public interface JasperClient {
 
 	@RequestLine("GET /pub/api/v1/repl/ref")

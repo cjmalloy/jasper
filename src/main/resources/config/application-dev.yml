@@ -72,12 +72,17 @@ server:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
-  replicate-delay-min: 0
-  replicate-interval-min: 1
-  async-delay-sec: 0
-  async-interval-sec: 6
+  push-cooldown-sec: 1
+  pull-delay-min: 0
+  pull-interval-min: 1
   scrape-delay-min: 5
   scrape-interval-min: 5
+#  local-origin: '@test'
+  override:
+    security:
+      mode: 'jwt'
+      clientId: ''
+      base64-secret: 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM='
   # CORS is disabled by default on microservices, as you should access them through a gateway.
   # If you want to enable it, please uncomment the configuration below.
   cors:
@@ -87,35 +92,5 @@ jasper:
     exposed-headers: "Authorization,Link,X-Total-Count"
     allow-credentials: true
     max-age: 1800
-  security:
-    clients:
-      default:
-        username-claim: sub
-        scim-endpoint: /test
-        authentication:
-          jwt:
-            client-id: ''
-            token-endpoint: '/test'
-            # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
-            base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
-            # Token is valid 24 hours
-            token-validity-in-seconds: 86400
-            token-validity-in-seconds-for-remember-me: 2592000
-      test:
-        username-claim: sub
-        authentication:
-          jwt:
-            client-id: ''
-            # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
-            base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
-            # Token is valid 24 hours
-            token-validity-in-seconds: 86400
-            token-validity-in-seconds-for-remember-me: 2592000
-  logging:
-    use-json-format: false # By default, logs are not in Json format
-    logstash: # Forward logs to logstash over a socket, used by LoggingConfiguration
-      enabled: false
-      host: localhost
-      port: 5000
-      queue-size: 512
+
 

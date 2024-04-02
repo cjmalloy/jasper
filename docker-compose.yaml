@@ -18,3 +18,12 @@ services:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: jasper
       POSTGRES_DB: jasper
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+  redis-monitor:
+    image: redis
+    entrypoint: sh -c 'sleep 10 && redis-cli -h redis monitor'
+    depends_on:
+      - redis

@@ -26,6 +26,8 @@ import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Objects;
 
+import static jasper.config.JacksonConfiguration.om;
+
 @Entity
 @Getter
 @Setter
@@ -104,5 +106,11 @@ public class Plugin implements Tag {
 		return tag.startsWith("plugin/") ||
 			tag.startsWith("_plugin/") ||
 			tag.startsWith("+plugin/");
+	}
+
+	@JsonIgnore
+	public <T> T getConfig(Class<T> toValueType) {
+		if (config == null) return null;
+		return om().convertValue(config, toValueType);
 	}
 }

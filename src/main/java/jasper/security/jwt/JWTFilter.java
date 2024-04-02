@@ -1,5 +1,6 @@
 package jasper.security.jwt;
 
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +29,13 @@ public class JWTFilter extends GenericFilterBean {
 	private final Props props;
 	private final TokenProvider tokenProvider;
 	private final TokenProviderImplDefault defaultTokenProvider;
+	private final ConfigCache configs;
 
-	public JWTFilter(Props props, TokenProvider tokenProvider, TokenProviderImplDefault defaultTokenProvider) {
+	public JWTFilter(Props props, TokenProvider tokenProvider, TokenProviderImplDefault defaultTokenProvider, ConfigCache configs) {
 		this.props = props;
 		this.tokenProvider = tokenProvider;
 		this.defaultTokenProvider = defaultTokenProvider;
+		this.configs = configs;
 	}
 
 	@Override
@@ -40,11 +43,13 @@ public class JWTFilter extends GenericFilterBean {
 		var httpServletRequest = (HttpServletRequest) servletRequest;
 		if (!"OPTIONS".equalsIgnoreCase(httpServletRequest.getMethod())) {
 			var origin = resolveOrigin(httpServletRequest);
-			var jwt = resolveToken(httpServletRequest);
-			if (tokenProvider.validateToken(jwt, origin)) {
-				SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
-			} else {
-				SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+			if (configs.root().getWebOrigins().contains(origin)) {
+				var jwt = resolveToken(httpServletRequest);
+				if (tokenProvider.validateToken(jwt, origin)) {
+					SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
+				} else {
+					SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+				}
 			}
 		}
 		filterChain.doFilter(servletRequest, servletResponse);

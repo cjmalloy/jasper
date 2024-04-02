@@ -1,8 +1,9 @@
 package jasper.security.jwt;
 
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
-import jasper.security.UserDetailsProvider;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,19 +23,19 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	public Props props;
 
-	public UserDetailsProvider userDetailsProvider;
+	public ConfigCache configs;
 
-	AbstractTokenProvider(Props props, UserDetailsProvider userDetailsProvider) {
+	AbstractTokenProvider(Props props, ConfigCache configs) {
 		this.props = props;
-		this.userDetailsProvider = userDetailsProvider;
+		this.configs = configs;
 	}
 
-	User getUser(String userTag) {
-		if (userDetailsProvider == null) return null;
-		return userDetailsProvider.findOneByQualifiedTag(userTag).orElse(null);
+	UserDto getUser(String userTag) {
+		if (configs == null) return null;
+		return configs.getUser(userTag);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(User user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
 		var auth = getPartialAuthorities(origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("User Roles: {}", user.getRole());
@@ -48,14 +49,13 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(String origin) {
-		var client = props.getSecurity().getClient(origin);
-		var authString = client == null ? "ROLE_ANONYMOUS" : client.getDefaultRole();
-		if (client.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
+		var roles = props.getDefaultRole() + ',' + configs.security(origin).getDefaultRole();
+		if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
 			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
-			authString += ", " + getHeader(USER_ROLE_HEADER);
+			roles += ", " + getHeader(USER_ROLE_HEADER);
 		}
 		return Arrays
-			.stream(authString.split(","))
+			.stream(roles.split(","))
 			.filter(r -> !r.isBlank())
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)

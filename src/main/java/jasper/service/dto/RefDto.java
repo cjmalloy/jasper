@@ -6,15 +6,16 @@ import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 
 @Getter
 @Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class RefDto implements HasTags {
+public class RefDto implements HasTags, Serializable {
 	private String url;
-	private String origin;
+	private String origin = "";
 	private String title;
 	private String comment;
 	private List<String> tags;

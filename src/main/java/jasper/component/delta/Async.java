@@ -1,17 +1,20 @@
-package jasper.component.scheduler;
+package jasper.component.delta;
 
-import jasper.component.Ingest;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.service.TaggingService;
+import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -20,8 +23,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
+import static jasper.domain.proj.HasOrigin.origin;
 import static org.springframework.data.domain.Sort.by;
 
 /**
@@ -39,9 +42,10 @@ public class Async {
 	RefRepository refRepository;
 
 	@Autowired
-	Ingest ingest;
+	TaggingService taggingService;
 
-	Map<String, Instant> lastModified = new HashMap<>();
+	@Autowired
+	ConfigCache configs;
 
 	Map<String, AsyncWatcher> tags = new HashMap<>();
 	Map<String, AsyncWatcher> responses = new HashMap<>();
@@ -70,17 +74,53 @@ public class Async {
 		return String.join("|", plugins);
 	}
 
-	@Scheduled(
-		fixedRateString = "${jasper.async-interval-sec}",
-		initialDelayString = "${jasper.async-delay-sec}",
-		timeUnit = TimeUnit.SECONDS)
-	public void drainAsyncTask() {
-		if (tags.isEmpty() && responses.isEmpty()) return;
-		for (var origin : props.getAsyncOrigins()) drain(origin);
+	@ServiceActivator(inputChannel = "refRxChannel")
+	public void handleRefUpdate(Message<RefDto> message) {
+		var root = configs.root();
+		if (root.getAsyncOrigins() == null) return;
+		var ud = message.getPayload();
+		if (ud.getTags() == null) return;
+		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
+		tags.forEach((k, v) -> {
+			if (!ud.getTags().contains(k)) return;
+			if (v instanceof AsyncRunner r) {
+				taggingService.create(ud.getUrl(), ud.getOrigin(), r.signature());
+			}
+			logger.debug("Async Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
+			try {
+				v.run(fetch(ud));
+			} catch (NotFoundException e) {
+				logger.debug("Plugin not installed {} ", e.getMessage());
+			} catch (Exception e) {
+				logger.error("Error in async tag {} ", k, e);
+			}
+		});
+		responses.forEach((k, v) -> {
+			if (!ud.getTags().contains(k)) return;
+			if (v instanceof AsyncRunner r) {
+				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
+					.orElse(null);
+				if (ref != null && ref.hasPluginResponse(r.signature())) return;
+			}
+			logger.debug("Async Response Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
+			try {
+				v.run(fetch(ud));
+			} catch (NotFoundException e) {
+				logger.debug("Plugin not installed {} ", e.getMessage());
+			} catch (Exception e) {
+				logger.error("Error in async tag response {} ", k, e);
+			}
+		});
 	}
 
-	private void drain(String origin) {
-		for (var i = 0; i < props.getAsyncBatchSize(); i++) {
+	private Ref fetch(RefDto ud) {
+		return this.refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
+			.orElseThrow(() -> new NotFoundException("Async"));
+	}
+
+	private void backfill(String origin) {
+		Map<String, Instant> lastModified = new HashMap<>();
+		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
@@ -92,8 +132,7 @@ public class Async {
 			tags.forEach((k, v) -> {
 				if (!ref.getTags().contains(k)) return;
 				if (v instanceof AsyncRunner r) {
-					ref.getTags().add(r.signature());
-					ingest.update(ref, false);
+					taggingService.create(ref.getUrl(), ref.getOrigin(), r.signature());
 				}
 				try {
 					v.run(ref);
