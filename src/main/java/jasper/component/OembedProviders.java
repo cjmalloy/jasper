@@ -41,7 +41,6 @@ public class OembedProviders {
 
 	public void create(String origin, List<Oembed> providers) {
 		logger.info("Restoring default oEmbed providers... (\"{}\")", formatOrigin(origin));
-		var metadataPlugins = configs.getMetadataPlugins(origin);
 		for (var p : providers) {
 			var ref = new Ref();
 			ref.setUrl(p.getProvider_url());
@@ -51,7 +50,7 @@ public class OembedProviders {
 			plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
 			ref.setPlugins(plugins);
 			ref.setOrigin(origin);
-			ingest.push(ref, metadataPlugins);
+			ingest.push(ref, null);
 		}
 		logger.info("Done restoring default oEmbed providers.");
 	}

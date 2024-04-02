@@ -98,7 +98,7 @@ public class Ai implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("AI replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var config = configs.getPlugin("+plugin/ai/openai", ref.getOrigin(), OpenAi.AiConfig.class);
+		var config = configs.getPluginConfig("+plugin/ai/openai", ref.getOrigin(), OpenAi.AiConfig.class);
 		// TODO: compress pages if too long
 		var context = new HashMap<String, RefDto>();
 		var parents = refRepository

@@ -66,7 +66,7 @@ public class Dalle implements Async.AsyncRunner {
 	public void run(Ref ref) throws JsonProcessingException {
 		logger.debug("DALL-E replying to {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var config = configs.getPlugin("+plugin/ai/dalle", ref.getOrigin(), OpenAi.DalleConfig.class);
+		var config = configs.getPluginConfig("+plugin/ai/dalle", ref.getOrigin(), OpenAi.DalleConfig.class);
 		Ref response;
 		try {
 			var res = openAi.dale(getPrompt(ref.getTitle(), ref.getComment()), config);

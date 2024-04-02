@@ -110,7 +110,7 @@ public class Replicator {
 						pluginRepository.deleteByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin());
 					}
 				}
-				var metadataPlugins = pluginRepository.findAllByGenerateMetadataByOrigin(origin(pull.getValidationOrigin()));
+				var metadataPlugins = configs.getMetadataPlugins(origin(pull.getValidationOrigin()));
 				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
 				for (var ref : client.refPull(url, options)) {
 					ref.setOrigin(localOrigin);

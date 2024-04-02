@@ -6,6 +6,7 @@ import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
+import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class ConfigCache {
@@ -73,7 +75,8 @@ public class ConfigCache {
 
 	@CacheEvict(value = {
 		"plugin-cache",
-		"metadata-cache",
+		"plugin-config-cache",
+		"plugin-metadata-cache",
 		"all-plugins-cache",
 	},
 		allEntries = true)
@@ -83,8 +86,9 @@ public class ConfigCache {
 
 	@CacheEvict(value = {
 		"template-cache",
+		"template-config-cache",
 		"template-cache-wrapped",
-		"schemas-cache",
+		"template-schemas-cache",
 		"all-templates-cache",
 	},
 		allEntries = true)
@@ -119,15 +123,21 @@ public class ConfigCache {
 			.toList();
 	}
 
-	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
+	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	@Transactional(readOnly = true)
-	public <T> T getPlugin(String tag, String origin, Class<T> toValueType) {
+	public <T> T getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(r -> r.getConfig(toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
 	}
 
-	@Cacheable("metadata-cache")
+	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
+	@Transactional(readOnly = true)
+	public Optional<Plugin> getPlugin(String tag, String origin) {
+		return pluginRepository.findByTagAndOrigin(tag, origin);
+	}
+
+	@Cacheable("plugin-metadata-cache")
 	@Transactional(readOnly = true)
 	public List<String> getMetadataPlugins(String origin) {
 		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
@@ -142,28 +152,35 @@ public class ConfigCache {
 			.toList();
 	}
 
-	@Cacheable(value = "template-cache", key = "#template + #origin")
+	@Cacheable(value = "template-config-cache", key = "#template + #origin")
 	@Transactional(readOnly = true)
-	public <T> T getTemplate(String template, String origin, Class<T> toValueType) {
+	public <T> T getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(r -> r.getConfig(toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
 	}
 
+	@Cacheable(value = "template-cache", key = "#template + #origin")
+	@Transactional(readOnly = true)
+	public Optional<Template> getTemplate(String template, String origin) {
+		return templateRepository.findByTemplateAndOrigin(template, origin);
+	}
+
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		return getTemplate("_config/server", "",  ServerConfig.class);
+		return getTemplateConfig("_config/server", "",  ServerConfig.class);
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
 	@Transactional(readOnly = true)
 	public SecurityConfig security(String origin) {
-		return getTemplate("_config/security", origin, SecurityConfig.class)
+		// TODO: crawl origin hierarchy until found
+		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
 			.wrap(props);
 	}
 
-	@Cacheable("schemas-cache")
+	@Cacheable("template-schemas-cache")
 	@Transactional(readOnly = true)
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)

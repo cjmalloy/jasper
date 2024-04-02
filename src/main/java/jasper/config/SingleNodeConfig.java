@@ -98,6 +98,7 @@ public class SingleNodeConfig {
 			.build());
 		cacheManager.registerCustomCache("config-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
+			.expireAfterAccess(1, TimeUnit.DAYS)
 			.build());
 		cacheManager.registerCustomCache("user-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
@@ -109,7 +110,12 @@ public class SingleNodeConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("metadata-cache", Caffeine.newBuilder()
+		cacheManager.registerCustomCache("plugin-config-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
+			.build());
+		cacheManager.registerCustomCache("plugin-metadata-cache", Caffeine.newBuilder()
 			.maximumSize(1)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
@@ -124,12 +130,17 @@ public class SingleNodeConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
+		cacheManager.registerCustomCache("template-config-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
+			.build());
 		cacheManager.registerCustomCache("template-cache-wrapped", Caffeine.newBuilder()
 			.maximumSize(1)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("schemas-cache", Caffeine.newBuilder()
+		cacheManager.registerCustomCache("template-schemas-cache", Caffeine.newBuilder()
 			.maximumSize(1)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()

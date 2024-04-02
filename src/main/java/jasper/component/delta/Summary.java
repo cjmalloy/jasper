@@ -56,7 +56,7 @@ public class Summary implements Async.AsyncRunner {
 	public void run(Ref ref) {
 		logger.debug("AI summarizing {} ({})", ref.getTitle(), ref.getUrl());
 		var author = ref.getTags().stream().filter(User::isUser).findFirst().orElse(null);
-		var config = configs.getPlugin("+plugin/summary", ref.getOrigin(), SummaryConfig.class);
+		var config = configs.getPluginConfig("+plugin/summary", ref.getOrigin(), SummaryConfig.class);
 		var response = new Ref();
 		try {
 			var res = openAi.chatCompletion(String.join("\n\n",

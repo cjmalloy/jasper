@@ -18,7 +18,6 @@ import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.TemplateDto;
@@ -46,9 +45,6 @@ public class Validate {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	PluginRepository pluginRepository;
 
 	@Autowired
 	Validator validator;
@@ -202,7 +198,7 @@ public class Validate {
 	}
 
 	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugin = pluginRepository.findByTagAndOrigin(tag, origin);
+		var plugin = configs.getPlugin(tag, origin);
 		plugin.ifPresent(p -> {
 			if (p.isUserUrl()) userUrl(ref, p);
 		});
@@ -252,7 +248,7 @@ public class Validate {
 		var result = objectMapper.getNodeFactory().objectNode();
 		if (ref.getTags() == null) return result;
 		for (var tag : ref.getTags()) {
-			var plugin = pluginRepository.findByTagAndOrigin(tag, ref.getOrigin());
+			var plugin = configs.getPlugin(tag, ref.getOrigin());
 			plugin.ifPresent(p -> {
 				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
 			});
