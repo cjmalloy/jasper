@@ -10,7 +10,11 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static net.logstash.logback.util.StringUtils.isBlank;
 
@@ -21,15 +25,36 @@ public class ClearConfigCache {
 	Props props;
 
 	@Autowired
+	TaskScheduler taskScheduler;
+
+	@Autowired
 	ConfigCache configs;
+
+	private AtomicBoolean clearingConfig = new AtomicBoolean(false);
+	private AtomicBoolean clearConfigAgain = new AtomicBoolean(false);
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
 		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
-		if (configs.root().getCacheTags().contains((String) message.getHeaders().get("tag"))) {
-			configs.clearConfigCache();
+		if (!configs.root().getCacheTags().contains((String) message.getHeaders().get("tag"))) return;
+		if (clearingConfig.compareAndSet(false, true)) {
+			clearConfig();
+		} else {
+			clearConfigAgain.set(true);
 		}
+	}
+
+	private void checkIfClearingAgain() {
+		if (!clearingConfig.get()) return;
+		var next = clearConfigAgain.getAndSet(false);
+		clearingConfig.set(next);
+		if (next) clearConfig();
+	}
+
+	private void clearConfig() {
+		configs.clearConfigCache();
+		taskScheduler.schedule(this::checkIfClearingAgain, Instant.now().plusMillis(props.getClearCacheCooldownSec() * 1000L));
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)

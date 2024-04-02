@@ -51,7 +51,7 @@ public class Push {
 		}
 	}
 
-	private void clear(String origin) {
+	private void checkIfQueued(String origin) {
 		if (isBlank(lastSent.get(origin))) return;
 		var next = queued.remove(origin);
 		lastSent.put(origin, next);
@@ -68,7 +68,7 @@ public class Push {
 			}
 		}
 		logger.info("Finished pushing {} remotes.", formatOrigin(origin));
-		taskScheduler.schedule(() -> clear(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
+		taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 	}
 
 }
