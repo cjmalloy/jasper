@@ -8,6 +8,7 @@ import jasper.domain.User;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.List;
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Pull {
+public class Pull implements Serializable {
 	private String query;
 	private Duration pullInterval;
 	private Instant lastPull;
