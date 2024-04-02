@@ -11,6 +11,7 @@ import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,10 +55,7 @@ public class Push {
 		if (isBlank(lastSent.get(origin))) return;
 		var next = queued.remove(origin);
 		lastSent.put(origin, next);
-		if (isNotBlank(next)) {
-			lastSent.put(origin, next);
-			push(origin);
-		}
+		if (isNotBlank(next)) push(origin);
 	}
 
 	private void push(String origin) {
@@ -70,7 +68,7 @@ public class Push {
 			}
 		}
 		logger.info("Finished pushing {} remotes.", formatOrigin(origin));
-		taskScheduler.scheduleWithFixedDelay(() -> clear(origin), props.getPushCooldownSec() * 1000L);
+		taskScheduler.schedule(() -> clear(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 	}
 
 }
