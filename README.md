@@ -133,10 +133,10 @@ custom data that can be stored in a ref, Templates may be created which allow cu
 stored in Ext entities and similarly validated according to their schema.
 
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
-* `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/plugin/thumbnail.ts)
+* `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
 * `user` Template: 
-[This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/template/user.ts)
+[This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
 allows a user tag to customize their experience, such as subscribing to a list of tags to show
 on their home page.
 
