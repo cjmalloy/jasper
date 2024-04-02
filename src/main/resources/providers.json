@@ -28,6 +28,19 @@
         ]
     },
     {
+        "provider_name": "3Q",
+        "provider_url": "https://3q.video/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://playout.3qsdn.com/embed/*"
+                ],
+                "url": "https://playout.3qsdn.com/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "Abraia",
         "provider_url": "https://abraia.me",
         "endpoints": [
@@ -1235,6 +1248,19 @@
                     "https://faithlifetv.com/media/resource/*/*"
                 ],
                 "url": "https://faithlifetv.com/api/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Figma",
+        "provider_url": "https://www.figma.com",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://www.figma.com/file/*"
+                ],
+                "url": "https://www.figma.com/api/oembed",
                 "discovery": true
             }
         ]
@@ -2485,16 +2511,14 @@
         "endpoints": [
             {
                 "schemes": [
-                    "https://ndla.no/*"
+                    "https://ndla.no/*",
+                    "https://ndla.no/article/*",
+                    "https://ndla.no/audio/*",
+                    "https://ndla.no/concept/*",
+                    "https://ndla.no/image/*",
+                    "https://ndla.no/video/*"
                 ],
                 "url": "https://ndla.no/oembed",
-                "discovery": false
-            },
-            {
-                "schemes": [
-                    "https://liste.ndla.no/*"
-                ],
-                "url": "https://liste.ndla.no/oembed",
                 "discovery": false
             }
         ]
@@ -4158,7 +4182,12 @@
                 "schemes": [
                     "https://share.viostream.com/*"
                 ],
-                "url": "https://play.viostream.com/oembed"
+                "url": "https://play.viostream.com/oembed",
+                "discovery": true,
+                "formats": [
+                    "json",
+                    "xml"
+                ]
             }
         ]
     },
@@ -4271,6 +4300,21 @@
                     "https://embed.wave.video/*"
                 ],
                 "url": "https://embed.wave.video/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Web3 is Going Just Great",
+        "provider_url": "https://www.web3isgoinggreat.com/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://www.web3isgoinggreat.com/?id=*",
+                    "https://www.web3isgoinggreat.com/single/*",
+                    "https://www.web3isgoinggreat.com/embed/*"
+                ],
+                "url": "https://www.web3isgoinggreat.com/api/oembed",
                 "discovery": true
             }
         ]
