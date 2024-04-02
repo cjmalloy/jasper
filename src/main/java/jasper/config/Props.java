@@ -28,12 +28,12 @@ public class Props {
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
 	private int backfillBatchSize = 1000;
-	private String scrapeDelayMin = "5";
-	private String scrapeIntervalMin = "1";
-	private int pushCooldownSec = 1;
-	private int clearCacheCooldownSec = 2;
 	private String pullDelayMin = "5";
 	private String pullIntervalMin = "1";
+	private String scrapeDelayMin = "5";
+	private String scrapeIntervalMin = "1";
+	private int clearCacheCooldownSec = 2;
+	private int pushCooldownSec = 1;
 	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
 	private boolean allowUserTagHeader = false;
@@ -47,11 +47,12 @@ public class Props {
 	 * Default role given to every user.
 	 */
 	private String defaultRole = "ROLE_ANONYMOUS";
-	private String storage = "/var/lib/jasper";
 	private String[] defaultReadAccess;
 	private String[] defaultWriteAccess;
 	private String[] defaultTagReadAccess;
 	private String[] defaultTagWriteAccess;
+
+	private String storage = "/var/lib/jasper";
 
 	private String sshConfigNamespace = "default";
 	private String sshConfigMapName = "ssh-authorized-keys";

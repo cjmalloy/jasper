@@ -69,7 +69,7 @@ public class OriginController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "204"),
 	})
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)

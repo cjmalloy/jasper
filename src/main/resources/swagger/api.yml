@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper KMS
   description: REST API for Jasper Knowledge Management Server
-  version: 1.2.23
+  version: 1.2.24
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.23
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.24
 paths:
   /api/v1/ref:
     get:
@@ -724,6 +724,38 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/url'
+        - name: thumbnail
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/rss:
+    get:
+      tags:
+        - Scrape
+      operationId: rss
+      description: Immediately scrape a webpage and check if it has an RSS feed linked.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
       responses:
         '200':
           description: OK
@@ -751,10 +783,53 @@ paths:
           schema:
             $ref: '#/components/schemas/url'
       responses:
+        '200':
+          description: Mime type scraped
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/refresh:
+    post:
+      tags:
+        - Scrape
+      operationId: refresh
+      description: Immediately re-scrape a webpage and replace it in the cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: Mime type scraped
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/scrape/clear-deleted:
+    post:
+      tags:
+        - Scrape
+      operationId: clearDeleted
+      responses:
         '201':
           description: No Content
         '500':
-          description: Error fetching
+          description: Error clearing deleted
           content:
             '*/*':
               schema:
@@ -789,14 +864,6 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/clear-cache:
-    get:
-      tags:
-        - scrape
-      operationId: clearScrapeConfigCache
-      responses:
-        '204':
-          description: No Content
   /api/v1/origin/push:
     post:
       tags:
@@ -861,15 +928,15 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/{origin}:
+  /api/v1/origin:
     delete:
       tags:
         - Origin
       operationId: deleteOrigin
       parameters:
         - name: origin
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
             $ref: '#/components/schemas/origin'
         - name: olderThan
@@ -1047,6 +1114,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
         - name: modifiedBefore
           in: query
           required: false
@@ -1114,6 +1186,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
         - name: modifiedBefore
           in: query
           required: false
@@ -1263,6 +1340,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
         - name: modifiedBefore
           in: query
           required: false
@@ -1408,6 +1490,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
         - name: modifiedBefore
           in: query
           required: false
@@ -1558,6 +1645,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
         - name: modifiedBefore
           in: query
           required: false
@@ -1624,6 +1716,12 @@ paths:
       tags:
         - Backup
       operationId: listBackups
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -1640,6 +1738,12 @@ paths:
       tags:
         - Backup
       operationId: createBackup
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -1662,6 +1766,18 @@ paths:
         - Backup
       operationId: downloadBackup
       parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+        - name: p
+          in: query
+          required: false
+          description: Optional pre-authorized key for downloading backup
+          schema:
+            type: string
+            default: ""
         - name: id
           in: path
           required: true
@@ -1705,6 +1821,11 @@ paths:
         - Backup
       operationId: uploadBackup
       parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
         - name: id
           in: path
           required: true
@@ -1727,6 +1848,11 @@ paths:
         - Backup
       operationId: restoreBackup
       parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
         - name: id
           in: path
           required: true
@@ -1745,11 +1871,44 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/backup/key:
+    post:
+      tags:
+        - Backup
+      operationId: getBackupKey
+      parameters:
+        - name: key
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+        '304':
+          description: Not Modified
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/backup/backfill:
     post:
       tags:
         - Backup
       operationId: backfill
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -2209,14 +2368,6 @@ paths:
       tags:
         - oEmbed
       operationId: defaults
-      responses:
-        '204':
-          description: No Content
-  /api/v1/oembed/clear-cache:
-    get:
-      tags:
-        - oEmbed
-      operationId: clearOembedProviderCache
       responses:
         '204':
           description: No Content

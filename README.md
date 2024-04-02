@@ -2,7 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.23-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.24-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -397,17 +397,17 @@ It supports the following configuration options:
 | `SPRING_DATASOURCE_USERNAME`              | PostgreSQL database username.                                                                                                  | `jasper`                                                                                                                                                                                                      |
 | `SPRING_DATASOURCE_PASSWORD`              | PostgreSQL database password.                                                                                                  |                                                                                                                                                                                                               |
 | `JASPER_DEBUG`                            |                                                                                                                                | `false`                                                                                                                                                                                                       |
-| `JASPER_DEV_BASE64_SECRET`                | Base64 encoded OAuth2 client secret. Only used with "dev" profile.                                                             |                                                                                                                                                                                                               |
-| `JASPER_INGEST_MAX_RETRY`                 | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                      | 5                                                                                                                                                                                                             |
-| `JASPER_MAX_ETAG_PAGE_SIZE`               | Max number of results in a page before calculating an Etag is no longer attempted.                                             | 300                                                                                                                                                                                                           |
+| `JASPER_INGEST_MAX_RETRY`                 | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                      | `5`                                                                                                                                                                                                           |
+| `JASPER_MAX_ETAG_PAGE_SIZE`               | Max number of results in a page before calculating an Etag is no longer attempted.                                             | `300`                                                                                                                                                                                                         |
 | `JASPER_BACKUP_BUFFER_SIZE`               | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                       | `1000000`                                                                                                                                                                                                     |
-| `JASPER_RESTORE_BATCH_SIZE`               | Number of entities to restore in each transaction.                                                                             | 5                                                                                                                                                                                                             |
-| `JASPER_BACKFILL_BATCH_SIZE`              | Number of entities to generate Metadata for in each transaction when backfilling.                                              | 5                                                                                                                                                                                                             |
-| `JASPER_PULL_DELAY_SEC`                   | Initial delay before replicating remote origins.                                                                               | 0                                                                                                                                                                                                             |
-| `JASPER_PULL_INTERVAL_MIN`                | Interval between replicating remote origins.                                                                                   | 1                                                                                                                                                                                                             |
-| `JASPER_REPLICATE_BATCH`                  | Max number of each entity type to replicate in a batch.                                                                        | 5000                                                                                                                                                                                                          |
-| `JASPER_SCRAPE_DELAY_MIN`                 | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                  | 0                                                                                                                                                                                                             |
-| `JASPER_SCRAPE_INTERVAL_MIN`              | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                      | 1                                                                                                                                                                                                             |
+| `JASPER_RESTORE_BATCH_SIZE`               | Number of entities to restore in each transaction.                                                                             | `500`                                                                                                                                                                                                         |
+| `JASPER_BACKFILL_BATCH_SIZE`              | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `1000`                                                                                                                                                                                                        |
+| `JASPER_PULL_DELAY_MIN`                   | Initial delay before replicating remote origins.                                                                               | `5`                                                                                                                                                                                                           |
+| `JASPER_PULL_INTERVAL_MIN`                | Interval between replicating remote origins.                                                                                   | `1`                                                                                                                                                                                                           |
+| `JASPER_SCRAPE_DELAY_MIN`                 | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                  | `5`                                                                                                                                                                                                           |
+| `JASPER_SCRAPE_INTERVAL_MIN`              | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                      | `1`                                                                                                                                                                                                           |
+| `JASPER_CLEAR_CACHE_COOLDOWN_SEC`         | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
+| `JASPER_PUSH_COOLDOWN_SEC`                | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_LOCAL_ORIGIN`                     | The origin of this server, unless overridden in a header or auth token.                                                        | `false`                                                                                                                                                                                                       |
 | `JASPER_ALLOW_LOCAL_ORIGIN_HEADER`        | Allow overriding the local origin via the `Local-Origin` header.                                                               | `false`                                                                                                                                                                                                       |
 | `JASPER_ALLOW_USER_TAG_HEADER`            | Allow pre-authentication of a user via the `User-Tag` header.                                                                  | `false`                                                                                                                                                                                                       |
@@ -419,10 +419,18 @@ It supports the following configuration options:
 | `JASPER_DEFAULT_WRITE_ACCESS`             | Additional write access qualified tags to apply to all users.                                                                  |                                                                                                                                                                                                               |
 | `JASPER_DEFAULT_TAG_READ_ACCESS`          | Additional tag read access qualified tags to apply to all users.                                                               |                                                                                                                                                                                                               |
 | `JASPER_DEFAULT_TAG_WRITE_ACCESS`         | Additional tag write access qualified tags to apply to all users.                                                              |                                                                                                                                                                                                               |
+| `JASPER_STORAGE`                          | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
 | `JASPER_SSH_CONFIG_NAMESPACE`             | K8s namespace to write authorized_keys config map file to.                                                                     |                                                                                                                                                                                                               |
 | `JASPER_SSH_CONFIG_MAP_NAME`              | K8s config map name to write authorized_keys file to.                                                                          |                                                                                                                                                                                                               |
 | `JASPER_SECURITY_CONTENT_SECURITY_POLICY` | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
-| `JASPER_STORAGE`                          | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
+| `JASPER_OVERRIDE_SECURITY_MODE`           | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_CLIENT_ID`      | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`  | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_SECRET`         | Override the security secret for all origins.                                                                                  |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_JWKS_URI`       | Override the security jwksUri for all origins.                                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_USERNAME_CLAIM` | Override the security usernameClaim for all origins.                                                                           |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_TOKEN_ENDPOINT` | Override the security tokenEndpoint for all origins.                                                                           |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`  | Override the security scimEndpoint for all origins.                                                                            |                                                                                                                                                                                                               |
 | `JASPER_HEAP`                             | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
 
 ### Profiles
@@ -433,41 +441,31 @@ separated list.
 For production use the `prod` profile should be active. For testing, the `dev` profile will
 enable additional logging.
 
-For security there are 4 profiles available:  
- * `admin`: this profile disables security and treats every request as an admin user.
- * `jwt`: this profile enables security by means of a bearer access token. Requires
-`JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variable to be set.
- * `jwks`: this profile enables security by means of a bearer access token. Requires
-`JASPER_SECURITY_AUTHENTICATION_JWT_JWKS_URI`  environment variable to be set.
- * `jwt-no-verify`: this profile is used for debugging. It's the same as the JWT profile but does not
-verify the signature.
+To enable JWT Token Authentication activate the `jwt` profile.
+Either set the `_config/security` template in the Origin receiving traffic:
+```json
+{
+  "mode": "jwt",
+  "clientId": "",
+  "base64Secret": "",
+  "secret": "",
+  "jwksUri": "",
+  "usernameClaim": "",
+  "tokenEndpoint": "",
+  "scimEndpoint": ""
+}
+```
+or set the environment variable overrides:
+- Set `JASPER_OVERRIDE_SECURITY_MODE` to either `jwt` or `jwks` 
+- Set `JASPER_OVERRIDE_SECURITY_CLIENT_ID`
+- For `jwt` set `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`
+- For `jwks` set `JASPER_OVERRIDE_SECURITY_JWKS_URI`
 
 If your user management server supports SCIM, you can enable the `scim` profile to manage users.
-Requires the `JASPER_SECURITY_AUTHENTICATION_JWT_CLIENT_ID` and
-`JASPER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET` environment variables to be set for
-backchannel authentication. Set the SCIM endpoint with the `JASPER_SCIM_ENDPOINT`
+Requires the `_config/security` clientId, secret, and scimEndpoint set. Or
+`JASPER_OVERRIDE_SECURITY_CLIENT_ID`, `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`, 
+and `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`
 environment variable.
-
-To enable RSS scraping, enable either the `feed-schedule` or `feed-burst` profile. The `feed-schedule`
-profile will only scrape the oldest outdated `+plugin/feed` when the scheduler is run, while `feed-burst`
-will scrape all outdated `+plugin/feed`s.  
-Use `JASPER_SCRAPE_DELAY_MIN` to configure the initial delay in minutes after the server
-starts to begin scraping, and `JASPER_SCRAPE_INTERVAL_MIN` to configure the interval
-in minutes between scrapes.
-
-To enable Remote origin scraping, enable either the `pull-schedule` or `pull-burst` profile. The `pull-schedule`
-profile will only scrape the oldest outdated `+plugin/origin/pull` when the scheduler is run, while `pull-burst`
-will scrape all outdated `+plugin/origin/pull`s.  
-Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
-starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
-in minutes between replication batches.
-
-To enable Remote origin pushing, enable either the `push-schedule` or `push-burst` profile. The `push-schedule`
-profile will only push to the oldest outdated `+plugin/origin/push` when the scheduler is run, while `pull-burst`
-will push to all outdated `+plugin/origin/push`s.  
-Use `JASPER_REPL_DELAY_MIN` to configure the initial delay in minutes after the server
-starts to begin replicating, and `JASPER_REPL_INTERVAL_MIN` to configure the interval
-in minutes between replication batches.
 
 The `storage` profile enables the backup system. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
@@ -558,8 +556,8 @@ Jasper generates the following metadata in Refs:
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 ## RSS / Atom Scraping
-The `+plugin/feed` can be used to scrape RSS / Atom feeds when the `feed-burst` or `feed-schedule` profiles
-are active. Although plugin fields are determined dynamically, the following fields are checked by the
+The `+plugin/feed` can be used to scrape RSS / Atom feeds.
+Although plugin fields are determined dynamically, the following fields are checked by the
 scraper:
 ```json
 {
@@ -602,8 +600,8 @@ The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a
 **Remote:** Remote origin to query, or blank for the default.  
 
 ## Replicating Remote Origin
-The `+plugin/origin/pull` tag can be used to replicate remote origins when the `pull-burst` or `pull-schedule`
-profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
+The `+plugin/origin/pull` tag can be used to replicate remote origins. Since this plugin
+extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
@@ -639,8 +637,8 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
 
 ## Pushing to a Remote Origin
-The `+plugin/origin/push` tag can be used to replicate remote origins when the `push-burst` or `push-schedule`
-profiles are active. Since this plugin extends `+plugin/origin`, we already have the `local` and `remote`
+The `+plugin/origin/push` tag can be used to replicate remote origins. Since this plugin
+extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
