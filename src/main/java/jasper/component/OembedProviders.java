@@ -56,7 +56,7 @@ public class OembedProviders {
 	}
 
 	public Oembed.Endpoints getProvider(String origin, String url) {
-		var providers = configs.getAllConfigs(origin, "+plugin/embed", Oembed.class);
+		var providers = configs.getAllConfigs(origin, "+plugin/oembed", Oembed.class);
 		for (var p : providers) {
 			if (p == null) continue;
 			for (var e : p.getEndpoints()) {
