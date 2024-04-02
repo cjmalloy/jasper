@@ -49,8 +49,8 @@ class JWTFilterTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProviderImpl(props, configCache, null, securityMetersService, null);
-        defaultTokenProvider = new TokenProviderImplDefault(props, configCache, null);
+        tokenProvider = new TokenProviderImpl(props, configCache, securityMetersService, null);
+        defaultTokenProvider = new TokenProviderImplDefault(props, configCache);
 
         jwtFilter = new JWTFilter(props, tokenProvider, defaultTokenProvider, configCache);
         SecurityContextHolder.getContext().setAuthentication(null);

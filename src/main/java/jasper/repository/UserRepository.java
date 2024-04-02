@@ -3,7 +3,6 @@ package jasper.repository;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import jasper.domain.TagId;
 import jasper.domain.User;
-import jasper.security.UserDetailsProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +13,7 @@ import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
-	ModifiedCursor, OriginMixin, UserDetailsProvider {
+	ModifiedCursor, OriginMixin {
 
 	@Modifying
 	@Query("""

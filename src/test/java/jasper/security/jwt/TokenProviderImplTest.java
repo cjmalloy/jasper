@@ -8,12 +8,12 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jasper.component.ConfigCache;
-import jasper.config.Config.*;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
-import jasper.security.UserDetailsProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,7 +27,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,7 +75,7 @@ class TokenProviderImplTest {
 	}
 
 	TokenProviderImpl getTokenProvider(Props props) {
-		return new TokenProviderImpl(props, configCache, null, null, null) {
+		return new TokenProviderImpl(props, configCache, null, null) {
 			@Override
 			public Authentication getAuthentication(String jwt, String origin) {
 				return null;
@@ -96,17 +95,6 @@ class TokenProviderImplTest {
 		return u;
 	}
 
-	UserDetailsProvider getUserDetailsProvider(User ...users) {
-		var mock = mock(UserDetailsProvider.class);
-		when(mock.findOneByQualifiedTag(anyString()))
-			.thenReturn(Optional.empty());
-		for (var user : users) {
-			when(mock.findOneByQualifiedTag(user.getQualifiedTag()))
-				.thenReturn(Optional.of(user));
-		}
-		return mock;
-	}
-
     @BeforeEach
     public void setup() {
 		var security = configCache.security("");
@@ -118,7 +106,7 @@ class TokenProviderImplTest {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
-        tokenProvider = new TokenProviderImpl(props, configCache, null, securityMetersService, null);
+        tokenProvider = new TokenProviderImpl(props, configCache, securityMetersService, null);
         key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
     }
 

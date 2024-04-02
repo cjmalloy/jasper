@@ -14,7 +14,7 @@ import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.management.SecurityMetersService;
-import jasper.security.UserDetailsProvider;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -55,8 +55,8 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
 
-	public TokenProviderImpl(Props props, ConfigCache caches, UserDetailsProvider userDetailsProvider, SecurityMetersService securityMetersService, RestTemplate restTemplate) {
-		super(props, caches, userDetailsProvider);
+	public TokenProviderImpl(Props props, ConfigCache caches, SecurityMetersService securityMetersService, RestTemplate restTemplate) {
+		super(props, caches);
 		this.securityMetersService = securityMetersService;
 		this.restTemplate = restTemplate;
 	}
@@ -106,7 +106,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return jwtParsers.get(origin);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, UserDto user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("User Roles: {}", user.getRole());

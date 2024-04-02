@@ -1,10 +1,8 @@
 package jasper.config;
 
 import jasper.component.ConfigCache;
-import jasper.component.dto.ComponentDtoMapper;
 import jasper.management.SecurityMetersService;
 import jasper.repository.RefRepository;
-import jasper.repository.UserRepository;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImpl;
@@ -37,8 +35,8 @@ public class AuthConfig {
 
 	@Bean("authSingleton")
 	@ApplicationScope
-	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository, ComponentDtoMapper dtoMapper) {
-		return new Auth(props, roleHierarchy, configs, refRepository, dtoMapper);
+	public Auth authSingleton(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
+		return new Auth(props, roleHierarchy, configs, refRepository);
 	}
 
 	@Bean
@@ -64,19 +62,19 @@ public class AuthConfig {
 	@Primary
 	@Bean
 	@Profile("jwt")
-	TokenProvider tokenProvider(Props props, ConfigCache configs, UserRepository userRepository, SecurityMetersService securityMetersService, RestTemplate restTemplate) {
-		return new TokenProviderImpl(props, configs, userRepository, securityMetersService, restTemplate);
+	TokenProvider tokenProvider(Props props, ConfigCache configs, SecurityMetersService securityMetersService, RestTemplate restTemplate) {
+		return new TokenProviderImpl(props, configs, securityMetersService, restTemplate);
 	}
 
 	@Primary
 	@Bean
 	@ConditionalOnMissingBean
-	TokenProvider fallbackTokenProvider(Props props, ConfigCache configs, UserRepository userRepository) {
-		return new TokenProviderImplNop(props, configs, userRepository);
+	TokenProvider fallbackTokenProvider(Props props, ConfigCache configs) {
+		return new TokenProviderImplNop(props, configs);
 	}
 
 	@Bean
-	TokenProviderImplDefault defaultTokenProvider(Props props, ConfigCache configs, UserRepository userRepository) {
-		return new TokenProviderImplDefault(props, configs, userRepository);
+	TokenProviderImplDefault defaultTokenProvider(Props props, ConfigCache configs) {
+		return new TokenProviderImplDefault(props, configs);
 	}
 }

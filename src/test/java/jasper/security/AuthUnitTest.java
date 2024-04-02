@@ -42,7 +42,7 @@ public class AuthUnitTest {
 
 	Auth getAuth(String origin, UserDto user, String ...roles) {
 		user.setOrigin(origin);
-		var a = new Auth(new Props(), null, configCache, null, null);
+		var a = new Auth(new Props(), null, configCache, null);
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);

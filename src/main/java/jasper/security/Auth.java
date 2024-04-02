@@ -3,7 +3,6 @@ package jasper.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.component.ConfigCache;
-import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
 import jasper.domain.Ref;
@@ -144,7 +143,6 @@ public class Auth {
 	RoleHierarchy roleHierarchy;
 	ConfigCache configs;
 	RefRepository refRepository;
-	ComponentDtoMapper dtoMapper;
 
 	// Cache
 	protected Authentication authentication;
@@ -159,12 +157,11 @@ public class Auth {
 	protected List<QualifiedTag> tagReadAccess;
 	protected List<QualifiedTag> tagWriteAccess;
 
-	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository, ComponentDtoMapper dtoMapper) {
+	public Auth(Props props, RoleHierarchy roleHierarchy, ConfigCache configs, RefRepository refRepository) {
 		this.props = props;
 		this.roleHierarchy = roleHierarchy;
 		this.configs = configs;
 		this.refRepository = refRepository;
-		this.dtoMapper = dtoMapper;
 	}
 
 	public void clear(Authentication authentication) {
@@ -705,9 +702,9 @@ public class Auth {
 	protected Optional<UserDto> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth
-				.map(a -> a.getDetails() instanceof User ? (User) a.getDetails() : null)
-				.map(dtoMapper::domainToDto);
+			user = auth.map(a -> a.getDetails() instanceof UserDto
+				? (UserDto) a.getDetails()
+				: null);
 			if (isLoggedIn() && user.isEmpty()) {
 				user = ofNullable(configs.getUser(getUserTag().toString()));
 			}

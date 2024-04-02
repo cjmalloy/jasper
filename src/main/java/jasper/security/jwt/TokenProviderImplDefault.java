@@ -2,7 +2,6 @@ package jasper.security.jwt;
 
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -11,8 +10,8 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 public class TokenProviderImplDefault extends AbstractTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImplDefault.class);
 
-	public TokenProviderImplDefault(Props props, ConfigCache configs, UserRepository userRepository) {
-		super(props, configs, userRepository);
+	public TokenProviderImplDefault(Props props, ConfigCache configs) {
+		super(props, configs);
 	}
 
 	@Override

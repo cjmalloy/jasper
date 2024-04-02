@@ -3,7 +3,7 @@ package jasper.security.jwt;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
-import jasper.security.UserDetailsProvider;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,20 +25,17 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	public ConfigCache configs;
 
-	public UserDetailsProvider userDetailsProvider;
-
-	AbstractTokenProvider(Props props, ConfigCache configs, UserDetailsProvider userDetailsProvider) {
+	AbstractTokenProvider(Props props, ConfigCache configs) {
 		this.props = props;
 		this.configs = configs;
-		this.userDetailsProvider = userDetailsProvider;
 	}
 
-	User getUser(String userTag) {
-		if (userDetailsProvider == null) return null;
-		return userDetailsProvider.findOneByQualifiedTag(userTag).orElse(null);
+	UserDto getUser(String userTag) {
+		if (configs == null) return null;
+		return configs.getUser(userTag);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(User user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
 		var auth = getPartialAuthorities(origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("User Roles: {}", user.getRole());

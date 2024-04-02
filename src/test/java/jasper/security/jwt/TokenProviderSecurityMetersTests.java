@@ -60,7 +60,7 @@ class TokenProviderSecurityMetersTests {
 
         SecurityMetersService securityMetersService = new SecurityMetersService(meterRegistry);
 
-        tokenProvider = new TokenProviderImpl(new Props(), configCache, null, securityMetersService, null);
+        tokenProvider = new TokenProviderImpl(new Props(), configCache, securityMetersService, null);
     }
 
     @Test
