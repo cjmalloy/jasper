@@ -100,6 +100,10 @@ public interface Config {
 		 */
 		private String minRole = "ROLE_ANONYMOUS";
 		/**
+		 * Minimum role for writing.
+		 */
+		private String minWriteRole = "ROLE_ANONYMOUS";
+		/**
 		 * Default role given to every user.
 		 */
 		private String defaultRole = "ROLE_ANONYMOUS";

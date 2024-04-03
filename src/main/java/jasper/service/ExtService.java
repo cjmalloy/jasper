@@ -57,7 +57,7 @@ public class ExtService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
+	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant create(Ext ext, boolean force) {
 		ingest.create(ext, force);

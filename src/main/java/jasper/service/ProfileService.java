@@ -85,7 +85,7 @@ public class ProfileService {
 		profileManager.changePassword(qualifiedTag.substring("+user/".length()), password);
 	}
 
-	@PreAuthorize( "@auth.hasRole('MOD') and @auth.canWriteTag(#qualifiedTag)")
+	@PreAuthorize( "@auth.hasRole('MOD') and @auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "profile"}, histogram = true)
 	public void changeRole(String qualifiedTag, String role) {
 		validateRole(role);

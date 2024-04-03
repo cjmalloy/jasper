@@ -469,16 +469,6 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
-	void testCanAddTag_ViewerFailed() {
-		var user = getUserDto("+user/test@other");
-		user.getTagWriteAccess().add("custom");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canAddTag("custom"))
-			.isFalse();
-	}
-
-	@Test
 	void testCanAddTag_UserTag() {
 		var user = getUserDto("+user/test@other");
 		var auth = getAuth(user, USER);

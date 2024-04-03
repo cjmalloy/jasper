@@ -305,13 +305,13 @@ public class Auth {
 		if (!local(origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
-		// Minimum role for writing Refs is USER
-		if (!hasRole(USER)) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
 			if (url.startsWith("tag:/")) return hasRole(MOD) || url.startsWith("tag:/" + getUserTag().tag + "?");
 			// If we're creating, simply having the role USER is enough
-			return true;
+			return hasRole(USER);
 		}
 		var existing = maybeExisting.get();
 		// First write check of an existing Ref must be for the locked tag
@@ -366,8 +366,9 @@ public class Auth {
 	public boolean canAddTag(String tag) {
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
 		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
@@ -380,8 +381,9 @@ public class Auth {
 	public boolean canAddTags(List<String> tags) {
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		return tags.stream().allMatch(this::canAddTag);
 	}
 
@@ -393,8 +395,9 @@ public class Auth {
 		if (!local(origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		for (var tag : tags) {
 			if (!canTag(tag, url, origin)) return false;
 		}
@@ -473,7 +476,16 @@ public class Auth {
 	}
 
 	/**
-	 * Can the user modify the associated Ext and User entities of a tag?
+	 * Can the user create the associated Ext entities of a tag?
+	 */
+	public boolean canCreateTag(String qualifiedTag) {
+		// User role is required to create Exts
+		if (!hasRole(USER)) return false;
+		return canWriteTag(qualifiedTag);
+	}
+
+	/**
+	 * Can the user modify the associated Ext entities of a tag?
 	 */
 	public boolean canWriteTag(String qualifiedTag) {
 		var qt = qt(qualifiedTag);
@@ -481,14 +493,14 @@ public class Auth {
 		if (!local(qt.origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
+		// Viewers may only edit their user ext
+		if (hasRole(USER) && isUser(qt)) return true;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		// Editors have special access to edit public tag Exts
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
-		// Viewers may only edit their user ext
-		if (isUser(qt)) return true;
-		// User is required to edit anything other than your own user
-		if (!hasRole(USER)) return false;
 		// Check access tags
 		return captures(getTagWriteAccess(), qt);
 	}
@@ -535,7 +547,17 @@ public class Auth {
 	public boolean minRole() {
 		// Don't call hasRole() from here or you get an infinite loop
 		if (hasAnyRole(BANNED)) return false;
-		return hasAnyRole(props.getMinRole()) && hasAnyRole(security().getMinRole());
+		return (isBlank(props.getMinRole()) || hasAnyRole(props.getMinRole()))
+			&& (isBlank(security().getMinRole()) || hasAnyRole(security().getMinRole()));
+	}
+
+	/**
+	 * Has the minimum role to write.
+	 */
+	public boolean minWriteRole() {
+		if (hasAnyRole(BANNED)) return false;
+		return (isBlank(props.getMinWriteRole()) || hasAnyRole(props.getMinWriteRole()))
+			&& (isBlank(security().getMinWriteRole()) || hasAnyRole(security().getMinWriteRole()));
 	}
 
 	/**
@@ -572,6 +594,8 @@ public class Auth {
 		// Mods can add any tag permissions
 		if (hasRole(MOD)) return true;
 		var maybeExisting = ofNullable(configs.getUser(user.getQualifiedTag()));
+		// User role is required to create Users
+		if (maybeExisting.isEmpty() && !hasRole(USER)) return false;
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
@@ -619,18 +643,12 @@ public class Auth {
 
 	protected boolean tagWriteAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
-		var qt = qt(tag + getOrigin());
-		if (isUser(qt)) return true; // Viewers may only edit their user ext
-		if (!hasRole(USER)) return false;
-		return captures(getTagWriteAccess(), qt);
+		return captures(getTagWriteAccess(), qt(tag + getOrigin()));
 	}
 
 	protected boolean writeAccessCaptures(String tag) {
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
-		var qt = qt(tag + getOrigin());
-		if (isUser(qt)) return true;
-		return captures(getWriteAccess(), qt);
+		return captures(getWriteAccess(), qt(tag + getOrigin()));
 	}
 
 	protected static boolean captures(List<QualifiedTag> selectors, List<QualifiedTag> target) {
