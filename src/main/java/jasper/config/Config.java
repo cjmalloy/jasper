@@ -107,10 +107,10 @@ public interface Config {
 		 * Default user tag given to every logged out user.
 		 */
 		private String defaultUser = "";
-		private String[] defaultReadAccess;
-		private String[] defaultWriteAccess;
-		private String[] defaultTagReadAccess;
-		private String[] defaultTagWriteAccess;
+		private List<String> defaultReadAccess;
+		private List<String> defaultWriteAccess;
+		private List<String> defaultTagReadAccess;
+		private List<String> defaultTagWriteAccess;
 
 		public String getSecret() {
 			if (isBlank(secret)) {

@@ -925,4 +925,8 @@ public class Auth {
 	public static List<QualifiedTag> getQualifiedTags(String[] tags) {
 		return Stream.of(tags).map(QualifiedTag::selector).toList();
 	}
+
+	public static List<QualifiedTag> getQualifiedTags(List<String> tags) {
+		return tags.stream().map(QualifiedTag::selector).toList();
+	}
 }
