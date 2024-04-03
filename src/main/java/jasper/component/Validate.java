@@ -10,9 +10,12 @@ import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
@@ -127,6 +130,27 @@ public class Validate {
 			if (!stripOnError) throw e;
 			template(schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
+		}
+	}
+
+	@Timed("jasper.validate.plugin")
+	public void plugin(Plugin plugin) {
+
+	}
+
+	@Timed("jasper.validate.template")
+	public void template(Template template) {
+		try {
+			switch (template.getTag()) {
+				case "_config/server":
+					template.getConfig(ServerConfig.class);
+					break;
+				case "_config/security":
+					template.getConfig(SecurityConfig.class);
+					break;
+			}
+		} catch (Exception e) {
+			throw new InvalidTemplateException(template.getTag());
 		}
 	}
 

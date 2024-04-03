@@ -40,6 +40,9 @@ public class IngestTemplate {
 	EntityManager em;
 
 	@Autowired
+	Validate validate;
+
+	@Autowired
 	Messages messages;
 
 	@Autowired
@@ -55,18 +58,21 @@ public class IngestTemplate {
 		} else {
 			delete(deletorTag(template.getTag()) + template.getOrigin());
 		}
+		validate.template(template);
 		ensureCreateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
+		validate.template(template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void push(Template template) {
+		validate.template(template);
 		try {
 			templateRepository.save(template);
 		} catch (DataIntegrityViolationException e) {

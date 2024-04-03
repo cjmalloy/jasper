@@ -40,6 +40,9 @@ public class IngestPlugin {
 	EntityManager em;
 
 	@Autowired
+	Validate validate;
+
+	@Autowired
 	Messages messages;
 
 	@Autowired
@@ -55,18 +58,21 @@ public class IngestPlugin {
 		} else {
 			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
 		}
+		validate.plugin(plugin);
 		ensureCreateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
+		validate.plugin(plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void push(Plugin plugin) {
+		validate.plugin(plugin);
 		try {
 			pluginRepository.save(plugin);
 		} catch (DataIntegrityViolationException e) {
