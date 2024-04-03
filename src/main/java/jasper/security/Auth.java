@@ -305,8 +305,8 @@ public class Auth {
 		if (!local(origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
-		// Minimum role for writing Refs is USER
-		if (!hasRole(USER)) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
 			if (url.startsWith("tag:/")) return hasRole(MOD) || url.startsWith("tag:/" + getUserTag().tag + "?");
@@ -366,8 +366,9 @@ public class Auth {
 	public boolean canAddTag(String tag) {
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		if (isPublicTag(tag)) return true;
 		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
@@ -380,8 +381,9 @@ public class Auth {
 	public boolean canAddTags(List<String> tags) {
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		return tags.stream().allMatch(this::canAddTag);
 	}
 
@@ -393,8 +395,9 @@ public class Auth {
 		if (!local(origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		for (var tag : tags) {
 			if (!canTag(tag, url, origin)) return false;
 		}
@@ -481,14 +484,14 @@ public class Auth {
 		if (!local(qt.origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
+		// Viewers may only edit their user ext
+		if (hasRole(USER) && isUser(qt)) return true;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		// Editors have special access to edit public tag Exts
 		if (hasRole(EDITOR) && isPublicTag(qualifiedTag)) return true;
-		// Viewers may only edit their user ext
-		if (isUser(qt)) return true;
-		// User is required to edit anything other than your own user
-		if (!hasRole(USER)) return false;
 		// Check access tags
 		return captures(getTagWriteAccess(), qt);
 	}
@@ -536,6 +539,14 @@ public class Auth {
 		// Don't call hasRole() from here or you get an infinite loop
 		if (hasAnyRole(BANNED)) return false;
 		return hasAnyRole(props.getMinRole()) && hasAnyRole(security().getMinRole());
+	}
+
+	/**
+	 * Has the minimum role to post.
+	 */
+	public boolean minWriteRole() {
+		if (hasAnyRole(BANNED)) return false;
+		return hasAnyRole(props.getMinWriteRole()) && hasAnyRole(security().getMinWriteRole());
 	}
 
 	/**
@@ -618,16 +629,18 @@ public class Auth {
 	}
 
 	protected boolean tagWriteAccessCaptures(String tag) {
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
 		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true; // Viewers may only edit their user ext
-		if (!hasRole(USER)) return false;
 		return captures(getTagWriteAccess(), qt);
 	}
 
 	protected boolean writeAccessCaptures(String tag) {
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (!hasRole(USER)) return false;
 		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
 		return captures(getWriteAccess(), qt);

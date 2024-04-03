@@ -44,6 +44,10 @@ public class Props {
 	 */
 	private String minRole = "ROLE_ANONYMOUS";
 	/**
+	 * Minimum role for posting.
+	 */
+	private String minWriteRole = "ROLE_USER";
+	/**
 	 * Default role given to every user.
 	 */
 	private String defaultRole = "ROLE_ANONYMOUS";
