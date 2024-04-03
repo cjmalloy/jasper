@@ -206,7 +206,7 @@ public class Ref implements HasTags {
 			plugins = from;
 		} else {
 			for (var t : toAdd) {
-				plugins.set(t, from.get(t));
+				if (from.has(t)) plugins.set(t, from.get(t));
 			}
 		}
 		return this;
