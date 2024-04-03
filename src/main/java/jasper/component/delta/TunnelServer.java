@@ -53,15 +53,19 @@ public class TunnelServer {
 				.append(isBlank(origin) ? "default" : origin)
 				.append("\n");
 			for (var u : userRepository.findAllByOriginAndPubKeyIsNotNull(origin)) {
-				if (u.getPubKey().length == 0) continue;
-				var parts = new String(u.getPubKey()).split("\\s+");
-				result
-					.append(parts[0])
-					.append(" ")
-					.append(parts[1])
-					.append(" ")
-					.append(u.getQualifiedTag())
-					.append("\n");
+				if (isBlank(u.getAuthorizedKeys())) continue;
+				var lines = u.getAuthorizedKeys().split("\n");
+				for (var l : lines) {
+					if (isBlank(l)) continue;
+					var parts = l.split("\\s+");
+					result
+						.append(parts[0])
+						.append(" ")
+						.append(parts[1])
+						.append(" ")
+						.append(u.getQualifiedTag())
+						.append("\n");
+				}
 			}
 		}
 		try (var client = new DefaultKubernetesClient()) {
