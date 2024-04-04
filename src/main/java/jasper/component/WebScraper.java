@@ -89,8 +89,6 @@ public class WebScraper {
 	@Autowired
 	Images images;
 
-	WebScraper self = this;
-
 	private final BlockingQueue<Tuple2<String, String>> scrapeLater = new LinkedBlockingQueue<>();
 	private final Set<Tuple2<String, String>> scraping = new HashSet<>();
 
@@ -184,26 +182,26 @@ public class WebScraper {
 			if (image == null) continue;
 			if (image.tagName().equals("a")) {
 				var src = image.absUrl("href");
-				self.scrapeAsync(src, result.getOrigin());
+				scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 			} else if (image.hasAttr("data-srcset")){
 				var srcset = image.absUrl("data-srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
-				self.scrapeAsync(src, result.getOrigin());
+				scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("srcset")){
 				var srcset = image.absUrl("srcset").split(",");
 				var src = srcset[srcset.length - 1].split(" ")[0];
-				self.scrapeAsync(src, result.getOrigin());
+				scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
 			} else if (image.hasAttr("src")){
 				var src = image.absUrl("src");
-				self.scrapeAsync(src, result.getOrigin());
+				scrapeAsync(src, result.getOrigin());
 				addPluginUrl(result, "plugin/image", getImage(src));
 				addThumbnailUrl(result, getThumbnail(src));
 				image.parent().remove();
@@ -219,21 +217,21 @@ public class WebScraper {
 					addThumbnailUrl(result, svgToUrl(sanitizer.clean(thumbnail.outerHtml(), result.getUrl())));
 				} else if (thumbnail.hasAttr("href")) {
 					var src = thumbnail.absUrl("href");
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("data-srcset")){
 					var srcset = thumbnail.absUrl("data-srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("srcset")){
 					var srcset = thumbnail.absUrl("srcset").split(",");
 					var src = srcset[srcset.length - 1].split(" ")[0];
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				} else if (thumbnail.hasAttr("src")){
 					var src = thumbnail.absUrl("src");
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addThumbnailUrl(result, getThumbnail(src));
 				}
 				thumbnail.parent().remove();
@@ -278,11 +276,11 @@ public class WebScraper {
 			for (var video : doc.select(s)) {
 				if (video.tagName().equals("div")) {
 					var src = video.absUrl("data-stream");
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
 				} else if (video.hasAttr("src")) {
 					var src = video.absUrl("src");
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
 					addWeakThumbnail(result, getThumbnail(src));
 					video.parent().remove();
@@ -297,7 +295,7 @@ public class WebScraper {
 			for (var audio : doc.select(s)) {
 				if (audio.hasAttr("src")) {
 					var src = audio.absUrl("src");
-					self.scrapeAsync(src, result.getOrigin());
+					scrapeAsync(src, result.getOrigin());
 					addPluginUrl(result, "plugin/audio", getVideo(src));
 					audio.parent().remove();
 				}
@@ -668,7 +666,7 @@ public class WebScraper {
 			logger.warn("Error fetching", e);
 			return existingCache;
 		} finally {
-			for (var m : scrapeMore) self.scrapeAsync(m, origin);
+			for (var m : scrapeMore) scrapeAsync(m, origin);
 			if (ref != null) ingest.update(ref, false);
 		}
 	}
@@ -762,7 +760,7 @@ public class WebScraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		self.scrapeAsync(url, ref.getOrigin());
+		scrapeAsync(url, ref.getOrigin());
 		ref.setPlugin(tag, Map.of("url", url));
 	}
 
