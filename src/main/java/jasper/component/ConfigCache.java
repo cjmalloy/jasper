@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ConfigCache {
@@ -56,6 +58,8 @@ public class ConfigCache {
 	@Autowired
 	ComponentDtoMapper dtoMapper;
 
+	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
+
 	@PostConstruct
 	public void init() {
 		if (templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
@@ -65,6 +69,7 @@ public class ConfigCache {
 
 	@CacheEvict(value = "config-cache", allEntries = true)
 	public void clearConfigCache() {
+		configCacheTags.clear();
 		logger.info("Cleared config cache.");
 	}
 
@@ -107,6 +112,7 @@ public class ConfigCache {
 	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")
 	@Transactional(readOnly = true)
 	public <T> T getConfig(String url, String origin, String tag, Class<T> toValueType) {
+		configCacheTags.add(tag);
 		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.map(r -> r.getPlugin(tag, toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
@@ -115,12 +121,17 @@ public class ConfigCache {
 	@Cacheable(value = "config-cache", key = "#tag + #origin")
 	@Transactional(readOnly = true)
 	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
+		configCacheTags.add(tag);
 		return refRepository.findAll(
 				RefFilter.builder()
 					.origin(origin)
 					.query(tag).build().spec()).stream()
 			.map(r -> r.getPlugin(tag, toValueType))
 			.toList();
+	}
+
+	public boolean isConfigTag(String tag) {
+		return configCacheTags.contains(tag);
 	}
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")

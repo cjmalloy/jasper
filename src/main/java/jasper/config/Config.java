@@ -30,10 +30,6 @@ public interface Config {
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
 		private List<String> editorSeals = List.of("plugin/qc");
 		/**
-		 * Tags for config Refs to be cached.
-		 */
-		private List<String> cacheTags = List.of("+plugin/scrape", "+plugin/oembed");
-		/**
 		 * Whitelist origins to be allowed web access.
 		 */
 		private List<String> webOrigins = List.of("");
