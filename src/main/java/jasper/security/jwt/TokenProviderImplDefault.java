@@ -21,9 +21,9 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 
 	@Override
 	public Authentication getAuthentication(String jwt, String origin) {
-		logger.debug("Origin set by default or header {}", origin);
 		var principal = configs.security(origin).getDefaultUser() + origin;
 		var user = getUser(principal);
+		logger.debug("Default Auth {} {}", principal, origin);
 		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user, origin));
 	}
 }

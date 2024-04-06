@@ -80,6 +80,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var claims = getParser(origin).parseClaimsJws(token).getBody();
 		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
+		logger.debug("Token Auth {} {}", principal, origin);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
@@ -133,18 +134,22 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	String getUsername(Claims claims, String origin) {
-		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
-			return getHeader(USER_TAG_HEADER);
-		}
-		var security = configs.security(origin);
-		logger.debug("Sub: {}", security.getUsernameClaim());
-		var principal = claims.get(security.getUsernameClaim(), String.class);
-		logger.debug("Principal: {}", principal);
 		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
 			origin = getOriginHeader();
 			logger.debug("Origin set by header {}", origin);
 		}
+		var principal = "";
+		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
+			principal = getHeader(USER_TAG_HEADER);
+			logger.debug("User tag set by header: {} ({})", principal, origin);
+		} else {
+			var security = configs.security(origin);
+			principal = claims.get(security.getUsernameClaim(), String.class);
+			logger.debug("User tag set by JWT claim {}: {} ({})", security.getUsernameClaim(), principal, origin);
+		}
+		logger.debug("Principal: {}", principal);
 		if (principal.contains("@")) {
+			// TODO: option for: map email host to user tag path
 			principal = principal.substring(0, principal.indexOf("@"));
 		}
 		var authorities = getPartialAuthorities(claims, origin);
