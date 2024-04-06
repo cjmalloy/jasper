@@ -33,7 +33,10 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		generateConfig();
+		var root = configs.root();
+		if (root.getSshOrigins().contains(message.getPayload().getOrigin())) {
+			generateConfig();
+		}
 	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
@@ -54,6 +57,7 @@ public class TunnelServer {
 				.append("\n");
 			for (var u : userRepository.findAllByOriginAndPubKeyIsNotNull(origin)) {
 				if (u.getPubKey().length == 0) continue;
+				logger.debug("Enabling SSH access for {}",  u.getTag() + u.getOrigin());
 				var parts = new String(u.getPubKey()).split("\\s+");
 				result
 					.append(parts[0])
