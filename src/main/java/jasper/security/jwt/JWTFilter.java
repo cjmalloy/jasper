@@ -43,13 +43,15 @@ public class JWTFilter extends GenericFilterBean {
 		var httpServletRequest = (HttpServletRequest) servletRequest;
 		if (!"OPTIONS".equalsIgnoreCase(httpServletRequest.getMethod())) {
 			var origin = resolveOrigin(httpServletRequest);
+			var jwt = resolveToken(httpServletRequest);
 			if (configs.root().getWebOrigins().contains(origin)) {
-				var jwt = resolveToken(httpServletRequest);
 				if (tokenProvider.validateToken(jwt, origin)) {
 					SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
 				} else {
 					SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
 				}
+			} else {
+				logger.debug("No web access for origin ({})", jwt);
 			}
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
