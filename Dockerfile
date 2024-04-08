@@ -1,4 +1,4 @@
-FROM maven:3-eclipse-temurin-21 as builder
+FROM maven:3-eclipse-temurin-22 as builder
 WORKDIR app
 COPY pom.xml .
 COPY .m2/settings.xml .
