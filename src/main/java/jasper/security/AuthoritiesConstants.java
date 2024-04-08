@@ -13,7 +13,6 @@ public final class AuthoritiesConstants {
 	public static final String VIEWER = "ROLE_VIEWER";
 	public static final String ANONYMOUS = "ROLE_ANONYMOUS";
 	public static final String BANNED = "ROLE_BANNED";
-	public static final String PRIVATE = "ROLE_PRIVATE";
 
 	private AuthoritiesConstants() {}
 }

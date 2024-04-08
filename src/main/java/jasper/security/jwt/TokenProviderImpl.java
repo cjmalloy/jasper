@@ -39,7 +39,6 @@ import static jasper.security.Auth.getHeader;
 import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
-import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -79,7 +78,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	public Authentication getAuthentication(String token, String origin) {
 		var claims = getParser(origin).parseClaimsJws(token).getBody();
 		var principal = getUsername(claims, origin);
-		var user = getUser(principal);
+		var user = getUsers(principal);
 		logger.debug("Token Auth {} {}", principal, origin);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
@@ -107,14 +106,17 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return jwtParsers.get(origin);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, UserDto user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, List<UserDto> user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
-		if (user != null && user.getRole() != null) {
-			logger.debug("User Roles: {}", user.getRole());
-			if (User.ROLES.contains(user.getRole().trim())) {
-				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
+		for (var u : user) {
+			if (isNotBlank(u.getRole())) {
+				logger.debug("User Roles: {}", u.getRole());
+				if (User.ROLES.contains(u.getRole().trim())) {
+					auth.add(new SimpleGrantedAuthority(u.getRole().trim()));
+				}
 			}
-		} else {
+		}
+		if (user.isEmpty()) {
 			logger.debug("No User");
 		}
 		return auth;
@@ -147,6 +149,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			principal = claims.get(security.getUsernameClaim(), String.class);
 			logger.debug("User tag set by JWT claim {}: {} ({})", security.getUsernameClaim(), principal, origin);
 		}
+		if (principal == null) principal = "";
 		logger.debug("Principal: {}", principal);
 		if (principal.contains("@")) {
 			var emailDomain = principal.substring(principal.indexOf("@") + 1);
@@ -159,8 +162,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var authorities = getPartialAuthorities(claims, origin);
 		if (isBlank(principal) ||
 			!principal.matches(Tag.QTAG_REGEX) ||
-			principal.equals("+user") ||
-			principal.equals("_user")) {
+			principal.equals("user")) {
 			logger.debug("Invalid principal {}.", principal);
 			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
@@ -170,13 +172,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			}
 			// The root user has access to every other user.
 			// Only assign to mods or higher when username is missing.
-			if (!"+user".equals(principal)) {
-				// Default to private user if +user is not exactly specified
-				principal = "_user";
-			}
-		} else if (!principal.startsWith("+user/") && !principal.startsWith("_user/")) {
-			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-			principal = (isPrivate ? "_user/" : "+user/") + principal;
+			principal = "user";
+		} else if (!principal.startsWith("user/")) {
+			principal = "user/" + principal;
 		}
 		logger.debug("Username: {}", principal + origin);
 		return principal + origin;

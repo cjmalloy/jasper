@@ -99,10 +99,10 @@ public class AuthMultiTenantUnitTest {
 
 	ConfigCache getConfigs(UserDto ...users) {
 		var configCache = mock(ConfigCache.class);
-		when(configCache.getUser(anyString()))
+		when(configCache.getUsers(anyString()))
 			.thenReturn(null);
 		for (var user : users) {
-			when(configCache.getUser(user.getQualifiedTag()))
+			when(configCache.getUsers(user.getQualifiedTag()))
 				.thenReturn(user);
 		}
 		var root = new ServerConfig();

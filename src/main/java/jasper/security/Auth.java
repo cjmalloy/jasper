@@ -47,6 +47,7 @@ import java.util.stream.Stream;
 
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.HasTags.pub;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
@@ -153,7 +154,7 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
-	protected Optional<UserDto> user;
+	protected List<UserDto> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -187,7 +188,7 @@ public class Auth {
 	@PostConstruct
 	public void log() {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
-			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
+			getOrigin(), getPrincipal(), getAuthoritySet(), getUsers().size());
 		if (logger.isTraceEnabled()) {
 			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(configs.security(getOrigin())));
 		}
@@ -512,7 +513,7 @@ public class Auth {
 	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
-		return isLoggedIn() && getUserTag().matches(qt);
+		return isLoggedIn() && getUserTag().matchesIgnoringAccess(qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -736,14 +737,14 @@ public class Auth {
 			var authn = getAuthentication();
 			if (authn == null) return null;
 			if (authn instanceof JwtAuthentication j) {
-				principal = j.getPrincipal();
+				principal = pub(j.getPrincipal());
 			} else {
 				if (authn instanceof AnonymousAuthenticationToken) return null;
 				if (authn.getPrincipal() == null) return null;
 				if (authn.getPrincipal() instanceof String username) {
-					principal = username;
+					principal = pub(username);
 				} else if (authn.getPrincipal() instanceof UserDetails d) {
-					principal = d.getUsername();
+					principal = pub(d.getUsername());
 				} else {
 					return null;
 				}
@@ -760,14 +761,12 @@ public class Auth {
 		return userTag;
 	}
 
-	protected Optional<UserDto> getUser() {
+	protected List<UserDto> getUsers() {
 		if (user == null) {
-			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> a.getDetails() instanceof UserDto
-				? (UserDto) a.getDetails()
-				: null);
-			if (isLoggedIn() && user.isEmpty()) {
-				user = ofNullable(configs.getUser(getUserTag().toString()));
+			if (isLoggedIn()) {
+				user = configs.getUsers(getUserTag().toString());
+			} else {
+				user = List.of();
 			}
 		}
 		return user;
@@ -813,9 +812,9 @@ public class Auth {
 			}
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
-				readAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getReadAccess)
-						.orElse(List.of())));
+				readAccess.addAll(selectors(getSubOrigins(), getUsers().stream()
+					.flatMap(u -> ofNullable(u.getReadAccess()).orElse(List.of()).stream())
+					.toList()));
 			}
 		}
 		return readAccess;
@@ -835,9 +834,9 @@ public class Auth {
 			}
 			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
 			if (isLoggedIn()) {
-				writeAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getWriteAccess)
-						.orElse(List.of())));
+				writeAccess.addAll(selectors(getSubOrigins(), getUsers().stream()
+					.flatMap(u -> ofNullable(u.getWriteAccess()).orElse(List.of()).stream())
+					.toList()));
 			}
 		}
 		return writeAccess;
@@ -857,9 +856,9 @@ public class Auth {
 			}
 			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
-				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagReadAccess)
-						.orElse(List.of())));
+				tagReadAccess.addAll(selectors(getSubOrigins(), getUsers().stream()
+					.flatMap(u -> ofNullable(u.getTagReadAccess()).orElse(List.of()).stream())
+					.toList()));
 			}
 		}
 		return tagReadAccess;
@@ -879,9 +878,9 @@ public class Auth {
 			}
 			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
-				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagWriteAccess)
-						.orElse(List.of())));
+				tagWriteAccess.addAll(selectors(getSubOrigins(), getUsers().stream()
+					.flatMap(u -> ofNullable(u.getTagWriteAccess()).orElse(List.of()).stream())
+					.toList()));
 			}
 		}
 		return tagWriteAccess;

@@ -30,19 +30,22 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		this.configs = configs;
 	}
 
-	UserDto getUser(String userTag) {
+	List<UserDto> getUsers(String userTag) {
 		if (configs == null) return null;
-		return configs.getUser(userTag);
+		return configs.getUsers(userTag);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(List<UserDto> user, String origin) {
 		var auth = getPartialAuthorities(origin);
-		if (user != null && user.getRole() != null) {
-			logger.debug("User Roles: {}", user.getRole());
-			if (User.ROLES.contains(user.getRole().trim())) {
-				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
+		for (var u : user) {
+			if (isNotBlank(u.getRole())) {
+				logger.debug("User Roles: {}", u.getRole());
+				if (User.ROLES.contains(u.getRole().trim())) {
+					auth.add(new SimpleGrantedAuthority(u.getRole().trim()));
+				}
 			}
-		} else {
+		}
+		if (user.isEmpty()) {
 			logger.debug("No User");
 		}
 		return auth;
