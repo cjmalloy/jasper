@@ -34,14 +34,14 @@ public class TemplateService {
 	@Autowired
 	DtoMapper mapper;
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant create(Template template) {
 		ingest.create(template);
 		return template.getModified();
 	}
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void push(Template template) {
 		ingest.push(template);
@@ -74,7 +74,7 @@ public class TemplateService {
 			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("@auth.local(#template.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant update(Template template) {
 		ingest.update(template);
@@ -82,7 +82,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.subOrigin(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

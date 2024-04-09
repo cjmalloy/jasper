@@ -55,6 +55,7 @@ import static jasper.repository.spec.QualifiedTag.selectors;
 import static jasper.repository.spec.RefSpec.hasAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.isAnyQualifiedTag;
 import static jasper.repository.spec.TagSpec.notPrivateTag;
+import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
@@ -558,6 +559,35 @@ public class Auth {
 		if (hasAnyRole(BANNED)) return false;
 		return (isBlank(props.getMinWriteRole()) || hasAnyRole(props.getMinWriteRole()))
 			&& (isBlank(security().getMinWriteRole()) || hasAnyRole(security().getMinWriteRole()));
+	}
+
+	/**
+	 * Has the minimum role to configure admin settings.
+	 */
+	public boolean minConfigRole() {
+		if (hasAnyRole(BANNED)) return false;
+		if (hasAnyRole(ADMIN)) return true;
+		// Lowest valid role for configuring admin settings is EDITOR
+		if (!hasAnyRole(EDITOR)) return false;
+		return hasAnyRole(props.getMinConfigRole()) && hasAnyRole(security().getMinConfigRole());
+	}
+
+	/**
+	 * Can this admin config be edited?
+	 */
+	public boolean canEditConfig(Tag config) {
+		return canEditConfig(config.getQualifiedTag());
+	}
+
+	/**
+	 * Can this admin config be edited?
+	 */
+	public boolean canEditConfig(String qualifiedTag) {
+		if (!local(qualifiedTag)) return false;
+		if (hasAnyRole(ADMIN)) return true;
+		if (!minConfigRole()) return false;
+		// Non-admins may only edit public configs, or assigned private configs
+		return captures(getTagWriteAccess(), qt(qualifiedTag));
 	}
 
 	/**

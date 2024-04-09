@@ -34,14 +34,14 @@ public class PluginService {
 	@Autowired
 	DtoMapper mapper;
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant create(Plugin plugin) {
 		ingest.create(plugin);
 		return plugin.getModified();
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void push(Plugin plugin) {
 		ingest.push(plugin);
@@ -75,7 +75,7 @@ public class PluginService {
 			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("@auth.local(#plugin.getOrigin()) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant update(Plugin plugin) {
 		ingest.update(plugin);
@@ -83,7 +83,7 @@ public class PluginService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.subOrigin(#qualifiedTag) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

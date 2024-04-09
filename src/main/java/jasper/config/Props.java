@@ -48,6 +48,10 @@ public class Props {
 	 */
 	private String minWriteRole = "ROLE_ANONYMOUS";
 	/**
+	 * Minimum role for admin config.
+	 */
+	private String minConfigRole = "ROLE_ADMIN";
+	/**
 	 * Default role given to every user.
 	 */
 	private String defaultRole = "ROLE_ANONYMOUS";
