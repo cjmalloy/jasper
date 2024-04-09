@@ -573,6 +573,17 @@ public class Auth {
 	}
 
 	/**
+	 * Has the minimum role download backups.
+	 */
+	public boolean minReadBackupRole() {
+		if (hasAnyRole(BANNED)) return false;
+		if (hasAnyRole(ADMIN)) return true;
+		// Lowest valid role for reading backups is MOD
+		if (!hasAnyRole(MOD)) return false;
+		return hasAnyRole(props.getMinReadBackupsRole()) && hasAnyRole(security().getMinReadBackupsRole());
+	}
+
+	/**
 	 * Can this admin config be edited?
 	 */
 	public boolean canEditConfig(Tag config) {

@@ -49,7 +49,7 @@ public class BackupService {
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String createBackup(String origin, BackupOptionsDto options) throws IOException {
 		var id = Instant.now().toString();
@@ -73,13 +73,13 @@ public class BackupService {
 		return backup.listBackups(origin);
 	}
 
-	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
+	@PreAuthorize("@auth.subOrigin(#origin) and @auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public byte[] getBackup(String origin, String id) {
 		return backup.get(origin, id);
 	}
 
-	@PreAuthorize("@auth.hasRole('MOD')")
+	@PreAuthorize("@auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String getKey(String key) {
 		var ref = refRepository.findOneByUrlAndOrigin("system:backup-key", auth.getOrigin()).orElse(null);
@@ -122,7 +122,7 @@ public class BackupService {
 		return backup.get(auth.getOrigin(), id);
 	}
 
-	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public void restoreBackup(String origin, String id, BackupOptionsDto options) {
 		if (!backup.exists(origin, id)) throw new NotFoundException("Backup " + id);
@@ -135,7 +135,7 @@ public class BackupService {
 		backup.backfill(origin);
 	}
 
-	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('ADMIN')")
+	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public void deleteBackup(String origin, String id) throws IOException {
 		if (!backup.exists(origin, id)) return; // Delete is idempotent

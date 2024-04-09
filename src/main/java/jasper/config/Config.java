@@ -104,6 +104,11 @@ public interface Config {
 		 */
 		private String minConfigRole = "ROLE_ADMIN";
 		/**
+		 * Minimum role for downloading backups.
+		 * Backups may contain private data or private SSH keys, so they are extremely sensitive.
+		 */
+		private String minReadBackupsRole = "ROLE_ADMIN";
+		/**
 		 * Default role given to every user.
 		 */
 		private String defaultRole = "ROLE_ANONYMOUS";
