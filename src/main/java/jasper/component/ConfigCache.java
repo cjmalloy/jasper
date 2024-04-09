@@ -180,7 +180,7 @@ public class ConfigCache {
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		return getTemplateConfig("_config/server", "",  ServerConfig.class);
+		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class);
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
