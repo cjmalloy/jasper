@@ -62,7 +62,7 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
+		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
 			ingest.push(config());
 		}
 	}
@@ -210,8 +210,9 @@ public class ConfigCache {
 	}
 
 	private Template config() {
-		var config = objectMapper.convertValue(objectMapper.createObjectNode(),  ServerConfig.class);
+		var config = ServerConfig.builderFor(props.getLocalOrigin()).build();
 		var template = new Template();
+		template.setOrigin(props.getLocalOrigin());
 		template.setTag("_config/server");
 		template.setName("Server Config");
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));

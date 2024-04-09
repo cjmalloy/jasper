@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -21,6 +22,7 @@ public interface Config {
 	 */
 	@Getter
 	@Setter
+	@Builder
 	@AllArgsConstructor
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
@@ -66,6 +68,16 @@ public interface Config {
 		 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
 		 */
 		private List<String> scrapeHostBlacklist = List.of("*.local");
+
+		public static ServerConfigBuilder builderFor(String origin) {
+			return ServerConfig.builder()
+				.webOrigins(List.of(origin))
+				.sshOrigins(List.of(origin))
+				.pushOrigins(List.of(origin))
+				.pullOrigins(List.of(origin))
+				.asyncOrigins(List.of(origin))
+				.scrapeOrigins(List.of(origin));
+		}
 	}
 
 	/**

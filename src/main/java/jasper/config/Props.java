@@ -11,7 +11,9 @@ import tech.jhipster.config.JHipsterDefaults;
 import java.util.Base64;
 import java.util.List;
 
+import static java.lang.Integer.parseInt;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Properties specific to Jasper.
@@ -23,6 +25,35 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
 	private boolean debug = false;
+	/**
+	 * List of workers to create by origin. Each worker will use the
+	 * _config/server file in it's origin to perform certain tasks.
+	 * The local origin for this worker is at the index in the worker name.
+	 */
+	private String[] workload;
+	/**
+	 * The name of this worker. The number suffix is used as an index
+	 * into workload to determine the local origin.
+	 */
+	private String worker;
+	/**
+	 * Override the worker origin;
+	 */
+	private String workerLocalOrigin;
+	/**
+	 * Local origin for this server.
+	 * Only used if worker name is not set.
+	 */
+	private String localOrigin = "";
+	public String getLocalOrigin() {
+		if (isNotBlank(workerLocalOrigin)) {
+			return workerLocalOrigin;
+		} else if (isNotBlank(worker)) {
+			return workerLocalOrigin = workload[parseInt(worker.replaceAll("\\D", ""))];
+		} else {
+			return localOrigin;
+		}
+	}
 	private int ingestMaxRetry = 5;
 	private int maxEtagPageSize = 300;
 	private int backupBufferSize = 1000000;
@@ -34,7 +65,6 @@ public class Props {
 	private String scrapeIntervalMin = "1";
 	private int clearCacheCooldownSec = 2;
 	private int pushCooldownSec = 1;
-	private String localOrigin = "";
 	private boolean allowLocalOriginHeader = false;
 	private boolean allowUserTagHeader = false;
 	private boolean allowUserRoleHeader = false;
