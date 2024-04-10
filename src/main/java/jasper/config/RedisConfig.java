@@ -467,7 +467,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing TemplateDto from redis.");
 			}
-		}, of("plugin/*"));
+		}, of("template/*"));
 		return container;
 	}
 
