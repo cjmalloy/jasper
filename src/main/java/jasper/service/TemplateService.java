@@ -34,14 +34,14 @@ public class TemplateService {
 	@Autowired
 	DtoMapper mapper;
 
-	@PreAuthorize("@auth.canEditConfig(#plugin)")
+	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant create(Template template) {
 		ingest.create(template);
 		return template.getModified();
 	}
 
-	@PreAuthorize("@auth.canEditConfig(#plugin)")
+	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void push(Template template) {
 		ingest.push(template);
@@ -74,7 +74,7 @@ public class TemplateService {
 			.map(mapper::domainToDto);
 	}
 
-	@PreAuthorize("@auth.canEditConfig(#plugin)")
+	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant update(Template template) {
 		ingest.update(template);
