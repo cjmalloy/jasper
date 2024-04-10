@@ -149,8 +149,12 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		}
 		logger.debug("Principal: {}", principal);
 		if (principal.contains("@")) {
-			// TODO: option for: map email host to user tag path
+			var emailDomain = principal.substring(principal.indexOf("@"));
 			principal = principal.substring(0, principal.indexOf("@"));
+			var security = configs.security(origin);
+			if (security.isEmailDomainInUsername() && !emailDomain.equals(security.getRootEmailDomain())) {
+				principal = emailDomain + "/" + principal;
+			}
 		}
 		var authorities = getPartialAuthorities(claims, origin);
 		if (isBlank(principal) ||
