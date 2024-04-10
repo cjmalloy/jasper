@@ -61,6 +61,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
+import static jasper.security.AuthoritiesConstants.VIEWER;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -481,9 +482,9 @@ public class Auth {
 	 * Can the user create the associated Ext entities of a tag?
 	 */
 	public boolean canCreateTag(String qualifiedTag) {
-		// User role is required to create Exts
-		if (!hasRole(USER)) return false;
-		return canWriteTag(qualifiedTag);
+		if (!canWriteTag(qualifiedTag)) return false;
+		// User role is required to create Exts (except your user Ext)
+		return hasRole(USER) || hasRole(VIEWER) && isUser(qt(qualifiedTag));
 	}
 
 	/**
@@ -498,7 +499,7 @@ public class Auth {
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		// Viewers may only edit their user ext
-		if (hasRole(USER) && isUser(qt)) return true;
+		if (hasRole(VIEWER) && isUser(qt)) return true;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		// Editors have special access to edit public tag Exts

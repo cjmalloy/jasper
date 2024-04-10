@@ -119,7 +119,7 @@ public interface Config {
 		/**
 		 * Minimum role for writing.
 		 */
-		private String minWriteRole = "ROLE_ANONYMOUS";
+		private String minWriteRole = "ROLE_VIEWER";
 		/**
 		 * Minimum role for admin config.
 		 */
