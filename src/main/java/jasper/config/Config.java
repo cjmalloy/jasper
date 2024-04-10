@@ -107,6 +107,7 @@ public interface Config {
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
 		private String usernameClaim = "sub";
+		private String verifiedEmailClaim = "verified_email";
 		private String authoritiesClaim = "auth";
 		private String readAccessClaim = "readAccess";
 		private String writeAccessClaim = "writeAccess";
@@ -158,6 +159,7 @@ public interface Config {
 			if (isNotBlank(security.getSecret())) wrapped = wrapped.withSecret(security.getSecret());
 			if (isNotBlank(security.getJwksUri())) wrapped = wrapped.withJwksUri(security.getJwksUri());
 			if (isNotBlank(security.getUsernameClaim())) wrapped = wrapped.withUsernameClaim(security.getUsernameClaim());
+			if (!"unset".equals(security.getVerifiedEmailClaim())) wrapped = wrapped.withVerifiedEmailClaim(security.getVerifiedEmailClaim());
 			if (isNotBlank(security.getDefaultUser())) wrapped = wrapped.withDefaultUser(security.getDefaultUser());
 			if (isNotBlank(security.getTokenEndpoint())) wrapped = wrapped.withTokenEndpoint(security.getTokenEndpoint());
 			if (isNotBlank(security.getScimEndpoint())) wrapped = wrapped.withScimEndpoint(security.getScimEndpoint());
