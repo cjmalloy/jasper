@@ -410,11 +410,11 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var user = objectMapper.readValue(message.getBody(), ExtDto.class);
+				var ext = objectMapper.readValue(message.getBody(), ExtDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = parts[2];
-				userRedisChannel().send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
+				extRedisChannel().send(MessageBuilder.createMessage(ext, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing ExtDto from redis.");
 			}
