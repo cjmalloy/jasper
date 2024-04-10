@@ -36,7 +36,6 @@ public class ClearConfigCache {
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
-		if (isBlank(configs.security(message.getHeaders().get("origin").toString()).getMode())) return;
 		if (!configs.isConfigTag((String) message.getHeaders().get("tag"))) return;
 		if (clearingConfig.compareAndSet(false, true)) {
 			clearConfig();
