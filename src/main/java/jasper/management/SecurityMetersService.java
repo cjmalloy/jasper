@@ -18,6 +18,7 @@ public class SecurityMetersService {
     private final Counter tokenExpiredCounter;
     private final Counter tokenUnsupportedCounter;
     private final Counter tokenMalformedCounter;
+    private final Counter unverifiedEmailCounter;
 
     public SecurityMetersService(MeterRegistry registry) {
         this.tokenInvalidAudienceCounter = invalidTokensCounterForCauseBuilder("invalid-audience").register(registry);
@@ -25,6 +26,7 @@ public class SecurityMetersService {
         this.tokenExpiredCounter = invalidTokensCounterForCauseBuilder("expired").register(registry);
         this.tokenUnsupportedCounter = invalidTokensCounterForCauseBuilder("unsupported").register(registry);
         this.tokenMalformedCounter = invalidTokensCounterForCauseBuilder("malformed").register(registry);
+        this.unverifiedEmailCounter = invalidTokensCounterForCauseBuilder("email-not-verified").register(registry);
     }
 
     private Counter.Builder invalidTokensCounterForCauseBuilder(String cause) {
@@ -53,5 +55,9 @@ public class SecurityMetersService {
 
     public void trackTokenMalformed() {
         this.tokenMalformedCounter.increment();
+    }
+
+    public void trackUnverifiedEmail() {
+        this.unverifiedEmailCounter.increment();
     }
 }

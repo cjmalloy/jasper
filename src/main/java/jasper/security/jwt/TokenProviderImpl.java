@@ -190,6 +190,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			if (!security.getClientId().equals(claims.getAudience())) {
 				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
+			} else if (isBlank(security.getVerifiedEmailClaim()) || claims.getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(true)) {
+				this.securityMetersService.trackUnverifiedEmail();
+				logger.trace(INVALID_JWT_TOKEN + " Email is not verified");
 			} else {
 				return true;
 			}
