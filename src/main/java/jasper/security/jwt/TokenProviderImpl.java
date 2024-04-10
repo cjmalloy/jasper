@@ -149,14 +149,19 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		}
 		logger.debug("Principal: {}", principal);
 		if (principal.contains("@")) {
-			// TODO: option for: map email host to user tag path
-			principal = principal.substring(0, principal.indexOf("@"));
+			var emailDomain = principal.substring(principal.indexOf("@"));
+			principal = principal.substring(0, principal.indexOf("@") + 1);
+			var security = configs.security(origin);
+			if (security.isEmailDomainInUsername() && !emailDomain.equals(security.getRootEmailDomain())) {
+				principal = emailDomain + "/" + principal;
+			}
 		}
 		var authorities = getPartialAuthorities(claims, origin);
 		if (isBlank(principal) ||
 			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
 			principal.equals("_user")) {
+			logger.debug("Invalid principal {}.", principal);
 			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
 				// Invalid username and can't fall back to root user
