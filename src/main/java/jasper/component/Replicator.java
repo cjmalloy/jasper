@@ -17,6 +17,7 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
+import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,12 +33,16 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.security.AuthoritiesConstants.ADMIN;
 import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	RefRepository refRepository;
@@ -77,7 +82,7 @@ public class Replicator {
 	@Timed(value = "jasper.pull", histogram = true)
 	public void pull(Ref remote) {
 		var root = configs.root();
-		if (!root.getPullOrigins().contains(origin(remote.getOrigin()))) {
+		if (!root.getPullOrigins().contains(origin(remote.getOrigin())) && !auth.hasRole(ADMIN)) {
 			logger.debug("Replicate origins: {}", root.getPullOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}
@@ -170,7 +175,7 @@ public class Replicator {
 	@Timed(value = "jasper.push", histogram = true)
 	public void push(Ref remote) {
 		var root = configs.root();
-		if (!root.getPushOrigins().contains(origin(remote.getOrigin()))) {
+		if (!auth.hasRole(ADMIN) && !root.getPushOrigins().contains(origin(remote.getOrigin()))) {
 			logger.debug("Replicate origins: {}", root.getPushOrigins());
 			throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		}

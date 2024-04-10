@@ -21,6 +21,7 @@ import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
+import jasper.security.Auth;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
@@ -45,11 +46,15 @@ import java.util.List;
 import java.util.Map;
 
 import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.security.AuthoritiesConstants.ADMIN;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
+
+	@Autowired
+	Auth auth;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -75,7 +80,7 @@ public class RssParser {
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
 		var root = configs.root();
-		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin()))) {
+		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin())) && !auth.hasRole(ADMIN)) {
 			logger.debug("Scrape origins: {}", root.getScrapeOrigins());
 			throw new OperationForbiddenOnOriginException(feed.getOrigin());
 		}
