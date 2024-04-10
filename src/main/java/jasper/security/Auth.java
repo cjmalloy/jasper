@@ -463,9 +463,10 @@ public class Auth {
 	public boolean canReadTag(String qualifiedTag) {
 		// Min Role
 		if (!minRole()) return false;
-		var qt = qt(qualifiedTag);
 		// Only origin and sub origins can be read
-		if (!subOrigin(qt.origin)) return false;
+		if (!subOrigin(selector(qualifiedTag).origin)) return false;
+		// The root template is public
+		if (isBlank(qualifiedTag) || qualifiedTag.startsWith("@")) return true;
 		// All non-private tags can be read
 		if (!isPrivateTag(qualifiedTag)) return true;
 		// Mod can read anything
@@ -473,7 +474,7 @@ public class Auth {
 		// Can read own user tag
 		if (isUser(qualifiedTag)) return true;
 		// Finally check access tags
-		return captures(getTagReadAccess(), qt);
+		return captures(getTagReadAccess(), qt(qualifiedTag));
 	}
 
 	/**
