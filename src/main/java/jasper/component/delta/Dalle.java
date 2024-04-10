@@ -69,7 +69,7 @@ public class Dalle implements Async.AsyncRunner {
 		var config = configs.getPluginConfig("+plugin/ai/dalle", ref.getOrigin(), OpenAi.DalleConfig.class);
 		Ref response;
 		try {
-			var res = openAi.dale(getPrompt(ref.getTitle(), ref.getComment()), config);
+			var res = openAi.dale(ref.getOrigin(), getPrompt(ref.getTitle(), ref.getComment()), config);
 			var data = res.getData().get(0).getB64Json();
 			var image = Base64.getDecoder().decode(data);
 			try {

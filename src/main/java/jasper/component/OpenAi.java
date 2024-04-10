@@ -12,7 +12,6 @@ import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.image.ImageResult;
 import com.theokanning.openai.service.OpenAiService;
 import jasper.client.dto.RefDto;
-import jasper.config.Props;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import okhttp3.MediaType;
@@ -36,16 +35,13 @@ public class OpenAi {
 	public static final MediaType TEXT = MediaType.parse("text/plain; charset=utf-8");
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
 	ObjectMapper objectMapper;
 
-	public CompletionResult completion(String systemPrompt, String prompt) {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+	public CompletionResult completion(String origin, String systemPrompt, String prompt) {
+		var key = refRepository.findAll(selector("_openai/key" + origin).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
@@ -81,8 +77,8 @@ public class OpenAi {
 		}
 	}
 
-	public ChatCompletionResult chatCompletion(String prompt, AiConfig config) {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+	public ChatCompletionResult chatCompletion(String origin, String prompt, AiConfig config) {
+		var key = refRepository.findAll(selector("_openai/key" + origin).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
@@ -99,8 +95,8 @@ public class OpenAi {
 		return service.createChatCompletion(completionRequest);
 	}
 
-	public ImageResult dale(String prompt, DalleConfig config) {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+	public ImageResult dale(String origin, String prompt, DalleConfig config) {
+		var key = refRepository.findAll(selector("_openai/key" + origin).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}
@@ -116,8 +112,8 @@ public class OpenAi {
 		return service.createImage(imageRequest);
 	}
 
-	public ChatCompletionResult chat(List<ChatMessage> messages, AiConfig config) {
-		var key = refRepository.findAll(selector("_openai/key" + props.getLocalOrigin()).refSpec());
+	public ChatCompletionResult chat(String origin, List<ChatMessage> messages, AiConfig config) {
+		var key = refRepository.findAll(selector("_openai/key" + origin).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
 		}

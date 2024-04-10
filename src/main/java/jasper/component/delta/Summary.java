@@ -59,7 +59,7 @@ public class Summary implements Async.AsyncRunner {
 		var config = configs.getPluginConfig("+plugin/summary", ref.getOrigin(), SummaryConfig.class);
 		var response = new Ref();
 		try {
-			var res = openAi.chatCompletion(String.join("\n\n",
+			var res = openAi.chatCompletion(ref.getOrigin(), String.join("\n\n",
 				"Title: " + ref.getTitle(),
 				"Tags: " + String.join(", ", ref.getTags()),
 				ref.getComment()), config);
