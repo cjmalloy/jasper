@@ -27,9 +27,13 @@ public interface Config {
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class ServerConfig implements Serializable {
+		@Builder.Default
 		private String emailHost = "jasper.local";
+		@Builder.Default
 		private int maxSources = 1000;
+		@Builder.Default
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
+		@Builder.Default
 		private List<String> editorSeals = List.of("plugin/qc");
 		/**
 		 * Whitelist origins to be allowed web access.
@@ -43,13 +47,17 @@ public interface Config {
 		 * Whitelist origins to be allowed to push using +plugin/origin/push.
 		 */
 		private List<String> pushOrigins = List.of("");
+		@Builder.Default
 		private int pushBatchSize = 20;
+		@Builder.Default
 		private int maxPushEntityBatch = 5000;
 		/**
 		 * Whitelist origins to be allowed to pull using +plugin/origin/pull.
 		 */
 		private List<String> pullOrigins = List.of("");
+		@Builder.Default
 		private int pullBatchSize = 20;
+		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
 		 * Whitelist origins to run async tasks on.
@@ -59,6 +67,7 @@ public interface Config {
 		 * Whitelist origins to be allowed to scrape using +plugin/feed.
 		 */
 		private List<String> scrapeOrigins = List.of("");
+		@Builder.Default
 		private int scrapeBatchSize = 100;
 		/**
 		 * Whitelist domains to be allowed to scrape.
