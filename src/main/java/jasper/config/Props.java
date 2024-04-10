@@ -126,6 +126,7 @@ public class Props {
 		private String secret = "";
 		private String jwksUri = "";
 		private String usernameClaim = "";
+		private String verifiedEmailClaim = "";
 		private String defaultUser = "";
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";

@@ -107,6 +107,7 @@ public interface Config {
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
 		private String usernameClaim = "sub";
+		private String verifiedEmailClaim = "verified_email";
 		private String authoritiesClaim = "auth";
 		private String readAccessClaim = "readAccess";
 		private String writeAccessClaim = "writeAccess";
