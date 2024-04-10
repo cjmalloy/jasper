@@ -20,6 +20,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
@@ -103,6 +104,46 @@ public class RedisConfig {
 	@Autowired
 	MessageChannel templateRxChannel;
 
+	@Bean
+	public MessageChannel cursorRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel refRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel tagRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel responseRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel userRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel extRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel pluginRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel templateRedisChannel() {
+		return new DirectChannel();
+	}
+
 	@Bean("integration")
 	public TaskExecutor taskExecutor() {
 		var executor = new ThreadPoolTaskExecutor();
@@ -137,8 +178,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeCursorFlow() {
-		return IntegrationFlows.from(cursorRxChannel)
+		return IntegrationFlows.from(cursorRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(cursorRxChannel)
 			.get();
 	}
 
@@ -150,7 +192,7 @@ public class RedisConfig {
 			var cursor = new String(message.getBody());
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
-			cursorRxChannel.send(MessageBuilder.createMessage(cursor, originHeaders(origin)));
+			cursorRedisChannel().send(MessageBuilder.createMessage(cursor, originHeaders(origin)));
 		}, of("cursor/*"));
 		return container;
 	}
@@ -180,8 +222,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeRefFlow() {
-		return IntegrationFlows.from(refRxChannel)
+		return IntegrationFlows.from(refRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(refRxChannel)
 			.get();
 	}
 
@@ -194,7 +237,7 @@ public class RedisConfig {
 				var ref = objectMapper.readValue(message.getBody(), RefDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				refRxChannel.send(MessageBuilder.createMessage(ref, refHeaders(origin, ref)));
+				refRedisChannel().send(MessageBuilder.createMessage(ref, refHeaders(origin, ref)));
 			} catch (IOException e) {
 				logger.error("Error parsing RefDto from redis.");
 			}
@@ -222,8 +265,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeTagFlow() {
-		return IntegrationFlows.from(tagRxChannel)
+		return IntegrationFlows.from(tagRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(tagRxChannel)
 			.get();
 	}
 
@@ -235,7 +279,7 @@ public class RedisConfig {
 			var tag = new String(message.getBody(), StandardCharsets.UTF_8);
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
-			tagRxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
+			tagRedisChannel().send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
 		}, of("tag/*"));
 		return container;
 	}
@@ -260,8 +304,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeResponseFlow() {
-		return IntegrationFlows.from(responseRxChannel)
+		return IntegrationFlows.from(responseRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(responseRxChannel)
 			.get();
 	}
 
@@ -274,7 +319,7 @@ public class RedisConfig {
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
 			var source = parts[2];
-			responseRxChannel.send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
+			responseRedisChannel().send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
 		}, of("response/*"));
 		return container;
 	}
@@ -304,8 +349,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeUserFlow() {
-		return IntegrationFlows.from(userRxChannel)
+		return IntegrationFlows.from(userRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(userRxChannel)
 			.get();
 	}
 
@@ -319,7 +365,7 @@ public class RedisConfig {
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = parts[2];
-				userRxChannel.send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
+				userRedisChannel().send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing UserDto from redis.");
 			}
@@ -352,8 +398,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeExtFlow() {
-		return IntegrationFlows.from(extRxChannel)
+		return IntegrationFlows.from(extRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(extRxChannel)
 			.get();
 	}
 
@@ -367,7 +414,7 @@ public class RedisConfig {
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = parts[2];
-				userRxChannel.send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
+				userRedisChannel().send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing ExtDto from redis.");
 			}
@@ -400,8 +447,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribePluginFlow() {
-		return IntegrationFlows.from(pluginRxChannel)
+		return IntegrationFlows.from(pluginRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(pluginRxChannel)
 			.get();
 	}
 
@@ -415,7 +463,7 @@ public class RedisConfig {
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = parts[2];
-				pluginRxChannel.send(MessageBuilder.createMessage(plugin, tagHeaders(origin, tag)));
+				pluginRedisChannel().send(MessageBuilder.createMessage(plugin, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing PluginDto from redis.");
 			}
@@ -448,8 +496,9 @@ public class RedisConfig {
 
 	@Bean
 	public IntegrationFlow redisSubscribeTemplateFlow() {
-		return IntegrationFlows.from(templateRxChannel)
+		return IntegrationFlows.from(templateRedisChannel())
 			.channel(new ExecutorChannel(taskExecutor))
+			.channel(templateRxChannel)
 			.get();
 	}
 
@@ -463,7 +512,7 @@ public class RedisConfig {
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = parts[2];
-				templateRxChannel.send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
+				templateRedisChannel().send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing TemplateDto from redis.");
 			}
