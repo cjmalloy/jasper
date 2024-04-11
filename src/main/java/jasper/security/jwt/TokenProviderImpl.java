@@ -134,7 +134,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	String getUsername(Claims claims, String origin) {
-		if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
+		if (props.isAllowLocalOriginHeader() && isNotBlank(getOriginHeader())) {
 			origin = getOriginHeader();
 			logger.debug("Origin set by header {}", origin);
 		}

@@ -137,7 +137,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			var origin = props.getLocalOrigin();
 			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
 			logger.debug("STOMP Local Origin Header: {}", headerOrigin);
-			if (props.isAllowLocalOriginHeader() && headerOrigin != null) {
+			if (props.isAllowLocalOriginHeader() && isNotBlank(headerOrigin)) {
 				return headerOrigin.toLowerCase();
 			}
 			return origin;

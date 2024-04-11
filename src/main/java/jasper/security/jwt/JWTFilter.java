@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Filters incoming requests and installs a Spring Security principal if a header corresponding to a valid user is
@@ -67,10 +68,18 @@ public class JWTFilter extends GenericFilterBean {
 
 	private String resolveOrigin(HttpServletRequest request) {
 		var origin = props.getLocalOrigin();
-		var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
-		if (props.isAllowLocalOriginHeader() && headerOrigin != null) {
-			return headerOrigin.toLowerCase();
+		if (props.isAllowLocalOriginHeader()) {
+			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
+			if (isNotBlank(headerOrigin)) {
+				logger.trace("Origin set by header ({})", headerOrigin.toLowerCase());
+				return headerOrigin.toLowerCase();
+			} else {
+				logger.trace("Origin header not allowed to be blank");
+			}
+		} else {
+			logger.trace("Origin header not allowed");
 		}
+		logger.trace("Default origin used ({})", origin);
 		return origin;
 	}
 }
