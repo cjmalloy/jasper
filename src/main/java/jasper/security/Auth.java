@@ -776,7 +776,7 @@ public class Auth {
 	public String getOrigin() {
 		if (origin == null) {
 			origin = props.getLocalOrigin();
-			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
+			if (props.isAllowLocalOriginHeader() && isNotBlank(getOriginHeader())) {
 				origin = getOriginHeader();
 			}
 		}
