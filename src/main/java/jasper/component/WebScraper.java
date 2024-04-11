@@ -631,7 +631,7 @@ public class WebScraper {
 		try (var res = doScrape(url)) {
 			if (res == null) return existingCache;
 			var mimeType = res.getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
-			var eTag = res.getFirstHeader(HttpHeaders.ETAG).getValue();
+			var eTag = res.getFirstHeader(HttpHeaders.ETAG);
 			var contentLength = res.getEntity().getContentLength();
 			var cos = (CountingOutputStream) (os != null && contentLength <= 0 ? os = new CountingOutputStream(os) : null);
 			if (existingCache != null && existingCache.isNoStore()) {
@@ -639,7 +639,7 @@ public class WebScraper {
 				if (cos != null) contentLength = cos.getByteCount();
 				EntityUtils.consume(res.getEntity());
 				return Cache.builder()
-					.id(isBlank(eTag) ? "nostore_" + UUID.randomUUID() : eTag)
+					.id((eTag == null || isBlank(eTag.getValue())) ? "nostore_" + UUID.randomUUID() : eTag.getValue())
 					.mimeType(mimeType)
 					.contentLength(contentLength <= 0 ? null : contentLength)
 					.build();
