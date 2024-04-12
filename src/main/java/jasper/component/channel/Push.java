@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.origin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -41,7 +42,7 @@ public class Push {
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
 		var root = configs.root();
-		var origin = (String) message.getHeaders().get("origin");
+		var origin = origin(message.getHeaders().get("origin").toString());
 		if (!root.getPushOrigins().contains(origin)) return;
 		var cursor = message.getPayload();
 		if (cursor.equals(lastSent.putIfAbsent(origin, cursor))) {

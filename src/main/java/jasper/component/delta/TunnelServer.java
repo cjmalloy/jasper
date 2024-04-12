@@ -15,6 +15,7 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
+import static jasper.domain.proj.HasOrigin.origin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("kubernetes")
@@ -41,7 +42,7 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (isBlank((String) message.getHeaders().get("origin")) && message.getPayload().getTag().equals("_config/server")) {
+		if (isBlank(origin(message.getHeaders().get("origin").toString())) && message.getPayload().getTag().equals("_config/server")) {
 			generateConfig();
 		}
 	}

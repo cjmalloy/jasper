@@ -17,6 +17,7 @@ public interface HasOrigin {
 
 	static String origin(String origin) {
 		if (origin == null) return "";
+		if (origin.equals("default")) return "";
 		return origin;
 	}
 
