@@ -511,7 +511,7 @@ public class RedisConfig {
 				var template = objectMapper.readValue(message.getBody(), TemplateDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				var tag = parts[2];
+				var tag = parts.length > 2 ? parts[2] : "";
 				templateRedisChannel().send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing TemplateDto from redis.");
