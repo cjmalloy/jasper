@@ -20,8 +20,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.originHierarchy;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static jasper.domain.proj.HasTags.formatTag;
 
 @Component
 public class Messages {
@@ -114,27 +115,27 @@ public class Messages {
 
 	public static MessageHeaders originHeaders(String origin) {
 		return new MessageHeaders(Map.of(
-			"origin", isNotBlank(origin) ? origin : "default"
+			"origin", formatOrigin(origin)
 		));
 	}
 
 	public static MessageHeaders tagHeaders(String origin, String tag) {
 		return new MessageHeaders(Map.of(
-			"origin", isNotBlank(origin) ? origin : "default",
-			"tag", isNotBlank(tag) ? tag : "root"
+			"origin", formatOrigin(origin),
+			"tag", formatTag(tag)
 		));
 	}
 
 	public static MessageHeaders refHeaders(String origin, HasTags ref) {
 		return new MessageHeaders(Map.of(
-			"origin", isNotBlank(origin) ? origin : "default",
+			"origin", formatOrigin(origin),
 			"url", ref.getUrl()
 		));
 	}
 
 	public static MessageHeaders responseHeaders(String origin, String source) {
 		return new MessageHeaders(Map.of(
-			"origin", isNotBlank(origin) ? origin : "default",
+			"origin", formatOrigin(origin),
 			"response", source
 		));
 	}
