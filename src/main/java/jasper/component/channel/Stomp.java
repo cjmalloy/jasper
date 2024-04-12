@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.originHierarchy;
 
 @Component
@@ -35,7 +36,7 @@ public class Stomp {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
 		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/ref/" + o + "/" + e(message.getHeaders().get("url")), updateDto);
+			stomp.convertAndSend("/topic/ref/" + origin(o) + "/" + e(message.getHeaders().get("url")), updateDto);
 		}
 	}
 
@@ -44,7 +45,7 @@ public class Stomp {
 	public void handleTagUpdate(Message<String> message) {
 		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/tag/" + o + "/" + e(message.getHeaders().get("tag")), message.getPayload());
+			stomp.convertAndSend("/topic/tag/" + origin(o) + "/" + e(message.getHeaders().get("tag")), message.getPayload());
 		}
 	}
 
@@ -53,7 +54,7 @@ public class Stomp {
 	public void handleResponseUpdate(Message<String> message) {
 		var origins = originHierarchy(message.getHeaders().get("origin"));
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/response/" + o + "/" + e(message.getHeaders().get("response")), message.getPayload());
+			stomp.convertAndSend("/topic/response/" + origin(o) + "/" + e(message.getHeaders().get("response")), message.getPayload());
 		}
 	}
 

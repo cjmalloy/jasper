@@ -121,7 +121,7 @@ public class Messages {
 	public static MessageHeaders tagHeaders(String origin, String tag) {
 		return new MessageHeaders(Map.of(
 			"origin", isNotBlank(origin) ? origin : "default",
-			"tag", isNotBlank(tag) ? tag : "root"
+			"tag", isNotBlank(tag) ? tag : "~"
 		));
 	}
 

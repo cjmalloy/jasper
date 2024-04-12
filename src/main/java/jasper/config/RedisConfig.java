@@ -252,7 +252,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
 				protected String getTopic(Message<String> message) {
-					return "tag/" + message.getHeaders().get("tag");
+					return "tag/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
 				}
 
 				@Override
@@ -276,9 +276,9 @@ public class RedisConfig {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
-			var tag = new String(message.getBody(), StandardCharsets.UTF_8);
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
+			var tag = parts[2];
 			tagRedisChannel().send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
 		}, of("tag/*"));
 		return container;
