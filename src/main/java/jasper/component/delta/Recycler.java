@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-@Profile("recycler")
+@Profile("recycler & storage")
 @Component
 public class Recycler {
 	private static final Logger logger = LoggerFactory.getLogger(Recycler.class);

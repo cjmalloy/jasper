@@ -138,8 +138,10 @@ public class ConfigCache {
 	@Transactional(readOnly = true)
 	public <T> T getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
-			.map(r -> r.getConfig(toValueType))
-			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
+			.map(Plugin::getConfig)
+			.or(() -> Optional.of(objectMapper.createObjectNode()))
+			.map(n -> objectMapper.convertValue(n, toValueType))
+			.get();
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
@@ -167,8 +169,10 @@ public class ConfigCache {
 	@Transactional(readOnly = true)
 	public <T> T getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
-			.map(r -> r.getConfig(toValueType))
-			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
+			.map(Template::getConfig)
+			.or(() -> Optional.of(objectMapper.createObjectNode()))
+			.map(n -> objectMapper.convertValue(n, toValueType))
+			.get();
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")

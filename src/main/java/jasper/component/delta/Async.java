@@ -15,8 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -39,6 +41,9 @@ public class Async {
 	Props props;
 
 	@Autowired
+	TaskScheduler taskScheduler;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -50,6 +55,14 @@ public class Async {
 	Map<String, AsyncWatcher> tags = new HashMap<>();
 	Map<String, AsyncWatcher> responses = new HashMap<>();
 
+	@PostConstruct
+	public void init() {
+		taskScheduler.schedule(() -> {
+			for (String origin : configs.root().getAsyncOrigins()) {
+				backfill(origin);
+			}
+		}, Instant.now().plusMillis(1000L));
+	}
 
 	/**
 	 * Register a runner for a tag.

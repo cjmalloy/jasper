@@ -10,6 +10,7 @@ import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
+import jasper.errors.AlreadyExistsException;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Cache;
 import jasper.plugin.Scrape;
@@ -18,6 +19,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.HostCheck;
 import org.apache.commons.io.output.CountingOutputStream;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -48,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -76,7 +79,7 @@ public class WebScraper {
 	Ingest ingest;
 
 	@Autowired
-	Storage storage;
+	Optional<Storage> storage;
 
 	@Autowired
 	Sanitizer sanitizer;
@@ -95,13 +98,14 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public void clearDeleted(String origin) {
+		if (storage.isEmpty()) return;
 		var deleteLater = new ArrayList<String>();
-		storage.visitStorage(origin, CACHE, id -> {
+		storage.get().visitStorage(origin, CACHE, id -> {
 			if (!refRepository.cacheExists(id)) deleteLater.add(id);
 		});
 		deleteLater.forEach(id -> {
 			try {
-				storage.delete(origin, CACHE, id);
+				storage.get().delete(origin, CACHE, id);
 			} catch (IOException e) {
 				logger.error("Cannot delete file", e);
 			}
@@ -114,7 +118,7 @@ public class WebScraper {
 		result.setUrl(url);
 		String data;
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isPresent()) {
+		if (storage.isPresent() && maybeRef.isPresent()) {
 			result = maybeRef.get();
 			var cache = result.getPlugin("_plugin/cache", Cache.class);
 			if (cache == null || isBlank(cache.getId())) {
@@ -122,7 +126,7 @@ public class WebScraper {
 				if (cache == null) return result;
 				result.setPlugin("_plugin/cache", cache);
 			}
-			data = new String(storage.get(origin, CACHE, cache.getId()));
+			data = new String(storage.get().get(origin, CACHE, cache.getId()));
 		} else {
 			try (var res = doScrape(url)) {
 				if (res == null) return result;
@@ -534,7 +538,7 @@ public class WebScraper {
 		return refRepository.exists(RefFilter.builder()
 			.url(url)
 			.origin(origin)
-			.query("_plugin/cache")
+			.query("_plugin/cache:!_plugin/cache/async")
 			.build().spec());
 	}
 
@@ -568,30 +572,46 @@ public class WebScraper {
 		if (!thumbnail || fullSize == null || fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
 		var thumbnailUrl = "internal:" + thumbnailId;
-		if (storage.exists(origin, CACHE, thumbnailId)) {
-			return fetch(thumbnailUrl, origin, os);
-		} else {
-			var data = images.thumbnail(storage.stream(origin, CACHE, fullSize.getId()));
-			if (data == null) {
-				storage.stream(origin, CACHE, fullSize.getId(), os);
-				// Set this as a thumbnail to disable future attempts
-				Ref ref = refRepository.findOneByUrlAndOrigin(url, origin)
-					.orElseThrow(() -> new NotFoundException("Ref deleted while fetching"));
-				fullSize.setThumbnail(true);
-				ref.setPlugin("_plugin/cache", fullSize);
-				ref.addTag("_plugin/error/thumbnail");
-				ingest.update(ref, false);
-				return fullSize;
+		if (storage.isPresent()) {
+			if (storage.get().exists(origin, CACHE, thumbnailId)) {
+				return fetch(thumbnailUrl, origin, os);
+			} else {
+				var data = images.thumbnail(storage.get().stream(origin, CACHE, fullSize.getId()));
+				if (data == null) {
+					storage.get().stream(origin, CACHE, fullSize.getId(), os);
+					// Set this as a thumbnail to disable future attempts
+					Ref ref = refRepository.findOneByUrlAndOrigin(url, origin)
+						.orElseThrow(() -> new NotFoundException("Ref deleted while fetching"));
+					fullSize.setThumbnail(true);
+					ref.removeTag("_plugin/cache/async");
+					ref.setPlugin("_plugin/cache", fullSize);
+					// TODO: Better errors
+					ref.addTag("_plugin/error/thumbnail");
+					ingest.update(ref, false);
+					return fullSize;
+				}
+				storage.get().storeAt(origin, CACHE, thumbnailId, data);
+				if (os != null) StreamUtils.copy(data, os);
+				var cache = Cache.builder()
+					.id(thumbnailId)
+					.thumbnail(true)
+					.mimeType("image/png")
+					.contentLength((long) data.length)
+					.build();
+				ingest.create(from(thumbnailUrl, origin, cache, "plugin/thumbnail"), false);
+				return cache;
 			}
-			storage.storeAt(origin, CACHE, thumbnailId, data);
-			if (os != null) StreamUtils.copy(data, os);
+		} else {
 			var cache = Cache.builder()
 				.id(thumbnailId)
 				.thumbnail(true)
 				.mimeType("image/png")
-				.contentLength((long) data.length)
 				.build();
-			ingest.create(from(thumbnailUrl, origin, cache, "plugin/thumbnail"), false);
+			try {
+				ingest.create(from(thumbnailUrl, origin, cache, "_plugin/cache/async", "plugin/thumbnail"), false);
+			} catch (AlreadyExistsException e) {
+				// Already creating
+			}
 			return cache;
 		}
 	}
@@ -603,6 +623,7 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public Cache fetch(String url, String origin, OutputStream os, boolean refresh) {
+		if (storage.isEmpty() && os != null) throw new NotImplementedException("Storage is not enabled");
 		Ref ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		Cache existingCache = null;
 		if (ref != null) {
@@ -620,7 +641,7 @@ public class WebScraper {
 						// Wait for the user to manually refresh
 						return existingCache;
 					}
-					if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
+					if (os != null) storage.get().stream(origin, CACHE, existingCache.getId(), os);
 					return existingCache;
 				}
 			}
@@ -644,21 +665,24 @@ public class WebScraper {
 					.contentLength(contentLength <= 0 ? null : contentLength)
 					.build();
 			} else {
-				var id = storage.store(origin, CACHE, res.getEntity().getContent());
+				var id = storage.isPresent() ? storage.get().store(origin, CACHE, res.getEntity().getContent()) : "";
 				EntityUtils.consume(res.getEntity());
-				if (os != null) storage.stream(origin, CACHE, id, os);
+				if (os != null) storage.get().stream(origin, CACHE, id, os);
 				if (cos != null) contentLength = cos.getByteCount();
 				var cache = Cache.builder()
 					.id(id)
 					.mimeType(mimeType)
-					.contentLength(contentLength <= 0 ? storage.size(origin, CACHE, id) : contentLength)
+					.contentLength(storage.isPresent() && contentLength <= 0 ? storage.get().size(origin, CACHE, id) : contentLength)
 					.build();
 				scrapeMore = createArchive(url, origin, cache);
 				if (ref == null) {
-					ingest.create(from(url, origin, cache), false);
+					ingest.create(from(url, origin, cache, storage.isEmpty() ? "_plugin/cache/async" : null), false);
 				} else {
 					if (refresh && existingCache != null && isNotBlank(existingCache.getId())) {
-						storage.delete(origin, CACHE, existingCache.getId());
+						storage.get().delete(origin, CACHE, existingCache.getId());
+						ref.removeTag("_plugin/cache/async");
+					} else if (storage.isEmpty()) {
+						ref.addTag("_plugin/cache/async");
 					}
 					ref.setPlugin("_plugin/cache", cache);
 				}
@@ -690,9 +714,9 @@ public class WebScraper {
 
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (isBlank(cache.getId())) return moreScrape;
+		if (storage.isEmpty() || isBlank(cache.getId())) return moreScrape;
 		// M3U8 Manifest
-		var data = new String(storage.get(origin, CACHE, cache.getId()));
+		var data = new String(storage.get().get(origin, CACHE, cache.getId()));
 		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equals("application/x-mpegURL") || cache.getMimeType().equals("application/vnd.apple.mpegurl"))) {
 			try {
 				var urlObj = new URL(url);
@@ -711,7 +735,7 @@ public class WebScraper {
 						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
 					}
 				}
-				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes());
+				storage.get().overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes());
 			} catch (Exception e) {}
 		}
 		return moreScrape;
@@ -719,7 +743,8 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public Cache cache(String origin, byte[] data, String mimeType, String user) throws IOException {
-		var id = storage.store(origin, CACHE, data);
+		if (storage.isEmpty()) throw new NotImplementedException("Storage is not enabled");
+		var id = storage.get().store(origin, CACHE, data);
 		var cache = Cache.builder()
 			.id(id)
 			.mimeType(mimeType)
@@ -731,11 +756,12 @@ public class WebScraper {
 
 	@Timed(value = "jasper.webscrape")
 	public Cache cache(String origin, InputStream in, String mimeType, String user) throws IOException {
-		var id = storage.store(origin, CACHE, in);
+		if (storage.isEmpty()) throw new NotImplementedException("Storage is not enabled");
+		var id = storage.get().store(origin, CACHE, in);
 		var cache = Cache.builder()
 			.id(id)
 			.mimeType(mimeType)
-			.contentLength(storage.size(origin, CACHE, id))
+			.contentLength(storage.get().size(origin, CACHE, id))
 			.build();
 		ingest.create(from("internal:" + id, origin, cache, user), false);
 		return cache;
