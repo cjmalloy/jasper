@@ -21,9 +21,9 @@ public interface HasOrigin {
 		return origin;
 	}
 
-	static String formatOrigin(String origin) {
-		if (isBlank(origin)) return "default";
-		return origin;
+	static String formatOrigin(Object origin) {
+		if (isBlank((String) origin)) return "default";
+		return origin.toString();
 	}
 
 	static String subOrigin(String local, String origin) {

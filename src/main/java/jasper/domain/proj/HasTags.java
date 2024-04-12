@@ -14,6 +14,11 @@ public interface HasTags extends Cursor {
 	ObjectNode getPlugins();
 	void setPlugins(ObjectNode plugins);
 
+	static String formatTag(Object tag) {
+		if (isBlank((String) tag)) return "~";
+		return tag.toString();
+	}
+
 	static boolean hasMedia(HasTags hasTags) {
 		if (hasTags == null) return false;
 		if (hasTags.getTags() == null) return false;

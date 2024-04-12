@@ -38,6 +38,9 @@ import static jasper.component.Messages.originHeaders;
 import static jasper.component.Messages.refHeaders;
 import static jasper.component.Messages.responseHeaders;
 import static jasper.component.Messages.tagHeaders;
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasTags.formatTag;
+import static java.util.Arrays.copyOfRange;
 import static org.springframework.data.redis.listener.PatternTopic.of;
 
 @Profile("redis")
@@ -165,7 +168,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
 				protected String getTopic(Message<String> message) {
-					return "cursor/" + message.getHeaders().get("origin");
+					return "cursor/" + formatOrigin(message.getHeaders().get("origin"));
 				}
 
 				@Override
@@ -204,7 +207,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<RefDto>() {
 				@Override
 				protected String getTopic(Message<RefDto> message) {
-					return "ref/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("url");
+					return "ref/" + formatOrigin(message.getHeaders().get("origin")) + "/" + message.getHeaders().get("url");
 				}
 
 				@Override
@@ -252,7 +255,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
 				protected String getTopic(Message<String> message) {
-					return "tag/" + message.getHeaders().get("tag");
+					return "tag/" + formatOrigin(message.getHeaders().get("origin")) + "/" + formatTag(message.getHeaders().get("tag"));
 				}
 
 				@Override
@@ -276,9 +279,9 @@ public class RedisConfig {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
-			var tag = new String(message.getBody(), StandardCharsets.UTF_8);
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
+			var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 			tagRedisChannel().send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
 		}, of("tag/*"));
 		return container;
@@ -291,7 +294,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<String>() {
 				@Override
 				protected String getTopic(Message<String> message) {
-					return "response/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("response");
+					return "response/" + formatOrigin(message.getHeaders().get("origin")) + "/" + message.getHeaders().get("response");
 				}
 
 				@Override
@@ -331,7 +334,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<UserDto>() {
 				@Override
 				protected String getTopic(Message<UserDto> message) {
-					return "user/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+					return "user/" + formatOrigin(message.getHeaders().get("origin")) + "/" + message.getHeaders().get("tag");
 				}
 
 				@Override
@@ -364,7 +367,7 @@ public class RedisConfig {
 				var user = objectMapper.readValue(message.getBody(), UserDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				var tag = parts[2];
+				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				userRedisChannel().send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing UserDto from redis.");
@@ -380,7 +383,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<ExtDto>() {
 				@Override
 				protected String getTopic(Message<ExtDto> message) {
-					return "ext/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+					return "ext/" + formatOrigin(message.getHeaders().get("origin")) + "/" + formatTag(message.getHeaders().get("tag"));
 				}
 
 				@Override
@@ -413,7 +416,7 @@ public class RedisConfig {
 				var ext = objectMapper.readValue(message.getBody(), ExtDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				var tag = parts[2];
+				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				extRedisChannel().send(MessageBuilder.createMessage(ext, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing ExtDto from redis.");
@@ -429,7 +432,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<PluginDto>() {
 				@Override
 				protected String getTopic(Message<PluginDto> message) {
-					return "plugin/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+					return "plugin/" + formatOrigin(message.getHeaders().get("origin")) + "/" + formatTag(message.getHeaders().get("tag"));
 				}
 
 				@Override
@@ -462,7 +465,7 @@ public class RedisConfig {
 				var plugin = objectMapper.readValue(message.getBody(), PluginDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				var tag = parts[2];
+				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				pluginRedisChannel().send(MessageBuilder.createMessage(plugin, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing PluginDto from redis.");
@@ -478,7 +481,7 @@ public class RedisConfig {
 			.handle(new CustomPublishingMessageHandler<TemplateDto>() {
 				@Override
 				protected String getTopic(Message<TemplateDto> message) {
-					return "template/" + message.getHeaders().get("origin") + "/" + message.getHeaders().get("tag");
+					return "template/" + formatOrigin(message.getHeaders().get("origin")) + "/" + formatTag(message.getHeaders().get("tag"));
 				}
 
 				@Override
@@ -486,7 +489,7 @@ public class RedisConfig {
 					try {
 						return objectMapper.writeValueAsBytes(message.getPayload());
 					} catch (JsonProcessingException e) {
-						logger.error("Cannot serialize PluginDto.");
+						logger.error("Cannot serialize TemplateDto.");
 						throw new RuntimeException(e);
 					}
 				}
@@ -511,7 +514,7 @@ public class RedisConfig {
 				var template = objectMapper.readValue(message.getBody(), TemplateDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
-				var tag = parts[2];
+				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				templateRedisChannel().send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
 			} catch (IOException e) {
 				logger.error("Error parsing TemplateDto from redis.");
