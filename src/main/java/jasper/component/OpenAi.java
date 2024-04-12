@@ -95,7 +95,7 @@ public class OpenAi {
 		return service.createChatCompletion(completionRequest);
 	}
 
-	public ImageResult dale(String origin, String prompt, DalleConfig config) {
+	public ImageResult dale(String origin, String prompt, boolean url, DalleConfig config) {
 		var key = refRepository.findAll(selector("_openai/key" + origin).refSpec());
 		if (key.isEmpty()) {
 			throw new NotFoundException("requires openai api key");
@@ -103,7 +103,7 @@ public class OpenAi {
 		var service = new OpenAiService(key.get(0).getComment(), Duration.ofSeconds(200));
 		var imageRequest = CreateImageRequest.builder()
 			.prompt(prompt)
-			.responseFormat("b64_json")
+			.responseFormat(url ? "url" : "b64_json")
 			.model(config.model)
 			.size(config.size)
 			.quality(config.quality)

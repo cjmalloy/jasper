@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
+import jasper.component.Storage;
 import jasper.component.WebScraper;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -50,6 +52,9 @@ public class Dalle implements Async.AsyncRunner {
 	ConfigCache configs;
 
 	@Autowired
+	Optional<Storage> storage;
+
+	@Autowired
 	ObjectMapper objectMapper;
 
 	@PostConstruct
@@ -69,16 +74,27 @@ public class Dalle implements Async.AsyncRunner {
 		var config = configs.getPluginConfig("+plugin/ai/dalle", ref.getOrigin(), OpenAi.DalleConfig.class);
 		Ref response;
 		try {
-			var res = openAi.dale(ref.getOrigin(), getPrompt(ref.getTitle(), ref.getComment()), config);
-			var data = res.getData().get(0).getB64Json();
-			var image = Base64.getDecoder().decode(data);
-			try {
-				var cache = webScraper.cache(ref.getOrigin(), image, "image/png", "+plugin/ai/dalle");
-				response = refRepository.findOneByUrlAndOrigin("internal:" + cache.getId(), ref.getOrigin())
-					.orElseThrow(() -> new NotFoundException("internal:" + cache.getId()));
-			} catch (IOException e) {
-				logger.error("Failed to cache DALL-E image", e);
-				throw e;
+			var useUrl = storage.isEmpty();
+			var res = openAi.dale(
+				ref.getOrigin(),
+				getPrompt(ref.getTitle(), ref.getComment()),
+				useUrl,
+				config
+			).getData().get(0);
+			if (useUrl) {
+				var asyncCache = webScraper.fetch(res.getUrl(), ref.getOrigin());
+				response = refRepository.findOneByUrlAndOrigin(res.getUrl(), ref.getOrigin())
+					.orElseThrow(() -> new NotFoundException("Async cache was not created: " + asyncCache.getId()));
+			} else {
+				var image = Base64.getDecoder().decode(res.getB64Json());
+				try {
+					var cache = webScraper.cache(ref.getOrigin(), image, "image/png", "+plugin/ai/dalle");
+					response = refRepository.findOneByUrlAndOrigin("internal:" + cache.getId(), ref.getOrigin())
+						.orElseThrow(() -> new NotFoundException("internal:" + cache.getId()));
+				} catch (IOException e) {
+					logger.error("Failed to cache DALL-E image", e);
+					throw e;
+				}
 			}
 		} catch (Exception e) {
 			response = new Ref();
@@ -116,8 +132,12 @@ public class Dalle implements Async.AsyncRunner {
 		}
 		response.setSources(sources);
 		response.setOrigin(ref.getOrigin());
-		response.setUrl("dalle:" + UUID.randomUUID());
-        ingest.create(response, false);
+		if (isBlank(ref.getUrl())) {
+			response.setUrl("dalle:" + UUID.randomUUID());
+			ingest.create(response, false);
+		} else {
+			ingest.update(response, false);
+		}
 		logger.debug("DALL-E reply sent ({})", response.getUrl());
 	}
 
