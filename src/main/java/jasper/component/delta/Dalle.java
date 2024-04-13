@@ -96,6 +96,8 @@ public class Dalle implements Async.AsyncRunner {
 					throw e;
 				}
 			}
+			response.addTag("plugin/image");
+			response.addTag("plugin/thumbnail");
 		} catch (Exception e) {
 			response = new Ref();
 			response.setComment("Error invoking DALL-E. " + e.getMessage());
@@ -103,8 +105,6 @@ public class Dalle implements Async.AsyncRunner {
 		response.setTitle(getTitle(ref.getTitle(), ref.getComment()));
 		response.addTags(ref.getTags().stream().filter(Tag::publicTag).toList());
 		response.addTag("plugin/thread");
-		response.addTag("plugin/image");
-		response.addTag("plugin/thumbnail");
 		var chat = ref.getTags().stream().filter(t -> t.startsWith("chat/") || t.equals("chat")).findFirst();
 		if (chat.isPresent()) {
 			response.addTag(chat.get());
@@ -132,7 +132,7 @@ public class Dalle implements Async.AsyncRunner {
 		}
 		response.setSources(sources);
 		response.setOrigin(ref.getOrigin());
-		if (isBlank(ref.getUrl())) {
+		if (isBlank(response.getUrl())) {
 			response.setUrl("dalle:" + UUID.randomUUID());
 			ingest.create(response, false);
 		} else {
