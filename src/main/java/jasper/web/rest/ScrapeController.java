@@ -83,10 +83,10 @@ public class ScrapeController {
 		@RequestParam @Length(max = URL_LEN) String url,
 		@RequestParam(defaultValue = "false") boolean thumbnail
 	) throws IOException {
-		response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.MINUTES).mustRevalidate().cachePrivate().getHeaderValue());
 		var cache = scrapeService.fetch(url);
-		if (cache != null) {
+		if (cache != null && isNotBlank(cache.getId())) {
 			response.setHeader(HttpHeaders.ETAG, "\"" + cache.getId() + "\"");
+			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.DAYS).mustRevalidate().cachePrivate().getHeaderValue());
 			if (isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
 			if (request.checkNotModified(cache.getId())) {
 				if (cache.getContentLength() != null) response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
@@ -96,7 +96,8 @@ public class ScrapeController {
 				scrapeService.fetch(url, thumbnail, response.getOutputStream());
 			}
 		} else {
-			response.setStatus(HttpStatus.OK.value());
+			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(0, TimeUnit.MILLISECONDS).mustRevalidate().cachePrivate().getHeaderValue());
+			response.setStatus(HttpStatus.NOT_FOUND.value());
 		}
 	}
 
