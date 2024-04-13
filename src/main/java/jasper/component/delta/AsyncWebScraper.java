@@ -32,8 +32,6 @@ public class AsyncWebScraper implements Async.AsyncWatcher {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		if (configs.root().getScrapeOrigins().contains(ref.getOrigin())) {
-			webScraper.scrapeAsync(ref.getUrl(), ref.getOrigin());
-		}
+		webScraper.scrapeAsync(ref.getUrl(), ref.getOrigin());
 	}
 }
