@@ -71,6 +71,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			.setSubject(authentication.getName())
 			.setAudience(security.getClientId())
 			.claim(security.getAuthoritiesClaim(), authorities)
+			.claim(security.getVerifiedEmailClaim(), true)
 			.signWith(Keys.hmacShaKeyFor(security.getSecret().getBytes()), SignatureAlgorithm.HS512)
 			.setExpiration(validity)
 			.compact();
