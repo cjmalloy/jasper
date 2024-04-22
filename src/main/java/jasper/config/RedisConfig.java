@@ -279,10 +279,11 @@ public class RedisConfig {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
+			var fullTag = new String(message.getBody(), StandardCharsets.UTF_8);
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
 			var tag = String.join("/", copyOfRange(parts, 2, parts.length));
-			tagRedisChannel().send(MessageBuilder.createMessage(tag, tagHeaders(origin, tag)));
+			tagRedisChannel().send(MessageBuilder.createMessage(fullTag, tagHeaders(origin, tag)));
 		}, of("tag/*"));
 		return container;
 	}

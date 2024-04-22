@@ -18,8 +18,10 @@ import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
+import static jasper.domain.Ref.getHierarchicalTags;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.originHierarchy;
 import static jasper.domain.proj.HasTags.formatTag;
@@ -60,10 +62,11 @@ public class Messages {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);
 		sendAndRetry(() -> refTxChannel.send(MessageBuilder.createMessage(update, refHeaders(ref.getOrigin(), update))));
-		if (ref.getTags() != null) {
-			ref.addHierarchicalTags();
-			for (var tag : ref.getTags()) {
-				sendAndRetry(() -> tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(ref.getOrigin(), tag))));
+		if (update.getTags() != null) {
+			for (var tag : update.getTags()) {
+				for (var path : getHierarchicalTags(List.of(tag))) {
+					sendAndRetry(() -> tagTxChannel.send(MessageBuilder.createMessage(tag, tagHeaders(ref.getOrigin(), path))));
+				}
 			}
 		}
 		if (ref.getSources() != null) {
