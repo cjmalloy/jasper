@@ -42,7 +42,7 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (isBlank(origin(message.getHeaders().get("origin").toString())) && message.getPayload().getTag().equals("_config/server")) {
+		if (isBlank(origin(message.getHeaders().get("origin").toString())) && "_config/server".equals(message.getPayload().getTag())) {
 			generateConfig();
 		}
 	}
