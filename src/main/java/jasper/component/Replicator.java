@@ -203,7 +203,7 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
-				logger.debug("Pushing {} users to {}", pluginList.size(), remoteOrigin);
+				logger.debug("Pushing {} plugins to {}", pluginList.size(), remoteOrigin);
 				if (!pluginList.isEmpty()) {
 					client.pluginPush(url, remoteOrigin, pluginList);
 					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
