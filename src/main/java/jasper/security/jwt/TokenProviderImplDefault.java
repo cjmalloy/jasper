@@ -27,7 +27,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 	public Authentication getAuthentication(String jwt, String origin) {
 		var principal = configs.security(origin).getDefaultUser() + origin;
 		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
-			principal = getHeader(USER_TAG_HEADER);
+			principal = getHeader(USER_TAG_HEADER) + origin;
 			logger.debug("User tag set by header: {} ({})", principal, origin);
 		}
 		var user = getUser(principal);
