@@ -679,7 +679,11 @@ public class WebScraper {
 					ingest.create(from(url, origin, cache, storage.isEmpty() ? "_plugin/cache/async" : null), false);
 				} else {
 					if (refresh && existingCache != null && isNotBlank(existingCache.getId())) {
-						storage.get().delete(origin, CACHE, existingCache.getId());
+						try {
+							storage.get().delete(origin, CACHE, existingCache.getId());
+						} catch (IOException e) {
+							logger.warn("Failed to delete {}", existingCache.getId());
+						}
 						ref.removeTag("_plugin/cache/async");
 					} else if (storage.isEmpty()) {
 						ref.addTag("_plugin/cache/async");
