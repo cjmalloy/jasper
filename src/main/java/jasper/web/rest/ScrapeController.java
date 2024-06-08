@@ -93,7 +93,9 @@ public class ScrapeController {
 				response.sendError(HttpStatus.NOT_MODIFIED.value());
 			} else {
 				response.setStatus(HttpStatus.OK.value());
-				scrapeService.fetch(url, thumbnail, response.getOutputStream());
+				try (var os = response.getOutputStream()) {
+					scrapeService.fetch(url, thumbnail, os);
+				}
 			}
 		} else {
 			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(0, TimeUnit.MILLISECONDS).mustRevalidate().cachePrivate().getHeaderValue());
