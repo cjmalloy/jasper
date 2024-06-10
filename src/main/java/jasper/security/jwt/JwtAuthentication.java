@@ -2,15 +2,17 @@ package jasper.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import jasper.service.dto.UserDto;
+import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
+import java.util.List;
 
 public class JwtAuthentication extends AbstractAuthenticationToken {
 
-	private final UserDto user;
+	private final List<UserDto> user;
 	private final Claims claims;
 	private final String principal;
 
@@ -22,7 +24,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 		setAuthenticated(false);
 	}
 
-	public JwtAuthentication(String principal, UserDto user, Claims claims, Collection<? extends GrantedAuthority> authorities) {
+	public JwtAuthentication(String principal, List<UserDto> user, Claims claims, Collection<? extends GrantedAuthority> authorities) {
 		super(authorities);
 		this.principal = principal;
 		this.user = user;
@@ -48,7 +50,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 	}
 
 	@Override
-	public UserDto getDetails() {
+	public List<UserDto> getDetails() {
 		return user;
 	}
 

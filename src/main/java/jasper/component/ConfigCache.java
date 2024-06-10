@@ -26,9 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
+
+import static jasper.domain.proj.HasTags.pub;
 
 @Component
 public class ConfigCache {
@@ -103,10 +107,21 @@ public class ConfigCache {
 
 	@Cacheable("user-cache")
 	@Transactional(readOnly = true)
-	public UserDto getUser(String tag) {
-		return userRepository.findOneByQualifiedTag(tag)
+	public UserDto getUser(String userTag) {
+		return userRepository.findOneByQualifiedTag(userTag)
 			.map(dtoMapper::domainToDto)
 			.orElse(null);
+	}
+
+	@Cacheable("user-cache")
+	@Transactional(readOnly = true)
+	public List<UserDto> getUsers(String userTag) {
+		return Stream.of(
+				userRepository.findOneByQualifiedTag("+" + pub(userTag)).orElse(null),
+				userRepository.findOneByQualifiedTag("_" + pub(userTag)).orElse(null))
+			.filter(Objects::nonNull)
+			.map(dtoMapper::domainToDto)
+			.toList();
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")

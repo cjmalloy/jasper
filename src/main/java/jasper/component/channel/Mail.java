@@ -4,6 +4,7 @@ import io.vavr.Tuple;
 import jasper.component.ConfigCache;
 import jasper.component.delta.Async;
 import jasper.domain.Ref;
+import jasper.domain.proj.HasTags;
 import jasper.domain.proj.RefUrl;
 import jasper.repository.ExtRepository;
 import jasper.repository.RefRepository;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static jasper.domain.Ref.removePrefixTags;
+import static jasper.domain.proj.HasTags.author;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.util.Arrays.stream;
@@ -115,7 +117,7 @@ public class Mail implements Async.AsyncRunner {
 			}
 		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), configs.root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
 		message.setFrom(ts.stream()
-			.filter(t -> t.startsWith("+user/") || t.startsWith("+user") || t.startsWith("_user/") || t.startsWith("_user"))
+			.filter(HasTags::author)
 			.findFirst()
 			.map(t -> t + "@" + host)
 			.orElse("no-reply@" + host)

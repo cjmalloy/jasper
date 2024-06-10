@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static jasper.domain.proj.HasTags.pub;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.TagSpec.isTag;
@@ -62,6 +63,10 @@ public class QualifiedTag {
 
 	public boolean matches(QualifiedTag qt) {
 		return tag.equals(qt.tag) && origin.equals(qt.origin) && not == qt.not;
+	}
+
+	public boolean matchesIgnoringAccess(QualifiedTag qt) {
+		return pub(tag).equals(pub(qt.tag)) && origin.equals(qt.origin) && not == qt.not;
 	}
 
 	public boolean captures(String capture) {

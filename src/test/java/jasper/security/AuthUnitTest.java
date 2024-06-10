@@ -111,10 +111,10 @@ public class AuthUnitTest {
 	}
 
 	ConfigCache getConfigCache(UserDto ...users) {
-		when(configCache.getUser(anyString()))
+		when(configCache.getUsers(anyString()))
 			.thenReturn(null);
 		for (var user : users) {
-			when(configCache.getUser(user.getQualifiedTag()))
+			when(configCache.getUsers(user.getQualifiedTag()))
 				.thenReturn(user);
 		}
 		return configCache;

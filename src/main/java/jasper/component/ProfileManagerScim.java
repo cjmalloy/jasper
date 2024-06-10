@@ -25,8 +25,6 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
-import static jasper.security.AuthoritiesConstants.PRIVATE;
-
 @Profile("scim")
 @Component
 public class ProfileManagerScim implements ProfileManager {
@@ -91,16 +89,9 @@ public class ProfileManagerScim implements ProfileManager {
 		result.setActive(user.isActive());
 		var roles = Arrays.asList(getRoles(user));
 		for (var role : roles) {
-			if (!role.equals(PRIVATE)) {
-				result.setRole(role);
-				break;
-			}
+			result.setRole(role);
 		}
-		if (roles.contains(PRIVATE)) {
-			result.setTag("_user/" + user.getUserName());
-		} else {
-			result.setTag("+user/" + user.getUserName());
-		}
+		result.setTag("user/" + user.getUserName());
 		return result;
 	}
 
