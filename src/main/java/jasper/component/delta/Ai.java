@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.theokanning.openai.OpenAiHttpException;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatMessage;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.OpenAi;
@@ -35,7 +36,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;

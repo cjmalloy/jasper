@@ -1,5 +1,6 @@
 package jasper.service;
 
+import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.domain.User;
 import jasper.domain.User_;
@@ -16,7 +17,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import javax.validation.ConstraintViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

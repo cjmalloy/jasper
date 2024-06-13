@@ -1,6 +1,7 @@
 package jasper.component.channel;
 
 import io.vavr.Tuple;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.delta.Async;
 import jasper.domain.Ref;
@@ -17,7 +18,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
