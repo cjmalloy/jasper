@@ -11,7 +11,6 @@ import jasper.service.BackupService;
 import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +33,6 @@ import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.service.dto.BackupOptionsDto.ID_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-@Profile("storage")
 @RestController
 @RequestMapping("api/v1/backup")
 @Tag(name = "Backup")

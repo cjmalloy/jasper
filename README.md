@@ -469,8 +469,12 @@ Requires the `_config/security` clientId, secret, and scimEndpoint set. Or
 and `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`
 environment variable.
 
-The `storage` profile enables the backup system. Use the `JASPER_STORAGE` environment
+The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
+
+The `preload` profile lets you preload static files. Zip files in the preload folder
+`$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,
+`$JASPER_STORAGE/$JASPER_LOCAL_ORIGIN/preload` is used.
 
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
@@ -507,7 +511,7 @@ The tag permissions are stored in the User entities:
 Some public tags have special significance:
  * `public`: everyone can read
  * `internal`: don't show in UI normally, count separately in metadata
- * `locked`: No edits allowed (tagging is allowed)
+ * `locked`: No edits allowed (tagging is allowed, but not removing plugin data)
 
 ### Multi-tenant
 Users only have read-access to their own origin and sub-origins.
@@ -526,14 +530,6 @@ For example:
 
 Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
 and `JASPER_AUTHORITIES_CLAIM` properties.
-
-The origin may also be specified in the username if the `JASPER_ALLOW_USERNAME_CLAIM_ORIGIN` flag is set:
-```json
-{
-  "sub": "username@other",
-  "auth": "ROLE_USER"
-}
-```
 
 ## Backup / Restore
 TODO: Mod backups

@@ -9,7 +9,6 @@ import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.BackupOptionsDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-@Profile("storage")
 @Service
 public class BackupService {
 

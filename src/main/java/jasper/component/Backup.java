@@ -44,7 +44,6 @@ import java.util.stream.Stream;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
-@Profile("storage")
 @Component
 public class Backup {
 	private final Logger logger = LoggerFactory.getLogger(Backup.class);
@@ -68,13 +67,17 @@ public class Backup {
 	EntityManager entityManager;
 	@Autowired
 	PlatformTransactionManager transactionManager;
-	@Autowired
+	@Autowired(required = false)
 	Storage storage;
 
 	@Async
 	@Transactional(readOnly = true)
 	@Counted(value = "jasper.backup")
 	public void createBackup(String origin, String id, BackupOptionsDto options) throws IOException {
+		if (storage == null) {
+			logger.error("Backup create failed: No storage present.");
+			return;
+		}
 		var start = Instant.now();
 		logger.info("Creating Backup");
 		try (var zipped = storage.zipAt(origin, BACKUPS, id + ".zip")) {
@@ -98,11 +101,11 @@ public class Backup {
 		logger.info("Backup Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
 		backupRepo(repo, origin, newerThan, out, true);
 	}
 
-	private void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out, boolean evict) throws IOException {
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out, boolean evict) throws IOException {
 		try (out) {
 			var firstElementProcessed = new AtomicBoolean(false);
 			var buf = new StringBuilder();
@@ -141,14 +144,26 @@ public class Backup {
 
 	@Timed(value = "jasper.backup", histogram = true)
 	public byte[] get(String origin, String id) {
+		if (storage == null) {
+			logger.error("Backup get failed: No storage present.");
+			return null;
+		}
 		return storage.get(origin, BACKUPS, id + ".zip");
 	}
 
 	public boolean exists(String origin, String id) {
+		if (storage == null) {
+			logger.error("Backup exist check failed: No storage present.");
+			return false;
+		}
 		return storage.exists(origin, BACKUPS, id + ".zip");
 	}
 
 	public List<String> listBackups(String origin) {
+		if (storage == null) {
+			logger.error("Backup list failed: No storage present.");
+			return null;
+		}
 		return storage.listStorage(origin, BACKUPS).stream()
 			.filter(n -> n.endsWith(".zip")).toList();
 	}
@@ -156,6 +171,10 @@ public class Backup {
 	@Async
 	@Counted(value = "jasper.backup")
 	public void restore(String origin, String id, BackupOptionsDto options) {
+		if (storage == null) {
+			logger.error("Backup restore failed: No storage present.");
+			return;
+		}
 		var start = Instant.now();
 		logger.info("Restoring Backup");
 		try (var zipped = storage.streamZip(origin, BACKUPS, id + ".zip")) {
@@ -181,9 +200,9 @@ public class Backup {
 		logger.info("Restore Duration {}", Duration.between(start, Instant.now()));
 	}
 
-	private <T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
-		AtomicBoolean done = new AtomicBoolean(false);
+		var done = new AtomicBoolean(false);
 		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
 		int count = 0;
 		try {
@@ -219,6 +238,10 @@ public class Backup {
 
 	@Timed(value = "jasper.backup", histogram = true)
 	public void store(String origin, String id, InputStream zipFile) throws IOException {
+		if (storage == null) {
+			logger.error("Backup store failed: No storage present.");
+			return;
+		}
 		storage.storeAt(origin, BACKUPS, id+ ".zip", zipFile);
 	}
 
@@ -244,6 +267,10 @@ public class Backup {
 
 	@Timed(value = "jasper.backup", histogram = true)
 	public void delete(String origin, String id) throws IOException {
+		if (storage == null) {
+			logger.error("Backup delete failed: No storage present.");
+			return;
+		}
 		storage.delete(origin, BACKUPS, id + ".zip");
 	}
 }
