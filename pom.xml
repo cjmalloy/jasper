@@ -43,7 +43,6 @@
 		<commons-io.version>2.16.1</commons-io.version>
 		<jsoup.version>1.17.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<openai-gpt.version>0.18.2</openai-gpt.version>
 		<fabric8.version>6.4.1</fabric8.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
@@ -300,11 +299,6 @@
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.theokanning.openai-gpt3-java</groupId>
-			<artifactId>service</artifactId>
-			<version>${openai-gpt.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.rubiconproject.oss</groupId>
 			<artifactId>jchronic</artifactId>
 			<version>0.2.8</version>
@@ -419,6 +413,47 @@
 	<build>
 		<defaultGoal>spring-boot:run</defaultGoal>
 		<plugins>
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.5.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml</inputSpec>
+							<generatorName>java</generatorName>
+							<library>feign</library>
+							<validateSpec>false</validateSpec><!-- Bug: https://github.com/OpenAPITools/openapi-generator/issues/9815 -->
+							<skipValidateSpec>true</skipValidateSpec>
+							<configOptions>
+								<apiPackage>com.openai.api</apiPackage>
+								<groupId>com.openai</groupId>
+								<artifactId>feign-client</artifactId>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
