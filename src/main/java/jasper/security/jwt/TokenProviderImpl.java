@@ -5,7 +5,6 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
@@ -68,17 +67,19 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var validity = new Date(now + 1000L * validityInSeconds);
 		return Jwts
 			.builder()
-			.setSubject(authentication.getName())
-			.setAudience(security.getClientId())
+			.subject(authentication.getName())
+				.audience()
+				.add(security.getClientId())
+			.and()
 			.claim(security.getAuthoritiesClaim(), authorities)
 			.claim(security.getVerifiedEmailClaim(), true)
-			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), SignatureAlgorithm.HS512)
-			.setExpiration(validity)
+			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), Jwts.SIG.HS512)
+			.expiration(validity)
 			.compact();
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = getParser(origin).parseClaimsJws(token).getBody();
+		var claims = getParser(origin).parseSignedClaims(token).getPayload();
 		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
 		logger.debug("Token Auth {} {}", principal, origin);
@@ -91,11 +92,11 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			switch (security.getMode()) {
 				case "jwt":
 					var key = Keys.hmacShaKeyFor(security.getSecretBytes());
-					jwtParsers.put(origin, Jwts.parserBuilder().setSigningKey(key).build());
+					jwtParsers.put(origin, Jwts.parser().verifyWith(key).build());
 					break;
 				case "jwks":
                     try {
-                        jwtParsers.put(origin, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
+                        jwtParsers.put(origin, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
                     } catch (URISyntaxException e) {
 						logger.error("Cannot parse JWKS URI {}", security.getJwksUri());
                         throw new RuntimeException(e);
@@ -149,7 +150,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			logger.debug("User tag set by JWT claim {}: {} ({})", security.getUsernameClaim(), principal, origin);
 		}
 		logger.debug("Principal: {}", principal);
-		if (principal.contains("@")) {
+		if (principal != null && principal.contains("@")) {
 			var emailDomain = principal.substring(principal.indexOf("@") + 1);
 			principal = principal.substring(0, principal.indexOf("@"));
 			var security = configs.security(origin);
@@ -192,9 +193,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		}
 		if (!StringUtils.hasText(authToken)) return false;
 		try {
-			var claims = getParser(origin).parseClaimsJws(authToken).getBody();
-			if (!security.getClientId().equals(claims.getAudience())) {
-				securityMetersService.trackTokenInvalidAudience();
+			var claims = getParser(origin).parseSignedClaims(authToken).getPayload();
+			if (!claims.getAudience().contains(security.getClientId())) {
+				this.securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else if (isNotBlank(security.getVerifiedEmailClaim()) && claims.getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(false)) {
 				securityMetersService.trackUnverifiedEmail();
@@ -214,6 +215,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		} catch (SignatureException e) {
 			securityMetersService.trackTokenInvalidSignature();
 			logger.trace(INVALID_JWT_TOKEN, e);
+
 		} catch (IllegalArgumentException e) {
 			logger.error("Token validation error {}", e.getMessage());
 		}
