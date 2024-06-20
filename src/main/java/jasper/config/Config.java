@@ -31,10 +31,9 @@ public interface Config {
 		private String emailHost = "jasper.local";
 		@Builder.Default
 		private int maxSources = 1000;
-		@Builder.Default
-		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
-		@Builder.Default
+		private List<String> modSeals = List.of("_moderated");
 		private List<String> editorSeals = List.of("plugin/qc");
+		private List<String> cursorSeals = List.of("seal", "+seal", "_seal");
 		/**
 		 * Whitelist origins to be allowed web access.
 		 */

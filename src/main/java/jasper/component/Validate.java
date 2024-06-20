@@ -30,10 +30,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static jasper.domain.proj.HasTags.author;
+import static jasper.domain.proj.HasTags.prefix;
 import static jasper.domain.proj.Tag.urlForUser;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -59,20 +62,28 @@ public class Validate {
 	ConfigCache configs;
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, boolean force) {
+	public void refUpdate(Ref ref, boolean force) {
 		var root = configs.root();
 		try {
 			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
 			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
+			if (auth.isLoggedIn()) ref.removeTags(root.getCursorSeals());
 		} catch (ScopeNotActiveException e) {
-			ref.removeTags(root.getModSeals());
-			ref.removeTags(root.getEditorSeals());
+			// TODO: do nothing on system task?
+//			ref.removeTags(root.getModSeals());
+//			ref.removeTags(root.getEditorSeals());
+			ref.addTag("_seal/system/" + Instant.now().toString());
 		}
-		ref(ref, ref.getOrigin(), force);
+		ref.removeTags(root.getCursorSeals());
+		refPush(ref, ref.getOrigin(), force);
+		for (var i = ref.getTags().size() - 1; i >= 0; i--) {
+			var t = ref.getTags().get(i);
+			if (author(t)) ref.addTag(prefix("_seal", t));
+		}
 	}
 
 	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, String validationOrigin, boolean force) {
+	public void refPush(Ref ref, String validationOrigin, boolean force) {
 		tags(ref);
 		plugins(ref, validationOrigin, force);
 		sources(ref, true);
