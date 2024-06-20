@@ -12,11 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.support.CompositeCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -159,6 +163,14 @@ public class RedisConfig {
 		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
 		executor.initialize();
 		return executor;
+	}
+
+	@Bean
+	public CacheManager cacheManager(CaffeineCacheManager caffeineCacheManager, RedisConnectionFactory connectionFactory) {
+		var redisCacheManager = RedisCacheManager.builder(connectionFactory).build();
+		var manager = new CompositeCacheManager(caffeineCacheManager, redisCacheManager);
+		manager.setFallbackToNoOpCache(true);
+		return manager;
 	}
 
 	@Bean
