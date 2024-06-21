@@ -194,8 +194,15 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		if (!StringUtils.hasText(authToken)) return false;
 		try {
 			var claims = getParser(origin).parseSignedClaims(authToken).getPayload();
-			if (!claims.getAudience().contains(security.getClientId())) {
-				this.securityMetersService.trackTokenInvalidAudience();
+			if (isBlank(security.getClientId()) &&
+				claims.getAudience() != null &&
+				(!claims.getAudience().contains("") || !claims.getAudience().isEmpty())) {
+				securityMetersService.trackTokenInvalidAudience();
+				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
+			} else if (isNotBlank(security.getClientId()) &&
+				(claims.getAudience() == null || !claims.getAudience().contains(security.getClientId()) || claims.getAudience().size() != 1)) {
+				// TODO: add method to whitelist extra audiences
+				securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else if (isNotBlank(security.getVerifiedEmailClaim()) && claims.getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(false)) {
 				securityMetersService.trackUnverifiedEmail();
