@@ -73,7 +73,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			.and()
 			.claim(security.getAuthoritiesClaim(), authorities)
 			.claim(security.getVerifiedEmailClaim(), true)
-			.signWith(Keys.hmacShaKeyFor(security.getSecret().getBytes()), Jwts.SIG.HS512)
+			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), Jwts.SIG.HS512)
 			.expiration(validity)
 			.compact();
 	}
