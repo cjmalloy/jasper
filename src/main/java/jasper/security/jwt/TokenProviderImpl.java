@@ -90,7 +90,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		if (!jwtParsers.containsKey(origin)) {
 			switch (security.getMode()) {
 				case "jwt":
-					var key = Keys.hmacShaKeyFor(security.getSecret().getBytes());
+					var key = Keys.hmacShaKeyFor(security.getSecretBytes());
 					jwtParsers.put(origin, Jwts.parserBuilder().setSigningKey(key).build());
 					break;
 				case "jwks":

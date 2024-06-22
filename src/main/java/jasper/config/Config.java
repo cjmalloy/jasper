@@ -12,7 +12,6 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.List;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Config {
@@ -145,11 +144,9 @@ public interface Config {
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
 
-		public String getSecret() {
-			if (isBlank(secret)) {
-				secret = new String(Base64.getDecoder().decode(base64Secret));
-			}
-			return secret;
+		public byte[] getSecretBytes() {
+			if (isNotBlank(secret)) return secret.getBytes();
+			return Base64.getDecoder().decode(base64Secret);
 		}
 
 		public SecurityConfig wrap(Props props) {
@@ -157,8 +154,10 @@ public interface Config {
 			var security = props.getOverride().getSecurity();
 			if (isNotBlank(security.getMode())) wrapped = wrapped.withMode(security.getMode());
 			if (isNotBlank(security.getClientId())) wrapped = wrapped.withClientId(security.getClientId());
-			if (isNotBlank(security.getBase64Secret())) wrapped = wrapped.withBase64Secret(security.getBase64Secret());
-			if (isNotBlank(security.getSecret())) wrapped = wrapped.withSecret(security.getSecret());
+			if (isNotBlank(security.getSecret()) || isNotBlank(security.getBase64Secret())) {
+				wrapped = wrapped.withBase64Secret(security.getBase64Secret());
+				wrapped = wrapped.withSecret(security.getSecret());
+			}
 			if (isNotBlank(security.getJwksUri())) wrapped = wrapped.withJwksUri(security.getJwksUri());
 			if (isNotBlank(security.getUsernameClaim())) wrapped = wrapped.withUsernameClaim(security.getUsernameClaim());
 			if (!"unset".equals(security.getVerifiedEmailClaim())) wrapped = wrapped.withVerifiedEmailClaim(security.getVerifiedEmailClaim());

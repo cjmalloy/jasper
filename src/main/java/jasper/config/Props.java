@@ -8,11 +8,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 import tech.jhipster.config.JHipsterDefaults;
 
-import java.util.Base64;
 import java.util.List;
 
 import static java.lang.Integer.parseInt;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
@@ -130,13 +128,6 @@ public class Props {
 		private String defaultUser = "";
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
-
-		public String getSecret() {
-			if (isBlank(secret)) {
-				secret = new String(Base64.getDecoder().decode(base64Secret));
-			}
-			return secret;
-		}
 	}
 
 
