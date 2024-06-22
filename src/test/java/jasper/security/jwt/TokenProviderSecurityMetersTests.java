@@ -155,9 +155,9 @@ class TokenProviderSecurityMetersTests {
 
         return Jwts
             .builder()
-            .setSubject("anonymous")
+            .subject("anonymous")
             .signWith(otherKey, SignatureAlgorithm.HS512)
-            .setExpiration(new Date(new Date().getTime() + ONE_MINUTE))
+            .expiration(new Date(new Date().getTime() + ONE_MINUTE))
             .compact();
     }
 
