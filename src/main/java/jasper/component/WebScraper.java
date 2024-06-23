@@ -124,7 +124,9 @@ public class WebScraper {
 			if (cache == null || isBlank(cache.getId())) {
 				cache = fetch(result.getUrl(), result.getOrigin());
 				if (cache == null) return result;
+				var edited = refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow();
 				result.setPlugin("_plugin/cache", cache);
+				result.setModified(edited.getModified());
 			}
 			data = new String(storage.get().get(origin, CACHE, cache.getId()));
 		} else {
