@@ -554,7 +554,7 @@ public class WebScraper {
 	@Scheduled(fixedDelay = 300)
 	public void drainAsyncScrape() {
 		scrapeLater.drainTo(scraping);
-		for (var s : scraping) fetch(s._1, s._2, true);
+		for (var s : scraping) fetch(s._1, s._2);
 		scraping.clear();
 	}
 
