@@ -1,4 +1,4 @@
-package jasper.component.delta;
+package jasper.component.channel.delta;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

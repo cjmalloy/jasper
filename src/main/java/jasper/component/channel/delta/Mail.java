@@ -1,8 +1,7 @@
-package jasper.component.channel;
+package jasper.component.channel.delta;
 
 import io.vavr.Tuple;
 import jasper.component.ConfigCache;
-import jasper.component.delta.Async;
 import jasper.domain.Ref;
 import jasper.domain.proj.RefUrl;
 import jasper.repository.ExtRepository;

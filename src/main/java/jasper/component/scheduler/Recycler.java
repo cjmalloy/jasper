@@ -1,4 +1,4 @@
-package jasper.component.delta;
+package jasper.component.scheduler;
 
 import jasper.component.Storage;
 import jasper.component.WebScraper;

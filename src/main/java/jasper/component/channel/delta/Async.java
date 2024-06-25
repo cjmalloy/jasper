@@ -1,4 +1,4 @@
-package jasper.component.delta;
+package jasper.component.channel.delta;
 
 import jasper.component.ConfigCache;
 import jasper.config.Props;
