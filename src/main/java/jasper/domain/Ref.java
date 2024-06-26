@@ -32,6 +32,7 @@ import java.util.Objects;
 
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
+import static jasper.domain.proj.Tag.matchesTag;
 
 @Entity
 @Getter
@@ -139,8 +140,9 @@ public class Ref implements HasTags {
 	public boolean hasPluginResponse(String tag) {
 		if (metadata == null) return false;
 		if (metadata.getPlugins() == null) return false;
-		if (!metadata.getPlugins().containsKey(tag)) return false;
-		return !metadata.getPlugins().get(tag).isEmpty();
+		return metadata.getPlugins().keySet().stream()
+			.filter(t -> matchesTag(tag, t))
+			.anyMatch(t -> !metadata.getPlugins().get(t).isEmpty());
 	}
 
 	public void setOrigin(String value) {

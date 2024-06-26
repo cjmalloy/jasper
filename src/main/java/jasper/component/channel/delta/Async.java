@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static org.springframework.data.domain.Sort.by;
 
 /**
@@ -95,7 +96,7 @@ public class Async {
 		if (ud.getTags() == null) return;
 		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
-			if (!ud.getTags().contains(k)) return;
+			if (!hasMatchingTag(ud, k)) return;
 			if (v instanceof AsyncRunner r) {
 				taggingService.create(ud.getUrl(), ud.getOrigin(), r.signature());
 			}
@@ -109,7 +110,7 @@ public class Async {
 			}
 		});
 		responses.forEach((k, v) -> {
-			if (!ud.getTags().contains(k)) return;
+			if (!hasMatchingTag(ud, k)) return;
 			if (v instanceof AsyncRunner r) {
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
 					.orElse(null);

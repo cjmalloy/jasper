@@ -24,4 +24,7 @@ COPY --from=builder app/snapshot-dependencies/ ./
 RUN true
 COPY --from=builder app/application/ ./
 COPY docker/entrypoint.sh .
+COPY --from=oven/bun:1.1.17-alpine /usr/local/bin/bun /usr/local/bin/bun
+ARG JASPER_NODE=/usr/local/bin/bun
+ENV JASPER_NODE=${JASPER_NODE}
 ENTRYPOINT sh entrypoint.sh
