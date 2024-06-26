@@ -54,7 +54,7 @@ class TokenProviderSecurityMetersTests {
 		var security = configCache.security("");
 		security.setMode("jwt");
 		security.setClientId("");
-		security.setBase64Secret("Xfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8");
+		security.setBase64Secret("d54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8");
 
         meterRegistry = new SimpleMeterRegistry();
 
@@ -139,7 +139,7 @@ class TokenProviderSecurityMetersTests {
     private String createUnsupportedToken() {
 		var security = configCache.security("");
 
-        return Jwts.builder().setPayload("payload").signWith(Keys.hmacShaKeyFor(security.getSecret().getBytes()), SignatureAlgorithm.HS256).compact();
+        return Jwts.builder().setPayload("payload").signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), SignatureAlgorithm.HS256).compact();
     }
 
     private String createMalformedToken() {
@@ -150,7 +150,7 @@ class TokenProviderSecurityMetersTests {
 
     private String createTokenWithDifferentSignature() {
         Key otherKey = Keys.hmacShaKeyFor(
-            Decoders.BASE64.decode("Xfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8")
+            Decoders.BASE64.decode("abfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8")
         );
 
         return Jwts
