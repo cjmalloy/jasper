@@ -559,8 +559,9 @@ Jasper generates the following metadata in Refs:
 
 When the `scripts` profile is active, any Refs with a `plugin/delta` tag will run the attached script when modified.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
-by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. The script should by writing
-UTF-8 JSON to stdout of the form:
+by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
+include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
+The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json
 {
