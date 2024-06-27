@@ -61,6 +61,9 @@ public class Script implements Async.AsyncRunner {
 		};
 		const context = vm.createContext({
 	      console,
+		  process: {
+		    exit: process.exit,
+		  },
 		  require(mod) {
 			if (mod === 'fs') return patchedFs;
 			return require(mod);
@@ -99,7 +102,6 @@ public class Script implements Async.AsyncRunner {
 
 	private String runJavaScript(String targetScript, Ref ref, int timeoutMs) throws IOException, InterruptedException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, String.valueOf(timeoutMs));
-		processBuilder.redirectErrorStream(true);
 		var process = processBuilder.start();
 
 		try (Writer writer = new OutputStreamWriter(process.getOutputStream())) {
@@ -107,23 +109,29 @@ public class Script implements Async.AsyncRunner {
 			writer.write("\0"); // null character as delimiter
 			writer.write(objectMapper.writeValueAsString(ref));
 			writer.flush();
+		} catch (IOException e) {
+			logger.warn("Script terminated before receiving input.");
 		}
-
 		var finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
 		if (!finished) {
 			process.destroy();
 			throw new RuntimeException("Script execution timed out");
 		}
-
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				logger.error(line);
+			}
+		}
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+			var exitCode = process.exitValue();
+			if (exitCode != 0) {
+				throw new RuntimeException("Script execution failed with exit code: " + exitCode);
+			}
 			var output = new StringBuilder();
 			String line;
 			while ((line = reader.readLine()) != null) {
 				output.append(line).append("\n");
-			}
-			var exitCode = process.exitValue();
-			if (exitCode != 0) {
-				throw new RuntimeException("Script execution failed with exit code: " + exitCode);
 			}
 			return output.toString();
 		}
