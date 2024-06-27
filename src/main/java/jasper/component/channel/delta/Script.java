@@ -3,18 +3,11 @@ package jasper.component.channel.delta;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
-import jasper.component.Ingest;
-import jasper.component.IngestExt;
+import jasper.component.IngestBundle;
+import jasper.component.dto.Bundle;
 import jasper.config.Props;
-import jasper.domain.Ext;
-import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jasper.domain.Template;
-import jasper.domain.User;
-import jasper.errors.NotFoundException;
 import jasper.plugin.config.Delta;
-import lombok.Getter;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,10 +37,7 @@ public class Script implements Async.AsyncRunner {
 	Async async;
 
 	@Autowired
-	Ingest ingestRef;
-
-	@Autowired
-	IngestExt ingestExt;
+	IngestBundle ingest;
 
 	@Autowired
 	ConfigCache configs;
@@ -98,28 +88,8 @@ public class Script implements Async.AsyncRunner {
 			if (isBlank(script.getJavascript())) continue;
 			try {
 				var output = runJavaScript(script.getJavascript(), ref, script.getTimeoutMs());
-				var entitiesOut = objectMapper.readValue(output, new TypeReference<ScriptOutput>() {});
-				if (entitiesOut.ref != null) for (var refOut : entitiesOut.ref) {
-					refOut.setOrigin(ref.getOrigin());
-					try {
-						ingestRef.update(refOut, false);
-						logger.debug("Script Updated Ref ({})", refOut.getUrl());
-					} catch (NotFoundException e) {
-						ingestRef.create(refOut, false);
-						logger.debug("Script Created Ref ({})", refOut.getUrl());
-					}
-				}
-				if (entitiesOut.ext != null) for (var extOut : entitiesOut.ext) {
-					extOut.setOrigin(ref.getOrigin());
-					try {
-						ingestExt.update(extOut, false);
-						logger.debug("Script Updated Ext ({})", extOut.getTag());
-					} catch (NotFoundException e) {
-						ingestExt.create(extOut, false);
-						logger.debug("Script Created Ext ({})", extOut.getTag());
-					}
-				}
-				// TODO: Plugins, Templates, and Users
+				var bundle = objectMapper.readValue(output, new TypeReference<Bundle>() {});
+				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
 				logger.error("Error running script", e);
 				// TODO: Attach error message to Ref
@@ -157,16 +127,6 @@ public class Script implements Async.AsyncRunner {
 			}
 			return output.toString();
 		}
-	}
-
-	@Getter
-	@Setter
-	private static class ScriptOutput {
-		private Ref[] ref;
-		private Ext[] ext;
-		private Plugin[] plugin;
-		private Template[] template;
-		private User[] user;
 	}
 
 }
