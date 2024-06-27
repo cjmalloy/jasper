@@ -69,13 +69,8 @@ public class Script implements Async.AsyncRunner {
 			return fs.readFileSync(path, options);
 		  }
 		};
-		const patchedConsole = {
-		  ...console,
-		  log: (...args) => console.log(...args),
-		  error: (...args) => console.error(...args),
-		};
 		const context = vm.createContext({
-	      console: patchedConsole,
+	      console,
 		  require(mod) {
 			if (mod === 'fs') return patchedFs;
 			return require(mod);
