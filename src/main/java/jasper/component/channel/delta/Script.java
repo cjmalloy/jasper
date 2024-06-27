@@ -87,7 +87,7 @@ public class Script implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/delta", this);
+		async.addAsyncTag("plugin/delta", this);
 	}
 
 	@Override

@@ -59,7 +59,7 @@ public class Dalle implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/inbox/ai/dalle", this);
+		async.addAsyncTag("plugin/inbox/ai/dalle", this);
 	}
 
 	@Override
