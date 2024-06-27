@@ -86,7 +86,7 @@ public class Ai implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/inbox/ai/openai", this);
+		async.addAsyncTag("plugin/inbox/ai/openai", this);
 	}
 
 	@Override

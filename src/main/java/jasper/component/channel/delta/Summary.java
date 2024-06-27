@@ -44,7 +44,7 @@ public class Summary implements Async.AsyncRunner {
 
 	@PostConstruct
 	void init() {
-		async.addAsyncResponse("plugin/summary", this);
+		async.addAsyncTag("plugin/summary", this);
 	}
 
 	@Override
