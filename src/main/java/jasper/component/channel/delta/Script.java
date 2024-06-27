@@ -11,6 +11,7 @@ import jasper.plugin.config.Delta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -45,12 +46,17 @@ public class Script implements Async.AsyncRunner {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Value("http://localhost:${server.port}")
+	String api;
+
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
+		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
 		const fs = require('fs');
 		const vm = require('node:vm');
 		const stdin = fs.readFileSync(0, 'utf-8');
-		const timeout = parseInt(process.argv[2], 10) || 30_000;
+		const timeout = parseInt(process.argv[1], 10) || 30_000;
+		const api = process.argv[2];
 		const [scriptContent, refString] = stdin.split('\\u0000');
 		const patchedFs = {
 		  ...fs,
@@ -62,6 +68,7 @@ public class Script implements Async.AsyncRunner {
 		const context = vm.createContext({
 	      console,
 		  process: {
+		    env: { JASPER_API: api },
 		    exit: process.exit,
 		  },
 		  require(mod) {
@@ -101,9 +108,8 @@ public class Script implements Async.AsyncRunner {
 	}
 
 	private String runJavaScript(String targetScript, Ref ref, int timeoutMs) throws IOException, InterruptedException {
-		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, String.valueOf(timeoutMs));
+		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
-
 		try (Writer writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter

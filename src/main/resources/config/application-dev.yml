@@ -74,6 +74,7 @@ jasper:
   scrape-delay-min: 5
   scrape-interval-min: 5
 #  local-origin: '@test'
+  allow-user-role-header: true
   override:
     security:
       mode: 'jwt'
