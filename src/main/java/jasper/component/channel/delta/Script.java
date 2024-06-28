@@ -76,7 +76,8 @@ public class Script implements Async.AsyncRunner {
 			return require(mod);
 		  }
 		});
-		const script = new vm.Script(scriptContent);
+		const allowTopLevelAwait = 'const run = async () => {' + scriptContent + '}; run().catch(err => {console.error(err);process.exit(1);});';
+		const script = new vm.Script(allowTopLevelAwait);
 		script.runInContext(context, {timeout});
 	""";
 
