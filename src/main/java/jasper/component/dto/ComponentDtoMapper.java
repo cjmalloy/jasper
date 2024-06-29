@@ -25,6 +25,7 @@ public abstract class ComponentDtoMapper {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
