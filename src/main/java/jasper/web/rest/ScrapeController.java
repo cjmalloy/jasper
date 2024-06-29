@@ -139,7 +139,7 @@ public class ScrapeController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping("cache")
-	String cache(
+	RefDto cache(
 		@RequestParam(required = false) String mime,
 		InputStream data
 	) throws IOException {

@@ -761,7 +761,7 @@ public class WebScraper {
 	}
 
 	@Timed(value = "jasper.webscrape")
-	public Cache cache(String origin, InputStream in, String mimeType, String user) throws IOException {
+	public Ref cache(String origin, InputStream in, String mimeType, String user) throws IOException {
 		if (storage.isEmpty()) throw new NotImplementedException("Storage is not enabled");
 		var id = storage.get().store(origin, CACHE, in);
 		var cache = Cache.builder()
@@ -769,8 +769,9 @@ public class WebScraper {
 			.mimeType(mimeType)
 			.contentLength(storage.get().size(origin, CACHE, id))
 			.build();
-		ingest.create(from("internal:" + id, origin, cache, user), false);
-		return cache;
+		var ref = from("internal:" + id, origin, cache, user);
+		ingest.create(ref, false);
+		return ref;
 	}
 
 	private String fixUrl(String url) {

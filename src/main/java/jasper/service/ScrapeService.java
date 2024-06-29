@@ -77,6 +77,12 @@ public class ScrapeService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
+	public Cache fetchIfExists(String url, OutputStream os) {
+		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new NotFoundException("Cache not found");
+		return webScraper.fetch(url, auth.getOrigin(), os, false);
+	}
+
+	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public Cache fetch(String url) {
 		// Only require role for new scrapes
 		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin()) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
@@ -98,8 +104,8 @@ public class ScrapeService {
 
 	@PreAuthorize( "@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String cache(InputStream in, String mime) throws IOException {
-		return "internal:" + webScraper.cache(auth.getOrigin(), in, mime, auth.getUserTag().tag).getId();
+	public RefDto cache(InputStream in, String mime) throws IOException {
+		return mapper.domainToDto(webScraper.cache(auth.getOrigin(), in, mime, auth.getUserTag().tag));
 	}
 
 	@PreAuthorize( "@auth.hasRole('MOD')")
