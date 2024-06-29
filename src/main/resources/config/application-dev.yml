@@ -75,6 +75,9 @@ jasper:
   scrape-interval-min: 5
 #  local-origin: '@test'
   allow-user-role-header: true
+  allow-user-tag-header: true
+  allow-local-origin-header: true
+  allow-auth-headers: true
   override:
     security:
       mode: 'jwt'

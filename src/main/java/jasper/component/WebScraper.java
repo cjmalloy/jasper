@@ -747,18 +747,6 @@ public class WebScraper {
 		return moreScrape;
 	}
 
-	@Timed(value = "jasper.webscrape")
-	public Cache cache(String origin, byte[] data, String mimeType, String user) throws IOException {
-		if (storage.isEmpty()) throw new NotImplementedException("Storage is not enabled");
-		var id = storage.get().store(origin, CACHE, data);
-		var cache = Cache.builder()
-			.id(id)
-			.mimeType(mimeType)
-			.contentLength((long) data.length)
-			.build();
-		ingest.create(from("internal:" + id, origin, cache, user), false);
-		return cache;
-	}
 
 	@Timed(value = "jasper.webscrape")
 	public Ref cache(String origin, InputStream in, String mimeType, String user) throws IOException {
