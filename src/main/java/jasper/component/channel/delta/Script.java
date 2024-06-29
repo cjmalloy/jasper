@@ -20,7 +20,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.Tag.matchesTag;
@@ -111,7 +110,7 @@ public class Script implements Async.AsyncRunner {
 	private String runJavaScript(String targetScript, Ref ref, int timeoutMs) throws IOException, InterruptedException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
-		try (Writer writer = new OutputStreamWriter(process.getOutputStream())) {
+		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
 			writer.write(objectMapper.writeValueAsString(ref));
@@ -124,13 +123,13 @@ public class Script implements Async.AsyncRunner {
 			process.destroy();
 			throw new RuntimeException("Script execution timed out");
 		}
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+		try (var reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				logger.error(line);
 			}
 		}
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+		try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 			var exitCode = process.exitValue();
 			if (exitCode != 0) {
 				throw new RuntimeException("Script execution failed with exit code: " + exitCode);
