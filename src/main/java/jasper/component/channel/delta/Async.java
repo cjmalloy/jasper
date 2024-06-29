@@ -62,7 +62,7 @@ public class Async {
 			for (String origin : configs.root().getAsyncOrigins()) {
 				backfill(origin);
 			}
-		}, Instant.now().plusMillis(1000L));
+		}, Instant.now().plusMillis(10000L));
 	}
 
 	/**
