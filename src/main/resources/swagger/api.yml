@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
-  title: Jasper KMS
-  description: REST API for Jasper Knowledge Management Server
-  version: 1.2.24
+  title: Jasper Protocol
+  description: REST API for the Jasper Protocol
+  version: 1.2.25
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.24
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.25
 paths:
   /api/v1/ref:
     get:
@@ -839,7 +839,7 @@ paths:
       tags:
         - Scrape
       operationId: cache
-      description: Uploads a file to the cache and returns a generated random URI to access it with.
+      description: Uploads a file to the cache and returns a generated Ref to access it with.
       parameters:
         - name: url
           in: query
@@ -857,7 +857,7 @@ paths:
           content:
             '*/*':
               schema:
-                type: string
+                $ref: '#/components/schemas/Ref'
         '500':
           description: Error caching
           content:
@@ -2339,6 +2339,62 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /pub/api/v1/repl/fetch:
+    get:
+      tags:
+        - Repl
+      operationId: repl-fetch
+      description: Fetch an item from the web cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /pub/api/v1/repl/cache:
+    post:
+      tags:
+        - Repl
+      operationId: repl-cache
+      description: Uploads a file to the cache and returns a generated Ref to access it with.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              format: binary
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ref'
+        '500':
+          description: Error caching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/oembed:
     get:
       tags:

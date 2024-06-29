@@ -19,10 +19,12 @@ import jasper.service.ExtService;
 import jasper.service.PluginService;
 import jasper.service.RefService;
 import jasper.service.ReplicateService;
+import jasper.service.ScrapeService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
 import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
+import jasper.service.dto.RefDto;
 import jasper.service.dto.RefReplDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -31,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,11 +43,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static org.springframework.data.domain.Sort.by;
@@ -73,6 +80,8 @@ public class ReplicateController {
 	TemplateService templateService;
 	@Autowired
 	UserService userService;
+	@Autowired
+	ScrapeService scrapeService;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
@@ -327,5 +336,32 @@ public class ReplicateController {
 			}
 		}
 		if (first != null) throw first;
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@GetMapping("fetch")
+	void fetch(
+		HttpServletResponse response,
+		@RequestParam @Length(max = URL_LEN) String url
+	) throws IOException {
+		try (var os = response.getOutputStream()) {
+			scrapeService.fetchIfExists(url, os);
+			response.setStatus(HttpStatus.OK.value());
+		}
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PostMapping("cache")
+	RefDto cache(
+		@RequestParam(required = false) String mime,
+		InputStream data
+	) throws IOException {
+		return scrapeService.cache(data, mime);
 	}
 }
