@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
 import jasper.component.IngestBundle;
 import jasper.component.dto.Bundle;
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.config.Delta;
+import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,9 @@ public class Script implements Async.AsyncRunner {
 
 	@Autowired
 	ConfigCache configs;
+
+	@Autowired
+	ComponentDtoMapper mapper;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -97,7 +102,7 @@ public class Script implements Async.AsyncRunner {
 			var script = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
 			if (isBlank(script.getJavascript())) continue;
 			try {
-				var output = runJavaScript(script.getJavascript(), ref, script.getTimeoutMs());
+				var output = runJavaScript(script.getJavascript(), mapper.domainToDto(ref), script.getTimeoutMs());
 				var bundle = objectMapper.readValue(output, new TypeReference<Bundle>() {});
 				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
@@ -107,7 +112,7 @@ public class Script implements Async.AsyncRunner {
 		}
 	}
 
-	private String runJavaScript(String targetScript, Ref ref, int timeoutMs) throws IOException, InterruptedException {
+	private String runJavaScript(String targetScript, RefDto ref, int timeoutMs) throws IOException, InterruptedException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
