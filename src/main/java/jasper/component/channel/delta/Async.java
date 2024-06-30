@@ -11,13 +11,14 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -56,13 +57,13 @@ public class Async {
 
 	Map<String, AsyncRunner> tags = new HashMap<>();
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		taskScheduler.schedule(() -> {
 			for (String origin : configs.root().getAsyncOrigins()) {
 				backfill(origin);
 			}
-		}, Instant.now().plusMillis(10000L));
+		}, Instant.now().plusMillis(1000L));
 	}
 
 	/**
