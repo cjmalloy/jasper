@@ -24,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.Tag.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("scripts")
 @Component
@@ -97,8 +98,9 @@ public class Script implements Async.AsyncRunner {
 	public void run(Ref ref) throws Exception {
 		logger.debug("Applying delta response to {} ({})", ref.getTitle(), ref.getUrl());
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t)).toList()) {
-			var script = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
-			if (!"javascript".equals(script.getLanguage())) {
+			var delta = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
+			if (isBlank(delta.getScript())) continue;;
+			if (!"javascript".equals(delta.getLanguage())) {
 				// Only Javascript is supported right now
 				logger.error("Script runtime not supported");
 				// TODO: Attach error message to Ref
@@ -106,7 +108,7 @@ public class Script implements Async.AsyncRunner {
 			}
 			String output;
 			try {
-				output = runJavaScript(script.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), script.getTimeoutMs());
+				output = runJavaScript(delta.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), delta.getTimeoutMs());
 			} catch (Exception e) {
 				logger.error("Error running script", e);
 				// TODO: Attach error message to Ref
