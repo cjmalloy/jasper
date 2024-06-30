@@ -3,6 +3,7 @@ package jasper.component.channel.delta;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import jasper.config.Props;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -22,11 +23,13 @@ class ScriptTest {
 		var app = mapper.readValue(new File("src/test/resources/config/application.yml"), ObjectNode.class);
 		var props = app.get("jasper");
 
-		script.node = System.getenv("JASPER_NODE");
-		if (isBlank(script.node)) {
-			script.node = props.get("node").textValue();
+		var node = System.getenv("JASPER_NODE");
+		if (isBlank(node)) {
+			node = props.get("node").textValue();
 		}
-		script.node = script.node.replaceFirst("^~", System.getProperty("user.home"));
+		node = node.replaceFirst("^~", System.getProperty("user.home"));
+		script.props = new Props();
+		script.props.setNode(node);
 		script.api = "http://localhost:10344";
 	}
 
