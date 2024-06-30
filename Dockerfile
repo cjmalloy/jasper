@@ -10,6 +10,9 @@ RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 RUN java -Djarmode=layertools -jar target/*.jar extract
 
 FROM builder as test
+COPY docker/entrypoint.sh .
+COPY --from=oven/bun:1.1.17-alpine /usr/local/bin/bun /usr/local/bin/bun
+ENV JASPER_NODE=/usr/local/bin/bun
 CMD mvn -gs settings.xml test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/

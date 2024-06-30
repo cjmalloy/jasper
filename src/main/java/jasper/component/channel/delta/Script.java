@@ -6,10 +6,8 @@ import jasper.component.ConfigCache;
 import jasper.component.IngestBundle;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.config.Delta;
-import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +31,6 @@ public class Script implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	Async async;
 
 	@Autowired
@@ -53,6 +48,9 @@ public class Script implements Async.AsyncRunner {
 	@Value("http://localhost:${server.port}")
 	String api;
 
+	@Value("${jasper.node}")
+	String node;
+
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
 		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
@@ -61,11 +59,11 @@ public class Script implements Async.AsyncRunner {
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
-		const [scriptContent, refString] = stdin.split('\\u0000');
+		const [targetScript, inputString] = stdin.split('\\u0000');
 		const patchedFs = {
 		  ...fs,
 		  readFileSync: (path, options) => {
-			if (path === 0) return refString;
+			if (path === 0) return inputString;
 			return fs.readFileSync(path, options);
 		  }
 		};
@@ -80,7 +78,7 @@ public class Script implements Async.AsyncRunner {
 			return require(mod);
 		  }
 		});
-		const allowTopLevelAwait = 'const run = async () => {' + scriptContent + '}; run().catch(err => {console.error(err);process.exit(1);});';
+		const allowTopLevelAwait = 'const run = async () => {' + targetScript + '}; run().catch(err => {console.error(err);process.exit(1);});';
 		const script = new vm.Script(allowTopLevelAwait);
 		script.runInContext(context, {timeout});
 	""";
@@ -101,24 +99,31 @@ public class Script implements Async.AsyncRunner {
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t)).toList()) {
 			var script = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
 			if (isBlank(script.getJavascript())) continue;
+			String output;
 			try {
-				var output = runJavaScript(script.getJavascript(), mapper.domainToDto(ref), script.getTimeoutMs());
+				output = runJavaScript(script.getJavascript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), script.getTimeoutMs());
+			} catch (Exception e) {
+				logger.error("Error running script", e);
+				// TODO: Attach error message to Ref
+				return;
+			}
+			try {
 				var bundle = objectMapper.readValue(output, new TypeReference<Bundle>() {});
 				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
-				logger.error("Error running script", e);
+				logger.error("Error parsing script return value", e);
 				// TODO: Attach error message to Ref
 			}
 		}
 	}
 
-	private String runJavaScript(String targetScript, RefDto ref, int timeoutMs) throws IOException, InterruptedException {
-		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
+	String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException {
+		var processBuilder = new ProcessBuilder(node, "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
-			writer.write(objectMapper.writeValueAsString(ref));
+			writer.write(inputString);
 			writer.flush();
 		} catch (IOException e) {
 			logger.warn("Script terminated before receiving input.");
