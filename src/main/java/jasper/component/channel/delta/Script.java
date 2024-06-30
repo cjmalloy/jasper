@@ -23,7 +23,6 @@ import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.Tag.matchesTag;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("scripts")
 @Component
@@ -98,10 +97,14 @@ public class Script implements Async.AsyncRunner {
 		logger.debug("Applying delta response to {} ({})", ref.getTitle(), ref.getUrl());
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t)).toList()) {
 			var script = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
-			if (isBlank(script.getJavascript())) continue;
+			if (!"javascript".equals(script.getLanguage())) {
+				// Only Javascript is supported right now
+				// TODO: Attach error message to Ref
+				return;
+			}
 			String output;
 			try {
-				output = runJavaScript(script.getJavascript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), script.getTimeoutMs());
+				output = runJavaScript(script.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), script.getTimeoutMs());
 			} catch (Exception e) {
 				logger.error("Error running script", e);
 				// TODO: Attach error message to Ref
