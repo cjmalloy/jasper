@@ -6,6 +6,7 @@ import jasper.domain.Ext;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -65,6 +66,7 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void update(Ext ext, boolean force) {
+		if (!extRepository.existsByQualifiedTag(ext.getTag() + ext.getOrigin())) throw new NotFoundException("Ext");
 		validate.ext(ext, force);
 		ensureUpdateUniqueModified(ext);
 		messages.updateExt(ext);
