@@ -6,6 +6,7 @@ import jasper.component.ConfigCache;
 import jasper.component.IngestBundle;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.config.Delta;
 import org.slf4j.Logger;
@@ -30,6 +31,9 @@ public class Script implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	Async async;
 
 	@Autowired
@@ -46,9 +50,6 @@ public class Script implements Async.AsyncRunner {
 
 	@Value("http://localhost:${server.port}")
 	String api;
-
-	@Value("${jasper.node}")
-	String node;
 
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
@@ -99,6 +100,7 @@ public class Script implements Async.AsyncRunner {
 			var script = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
 			if (!"javascript".equals(script.getLanguage())) {
 				// Only Javascript is supported right now
+				logger.error("Script runtime not supported");
 				// TODO: Attach error message to Ref
 				return;
 			}
@@ -121,7 +123,7 @@ public class Script implements Async.AsyncRunner {
 	}
 
 	String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException {
-		var processBuilder = new ProcessBuilder(node, "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
+		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
