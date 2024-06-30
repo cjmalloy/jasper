@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Delta implements Serializable {
-	private String javascript;
+	private String language = "javascript";
+	private String script;
 	private int timeoutMs;
 }
