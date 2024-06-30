@@ -94,7 +94,7 @@ public class Props {
 	private String[] defaultTagWriteAccess;
 
 	private String storage = "/var/lib/jasper";
-	private String node = "/usr/bin/node";
+	private String node = "/usr/local/bin/node";
 
 	private String sshConfigNamespace = "default";
 	private String sshConfigMapName = "ssh-authorized-keys";
