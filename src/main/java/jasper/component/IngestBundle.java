@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static jasper.domain.proj.Tag.matchesTag;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class IngestBundle {
@@ -102,7 +101,6 @@ public class IngestBundle {
 	}
 
 	public void attachError(Ref parent, String title, String logs, String origin) {
-		if (isNotBlank(title)) logs = "<pre>" + logs + "</pre>";
 		var ref = new Ref();
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
