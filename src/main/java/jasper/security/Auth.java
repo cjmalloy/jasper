@@ -665,6 +665,14 @@ public class Auth {
 			.toList();
 	}
 
+	public List<String> unwritableTags(List<String> tags) {
+		if (hasRole(MOD)) return null;
+		if (tags == null) return null;
+		return tags.stream()
+			.filter(tag -> !canAddTag(tag + getOrigin()))
+			.toList();
+	}
+
 	public Specification<Ref> refReadSpec() {
 		var spec = where(hasRole(MOD)
 			? isOrigin(getSubOrigins())

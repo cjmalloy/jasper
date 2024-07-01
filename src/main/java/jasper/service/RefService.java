@@ -134,9 +134,13 @@ public class RefService {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
+		// Hidden tags cannot be removed
 		var hiddenTags = auth.hiddenTags(existing.getTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
+		// Unwritable tags may only be removed, plugin data may not be modified
+		var unwritableTags = auth.unwritableTags(ref.getTags());
+		ref.addPlugins(unwritableTags, existing.getPlugins());
 		ingest.update(ref, force);
 		return ref.getModified();
 	}
@@ -144,6 +148,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
+		// TODO: disable patching for large refs
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {

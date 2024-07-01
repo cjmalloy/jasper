@@ -971,6 +971,53 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testUpdateRefWithoutLoosingProtectedPluginData() throws JsonProcessingException {
+		pluginRepository.save(getPlugin("+plugin/test"));
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(new ArrayList<>(List.of("+user/tester", "+plugin/test")));
+		var mapper = new ObjectMapper();
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"+plugin/test": {
+				"name": "bob",
+				"age": 42
+			}
+		}"""));
+		ingest.create(ref, false);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setTitle("Second");
+		update.setTags(new ArrayList<>(List.of("+user/tester", "+plugin/test", "custom")));
+		update.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"+plugin/test": {
+				"name": "charlie",
+				"age": 100
+			}
+		}"""));
+		update.setModified(ref.getModified());
+
+		refService.update(update, false);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getTags())
+			.contains("+user/tester", "custom", "+plugin/test");
+		assertThat(fetched.getPlugins().has("+plugin/test"))
+			.isTrue();
+		var plugin = fetched.getPlugin("+plugin/test");
+		assertThat(plugin.get("name").textValue())
+			.isEqualTo("bob");
+		assertThat(plugin.get("age").numberValue())
+			.isEqualTo(42);
+	}
+
+	@Test
 	void testUpdateRefWithReadablePrivateTags() {
 		var user = new User();
 		user.setTag("+user/tester");
