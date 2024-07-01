@@ -79,11 +79,12 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		return "!+plugin/error:" + tags
+		var query = tags
 			.entrySet()
 			.stream()
 			.map(e -> e.getKey() + (isBlank(e.getValue().signature()) ? "" : ":!" + e.getValue().signature()))
 			.collect(Collectors.joining("|"));
+		return "!+plugin/error:(" + query + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
