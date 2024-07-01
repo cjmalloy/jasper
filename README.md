@@ -580,6 +580,11 @@ by either:
 2. Adding the `+plugin/delta` signature tag
 3. Adding a `+plugin/delta` Plugin response
 
+Adding the `+plugin/error` tag will prevent any further processing. Remove the `+plugin/error` tag to retry.
+You can also attach any error logs for the user to see by replying to the delta with the `+plugin/log` tag. Logs should
+be tagged `internal` to prevent clutter, and should match the visibility of the parent delta (`public` or not) with the
+same owner so the user can clear the logs as desired.
+
 Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
 
 ### Remove the `plugin/delta` tag:
