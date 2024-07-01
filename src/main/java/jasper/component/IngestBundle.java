@@ -1,11 +1,19 @@
 package jasper.component;
 
 import jasper.component.dto.Bundle;
+import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static jasper.domain.proj.Tag.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class IngestBundle {
@@ -86,6 +94,29 @@ public class IngestBundle {
 			} catch (Exception e) {
 				logger.error("Error ingesting Template {}", template.getTag(), e);
 			}
+		}
+	}
+
+	public void attachError(Ref parent, String msg, String origin) {
+		attachError(parent, "", msg, origin);
+	}
+
+	public void attachError(Ref parent, String title, String logs, String origin) {
+		if (isNotBlank(title)) logs = "<pre>" + logs + "</pre>";
+		var ref = new Ref();
+		ref.setOrigin(origin);
+		ref.setUrl("error:" + UUID.randomUUID());
+		ref.setSources(List.of(parent.getUrl()));
+		ref.setComment(title);
+		ref.setComment(logs);
+		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
+		if (parent.hasTag("public")) tags.add("public");
+		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		ref.setTags(tags);
+		ingestRef.create(ref, false);
+		if (!parent.hasTag("+plugin/error")) {
+			parent.addTag("+plugin/error");
+			ingestRef.update(parent, false);
 		}
 	}
 }
