@@ -535,7 +535,6 @@ Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
 and `JASPER_AUTHORITIES_CLAIM` properties.
 
 ## Backup / Restore
-TODO: Mod backups
 Jasper has a built-in backup system for mod use. Non mods should instead replicate to a separate jasper instance.
 In order to use the backup system, the `storage` profile must be active.
 
