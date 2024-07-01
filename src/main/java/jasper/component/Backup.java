@@ -209,7 +209,7 @@ public class Backup {
 			while (!done.get()) {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					for (var i = 0; i < this.props.getRestoreBatchSize(); i++) {
+					for (var i = 0; i < props.getRestoreBatchSize(); i++) {
 						if (!it.hasNext()) {
 							done.set(true);
 							break;
@@ -229,7 +229,7 @@ public class Backup {
 					return null;
 				});
 				count++;
-				logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * this.props.getRestoreBatchSize());
+				logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
 			}
 		} catch (Exception e) {
 			logger.error("Failed to restore", e);

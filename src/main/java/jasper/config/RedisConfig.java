@@ -529,10 +529,10 @@ public class RedisConfig {
 		private final RedisTemplate<?, ?> template;
 
 		public CustomPublishingMessageHandler() {
-			this.template = new RedisTemplate<>();
-			this.template.setConnectionFactory(redisConnectionFactory);
-			this.template.setEnableDefaultSerializer(false);
-			this.template.afterPropertiesSet();
+			template = new RedisTemplate<>();
+			template.setConnectionFactory(redisConnectionFactory);
+			template.setEnableDefaultSerializer(false);
+			template.afterPropertiesSet();
 		}
 
 		@Override
@@ -543,7 +543,7 @@ public class RedisConfig {
 		@Override
 		@SuppressWarnings("unchecked")
 		protected void handleMessageInternal(Message<?> message) {
-			this.template.convertAndSend(getTopic((Message<T>) message), getMessage((Message<T>) message));
+			template.convertAndSend(getTopic((Message<T>) message), getMessage((Message<T>) message));
 		}
 
 		protected abstract String getTopic(Message<T> message);

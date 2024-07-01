@@ -21,12 +21,12 @@ public class SecurityMetersService {
     private final Counter unverifiedEmailCounter;
 
     public SecurityMetersService(MeterRegistry registry) {
-        this.tokenInvalidAudienceCounter = invalidTokensCounterForCauseBuilder("invalid-audience").register(registry);
-        this.tokenInvalidSignatureCounter = invalidTokensCounterForCauseBuilder("invalid-signature").register(registry);
-        this.tokenExpiredCounter = invalidTokensCounterForCauseBuilder("expired").register(registry);
-        this.tokenUnsupportedCounter = invalidTokensCounterForCauseBuilder("unsupported").register(registry);
-        this.tokenMalformedCounter = invalidTokensCounterForCauseBuilder("malformed").register(registry);
-        this.unverifiedEmailCounter = invalidTokensCounterForCauseBuilder("email-not-verified").register(registry);
+        tokenInvalidAudienceCounter = invalidTokensCounterForCauseBuilder("invalid-audience").register(registry);
+        tokenInvalidSignatureCounter = invalidTokensCounterForCauseBuilder("invalid-signature").register(registry);
+        tokenExpiredCounter = invalidTokensCounterForCauseBuilder("expired").register(registry);
+        tokenUnsupportedCounter = invalidTokensCounterForCauseBuilder("unsupported").register(registry);
+        tokenMalformedCounter = invalidTokensCounterForCauseBuilder("malformed").register(registry);
+        unverifiedEmailCounter = invalidTokensCounterForCauseBuilder("email-not-verified").register(registry);
     }
 
     private Counter.Builder invalidTokensCounterForCauseBuilder(String cause) {
@@ -38,26 +38,26 @@ public class SecurityMetersService {
     }
 
     public void trackTokenInvalidAudience() {
-        this.tokenInvalidAudienceCounter.increment();
+        tokenInvalidAudienceCounter.increment();
     }
 
     public void trackTokenInvalidSignature() {
-        this.tokenInvalidSignatureCounter.increment();
+        tokenInvalidSignatureCounter.increment();
     }
 
     public void trackTokenExpired() {
-        this.tokenExpiredCounter.increment();
+        tokenExpiredCounter.increment();
     }
 
     public void trackTokenUnsupported() {
-        this.tokenUnsupportedCounter.increment();
+        tokenUnsupportedCounter.increment();
     }
 
     public void trackTokenMalformed() {
-        this.tokenMalformedCounter.increment();
+        tokenMalformedCounter.increment();
     }
 
     public void trackUnverifiedEmail() {
-        this.unverifiedEmailCounter.increment();
+        unverifiedEmailCounter.increment();
     }
 }

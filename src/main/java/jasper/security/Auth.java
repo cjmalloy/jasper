@@ -209,7 +209,7 @@ public class Auth {
 	 * be the default origin.
 	 */
 	public boolean local(String origin) {
-		if (isBlank(origin)) return isBlank(this.getOrigin());
+		if (isBlank(origin)) return isBlank(getOrigin());
 		if (!origin.startsWith("@")) origin = qt(origin).origin;
 		return getOrigin().equals(origin);
 	}
