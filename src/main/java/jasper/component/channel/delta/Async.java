@@ -78,7 +78,8 @@ public class Async {
 	 * by a response Plugin.
 	 */
 	String trackingQuery() {
-		return tags
+		if (tags.isEmpty()) return null;
+		return "!+plugin/error:" + tags
 			.entrySet()
 			.stream()
 			.map(e -> e.getKey() + (isBlank(e.getValue().signature()) ? "" : ":!" + e.getValue().signature()))
@@ -91,6 +92,7 @@ public class Async {
 		if (root.getAsyncOrigins() == null) return;
 		var ud = message.getPayload();
 		if (ud.getTags() == null) return;
+		if (hasMatchingTag(ud, "+plugin/error")) return;
 		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
 			if (hasMatchingTag(ud, v.signature())) return;
@@ -118,6 +120,7 @@ public class Async {
 	}
 
 	private void backfill(String origin) {
+		if (isBlank(trackingQuery())) return;
 		Map<String, Instant> lastModified = new HashMap<>();
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()

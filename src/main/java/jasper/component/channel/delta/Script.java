@@ -8,6 +8,7 @@ import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Props;
 import jasper.domain.Ref;
+import jasper.errors.ScriptException;
 import jasper.plugin.config.Delta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,19 +100,23 @@ public class Script implements Async.AsyncRunner {
 		logger.debug("Applying delta response to {} ({})", ref.getTitle(), ref.getUrl());
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t)).toList()) {
 			var delta = configs.getPluginConfig(scriptTag, ref.getOrigin(), Delta.class);
-			if (isBlank(delta.getScript())) continue;;
+			if (isBlank(delta.getScript())) continue;
 			if (!"javascript".equals(delta.getLanguage())) {
 				// Only Javascript is supported right now
-				logger.error("Script runtime not supported");
-				// TODO: Attach error message to Ref
+				logger.error("Script runtime not supported {}", delta.getLanguage());
+				ingest.attachError(ref, "Script runtime not supported: " + delta.getLanguage(), ref.getOrigin());
 				return;
 			}
 			String output;
 			try {
 				output = runJavaScript(delta.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), delta.getTimeoutMs());
+			} catch (ScriptException e) {
+				logger.error("Error running script", e);
+				ingest.attachError(ref, e.getMessage(), e.getLogs(), ref.getOrigin());
+				return;
 			} catch (Exception e) {
 				logger.error("Error running script", e);
-				// TODO: Attach error message to Ref
+				ingest.attachError(ref, e.getMessage(), ref.getOrigin());
 				return;
 			}
 			try {
@@ -119,12 +124,12 @@ public class Script implements Async.AsyncRunner {
 				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
 				logger.error("Error parsing script return value", e);
-				// TODO: Attach error message to Ref
+				ingest.attachError(ref, "Error parsing script output", output, ref.getOrigin());
 			}
 		}
 	}
 
-	String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException {
+	String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
@@ -140,16 +145,17 @@ public class Script implements Async.AsyncRunner {
 			process.destroy();
 			throw new RuntimeException("Script execution timed out");
 		}
+		var logs = new StringBuilder();
 		try (var reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
 			String line;
 			while ((line = reader.readLine()) != null) {
-				logger.error(line);
+				logs.append(line).append("\n");
 			}
 		}
 		try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 			var exitCode = process.exitValue();
 			if (exitCode != 0) {
-				throw new RuntimeException("Script execution failed with exit code: " + exitCode);
+				throw new ScriptException("Script execution failed with exit code: " + exitCode, logs.toString());
 			}
 			var output = new StringBuilder();
 			String line;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import jasper.config.Props;
+import jasper.errors.ScriptException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +35,7 @@ class ScriptTest {
 	}
 
 	@Test
-	void testRunJavaScript() throws IOException, InterruptedException {
+	void testRunJavaScript() throws IOException, InterruptedException, ScriptException {
 		// language=JavaScript
 		var targetScript = """
 			console.log(require('fs').readFileSync(0, 'utf-8').toUpperCase());

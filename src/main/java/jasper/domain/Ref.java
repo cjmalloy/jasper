@@ -291,6 +291,6 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasTag(String tag) {
-		return getHierarchicalTags(this.tags).contains(tag);
+		return tags.stream().anyMatch(t -> matchesTag(tag, t));
 	}
 }
