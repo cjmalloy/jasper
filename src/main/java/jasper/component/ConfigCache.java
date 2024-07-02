@@ -62,7 +62,7 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
+		if (templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
 			ingest.push(config());
 		}
 	}
@@ -184,7 +184,7 @@ public class ConfigCache {
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class);
+		return getTemplateConfig("_config/server", "",  ServerConfig.class);
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
@@ -214,9 +214,9 @@ public class ConfigCache {
 	}
 
 	private Template config() {
-		var config = ServerConfig.builderFor(props.getLocalOrigin()).build();
+		var config = ServerConfig.builderFor("").build();
 		var template = new Template();
-		template.setOrigin(props.getLocalOrigin());
+		template.setOrigin("");
 		template.setTag("_config/server");
 		template.setName("Server Config");
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
