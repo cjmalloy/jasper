@@ -17,7 +17,7 @@ logging:
 
 spring:
   profiles:
-    active: 'test'
+    active: 'test,scripts'
   application:
     name: jasper
   datasource:
@@ -88,6 +88,7 @@ jasper:
   scrape-delay-min: 5
   scrape-interval-min: 1
   default-role: ROLE_USER
+  node: ~/.bun/bin/bun
   override:
     security:
       mode: 'jwt'

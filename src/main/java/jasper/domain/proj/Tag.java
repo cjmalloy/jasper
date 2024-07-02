@@ -2,6 +2,8 @@ package jasper.domain.proj;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.stream.Stream;
+
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -57,5 +59,11 @@ public interface Tag extends Cursor {
 		if (isBlank(origin)) return tag;
 		if (isBlank(tag)) tag = "user";
 		return origin.substring(1) + "/" + tag;
+	}
+
+	static boolean matchesTag(String prefix, String tag) {
+		return isBlank(prefix) ||
+			prefix.equals(tag) ||
+			tag.startsWith(prefix);
 	}
 }

@@ -421,6 +421,7 @@ It supports the following configuration options:
 | `JASPER_DEFAULT_TAG_READ_ACCESS`          | Additional tag read access qualified tags to apply to all users.                                                               |                                                                                                                                                                                                               |
 | `JASPER_DEFAULT_TAG_WRITE_ACCESS`         | Additional tag write access qualified tags to apply to all users.                                                              |                                                                                                                                                                                                               |
 | `JASPER_STORAGE`                          | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
+| `JASPER_NODE`                             | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
 | `JASPER_SSH_CONFIG_NAMESPACE`             | K8s namespace to write authorized_keys config map file to.                                                                     |                                                                                                                                                                                                               |
 | `JASPER_SSH_CONFIG_MAP_NAME`              | K8s config map name to write authorized_keys file to.                                                                          |                                                                                                                                                                                                               |
 | `JASPER_SECURITY_CONTENT_SECURITY_POLICY` | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
@@ -475,6 +476,8 @@ variable to change the location of the storage folder.
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,
 `$JASPER_STORAGE/$JASPER_LOCAL_ORIGIN/preload` is used.
+
+The `scripts` profile enables server side scripting through the `plugin/delta` Plugin.
 
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
@@ -532,7 +535,6 @@ Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
 and `JASPER_AUTHORITIES_CLAIM` properties.
 
 ## Backup / Restore
-TODO: Mod backups
 Jasper has a built-in backup system for mod use. Non mods should instead replicate to a separate jasper instance.
 In order to use the backup system, the `storage` profile must be active.
 
@@ -552,6 +554,114 @@ Jasper generates the following metadata in Refs:
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
+
+## Server Scripting
+
+When the `scripts` profile is active, any Refs with a `plugin/delta` tag will run the attached script when modified.
+Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
+by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
+include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
+The script should by writing UTF-8 JSON to stdout of the form:
+
+```json
+{
+  "ref": [],
+  "ext": [],
+  "user": [],
+  "plugin": [],
+  "template": []
+}
+```
+
+These entities will either be created or updated, as necessary. You can use this to mark the input Ref as completed
+by either:
+1. Removing the `plugin/delta` tag
+2. Adding the `+plugin/delta` signature tag
+3. Adding a `+plugin/delta` Plugin response
+
+Adding the `+plugin/error` tag will prevent any further processing. Remove the `+plugin/error` tag to retry.
+You can also attach any error logs for the user to see by replying to the delta with the `+plugin/log` tag. Logs should
+be tagged `internal` to prevent clutter, and should match the visibility of the parent delta (`public` or not) with the
+same owner so the user can clear the logs as desired.
+
+Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
+
+### Remove the `plugin/delta` tag:
+```javascript
+const whatPlugin = {
+  tag: 'plugin/delta/what',
+  config: {
+    timeoutMs: 30_000,
+    javascript: `
+      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      const louderRef = {
+        url: 'yousaid:' + ref.url,
+        sources: [ref.url],
+        comment: ref.comment.toUpperCase(),
+        tags: ['+plugin/delta/what']
+      };
+      ref.tags = ref.tags.filter(t => t !== 'plugin/delta/what' && !t.startsWith('plugin/delta/what/'));
+      console.log(JSON.stringify({
+        ref: [ref, louderRef],
+      }));
+    `,
+  },
+};
+const whatPluginSignature = {
+  tag: '+plugin/delta/what',
+  generateMetadata: true,
+};
+```
+
+### Add the `+plugin/delta` tag:
+```javascript
+const whatPlugin = {
+  tag: 'plugin/delta/what',
+  config: {
+    timeoutMs: 30_000,
+    javascript: `
+      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      const louderRef = {
+        url: 'yousaid:' + ref.url,
+        sources: [ref.url],
+        comment: ref.comment.toUpperCase(),
+      };
+      ref.tags.push('+plugin/delta/what');
+      console.log(JSON.stringify({
+        ref: [ref, louderRef],
+      }));
+    `,
+  },
+};
+```
+
+### Add the `+plugin/delta` Plugin response:
+This is the recommended approach as it does need to modify existing Refs and
+is less likely for a bug to cause an infinite loop.
+```javascript
+const whatPlugin = {
+  tag: 'plugin/delta/what',
+  config: {
+    timeoutMs: 30_000,
+    javascript: `
+      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      const louderRef = {
+        url: 'yousaid:' + ref.url,
+        sources: [ref.url],
+        comment: ref.comment.toUpperCase(),
+        tags: ['+plugin/delta/what']
+      };
+      console.log(JSON.stringify({
+        ref: [louderRef],
+      }));
+    `,
+  },
+};
+const whatPluginSignature = {
+  tag: '+plugin/delta/what',
+  generateMetadata: true,
+};
+```
 
 ## RSS / Atom Scraping
 The `+plugin/feed` can be used to scrape RSS / Atom feeds.

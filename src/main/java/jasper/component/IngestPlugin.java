@@ -6,6 +6,7 @@ import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -65,6 +66,7 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
+		if (!pluginRepository.existsByQualifiedTag(plugin.getTag() + plugin.getOrigin())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
