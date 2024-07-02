@@ -52,7 +52,7 @@ public class JWTFilter extends GenericFilterBean {
 					SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
 				}
 			} else {
-				logger.debug("No web access for origin ({})", jwt);
+				logger.debug("No web access for origin ({})", origin);
 			}
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
