@@ -17,7 +17,7 @@ CMD mvn -gs settings.xml test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/
 
-FROM azul/zulu-openjdk-debian:21.0.3-21.34-jre as deploy
+FROM azul/zulu-openjdk-debian:22.0.1-22.30-jre as deploy
 WORKDIR app
 COPY --from=builder app/dependencies/ ./
 RUN true
