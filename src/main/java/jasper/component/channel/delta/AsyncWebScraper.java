@@ -13,7 +13,7 @@ import javax.annotation.PostConstruct;
 
 @Profile("storage")
 @Component
-public class AsyncWebScraper implements Async.AsyncWatcher {
+public class AsyncWebScraper implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(AsyncWebScraper.class);
 
 	@Autowired

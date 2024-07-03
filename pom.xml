@@ -43,7 +43,6 @@
 		<commons-io.version>2.16.1</commons-io.version>
 		<jsoup.version>1.17.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<openai-gpt.version>0.18.2</openai-gpt.version>
 		<fabric8.version>6.4.1</fabric8.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
@@ -298,11 +297,6 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.theokanning.openai-gpt3-java</groupId>
-			<artifactId>service</artifactId>
-			<version>${openai-gpt.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.rubiconproject.oss</groupId>

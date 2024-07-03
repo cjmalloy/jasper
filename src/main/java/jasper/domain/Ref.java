@@ -32,6 +32,7 @@ import java.util.Objects;
 
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
+import static jasper.domain.proj.Tag.matchesTag;
 
 @Entity
 @Getter
@@ -137,10 +138,12 @@ public class Ref implements HasTags {
 	private String textsearchEn;
 
 	public boolean hasPluginResponse(String tag) {
+		// TODO: group plugin responses by origin
 		if (metadata == null) return false;
 		if (metadata.getPlugins() == null) return false;
-		if (!metadata.getPlugins().containsKey(tag)) return false;
-		return !metadata.getPlugins().get(tag).isEmpty();
+		return metadata.getPlugins().keySet().stream()
+			.filter(t -> matchesTag(tag, t))
+			.anyMatch(t -> !metadata.getPlugins().get(t).isEmpty());
 	}
 
 	public void setOrigin(String value) {
@@ -288,6 +291,6 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasTag(String tag) {
-		return getHierarchicalTags(this.tags).contains(tag);
+		return tags.stream().anyMatch(t -> matchesTag(tag, t));
 	}
 }
