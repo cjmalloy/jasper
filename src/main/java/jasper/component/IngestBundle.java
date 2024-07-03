@@ -105,7 +105,7 @@ public class IngestBundle {
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
 		ref.setSources(List.of(parent.getUrl()));
-		ref.setComment(title);
+		ref.setTitle(title);
 		ref.setComment(logs);
 		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
 		if (parent.hasTag("public")) tags.add("public");
