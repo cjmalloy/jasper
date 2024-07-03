@@ -18,6 +18,7 @@ import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
@@ -67,5 +68,21 @@ public abstract class ComponentDtoMapper {
 		}
 		ref.setTags(filtered);
 		Ref.removePrefixTags(ref.getTags());
+	}
+
+	@AfterMapping
+	protected void publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
+		if (metadata.getPlugins() == null) return;
+		var filteredPlugins = new HashMap<String, Integer>();
+		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
+			if (!e.getKey().startsWith("_")) {
+				filteredPlugins.put(e.getKey(), e.getValue());
+			}
+		});
+		if (filteredPlugins.isEmpty()) {
+			metadata.setPlugins(null);
+		} else {
+			metadata.setPlugins(filteredPlugins);
+		}
 	}
 }
