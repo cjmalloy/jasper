@@ -30,6 +30,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Component
 public class ConfigCache {
 	private static final Logger logger = LoggerFactory.getLogger(ConfigCache.class);
@@ -62,8 +64,8 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
-			ingest.push(config());
+		if (isBlank(props.getLocalOrigin()) && templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
+			ingest.push(config(""));
 		}
 	}
 
@@ -184,7 +186,10 @@ public class ConfigCache {
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		return getTemplateConfig("_config/server", "",  ServerConfig.class);
+		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
+			return getTemplateConfig("_config/server", "",  ServerConfig.class);
+		}
+		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class);
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
@@ -213,10 +218,10 @@ public class ConfigCache {
 			.toList();
 	}
 
-	private Template config() {
-		var config = ServerConfig.builderFor("").build();
+	private Template config(String origin) {
+		var config = ServerConfig.builderFor(origin).build();
 		var template = new Template();
-		template.setOrigin("");
+		template.setOrigin(origin);
 		template.setTag("_config/server");
 		template.setName("Server Config");
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
