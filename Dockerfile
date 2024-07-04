@@ -29,7 +29,7 @@ COPY --from=builder app/application/ ./
 COPY docker/entrypoint.sh .
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.17-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=oven/bun:1.1.18-slim /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
