@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.errors.ScriptException;
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public class Vm {
 		script.runInContext(context, {timeout});
 	""";
 
+	@Timed("jasper.vm.javascript")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
