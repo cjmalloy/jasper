@@ -1,4 +1,4 @@
-package jasper.component.channel.delta;
+package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.component.WebScraper;

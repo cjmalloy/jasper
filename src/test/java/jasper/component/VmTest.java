@@ -1,4 +1,4 @@
-package jasper.component.channel.delta;
+package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -14,9 +14,9 @@ import java.io.IOException;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ScriptTest {
+class VmTest {
 
-	Script script = new Script();
+	Vm vm = new Vm();
 
 	@BeforeEach
 	public void init() throws IOException {
@@ -29,9 +29,9 @@ class ScriptTest {
 			node = props.get("node").textValue();
 		}
 		node = node.replaceFirst("^~", System.getProperty("user.home"));
-		script.props = new Props();
-		script.props.setNode(node);
-		script.api = "http://localhost:10344";
+		vm.props = new Props();
+		vm.props.setNode(node);
+		vm.api = "http://localhost:10344";
 	}
 
 	@Test
@@ -42,7 +42,7 @@ class ScriptTest {
 		""";
 		var input = "test";
 
-		var output = script.runJavaScript(targetScript, input, 30_000);
+		var output = vm.runJavaScript(targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
 	}

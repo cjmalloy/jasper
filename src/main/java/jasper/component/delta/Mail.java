@@ -1,4 +1,4 @@
-package jasper.component.channel.delta;
+package jasper.component.delta;
 
 import io.vavr.Tuple;
 import jasper.component.ConfigCache;
