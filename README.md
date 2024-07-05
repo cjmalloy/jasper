@@ -422,6 +422,7 @@ It supports the following configuration options:
 | `JASPER_DEFAULT_TAG_WRITE_ACCESS`         | Additional tag write access qualified tags to apply to all users.                                                              |                                                                                                                                                                                                               |
 | `JASPER_STORAGE`                          | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
 | `JASPER_NODE`                             | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
+| `JASPER_CACHE_API`                        | HTTP address of an instance where storage is enabled.                                                                          |                                                                                                                                                                                                               |
 | `JASPER_SSH_CONFIG_NAMESPACE`             | K8s namespace to write authorized_keys config map file to.                                                                     |                                                                                                                                                                                                               |
 | `JASPER_SSH_CONFIG_MAP_NAME`              | K8s config map name to write authorized_keys file to.                                                                          |                                                                                                                                                                                                               |
 | `JASPER_SECURITY_CONTENT_SECURITY_POLICY` | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
@@ -560,7 +561,8 @@ Jasper generates the following metadata in Refs:
 When the `scripts` profile is active, any Refs with a `plugin/delta` tag will run the attached script when modified.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
-include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
+include the API endpoint as `JASPER_API` and a storage-enabled API endpoint as `JASPER_CACHE_API` if not supported by
+the first API. Return a non-zero error code to fail the script and attach an error log.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json

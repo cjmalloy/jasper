@@ -95,6 +95,7 @@ public class Props {
 
 	private String storage = "/var/lib/jasper";
 	private String node = "/usr/local/bin/node";
+	private String cacheApi = "";
 
 	private String sshConfigNamespace = "default";
 	private String sshConfigMapName = "ssh-authorized-keys";

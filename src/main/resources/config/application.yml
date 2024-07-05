@@ -198,6 +198,7 @@ jasper:
   local-origin: ''
   storage: /var/lib/jasper
   node: /usr/local/bin/node
+  cache-api: ''
   # By default CORS is disabled. Uncomment to enable.
   # cors:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"
