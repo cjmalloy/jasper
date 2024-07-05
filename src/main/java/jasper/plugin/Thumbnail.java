@@ -20,6 +20,5 @@ public class Thumbnail implements Serializable {
 	private String url;
 	private String color;
 	private String emoji;
-	private boolean showUrl;
 	private int radius;
 }
