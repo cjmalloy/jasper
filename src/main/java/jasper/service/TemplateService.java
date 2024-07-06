@@ -10,6 +10,7 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.TemplateDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +50,7 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Cacheable(value = "template-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public TemplateDto get(String qualifiedTag) {
 		return templateRepository.findOneByQualifiedTag(qualifiedTag)
@@ -65,6 +67,7 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Cacheable(value = "template-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(

@@ -44,8 +44,8 @@ public class CacheConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("all-plugins-cache", Caffeine.newBuilder()
-			.maximumSize(1)
+		cacheManager.registerCustomCache("plugins-page-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
@@ -69,8 +69,8 @@ public class CacheConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("all-templates-cache", Caffeine.newBuilder()
-			.maximumSize(1)
+		cacheManager.registerCustomCache("templates-page-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());

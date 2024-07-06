@@ -16,9 +16,6 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static jasper.domain.proj.HasOrigin.origin;
-import static net.logstash.logback.util.StringUtils.isBlank;
-
 @Component
 public class ClearConfigCache {
 
@@ -60,21 +57,21 @@ public class ClearConfigCache {
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		if (isBlank(configs.security(origin(message.getHeaders().get("origin").toString())).getMode())) return;
+		// TODO: clear caches by origin
 		configs.clearUserCache();
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
-		if (isBlank(configs.security(origin(message.getHeaders().get("origin").toString())).getMode())) return;
+		// TODO: clear caches by origin
 		configs.clearPluginCache();
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (isBlank(configs.security(origin(message.getHeaders().get("origin").toString())).getMode())) return;
+		// TODO: clear caches by origin
 		configs.clearTemplateCache();
 	}
 }

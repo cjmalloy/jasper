@@ -10,6 +10,7 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +50,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
+	@Cacheable(value = "plugin-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public PluginDto get(String qualifiedTag) {
 		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
@@ -65,6 +67,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@Cacheable(value = "plugin-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository

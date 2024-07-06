@@ -89,6 +89,7 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
+		messages.deleteTemplate(qualifiedTag);
 	}
 
 	void ensureCreateUniqueModified(Template template) {

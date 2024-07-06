@@ -52,4 +52,14 @@ public class TagFilter implements Query {
 		}
 		return result;
 	}
+
+	public String cacheKey() {
+		return
+			origin + '_' +
+			query + '_' +
+			deleted + '_' +
+			modifiedBefore + '_' +
+			modifiedAfter + '_' +
+			search;
+	}
 }

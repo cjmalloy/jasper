@@ -88,6 +88,7 @@ public class IngestUser {
 	@Timed(value = "jasper.user", histogram = true)
 	public void delete(String qualifiedTag) {
 		userRepository.deleteByQualifiedTag(qualifiedTag);
+		messages.deleteUser(qualifiedTag);
 	}
 
 	void ensureCreateUniqueModified(User user) {

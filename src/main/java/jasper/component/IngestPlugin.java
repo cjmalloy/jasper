@@ -89,6 +89,7 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void delete(String qualifiedTag) {
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
+		messages.deletePlugin(qualifiedTag);
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {

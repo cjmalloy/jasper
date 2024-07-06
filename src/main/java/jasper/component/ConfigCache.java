@@ -13,7 +13,6 @@ import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.service.dto.PluginDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -84,7 +83,7 @@ public class ConfigCache {
 		"plugin-cache",
 		"plugin-config-cache",
 		"plugin-metadata-cache",
-		"all-plugins-cache",
+		"plugin-page-cache",
 	},
 		allEntries = true)
 	public void clearPluginCache() {
@@ -96,7 +95,7 @@ public class ConfigCache {
 		"template-config-cache",
 		"template-cache-wrapped",
 		"template-schemas-cache",
-		"all-templates-cache",
+		"template-page-cache",
 	},
 		allEntries = true)
 	public void clearTemplateCache() {
@@ -158,15 +157,6 @@ public class ConfigCache {
 		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 	}
 
-	@Cacheable("all-plugins-cache")
-	@Transactional(readOnly = true)
-	public List<PluginDto> getAllPlugins(String origin) {
-		return pluginRepository.findAllByOrigin(origin)
-			.stream()
-			.map(dtoMapper::domainToDto)
-			.toList();
-	}
-
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
 	@Transactional(readOnly = true)
 	public <T> T getTemplateConfig(String template, String origin, Class<T> toValueType) {
@@ -204,15 +194,6 @@ public class ConfigCache {
 	@Transactional(readOnly = true)
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
-			.stream()
-			.map(dtoMapper::domainToDto)
-			.toList();
-	}
-
-	@Cacheable("all-templates-cache")
-	@Transactional(readOnly = true)
-	public List<TemplateDto> getAllTemplates(String origin) {
-		return templateRepository.findAllByOrigin(origin)
 			.stream()
 			.map(dtoMapper::domainToDto)
 			.toList();
