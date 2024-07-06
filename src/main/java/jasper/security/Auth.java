@@ -795,9 +795,9 @@ public class Auth {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
 			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
-			if (originHeader == null) return null;
+			if (isBlank(originHeader)) return null;
 			originHeader = originHeader.toLowerCase();
-			if (isBlank(originHeader) || "default".equals(originHeader)) return "";
+			if ("default".equals(originHeader)) return "";
 			if (originHeader.matches(HasOrigin.REGEX)) return originHeader;
 		}
 		return null;

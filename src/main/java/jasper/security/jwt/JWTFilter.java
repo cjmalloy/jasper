@@ -71,8 +71,10 @@ public class JWTFilter extends GenericFilterBean {
 		if (props.isAllowLocalOriginHeader()) {
 			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
 			if (isNotBlank(headerOrigin)) {
-				logger.trace("Origin set by header ({})", headerOrigin.toLowerCase());
-				return headerOrigin.toLowerCase();
+				headerOrigin = headerOrigin.toLowerCase();
+				if ("default".equalsIgnoreCase(headerOrigin)) headerOrigin = "";
+				logger.trace("Origin set by header ({})", headerOrigin);
+				return headerOrigin;
 			} else {
 				logger.trace("Origin header not allowed to be blank");
 			}
