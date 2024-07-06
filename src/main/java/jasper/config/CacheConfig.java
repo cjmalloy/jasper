@@ -29,7 +29,12 @@ public class CacheConfig {
 			.expireAfterAccess(15, TimeUnit.MINUTES)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("user-page-cache", Caffeine.newBuilder()
+		cacheManager.registerCustomCache("user-dto-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(15, TimeUnit.MINUTES)
+			.recordStats()
+			.build());
+		cacheManager.registerCustomCache("user-dto-page-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(15, TimeUnit.MINUTES)
 			.recordStats()
@@ -49,7 +54,12 @@ public class CacheConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("plugins-page-cache", Caffeine.newBuilder()
+		cacheManager.registerCustomCache("plugins-dto-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
+			.build());
+		cacheManager.registerCustomCache("plugins-dto-page-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
@@ -74,7 +84,12 @@ public class CacheConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
-		cacheManager.registerCustomCache("templates-page-cache", Caffeine.newBuilder()
+		cacheManager.registerCustomCache("templates-dto-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
+			.build());
+		cacheManager.registerCustomCache("templates-dto-page-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()

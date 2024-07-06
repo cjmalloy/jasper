@@ -50,7 +50,7 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Cacheable(value = "template-cache", key = "#qualifiedTag")
+	@Cacheable(value = "template-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public TemplateDto get(String qualifiedTag) {
 		return templateRepository.findOneByQualifiedTag(qualifiedTag)
@@ -67,7 +67,7 @@ public class TemplateService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Cacheable(value = "template-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "template-dto-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
 		return templateRepository.findAll(

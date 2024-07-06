@@ -69,7 +69,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Cacheable(value = "user-cache", key = "#qualifiedTag", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "user-dto-cache", key = "#qualifiedTag", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		return userRepository.findOneByQualifiedTag(qualifiedTag)
@@ -86,7 +86,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadQuery(#filter)")
-	@Cacheable(value = "user-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "user-dto-page-cache", key = "#filter.cacheKey()", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository

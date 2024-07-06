@@ -76,7 +76,8 @@ public class ConfigCache {
 
 	@CacheEvict(value = {
 		"user-cache",
-		"user-page-cache"
+		"user-dto-cache",
+		"user-dto-page-cache"
 	}, allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
@@ -86,7 +87,8 @@ public class ConfigCache {
 		"plugin-cache",
 		"plugin-config-cache",
 		"plugin-metadata-cache",
-		"plugin-page-cache",
+		"plugin-dto-cache",
+		"plugin-dto-page-cache",
 	}, allEntries = true)
 	public void clearPluginCache() {
 		logger.info("Cleared plugin cache.");
@@ -97,7 +99,8 @@ public class ConfigCache {
 		"template-config-cache",
 		"template-cache-wrapped",
 		"template-schemas-cache",
-		"template-page-cache",
+		"template-dto-cache",
+		"template-dto-page-cache",
 	}, allEntries = true)
 	public void clearTemplateCache() {
 		logger.info("Cleared template cache.");
