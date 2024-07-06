@@ -48,4 +48,28 @@ public interface HasTags extends Cursor {
 					  .filter(HasTags::author)
 					  .toList();
 	}
+
+	static String prefix(String prefix, String ...rest) {
+		StringBuilder result = new StringBuilder();
+		if (isPub(prefix) && !isPub(rest[0])) {
+			result.append(rest[0].charAt(0) + prefix);
+		} else {
+			result.append(prefix);
+		}
+		for (var r : rest) {
+			result
+				.append("/")
+				.append(pub(r));
+		}
+		return result.toString().replace("//", "/");
+	}
+
+	static String pub(String tag) {
+		if (isPub(tag)) return tag;
+		return tag.substring(1);
+	}
+
+	static boolean isPub(String tag) {
+		return !tag.startsWith("_") && !tag.startsWith("+");
+	}
 }

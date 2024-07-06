@@ -127,7 +127,7 @@ public class Replicator {
 					}
 					try {
 						if (pull.isValidatePlugins()) {
-							validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
+							validate.refPush(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
 						}
 						refRepository.save(ref);
 						if (pull.isGenerateMetadata()) {
