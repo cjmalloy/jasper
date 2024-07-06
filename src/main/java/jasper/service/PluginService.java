@@ -59,7 +59,7 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.canReadOrigin(#origin)")
+	@PreAuthorize("@auth.canReadOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant cursor(String origin) {
 		return pluginRepository.getCursor(origin);

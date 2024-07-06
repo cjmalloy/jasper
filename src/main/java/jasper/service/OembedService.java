@@ -44,7 +44,7 @@ public class OembedService {
 
 	@Cacheable(value = "oembed-cache", key = "#params.get('theme') + '-' + #params.get('maxwidth') + '-' + #params.get('maxheight') + '-' + #params.get('url')")
 	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.hasRole('VIEWER')")
+	@PreAuthorize("@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
 		var config = oembedProviders.getProvider(auth.getOrigin(), params.get("url"));

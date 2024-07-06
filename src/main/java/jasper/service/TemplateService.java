@@ -59,7 +59,7 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.canReadOrigin(#origin)")
+	@PreAuthorize("@auth.canReadOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant cursor(String origin) {
 		return templateRepository.getCursor(origin);

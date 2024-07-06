@@ -44,7 +44,7 @@ public class ScrapeService {
 	@Autowired
 	WebScraper webScraper;
 
-	@PreAuthorize( "@auth.hasRole('MOD') and @auth.local(#origin)")
+	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
@@ -52,7 +52,7 @@ public class ScrapeService {
 		rssParser.scrape(source);
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException, URISyntaxException {
 		var config = webScraper.getConfig(url, auth.getOrigin());
@@ -60,7 +60,7 @@ public class ScrapeService {
 		return mapper.domainToDto(webScraper.web(url, auth.getOrigin(), config));
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String scrape(String url) throws URISyntaxException, IOException {
 		var cache = webScraper.scrape(url, auth.getOrigin());
@@ -68,7 +68,7 @@ public class ScrapeService {
 		return null;
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String refresh(String url) throws IOException {
 		var cache = webScraper.refresh(url, auth.getOrigin());
@@ -96,19 +96,19 @@ public class ScrapeService {
 		return webScraper.fetch(url, thumbnail, auth.getOrigin(), os);
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String rss(String url) throws IOException {
 		return webScraper.rss(url);
 	}
 
-	@PreAuthorize( "@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto cache(InputStream in, String mime) throws IOException {
 		return mapper.domainToDto(webScraper.cache(auth.getOrigin(), in, mime, auth.getUserTag().tag));
 	}
 
-	@PreAuthorize( "@auth.hasRole('MOD')")
+	@PreAuthorize("@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public void clearDeleted() {
 		webScraper.clearDeleted(auth.getOrigin());

@@ -80,7 +80,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize( "@auth.canReadOrigin(#origin)")
+	@PreAuthorize("@auth.canReadOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant cursor(String origin) {
 		return extRepository.getCursor(origin);
