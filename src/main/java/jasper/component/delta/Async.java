@@ -96,9 +96,9 @@ public class Async {
 		if (hasMatchingTag(ud, "+plugin/error")) return;
 		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
-			if (hasMatchingTag(ud, v.signature())) return;
 			if (!hasMatchingTag(ud, k)) return;
 			if (isNotBlank(v.signature())) {
+				if (hasMatchingTag(ud, v.signature())) return;
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
 					.orElse(null);
 				// TODO: Only check plugin responses in the same origin
