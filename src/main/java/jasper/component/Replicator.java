@@ -79,7 +79,7 @@ public class Replicator {
 	@Autowired
 	ConfigCache configs;
 
-	@Timed(value = "jasper.pull", histogram = true)
+	@Timed(value = "jasper.repl", histogram = true)
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.getPullOrigins().contains(origin(remote.getOrigin())) && !auth.hasRole(ADMIN)) {
@@ -172,7 +172,7 @@ public class Replicator {
 		});
 	}
 
-	@Timed(value = "jasper.push", histogram = true)
+	@Timed(value = "jasper.repl", histogram = true)
 	public void push(Ref remote) {
 		var root = configs.root();
 		if (!auth.hasRole(ADMIN) && !root.getPushOrigins().contains(origin(remote.getOrigin()))) {

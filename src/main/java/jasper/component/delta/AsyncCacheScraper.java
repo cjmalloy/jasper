@@ -1,8 +1,7 @@
 package jasper.component.delta;
 
 import jasper.component.ConfigCache;
-import jasper.component.Ingest;
-import jasper.component.Scraper;
+import jasper.component.FileCache;
 import jasper.domain.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,32 +11,27 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 
-@Profile("proxy")
+@Profile("proxy & file-cache")
 @Component
-public class AsyncWebScraper implements Async.AsyncRunner {
-	private static final Logger logger = LoggerFactory.getLogger(AsyncWebScraper.class);
+public class AsyncCacheScraper implements Async.AsyncRunner {
+	private static final Logger logger = LoggerFactory.getLogger(AsyncCacheScraper.class);
 
 	@Autowired
 	Async async;
 
 	@Autowired
-	Scraper scraper;
-
-	@Autowired
-	Ingest ingest;
+	FileCache fileCache;
 
 	@Autowired
 	ConfigCache configs;
 
 	@PostConstruct
 	void init() {
-		async.addAsyncTag("_plugin/delta/scrape", this);
+		async.addAsyncTag("_plugin/delta/cache", this);
 	}
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		ref.setComment(scraper.web(ref.getUrl(), ref.getOrigin()).getComment());
-		ref.removeTag("_plugin/delta/scrape");
-		ingest.update(ref, false);
+		fileCache.refresh(ref.getUrl(), ref.getOrigin());
 	}
 }

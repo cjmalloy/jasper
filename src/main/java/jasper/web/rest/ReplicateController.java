@@ -17,9 +17,9 @@ import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
+import jasper.service.ProxyService;
 import jasper.service.RefService;
 import jasper.service.ReplicateService;
-import jasper.service.ScrapeService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
 import jasper.service.dto.ExtDto;
@@ -41,6 +41,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletResponse;
@@ -70,18 +71,24 @@ public class ReplicateController {
 
 	@Autowired
 	ReplicateService replService;
+
 	@Autowired
 	RefService refService;
+
 	@Autowired
 	ExtService extService;
+
 	@Autowired
 	PluginService pluginService;
+
 	@Autowired
 	TemplateService templateService;
+
 	@Autowired
 	UserService userService;
+
 	@Autowired
-	ScrapeService scrapeService;
+	ProxyService proxyService;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
@@ -340,28 +347,30 @@ public class ReplicateController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "404"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping("fetch")
+	@GetMapping("cache")
 	void fetch(
 		HttpServletResponse response,
 		@RequestParam @Length(max = URL_LEN) String url
 	) throws IOException {
 		try (var os = response.getOutputStream()) {
-			scrapeService.fetchIfExists(url, os);
+			proxyService.fetchIfExists(url, os);
 			response.setStatus(HttpStatus.OK.value());
 		}
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "201"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
+	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping("cache")
-	RefDto cache(
+	RefDto save(
 		@RequestParam(required = false) String mime,
 		InputStream data
 	) throws IOException {
-		return scrapeService.cache(data, mime);
+		return proxyService.save(data, mime);
 	}
 }

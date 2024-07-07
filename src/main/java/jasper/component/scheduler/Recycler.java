@@ -1,7 +1,7 @@
 package jasper.component.scheduler;
 
+import jasper.component.FileCache;
 import jasper.component.Storage;
-import jasper.component.WebScraper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-@Profile("recycler & storage")
+@Profile("recycler & file-cache")
 @Component
 public class Recycler {
 	private static final Logger logger = LoggerFactory.getLogger(Recycler.class);
@@ -20,10 +20,10 @@ public class Recycler {
 	Storage storage;
 
 	@Autowired
-	WebScraper webScraper;
+	FileCache fileCache;
 
 	@Scheduled(fixedDelay = 24, initialDelay = 24, timeUnit = TimeUnit.HOURS)
 	public void clearDeleted() {
-		storage.visitTenants(webScraper::clearDeleted);
+		storage.visitTenants(fileCache::clearDeleted);
 	}
 }

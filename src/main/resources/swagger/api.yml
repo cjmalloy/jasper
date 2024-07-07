@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.25
+  version: 1.2.26
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.25
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.26
 paths:
   /api/v1/ref:
     get:
@@ -564,6 +564,132 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /api/v1/proxy:
+    get:
+      tags:
+        - Proxy
+      operationId: fetch
+      description: Immediately scrape a webpage and return the contents. Will check and update cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: thumbnail
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    post:
+      tags:
+        - Proxy
+      operationId: save
+      description: Uploads a file to the cache and returns a generated Ref to access it with.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              format: binary
+      responses:
+        '201':
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ref'
+        '500':
+          description: Error caching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    delete:
+      tags:
+        - Proxy
+      operationId: clearDeleted
+      responses:
+        '204':
+          description: No Content
+        '500':
+          description: Error clearing deleted
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/proxy/prefetch:
+    get:
+      tags:
+        - Proxy
+      operationId: preFetch
+      description: Immediately scrape a webpage if it is not in the cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: Mime type scraped
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/proxy/refresh:
+    post:
+      tags:
+        - Scrape
+      operationId: refresh
+      description: Immediately re-scrape a webpage and replace it in the cache.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '200':
+          description: Mime type scraped
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/tags/response:
     post:
       tags:
@@ -712,38 +838,6 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/fetch:
-    get:
-      tags:
-        - Scrape
-      operationId: fetch
-      description: Immediately scrape a webpage and return the contents. Will check and update cache.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: thumbnail
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: string
-                format: binary
-        '500':
-          description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/rss:
     get:
       tags:
@@ -766,100 +860,6 @@ paths:
                 format: binary
         '500':
           description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape:
-    get:
-      tags:
-        - Scrape
-      operationId: scrape
-      description: Immediately scrape a webpage if it is not in the cache.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
-        '500':
-          description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/refresh:
-    post:
-      tags:
-        - Scrape
-      operationId: refresh
-      description: Immediately re-scrape a webpage and replace it in the cache.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
-        '500':
-          description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/clear-deleted:
-    post:
-      tags:
-        - Scrape
-      operationId: clearDeleted
-      responses:
-        '201':
-          description: No Content
-        '500':
-          description: Error clearing deleted
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/cache:
-    post:
-      tags:
-        - Scrape
-      operationId: cache
-      description: Uploads a file to the cache and returns a generated Ref to access it with.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              format: binary
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/Ref'
-        '500':
-          description: Error caching
           content:
             '*/*':
               schema:
@@ -2339,11 +2339,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /pub/api/v1/repl/fetch:
+  /pub/api/v1/repl/cache:
     get:
       tags:
         - Repl
-      operationId: repl-fetch
+      operationId: repl-fetch-cache
       description: Fetch an item from the web cache.
       parameters:
         - name: url
@@ -2359,17 +2359,18 @@ paths:
               schema:
                 type: string
                 format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           description: Error fetching
           content:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /pub/api/v1/repl/cache:
     post:
       tags:
         - Repl
-      operationId: repl-cache
+      operationId: repl-save-cache
       description: Uploads a file to the cache and returns a generated Ref to access it with.
       parameters:
         - name: url
@@ -2383,8 +2384,8 @@ paths:
             schema:
               format: binary
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             '*/*':
               schema:

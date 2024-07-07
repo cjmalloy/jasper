@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
 import com.rometools.modules.mediarss.MediaModule;
@@ -63,16 +62,13 @@ public class RssParser {
 	Ingest ingest;
 
 	@Autowired
+	Tagger tagger;
+
+	@Autowired
 	Sanitizer sanitizer;
 
 	@Autowired
-	WebScraper webScraper;
-
-	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -88,7 +84,7 @@ public class RssParser {
 		var lastScrape = config.getLastScrape();
 		config.setLastScrape(Instant.now());
 		feed.setPlugin("+plugin/feed", config);
-		refRepository.save(feed);
+		ingest.update(feed, false);
 
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
@@ -120,14 +116,14 @@ public class RssParser {
 				try (InputStream stream = response.getEntity().getContent()) {
 					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null) {
+						if (etag != null && !config.getEtag().equals(etag.getValue())) {
 							config.setEtag(etag.getValue());
 							feed.setPlugin("+plugin/feed", config);
-							refRepository.save(feed);
-						} else if (config.getEtag() != null) {
+							ingest.update(feed, false);
+						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
 							feed.setPlugin("+plugin/feed", config);
-							refRepository.save(feed);
+							ingest.update(feed, false);
 						}
 					}
 					SyndFeedInput input = new SyndFeedInput();
@@ -135,37 +131,30 @@ public class RssParser {
 					Thumbnail feedImage = null;
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
-						webScraper.fetch(image, feed.getOrigin());
+						cacheLater(image, feed.getOrigin());
 						feedImage = Thumbnail.builder().url(image).build();
 						if (!feed.getTags().contains("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", feedImage);
-							refRepository.save(feed);
+							ingest.update(feed, false);
 						}
 					}
 					for (var entry : syndFeed.getEntries()) {
 						Ref ref;
 						try {
 							ref = parseEntry(feed, config, entry, feedImage);
-						} catch (AlreadyExistsException e) {
-							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getTitle(), entry.getTitle(), entry.getLink());
-							continue;
-						} catch (Exception e) {
-							logger.error("Error processing entry", e);
-							continue;
-						}
-						if (ref.getPublished().isBefore(feed.getPublished())) {
-							logger.warn("RSS entry in feed {} which was published before feed publish date. {} {}",
-								feed.getTitle(), ref.getTitle(), ref.getUrl());
-							feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
-							refRepository.save(feed);
-						}
-						ref.setOrigin(feed.getOrigin());
-						try {
+							ref.setOrigin(feed.getOrigin());
+							if (ref.getPublished().isBefore(feed.getPublished())) {
+								logger.warn("RSS entry in feed {} which was published before feed publish date. {} {}",
+									feed.getTitle(), ref.getTitle(), ref.getUrl());
+								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
+								ingest.update(feed, false);
+							}
 							ingest.create(ref, false);
 						} catch (AlreadyExistsException e) {
 							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getTitle(), ref.getTitle(), ref.getUrl());
+								feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (Exception e) {
+							logger.error("Error processing entry", e);
 						}
 					}
 				}
@@ -183,15 +172,7 @@ public class RssParser {
 			throw new AlreadyExistsException();
 		}
 		if (config.isScrapeWebpage()) {
-			try {
-				var scrapeConfig = webScraper.getConfig(link, feed.getOrigin());
-				if (scrapeConfig == null) {
-					logger.warn("Scrape requested, but no config found.");
-				} else {
-					var web = webScraper.web(link, feed.getOrigin(), scrapeConfig);
-					if (web != null) ref = web;
-				}
-			} catch (Exception ignored) {}
+			feed.addTag("_plugin/delta/web.scrape");
 		}
 		ref.setUrl(link);
 		ref.setTitle(entry.getTitle());
@@ -241,25 +222,25 @@ public class RssParser {
 				}
 			}
 			if (ref.hasPlugin("plugin/thumbnail")) {
-				webScraper.scrapeAsync(ref.getPlugin("plugin/thumbnail", Thumbnail.class).getUrl(), feed.getOrigin());
+				cacheLater(ref.getPlugin("plugin/thumbnail", Thumbnail.class).getUrl(), feed.getOrigin());
 			}
 		}
 		if (config.isScrapeAudio()) {
 			parseAudio(entry, ref);
 			if (ref.hasPlugin("plugin/audio")) {
-				webScraper.scrapeAsync(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
+				cacheLater(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
 			}
 		}
 		if (config.isScrapeVideo()) {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
-				webScraper.scrapeAsync(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
+				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
 			}
 		}
 		if (config.isScrapeEmbed()) {
 			parseEmbed(entry, ref);
 			if (ref.hasPlugin("plugin/embed")) {
-				webScraper.scrapeAsync(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
+				cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
 			}
 		}
 		return ref;
@@ -360,5 +341,9 @@ public class RssParser {
 		if (media.getMetadata() == null) return;
 		if (media.getMetadata().getEmbed() == null) return;
 		ref.setPlugin("plugin/embed", media.getMetadata().getEmbed());
+	}
+
+	private void cacheLater(String url, String origin) {
+		tagger.tag(url, origin, "_plugin/delta/cache", "internal");
 	}
 }

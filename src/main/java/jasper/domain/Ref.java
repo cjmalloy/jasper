@@ -293,4 +293,12 @@ public class Ref implements HasTags {
 	public boolean hasTag(String tag) {
 		return tags.stream().anyMatch(t -> matchesTag(tag, t));
 	}
+
+	public static Ref from(String url, String origin, String ...tags) {
+		var result = new Ref();
+		result.setUrl(url);
+		result.setOrigin(origin);
+		for (var tag : tags) result.addTag(tag);
+		return result;
+	}
 }
