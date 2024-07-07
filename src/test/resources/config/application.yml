@@ -89,6 +89,7 @@ jasper:
   scrape-interval-min: 1
   default-role: ROLE_USER
   node: ~/.bun/bin/bun
+  cache-api: ''
   override:
     security:
       mode: 'jwt'
