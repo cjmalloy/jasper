@@ -139,7 +139,7 @@ public class FileCache {
 				}
 				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
-			return tagger.internalPlugin("internal:" + id, origin, "_plugin/cache", cache);
+			return tagger.internalPlugin(url, origin, "_plugin/cache", cache);
 		} catch (ScrapeProtocolException e) {
 			logger.warn("Unsupported protocol", e);
 		} catch (Exception e) {
