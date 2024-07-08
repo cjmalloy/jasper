@@ -22,10 +22,20 @@ public class Tagger {
 	Ingest ingest;
 
 	@Timed(value = "jasper.tagger", histogram = true)
+	public Ref internalTag(String url, String origin, String ...tags) {
+		return tag(true, url, origin, tags);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref tag(String url, String origin, String ...tags) {
+		return tag(false, url, origin, tags);
+	}
+
+	public Ref tag(boolean internal, String url, String origin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
+			if (internal) ref.addTag("internal");
 			ingest.create(ref, false);
 			return ref;
 		} else {
@@ -38,9 +48,19 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
+		return plugin(false, url, origin, tag, plugin, tags);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public Ref internalPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
+		return plugin(true, url, origin, tag, plugin, tags);
+	}
+
+	private Ref plugin(boolean internal, String url, String origin, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
+			if (internal) ref.addTag("internal");
 			ingest.create(ref, false);
 			return ref;
 		} else {

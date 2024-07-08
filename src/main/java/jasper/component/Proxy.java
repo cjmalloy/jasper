@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,13 +58,11 @@ public class Proxy {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (ScrapeProtocolException e) {
 			logger.warn("Protocol not supported", e);
-			if (cache) tagger.tag(url, origin, "+plugin/error");
-			return null;
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
-			if (cache) tagger.tag(url, origin, "+plugin/error");
-			return null;
 		}
+		if (cache) tagger.internalTag(url, origin, "+plugin/error");
+		return null;
 	}
 
 	@Timed(value = "jasper.proxy")
@@ -88,26 +85,22 @@ public class Proxy {
 			var cos = new CountingOutputStream(os);
 			StreamUtils.copy(res.getInputStream(), cos);
 			res.close();
-			var cache = Cache.builder()
+			return Cache.builder()
 				.id("nostore_" + UUID.randomUUID())
 				.mimeType(res.getMimeType())
 				.contentLength(cos.getByteCount())
 				.build();
-			tagger.plugin(url, origin, "_plugin/cache", cache);
-			return cache;
 		} catch (ScrapeProtocolException e) {
 			logger.warn("Protocol not supported", e);
-			tagger.tag(url, origin, "+plugin/error");
-			return existingCache;
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
-			tagger.tag(url, origin, "+plugin/error");
-			return existingCache;
 		}
+		tagger.internalPlugin(url, origin, "_plugin/cache", null, "+plugin/error");
+		return existingCache;
 	}
 
 	@Timed(value = "jasper.proxy")
-	public Cache fetchThumbnail(String url, String origin, OutputStream os) throws IOException {
+	public Cache fetchThumbnail(String url, String origin, OutputStream os) {
 		if (fileCache.isPresent()) {
 			return getCache(fileCache.get().fetchThumbnail(url, origin, os));
 		}
@@ -116,6 +109,7 @@ public class Proxy {
 		if (fullSize != null && fullSize.isThumbnail()) {
 			return fetch(url, origin, os);
 		}
+		if (fetch.isEmpty()) return fullSize;
 		try (var res = fetch.get().doScrape(url)) {
 			var bytes = res.getInputStream().readAllBytes();
 			res.close();
@@ -125,7 +119,7 @@ public class Proxy {
 				// Set this as a thumbnail to disable future attempts
 				fullSize.setThumbnail(true);
 				StreamUtils.copy(bytes, os);
-				tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 				return fullSize;
 			}
 			StreamUtils.copy(data, os);
@@ -137,13 +131,11 @@ public class Proxy {
 				.build();
 		} catch (ScrapeProtocolException e) {
 			logger.warn("Protocol not supported", e);
-			tagger.tag(url, origin, "+plugin/error");
-			return null;
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
-			tagger.tag(url, origin, "+plugin/error");
-			return null;
 		}
+		tagger.internalPlugin(url, origin, "_plugin/cache", null, "+plugin/error");
+		return null;
 	}
 
 }

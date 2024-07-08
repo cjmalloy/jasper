@@ -344,6 +344,6 @@ public class RssParser {
 	}
 
 	private void cacheLater(String url, String origin) {
-		tagger.tag(url, origin, "_plugin/delta/cache", "internal");
+		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 }

@@ -464,7 +464,7 @@ public class Scraper {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
-		tagger.tag(url, origin, "_plugin/delta/cache", "internal");
+		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 
 	private String fixUrl(String url) {

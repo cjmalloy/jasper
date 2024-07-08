@@ -69,7 +69,7 @@ public class FileCache {
 	@Timed(value = "jasper.cache", histogram = true)
 	public void preFetch(String url, String origin) {
 		if (exists(url, origin)) return;
-		fetch(url, origin, false);
+		fetch(url, origin, true);
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
@@ -137,19 +137,18 @@ public class FileCache {
 						logger.warn("Failed to delete {}", existingCache.getId());
 					}
 				}
-				return tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
+				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
-			return tagger.plugin("internal:" + id, origin, "_plugin/cache", cache);
+			return tagger.internalPlugin("internal:" + id, origin, "_plugin/cache", cache);
 		} catch (ScrapeProtocolException e) {
-			tagger.tag(url, origin, "-_plugin/delta/cache", "+plugin/error");
-			return ref;
+			logger.warn("Unsupported protocol", e);
 		} catch (Exception e) {
 			logger.warn("Error fetching", e);
-			tagger.tag(url, origin, "-_plugin/delta/cache", "+plugin/error");
-			return ref;
 		} finally {
 			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
 		}
+		tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache", "+plugin/error");
+		return ref;
 	}
 
 	private Cache stat(String url, String origin) {
@@ -178,14 +177,14 @@ public class FileCache {
 				// Set this as a thumbnail to disable future attempts
 				fullSize.setThumbnail(true);
 				storage.stream(origin, CACHE, fullSize.getId(), os);
-				return tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				return tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 			}
 			try {
 				storage.storeAt(origin, CACHE, thumbnailId, data);
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
 				logger.warn("Error fetching thumbnail", e);
-				tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build(), "+plugin/error");
+				tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build(), "+plugin/error");
 				return null;
 			}
 			var cache = Cache.builder()
@@ -194,7 +193,7 @@ public class FileCache {
 				.mimeType("image/png")
 				.contentLength((long) data.length)
 				.build();
-			return tagger.plugin(thumbnailUrl, origin, "_plugin/cache", cache, "internal", "plugin/thumbnail");
+			return tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
 		}
 	}
 
@@ -206,7 +205,7 @@ public class FileCache {
 			.mimeType(mimeType)
 			.contentLength(storage.size(origin, CACHE, id))
 			.build();
-		return tagger.plugin("internal:" + id, origin, "_plugin/cache", cache, "internal", user);
+		return tagger.internalPlugin("internal:" + id, origin, "_plugin/cache", cache, user);
 	}
 
 	@Timed(value = "jasper.cache")
@@ -249,7 +248,7 @@ public class FileCache {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
-		tagger.tag(url, origin, "_plugin/delta/cache", "internal");
+		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 
 	private String fixUrl(String url) {

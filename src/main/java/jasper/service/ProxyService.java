@@ -72,7 +72,7 @@ public class ProxyService {
 	}
 
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public Cache fetch(String url, boolean thumbnail, OutputStream os) throws IOException {
+	public Cache fetch(String url, boolean thumbnail, OutputStream os) {
 		// Only require role for new scrapes
 		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new AccessDeniedException("Requires USER role to scrape.");
 		return thumbnail
