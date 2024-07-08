@@ -27,7 +27,6 @@ import org.springframework.web.context.request.WebRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.Ref.URL_LEN;
@@ -50,7 +49,7 @@ public class ProxyController {
 	@GetMapping("prefetch")
 	ResponseEntity<String> preFetch(
 		@RequestParam @Length(max = URL_LEN) String url
-	) throws URISyntaxException, IOException {
+	) {
 		proxyService.preFetch(url);
 		return ResponseEntity.noContent()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
