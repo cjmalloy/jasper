@@ -63,7 +63,8 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (isBlank(props.getLocalOrigin()) && templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty()) {
+		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty() &&
+			(isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty())) {
 			ingest.create(config(""));
 		}
 	}
