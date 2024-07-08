@@ -4,25 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.RssParser;
-import jasper.component.WebScraper;
+import jasper.component.Scraper;
 import jasper.errors.NotFoundException;
-import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URISyntaxException;
 
-import static jasper.security.AuthoritiesConstants.USER;
-
+@Profile("proxy | file-cache")
 @Service
 public class ScrapeService {
 
@@ -42,7 +38,7 @@ public class ScrapeService {
 	RssParser rssParser;
 
 	@Autowired
-	WebScraper webScraper;
+	Scraper scraper;
 
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
@@ -55,62 +51,14 @@ public class ScrapeService {
 	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public RefDto webpage(String url) throws IOException, URISyntaxException {
-		var config = webScraper.getConfig(url, auth.getOrigin());
-		if (config == null) return null;
-		return mapper.domainToDto(webScraper.web(url, auth.getOrigin(), config));
-	}
-
-	@PreAuthorize("@auth.hasRole('USER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String scrape(String url) throws URISyntaxException, IOException {
-		var cache = webScraper.scrape(url, auth.getOrigin());
-		if (cache != null) return cache.getMimeType();
-		return null;
-	}
-
-	@PreAuthorize("@auth.hasRole('USER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public String refresh(String url) throws IOException {
-		var cache = webScraper.refresh(url, auth.getOrigin());
-		if (cache != null) return cache.getMimeType();
-		return null;
-	}
-
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Cache fetchIfExists(String url, OutputStream os) {
-		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new NotFoundException("Cache not found");
-		return webScraper.fetch(url, auth.getOrigin(), os, false);
-	}
-
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Cache fetch(String url) {
-		// Only require role for new scrapes
-		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin()) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return webScraper.fetch(url, auth.getOrigin());
-	}
-
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public Cache fetch(String url, boolean thumbnail, OutputStream os) throws IOException {
-		// Only require role for new scrapes
-		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin()) && !auth.hasRole(USER)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return webScraper.fetch(url, thumbnail, auth.getOrigin(), os);
+		var ref = scraper.web(url, auth.getOrigin());
+		if (ref == null) return null;
+		return mapper.domainToDto(ref);
 	}
 
 	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
 	public String rss(String url) throws IOException {
-		return webScraper.rss(url);
-	}
-
-	@PreAuthorize("@auth.hasRole('USER')")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public RefDto cache(InputStream in, String mime) throws IOException {
-		return mapper.domainToDto(webScraper.cache(auth.getOrigin(), in, mime, auth.getUserTag().tag));
-	}
-
-	@PreAuthorize("@auth.hasRole('MOD')")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public void clearDeleted() {
-		webScraper.clearDeleted(auth.getOrigin());
+		return scraper.rss(url);
 	}
 }

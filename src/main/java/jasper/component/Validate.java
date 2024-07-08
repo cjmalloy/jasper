@@ -58,7 +58,7 @@ public class Validate {
 	@Autowired
 	ConfigCache configs;
 
-	@Timed("jasper.validate.ref")
+	@Timed("jasper.validate")
 	public void ref(Ref ref, boolean force) {
 		var root = configs.root();
 		try {
@@ -71,7 +71,7 @@ public class Validate {
 		ref(ref, ref.getOrigin(), force);
 	}
 
-	@Timed("jasper.validate.ref")
+	@Timed("jasper.validate")
 	public void ref(Ref ref, String validationOrigin, boolean force) {
 		tags(ref);
 		plugins(ref, validationOrigin, force);
@@ -81,17 +81,17 @@ public class Validate {
 		responses(ref, false);
 	}
 
-	@Timed("jasper.validate.ext")
+	@Timed("jasper.validate")
 	public void ext(Ext ext) {
 		ext(ext,false);
 	}
 
-	@Timed("jasper.validate.ext")
+	@Timed("jasper.validate")
 	public void ext(Ext ext, boolean stripOnError) {
 		ext(ext, ext.getOrigin(), stripOnError);
 	}
 
-	@Timed("jasper.validate.ext")
+	@Timed("jasper.validate")
 	public void ext(Ext ext, String origin, boolean stripOnError) {
 		var templates = configs.getSchemas(ext.getTag(), origin);
 		if (templates.isEmpty()) {
@@ -133,12 +133,12 @@ public class Validate {
 		}
 	}
 
-	@Timed("jasper.validate.plugin")
+	@Timed("jasper.validate")
 	public void plugin(Plugin plugin) {
 
 	}
 
-	@Timed("jasper.validate.template")
+	@Timed("jasper.validate")
 	public void template(Template template) {
 		try {
 			switch (template.getTag()) {
