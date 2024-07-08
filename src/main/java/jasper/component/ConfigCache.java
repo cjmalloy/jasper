@@ -182,9 +182,11 @@ public class ConfigCache {
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
 		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
-			return getTemplateConfig("_config/server", "",  ServerConfig.class);
+			return getTemplateConfig("_config/server", "",  ServerConfig.class)
+				.wrap(props);
 		}
-		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class);
+		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
+			.wrap(props);
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")

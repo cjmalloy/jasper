@@ -12,6 +12,7 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.List;
 
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Config {
@@ -22,6 +23,7 @@ public interface Config {
 	@Getter
 	@Setter
 	@Builder
+	@With
 	@AllArgsConstructor
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
@@ -76,6 +78,29 @@ public interface Config {
 		 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
 		 */
 		private List<String> scrapeHostBlacklist = List.of("*.local");
+
+		public ServerConfig wrap(Props props) {
+			var wrapped = this;
+			var server = props.getOverride().getServer();
+			if (isNotBlank(server.getEmailHost())) wrapped = wrapped.withEmailHost(server.getEmailHost());
+			if (server.getMaxSources() != null) wrapped = wrapped.withMaxSources(server.getMaxSources());
+			if (isNotEmpty(server.getModSeals())) wrapped = wrapped.withModSeals(server.getModSeals());
+			if (isNotEmpty(server.getEditorSeals())) wrapped = wrapped.withEditorSeals(server.getEditorSeals());
+			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
+			if (isNotEmpty(server.getSshOrigins())) wrapped = wrapped.withSshOrigins(server.getSshOrigins());
+			if (isNotEmpty(server.getPushOrigins())) wrapped = wrapped.withPushOrigins(server.getPushOrigins());
+			if (server.getPushBatchSize() != null) wrapped = wrapped.withPushBatchSize(server.getPushBatchSize());
+			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());
+			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
+			if (server.getPullBatchSize() != null) wrapped = wrapped.withPullBatchSize(server.getPullBatchSize());
+			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
+			if (isNotEmpty(server.getAsyncOrigins())) wrapped = wrapped.withAsyncOrigins(server.getAsyncOrigins());
+			if (isNotEmpty(server.getScrapeOrigins())) wrapped = wrapped.withScrapeOrigins(server.getScrapeOrigins());
+			if (server.getScrapeBatchSize() != null) wrapped = wrapped.withScrapeBatchSize(server.getScrapeBatchSize());
+			if (isNotEmpty(server.getScrapeHostWhitelist())) wrapped = wrapped.withScrapeHostWhitelist(server.getScrapeHostWhitelist());
+			if (isNotEmpty(server.getScrapeHostBlacklist())) wrapped = wrapped.withScrapeHostBlacklist(server.getScrapeHostBlacklist());
+			return wrapped;
+		}
 
 		public static ServerConfigBuilder builderFor(String origin) {
 			return ServerConfig.builder()

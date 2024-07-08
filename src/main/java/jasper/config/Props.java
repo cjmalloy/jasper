@@ -112,9 +112,35 @@ public class Props {
 	@Setter
 	public static class Overrides {
 		/**
+		 * Override any server settings for all origins.
+		 */
+		private final ServerOverrides server = new ServerOverrides();
+		/**
 		 * Override any security settings for all origins.
 		 */
 		private final SecurityOverrides security = new SecurityOverrides();
+	}
+
+	@Getter
+	@Setter
+	public static class ServerOverrides {
+		private String emailHost;
+		private Integer maxSources;
+		private List<String> modSeals;
+		private List<String> editorSeals;
+		private List<String> webOrigins;
+		private List<String> sshOrigins;
+		private List<String> pushOrigins;
+		private Integer pushBatchSize;
+		private Integer maxPushEntityBatch;
+		private List<String> pullOrigins;
+		private Integer pullBatchSize;
+		private Integer maxPullEntityBatch;
+		private List<String> asyncOrigins;
+		private List<String> scrapeOrigins;
+		private Integer scrapeBatchSize;
+		private List<String> scrapeHostWhitelist;
+		private List<String> scrapeHostBlacklist;
 	}
 
 	@Getter
