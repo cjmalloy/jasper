@@ -121,6 +121,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/feed')
+			AND NOT jsonb_exists(ref.tags, '+plugin/error')
 			AND (NOT jsonb_exists(ref.plugins->'+plugin/feed', 'lastScrape')
 				OR cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/feed'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
 		ORDER BY cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) ASC
@@ -133,6 +134,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/origin/pull')
+			AND NOT jsonb_exists(ref.tags, '+plugin/error')
 			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/pull', 'lastPull')
 				OR cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) + cast(ref.plugins->'+plugin/origin/pull'->>'pullInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
 		ORDER BY cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) ASC
@@ -145,6 +147,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM ref
 		WHERE ref.origin = :origin
 			AND jsonb_exists(ref.tags, '+plugin/origin/push')
+			AND NOT jsonb_exists(ref.tags, '+plugin/error')
 			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/push', 'lastPush')
 				OR cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) + cast(ref.plugins->'+plugin/origin/push'->>'pushInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
 		ORDER BY cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) ASC
