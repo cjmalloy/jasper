@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import static jasper.domain.Ref.from;
 import static jasper.domain.proj.HasTags.hasMedia;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -83,10 +84,9 @@ public class Scraper {
 	public Ref web(String url, String origin) throws IOException, URISyntaxException {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
-		var result = new Ref();
-		result.setUrl(url);
-		var data = proxy.fetchString(url);
-		if (!data.trim().startsWith("<")) return result;
+		var data = proxy.fetchString(url, origin, true);
+		if (!data.trim().startsWith("<")) return from(url, origin);
+		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
 		var doc = Jsoup.parse(data, url);
 		result.setTitle(doc.title());
 		fixImages(doc, config);
