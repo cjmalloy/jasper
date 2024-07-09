@@ -84,7 +84,7 @@ public class Scraper {
 	public Ref web(String url, String origin) throws IOException, URISyntaxException {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
-		var data = proxy.fetchString(url, origin, true);
+		var data = proxy.fetchString(url, origin, refRepository.existsByUrlAndOrigin(url, origin));
 		if (!data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
 		var doc = Jsoup.parse(data, url);
