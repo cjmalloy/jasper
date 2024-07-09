@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.26
+  version: 1.2.28
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.26
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.28
 paths:
   /api/v1/ref:
     get:
@@ -666,9 +666,9 @@ paths:
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/proxy/refresh:
-    post:
+    get:
       tags:
-        - Scrape
+        - Proxy
       operationId: refresh
       description: Immediately re-scrape a webpage and replace it in the cache.
       parameters:
