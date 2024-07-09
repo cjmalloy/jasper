@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.config.Config.ServerConfig;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -62,7 +61,7 @@ public class SmtpService {
 				PageRequest.of(0, 1, by(desc(Ref_.PUBLISHED))));
 		if (!source.isEmpty()) {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
-			ref.addTags(List.of("internal"));
+			ref.addTag("internal");
 		}
 		refService.create(ref, false);
 	}

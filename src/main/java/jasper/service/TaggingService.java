@@ -40,7 +40,7 @@ public class TaggingService {
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
-		ref.addTags(List.of(tag));
+		ref.addTag(tag);
 		ingest.update(ref, false);
 		return ref.getModified();
 	}
@@ -58,9 +58,8 @@ public class TaggingService {
 		if (ref.getTags().contains("locked") && ref.hasPlugin(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
-		ref.removePrefixTags();
-		ref.getTags().remove(tag);
-		ingest.update(ref, true);
+		ref.removeTag(tag);
+		ingest.update(ref, false);
 		return ref.getModified();
 	}
 
@@ -73,7 +72,6 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		ref.removePrefixTags();
 		if (ref.getTags() != null && ref.getTags().contains("locked")) {
 			for (var t : tags) {
 				if (t.startsWith("-") && ref.hasPlugin(t.substring(1))) {
@@ -82,7 +80,7 @@ public class TaggingService {
 			}
 		}
 		ref.addTags(tags);
-		ingest.update(ref, true);
+		ingest.update(ref, false);
 		return ref.getModified();
 	}
 

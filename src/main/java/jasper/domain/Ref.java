@@ -34,6 +34,7 @@ import java.util.Objects;
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.domain.proj.Tag.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Entity
 @Getter
@@ -161,11 +162,12 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref removeTag(String tag) {
-		if (tags == null || tag == null) return this;
-		tags.remove(tag);
+		if (tags == null || isBlank(tag)) return this;
 		for (int i = tags.size() - 1; i >= 0; i--) {
-			if (tags.get(i).startsWith(tag + "/")) {
+			var remove = tags.get(i);
+			if (matchesTag(tag, remove)) {
 				tags.remove(i);
+				setPlugin(remove, null);
 			}
 		}
 		return this;
@@ -180,16 +182,15 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref addTag(String tag) {
-		if (tag == null) return this;
+		if (isBlank(tag)) return this;
 		if (tags == null) {
 			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
 			tags.add(tag);
 		} else {
 			if (tag.startsWith("-")) {
-				tags.remove(tag.substring(1));
-			}
-			else if (!tags.contains(tag)) {
+				removeTag(tag.substring(1));
+			} else if (!tags.contains(tag)) {
 				tags.add(tag);
 			}
 		}
