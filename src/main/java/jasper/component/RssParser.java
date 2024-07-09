@@ -344,6 +344,8 @@ public class RssParser {
 	}
 
 	private void cacheLater(String url, String origin) {
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 }

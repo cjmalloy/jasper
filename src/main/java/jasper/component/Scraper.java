@@ -10,6 +10,7 @@ import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
 import jasper.plugin.Scrape;
 import jasper.plugin.Video;
+import jasper.repository.RefRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
@@ -49,6 +50,9 @@ public class Scraper {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Timed(value = "jasper.scrape", histogram = true)
 	public Scrape getConfig(String url, String origin) {
@@ -464,6 +468,8 @@ public class Scraper {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 

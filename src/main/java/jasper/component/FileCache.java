@@ -247,6 +247,8 @@ public class FileCache {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 
