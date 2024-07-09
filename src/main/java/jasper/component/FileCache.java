@@ -3,7 +3,6 @@ package jasper.component;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
-import jasper.errors.ScrapeProtocolException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -140,14 +139,13 @@ public class FileCache {
 				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
 			return tagger.internalPlugin(url, origin, "_plugin/cache", cache);
-		} catch (ScrapeProtocolException e) {
-			logger.warn("Unsupported protocol", e);
 		} catch (Exception e) {
-			logger.warn("Error fetching", e);
+			tagger.attachError(origin,
+				tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache"),
+				"Error Fetching", e.getMessage());
 		} finally {
 			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
 		}
-		tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache", "+plugin/error");
 		return ref;
 	}
 
@@ -183,8 +181,9 @@ public class FileCache {
 				storage.storeAt(origin, CACHE, thumbnailId, data);
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
-				logger.warn("Error fetching thumbnail", e);
-				tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build(), "+plugin/error");
+				tagger.attachError(origin,
+					tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build()),
+					"Error creating thumbnail", e.getMessage());
 				return null;
 			}
 			var cache = Cache.builder()

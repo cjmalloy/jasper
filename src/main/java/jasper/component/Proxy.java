@@ -1,7 +1,6 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.errors.ScrapeProtocolException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
 import org.apache.commons.io.output.CountingOutputStream;
@@ -56,12 +55,11 @@ public class Proxy {
 		if (fetch.isEmpty()) return null;
 		try (var res = fetch.get().doScrape(url)) {
 			return new String(res.getInputStream().readAllBytes());
-		} catch (ScrapeProtocolException e) {
-			logger.warn("Protocol not supported", e);
 		} catch (Exception e) {
-			logger.warn("Error fetching", e);
+			tagger.attachError(origin,
+				tagger.internalPlugin(url, origin, "_plugin/cache", null),
+				"Error Fetching", e.getMessage());
 		}
-		if (cache) tagger.internalTag(url, origin, "+plugin/error");
 		return null;
 	}
 
@@ -90,12 +88,11 @@ public class Proxy {
 				.mimeType(res.getMimeType())
 				.contentLength(cos.getByteCount())
 				.build();
-		} catch (ScrapeProtocolException e) {
-			logger.warn("Protocol not supported", e);
 		} catch (Exception e) {
-			logger.warn("Error fetching", e);
+			tagger.attachError(origin,
+				tagger.internalPlugin(url, origin, "_plugin/cache", null),
+				"Error Fetching", e.getMessage());
 		}
-		tagger.internalPlugin(url, origin, "_plugin/cache", null, "+plugin/error");
 		return existingCache;
 	}
 
@@ -129,13 +126,12 @@ public class Proxy {
 				.mimeType("image/png")
 				.contentLength((long) data.length)
 				.build();
-		} catch (ScrapeProtocolException e) {
-			logger.warn("Protocol not supported", e);
 		} catch (Exception e) {
-			logger.warn("Error fetching", e);
+			tagger.attachError(origin,
+				refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),
+				"Error creating thumbnail", e.getMessage());
 		}
-		tagger.internalPlugin(url, origin, "_plugin/cache", null, "+plugin/error");
-		return null;
+		return Cache.builder().thumbnail(true).build();
 	}
 
 }

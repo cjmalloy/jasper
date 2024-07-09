@@ -27,6 +27,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -290,8 +291,8 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
-	public boolean hasTag(String tag) {
-		return tags.stream().anyMatch(t -> matchesTag(tag, t));
+	public boolean hasTag(String ...tag) {
+		return Arrays.stream(tag).allMatch(m -> tags.stream().anyMatch(t -> matchesTag(m, t)));
 	}
 
 	public static Ref from(String url, String origin, String ...tags) {

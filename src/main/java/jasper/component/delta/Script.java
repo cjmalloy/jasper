@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
 import jasper.component.IngestBundle;
+import jasper.component.Tagger;
 import jasper.component.Vm;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
@@ -37,6 +38,9 @@ public class Script implements Async.AsyncRunner {
 	IngestBundle ingest;
 
 	@Autowired
+	Tagger tagger;
+
+	@Autowired
 	Vm vm;
 
 	@Autowired
@@ -67,7 +71,7 @@ public class Script implements Async.AsyncRunner {
 			if (!"javascript".equals(delta.getLanguage())) {
 				// Only Javascript is supported right now
 				logger.error("Script runtime not supported {}", delta.getLanguage());
-				ingest.attachError(ref, "Script runtime not supported: " + delta.getLanguage(), ref.getOrigin());
+				tagger.attachError(ref.getOrigin(), ref, "Script runtime not supported: " + delta.getLanguage());
 				return;
 			}
 			String output;
@@ -75,11 +79,11 @@ public class Script implements Async.AsyncRunner {
 				output = vm.runJavaScript(delta.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), delta.getTimeoutMs());
 			} catch (ScriptException e) {
 				logger.error("Error running script", e);
-				ingest.attachError(ref, e.getMessage(), e.getLogs(), ref.getOrigin());
+				tagger.attachError(ref.getOrigin(), ref, e.getMessage(), e.getLogs());
 				return;
 			} catch (Exception e) {
 				logger.error("Error running script", e);
-				ingest.attachError(ref, e.getMessage(), ref.getOrigin());
+				tagger.attachError(ref.getOrigin(), ref, e.getMessage());
 				return;
 			}
 			try {
@@ -87,7 +91,7 @@ public class Script implements Async.AsyncRunner {
 				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
 				logger.error("Error parsing script return value", e);
-				ingest.attachError(ref, "Error parsing script output", output, ref.getOrigin());
+				tagger.attachError(ref.getOrigin(), ref, "Error parsing script output", output);
 			}
 		}
 	}

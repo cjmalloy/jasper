@@ -95,26 +95,4 @@ public class IngestBundle {
 			}
 		}
 	}
-
-	public void attachError(Ref parent, String msg, String origin) {
-		attachError(parent, "", msg, origin);
-	}
-
-	public void attachError(Ref parent, String title, String logs, String origin) {
-		var ref = new Ref();
-		ref.setOrigin(origin);
-		ref.setUrl("error:" + UUID.randomUUID());
-		ref.setSources(List.of(parent.getUrl()));
-		ref.setTitle(title);
-		ref.setComment(logs);
-		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
-		if (parent.hasTag("public")) tags.add("public");
-		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
-		ref.setTags(tags);
-		ingestRef.create(ref, false);
-		if (!parent.hasTag("+plugin/error")) {
-			parent.addTag("+plugin/error");
-			ingestRef.update(parent, false);
-		}
-	}
 }

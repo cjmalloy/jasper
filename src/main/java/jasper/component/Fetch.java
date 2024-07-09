@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.errors.NotFoundException;
+import jasper.errors.ScrapeProtocolException;
 import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
@@ -51,7 +52,7 @@ public class Fetch {
 	CloseableHttpClient client;
 
 	FileRequest doScrape(String url) throws IOException {
-		if (!url.startsWith("http:") && !url.startsWith("https:")) throw new NotFoundException("Can't scrape protocol");
+		if (!url.startsWith("http:") && !url.startsWith("https:")) throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
 		return wrap(doWebScrape(url));
 	}
 

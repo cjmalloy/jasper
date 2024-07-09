@@ -8,7 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import static jasper.domain.Ref.from;
+import static jasper.domain.proj.Tag.matchesTag;
 import static java.util.Arrays.asList;
 
 @Service
@@ -40,6 +45,7 @@ public class Tagger {
 			return ref;
 		} else {
 			var ref = maybeRef.get();
+			if (ref.hasTag(tags)) return ref;
 			ref.addTags(asList(tags));
 			ingest.update(ref, false);
 			return ref;
@@ -65,10 +71,35 @@ public class Tagger {
 			return ref;
 		} else {
 			var ref = maybeRef.get();
+			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
 			ref.addTags(asList(tags));
 			ingest.update(ref, false);
 			return ref;
+		}
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String origin, Ref parent, String msg) {
+		attachError(origin, parent, "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String origin, Ref parent, String title, String logs) {
+		var ref = new Ref();
+		ref.setOrigin(origin);
+		ref.setUrl("error:" + UUID.randomUUID());
+		ref.setSources(List.of(parent.getUrl()));
+		ref.setTitle(title);
+		ref.setComment(logs);
+		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
+		if (parent.hasTag("public")) tags.add("public");
+		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		ref.setTags(tags);
+		ingest.create(ref, false);
+		if (!parent.hasTag("+plugin/error")) {
+			parent.addTag("+plugin/error");
+			ingest.update(parent, false);
 		}
 	}
 }
