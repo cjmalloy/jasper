@@ -1,4 +1,4 @@
-package jasper.component;
+package jasper.component.vm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -14,9 +14,9 @@ import java.io.IOException;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class VmTest {
+class JavaScriptTest {
 
-	Vm vm = new Vm();
+	JavaScript vm = new JavaScript();
 
 	@BeforeEach
 	public void init() throws IOException {

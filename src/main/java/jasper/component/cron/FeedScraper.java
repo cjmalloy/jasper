@@ -1,4 +1,4 @@
-package jasper.component.scheduler;
+package jasper.component.cron;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;

@@ -1,4 +1,4 @@
-package jasper.component;
+package jasper.component.vm;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
@@ -16,8 +16,8 @@ import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class Vm {
-	private static final Logger logger = LoggerFactory.getLogger(Vm.class);
+public class JavaScript {
+	private static final Logger logger = LoggerFactory.getLogger(JavaScript.class);
 
 	@Autowired
 	Props props;
@@ -61,7 +61,7 @@ public class Vm {
 		script.runInContext(context, {timeout});
 	""";
 
-	@Timed("jasper.vm.javascript")
+	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
 		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api, props.getCacheApi());
 		var process = processBuilder.start();

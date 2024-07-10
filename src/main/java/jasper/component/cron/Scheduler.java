@@ -1,4 +1,4 @@
-package jasper.component.scheduler;
+package jasper.component.cron;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
@@ -49,11 +49,12 @@ public class Scheduler {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	Tagger tagger;
+
 	Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
 
 	Map<String, CronRunner> tags = new HashMap<>();
-	@Autowired
-	private Tagger tagger;
 
 	/**
 	 * Register a runner for a tag.

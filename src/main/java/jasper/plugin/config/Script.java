@@ -10,7 +10,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Delta implements Serializable {
+public class Script implements Serializable {
 	private String language = "javascript";
 	private String script;
 	private int timeoutMs;
