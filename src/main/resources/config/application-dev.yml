@@ -69,10 +69,6 @@ server:
 # ===================================================================
 jasper:
   push-cooldown-sec: 1
-  pull-delay-min: 0
-  pull-interval-min: 1
-  scrape-delay-min: 5
-  scrape-interval-min: 5
 #  local-origin: '@test'
   allow-user-role-header: true
   allow-user-tag-header: true

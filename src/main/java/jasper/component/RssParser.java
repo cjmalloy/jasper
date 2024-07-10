@@ -13,6 +13,7 @@ import com.rometools.rome.io.XmlReader;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Audio;
 import jasper.plugin.Embed;
 import jasper.plugin.Feed;
@@ -69,8 +70,13 @@ public class RssParser {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	ConfigCache configs;
+
 	@Timed("jasper.feed")
 	public void scrape(Ref feed, boolean force) throws IOException, FeedException {
+		var root = configs.root();
+		if (!root.getScriptOrigins().contains(feed.getOrigin())) throw new OperationForbiddenOnOriginException(feed.getOrigin());
 		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig

@@ -9,8 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 
@@ -19,8 +17,6 @@ import java.util.List;
 @JsonInclude(Include.NON_NULL)
 public class Pull implements Serializable {
 	private String query;
-	private Duration pullInterval;
-	private Instant lastPull;
 	private int batchSize;
 	private boolean validatePlugins;
 	private boolean stripInvalidPlugins;
@@ -61,5 +57,9 @@ public class Pull implements Serializable {
 		migrateTags(user.getWriteAccess(), null);
 		migrateTags(user.getTagReadAccess(), null);
 		migrateTags(user.getTagWriteAccess(), null);
+	}
+
+	public static Pull getPull(Ref ref) {
+		return ref == null ? null : ref.getPlugin("+plugin/origin/pull", Pull.class);
 	}
 }

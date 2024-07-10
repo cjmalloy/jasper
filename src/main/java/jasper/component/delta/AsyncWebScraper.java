@@ -37,6 +37,7 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) throws Exception {
 		ref.setComment(scraper.web(ref.getUrl(), ref.getOrigin()).getComment());
+		// TODO: scrape other fields
 		ref.removeTag("_plugin/delta/scrape");
 		ingest.update(ref, false);
 	}

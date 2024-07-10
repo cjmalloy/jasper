@@ -75,7 +75,7 @@ public class Scheduler {
 
 	private void schedule(HasTags ref) {
 		var root = configs.root();
-		if (root.getCronOrigins() == null) return;
+		if (root.getScriptOrigins() == null) return;
 		var key = getKey(ref);
 		var existing = tasks.get(key);
 		if (existing != null) {
@@ -87,11 +87,11 @@ public class Scheduler {
 		if (!hasMatchingTag(ref, "+plugin/cron")) return;
 		var origin = ref.getOrigin();
 		var url = ref.getUrl();
-		if (!root.getCronOrigins().contains(origin(origin))) return;
+		if (!root.getScriptOrigins().contains(origin(origin))) return;
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
 		if (config.getInterval().toMinutes() < 1) {
-			tagger.attachError(url, origin, "Cron Error: Interval too small", config.getInterval().toString());
+			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
 		} else {
 			tasks.put(key, taskScheduler.scheduleWithFixedDelay(
 				() -> runSchedule(url, origin),
@@ -103,7 +103,7 @@ public class Scheduler {
 	private void reload() {
 		tasks.forEach((key, c) -> c.cancel(false));
 		tasks.clear();
-		for (String origin : configs.root().getAsyncOrigins()) {
+		for (String origin : configs.root().getScriptOrigins()) {
 			Instant lastModified = null;
 			while (true) {
 				var maybeRef = refRepository.findAll(RefFilter.builder()
@@ -140,7 +140,8 @@ public class Scheduler {
 			try {
 				v.run(ref);
 			} catch (Exception e) {
-				logger.error("{} Error in async tag {} ", origin, k, e);
+				logger.error("{} Error in cron tag {} ", origin, k, e);
+				tagger.attachError(url, origin, "Error in cron tag " + k, e.getMessage());
 			}
 		});
 	}

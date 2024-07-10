@@ -67,7 +67,7 @@ public class Async {
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		taskScheduler.schedule(() -> {
-			for (String origin : configs.root().getAsyncOrigins()) {
+			for (String origin : configs.root().getScriptOrigins()) {
 				backfill(origin);
 			}
 		}, Instant.now().plusMillis(1000L));
@@ -90,11 +90,11 @@ public class Async {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var root = configs.root();
-		if (root.getAsyncOrigins() == null) return;
+		if (root.getScriptOrigins() == null) return;
 		var ud = message.getPayload();
 		if (ud.getTags() == null) return;
 		if (hasMatchingTag(ud, "+plugin/error")) return;
-		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
+		if (!root.getScriptOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ud, k)) return;
 			if (isNotBlank(v.signature())) {
@@ -104,13 +104,13 @@ public class Async {
 				// TODO: Only check plugin responses in the same origin
 				if (ref != null && ref.hasPluginResponse(v.signature())) return;
 			}
-			logger.debug("Async Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
+			logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
 			try {
 				v.run(fetch(ud));
 			} catch (NotFoundException e) {
-				logger.debug("Plugin not installed {} ", e.getMessage());
+				logger.debug("{} Plugin not installed {} ", ud.getOrigin(), e.getMessage());
 			} catch (Exception e) {
-				logger.error("Error in async tag {} ", k, e);
+				logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
 			}
 		});
 	}
@@ -140,9 +140,9 @@ public class Async {
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
-					logger.debug("Plugin not installed {} ", e.getMessage());
+					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), e.getMessage());
 				} catch (Exception e) {
-					logger.error("Error in async tag {} ", k, e);
+					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 				}
 			});
 		}

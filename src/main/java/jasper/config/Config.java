@@ -49,27 +49,17 @@ public interface Config {
 		 */
 		private List<String> pushOrigins = List.of("");
 		@Builder.Default
-		private int pushBatchSize = 20;
-		@Builder.Default
 		private int maxPushEntityBatch = 5000;
 		/**
 		 * Whitelist origins to be allowed to pull using +plugin/origin/pull.
 		 */
 		private List<String> pullOrigins = List.of("");
 		@Builder.Default
-		private int pullBatchSize = 20;
-		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
-		 * Whitelist origins to run async tasks on.
+		 * Whitelist origins to run scripts on.
 		 */
-		private List<String> asyncOrigins = List.of("");
-		/**
-		 * Whitelist origins to be allowed to run scheduled tasks on..
-		 */
-		private List<String> cronOrigins = List.of("");
-		@Builder.Default
-		private int scrapeBatchSize = 100;
+		private List<String> scriptOrigins = List.of("");
 		/**
 		 * Whitelist domains to be allowed to scrape.
 		 */
@@ -89,14 +79,10 @@ public interface Config {
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
 			if (isNotEmpty(server.getSshOrigins())) wrapped = wrapped.withSshOrigins(server.getSshOrigins());
 			if (isNotEmpty(server.getPushOrigins())) wrapped = wrapped.withPushOrigins(server.getPushOrigins());
-			if (server.getPushBatchSize() != null) wrapped = wrapped.withPushBatchSize(server.getPushBatchSize());
 			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());
 			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
-			if (server.getPullBatchSize() != null) wrapped = wrapped.withPullBatchSize(server.getPullBatchSize());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
-			if (isNotEmpty(server.getAsyncOrigins())) wrapped = wrapped.withAsyncOrigins(server.getAsyncOrigins());
-			if (isNotEmpty(server.getCronOrigins())) wrapped = wrapped.withCronOrigins(server.getCronOrigins());
-			if (server.getScrapeBatchSize() != null) wrapped = wrapped.withScrapeBatchSize(server.getScrapeBatchSize());
+			if (isNotEmpty(server.getScriptOrigins())) wrapped = wrapped.withScriptOrigins(server.getScriptOrigins());
 			if (isNotEmpty(server.getScrapeHostWhitelist())) wrapped = wrapped.withScrapeHostWhitelist(server.getScrapeHostWhitelist());
 			if (isNotEmpty(server.getScrapeHostBlacklist())) wrapped = wrapped.withScrapeHostBlacklist(server.getScrapeHostBlacklist());
 			return wrapped;
@@ -108,8 +94,7 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.pushOrigins(List.of(origin))
 				.pullOrigins(List.of(origin))
-				.asyncOrigins(List.of(origin))
-				.cronOrigins(List.of(origin));
+				.scriptOrigins(List.of(origin));
 		}
 	}
 

@@ -38,6 +38,7 @@ public class ScriptRunner {
 	@Timed("jasper.scripts")
 	public void runScripts(Ref ref, Script config) {
 		if (isBlank(config.getScript())) return;
+		// TODO: script hashing to pre-approve scripts
 		if (!"javascript".equals(config.getLanguage())) {
 			// Only Javascript is supported right now
 			logger.error("{} Script runtime not supported {}", ref.getOrigin(), config.getLanguage());

@@ -83,10 +83,6 @@ server:
   address: localhost
 
 jasper:
-  pull-delay-min: 0
-  pull-interval-min: 1
-  scrape-delay-min: 5
-  scrape-interval-min: 1
   default-role: ROLE_USER
   node: ~/.bun/bin/bun
   cache-api: ''

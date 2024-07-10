@@ -181,9 +181,11 @@ public class ConfigCache {
 	public ServerConfig root() {
 		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
 			return getTemplateConfig("_config/server", "",  ServerConfig.class)
+				.orElseThrow()
 				.wrap(props);
 		}
 		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
+			.orElseThrow()
 			.wrap(props);
 	}
 
@@ -192,6 +194,7 @@ public class ConfigCache {
 	public SecurityConfig security(String origin) {
 		// TODO: crawl origin hierarchy until found
 		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
+			.orElseThrow()
 			.wrap(props);
 	}
 

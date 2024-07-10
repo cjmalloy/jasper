@@ -1,11 +1,15 @@
 package jasper.component.channel;
 
 import jasper.component.ConfigCache;
-import jasper.component.Remotes;
+import jasper.component.Replicator;
 import jasper.config.Props;
+import jasper.domain.Ref_;
+import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
@@ -15,10 +19,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.origin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Push {
@@ -28,16 +32,18 @@ public class Push {
 	Props props;
 
 	@Autowired
-	Remotes remotes;
-
-	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	RefRepository refRepository;
+
 	private Map<String, String> lastSent = new ConcurrentHashMap<>();
 	private Map<String, String> queued = new ConcurrentHashMap<>();
+	@Autowired
+	private Replicator replicator;
 
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
@@ -61,14 +67,21 @@ public class Push {
 
 	private void push(String origin) {
 		var root = configs.root();
-		logger.info("Pushing {} {} remotes", root.getScrapeBatchSize(), formatOrigin(origin));
-		for (var i = 0; i < root.getPushBatchSize(); i++) {
-			if (!remotes.push(origin)) {
-				logger.info("All {} remotes up to date.", formatOrigin(origin));
-				return;
-			}
+		if (!root.getPushOrigins().contains(origin)) return;
+		logger.info(" {} Pushing remotes", origin);
+		Instant lastModified = null;
+		while (true) {
+			var maybeRef = refRepository.findAll(RefFilter.builder()
+				.origin(origin)
+				.query("+plugin/origin/push:!+plugin/error")
+				.modifiedAfter(lastModified)
+				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
+			if (maybeRef.isEmpty()) break;
+			var ref = maybeRef.getContent().getFirst();
+			lastModified = ref.getModified();
+			replicator.push(ref);
 		}
-		logger.info("Finished pushing {} remotes.", formatOrigin(origin));
+		logger.info("{} Finished pushing remotes.", origin);
 		taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 	}
 

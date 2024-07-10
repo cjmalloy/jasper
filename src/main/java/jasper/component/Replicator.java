@@ -7,8 +7,6 @@ import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.OperationForbiddenOnOriginException;
-import jasper.plugin.Origin;
-import jasper.plugin.Pull;
 import jasper.plugin.Push;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -33,7 +31,9 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.plugin.Origin.getOrigin;
+import static jasper.plugin.Pull.getPull;
+import static jasper.plugin.Push.getPush;
 import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
@@ -79,22 +79,18 @@ public class Replicator {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	Tagger tagger;
+
 	@Timed(value = "jasper.repl", histogram = true)
 	public void pull(Ref remote) {
 		var root = configs.root();
-		if (!root.getPullOrigins().contains(origin(remote.getOrigin())) && !auth.hasRole(ADMIN)) {
-			logger.debug("Replicate origins: {}", root.getPullOrigins());
-			throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		}
-		var pull = remote.getPlugin("+plugin/origin/pull", Pull.class);
-		pull.setLastPull(Instant.now());
-		remote.setPlugin("+plugin/origin/pull", pull);
-		refRepository.save(remote);
-
-		Map<String, Object> options = new HashMap<>();
-		var config = remote.getPlugin("+plugin/origin", Origin.class);
+		if (!root.getPullOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		var pull = getPull(remote);
+		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
+		Map<String, Object> options = new HashMap<>();
 		options.put("size", pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : Math.min(pull.getBatchSize(), root.getMaxPullEntityBatch()));
 		options.put("origin", config.getRemote());
 		tunnel.proxy(remote, url -> {
@@ -135,7 +131,12 @@ public class Replicator {
 							messages.updateRef(ref);
 						}
 					} catch (RuntimeException e) {
-						logger.warn("Failed Plugin Validation! Skipping replication of ref {} {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
+						logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
+							remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
+						tagger.attachLogs(remote.getOrigin(), remote,
+							"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
+								ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+							e.getMessage());
 					}
 				}
 				options.put("modifiedAfter", extRepository.getCursor(localOrigin));
@@ -150,7 +151,12 @@ public class Replicator {
 							pluginRepository.deleteByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin());
 						}
 					} catch (RuntimeException e) {
-						logger.warn("Failed Template Validation! Skipping replication of ext {}: {}", ext.getName(), ext.getQualifiedTag(), e);
+						logger.warn("{} Failed Template Validation! Skipping replication of ext ({}) {}: {}",
+							remote.getOrigin(), ext.getOrigin(), ext.getName(), ext.getQualifiedTag(), e);
+						tagger.attachLogs(remote.getOrigin(), remote,
+							"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
+								ext.getName(), ext.getQualifiedTag()),
+							e.getMessage());
 					}
 				}
 				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
@@ -167,7 +173,12 @@ public class Replicator {
 					}
 				}
 			} catch (Exception e) {
-				logger.error("Error pulling {} from {}", localOrigin, remoteOrigin, e);
+				logger.error("{} Error pulling {} from origin {} {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				tagger.attachError(remote.getOrigin(), remote,
+					"Error pulling %s from origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
+					e.getMessage());
 			}
 		});
 	}
@@ -175,21 +186,15 @@ public class Replicator {
 	@Timed(value = "jasper.repl", histogram = true)
 	public void push(Ref remote) {
 		var root = configs.root();
-		if (!auth.hasRole(ADMIN) && !root.getPushOrigins().contains(origin(remote.getOrigin()))) {
-			logger.debug("Replicate origins: {}", root.getPushOrigins());
-			throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		}
-		var push = remote.getPlugin("+plugin/origin/push", Push.class);
-		push.setLastPush(Instant.now());
-		remote.setPlugin("+plugin/origin/push", push);
-		refRepository.save(remote);
-
-		var config = remote.getPlugin("+plugin/origin", Origin.class);
+		if (!root.getPushOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		var push = getPush(remote);
+		var config = getOrigin(remote);
 		var localOrigin = origin(config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var size = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : Math.min(push.getBatchSize(), root.getMaxPushEntityBatch());
 		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
-			logger.debug("Skipping push, up to date {}", remoteOrigin);
+			logger.debug("{} Skipping push, up to date {}",
+				remote.getOrigin(), remoteOrigin);
 			return;
 		}
 		tunnel.proxy(remote, url -> {
@@ -203,10 +208,11 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
-				logger.debug("Pushing {} plugins to {}", pluginList.size(), remoteOrigin);
+				logger.debug("{}. Pushing {} plugins to {}",
+					remote.getOrigin(), pluginList.size(), remoteOrigin);
 				if (!pluginList.isEmpty()) {
 					client.pluginPush(url, remoteOrigin, pluginList);
-					push.setLastModifiedPluginWritten(pluginList.get(pluginList.size() - 1).getModified());
+					push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
 				}
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, remoteOrigin) : push.getLastModifiedTemplateWritten();
@@ -218,10 +224,11 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
-				logger.debug("Pushing {} templates to {}", templateList.size(), remoteOrigin);
+				logger.debug("{} Pushing {} templates to {}",
+					remote.getOrigin(), templateList.size(), remoteOrigin);
 				if (!templateList.isEmpty()) {
 					client.templatePush(url, remoteOrigin, templateList);
-					push.setLastModifiedTemplateWritten(templateList.get(templateList.size() - 1).getModified());
+					push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
 				}
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, remoteOrigin) : push.getLastModifiedRefWritten();
@@ -234,10 +241,11 @@ public class Replicator {
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.map(jasperMapper::domainToDto)
 					.getContent();
-				logger.debug("Pushing {} refs to {}", refList.size(), remoteOrigin);
+				logger.debug("{} Pushing {} refs to {}",
+					remote.getOrigin(), refList.size(), remoteOrigin);
 				if (!refList.isEmpty()) {
 					client.refPush(url, remoteOrigin, refList);
-					push.setLastModifiedRefWritten(refList.get(refList.size() - 1).getModified());
+					push.setLastModifiedRefWritten(refList.getLast().getModified());
 				}
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, remoteOrigin) : push.getLastModifiedExtWritten();
@@ -249,10 +257,11 @@ public class Replicator {
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.getContent();
-				logger.debug("Pushing {} exts to {}", extList.size(), remoteOrigin);
+				logger.debug("{} Pushing {} exts to {}",
+					remote.getOrigin(), extList.size(), remoteOrigin);
 				if (!extList.isEmpty()) {
 					client.extPush(url, remoteOrigin, extList);
-					push.setLastModifiedExtWritten(extList.get(extList.size() - 1).getModified());
+					push.setLastModifiedExtWritten(extList.getLast().getModified());
 				}
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, remoteOrigin) : push.getLastModifiedUserWritten();
@@ -265,13 +274,19 @@ public class Replicator {
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
 					.map(jasperMapper::domainToDto)
 					.getContent();
-				logger.debug("Pushing {} users to {}", userList.size(), remoteOrigin);
+				logger.debug("{} Pushing {} users to {}",
+					remote.getOrigin(), userList.size(), remoteOrigin);
 				if (!userList.isEmpty()) {
 					client.userPush(url, remoteOrigin, userList);
-					push.setLastModifiedUserWritten(userList.get(userList.size() - 1).getModified());
+					push.setLastModifiedUserWritten(userList.getLast().getModified());
 				}
 			} catch (Exception e) {
-				logger.error("Error pushing {} to origin {}", localOrigin, remoteOrigin, e);
+				logger.error("{} Error pushing {} to origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				tagger.attachError(remote.getOrigin(), remote,
+					"Error pushing %s to origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
+					e.getMessage());
 			}
 		});
 		remote.setPlugin("+plugin/origin/push", push);

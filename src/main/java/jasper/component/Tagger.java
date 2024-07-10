@@ -80,6 +80,36 @@ public class Tagger {
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String url, String origin, String msg) {
+		attachLogs(origin, tag(url, origin, "+plugin/error"), "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String url, String origin, String title, String logs) {
+		attachLogs(origin, tag(url, origin, "+plugin/error"), title, logs);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String origin, Ref parent, String msg) {
+		attachLogs(origin, parent, "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String origin, Ref parent, String title, String logs) {
+		var ref = new Ref();
+		ref.setOrigin(origin);
+		ref.setUrl("error:" + UUID.randomUUID());
+		ref.setSources(List.of(parent.getUrl()));
+		ref.setTitle(title);
+		ref.setComment(logs);
+		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
+		if (parent.hasTag("public")) tags.add("public");
+		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		ref.setTags(tags);
+		ingest.create(ref, false);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String url, String origin, String msg) {
 		attachError(origin, tag(url, origin, "+plugin/error"), "", msg);
 	}
@@ -96,17 +126,7 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
-		var ref = new Ref();
-		ref.setOrigin(origin);
-		ref.setUrl("error:" + UUID.randomUUID());
-		ref.setSources(List.of(parent.getUrl()));
-		ref.setTitle(title);
-		ref.setComment(logs);
-		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
-		if (parent.hasTag("public")) tags.add("public");
-		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
-		ref.setTags(tags);
-		ingest.create(ref, false);
+		attachLogs(origin, parent, title, logs);
 		if (!parent.hasTag("+plugin/error")) {
 			parent.addTag("+plugin/error");
 			ingest.update(parent, false);

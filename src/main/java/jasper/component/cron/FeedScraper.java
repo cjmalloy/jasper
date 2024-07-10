@@ -39,10 +39,9 @@ public class FeedScraper implements Scheduler.CronRunner {
 	}
 
 	public void run(Ref ref) {
+		logger.info("{} Scraping {} feed: {}.", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		try {
-			logger.info("{} Scraping {} feed: {}.", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			rssParser.scrape(ref, false);
-			logger.info("{} Finished scraping feed: {}.", ref.getOrigin(), ref.getUrl());
 		} catch (IOException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", e.getMessage());
 		} catch (FeedException e) {
@@ -50,6 +49,7 @@ public class FeedScraper implements Scheduler.CronRunner {
 		} catch (Throwable e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", e.getMessage());
 		}
+		logger.info("{} Finished scraping feed: {}.", ref.getOrigin(), ref.getUrl());
 	}
 
 }
