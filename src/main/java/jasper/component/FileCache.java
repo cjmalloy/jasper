@@ -93,6 +93,7 @@ public class FileCache {
 	public String fetchString(String url, String origin) {
 		var cache = getCache(fetch(url, origin));
 		if (cache == null) return null;
+		if (bannedOrBroken(cache)) return null;
 		return new String(storage.get(origin, CACHE, cache.getId()));
 	}
 
@@ -162,6 +163,7 @@ public class FileCache {
 	public Ref fetchThumbnail(String url, String origin, OutputStream os) {
 		var fullSize = getCache(fetch(url, origin, false));
 		if (fullSize == null) return null;
+		if (bannedOrBroken(fullSize)) return null;
 		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
 		var thumbnailUrl = "internal:" + thumbnailId;

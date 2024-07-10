@@ -36,8 +36,8 @@ public class Cache implements Serializable {
 		return
 			// URL has been banned
 			cache.isBan() ||
-				// If id is blank the last scrape must have failed
-				// Wait for the user to manually refresh
-				isBlank(cache.getId());
+			// If id is blank the last scrape must have failed
+			// Wait for the user to manually refresh
+			isBlank(cache.getId());
 	}
 }

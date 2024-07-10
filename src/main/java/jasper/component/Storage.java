@@ -18,7 +18,7 @@ public interface Storage {
 	InputStream stream(String origin, String namespace, String id);
 	long stream(String origin, String namespace, String id, OutputStream os);
 	Zipped streamZip(String origin, String namespace, String id) throws IOException;
-	public void visitTenants(StorageImplLocal.PathVisitor v);
+	void visitTenants(StorageImplLocal.PathVisitor v);
 	void visitStorage(String origin, String namespace, StorageImplLocal.PathVisitor v);
 	List<String> listStorage(String origin, String namespace);
 	void overwrite(String origin, String namespace, String id, byte[] cache) throws IOException;
