@@ -56,15 +56,13 @@ public class FileCache {
 	public void clearDeleted(String origin) {
 		logger.info("{} Purging file cache", origin);
 		var start = Instant.now();
-		var deleteLater = new ArrayList<String>();
 		storage.visitStorage(origin, CACHE, id -> {
-			if (!refRepository.cacheExists(id)) deleteLater.add(id);
-		});
-		deleteLater.forEach(id -> {
-			try {
-				storage.delete(origin, CACHE, id);
-			} catch (IOException e) {
-				logger.error("Cannot delete file", e);
+			if (!refRepository.cacheExists(id)) {
+				try {
+					storage.delete(origin, CACHE, id);
+				} catch (IOException e) {
+					logger.error("Cannot delete file", e);
+				}
 			}
 		});
 		logger.info("{} Finished purging file cache in {}", origin, Duration.between(start, Instant.now()));
