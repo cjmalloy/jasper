@@ -56,7 +56,7 @@ public class Preload {
 			return;
 		}
 		var start = Instant.now();
-		logger.info("Preloading static files {}", id);
+		logger.info("{} Preloading static files {}", origin, id);
 		try (var zipped = storage.streamZip(origin, PRELOAD, id)) {
 			backup.restoreRepo(refRepository, props.getLocalOrigin(), zipped.in("/ref.json"), Ref.class);
 			backup.restoreRepo(extRepository, props.getLocalOrigin(), zipped.in("/ext.json"), Ext.class);
@@ -64,9 +64,8 @@ public class Preload {
 			backup.restoreRepo(pluginRepository, props.getLocalOrigin(), zipped.in("/plugin.json"), Plugin.class);
 			backup.restoreRepo(templateRepository, props.getLocalOrigin(), zipped.in("/template.json"), Template.class);
 		} catch (Throwable e) {
-			logger.error("Error preloading {}", id, e);
+			logger.error("{} Error preloading {}", origin, id, e);
 		}
-		logger.info("Finished Preload");
-		logger.info("Preload Duration {}", Duration.between(start, Instant.now()));
+		logger.info("{} Finished Preload in {}", origin, Duration.between(start, Instant.now()));
     }
 }

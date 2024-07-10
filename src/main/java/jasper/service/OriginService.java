@@ -65,7 +65,7 @@ public class OriginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void delete(String origin, Instant olderThan) {
 		var start = Instant.now();
-		logger.info("Deleting origin {} older than {}", origin, olderThan);
+		logger.info("{} Deleting origin {} older than {}", origin, origin, olderThan);
 		refRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		extRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		userRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
@@ -73,7 +73,6 @@ public class OriginService {
 			pluginRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		}
-		logger.info("Finished deleting origin {} older than {}", origin, olderThan);
-		logger.info("Deleting Duration {}", Duration.between(start, Instant.now()));
+		logger.info("{} Finished deleting origin {} older than {} in {}", origin, origin, olderThan, Duration.between(start, Instant.now()));
 	}
 }

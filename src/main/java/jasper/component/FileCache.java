@@ -20,6 +20,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -52,6 +54,8 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public void clearDeleted(String origin) {
+		logger.info("{} Purging file cache", origin);
+		var start = Instant.now();
 		var deleteLater = new ArrayList<String>();
 		storage.visitStorage(origin, CACHE, id -> {
 			if (!refRepository.cacheExists(id)) deleteLater.add(id);
@@ -63,6 +67,7 @@ public class FileCache {
 				logger.error("Cannot delete file", e);
 			}
 		});
+		logger.info("{} Finished purging file cache in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)

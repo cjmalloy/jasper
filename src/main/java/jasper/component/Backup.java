@@ -22,7 +22,6 @@ import jasper.util.JsonArrayStreamDataSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -75,11 +74,11 @@ public class Backup {
 	@Counted(value = "jasper.backup")
 	public void createBackup(String origin, String id, BackupOptionsDto options) throws IOException {
 		if (storage == null) {
-			logger.error("Backup create failed: No storage present.");
+			logger.error("{} Backup create failed: No storage present.", origin);
 			return;
 		}
 		var start = Instant.now();
-		logger.info("Creating Backup");
+		logger.info("{} Creating Backup", origin);
 		try (var zipped = storage.zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
 				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("/ref.json"), false);
@@ -97,8 +96,7 @@ public class Backup {
 				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("/template.json"));
 			}
 		}
-		logger.info("Finished Backup");
-		logger.info("Backup Duration {}", Duration.between(start, Instant.now()));
+		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
@@ -172,11 +170,11 @@ public class Backup {
 	@Counted(value = "jasper.backup")
 	public void restore(String origin, String id, BackupOptionsDto options) {
 		if (storage == null) {
-			logger.error("Backup restore failed: No storage present.");
+			logger.error("{} Backup restore failed: No storage present.", origin);
 			return;
 		}
 		var start = Instant.now();
-		logger.info("Restoring Backup");
+		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
@@ -196,8 +194,7 @@ public class Backup {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		logger.info("Finished Restore");
-		logger.info("Restore Duration {}", Duration.between(start, Instant.now()));
+		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
@@ -261,8 +258,7 @@ public class Backup {
 			count += props.getBackfillBatchSize();
 			logger.info("{} Generating metadata... {} done", formatOrigin(origin), count);
 		}
-		logger.info("{} Finished Backfill", formatOrigin(origin));
-		logger.info("{} Backfill Duration {}", formatOrigin(origin), Duration.between(start, Instant.now()));
+		logger.info("{} Finished Backfill in {}", formatOrigin(origin), Duration.between(start, Instant.now()));
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
