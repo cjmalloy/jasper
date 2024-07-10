@@ -666,7 +666,7 @@ const whatPluginSignature = {
 ```
 
 ## RSS / Atom Scraping
-The `+plugin/feed` can be used to scrape RSS / Atom feeds.
+The `plugin/feed` can be used to scrape RSS / Atom feeds.
 Although plugin fields are determined dynamically, the following fields are checked by the
 scraper:
 ```json
@@ -692,8 +692,8 @@ feed to use for the Ref comment field.
 **Remove Description Indent:** Remove any indents from the description. This is needed when the
 description is HTML, as indents will trigger a block quote in markdown.
 
-The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
-`+plugin/feed` it will be skipped.
+The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
+`plugin/feed` it will be skipped.
 
 ## Remote Origin
 The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a local alias. These may be either pulled from or pushed to.

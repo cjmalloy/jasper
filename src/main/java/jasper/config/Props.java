@@ -137,7 +137,7 @@ public class Props {
 		private Integer pullBatchSize;
 		private Integer maxPullEntityBatch;
 		private List<String> asyncOrigins;
-		private List<String> scrapeOrigins;
+		private List<String> cronOrigins;
 		private Integer scrapeBatchSize;
 		private List<String> scrapeHostWhitelist;
 		private List<String> scrapeHostBlacklist;

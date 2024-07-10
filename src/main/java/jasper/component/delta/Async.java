@@ -57,6 +57,13 @@ public class Async {
 
 	Map<String, AsyncRunner> tags = new HashMap<>();
 
+	/**
+	 * Register a runner for a tag.
+	 */
+	public void addAsyncTag(String plugin, AsyncRunner r) {
+		tags.put(plugin, r);
+	}
+
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		taskScheduler.schedule(() -> {
@@ -64,13 +71,6 @@ public class Async {
 				backfill(origin);
 			}
 		}, Instant.now().plusMillis(1000L));
-	}
-
-	/**
-	 * Register a runner for a tag.
-	 */
-	public void addAsyncTag(String plugin, AsyncRunner r) {
-		tags.put(plugin, r);
 	}
 
 	/**
@@ -122,16 +122,16 @@ public class Async {
 
 	private void backfill(String origin) {
 		if (isBlank(trackingQuery())) return;
-		Map<String, Instant> lastModified = new HashMap<>();
+		Instant lastModified = null;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
-				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
+				.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
 				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().getFirst();
-			lastModified.put(origin, ref.getModified());
+			lastModified = ref.getModified();
 			tags.forEach((k, v) -> {
 				if (!v.backfill()) return;
 				if (!hasMatchingTag(ref, k)) return;

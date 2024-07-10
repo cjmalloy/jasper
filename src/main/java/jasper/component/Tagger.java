@@ -80,6 +80,16 @@ public class Tagger {
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String url, String origin, String msg) {
+		attachError(origin, tag(url, origin, "+plugin/error"), "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String url, String origin, String title, String logs) {
+		attachError(origin, tag(url, origin, "+plugin/error"), title, logs);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String msg) {
 		attachError(origin, parent, "", msg);
 	}

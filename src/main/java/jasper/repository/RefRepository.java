@@ -116,19 +116,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	int setObsolete(String url, String origin, Instant olderThan);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/feed')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/feed', 'lastScrape')
-				OR cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/feed'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
-
-	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
 		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
 		FROM ref

@@ -79,11 +79,11 @@ public class Script implements Async.AsyncRunner {
 				output = vm.runJavaScript(delta.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), delta.getTimeoutMs());
 			} catch (ScriptException e) {
 				logger.error("Error running script", e);
-				tagger.attachError(ref.getOrigin(), ref, e.getMessage(), e.getLogs());
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage(), e.getLogs());
 				return;
 			} catch (Exception e) {
 				logger.error("Error running script", e);
-				tagger.attachError(ref.getOrigin(), ref, e.getMessage());
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage());
 				return;
 			}
 			try {
@@ -91,7 +91,7 @@ public class Script implements Async.AsyncRunner {
 				ingest.createOrUpdate(bundle, ref.getOrigin());
 			} catch (Exception e) {
 				logger.error("Error parsing script return value", e);
-				tagger.attachError(ref.getOrigin(), ref, "Error parsing script output", output);
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing script output", output);
 			}
 		}
 	}

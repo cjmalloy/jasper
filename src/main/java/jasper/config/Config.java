@@ -65,9 +65,9 @@ public interface Config {
 		 */
 		private List<String> asyncOrigins = List.of("");
 		/**
-		 * Whitelist origins to be allowed to scrape using +plugin/feed.
+		 * Whitelist origins to be allowed to run scheduled tasks on..
 		 */
-		private List<String> scrapeOrigins = List.of("");
+		private List<String> cronOrigins = List.of("");
 		@Builder.Default
 		private int scrapeBatchSize = 100;
 		/**
@@ -95,7 +95,7 @@ public interface Config {
 			if (server.getPullBatchSize() != null) wrapped = wrapped.withPullBatchSize(server.getPullBatchSize());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
 			if (isNotEmpty(server.getAsyncOrigins())) wrapped = wrapped.withAsyncOrigins(server.getAsyncOrigins());
-			if (isNotEmpty(server.getScrapeOrigins())) wrapped = wrapped.withScrapeOrigins(server.getScrapeOrigins());
+			if (isNotEmpty(server.getCronOrigins())) wrapped = wrapped.withCronOrigins(server.getCronOrigins());
 			if (server.getScrapeBatchSize() != null) wrapped = wrapped.withScrapeBatchSize(server.getScrapeBatchSize());
 			if (isNotEmpty(server.getScrapeHostWhitelist())) wrapped = wrapped.withScrapeHostWhitelist(server.getScrapeHostWhitelist());
 			if (isNotEmpty(server.getScrapeHostBlacklist())) wrapped = wrapped.withScrapeHostBlacklist(server.getScrapeHostBlacklist());
@@ -109,7 +109,7 @@ public interface Config {
 				.pushOrigins(List.of(origin))
 				.pullOrigins(List.of(origin))
 				.asyncOrigins(List.of(origin))
-				.scrapeOrigins(List.of(origin));
+				.cronOrigins(List.of(origin));
 		}
 	}
 
