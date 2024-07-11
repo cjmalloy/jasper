@@ -204,12 +204,15 @@ public class Backup {
 		int count = 0;
 		try {
 			while (!done.get()) {
+				if (count > 0) logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
+				var lastBatchCount = count * props.getRestoreBatchSize();
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					for (var i = 0; i < props.getRestoreBatchSize(); i++) {
 						if (!it.hasNext()) {
 							done.set(true);
-							break;
+							logger.info("{} {} {} restored...", origin, type.getSimpleName(), lastBatchCount + i);
+							return null;
 						}
 						var t = it.next();
 						try {
@@ -226,7 +229,6 @@ public class Backup {
 					return null;
 				});
 				count++;
-				logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
 			}
 		} catch (Exception e) {
 			logger.error("Failed to restore", e);
