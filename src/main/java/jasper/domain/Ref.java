@@ -260,8 +260,8 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
-		if (jsonNode == null && plugins != null) {
-			plugins.remove(tag);
+		if (jsonNode == null) {
+			if (plugins != null) plugins.remove(tag);
 			return this;
 		}
 		if (plugins == null) plugins = om().createObjectNode();
