@@ -97,13 +97,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
-	@Query("""
-		SELECT COUNT(ref) > 0 FROM Ref ref
-		WHERE ref.url = :url
-			AND ref.modified > :modified
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	boolean existsByUrlAndModifiedGreaterThan(String url, String origin, Instant modified);
-
 	// TODO: Sync cache
 	@Modifying
 	@Transactional
@@ -114,45 +107,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND ref.modified < :olderThan
 			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	int setObsolete(String url, String origin, Instant olderThan);
-
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/feed')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/feed', 'lastScrape')
-				OR cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/feed'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
-
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin/pull')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/pull', 'lastPull')
-				OR cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) + cast(ref.plugins->'+plugin/origin/pull'->>'pullInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsPullByOrigin(String origin);
-
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin/push')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/push', 'lastPush')
-				OR cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) + cast(ref.plugins->'+plugin/origin/push'->>'pushInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsPushByOrigin(String origin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional

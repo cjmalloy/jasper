@@ -191,10 +191,6 @@ info:
 # ===================================================================
 jasper:
   push-cooldown-sec: 1
-  pull-delay-min: 20
-  pull-interval-min: 1
-  scrape-delay-min: 20
-  scrape-interval-min: 1
   local-origin: ''
   storage: /var/lib/jasper
   node: /usr/local/bin/node

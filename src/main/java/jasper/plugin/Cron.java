@@ -7,17 +7,15 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-
+import java.time.Duration;
 
 @Getter
 @Setter
 @JsonInclude(Include.NON_NULL)
-public class Origin implements Serializable {
-	private String local = "";
-	private String remote = "";
-	private String proxy;
+public class Cron implements Serializable {
+	private Duration interval;
 
-	public static Origin getOrigin(Ref ref) {
-		return ref == null ? null : ref.getPlugin("+plugin/origin", Origin.class);
+	public static Cron getCron(Ref ref) {
+		return ref == null ? null : ref.getPlugin("+plugin/cron", Cron.class);
 	}
 }

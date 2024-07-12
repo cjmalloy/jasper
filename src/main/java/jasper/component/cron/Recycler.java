@@ -1,4 +1,4 @@
-package jasper.component.scheduler;
+package jasper.component.cron;
 
 import jasper.component.FileCache;
 import jasper.component.Storage;

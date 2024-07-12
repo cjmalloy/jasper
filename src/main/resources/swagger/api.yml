@@ -786,7 +786,7 @@ paths:
       tags:
         - Scrape
       operationId: scrapeFeed
-      description: Immediately scrape a feed. Ref must have `+plugin/feed`
+      description: Immediately scrape a feed. Ref must have `plugin/feed`
       parameters:
         - name: url
           in: query

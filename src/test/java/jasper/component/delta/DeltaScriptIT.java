@@ -1,11 +1,10 @@
-package jasper.component.channel.delta;
+package jasper.component.delta;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import jasper.IntegrationTest;
-import jasper.component.delta.Script;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -24,13 +23,13 @@ import static jasper.repository.spec.RefSpec.hasTag;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
-public class ScriptIT {
+public class DeltaScriptIT {
 
 	@Autowired
 	Props props;
 
 	@Autowired
-	Script script;
+	DeltaScript deltaScript;
 
 	@Autowired
 	RefRepository refRepository;
@@ -93,7 +92,7 @@ public class ScriptIT {
 		var input = getRef(url, "My Ref", "test", "public", "plugin/delta/test");
 		refRepository.save(input);
 
-		script.run(input);
+		deltaScript.run(input);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);

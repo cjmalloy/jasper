@@ -2,8 +2,6 @@ package jasper.domain.proj;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.util.stream.Stream;
-
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -27,9 +25,13 @@ public interface Tag extends Cursor {
 		return "tag:/" + user + "?url=" + url;
 	}
 
-	static boolean publicTag(String tag) {
+	static boolean isPublicTag(String tag) {
 		if (isBlank(tag)) return false;
 		return !tag.startsWith("_") && !tag.startsWith("+");
+	}
+	static String publicTag(String tag) {
+		if (isBlank(tag) || isPublicTag(tag)) return tag;
+		return tag.substring(1);
 	}
 
 	static String localTag(String tag) {

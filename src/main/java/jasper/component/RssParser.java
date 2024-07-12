@@ -44,8 +44,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
-import static jasper.domain.proj.HasOrigin.origin;
-import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.plugin.Cron.getCron;
+import static jasper.plugin.Feed.getFeed;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -74,18 +74,10 @@ public class RssParser {
 	ConfigCache configs;
 
 	@Timed("jasper.feed")
-	public void scrape(Ref feed) throws IOException, FeedException {
+	public void scrape(Ref feed, boolean force) throws IOException, FeedException {
 		var root = configs.root();
-		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin())) && !auth.hasRole(ADMIN)) {
-			logger.debug("Scrape origins: {}", root.getScrapeOrigins());
-			throw new OperationForbiddenOnOriginException(feed.getOrigin());
-		}
-		var config = feed.getPlugin("+plugin/feed", Feed.class);
-		var lastScrape = config.getLastScrape();
-		config.setLastScrape(Instant.now());
-		feed.setPlugin("+plugin/feed", config);
-		ingest.update(feed, false);
-
+		if (!root.getScriptOrigins().contains(feed.getOrigin())) throw new OperationForbiddenOnOriginException(feed.getOrigin());
+		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
 		RequestConfig requestConfig = RequestConfig
 			.custom()
@@ -96,33 +88,35 @@ public class RssParser {
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
-				logger.info("Invalid host {}", request.getURI().getHost());
+				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
 				return;
 			}
 
 			if (!config.isDisableEtag() && config.getEtag() != null) {
 				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
 			}
-			if (lastScrape != null) {
+			Instant lastScrape = null;
+			var cron = getCron(feed);
+			if (!force && cron != null && cron.getInterval() != null) {
+				lastScrape = Instant.now().minus(cron.getInterval());
 				request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
 			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request)) {
 				if (response.getStatusLine().getStatusCode() == 304) {
-					logger.info("Feed {} not modified since {}",
-						feed.getTitle(), lastScrape);
+					logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
 					return;
 				}
 				try (InputStream stream = response.getEntity().getContent()) {
-					if (!config.isDisableEtag()) {
+					if (!force && !config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && !config.getEtag().equals(etag.getValue())) {
+						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
-							feed.setPlugin("+plugin/feed", config);
+							feed.setPlugin("plugin/feed", config);
 							ingest.update(feed, false);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
-							feed.setPlugin("+plugin/feed", config);
+							feed.setPlugin("plugin/feed", config);
 							ingest.update(feed, false);
 						}
 					}
@@ -144,15 +138,15 @@ public class RssParser {
 							ref = parseEntry(feed, config, entry, feedImage);
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
-								logger.warn("RSS entry in feed {} which was published before feed publish date. {} {}",
-									feed.getTitle(), ref.getTitle(), ref.getUrl());
+								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
+									feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 								ingest.update(feed, false);
 							}
 							ingest.create(ref, false);
 						} catch (AlreadyExistsException e) {
-							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getTitle(), entry.getTitle(), entry.getLink());
+							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
 							logger.error("Error processing entry", e);
 						}

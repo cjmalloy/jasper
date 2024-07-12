@@ -142,12 +142,11 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	@Transactional(readOnly = true)
-	public <T> T getPluginConfig(String tag, String origin, Class<T> toValueType) {
+	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
 			.or(() -> Optional.of(objectMapper.createObjectNode()))
-			.map(n -> objectMapper.convertValue(n, toValueType))
-			.get();
+			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
@@ -164,12 +163,11 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
 	@Transactional(readOnly = true)
-	public <T> T getTemplateConfig(String template, String origin, Class<T> toValueType) {
+	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
 			.or(() -> Optional.of(objectMapper.createObjectNode()))
-			.map(n -> objectMapper.convertValue(n, toValueType))
-			.get();
+			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")
@@ -183,9 +181,11 @@ public class ConfigCache {
 	public ServerConfig root() {
 		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
 			return getTemplateConfig("_config/server", "",  ServerConfig.class)
+				.orElseThrow()
 				.wrap(props);
 		}
 		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
+			.orElseThrow()
 			.wrap(props);
 	}
 
@@ -194,6 +194,7 @@ public class ConfigCache {
 	public SecurityConfig security(String origin) {
 		// TODO: crawl origin hierarchy until found
 		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
+			.orElseThrow()
 			.wrap(props);
 	}
 

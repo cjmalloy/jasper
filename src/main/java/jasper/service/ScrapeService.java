@@ -45,7 +45,7 @@ public class ScrapeService {
 	public void feed(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		rssParser.scrape(source);
+		rssParser.scrape(source, true);
 	}
 
 	@PreAuthorize("@auth.hasRole('USER')")

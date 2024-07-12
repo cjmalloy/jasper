@@ -57,20 +57,20 @@ public class Async {
 
 	Map<String, AsyncRunner> tags = new HashMap<>();
 
-	@EventListener(ApplicationReadyEvent.class)
-	public void init() {
-		taskScheduler.schedule(() -> {
-			for (String origin : configs.root().getAsyncOrigins()) {
-				backfill(origin);
-			}
-		}, Instant.now().plusMillis(1000L));
-	}
-
 	/**
 	 * Register a runner for a tag.
 	 */
 	public void addAsyncTag(String plugin, AsyncRunner r) {
 		tags.put(plugin, r);
+	}
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void init() {
+		taskScheduler.schedule(() -> {
+			for (String origin : configs.root().getScriptOrigins()) {
+				backfill(origin);
+			}
+		}, Instant.now().plusMillis(1000L));
 	}
 
 	/**
@@ -90,11 +90,11 @@ public class Async {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var root = configs.root();
-		if (root.getAsyncOrigins() == null) return;
+		if (root.getScriptOrigins() == null) return;
 		var ud = message.getPayload();
 		if (ud.getTags() == null) return;
 		if (hasMatchingTag(ud, "+plugin/error")) return;
-		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
+		if (!root.getScriptOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ud, k)) return;
 			if (isNotBlank(v.signature())) {
@@ -104,13 +104,13 @@ public class Async {
 				// TODO: Only check plugin responses in the same origin
 				if (ref != null && ref.hasPluginResponse(v.signature())) return;
 			}
-			logger.debug("Async Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
+			logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
 			try {
 				v.run(fetch(ud));
 			} catch (NotFoundException e) {
-				logger.debug("Plugin not installed {} ", e.getMessage());
+				logger.debug("{} Plugin not installed {} ", ud.getOrigin(), e.getMessage());
 			} catch (Exception e) {
-				logger.error("Error in async tag {} ", k, e);
+				logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
 			}
 		});
 	}
@@ -122,16 +122,16 @@ public class Async {
 
 	private void backfill(String origin) {
 		if (isBlank(trackingQuery())) return;
-		Map<String, Instant> lastModified = new HashMap<>();
+		Instant lastModified = null;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
-				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
+				.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
 				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().getFirst();
-			lastModified.put(origin, ref.getModified());
+			lastModified = ref.getModified();
 			tags.forEach((k, v) -> {
 				if (!v.backfill()) return;
 				if (!hasMatchingTag(ref, k)) return;
@@ -140,9 +140,9 @@ public class Async {
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
-					logger.debug("Plugin not installed {} ", e.getMessage());
+					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), e.getMessage());
 				} catch (Exception e) {
-					logger.error("Error in async tag {} ", k, e);
+					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 				}
 			});
 		}

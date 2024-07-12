@@ -131,14 +131,10 @@ public class Props {
 		private List<String> webOrigins;
 		private List<String> sshOrigins;
 		private List<String> pushOrigins;
-		private Integer pushBatchSize;
 		private Integer maxPushEntityBatch;
 		private List<String> pullOrigins;
-		private Integer pullBatchSize;
 		private Integer maxPullEntityBatch;
-		private List<String> asyncOrigins;
-		private List<String> scrapeOrigins;
-		private Integer scrapeBatchSize;
+		private List<String> scriptOrigins;
 		private List<String> scrapeHostWhitelist;
 		private List<String> scrapeHostBlacklist;
 	}

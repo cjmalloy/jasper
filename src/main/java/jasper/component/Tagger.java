@@ -80,12 +80,22 @@ public class Tagger {
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
-	public void attachError(String origin, Ref parent, String msg) {
-		attachError(origin, parent, "", msg);
+	public void attachLogs(String url, String origin, String msg) {
+		attachLogs(origin, tag(url, origin, "+plugin/error"), "", msg);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
-	public void attachError(String origin, Ref parent, String title, String logs) {
+	public void attachLogs(String url, String origin, String title, String logs) {
+		attachLogs(origin, tag(url, origin, "+plugin/error"), title, logs);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String origin, Ref parent, String msg) {
+		attachLogs(origin, parent, "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachLogs(String origin, Ref parent, String title, String logs) {
 		var ref = new Ref();
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
@@ -97,6 +107,26 @@ public class Tagger {
 		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
 		ref.setTags(tags);
 		ingest.create(ref, false);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String url, String origin, String msg) {
+		attachError(origin, tag(url, origin, "+plugin/error"), "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String url, String origin, String title, String logs) {
+		attachError(origin, tag(url, origin, "+plugin/error"), title, logs);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String origin, Ref parent, String msg) {
+		attachError(origin, parent, "", msg);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void attachError(String origin, Ref parent, String title, String logs) {
+		attachLogs(origin, parent, title, logs);
 		if (!parent.hasTag("+plugin/error")) {
 			parent.addTag("+plugin/error");
 			ingest.update(parent, false);
