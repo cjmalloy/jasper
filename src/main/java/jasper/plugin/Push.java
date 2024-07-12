@@ -23,7 +23,9 @@ public class Push implements Serializable {
 	private Instant lastModifiedPluginWritten;
 	private Instant lastModifiedTemplateWritten;
 
+	private static final Push DEFAULTS = new Push();
 	public static Push getPush(Ref ref) {
-		return ref == null ? null : ref.getPlugin("+plugin/origin/push", Push.class);
+		var push = ref == null ? null : ref.getPlugin("+plugin/origin/push", Push.class);
+		return push == null ? DEFAULTS : push;
 	}
 }

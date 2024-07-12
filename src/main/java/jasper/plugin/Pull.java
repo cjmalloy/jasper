@@ -59,7 +59,9 @@ public class Pull implements Serializable {
 		migrateTags(user.getTagWriteAccess(), null);
 	}
 
+	private static final Pull DEFAULTS = new Pull();
 	public static Pull getPull(Ref ref) {
-		return ref == null ? null : ref.getPlugin("+plugin/origin/pull", Pull.class);
+		var pull = ref == null ? null : ref.getPlugin("+plugin/origin/pull", Pull.class);
+		return pull == null ? DEFAULTS : pull;
 	}
 }

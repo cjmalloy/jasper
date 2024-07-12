@@ -26,7 +26,9 @@ public class Feed implements Serializable {
 	private boolean scrapeVideo;
 	private boolean scrapeEmbed;
 
+	private static final Feed DEFAULTS = new Feed();
 	public static Feed getFeed(Ref ref) {
-		return ref == null ? null : ref.getPlugin("plugin/feed", Feed.class);
+		var feed = ref == null ? null : ref.getPlugin("plugin/feed", Feed.class);
+		return feed == null ? DEFAULTS : feed;
 	}
 }
