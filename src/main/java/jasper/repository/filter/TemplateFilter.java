@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
@@ -53,13 +54,16 @@ public class TemplateFilter implements Query {
 		return result;
 	}
 
-	public String cacheKey() {
+	public String cacheKey(Pageable pageable) {
 		return
-			origin + '_' +
-			query + '_' +
-			deleted + '_' +
-			modifiedBefore + '_' +
-			modifiedAfter + '_' +
+			pageable.getPageNumber() + "_" +
+			pageable.getPageSize() + "_" +
+			pageable.getSort() + "_" +
+			origin + "_" +
+			query + "_" +
+			deleted + "_" +
+			modifiedBefore + "_" +
+			modifiedAfter + "_" +
 			search;
 	}
 }
