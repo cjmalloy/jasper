@@ -45,6 +45,7 @@ public class DeltaScriptIT {
 			plugin.setConfig((ObjectNode) mapper.readTree("""
 			{
 				"timeoutMs": 30000,
+				"format": "json",
 				"language": "",
 				"script": ""
 			}"""));
