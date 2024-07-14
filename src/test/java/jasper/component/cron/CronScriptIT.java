@@ -37,7 +37,7 @@ public class CronScriptIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
-	Plugin getJavaScriptPlugin(String tag, String script) {
+	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
 		var mapper = new ObjectMapper();
@@ -45,12 +45,13 @@ public class CronScriptIT {
 			plugin.setConfig((ObjectNode) mapper.readTree("""
 			{
 				"timeoutMs": 30000,
-				"language": "javascript",
+				"language": "",
 				"script": ""
 			}"""));
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException(e);
 		}
+		plugin.getConfig().set("language", TextNode.valueOf(language));
 		plugin.getConfig().set("script", TextNode.valueOf(script));
 		return plugin;
 	}
@@ -70,7 +71,7 @@ public class CronScriptIT {
 	}
 
 	@Test
-	void testUpperCaseRef() throws Exception {
+	void testJavaScriptUpperCaseRef() throws Exception {
 		// language=JavaScript
 		var upperCaseScript = """
 			const fs = require('fs');
@@ -87,7 +88,39 @@ public class CronScriptIT {
 			  ref: [output],
 			}));
 		""";
-		pluginRepository.save(getJavaScriptPlugin("plugin/script/test", upperCaseScript));
+		pluginRepository.save(getScriptPlugin("plugin/script/test", "javascript", upperCaseScript));
+		var url = "comment:" + UUID.randomUUID();
+		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
+		refRepository.save(input);
+
+		cronScript.run(input);
+
+		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
+		assertThat(responses.size()).isEqualTo(1);
+		var output = responses.get(0);
+		assertThat(output.getComment()).isEqualTo("TEST");
+	}
+
+	@Test
+	void testPythonUpperCaseRef() throws Exception {
+		// language=Python
+		var upperCaseScript = """
+import sys
+import json
+from uuid import uuid4
+ref = json.loads(sys.stdin.read());
+output = {
+  'url': 'comment:' + str(uuid4()),
+  'sources': [ref['url']],
+  'title': 'Re: ' + ref['title'],
+  'comment': ref['comment'].upper(),
+  'tags': ['public', '+needle'],
+};
+print(json.dumps({
+  'ref': [output],
+}))
+		""";
+		pluginRepository.save(getScriptPlugin("plugin/script/test", "python", upperCaseScript));
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
 		refRepository.save(input);

@@ -194,6 +194,7 @@ jasper:
   local-origin: ''
   storage: /var/lib/jasper
   node: /usr/local/bin/node
+  python: /usr/bin/python
   cache-api: ''
   # By default CORS is disabled. Uncomment to enable.
   # cors:

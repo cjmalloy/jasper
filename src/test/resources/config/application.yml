@@ -85,6 +85,7 @@ server:
 jasper:
   default-role: ROLE_USER
   node: ~/.bun/bin/bun
+  python: /usr/bin/python3
   cache-api: ''
   override:
     security:

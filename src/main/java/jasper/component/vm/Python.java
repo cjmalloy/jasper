@@ -16,8 +16,8 @@ import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class JavaScript {
-	private static final Logger logger = LoggerFactory.getLogger(JavaScript.class);
+public class Python {
+	private static final Logger logger = LoggerFactory.getLogger(Python.class);
 
 	@Autowired
 	Props props;
@@ -25,41 +25,28 @@ public class JavaScript {
 	@Value("http://localhost:${server.port}")
 	String api;
 
-	// language=JavaScript
-	private final String nodeVmWrapperScript = """
-		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
-		const fs = require('fs');
-		const vm = require('node:vm');
-		const stdin = fs.readFileSync(0, 'utf-8');
-		const timeout = parseInt(process.argv[1], 10) || 30_000;
-		const api = process.argv[2];
-		const [targetScript, inputString] = stdin.split('\\u0000');
-		const patchedFs = {
-		  ...fs,
-		  readFileSync: (path, options) => {
-			if (path === 0) return inputString;
-			return fs.readFileSync(path, options);
-		  }
-		};
-		const context = vm.createContext({
-	      console,
-		  process: {
-		    env: { JASPER_API: api },
-		    exit: process.exit,
-		  },
-		  require(mod) {
-			if (mod === 'fs') return patchedFs;
-			return require(mod);
-		  }
-		});
-		const allowTopLevelAwait = 'const run = async () => {' + targetScript + '}; run().catch(err => {console.error(err);process.exit(1);});';
-		const script = new vm.Script(allowTopLevelAwait);
-		script.runInContext(context, {timeout});
+	// language=Python
+	private final String pythonVmWrapperScript = """
+import sys, os
+import subprocess
+timeout_ms = int(sys.argv[1])
+env = os.environ.copy()
+env['JASPER_API'] = sys.argv[2]
+input_data = sys.stdin.read()
+target_script, input_string = input_data.split('\\0')
+process = subprocess.Popen([sys.executable, '-c', target_script], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, env=env)
+try:
+	process.communicate(input=input_string.encode(), timeout=timeout_ms / 1000)
+except subprocess.TimeoutExpired:
+	process.kill()
+	sys.exit(1)
+if process.returncode != 0:
+	sys.exit(process.returncode)
 	""";
 
 	@Timed("jasper.vm")
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
-		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
+	public String runPython(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
+		var processBuilder = new ProcessBuilder(props.getPython(), "-c", pythonVmWrapperScript, ""+timeoutMs, api, props.getCacheApi());
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
@@ -95,5 +82,4 @@ public class JavaScript {
 			return output.toString();
 		}
 	}
-
 }

@@ -5,3 +5,4 @@ docs/
 .idea/
 storage/
 repl/
+Dockerfile

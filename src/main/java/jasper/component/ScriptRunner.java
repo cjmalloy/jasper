@@ -6,6 +6,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.component.vm.JavaScript;
+import jasper.component.vm.Python;
 import jasper.domain.Ref;
 import jasper.errors.ScriptException;
 import jasper.plugin.config.Script;
@@ -27,7 +28,10 @@ public class ScriptRunner {
 	Tagger tagger;
 
 	@Autowired
-	JavaScript vm;
+	JavaScript jsVm;
+
+	@Autowired
+	Python pythonVm;
 
 	@Autowired
 	ComponentDtoMapper mapper;
@@ -39,15 +43,20 @@ public class ScriptRunner {
 	public void runScripts(Ref ref, Script config) {
 		if (isBlank(config.getScript())) return;
 		// TODO: script hashing to pre-approve scripts
-		if (!"javascript".equals(config.getLanguage())) {
-			// Only Javascript is supported right now
-			logger.error("{} Script runtime not supported {}", ref.getOrigin(), config.getLanguage());
-			tagger.attachError(ref.getOrigin(), ref, "Script runtime not supported: " + config.getLanguage());
-			return;
-		}
 		String output;
 		try {
-			output = vm.runJavaScript(config.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), config.getTimeoutMs());
+			switch (config.getLanguage()) {
+			case "javascript":
+				output = jsVm.runJavaScript(config.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), config.getTimeoutMs());
+				break;
+			case "python":
+				output = pythonVm.runPython(config.getScript(), objectMapper.writeValueAsString(mapper.domainToDto(ref)), config.getTimeoutMs());
+				break;
+			default:
+				logger.error("{} Script runtime not supported {}", ref.getOrigin(), config.getLanguage());
+				tagger.attachError(ref.getOrigin(), ref, "Script runtime not supported: " + config.getLanguage());
+				return;
+			}
 		} catch (ScriptException e) {
 			logger.error("{} Error running script", ref.getOrigin(), e);
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage(), e.getLogs());

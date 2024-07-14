@@ -18,15 +18,6 @@ CMD mvn -gs settings.xml test; \
 		cp target/surefire-reports/* /tests/
 
 FROM azul/zulu-openjdk-debian:21.0.3-21.34-jre AS deploy
-WORKDIR /app
-COPY --from=builder /app/dependencies/ ./
-RUN true
-COPY --from=builder /app/spring-boot-loader/ ./
-RUN true
-COPY --from=builder /app/snapshot-dependencies/ ./
-RUN true
-COPY --from=builder /app/application/ ./
-COPY docker/entrypoint.sh .
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=oven/bun:1.1.18-slim /usr/local/bin/bun /usr/local/bin/
@@ -36,4 +27,18 @@ RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && bun --version
 ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
+RUN apt-get update && apt-get install python3 -y \
+    && which python3 \
+    && python3 --version
+ARG JASPER_PYTHON=/usr/bin/python3
+ENV JASPER_PYTHON=${JASPER_PYTHON}
+WORKDIR /app
+COPY --from=builder /app/dependencies/ ./
+RUN true
+COPY --from=builder /app/spring-boot-loader/ ./
+RUN true
+COPY --from=builder /app/snapshot-dependencies/ ./
+RUN true
+COPY --from=builder /app/application/ ./
+COPY docker/entrypoint.sh .
 ENTRYPOINT ["sh", "entrypoint.sh"]
