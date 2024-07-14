@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
@@ -58,9 +59,8 @@ public class JavaScript {
 	""";
 
 	@Timed("jasper.vm")
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
-		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
-		var process = processBuilder.start();
+	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
@@ -74,19 +74,13 @@ public class JavaScript {
 			process.destroy();
 			throw new RuntimeException("Script execution timed out");
 		}
-		var logs = new StringBuilder();
-		try (var reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				logger.debug(line);
-				logs.append(line).append("\n");
-			}
+		var logs = getErrors(process.getErrorStream());
+		var exitCode = process.exitValue();
+		if (exitCode != 0) {
+			logs = getErrors(process.getInputStream()) + logs;
+			throw new ScriptException("Script execution failed with exit code: " + exitCode, logs);
 		}
 		try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-			var exitCode = process.exitValue();
-			if (exitCode != 0) {
-				throw new ScriptException("Script execution failed with exit code: " + exitCode, logs.toString());
-			}
 			var output = new StringBuilder();
 			String line;
 			while ((line = reader.readLine()) != null) {
@@ -94,6 +88,18 @@ public class JavaScript {
 			}
 			return output.toString();
 		}
+	}
+
+	private String getErrors(InputStream is) throws IOException {
+		var logs = new StringBuilder();
+		try (var reader = new BufferedReader(new InputStreamReader(is))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				logger.debug(line);
+				logs.append(line).append("\n");
+			}
+		}
+		return logs.toString();
 	}
 
 }

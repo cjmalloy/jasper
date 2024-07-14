@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +36,7 @@ class PythonTest {
 	}
 
 	@Test
-	void testRunPython() throws IOException, InterruptedException, ScriptException {
+	void testRunPython() throws IOException, InterruptedException, ScriptException, NoSuchAlgorithmException {
 		// language=Python
 		var targetScript = """
 import sys
@@ -43,9 +44,22 @@ print(sys.stdin.read().upper())
 		""";
 		var input = "test";
 
-		var output = vm.runPython(targetScript, input, 30_000);
+		var output = vm.runPython("", targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
+	}
+
+	@Test
+	void testPythonRequirements() throws IOException, InterruptedException, ScriptException, NoSuchAlgorithmException {
+		// language=Python
+		var targetScript = """
+import sklearn
+sklearn.show_versions()
+		""";
+
+		var output = vm.runPython("scikit-learn==1.3.2", targetScript, "", 30_000);
+
+		assertThat(output).contains("sklearn: 1.3.2");
 	}
 
 }
