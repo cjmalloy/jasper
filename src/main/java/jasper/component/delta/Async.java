@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -79,12 +78,7 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		var query = tags
-			.entrySet()
-			.stream()
-			.map(e -> e.getKey() + (isBlank(e.getValue().signature()) ? "" : ":!" + e.getValue().signature()))
-			.collect(Collectors.joining("|"));
-		return "!+plugin/error:(" + query + ")";
+		return "!+plugin/error:(" + String.join("|", tags.keySet()) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
@@ -98,7 +92,6 @@ public class Async {
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ud, k)) return;
 			if (isNotBlank(v.signature())) {
-				if (hasMatchingTag(ud, v.signature())) return;
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
 					.orElse(null);
 				// TODO: Only check plugin responses in the same origin

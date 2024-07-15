@@ -587,7 +587,7 @@ The script should by writing UTF-8 JSON to stdout of the form:
 These entities will either be created or updated, as necessary. You can use this to mark the input Ref as completed
 by either:
 1. Removing the `plugin/delta` tag
-2. Adding the `+plugin/delta` signature tag
+2. Adding the `+plugin/error` tag
 3. Adding a `+plugin/delta` Plugin response
 
 Adding the `+plugin/error` tag will prevent any further processing. Remove the `+plugin/error` tag to retry.
