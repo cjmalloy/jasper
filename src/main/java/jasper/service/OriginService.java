@@ -29,12 +29,16 @@ public class OriginService {
 
 	@Autowired
 	RefRepository refRepository;
+
 	@Autowired
 	ExtRepository extRepository;
+
 	@Autowired
 	UserRepository userRepository;
+
 	@Autowired
 	PluginRepository pluginRepository;
+
 	@Autowired
 	TemplateRepository templateRepository;
 

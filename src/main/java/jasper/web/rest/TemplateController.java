@@ -50,6 +50,7 @@ public class TemplateController {
 
 	@Autowired
 	TemplateService templateService;
+
 	@Autowired
 	HttpCache httpCache;
 

@@ -40,10 +40,11 @@ public class Push {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	Replicator replicator;
+
 	private Map<String, String> lastSent = new ConcurrentHashMap<>();
 	private Map<String, String> queued = new ConcurrentHashMap<>();
-	@Autowired
-	private Replicator replicator;
 
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
