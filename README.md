@@ -567,11 +567,12 @@ Jasper generates the following metadata in Refs:
 
 ## Server Scripting
 
-When the `scripts` profile is active, any Refs with a `plugin/delta` tag will run the attached script when modified.
+When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
+`plugin/script` tag.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
 include the API endpoint as `JASPER_API` and a storage-enabled API endpoint as `JASPER_CACHE_API` if not supported by
-the first API. Return a non-zero error code to fail the script and attach an error log.
+the first endpoint. Return a non-zero error code to fail the script and attach an error log.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json
@@ -584,60 +585,39 @@ The script should by writing UTF-8 JSON to stdout of the form:
 }
 ```
 
-These entities will either be created or updated, as necessary. You can use this to mark the input Ref as completed
-by either:
-1. Removing the `plugin/delta` tag
-2. Adding the `+plugin/error` tag
-3. Adding a `+plugin/delta` Plugin response
+These entities will either be created or updated, as necessary.
 
 Adding the `+plugin/error` tag will prevent any further processing. Remove the `+plugin/error` tag to retry.
 You can also attach any error logs for the user to see by replying to the delta with the `+plugin/log` tag. Logs should
 be tagged `internal` to prevent clutter, and should match the visibility of the parent delta (`public` or not) with the
 same owner so the user can clear the logs as desired.
 
+### Delta Scripts
+Any Refs with a `plugin/delta` tag will run the attached script when modified.
+
+You can use this to mark the input Ref as completed by either:
+1. Removing the `plugin/delta` tag
+2. Adding a `+plugin/delta` Plugin response
+
 Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
 
-### Remove the `plugin/delta` tag:
+#### Remove the `plugin/delta` tag:
+Use this approach when a script could be run multiple times to create multiple outputs.
 ```javascript
 const whatPlugin = {
   tag: 'plugin/delta/what',
   config: {
     timeoutMs: 30_000,
-    javascript: `
-      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
-      const louderRef = {
-        url: 'yousaid:' + ref.url,
-        sources: [ref.url],
-        comment: ref.comment.toUpperCase(),
-        tags: ['+plugin/delta/what']
-      };
-      ref.tags = ref.tags.filter(t => t !== 'plugin/delta/what' && !t.startsWith('plugin/delta/what/'));
-      console.log(JSON.stringify({
-        ref: [ref, louderRef],
-      }));
-    `,
-  },
-};
-const whatPluginSignature = {
-  tag: '+plugin/delta/what',
-  generateMetadata: true,
-};
-```
-
-### Add the `+plugin/delta` tag:
-```javascript
-const whatPlugin = {
-  tag: 'plugin/delta/what',
-  config: {
-    timeoutMs: 30_000,
-    javascript: `
+    language: 'javascript',
+    // language=JavaScript
+    script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
       const louderRef = {
         url: 'yousaid:' + ref.url,
         sources: [ref.url],
         comment: ref.comment.toUpperCase(),
       };
-      ref.tags.push('+plugin/delta/what');
+      louderRef.tags = ref.tags = ref.tags.filter(t => t !== 'plugin/delta/what' && !t.startsWith('plugin/delta/what/'));
       console.log(JSON.stringify({
         ref: [ref, louderRef],
       }));
@@ -646,7 +626,7 @@ const whatPlugin = {
 };
 ```
 
-### Add the `+plugin/delta` Plugin response:
+#### Add the `+plugin/delta` Plugin response:
 This is the recommended approach as it does need to modify existing Refs and
 is less likely for a bug to cause an infinite loop.
 ```javascript
@@ -654,7 +634,9 @@ const whatPlugin = {
   tag: 'plugin/delta/what',
   config: {
     timeoutMs: 30_000,
-    javascript: `
+    language: 'javascript',
+    // language=JavaScript
+    script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
       const louderRef = {
         url: 'yousaid:' + ref.url,
@@ -674,32 +656,83 @@ const whatPluginSignature = {
 };
 ```
 
+### Cron scripts
+Any Refs with a `plugin/script` tag will run the attached script when the `+plugin/cron` tag is also present.
+The `+plugin/cron` tag contains plugin data with a default interval of 15 minutes:
+```json
+{
+  "interval": "PT15M"
+}
+```
+
+When the `+plugin/cron` tag is present the script will be run repeatedly at the interval specified. Removing the
+`+plugin/cron` tag will disable the script.
+
+You can use this to mark the input Ref as completed by either:
+1. Removing the `plugin/delta` tag
+2. Adding a `+plugin/delta` Plugin response
+
+#### Example
+Here is a script that outputs the current time:
+```javascript
+const timePlugin = {
+  tag: 'plugin/script/time',
+  config: {
+    timeoutMs: 30_000,
+    language: 'javascript',
+    // language=JavaScript
+    script: `
+      const uuid = require('uuid');
+      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      const timeRef = {
+        url: 'comment:' + uuid.v4(),
+        sources: [ref.url],
+        comment: '' + new Date(),
+        tags: ['public', 'time']
+      };
+      console.log(JSON.stringify({
+        ref: [timeRef],
+      }));
+    `,
+  },
+};
+```
+
 ## RSS / Atom Scraping
-The `plugin/feed` can be used to scrape RSS / Atom feeds.
+The `plugin/feed` can be used to scrape RSS / Atom feeds. The `+plugin/cron` tag is used to set
+the scraping interval. If no `+plugin/cron` is added the feed is considered disabled.
 Although plugin fields are determined dynamically, the following fields are checked by the
 scraper:
 ```json
 {
-  "properties": {
-    "scrapeInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "addTags": { "elements": { "type": "string" } },
-    "lastScrape": { "type": "string" },
+    "disableEtag": { "type": "boolean" },
+    "etag": { "type": "string" },
+    "stripQuery": { "type": "boolean" },
+    "scrapeWebpage": { "type": "boolean" },
     "scrapeDescription": { "type": "boolean" },
-    "removeDescriptionIndent": { "type": "boolean" }
+    "scrapeContents": { "type": "boolean" },
+    "scrapeAuthors": { "type": "boolean" },
+    "scrapeThumbnail": { "type": "boolean" },
+    "scrapeAudio": { "type": "boolean" },
+    "scrapeVideo": { "type": "boolean" },
+    "scrapeEmbed": { "type": "boolean" }
   }
 }
 ```
 
 **Add Tags:** Tags to apply to any Refs created by this feed.
-**Modified:** Last modified date of this Feed.  
-**Last Scrape:** The time this feed was last scraped.  
-**Scrape Interval:** The time interval to scrape this feed. Use ISO 8601 duration format.
-**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
-feed to use for the Ref comment field.  
-**Remove Description Indent:** Remove any indents from the description. This is needed when the
-description is HTML, as indents will trigger a block quote in markdown.
+**Disable Etag:** Don't use etag headers to skip unchanged feeds.
+**Strip Query:** Remove query (HTTP search field) from any scraped links.
+**Scrape Webpage:** Scrape the web-page directly instead.
+**Scrape Description:** Use description field in the feed for the Ref comment field.  
+**Scrape Contents:** Use contents field in the feed for the Ref comment field.
+**Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.
+**Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.
+**Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.
+**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media.
+**Scrape Embed:** Add a `plugin/embed` tag to the Ref to load oEmbed.
 
 The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
 `plugin/feed` it will be skipped.
