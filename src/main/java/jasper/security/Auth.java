@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -936,7 +937,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = new DefaultClaims();
+				claims = claims().build();
 			}
 		}
 		return claims;
