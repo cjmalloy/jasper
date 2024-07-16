@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.client.JasperClient;
+import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -19,12 +21,11 @@ import jasper.service.ExtService;
 import jasper.service.PluginService;
 import jasper.service.ProxyService;
 import jasper.service.RefService;
-import jasper.service.ReplicateService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
+import jasper.service.dto.DtoMapper;
 import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
-import jasper.service.dto.RefDto;
 import jasper.service.dto.RefReplDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -34,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.StreamUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,18 +45,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.client.JasperClient.jasperHeaders;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
 
 @CrossOrigin
@@ -70,7 +77,13 @@ public class ReplicateController {
 	private static final Logger logger = LoggerFactory.getLogger(ReplicateController.class);
 
 	@Autowired
-	ReplicateService replService;
+	Props props;
+
+	@Autowired
+	JasperClient jasperClient;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@Autowired
 	RefService refService;
@@ -100,13 +113,14 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
-		return replService.page(
+		return refService.page(
 				RefFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),
 				PageRequest.of(0, size, by(Ref_.MODIFIED)))
+			.map(mapper::dtoToRepl)
 			.getContent();
 	}
 
@@ -352,12 +366,17 @@ public class ReplicateController {
 	})
 	@GetMapping("cache")
 	void fetch(
+		WebRequest request,
 		HttpServletResponse response,
 		@RequestParam @Length(max = URL_LEN) String url
-	) throws IOException {
+	) throws IOException, URISyntaxException {
 		try (var os = response.getOutputStream()) {
-			proxyService.fetchIfExists(url, os);
-			response.setStatus(HttpStatus.OK.value());
+			if (isNotBlank(props.getCacheApi())) {
+				StreamUtils.copy(jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url).getBody().getInputStream(), os);
+			} else {
+				proxyService.fetchIfExists(url, os);
+				response.setStatus(HttpStatus.OK.value());
+			}
 		}
 	}
 
@@ -367,10 +386,15 @@ public class ReplicateController {
 	})
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping("cache")
-	RefDto save(
+	RefReplDto save(
+		WebRequest request,
 		@RequestParam(required = false) String mime,
 		InputStream data
-	) throws IOException {
-		return proxyService.save(data, mime);
+	) throws IOException, URISyntaxException {
+		if (isNotBlank(props.getCacheApi())) {
+			return jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), mime, data.readAllBytes());
+		} else {
+			return mapper.dtoToRepl(proxyService.save(data, mime));
+		}
 	}
 }

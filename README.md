@@ -571,8 +571,7 @@ When the `scripts` profile is active, scripts may be attached to Refs with eithe
 `plugin/script` tag.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
-include the API endpoint as `JASPER_API` and a storage-enabled API endpoint as `JASPER_CACHE_API` if not supported by
-the first endpoint. Return a non-zero error code to fail the script and attach an error log.
+include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json

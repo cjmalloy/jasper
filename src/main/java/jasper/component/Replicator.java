@@ -46,12 +46,16 @@ public class Replicator {
 
 	@Autowired
 	RefRepository refRepository;
+
 	@Autowired
 	ExtRepository extRepository;
+
 	@Autowired
 	UserRepository userRepository;
+
 	@Autowired
 	PluginRepository pluginRepository;
+
 	@Autowired
 	TemplateRepository templateRepository;
 
@@ -65,7 +69,7 @@ public class Replicator {
 	Validate validate;
 
 	@Autowired
-	JasperMapper jasperMapper;
+	JasperMapper mapper;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -239,7 +243,7 @@ public class Replicator {
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.map(jasperMapper::domainToDto)
+					.map(mapper::domainToDto)
 					.getContent();
 				logger.debug("{} Pushing {} refs to {}",
 					remote.getOrigin(), refList.size(), remoteOrigin);
@@ -272,7 +276,7 @@ public class Replicator {
 							.modifiedAfter(modifiedAfter)
 							.build().spec(),
 						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.map(jasperMapper::domainToDto)
+					.map(mapper::domainToDto)
 					.getContent();
 				logger.debug("{} Pushing {} users to {}",
 					remote.getOrigin(), userList.size(), remoteOrigin);

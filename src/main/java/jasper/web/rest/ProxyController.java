@@ -9,7 +9,6 @@ import jasper.service.ProxyService;
 import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import static jasper.domain.Ref.URL_LEN;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-@Profile("proxy | file-cache")
 @RestController
 @RequestMapping("api/v1/proxy")
 @Validated
