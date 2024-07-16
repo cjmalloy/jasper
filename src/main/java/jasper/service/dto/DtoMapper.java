@@ -20,6 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Filtering mapper. Removes fields hidden to the user.
+ */
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
 
@@ -36,7 +39,7 @@ public abstract class DtoMapper {
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
-	public abstract RefReplDto domainToReplDto(Ref ref);
+	public abstract RefReplDto dtoToRepl(RefDto ref);
 
 	public abstract ExtDto domainToDto(Ext ext);
 

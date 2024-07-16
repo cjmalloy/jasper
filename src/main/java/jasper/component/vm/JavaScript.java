@@ -33,7 +33,6 @@ public class JavaScript {
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
-		const cacheApi = process.argv[3] || api;
 		const [targetScript, inputString] = stdin.split('\\u0000');
 		const patchedFs = {
 		  ...fs,
@@ -45,10 +44,7 @@ public class JavaScript {
 		const context = vm.createContext({
 	      console,
 		  process: {
-		    env: {
-			  JASPER_API: api,
-			  JASPER_CACHE_API: cacheApi
-		    },
+		    env: { JASPER_API: api },
 		    exit: process.exit,
 		  },
 		  require(mod) {
@@ -63,7 +59,7 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws IOException, InterruptedException, ScriptException {
-		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api, props.getCacheApi());
+		var processBuilder = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api);
 		var process = processBuilder.start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
