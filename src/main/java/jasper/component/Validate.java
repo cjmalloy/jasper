@@ -198,6 +198,7 @@ public class Validate {
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (ref.getTags() == null || !ref.getTags().contains(field)) {
+					logger.debug("{} Plugin missing tag: {}", origin, field);
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
 				}
@@ -229,6 +230,7 @@ public class Validate {
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
+				logger.debug("{} Plugin data not allowed: {}", origin, tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
@@ -242,7 +244,7 @@ public class Validate {
 		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
-				plugin(schema, tag, defaults);
+				plugin(schema, tag, origin, defaults);
 			} catch (Exception e) {
 				logger.error("Defaults for {} Plugin do not pass validation", tag);
 				// Defaults don't validate anyway,
@@ -251,7 +253,7 @@ public class Validate {
 			}
 		}
 		try {
-			plugin(schema, tag, ref.getPlugin(tag));
+			plugin(schema, tag, origin, ref.getPlugin(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
 			ref.setPlugin(tag, defaults);
@@ -281,7 +283,7 @@ public class Validate {
 		return result;
 	}
 
-	private void plugin(Schema schema, String tag, JsonNode plugin) {
+	private void plugin(Schema schema, String tag, String origin, JsonNode plugin) {
 		if (plugin == null || plugin.isNull()) {
 			// Allow null to stand in for empty objects or arrays
 			if (schema.getOptionalProperties() != null) {
@@ -295,7 +297,7 @@ public class Validate {
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(plugin));
 			for (var error : errors) {
-				logger.debug("Error validating plugin {}: {}", tag, error);
+				logger.debug("{} Error validating plugin {}: {}", origin, tag, error);
 			}
 			if (!errors.isEmpty()) {
 				throw new InvalidPluginException(tag + ": " + errors);
