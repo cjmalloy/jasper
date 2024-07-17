@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -230,7 +231,9 @@ public class Validate {
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
-				logger.debug("{} Plugin data not allowed: {}", origin, tag);
+				if (logger.isDebugEnabled()) try {
+					logger.debug("{} Plugin data not allowed: {} {}", origin, tag, objectMapper.writeValueAsString(ref.getPlugin(tag)));
+				} catch (JsonProcessingException e) {}
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
