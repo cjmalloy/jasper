@@ -232,7 +232,7 @@ public class Validate {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
 				if (logger.isDebugEnabled()) try {
-					logger.debug("{} Plugin data not allowed: {} {}", origin, tag, objectMapper.writeValueAsString(ref.getPlugin(tag)));
+					logger.debug("{} Plugin data not allowed: {} {}", origin, tag, plugin.isEmpty() ? null : objectMapper.writeValueAsString(plugin.get()));
 				} catch (JsonProcessingException e) {}
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
