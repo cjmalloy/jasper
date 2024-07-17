@@ -3,6 +3,7 @@ package jasper.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -10,6 +11,8 @@ import com.jsontypedef.jtd.Validator;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.zalando.problem.jackson.ProblemModule;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 
@@ -30,6 +33,20 @@ public class JacksonConfiguration {
             return "{error}" + any.getClass().getName();
         }
     }
+
+	@Bean
+	@Primary
+	ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+		return builder.createXmlMapper(false).build();
+	}
+
+	@Bean("yamlMapper")
+	public ObjectMapper yamlMapper(Jackson2ObjectMapperBuilder builder) {
+		return builder
+			.createXmlMapper(false)
+			.factory(new YAMLFactory())
+			.build();
+	}
 
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {

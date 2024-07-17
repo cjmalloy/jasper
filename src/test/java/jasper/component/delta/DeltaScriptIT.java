@@ -37,7 +37,7 @@ public class DeltaScriptIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
-	Plugin getJavaScriptPlugin(String tag, String script) {
+	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
 		var mapper = new ObjectMapper();
@@ -45,12 +45,14 @@ public class DeltaScriptIT {
 			plugin.setConfig((ObjectNode) mapper.readTree("""
 			{
 				"timeoutMs": 30000,
-				"language": "javascript",
+				"format": "json",
+				"language": "",
 				"script": ""
 			}"""));
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException(e);
 		}
+		plugin.getConfig().set("language", TextNode.valueOf(language));
 		plugin.getConfig().set("script", TextNode.valueOf(script));
 		return plugin;
 	}
@@ -87,7 +89,39 @@ public class DeltaScriptIT {
 			  ref: [output],
 			}));
 		""";
-		pluginRepository.save(getJavaScriptPlugin("plugin/delta/test", upperCaseScript));
+		pluginRepository.save(getScriptPlugin("plugin/delta/test", "javascript", upperCaseScript));
+		var url = "comment:" + UUID.randomUUID();
+		var input = getRef(url, "My Ref", "test", "public", "plugin/delta/test");
+		refRepository.save(input);
+
+		deltaScript.run(input);
+
+		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
+		assertThat(responses.size()).isEqualTo(1);
+		var output = responses.get(0);
+		assertThat(output.getComment()).isEqualTo("TEST");
+	}
+
+	@Test
+	void testPythonUpperCaseRef() throws Exception {
+		// language=Python
+		var upperCaseScript = """
+import sys
+import json
+from uuid import uuid4
+ref = json.loads(sys.stdin.read());
+output = {
+  'url': 'comment:' + str(uuid4()),
+  'sources': [ref['url']],
+  'title': 'Re: ' + ref['title'],
+  'comment': ref['comment'].upper(),
+  'tags': ['public', '+plugin/delta/test', '+needle'],
+};
+print(json.dumps({
+  'ref': [output],
+}))
+		""";
+		pluginRepository.save(getScriptPlugin("plugin/delta/test", "python", upperCaseScript));
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public", "plugin/delta/test");
 		refRepository.save(input);
