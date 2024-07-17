@@ -183,6 +183,7 @@ public class Ref implements HasTags {
 	@JsonIgnore
 	public Ref addTag(String tag) {
 		if (isBlank(tag)) return this;
+		if (isBlank(tag)) return this;
 		if (tags == null) {
 			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
