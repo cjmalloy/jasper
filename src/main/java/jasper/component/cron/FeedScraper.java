@@ -9,11 +9,13 @@ import jasper.domain.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 
+@Profile("scripts")
 @Component
 public class FeedScraper implements Scheduler.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(FeedScraper.class);
