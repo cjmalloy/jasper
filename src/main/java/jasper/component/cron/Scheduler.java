@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
@@ -35,6 +36,9 @@ import static org.springframework.data.domain.Sort.by;
 @Component
 public class Scheduler {
 	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
+
+	@Autowired
+	Environment env;
 
 	@Qualifier("cronScheduler")
 	@Autowired
@@ -83,16 +87,19 @@ public class Scheduler {
 			tasks.remove(key);
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
-			logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (existing != null) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (hasMatchingTag(ref, "+plugin/error")) {
-			logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (existing != null) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		var origin = ref.getOrigin();
+		if (hasMatchingTag(ref, "plugin/script") || hasMatchingTag(ref, "plugin/feed") || hasMatchingTag(ref, "+plugin/delta")) {
+			if (env.matchesProfiles("!scripts")) return;
+			if (!root.getScriptOrigins().contains(origin(origin))) return;
+		}
 		var url = ref.getUrl();
-		if (!root.getScriptOrigins().contains(origin(origin))) return;
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
 		if (config.getInterval().toMinutes() < 1) {
@@ -117,7 +124,7 @@ public class Scheduler {
 					.query("+plugin/cron:!+plugin/error")
 					.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
 					.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
-				if (maybeRef.isEmpty()) return;
+				if (maybeRef.isEmpty()) break;
 				var ref = maybeRef.getContent().getFirst();
 				lastModified = ref.getModified();
 				schedule(ref);
