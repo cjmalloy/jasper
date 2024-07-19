@@ -82,9 +82,14 @@ public class Scheduler {
 			existing.cancel(false);
 			tasks.remove(key);
 		}
-		if (ref.getTags() == null) return;
-		if (hasMatchingTag(ref, "+plugin/error")) return;
-		if (!hasMatchingTag(ref, "+plugin/cron")) return;
+		if (!hasMatchingTag(ref, "+plugin/cron")) {
+			logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			return;
+		}
+		if (hasMatchingTag(ref, "+plugin/error")) {
+			logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			return;
+		}
 		var origin = ref.getOrigin();
 		var url = ref.getUrl();
 		if (!root.getScriptOrigins().contains(origin(origin))) return;
@@ -93,6 +98,7 @@ public class Scheduler {
 		if (config.getInterval().toMinutes() < 1) {
 			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
 		} else {
+			logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
 			tasks.put(key, taskScheduler.scheduleWithFixedDelay(
 				() -> runSchedule(url, origin),
 				Instant.now().plus(config.getInterval()),

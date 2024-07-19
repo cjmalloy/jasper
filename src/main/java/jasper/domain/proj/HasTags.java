@@ -30,6 +30,8 @@ public interface HasTags extends Cursor {
 	}
 
 	static boolean hasMatchingTag(HasTags hasTags, String prefix) {
+		if (hasTags == null) return false;
+		if (hasTags.getTags() == null) return false;
 		return hasTags.getTags().stream().anyMatch(t -> matchesTag(prefix, t));
 	}
 
