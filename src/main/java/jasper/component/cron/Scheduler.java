@@ -94,7 +94,7 @@ public class Scheduler {
 			return;
 		}
 		var origin = ref.getOrigin();
-		if (hasMatchingTag(ref, "plugin/script") || hasMatchingTag(ref, "plugin/feed") || hasMatchingTag(ref, "+plugin/delta")) {
+		if (hasMatchingTag(ref, "plugin/script") || hasMatchingTag(ref, "plugin/feed")) {
 			if (env.matchesProfiles("!scripts")) return;
 			if (!root.getScriptOrigins().contains(origin(origin))) return;
 		}
