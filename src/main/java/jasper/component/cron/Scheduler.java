@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 
-import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static org.springframework.data.domain.Sort.by;
@@ -93,11 +92,8 @@ public class Scheduler {
 			if (existing != null) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
+		if (!hasScheduler(ref)) return;
 		var origin = ref.getOrigin();
-		if (hasMatchingTag(ref, "plugin/script") || hasMatchingTag(ref, "plugin/feed")) {
-			if (env.matchesProfiles("!scripts")) return;
-			if (!root.getScriptOrigins().contains(origin(origin))) return;
-		}
 		var url = ref.getUrl();
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
@@ -129,6 +125,11 @@ public class Scheduler {
 				schedule(ref);
 			}
 		}
+	}
+
+	private boolean hasScheduler(HasTags ref) {
+		for (var tag : tags.keySet()) if (hasMatchingTag(ref, tag)) return true;
+		return false;
 	}
 
 	private String getKey(HasTags ref) {
