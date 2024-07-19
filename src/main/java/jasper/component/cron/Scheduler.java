@@ -23,7 +23,6 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
@@ -122,7 +121,7 @@ public class Scheduler {
 				var maybeRef = refRepository.findAll(RefFilter.builder()
 					.origin(origin)
 					.query("+plugin/cron:!+plugin/error")
-					.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
+					.modifiedAfter(lastModified)
 					.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
 				if (maybeRef.isEmpty()) break;
 				var ref = maybeRef.getContent().getFirst();
