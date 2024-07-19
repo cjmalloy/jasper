@@ -105,7 +105,8 @@ public class UserService {
 		var existing = maybeExisting.get();
 		user.addReadAccess(auth.hiddenTags(existing.getReadAccess()));
 		user.addWriteAccess(auth.hiddenTags(existing.getWriteAccess()));
-		if (user.getKey() == null) user.setKey(existing.getKey());
+		user.setKey(existing.getKey());
+		user.setPubKey(existing.getPubKey());
 		ingest.update(user);
 		return user.getModified();
 	}

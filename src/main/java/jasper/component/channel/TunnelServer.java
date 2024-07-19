@@ -34,6 +34,7 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
+		if (configs.root().getSshOrigins().isEmpty()) return;
 		var root = configs.root();
 		if (root.getSshOrigins().contains(message.getPayload().getOrigin())) {
 			generateConfig();
@@ -42,6 +43,7 @@ public class TunnelServer {
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		if (configs.root().getSshOrigins().isEmpty()) return;
 		if (isBlank(origin(message.getHeaders().get("origin").toString())) && "_config/server".equals(message.getPayload().getTag())) {
 			generateConfig();
 		}
@@ -56,17 +58,21 @@ public class TunnelServer {
 				.append("\n# ")
 				.append(isBlank(origin) ? "default" : origin)
 				.append("\n");
-			for (var u : userRepository.findAllByOriginAndPubKeyIsNotNull(origin)) {
-				if (u.getPubKey().length == 0) continue;
+			for (var u : userRepository.findAllByOriginAndAuthorizedKeysIsNotNull(origin)) {
+				if (isBlank(u.getAuthorizedKeys())) continue;
 				logger.debug("Enabling SSH access for {}",  u.getTag() + u.getOrigin());
-				var parts = new String(u.getPubKey()).split("\\s+");
-				result
-					.append(parts[0])
-					.append(" ")
-					.append(parts[1])
-					.append(" ")
-					.append(u.getQualifiedTag())
-					.append("\n");
+				var lines = u.getAuthorizedKeys().split("\n");
+				for (var l : lines) {
+					if (isBlank(l)) continue;
+					var parts = l.split("\\s+");
+					result
+						.append(parts[0])
+						.append(" ")
+						.append(parts[1])
+						.append(" ")
+						.append(u.getQualifiedTag())
+						.append("\n");
+				}
 			}
 		}
 		try (var client = new DefaultKubernetesClient()) {

@@ -139,7 +139,8 @@ public class IngestUser {
 						user.getTagWriteAccess() == null ? null : objectMapper.convertValue(user.getTagWriteAccess(), ArrayNode.class),
 						user.getModified(),
 						user.getKey(),
-						user.getPubKey());
+						user.getPubKey(),
+						user.getAuthorizedKeys());
 					if (updated == 0) {
 						throw new ModifiedException("User");
 					}
