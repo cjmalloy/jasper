@@ -68,7 +68,7 @@ public class TunnelClient {
 					client.setUserInteraction(new GetBanner() {
 						@Override
 						public void banner(String banner) {
-							logger.info("Received SSH banner: {}", banner);
+							logger.debug("Received SSH banner: {}", banner);
 							try {
 								httpPort[0] = Integer.parseInt(banner);
 							} catch (Exception e) {

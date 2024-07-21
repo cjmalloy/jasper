@@ -92,8 +92,8 @@ public class Validate {
 	}
 
 	@Timed("jasper.validate")
-	public void ext(Ext ext, String origin, boolean stripOnError) {
-		var templates = configs.getSchemas(ext.getTag(), origin);
+	public void ext(Ext ext, String validationOrigin, boolean stripOnError) {
+		var templates = configs.getSchemas(ext.getTag(), validationOrigin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
@@ -116,19 +116,19 @@ public class Validate {
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
-				template(schema, ext.getTag(), mergedDefaults);
+				template(ext.getOrigin(), schema, ext.getTag(), mergedDefaults);
 			} catch (Exception e) {
-				logger.error("Defaults for {} Template do not pass validation", ext.getTag());
+				logger.error("{} Defaults for {} Template do not pass validation", ext.getOrigin(), ext.getTag());
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			template(schema, ext.getTag(), ext.getConfig());
+			template(ext.getOrigin(), schema, ext.getTag(), ext.getConfig());
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			template(schema, ext.getTag(), mergedDefaults);
+			template(ext.getOrigin(), schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
 		}
 	}
@@ -163,7 +163,7 @@ public class Validate {
 			.reduce(null, this::merge);
 	}
 
-	private void template(Schema schema, String tag, JsonNode template) {
+	private void template(String origin, Schema schema, String tag, JsonNode template) {
 		if (template == null || template.isNull()) {
 			// Allow null to stand in for empty config
 			if (schema.getOptionalProperties() != null) {
@@ -175,7 +175,7 @@ public class Validate {
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(template));
 			for (var error : errors) {
-				logger.debug("Error validating template {}: {}", tag, error);
+				logger.debug("{} Error validating template {}: {}", origin, tag, error);
 			}
 			if (!errors.isEmpty()) {
 				throw new InvalidTemplateException(tag + ": " + errors);
@@ -192,13 +192,13 @@ public class Validate {
 		}
 	}
 
-	private void plugins(Ref ref, String origin, boolean stripOnError) {
+	private void plugins(Ref ref, String validationOrigin, boolean stripOnError) {
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (ref.getTags() == null || !ref.getTags().contains(field)) {
-					logger.debug("{} Plugin missing tag: {}", origin, field);
+					logger.debug("{} Plugin missing tag: {}", ref.getOrigin(), field);
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
 				}
@@ -207,7 +207,7 @@ public class Validate {
 		}
 		if (ref.getTags() == null) return;
 		for (var tag : ref.getTags()) {
-			plugin(ref, tag, origin, stripOnError);
+			plugin(ref, tag, validationOrigin, stripOnError);
 		}
 	}
 
@@ -222,15 +222,15 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugin = configs.getPlugin(tag, origin);
+	private void plugin(Ref ref, String tag, String validationOrigin, boolean stripOnError) {
+		var plugin = configs.getPlugin(tag, validationOrigin);
 		plugin.ifPresent(p -> {
 			if (p.isUserUrl()) userUrl(ref, p);
 		});
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
-				logger.debug("{} Plugin data not allowed: {}", origin, tag);
+				logger.debug("{} Plugin data not allowed: {}", ref.getOrigin(), tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
@@ -244,16 +244,16 @@ public class Validate {
 		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
-				plugin(schema, tag, origin, defaults);
+				plugin(ref.getOrigin(), schema, tag, defaults);
 			} catch (Exception e) {
-				logger.error("Defaults for {} Plugin do not pass validation", tag);
+				logger.error("{} Defaults for {} Plugin do not pass validation", ref.getOrigin(), tag);
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			plugin(schema, tag, origin, ref.getPlugin(tag));
+			plugin(ref.getOrigin(), schema, tag, ref.getPlugin(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
 			ref.setPlugin(tag, defaults);
@@ -283,7 +283,7 @@ public class Validate {
 		return result;
 	}
 
-	private void plugin(Schema schema, String tag, String origin, JsonNode plugin) {
+	private void plugin(String origin, Schema schema, String tag, JsonNode plugin) {
 		if (plugin == null || plugin.isNull()) {
 			// Allow null to stand in for empty objects or arrays
 			if (schema.getOptionalProperties() != null) {
