@@ -145,7 +145,6 @@ public class ConfigCache {
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
-			.or(() -> Optional.of(objectMapper.createObjectNode()))
 			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
@@ -166,7 +165,6 @@ public class ConfigCache {
 	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
-			.or(() -> Optional.of(objectMapper.createObjectNode()))
 			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
@@ -194,7 +192,7 @@ public class ConfigCache {
 	public SecurityConfig security(String origin) {
 		// TODO: crawl origin hierarchy until found
 		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
-			.orElseThrow()
+			.orElse(new SecurityConfig())
 			.wrap(props);
 	}
 

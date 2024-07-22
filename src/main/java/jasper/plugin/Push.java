@@ -14,6 +14,7 @@ import java.time.Instant;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Push implements Serializable {
+	private boolean pushOnChange;
 	private String query;
 	private int batchSize;
 	private boolean checkRemoteCursor;

@@ -1,28 +1,33 @@
 package jasper.component.channel;
 
+import io.vavr.Tuple;
+import io.vavr.Tuple2;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
 import jasper.config.Props;
-import jasper.domain.Ref_;
+import jasper.domain.proj.HasTags;
 import jasper.repository.RefRepository;
-import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.plugin.Origin.getOrigin;
+import static jasper.plugin.Push.getPush;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Push {
@@ -43,8 +48,33 @@ public class Push {
 	@Autowired
 	Replicator replicator;
 
+	@Autowired
+	Watch watch;
+
 	private Map<String, String> lastSent = new ConcurrentHashMap<>();
 	private Map<String, String> queued = new ConcurrentHashMap<>();
+	private Map<String, Set<Tuple2<String, String>>> pushes = new HashMap<>();
+
+	@PostConstruct
+	public void init() {
+		for (var origin : configs.root().getPushOrigins()) {
+			watch.addWatch(origin, "+plugin/origin/push", this::watch);
+		}
+	}
+
+	private void watch(HasTags update) {
+		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
+			.orElseThrow();
+		var origin = getOrigin(remote);
+		var push = getPush(remote);
+		var tuple = Tuple.of(remote.getUrl(), remote.getOrigin());
+		pushes.values().forEach(set -> set.remove(tuple));
+		if (!remote.hasTag("+plugin/error") && push.isPushOnChange()) {
+			pushes
+				.computeIfAbsent(origin.getLocal(), o -> new HashSet<>())
+				.add(tuple);
+		}
+	}
 
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
@@ -52,38 +82,39 @@ public class Push {
 		var origin = origin(message.getHeaders().get("origin").toString());
 		if (!root.getPushOrigins().contains(origin)) return;
 		var cursor = message.getPayload();
-		if (cursor.equals(lastSent.putIfAbsent(origin, cursor))) {
+		if (cursor.equals(lastSent.computeIfAbsent(origin, o -> cursor))) {
 			push(origin);
 		} else {
 			queued.put(origin, cursor);
 		}
 	}
 
+	private void push(String origin) {
+		logger.info(" {} Pushing remotes", origin);
+		if (pushes.containsKey(origin)) {
+			var deleted = new HashSet<Tuple2<String, String>>();
+			pushes.get(origin).forEach(tuple -> {
+				var remote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+				if (remote.isPresent()) {
+					replicator.push(remote.get());
+				} else {
+					deleted.add(tuple);
+				}
+			});
+			deleted.forEach(remote -> pushes.values().forEach(set -> set.remove(remote)));
+		}
+		taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
+	}
+
 	private void checkIfQueued(String origin) {
 		if (isBlank(lastSent.get(origin))) return;
 		var next = queued.remove(origin);
-		lastSent.put(origin, next);
-		if (isNotBlank(next)) push(origin);
-	}
-
-	private void push(String origin) {
-		var root = configs.root();
-		if (!root.getPushOrigins().contains(origin)) return;
-		logger.info(" {} Pushing remotes", origin);
-		Instant lastModified = null;
-		while (true) {
-			var maybeRef = refRepository.findAll(RefFilter.builder()
-				.origin(origin)
-				.query("+plugin/origin/push:!+plugin/error")
-				.modifiedAfter(lastModified)
-				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
-			if (maybeRef.isEmpty()) break;
-			var ref = maybeRef.getContent().getFirst();
-			lastModified = ref.getModified();
-			replicator.push(ref);
+		if (isNotBlank(next)) {
+			lastSent.put(origin, next);
+			push(origin);
+		} else {
+			lastSent.remove(origin);
 		}
-		logger.info("{} Finished pushing remotes.", origin);
-		taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 	}
 
 }

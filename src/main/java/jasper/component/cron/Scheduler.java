@@ -1,27 +1,19 @@
 package jasper.component.cron;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.ConfigCache;
 import jasper.component.Tagger;
+import jasper.component.channel.Watch;
 import jasper.domain.Ref;
-import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import jasper.repository.RefRepository;
-import jasper.repository.filter.RefFilter;
-import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,14 +21,10 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
-import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Scheduler {
 	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
-
-	@Autowired
-	Environment env;
 
 	@Qualifier("cronScheduler")
 	@Autowired
@@ -46,13 +34,13 @@ public class Scheduler {
 	RefRepository refRepository;
 
 	@Autowired
-	ObjectMapper objectMapper;
-
-	@Autowired
 	ConfigCache configs;
 
 	@Autowired
 	Tagger tagger;
+
+	@Autowired
+	Watch watch;
 
 	Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
 
@@ -65,14 +53,11 @@ public class Scheduler {
 		tags.put(plugin, r);
 	}
 
-	@EventListener(ApplicationReadyEvent.class)
+	@PostConstruct
 	public void init() {
-		taskScheduler.schedule(this::reload, Instant.now().plusMillis(1000L));
-	}
-
-	@ServiceActivator(inputChannel = "refRxChannel")
-	public void handleRefUpdate(Message<RefDto> message) {
-		schedule(message.getPayload());
+		for (var origin : configs.root().getScriptOrigins()) {
+			watch.addWatch(origin, "+plugin/cron", this::schedule);
+		}
 	}
 
 	private void schedule(HasTags ref) {
@@ -105,25 +90,6 @@ public class Scheduler {
 				() -> runSchedule(url, origin),
 				Instant.now().plus(config.getInterval()),
 				config.getInterval()));
-		}
-	}
-
-	private void reload() {
-		tasks.forEach((key, c) -> c.cancel(false));
-		tasks.clear();
-		for (String origin : configs.root().getScriptOrigins()) {
-			Instant lastModified = null;
-			while (true) {
-				var maybeRef = refRepository.findAll(RefFilter.builder()
-					.origin(origin)
-					.query("+plugin/cron:!+plugin/error")
-					.modifiedAfter(lastModified)
-					.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
-				if (maybeRef.isEmpty()) break;
-				var ref = maybeRef.getContent().getFirst();
-				lastModified = ref.getModified();
-				schedule(ref);
-			}
 		}
 	}
 

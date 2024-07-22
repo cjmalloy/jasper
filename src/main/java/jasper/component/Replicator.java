@@ -1,7 +1,9 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
+import io.vavr.Tuple2;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
@@ -23,7 +25,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,6 +38,8 @@ import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
@@ -95,7 +101,7 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		Map<String, Object> options = new HashMap<>();
-		options.put("size", pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : Math.min(pull.getBatchSize(), root.getMaxPullEntityBatch()));
+		options.put("size", pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch()));
 		options.put("origin", config.getRemote());
 		tunnel.proxy(remote, url -> {
 			try {
@@ -195,95 +201,105 @@ public class Replicator {
 		var config = getOrigin(remote);
 		var localOrigin = origin(config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		var size = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : Math.min(push.getBatchSize(), root.getMaxPushEntityBatch());
 		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
-			logger.debug("{} Skipping push, up to date {}",
-				remote.getOrigin(), remoteOrigin);
+			logger.debug("{} Skipping push, up to date {}", remote.getOrigin(), remoteOrigin);
 			return;
 		}
+		var logs = new ArrayList<Tuple2<String, String>>();
 		tunnel.proxy(remote, url -> {
 			try {
+				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
 				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
-				var pluginList = pluginRepository.findAll(
-						TagFilter.builder()
-							.origin(localOrigin)
-							.query(push.getQuery())
-							.modifiedAfter(modifiedAfter)
-							.build().spec(),
-						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.getContent();
-				logger.debug("{}. Pushing {} plugins to {}",
-					remote.getOrigin(), pluginList.size(), remoteOrigin);
-				if (!pluginList.isEmpty()) {
-					client.pluginPush(url, remoteOrigin, pluginList);
-					push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
-				}
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+					var pluginList = pluginRepository.findAll(
+							TagFilter.builder()
+								.origin(localOrigin)
+								.query(push.getQuery())
+								.modifiedAfter(after)
+								.build().spec(),
+							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
+						.getContent();
+					logger.debug("{} Pushing {} plugins to {}", remote.getOrigin(), pluginList.size(), remoteOrigin);
+					if (!pluginList.isEmpty()) {
+						client.pluginPush(url, remoteOrigin, pluginList);
+						push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
+					}
+					return  pluginList.size();
+				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, remoteOrigin) : push.getLastModifiedTemplateWritten();
-				var templateList = templateRepository.findAll(
-						TagFilter.builder()
-							.origin(localOrigin)
-							.query(push.getQuery())
-							.modifiedAfter(modifiedAfter)
-							.build().spec(),
-						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.getContent();
-				logger.debug("{} Pushing {} templates to {}",
-					remote.getOrigin(), templateList.size(), remoteOrigin);
-				if (!templateList.isEmpty()) {
-					client.templatePush(url, remoteOrigin, templateList);
-					push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
-				}
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+					var templateList = templateRepository.findAll(
+							TagFilter.builder()
+								.origin(localOrigin)
+								.query(push.getQuery())
+								.modifiedAfter(after)
+								.build().spec(),
+							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
+						.getContent();
+					logger.debug("{} Pushing {} templates to {}", remote.getOrigin(), templateList.size(), remoteOrigin);
+					if (!templateList.isEmpty()) {
+						client.templatePush(url, remoteOrigin, templateList);
+						push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
+					}
+					return templateList.size();
+				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, remoteOrigin) : push.getLastModifiedRefWritten();
-				var refList = refRepository.findAll(
-						RefFilter.builder()
-							.origin(localOrigin)
-							.query(push.getQuery())
-							.modifiedAfter(modifiedAfter)
-							.build().spec(),
-						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.map(mapper::domainToDto)
-					.getContent();
-				logger.debug("{} Pushing {} refs to {}",
-					remote.getOrigin(), refList.size(), remoteOrigin);
-				if (!refList.isEmpty()) {
-					client.refPush(url, remoteOrigin, refList);
-					push.setLastModifiedRefWritten(refList.getLast().getModified());
-				}
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+					var refList = refRepository.findAll(
+							RefFilter.builder()
+								.origin(localOrigin)
+								.query(push.getQuery())
+								.modifiedAfter(after)
+								.build().spec(),
+							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
+						.map(mapper::domainToDto)
+						.getContent();
+					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
+					if (!refList.isEmpty()) {
+						client.refPush(url, remoteOrigin, refList);
+						push.setLastModifiedRefWritten(refList.getLast().getModified());
+					}
+					return refList.size();
+				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, remoteOrigin) : push.getLastModifiedExtWritten();
-				var extList = extRepository.findAll(
-						TagFilter.builder()
-							.origin(localOrigin)
-							.query(push.getQuery())
-							.modifiedAfter(modifiedAfter)
-							.build().spec(),
-						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.getContent();
-				logger.debug("{} Pushing {} exts to {}",
-					remote.getOrigin(), extList.size(), remoteOrigin);
-				if (!extList.isEmpty()) {
-					client.extPush(url, remoteOrigin, extList);
-					push.setLastModifiedExtWritten(extList.getLast().getModified());
-				}
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+					var extList = extRepository.findAll(
+							TagFilter.builder()
+								.origin(localOrigin)
+								.query(push.getQuery())
+								.modifiedAfter(after)
+								.build().spec(),
+							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
+						.getContent();
+					logger.debug("{} Pushing {} exts to {}", remote.getOrigin(), extList.size(), remoteOrigin);
+					if (!extList.isEmpty()) {
+						client.extPush(url, remoteOrigin, extList);
+						push.setLastModifiedExtWritten(extList.getLast().getModified());
+					}
+					return extList.size();
+				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, remoteOrigin) : push.getLastModifiedUserWritten();
-				var userList = userRepository.findAll(
-						TagFilter.builder()
-							.origin(localOrigin)
-							.query(push.getQuery())
-							.modifiedAfter(modifiedAfter)
-							.build().spec(),
-						PageRequest.of(0, size, by(Ref_.MODIFIED)))
-					.map(mapper::domainToDto)
-					.getContent();
-				logger.debug("{} Pushing {} users to {}",
-					remote.getOrigin(), userList.size(), remoteOrigin);
-				if (!userList.isEmpty()) {
-					client.userPush(url, remoteOrigin, userList);
-					push.setLastModifiedUserWritten(userList.getLast().getModified());
-				}
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+					var userList = userRepository.findAll(
+							TagFilter.builder()
+								.origin(localOrigin)
+								.query(push.getQuery())
+								.modifiedAfter(after)
+								.build().spec(),
+							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
+						.map(mapper::domainToDto)
+						.getContent();
+					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
+					if (!userList.isEmpty()) {
+						client.userPush(url, remoteOrigin, userList);
+						push.setLastModifiedUserWritten(userList.getLast().getModified());
+					}
+					return userList.size();
+				}));
 			} catch (Exception e) {
 				logger.error("{} Error pushing {} to origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -291,6 +307,8 @@ public class Replicator {
 					"Error pushing %s to origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
 					e.getMessage());
+			} finally {
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log._1, log._2);
 			}
 		});
 		remote.setPlugin("+plugin/origin/push", push);
@@ -341,6 +359,35 @@ public class Replicator {
 		return true;
 	}
 
+	private List<Tuple2<String, String>> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
+		var logs = new ArrayList<Tuple2<String, String>>();
+		var retry = false;
+		var skip = 0;
+		var size = batchSize;
+		var count = 0;
+		do {
+			retry = false;
+			try {
+				count = fn.fetch(skip, size, modifiedAfter);
+				skip = 0;
+				if (size < batchSize) {
+					size = min(batchSize, size * 2);
+				}
+			} catch (RetryableException e) {
+				if (size == 1) {
+					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
+					logs.add(new Tuple2<>("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
+					skip++;
+				} else {
+					logs.add(new Tuple2<>("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
+					size = max(1, size / 2);
+				}
+				retry = true;
+			}
+		} while (retry || count == size);
+		return logs;
+	}
+
 	public static boolean isDeletorTag(String tag) {
 		return localTag(tag).endsWith("/deleted");
 	}
@@ -351,6 +398,10 @@ public class Replicator {
 
 	public static String deletedTag(String deletor) {
 		return localTag(deletor).substring("/deleted".length()) + tagOrigin(deletor);
+	}
+
+	interface ExpBackoff {
+		int fetch(int skip, int size, Instant after) throws RetryableException;
 	}
 
 }
