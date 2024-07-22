@@ -59,7 +59,7 @@ public class IngestTemplate {
 		} else {
 			delete(deletorTag(template.getTag()) + template.getOrigin());
 		}
-		validate.template(template);
+		validate.template(template.getOrigin(), template);
 		ensureCreateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
@@ -67,14 +67,14 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
 		if (!templateRepository.existsByQualifiedTag(template.getTag() + template.getOrigin())) throw new NotFoundException("Template");
-		validate.template(template);
+		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void push(Template template) {
-		validate.template(template);
+		validate.template(template.getOrigin(), template);
 		try {
 			templateRepository.save(template);
 		} catch (DataIntegrityViolationException e) {

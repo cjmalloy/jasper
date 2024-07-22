@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
+import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static jasper.domain.proj.HasOrigin.origin;
@@ -100,88 +102,117 @@ public class Replicator {
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		Map<String, Object> options = new HashMap<>();
-		options.put("size", pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch()));
-		options.put("origin", config.getRemote());
+		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
+		var logs = new ArrayList<Tuple2<String, String>>();
 		tunnel.proxy(remote, url -> {
 			try {
-				options.put("modifiedAfter", pluginRepository.getCursor(localOrigin));
-				for (var plugin : client.pluginPull(url, options)) {
-					plugin.setOrigin(localOrigin);
-					pluginRepository.save(plugin);
-					if (isDeletorTag(plugin.getTag())) {
-						pluginRepository.deleteByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin());
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var pluginList = client.pluginPull(url, Map.of(
+						"size", size,
+						"origin", config.getRemote(),
+						"modifiedAfter", after));
+					for (var plugin : pluginList) {
+						plugin.setOrigin(localOrigin);
+						pluginRepository.save(plugin);
+						if (isDeletorTag(plugin.getTag())) {
+							pluginRepository.deleteByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin());
+						}
 					}
-				}
-				options.put("modifiedAfter", templateRepository.getCursor(localOrigin));
-				for (var template : client.templatePull(url, options)) {
-					template.setOrigin(localOrigin);
-					templateRepository.save(template);
-					if (isDeletorTag(template.getTag())) {
-						pluginRepository.deleteByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin());
+					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var templateList = client.templatePull(url, Map.of(
+						"size", size,
+						"origin", config.getRemote(),
+						"modifiedAfter", after));
+					for (var template : templateList) {
+						template.setOrigin(localOrigin);
+						templateRepository.save(template);
+						if (isDeletorTag(template.getTag())) {
+							pluginRepository.deleteByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin());
+						}
 					}
-				}
+					return templateList.size() == size ? templateList.getLast().getModified() : null;
+				}));
 				var metadataPlugins = configs.getMetadataPlugins(origin(pull.getValidationOrigin()));
-				options.put("modifiedAfter", refRepository.getCursor(localOrigin));
-				for (var ref : client.refPull(url, options)) {
-					ref.setOrigin(localOrigin);
-					pull.migrate(ref, config);
-					Optional<Ref> maybeExisting = empty();
-					if (pull.isGenerateMetadata()) {
-						maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-						meta.ref(ref, metadataPlugins);
-					}
-					try {
-						if (pull.isValidatePlugins()) {
-							validate.ref(ref, pull.getValidationOrigin(), pull.isStripInvalidPlugins());
-						}
-						refRepository.save(ref);
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var refList = client.refPull(url, Map.of(
+						"size", size,
+						"origin", config.getRemote(),
+						"modifiedAfter", after));
+					for (var ref : refList) {
+						ref.setOrigin(localOrigin);
+						pull.migrate(ref, config);
+						Optional<Ref> maybeExisting = empty();
 						if (pull.isGenerateMetadata()) {
-							meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
-							messages.updateRef(ref);
+							maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+							meta.ref(ref, metadataPlugins);
 						}
-					} catch (RuntimeException e) {
-						logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
-							remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
-						tagger.attachLogs(remote.getOrigin(), remote,
-							"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
-								ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-							e.getMessage());
-					}
-				}
-				options.put("modifiedAfter", extRepository.getCursor(localOrigin));
-				for (var ext : client.extPull(url, options)) {
-					ext.setOrigin(localOrigin);
-					try {
-						if (pull.isValidateTemplates()) {
-							validate.ext(ext, pull.getValidationOrigin(), pull.isStripInvalidTemplates());
+						try {
+							if (pull.isValidatePlugins()) {
+								validate.ref(remote.getOrigin(), ref, Objects.toString(pull.getValidationOrigin(), localOrigin), pull.isStripInvalidPlugins());
+							}
+							refRepository.save(ref);
+							if (pull.isGenerateMetadata()) {
+								meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
+								messages.updateRef(ref);
+							}
+						} catch (RuntimeException e) {
+							logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
+								remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+							logs.add(Tuple.of(
+								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
+									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+								e.getMessage()));
 						}
-						extRepository.save(ext);
-						if (isDeletorTag(ext.getTag())) {
-							pluginRepository.deleteByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin());
+					}
+					return refList.size() == size ? refList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var extList = client.extPull(url, Map.of(
+						"size", size,
+						"origin", config.getRemote(),
+						"modifiedAfter", after));
+					for (var ext : extList) {
+						ext.setOrigin(localOrigin);
+						try {
+							if (pull.isValidateTemplates()) {
+								validate.ext(remote.getOrigin(), ext, Objects.toString(pull.getValidationOrigin(), localOrigin), pull.isStripInvalidTemplates());
+							}
+							extRepository.save(ext);
+							if (isDeletorTag(ext.getTag())) {
+								pluginRepository.deleteByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin());
+							}
+						} catch (RuntimeException e) {
+							logger.warn("{} Failed Template Validation! Skipping replication of ext ({}) {}: {}",
+								remote.getOrigin(), ext.getOrigin(), ext.getName(), ext.getQualifiedTag());
+							tagger.attachLogs(remote.getOrigin(), remote,
+								"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
+									ext.getName(), ext.getQualifiedTag()),
+								e.getMessage());
 						}
-					} catch (RuntimeException e) {
-						logger.warn("{} Failed Template Validation! Skipping replication of ext ({}) {}: {}",
-							remote.getOrigin(), ext.getOrigin(), ext.getName(), ext.getQualifiedTag(), e);
-						tagger.attachLogs(remote.getOrigin(), remote,
-							"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
-								ext.getName(), ext.getQualifiedTag()),
-							e.getMessage());
 					}
-				}
-				options.put("modifiedAfter", userRepository.getCursor(localOrigin));
-				for (var user : client.userPull(url, options)) {
-					user.setOrigin(localOrigin);
-					pull.migrate(user, config);
-					var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-					if (maybeExisting.isPresent() && user.getKey() == null) {
-						user.setKey(maybeExisting.get().getKey());
+					return extList.size() == size ? extList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var userList = client.userPull(url, Map.of(
+						"size", size,
+						"origin", config.getRemote(),
+						"modifiedAfter", after));
+					for (var user : userList) {
+						user.setOrigin(localOrigin);
+						pull.migrate(user, config);
+						var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+						if (maybeExisting.isPresent() && user.getKey() == null) {
+							user.setKey(maybeExisting.get().getKey());
+						}
+						userRepository.save(user);
+						if (isDeletorTag(user.getTag())) {
+							pluginRepository.deleteByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin());
+						}
 					}
-					userRepository.save(user);
-					if (isDeletorTag(user.getTag())) {
-						pluginRepository.deleteByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin());
-					}
-				}
+					return userList.size() == size ? userList.getLast().getModified() : null;
+				}));
 			} catch (Exception e) {
 				logger.error("{} Error pulling {} from origin {} {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -224,7 +255,7 @@ public class Replicator {
 						client.pluginPush(url, remoteOrigin, pluginList);
 						push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
 					}
-					return  pluginList.size();
+					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, remoteOrigin) : push.getLastModifiedTemplateWritten();
@@ -242,7 +273,7 @@ public class Replicator {
 						client.templatePush(url, remoteOrigin, templateList);
 						push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
 					}
-					return templateList.size();
+					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, remoteOrigin) : push.getLastModifiedRefWritten();
@@ -261,7 +292,7 @@ public class Replicator {
 						client.refPush(url, remoteOrigin, refList);
 						push.setLastModifiedRefWritten(refList.getLast().getModified());
 					}
-					return refList.size();
+					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, remoteOrigin) : push.getLastModifiedExtWritten();
@@ -279,7 +310,7 @@ public class Replicator {
 						client.extPush(url, remoteOrigin, extList);
 						push.setLastModifiedExtWritten(extList.getLast().getModified());
 					}
-					return extList.size();
+					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
 
 				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, remoteOrigin) : push.getLastModifiedUserWritten();
@@ -298,7 +329,7 @@ public class Replicator {
 						client.userPush(url, remoteOrigin, userList);
 						push.setLastModifiedUserWritten(userList.getLast().getModified());
 					}
-					return userList.size();
+					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
 			} catch (Exception e) {
 				logger.error("{} Error pushing {} to origin ({}) {}: {}",
@@ -368,7 +399,7 @@ public class Replicator {
 		do {
 			retry = false;
 			try {
-				count = fn.fetch(skip, size, modifiedAfter);
+				modifiedAfter = fn.fetch(skip, size, modifiedAfter);
 				skip = 0;
 				if (size < batchSize) {
 					size = min(batchSize, size * 2);
@@ -384,7 +415,7 @@ public class Replicator {
 				}
 				retry = true;
 			}
-		} while (retry || count == size);
+		} while (retry || modifiedAfter != null);
 		return logs;
 	}
 
@@ -401,7 +432,7 @@ public class Replicator {
 	}
 
 	interface ExpBackoff {
-		int fetch(int skip, int size, Instant after) throws RetryableException;
+		Instant fetch(int skip, int size, Instant after) throws RetryableException;
 	}
 
 }

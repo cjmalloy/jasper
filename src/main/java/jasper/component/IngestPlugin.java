@@ -59,7 +59,7 @@ public class IngestPlugin {
 		} else {
 			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
 		}
-		validate.plugin(plugin);
+		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
@@ -67,14 +67,14 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
 		if (!pluginRepository.existsByQualifiedTag(plugin.getTag() + plugin.getOrigin())) throw new NotFoundException("Plugin");
-		validate.plugin(plugin);
+		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void push(Plugin plugin) {
-		validate.plugin(plugin);
+		validate.plugin(plugin.getOrigin(), plugin);
 		try {
 			pluginRepository.save(plugin);
 		} catch (DataIntegrityViolationException e) {

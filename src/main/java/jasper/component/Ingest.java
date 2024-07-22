@@ -65,7 +65,7 @@ public class Ingest {
 	public void create(Ref ref, boolean force) {
 		ref.addHierarchicalTags();
 		ref.setCreated(Instant.now());
-		validate.ref(ref, force);
+		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, null);
 		meta.ref(ref, null);
 		ensureCreateUniqueModified(ref);
@@ -78,7 +78,7 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
-		validate.ref(ref, force);
+		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, maybeExisting.get());
 		meta.ref(ref, null);
 		ensureUpdateUniqueModified(ref);
@@ -90,7 +90,7 @@ public class Ingest {
 	public void push(Ref ref, List<String> metadataPlugins) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		validate.ref(ref, true);
+		validate.ref(ref.getOrigin(), ref, true);
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.ref(ref, metadataPlugins);
 		try {
