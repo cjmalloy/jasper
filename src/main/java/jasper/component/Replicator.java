@@ -392,12 +392,9 @@ public class Replicator {
 
 	private List<Tuple2<String, String>> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
 		var logs = new ArrayList<Tuple2<String, String>>();
-		var retry = false;
 		var skip = 0;
 		var size = batchSize;
-		var count = 0;
 		do {
-			retry = false;
 			try {
 				modifiedAfter = fn.fetch(skip, size, modifiedAfter);
 				skip = 0;
@@ -413,9 +410,8 @@ public class Replicator {
 					logs.add(new Tuple2<>("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
 					size = max(1, size / 2);
 				}
-				retry = true;
 			}
-		} while (retry || modifiedAfter != null);
+		} while (modifiedAfter != null);
 		return logs;
 	}
 
