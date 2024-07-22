@@ -67,7 +67,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void push(Ext ext) {
-		ingest.push(ext);
+		ingest.push(ext, ext.getOrigin(), true);
 	}
 
 	@Transactional(readOnly = true)

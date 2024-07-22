@@ -9,6 +9,7 @@ import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Push;
 import jasper.repository.ExtRepository;
@@ -50,9 +51,6 @@ public class Replicator {
 	private static final Logger logger = LoggerFactory.getLogger(Replicator.class);
 
 	@Autowired
-	Auth auth;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -71,22 +69,25 @@ public class Replicator {
 	JasperClient client;
 
 	@Autowired
-	Meta meta;
+	Ingest ingestRef;
 
 	@Autowired
-	Validate validate;
+	IngestExt ingestExt;
+
+	@Autowired
+	IngestUser ingestUser;
+
+	@Autowired
+	IngestPlugin ingestPlugin;
+
+	@Autowired
+	IngestTemplate ingestTemplate;
 
 	@Autowired
 	JasperMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
-
-	@Autowired
 	TunnelClient tunnel;
-
-	@Autowired
-	Messages messages;
 
 	@Autowired
 	ConfigCache configs;
@@ -113,9 +114,16 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var plugin : pluginList) {
 						plugin.setOrigin(localOrigin);
-						pluginRepository.save(plugin);
-						if (isDeletorTag(plugin.getTag())) {
-							pluginRepository.deleteByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin());
+						try {
+							ingestPlugin.push(plugin);
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping plugin with duplicate modified date {}: {}",
+								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
+							logs.add(Tuple.of(
+								"Skipping replication of plugin with duplicate modified date %s: %s".formatted(
+									plugin.getName(), plugin.getTag()),
+								""+plugin.getModified()));
 						}
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
@@ -127,14 +135,21 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var template : templateList) {
 						template.setOrigin(localOrigin);
-						templateRepository.save(template);
-						if (isDeletorTag(template.getTag())) {
-							pluginRepository.deleteByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin());
+						try {
+							ingestTemplate.push(template);
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping template with duplicate modified date {}: {}",
+								remote.getOrigin(), template.getName(), template.getQualifiedTag());
+							logs.add(Tuple.of(
+								"Skipping replication of template with duplicate modified date %s: %s".formatted(
+									template.getName(), template.getTag()),
+								""+template.getModified()));
 						}
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				var metadataPlugins = configs.getMetadataPlugins(origin(pull.getValidationOrigin()));
+				var validationOrigin = Objects.toString(pull.getValidationOrigin(), localOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var refList = client.refPull(url, Map.of(
 						"size", size,
@@ -143,20 +158,16 @@ public class Replicator {
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
-						Optional<Ref> maybeExisting = empty();
-						if (pull.isGenerateMetadata()) {
-							maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-							meta.ref(ref, metadataPlugins);
-						}
 						try {
-							if (pull.isValidatePlugins()) {
-								validate.ref(remote.getOrigin(), ref, Objects.toString(pull.getValidationOrigin(), localOrigin), pull.isStripInvalidPlugins());
-							}
-							refRepository.save(ref);
-							if (pull.isGenerateMetadata()) {
-								meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
-								messages.updateRef(ref);
-							}
+							ingestRef.push(ref, validationOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
+								remote.getOrigin(), ref.getTitle(), ref.getUrl());
+							logs.add(Tuple.of(
+								"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
+									ref.getTitle(), ref.getUrl()),
+								""+ref.getModified()));
 						} catch (RuntimeException e) {
 							logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
 								remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
@@ -176,16 +187,18 @@ public class Replicator {
 					for (var ext : extList) {
 						ext.setOrigin(localOrigin);
 						try {
-							if (pull.isValidateTemplates()) {
-								validate.ext(remote.getOrigin(), ext, Objects.toString(pull.getValidationOrigin(), localOrigin), pull.isStripInvalidTemplates());
-							}
-							extRepository.save(ext);
-							if (isDeletorTag(ext.getTag())) {
-								pluginRepository.deleteByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin());
-							}
+							ingestExt.push(ext, validationOrigin, pull.isValidateTemplates());
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping Ext with duplicate modified date {}: {}",
+								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
+							logs.add(Tuple.of(
+								"Skipping replication of template with duplicate modified date %s: %s".formatted(
+									ext.getName(), ext.getTag()),
+								""+ext.getModified()));
 						} catch (RuntimeException e) {
-							logger.warn("{} Failed Template Validation! Skipping replication of ext ({}) {}: {}",
-								remote.getOrigin(), ext.getOrigin(), ext.getName(), ext.getQualifiedTag());
+							logger.warn("{} Failed Template Validation! Skipping replication of ext {}: {}",
+								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 							tagger.attachLogs(remote.getOrigin(), remote,
 								"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
 									ext.getName(), ext.getQualifiedTag()),
@@ -206,9 +219,16 @@ public class Replicator {
 						if (maybeExisting.isPresent() && user.getKey() == null) {
 							user.setKey(maybeExisting.get().getKey());
 						}
-						userRepository.save(user);
-						if (isDeletorTag(user.getTag())) {
-							pluginRepository.deleteByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin());
+						try {
+							ingestUser.push(user);
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping User with duplicate modified date {}: {}",
+								remote.getOrigin(), user.getName(), user.getQualifiedTag());
+							logs.add(Tuple.of(
+								"Skipping replication of user with duplicate modified date %s: %s".formatted(
+									user.getName(), user.getTag()),
+								""+user.getModified()));
 						}
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;

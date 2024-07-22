@@ -72,9 +72,9 @@ public class Validate {
 	}
 
 	@Timed("jasper.validate")
-	public void ref(String origin, Ref ref, String validationOrigin, boolean force) {
+	public void ref(String origin, Ref ref, String pluginOrigin, boolean force) {
 		tags(origin, ref);
-		plugins(origin, ref, validationOrigin, force);
+		plugins(origin, ref, pluginOrigin, force);
 		sources(origin, ref, true);
 		responses(origin, ref, true);
 		sources(origin, ref, false);
@@ -192,7 +192,7 @@ public class Validate {
 		}
 	}
 
-	private void plugins(String origin, Ref ref, String validationOrigin, boolean stripOnError) {
+	private void plugins(String origin, Ref ref, String pluginOrigin, boolean stripOnError) {
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
@@ -207,7 +207,7 @@ public class Validate {
 		}
 		if (ref.getTags() == null) return;
 		for (var tag : ref.getTags()) {
-			plugin(origin, ref, tag, validationOrigin, stripOnError);
+			plugin(origin, ref, tag, pluginOrigin, stripOnError);
 		}
 	}
 
@@ -222,8 +222,8 @@ public class Validate {
 		}
 	}
 
-	private void plugin(String origin, Ref ref, String tag, String validationOrigin, boolean stripOnError) {
-		var plugin = configs.getPlugin(tag, validationOrigin);
+	private void plugin(String origin, Ref ref, String tag, String pluginOrigin, boolean stripOnError) {
+		var plugin = configs.getPlugin(tag, pluginOrigin);
 		plugin.ifPresent(p -> {
 			if (p.isUserUrl()) userUrl(ref, p);
 		});

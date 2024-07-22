@@ -27,6 +27,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
@@ -87,18 +89,18 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, List<String> metadataPlugins) {
+	public void push(Ref ref, String pluginOrigin, boolean validation, boolean generateMetadata) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		validate.ref(ref.getOrigin(), ref, true);
+		if (validation) validate.ref(ref.getOrigin(), ref, pluginOrigin, true);
 		rng.update(ref, maybeExisting.orElse(null));
-		meta.ref(ref, metadataPlugins);
+		if (generateMetadata) meta.ref(ref, pluginOrigin);
 		try {
 			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
-		meta.sources(ref, maybeExisting.orElse(null), metadataPlugins);
+		if (generateMetadata) meta.sources(ref, maybeExisting.orElse(null), pluginOrigin);
 		messages.updateRef(ref);
 	}
 
