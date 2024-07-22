@@ -25,9 +25,6 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class Ingest {
@@ -69,9 +66,9 @@ public class Ingest {
 		ref.setCreated(Instant.now());
 		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, null);
-		meta.ref(ref, null);
+		meta.ref(ref, ref.getOrigin());
 		ensureCreateUniqueModified(ref);
-		meta.sources(ref, null, null);
+		meta.sources(ref, null, ref.getOrigin());
 		messages.updateRef(ref);
 	}
 
@@ -82,9 +79,9 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, maybeExisting.get());
-		meta.ref(ref, null);
+		meta.ref(ref, ref.getOrigin());
 		ensureUpdateUniqueModified(ref);
-		meta.sources(ref, maybeExisting.get(), null);
+		meta.sources(ref, maybeExisting.get(), ref.getOrigin());
 		messages.updateRef(ref);
 	}
 
@@ -110,7 +107,7 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		refRepository.deleteByUrlAndOrigin(url, origin);
-		meta.sources(null, maybeExisting.get(), null);
+		meta.sources(null, maybeExisting.get(), origin);
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {

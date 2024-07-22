@@ -179,7 +179,7 @@ public class ConfigCache {
 	public ServerConfig root() {
 		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
 			return getTemplateConfig("_config/server", "",  ServerConfig.class)
-				.orElseThrow()
+				.orElse(new ServerConfig())
 				.wrap(props);
 		}
 		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
