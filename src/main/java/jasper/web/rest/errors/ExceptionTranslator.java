@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.validation.BindingResult;
@@ -16,6 +18,7 @@ import org.zalando.problem.Problem;
 import org.zalando.problem.ProblemBuilder;
 import org.zalando.problem.Status;
 import org.zalando.problem.StatusType;
+import org.zalando.problem.spring.common.AdviceTraits;
 import org.zalando.problem.spring.web.advice.ProblemHandling;
 import org.zalando.problem.spring.web.advice.security.SecurityAdviceTrait;
 import org.zalando.problem.violations.ConstraintViolationProblem;
@@ -49,6 +52,28 @@ public class ExceptionTranslator implements ProblemHandling, SecurityAdviceTrait
     public ExceptionTranslator(Environment env) {
         this.env = env;
     }
+
+	@Override
+	public ResponseEntity<Problem> create(final Throwable throwable, final Problem problem,
+										  final NativeWebRequest request, final HttpHeaders headers) {
+
+		final HttpStatus status = HttpStatus.valueOf(Optional.ofNullable(problem.getStatus())
+			.orElse(Status.INTERNAL_SERVER_ERROR)
+			.getStatusCode());
+
+		// Only log if it's not a 404 error
+		if (status.value() != 404) {
+			return ProblemHandling.super.create(throwable, problem, request, headers);
+		}
+
+		return process(negotiate(request).map(contentType ->
+				ResponseEntity
+					.status(status)
+					.headers(headers)
+					.contentType(contentType)
+					.body(problem))
+			.orElseGet(() -> fallback(throwable, problem, request, headers)), request);
+	}
 
     /**
      * Post-process the Problem payload to add the message key for the front-end if needed.
