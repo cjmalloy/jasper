@@ -136,8 +136,8 @@ public class Props {
 		private List<String> pullOrigins;
 		private Integer maxPullEntityBatch;
 		private List<String> scriptOrigins;
-		private List<String> scrapeHostWhitelist;
-		private List<String> scrapeHostBlacklist;
+		private List<String> hostWhitelist;
+		private List<String> hostBlacklist;
 	}
 
 	@Getter

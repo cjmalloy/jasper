@@ -21,7 +21,7 @@ public class HostCheck {
 		var root = configs.root();
 		try {
 			var host = InetAddress.getByName(uri.getHost());
-			if (root.getScrapeHostWhitelist() != null && !root.getScrapeHostWhitelist().isEmpty()) {
+			if (root.getHostWhitelist() != null && !root.getHostWhitelist().isEmpty()) {
 				if (!whitelisted(uri.getHost())) return false;
 			} else {
 				if (host.isLoopbackAddress()) return false;
@@ -29,8 +29,8 @@ public class HostCheck {
 				if (host.isAnyLocalAddress()) return false;
 				if (host.isSiteLocalAddress()) return false;
 			}
-			if (root.getScrapeHostBlacklist() != null) {
-				for (var h : root.getScrapeHostBlacklist()) {
+			if (root.getHostBlacklist() != null) {
+				for (var h : root.getHostBlacklist()) {
 					if (uri.getHost().equals(h)) return false;
 				}
 			}
@@ -41,7 +41,7 @@ public class HostCheck {
 	}
 
 	private boolean whitelisted(String host) {
-		for (var h : configs.root().getScrapeHostWhitelist()) {
+		for (var h : configs.root().getHostWhitelist()) {
 			if (host.equals(h)) return true;
 		}
 		return false;

@@ -61,13 +61,13 @@ public interface Config {
 		 */
 		private List<String> scriptOrigins = List.of("");
 		/**
-		 * Whitelist domains to be allowed to scrape.
+		 * Whitelist domains to be allowed to fetch from.
 		 */
-		private List<String> scrapeHostWhitelist = null;
+		private List<String> hostWhitelist = null;
 		/**
-		 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
+		 * Blacklist domains to be allowed to fetch from. Takes precedence over domain whitelist.
 		 */
-		private List<String> scrapeHostBlacklist = List.of("*.local");
+		private List<String> hostBlacklist = List.of("*.local");
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -83,8 +83,8 @@ public interface Config {
 			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
 			if (isNotEmpty(server.getScriptOrigins())) wrapped = wrapped.withScriptOrigins(server.getScriptOrigins());
-			if (isNotEmpty(server.getScrapeHostWhitelist())) wrapped = wrapped.withScrapeHostWhitelist(server.getScrapeHostWhitelist());
-			if (isNotEmpty(server.getScrapeHostBlacklist())) wrapped = wrapped.withScrapeHostBlacklist(server.getScrapeHostBlacklist());
+			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
+			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			return wrapped;
 		}
 
