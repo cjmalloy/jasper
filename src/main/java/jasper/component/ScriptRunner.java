@@ -9,6 +9,7 @@ import jasper.component.vm.JavaScript;
 import jasper.component.vm.Python;
 import jasper.domain.Ref;
 import jasper.errors.ScriptException;
+import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,11 +17,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+
+import static java.security.MessageDigest.getInstance;
+import static org.apache.commons.codec.binary.Hex.encodeHexString;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 public class ScriptRunner {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptRunner.class);
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
 	IngestBundle ingest;
@@ -45,9 +55,22 @@ public class ScriptRunner {
 	ObjectMapper yamlMapper;
 
 	@Timed("jasper.scripts")
-	public void runScripts(Ref ref, Script config) {
+	public void validateScript(String script) throws UntrustedScriptException {
+		if (isEmpty(configs.root().getScriptWhitelist())) return;
+		try {
+			var scriptHash = encodeHexString(getInstance("SHA-256").digest(script.getBytes(StandardCharsets.UTF_8)));
+			if (!configs.root().getScriptWhitelist().contains(scriptHash)) {
+				throw new UntrustedScriptException(scriptHash);
+			}
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Timed("jasper.scripts")
+	public void runScripts(Ref ref, Script config) throws UntrustedScriptException {
 		if (isBlank(config.getScript())) return;
-		// TODO: script hashing to pre-approve scripts
+		validateScript(config.getScript());
 		String input;
 		try {
 			switch (config.getFormat().toLowerCase()) {

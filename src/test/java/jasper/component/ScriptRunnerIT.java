@@ -3,6 +3,7 @@ package jasper.component;
 import jasper.IntegrationTest;
 import jasper.config.Props;
 import jasper.domain.Ref;
+import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +45,7 @@ public class ScriptRunnerIT {
 	}
 
 	@Test
-	void testJavaScriptJson() {
+	void testJavaScriptJson() throws UntrustedScriptException {
 		// language=JavaScript
 		var upperCaseScript = """
 			const fs = require('fs');
@@ -79,7 +80,7 @@ public class ScriptRunnerIT {
 	}
 
 	@Test
-	void testPythonJson() {
+	void testPythonJson() throws UntrustedScriptException {
 		// language=Python
 		var upperCaseScript = """
 import sys
@@ -115,7 +116,7 @@ print(json.dumps({
 	}
 
 	@Test
-	void testJavaScriptYaml() {
+	void testJavaScriptYaml() throws UntrustedScriptException {
 		// language=JavaScript
 		var upperCaseScript = """
 			const fs = require('fs');
@@ -151,7 +152,7 @@ print(json.dumps({
 	}
 
 	@Test
-	void testPythonYaml() {
+	void testPythonYaml() throws UntrustedScriptException {
 		// language=Python
 		var upperCaseScript = """
 import sys

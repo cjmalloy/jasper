@@ -64,6 +64,10 @@ public interface Config {
 		 */
 		private List<String> scriptSelectors = List.of("");
 		/**
+		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
+		 */
+		private List<String> scriptWhitelist = null;
+		/**
 		 * Whitelist domains to be allowed to fetch from.
 		 */
 		private List<String> hostWhitelist = null;
@@ -93,6 +97,7 @@ public interface Config {
 			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
 			if (isNotEmpty(server.getScriptSelectors())) wrapped = wrapped.withScriptSelectors(server.getScriptSelectors());
+			if (isNotEmpty(server.getScriptWhitelist())) wrapped = wrapped.withScriptWhitelist(server.getScriptWhitelist());
 			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			return wrapped;

@@ -4,6 +4,7 @@ import jasper.component.ConfigCache;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
+import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +48,12 @@ public class CronScript implements Scheduler.CronRunner {
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/script", publicTag(t))).toList()) {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent()) {
-				scriptRunner.runScripts(ref, config.get());
+				try {
+					scriptRunner.runScripts(ref, config.get());
+				} catch (UntrustedScriptException e) {
+					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+				}
 				found = true;
 			}
 		}
