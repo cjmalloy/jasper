@@ -89,19 +89,22 @@ public class Push {
 
 	private void push(String origin) {
 		logger.info(" {} Pushing remotes", origin);
-		if (pushes.containsKey(origin)) {
-			var deleted = new HashSet<Tuple2<String, String>>();
-			pushes.get(origin).forEach(tuple -> {
-				var remote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
-				if (remote.isPresent()) {
-					replicator.push(remote.get());
-				} else {
-					deleted.add(tuple);
-				}
-			});
-			deleted.forEach(remote -> pushes.values().forEach(set -> set.remove(remote)));
+		try {
+			if (pushes.containsKey(origin)) {
+				var deleted = new HashSet<Tuple2<String, String>>();
+				pushes.get(origin).forEach(tuple -> {
+					var remote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+					if (remote.isPresent()) {
+						replicator.push(remote.get());
+					} else {
+						deleted.add(tuple);
+					}
+				});
+				deleted.forEach(remote -> pushes.values().forEach(set -> set.remove(remote)));
+			}
+		} finally {
+			taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 		}
-		taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
 	}
 
 	private void checkIfQueued(String origin) {
