@@ -1,7 +1,6 @@
 package jasper.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
@@ -914,9 +913,9 @@ public class Auth {
 	}
 
 	private boolean hasAnyAuthorityName(String prefix, String... roles) {
-		Set<String> roleSet = getAuthoritySet();
-		for (String role : roles) {
-			String defaultedRole = getRoleWithPrefix(prefix, role);
+		var roleSet = getAuthoritySet();
+		for (var role : roles) {
+			var defaultedRole = getRoleWithPrefix(prefix, role);
 			if (roleSet.contains(defaultedRole)) {
 				return true;
 			}

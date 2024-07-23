@@ -40,7 +40,7 @@ class StaticResourcesWebConfigurerTest {
 
         verify(resourceHandlerRegistry, times(1)).addResourceHandler(RESOURCE_PATHS);
         verify(staticResourcesWebConfiguration, times(1)).initializeResourceHandler(any(ResourceHandlerRegistration.class));
-        for (String testingPath : RESOURCE_PATHS) {
+        for (var testingPath : RESOURCE_PATHS) {
             assertThat(resourceHandlerRegistry.hasMappingForPattern(testingPath)).isTrue();
         }
     }

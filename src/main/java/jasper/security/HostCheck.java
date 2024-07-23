@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+
 @Component
 public class HostCheck {
 	private static final Logger logger = LoggerFactory.getLogger(HostCheck.class);
@@ -29,7 +31,7 @@ public class HostCheck {
 				if (host.isAnyLocalAddress()) return false;
 				if (host.isSiteLocalAddress()) return false;
 			}
-			if (root.getHostBlacklist() != null) {
+			if (isNotEmpty(root.getHostBlacklist())) {
 				for (var h : root.getHostBlacklist()) {
 					if (uri.getHost().equals(h)) return false;
 				}

@@ -232,7 +232,7 @@ public class FileCache {
 				// TODO: Set archive base URL
 				var basePath = "/api/v1/scrape/fetch?url=";
 				var buffer = new StringBuilder();
-				for (String line : data.split("\n")) {
+				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
 					} else {
