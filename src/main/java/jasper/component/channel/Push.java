@@ -26,8 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Push.getPush;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class Push {
@@ -51,8 +49,8 @@ public class Push {
 	@Autowired
 	Watch watch;
 
-	private Map<String, String> lastSent = new ConcurrentHashMap<>();
-	private Map<String, String> queued = new ConcurrentHashMap<>();
+	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
+	private Map<String, Instant> queued = new ConcurrentHashMap<>();
 	private Map<String, Set<Tuple2<String, String>>> pushes = new HashMap<>();
 
 	@PostConstruct
@@ -77,7 +75,7 @@ public class Push {
 	}
 
 	@ServiceActivator(inputChannel = "cursorRxChannel")
-	public void handleCursorUpdate(Message<String> message) {
+	public void handleCursorUpdate(Message<Instant> message) {
 		var root = configs.root();
 		var origin = origin(message.getHeaders().get("origin").toString());
 		if (!root.getPushOrigins().contains(origin)) return;
@@ -107,9 +105,9 @@ public class Push {
 	}
 
 	private void checkIfQueued(String origin) {
-		if (isBlank(lastSent.get(origin))) return;
+		if (lastSent.containsKey(origin)) return;
 		var next = queued.remove(origin);
-		if (isNotBlank(next)) {
+		if (next != null) {
 			lastSent.put(origin, next);
 			push(origin);
 		} else {

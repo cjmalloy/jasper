@@ -33,6 +33,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 
 import static jasper.component.Messages.originHeaders;
 import static jasper.component.Messages.refHeaders;
@@ -165,15 +166,15 @@ public class RedisConfig {
 	public IntegrationFlow redisPublishCursorFlow() {
 		return IntegrationFlows
 			.from(cursorTxChannel)
-			.handle(new CustomPublishingMessageHandler<String>() {
+			.handle(new CustomPublishingMessageHandler<Instant>() {
 				@Override
-				protected String getTopic(Message<String> message) {
+				protected String getTopic(Message<Instant> message) {
 					return "cursor/" + formatOrigin(message.getHeaders().get("origin"));
 				}
 
 				@Override
-				protected byte[] getMessage(Message<String> message) {
-					return message.getPayload().getBytes();
+				protected byte[] getMessage(Message<Instant> message) {
+					return message.getPayload().toString().getBytes();
 				}
 			})
 			.get();
@@ -192,7 +193,7 @@ public class RedisConfig {
 		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
-			var cursor = new String(message.getBody());
+			var cursor = Instant.parse(new String(message.getBody()));
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
 			cursorRedisChannel().send(MessageBuilder.createMessage(cursor, originHeaders(origin)));
