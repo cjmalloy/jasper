@@ -240,6 +240,8 @@ public class Replicator {
 					"Error pulling %s from origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
 					e.getMessage());
+			} finally {
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log._1, log._2);
 			}
 		});
 	}
@@ -260,7 +262,7 @@ public class Replicator {
 		tunnel.proxy(remote, url -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				Instant modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
+				var modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
