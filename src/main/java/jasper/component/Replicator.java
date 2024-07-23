@@ -18,6 +18,8 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
+import org.apache.http.NoHttpResponseException;
+import org.apache.http.conn.HttpHostConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -228,6 +230,10 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
+			} catch (RetryableException e) {
+				// Temporary connection issue, ignore
+				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
 			} catch (Exception e) {
 				logger.error("{} Error pulling {} from origin {} {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -348,6 +354,10 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
+			} catch (RetryableException e) {
+				// Temporary connection issue, ignore
+				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
 			} catch (Exception e) {
 				logger.error("{} Error pushing {} to origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -419,12 +429,14 @@ public class Replicator {
 					size = min(batchSize, size * 2);
 				}
 			} catch (RetryableException e) {
+				if (e.getCause() instanceof HttpHostConnectException) throw e;
+				if (e.getCause() instanceof NoHttpResponseException) throw e;
 				if (size == 1) {
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
-					logs.add(new Tuple2<>("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
+					logs.add(Tuple.of("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
 					skip++;
 				} else {
-					logs.add(new Tuple2<>("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
+					logs.add(Tuple.of("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
 					size = max(1, size / 2);
 				}
 			}
