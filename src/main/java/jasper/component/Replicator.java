@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
 import io.vavr.Tuple;
@@ -19,7 +18,6 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
-import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +26,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
+import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.localTag;
@@ -43,7 +39,6 @@ import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
-import static java.util.Optional.empty;
 import static org.springframework.data.domain.Sort.by;
 
 @Component
@@ -108,9 +103,9 @@ public class Replicator {
 		tunnel.proxy(remote, url -> {
 			try {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var pluginList = client.pluginPull(url, Map.of(
+					var pluginList = client.pluginPull(url, params(
 						"size", size,
-						"origin", config.getRemote(),
+						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var plugin : pluginList) {
 						plugin.setOrigin(localOrigin);
@@ -129,9 +124,9 @@ public class Replicator {
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var templateList = client.templatePull(url, Map.of(
+					var templateList = client.templatePull(url, params(
 						"size", size,
-						"origin", config.getRemote(),
+						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var template : templateList) {
 						template.setOrigin(localOrigin);
@@ -151,9 +146,9 @@ public class Replicator {
 				}));
 				var validationOrigin = Objects.toString(pull.getValidationOrigin(), localOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var refList = client.refPull(url, Map.of(
+					var refList = client.refPull(url, params(
 						"size", size,
-						"origin", config.getRemote(),
+						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
@@ -180,9 +175,9 @@ public class Replicator {
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var extList = client.extPull(url, Map.of(
+					var extList = client.extPull(url, params(
 						"size", size,
-						"origin", config.getRemote(),
+						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var ext : extList) {
 						ext.setOrigin(localOrigin);
@@ -208,9 +203,9 @@ public class Replicator {
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var userList = client.userPull(url, Map.of(
+					var userList = client.userPull(url, params(
 						"size", size,
-						"origin", config.getRemote(),
+						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var user : userList) {
 						user.setOrigin(localOrigin);

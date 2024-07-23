@@ -18,6 +18,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,5 +119,13 @@ public interface JasperClient {
 			TAG_WRITE_ACCESS_HEADER, Objects.toString(req.getHeader(TAG_WRITE_ACCESS_HEADER), ""),
 			TAG_READ_ACCESS_HEADER, Objects.toString(req.getHeader(TAG_READ_ACCESS_HEADER), "")
 		);
+	}
+
+	static Map<String, Object> params(Object... params) {
+		var result = new HashMap<String, Object>();
+		for (var i = 0; i < params.length; i += 2) {
+			result.put(params[i].toString(), params[i+1]);
+		}
+		return result;
 	}
 }
