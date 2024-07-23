@@ -21,6 +21,9 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
+import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 
 @Component
 public class Scheduler {
@@ -50,19 +53,21 @@ public class Scheduler {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
+		if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
 		tags.put(plugin, r);
 	}
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().getScriptOrigins()) {
-			watch.addWatch(origin, "+plugin/cron", this::schedule);
+		var root = configs.root();
+		if (isEmpty(root.getScriptSelectors())) return;
+		for (var s : root.getScriptSelectors()) {
+			if (!s.captures(tagOriginSelector("+plugin/cron" + s.origin))) continue;
+			watch.addWatch(s.origin, "+plugin/cron", this::schedule);
 		}
 	}
 
 	private void schedule(HasTags ref) {
-		var root = configs.root();
-		if (root.getScriptOrigins() == null) return;
 		var key = getKey(ref);
 		var existing = tasks.get(key);
 		if (existing != null) {

@@ -1,6 +1,7 @@
 package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,7 +13,9 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.List;
 
+import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Config {
@@ -57,9 +60,9 @@ public interface Config {
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
-		 * Whitelist origins to run scripts on.
+		 * Whitelist selectors to run scripts on. No origin wildcards.
 		 */
-		private List<String> scriptOrigins = List.of("");
+		private List<String> scriptSelectors = List.of("");
 		/**
 		 * Whitelist domains to be allowed to fetch from.
 		 */
@@ -68,6 +71,13 @@ public interface Config {
 		 * Blacklist domains to be allowed to fetch from. Takes precedence over domain whitelist.
 		 */
 		private List<String> hostBlacklist = List.of("*.local");
+
+		private List<QualifiedTag> _scriptSelectors = null;
+		public List<QualifiedTag> getScriptSelectors() {
+			if (scriptSelectors == null) return null;
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors;
+		}
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -82,7 +92,7 @@ public interface Config {
 			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());
 			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
-			if (isNotEmpty(server.getScriptOrigins())) wrapped = wrapped.withScriptOrigins(server.getScriptOrigins());
+			if (isNotEmpty(server.getScriptSelectors())) wrapped = wrapped.withScriptSelectors(server.getScriptSelectors());
 			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			return wrapped;
@@ -94,7 +104,7 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.pushOrigins(List.of(origin))
 				.pullOrigins(List.of(origin))
-				.scriptOrigins(List.of(origin));
+				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
 	}
 

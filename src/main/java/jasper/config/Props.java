@@ -135,7 +135,7 @@ public class Props {
 		private Integer maxPushEntityBatch;
 		private List<String> pullOrigins;
 		private Integer maxPullEntityBatch;
-		private List<String> scriptOrigins;
+		private List<String> scriptSelectors;
 		private List<String> hostWhitelist;
 		private List<String> hostBlacklist;
 	}

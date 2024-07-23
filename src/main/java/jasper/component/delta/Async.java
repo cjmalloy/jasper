@@ -7,6 +7,7 @@ import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.QualifiedTag;
 import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,10 +24,14 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import static jasper.repository.spec.QualifiedTag.qt;
+import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -60,16 +65,21 @@ public class Async {
 	 * Register a runner for a tag.
 	 */
 	public void addAsyncTag(String plugin, AsyncRunner r) {
+		if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
 		tags.put(plugin, r);
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		taskScheduler.schedule(() -> {
-			for (String origin : configs.root().getScriptOrigins()) {
-				backfill(origin);
-			}
-		}, Instant.now().plusMillis(1000L));
+		if (tags.isEmpty()) return;
+		var root = configs.root();
+		if (isEmpty(root.getScriptSelectors())) return;
+		var origins = root.getScriptSelectors().stream()
+			.map(s -> s.origin)
+			.collect(Collectors.toSet());
+		taskScheduler.schedule(
+			() -> origins.forEach(this::backfill),
+			Instant.now().plusMillis(1000L));
 	}
 
 	/**
@@ -78,19 +88,22 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		return "!+plugin/error:(" + String.join("|", tags.keySet()) + ")";
+		return "!+plugin/error" +
+			":(" + String.join("|", tags.keySet()) + ")" +
+			":(" + String.join("|", configs.root().getScriptSelectors().stream().map(s -> s.tag + s.origin).collect(Collectors.toSet())) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
+		if (tags.isEmpty()) return;
 		var root = configs.root();
-		if (root.getScriptOrigins() == null) return;
+		if (isEmpty(root.getScriptSelectors())) return;
 		var ud = message.getPayload();
 		if (ud.getTags() == null) return;
 		if (hasMatchingTag(ud, "+plugin/error")) return;
-		if (!root.getScriptOrigins().contains(origin(ud.getOrigin()))) return;
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ud, k)) return;
+			if (root.getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + ud.getOrigin())))) return;
 			if (isNotBlank(v.signature())) {
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
 					.orElse(null);
@@ -114,7 +127,6 @@ public class Async {
 	}
 
 	private void backfill(String origin) {
-		if (isBlank(trackingQuery())) return;
 		Instant lastModified = null;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
@@ -127,6 +139,7 @@ public class Async {
 			lastModified = ref.getModified();
 			tags.forEach((k, v) -> {
 				if (!v.backfill()) return;
+				if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + origin)))) return;
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;

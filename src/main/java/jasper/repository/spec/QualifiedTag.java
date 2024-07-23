@@ -64,10 +64,6 @@ public class QualifiedTag {
 		return tag.equals(qt.tag) && origin.equals(qt.origin) && not == qt.not;
 	}
 
-	public boolean captures(String capture) {
-		return captures(selector(capture));
-	}
-
 	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
 		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;
@@ -96,20 +92,42 @@ public class QualifiedTag {
 		return not ? Specification.not(spec) : spec;
 	}
 
+	/**
+	 * Selector that represents a fixed origin, but may be a wildcard or fixed tag.
+	 * Missing origins will be set to the default origin.
+	 */
+	public static QualifiedTag tagOriginSelector(String qt) {
+		if (qt.startsWith("!")) throw new UnsupportedOperationException();
+		if (qt.startsWith("*")) throw new UnsupportedOperationException();
+		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
+		if (!qt.contains("@")) qt += "@"; // Missing origin implies default origin, not wildcard
+		return new QualifiedTag(qt);
+	}
+
+	/**
+	 * Selector that represents a fixed tag, but may be a wildcard or fixed origin.
+	 * Missing origins will be set to the default origin.
+	 */
 	public static QualifiedTag qt(String qt) {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
 		if (qt.startsWith("*")) throw new UnsupportedOperationException();
 		if (qt.startsWith("@")) throw new UnsupportedOperationException();
 		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
-		if (!qt.contains("@")) qt += "@";
+		if (!qt.contains("@")) qt += "@"; // Missing origin implies default origin, not wildcard
 		return new QualifiedTag(qt);
 	}
 
+	/**
+	 * Selector that can include wildcards.
+	 */
 	public static QualifiedTag selector(String qt) {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
 		return new QualifiedTag(qt);
 	}
 
+	/**
+	 * Origin selector that can include wildcards.
+	 */
 	public static QualifiedTag originSelector(String qt) {
 		if (qt.isEmpty()) return selector("*");
 		return selector(qt);
@@ -126,6 +144,9 @@ public class QualifiedTag {
 		return result.toString();
 	}
 
+	/**
+	 * Selector that represents a query atom. Can include wildcards or negations.
+	 */
 	public static QualifiedTag atom(String qt) {
 		return new QualifiedTag(qt);
 	}
@@ -135,6 +156,12 @@ public class QualifiedTag {
 		return tags.stream()
 			.map(t -> t.contains("@") ? t : t + origin)
 			.map(QualifiedTag::qt)
+			.collect(Collectors.toList());
+	}
+
+	public static List<QualifiedTag> tagOriginList(List<String> tags) {
+		return tags.stream()
+			.map(QualifiedTag::tagOriginSelector)
 			.collect(Collectors.toList());
 	}
 
