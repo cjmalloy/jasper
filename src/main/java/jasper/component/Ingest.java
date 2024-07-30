@@ -1,8 +1,10 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
@@ -20,9 +22,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -125,7 +124,7 @@ public class Ingest {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-				if (e.getCause() instanceof ConstraintViolationException c) {
+				if (e instanceof ConstraintViolationException c) {
 					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
@@ -152,9 +151,9 @@ public class Ingest {
 						ref.getOrigin(),
 						ref.getTitle(),
 						ref.getComment(),
-						ref.getTags() == null ? null : objectMapper.convertValue(ref.getTags(), ArrayNode.class),
-						ref.getSources() == null ? null : objectMapper.convertValue(ref.getSources(), ArrayNode.class),
-						ref.getAlternateUrls() == null ? null : objectMapper.convertValue(ref.getAlternateUrls(), ArrayNode.class),
+						ref.getTags(),
+						ref.getSources(),
+						ref.getAlternateUrls(),
 						ref.getPlugins(),
 						ref.getMetadata(),
 						ref.getPublished(),

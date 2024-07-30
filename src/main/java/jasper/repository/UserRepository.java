@@ -1,6 +1,5 @@
 package jasper.repository;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import jasper.domain.TagId;
 import jasper.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -38,10 +37,10 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		String origin,
 		String name,
 		String role,
-		ArrayNode readAccess,
-		ArrayNode writeAccess,
-		ArrayNode tagReadAccess,
-		ArrayNode tagWriteAccess,
+		List<String> readAccess,
+		List<String> writeAccess,
+		List<String> tagReadAccess,
+		List<String> tagWriteAccess,
 		Instant modified,
 		byte[] key,
 		byte[] pubKey,
