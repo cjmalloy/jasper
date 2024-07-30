@@ -53,15 +53,15 @@ public class Scheduler {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
-		if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
+		if (configs.root().getCachedScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
 		tags.put(plugin, r);
 	}
 
 	@PostConstruct
 	public void init() {
 		var root = configs.root();
-		if (isEmpty(root.getScriptSelectors())) return;
-		for (var s : root.getScriptSelectors()) {
+		if (isEmpty(root.getCachedScriptSelectors())) return;
+		for (var s : root.getCachedScriptSelectors()) {
 			if (!s.captures(tagOriginSelector("+plugin/cron" + s.origin))) continue;
 			watch.addWatch(s.origin, "+plugin/cron", this::schedule);
 		}

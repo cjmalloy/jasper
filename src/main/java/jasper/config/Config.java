@@ -1,5 +1,6 @@
 package jasper.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
@@ -76,8 +77,10 @@ public interface Config {
 		 */
 		private List<String> hostBlacklist = List.of("*.local");
 
+		@JsonIgnore
 		private List<QualifiedTag> _scriptSelectors = null;
-		public List<QualifiedTag> getScriptSelectors() {
+		@JsonIgnore
+		public List<QualifiedTag> getCachedScriptSelectors() {
 			if (scriptSelectors == null) return null;
 			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
 			return _scriptSelectors;

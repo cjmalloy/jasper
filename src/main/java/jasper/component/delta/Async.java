@@ -65,7 +65,7 @@ public class Async {
 	 * Register a runner for a tag.
 	 */
 	public void addAsyncTag(String plugin, AsyncRunner r) {
-		if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
+		if (configs.root().getCachedScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
 		tags.put(plugin, r);
 	}
 
@@ -73,8 +73,8 @@ public class Async {
 	public void init() {
 		if (tags.isEmpty()) return;
 		var root = configs.root();
-		if (isEmpty(root.getScriptSelectors())) return;
-		var origins = root.getScriptSelectors().stream()
+		if (isEmpty(root.getCachedScriptSelectors())) return;
+		var origins = root.getCachedScriptSelectors().stream()
 			.map(s -> s.origin)
 			.collect(Collectors.toSet());
 		taskScheduler.schedule(
@@ -90,20 +90,20 @@ public class Async {
 		if (tags.isEmpty()) return null;
 		return "!+plugin/error" +
 			":(" + String.join("|", tags.keySet()) + ")" +
-			":(" + String.join("|", configs.root().getScriptSelectors().stream().map(s -> s.tag + s.origin).collect(Collectors.toSet())) + ")";
+			":(" + String.join("|", configs.root().getCachedScriptSelectors().stream().map(s -> s.tag + s.origin).collect(Collectors.toSet())) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		if (tags.isEmpty()) return;
 		var root = configs.root();
-		if (isEmpty(root.getScriptSelectors())) return;
+		if (isEmpty(root.getCachedScriptSelectors())) return;
 		var ud = message.getPayload();
 		if (ud.getTags() == null) return;
 		if (hasMatchingTag(ud, "+plugin/error")) return;
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ud, k)) return;
-			if (root.getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + ud.getOrigin())))) return;
+			if (root.getCachedScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + ud.getOrigin())))) return;
 			if (isNotBlank(v.signature())) {
 				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
 					.orElse(null);
@@ -139,7 +139,7 @@ public class Async {
 			lastModified = ref.getModified();
 			tags.forEach((k, v) -> {
 				if (!v.backfill()) return;
-				if (configs.root().getScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + origin)))) return;
+				if (configs.root().getCachedScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(k + origin)))) return;
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
