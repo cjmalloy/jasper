@@ -1,5 +1,7 @@
 package jasper.web.rest;
 
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,15 +21,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.WebRequest;
 
 import javax.validation.Valid;
@@ -117,6 +111,33 @@ public class PluginController {
 		@RequestBody @Valid Plugin plugin
 	) {
 		return pluginService.update(plugin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/json-patch+json")
+	Instant patchPlugin(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonPatch patch
+	) {
+		return pluginService.patch(tag, cursor, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	Instant mergePlugin(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonMergePatch patch
+	) {
+		return pluginService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({

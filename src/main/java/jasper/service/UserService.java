@@ -1,9 +1,15 @@
 package jasper.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestUser;
 import jasper.config.Props;
 import jasper.domain.User;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
@@ -16,6 +22,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +34,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -53,6 +62,9 @@ public class UserService {
 
 	@Autowired
 	DtoMapper mapper;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
@@ -111,7 +123,32 @@ public class UserService {
 		return user.getModified();
 	}
 
-	// TODO: merge
+	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
+		var created = false;
+		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		if (user == null) {
+			created = true;
+			user = new User();
+			user.setTag(localTag(qualifiedTag));
+			user.setOrigin(tagOrigin(qualifiedTag));
+		}
+		try {
+			var patched = patch.apply(objectMapper.convertValue(user, JsonNode.class));
+			var updated = objectMapper.treeToValue(patched, User.class);
+			// @PreAuthorize annotations are not triggered for calls within the same class
+			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
+			if (created) {
+				return create(updated);
+			} else {
+				updated.setModified(cursor);
+				return update(updated);
+			}
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException("User " + qualifiedTag, e);
+		}
+	}
 
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)

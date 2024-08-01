@@ -1,8 +1,14 @@
 package jasper.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
@@ -20,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+
 @Service
 public class PluginService {
 
@@ -34,6 +43,9 @@ public class PluginService {
 
 	@Autowired
 	DtoMapper mapper;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -83,6 +95,31 @@ public class PluginService {
 	public Instant update(Plugin plugin) {
 		ingest.update(plugin);
 		return plugin.getModified();
+	}
+
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
+		var created = false;
+		var plugin = pluginRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		if (plugin == null) {
+			created = true;
+			plugin = new Plugin();
+			plugin.setTag(localTag(qualifiedTag));
+			plugin.setOrigin(tagOrigin(qualifiedTag));
+		}
+		try {
+			var patched = patch.apply(objectMapper.convertValue(plugin, JsonNode.class));
+			var updated = objectMapper.treeToValue(patched, Plugin.class);
+			if (created) {
+				return create(updated);
+			} else {
+				updated.setModified(cursor);
+				return update(updated);
+			}
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException("Plugin " + qualifiedTag, e);
+		}
 	}
 
 	@Transactional
