@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.28
+  version: 1.2.29
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.28
+    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.29
 paths:
   /api/v1/ref:
     get:
@@ -95,28 +95,6 @@ paths:
           $ref: '#/components/responses/ForeignWrite'
         '409':
           $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Ref
-      operationId: deleteRef
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
     patch:
       tags:
         - Ref
@@ -152,6 +130,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ref
+      operationId: deleteRef
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/ref/page:
     get:
       tags:
@@ -1030,23 +1030,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Ext
-      operationId: deleteExt
-      parameters:
-        - name: tag
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/qtag'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
     patch:
       tags:
         - Ext
@@ -1077,6 +1060,23 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ext
+      operationId: deleteExt
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/ext/page:
     get:
       tags:
@@ -1286,6 +1286,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Plugin
+      operationId: patchPlugin
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       tags:
         - Plugin
@@ -1434,6 +1464,36 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Template
+      operationId: patchTemplate
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
     delete:
@@ -1589,6 +1649,36 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - User
+      operationId: patchUser
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
     delete:

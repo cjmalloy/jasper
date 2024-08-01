@@ -1,8 +1,14 @@
 package jasper.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestTemplate;
 import jasper.domain.Template;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
 import jasper.repository.filter.TemplateFilter;
@@ -20,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+
 @Service
 public class TemplateService {
 
@@ -34,6 +43,9 @@ public class TemplateService {
 
 	@Autowired
 	DtoMapper mapper;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
@@ -82,6 +94,31 @@ public class TemplateService {
 	public Instant update(Template template) {
 		ingest.update(template);
 		return template.getModified();
+	}
+
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
+		var created = false;
+		var template = templateRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		if (template == null) {
+			created = true;
+			template = new Template();
+			template.setTag(localTag(qualifiedTag));
+			template.setOrigin(tagOrigin(qualifiedTag));
+		}
+		try {
+			var patched = patch.apply(objectMapper.convertValue(template, JsonNode.class));
+			var updated = objectMapper.treeToValue(patched, Template.class);
+			if (created) {
+				return create(updated);
+			} else {
+				updated.setModified(cursor);
+				return update(updated);
+			}
+		} catch (JsonPatchException | JsonProcessingException e) {
+			throw new InvalidPatchException("Template " + qualifiedTag, e);
+		}
 	}
 
 	@Transactional
