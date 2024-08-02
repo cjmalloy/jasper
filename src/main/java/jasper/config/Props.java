@@ -96,6 +96,7 @@ public class Props {
 	private String storage = "/var/lib/jasper";
 	private String node = "/usr/local/bin/node";
 	private String python = "/usr/bin/python";
+	private String shell = "/usr/bin/bash";
 	private String cacheApi = "";
 
 	private String sshConfigNamespace = "default";
