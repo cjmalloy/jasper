@@ -14,6 +14,7 @@ import java.security.NoSuchAlgorithmException;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PythonTest {
 
@@ -60,6 +61,35 @@ sklearn.show_versions()
 		var output = vm.runPython("scikit-learn==1.3.2", targetScript, "", 30_000);
 
 		assertThat(output).contains("sklearn: 1.3.2");
+	}
+
+	@Test
+	void testRunPythonTimeout() {
+		// language=Python
+		var targetScript = """
+import sys
+import time
+print(sys.stdin.read().upper())
+time.sleep(2)
+        """;
+		var input = "test";
+
+		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 1_000))
+			.isInstanceOf(RuntimeException.class)
+			.hasMessageContaining("Script execution timed out");
+	}
+
+	@Test
+	void testRunPythonError() {
+		// language=Python
+		var targetScript = """
+open('non_existent_file')
+        """;
+		var input = "test";
+
+		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 30_000))
+			.isInstanceOf(ScriptException.class)
+			.hasMessageContaining("Script execution failed with exit code:");
 	}
 
 }

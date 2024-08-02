@@ -69,7 +69,7 @@ public class ScriptRunnerIT {
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
-		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
+		var input = getRef(url, "My Ref", "test", "public");
 
 		scriptRunner.runScripts(input, script);
 
@@ -105,7 +105,7 @@ print(json.dumps({
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
-		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
+		var input = getRef(url, "My Ref", "test", "public");
 
 		scriptRunner.runScripts(input, script);
 
@@ -141,7 +141,7 @@ print(json.dumps({
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
-		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
+		var input = getRef(url, "My Ref", "test", "public");
 
 		scriptRunner.runScripts(input, script);
 
@@ -177,8 +177,37 @@ print(yaml.dump({
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
-		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/test");
+		var input = getRef(url, "My Ref", "test", "public");
 
+		scriptRunner.runScripts(input, script);
+
+		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
+		assertThat(responses.size()).isEqualTo(1);
+		var output = responses.get(0);
+		assertThat(output.getComment()).isEqualTo("TEST");
+	}
+	@Test
+	void testShellJson() throws UntrustedScriptException {
+		// language=Bash
+		var upperCaseScript = """
+			jq --arg uuid $(uuidgen) '{
+			  ref: [{
+				url: ("comment:" + $uuid),
+				title: ("Re: " + .title),
+				comment: .comment | ascii_upcase,
+				tags: (.tags + ["+needle"]),
+				sources: [.url]
+			  }]
+			}'
+		""";
+		var script = Script.builder()
+			.timeoutMs(30_000)
+			.language("shell")
+			.format("json")
+			.script(upperCaseScript)
+			.build();
+		var url = "comment:" + UUID.randomUUID();
+		var input = getRef(url, "My Ref", "test", "public");
 
 		scriptRunner.runScripts(input, script);
 

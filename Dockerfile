@@ -23,6 +23,14 @@ RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-y
     && which python3 \
     && python3 --version
 ENV JASPER_PYTHON=/usr/bin/python3
+RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
+    && which jq \
+    && jq --version \
+    && uuidgen jq \
+    && uuidgen --version \
+    && which bash \
+    && bash --version
+ARG JASPER_SHELL=/usr/bin/bash
 CMD mvn -gs settings.xml test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/
@@ -42,6 +50,15 @@ RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-y
     && python3 --version
 ARG JASPER_PYTHON=/usr/bin/python3
 ENV JASPER_PYTHON=${JASPER_PYTHON}
+RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
+    && which jq \
+    && jq --version \
+    && uuidgen jq \
+    && uuidgen --version \
+    && which bash \
+    && bash --version
+ARG JASPER_SHELL=/usr/bin/bash
+ENV JASPER_SHELL=${JASPER_SHELL}
 WORKDIR /app
 COPY --from=builder /app/dependencies/ ./
 RUN true

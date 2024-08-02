@@ -7,6 +7,7 @@ import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.component.vm.JavaScript;
 import jasper.component.vm.Python;
+import jasper.component.vm.Shell;
 import jasper.domain.Ref;
 import jasper.errors.ScriptException;
 import jasper.errors.UntrustedScriptException;
@@ -43,6 +44,9 @@ public class ScriptRunner {
 
 	@Autowired
 	Python pythonVm;
+
+	@Autowired
+	Shell shell;
 
 	@Autowired
 	ComponentDtoMapper mapper;
@@ -98,6 +102,9 @@ public class ScriptRunner {
 				break;
 			case "python":
 				output = pythonVm.runPython(config.getRequirements(), config.getScript(), input, config.getTimeoutMs());
+				break;
+			case "shell":
+				output = shell.runShellScript(config.getScript(), input, config.getTimeoutMs());
 				break;
 			default:
 				logger.error("{} Script runtime not supported {}", ref.getOrigin(), config.getLanguage());
