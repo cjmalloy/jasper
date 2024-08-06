@@ -17,8 +17,8 @@ import java.io.OutputStreamWriter;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class JavaScript {
-	private static final Logger logger = LoggerFactory.getLogger(JavaScript.class);
+public class Shell {
+	private static final Logger logger = LoggerFactory.getLogger(Shell.class);
 
 	@Autowired
 	Props props;
@@ -26,46 +26,30 @@ public class JavaScript {
 	@Value("http://localhost:${server.port}")
 	String api;
 
-	// language=JavaScript
-	private final String nodeVmWrapperScript = """
-		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
-		const fs = require('fs');
-		const vm = require('node:vm');
-		const stdin = fs.readFileSync(0, 'utf-8');
-		const timeout = parseInt(process.argv[1], 10) || 30_000;
-		const api = process.argv[2];
-		const [targetScript, inputString] = stdin.split('\\u0000');
-		const patchedFs = {
-		  ...fs,
-		  readFileSync: (path, options) => {
-			if (path === 0) return inputString;
-			return fs.readFileSync(path, options);
-		  }
-		};
-		const context = vm.createContext({
-	      console,
-		  setTimeout,
-		  process: {
-		    env: { JASPER_API: api },
-		    exit: process.exit,
-		  },
-		  require(mod) {
-			if (mod === 'fs') return patchedFs;
-			return require(mod);
-		  }
-		});
-		const allowTopLevelAwait = 'const run = async () => {' + targetScript + '}; run().catch(err => {console.error(err);process.exit(1);});';
-		const script = new vm.Script(allowTopLevelAwait);
-		script.runInContext(context, {timeout});
-	""";
+	// language=Sh
+	private final String wrapperScript = """
+set -e
+CURRENT_SHELL=$(basename "$0")
+IFS= read -r -d '' TARGET_SCRIPT
+IFS= read -r -d '' INPUT_STRING
+SCRIPT_DIR=$(mktemp -d)
+trap 'rm -rf "$SCRIPT_DIR"' EXIT
+SCRIPT_FILE="$SCRIPT_DIR/script.sh"
+echo "$TARGET_SCRIPT" > "$SCRIPT_FILE"
+chmod +x "$SCRIPT_FILE"
+timeout "$1" "$CURRENT_SHELL" -c "JASPER_API='$2' '$SCRIPT_FILE'" << EOF
+$INPUT_STRING
+EOF
+    """;
 
 	@Timed("jasper.vm")
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api).start();
+	public String runShellScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
+		var process = new ProcessBuilder(props.getShell(), "-c", wrapperScript, props.getShell(), String.valueOf(timeoutMs), api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
 			writer.write(inputString);
+			writer.write("\0"); // both inputs must be null terminated
 			writer.flush();
 		} catch (IOException e) {
 			logger.warn("Script terminated before receiving input.");
