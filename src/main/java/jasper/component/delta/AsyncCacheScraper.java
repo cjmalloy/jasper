@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.component.FileCache;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,9 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	Tagger tagger;
+
 	@PostConstruct
 	void init() {
 		async.addAsyncTag("_plugin/delta/cache", this);
@@ -33,6 +37,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) throws Exception {
 		logger.info("{} Caching {}", ref.getOrigin(), ref.getUrl());
+		tagger.tag(ref.getUrl(), ref.getOrigin(), "-_plugin/delta/cache", "_plugin/cache");
 		fileCache.refresh(ref.getUrl(), ref.getOrigin());
 	}
 }
