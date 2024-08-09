@@ -32,12 +32,16 @@ public class Cache implements Serializable {
 	}
 
 	public static boolean bannedOrBroken(Cache cache) {
+		return bannedOrBroken(cache, false);
+	}
+
+	public static boolean bannedOrBroken(Cache cache, boolean refresh) {
 		if (cache == null) return false;
 		return
 			// URL has been banned
 			cache.isBan() ||
 			// If id is blank the last scrape must have failed
 			// Wait for the user to manually refresh
-			isBlank(cache.getId());
+			!refresh && isBlank(cache.getId());
 	}
 }

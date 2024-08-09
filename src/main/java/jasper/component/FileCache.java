@@ -114,7 +114,7 @@ public class FileCache {
 	public Ref fetch(String url, String origin, OutputStream os, boolean refresh) {
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		var existingCache = getCache(ref);
-		if (bannedOrBroken(existingCache)) return ref;
+		if (bannedOrBroken(existingCache, refresh)) return ref;
 		if (!refresh && existingCache != null && !existingCache.isNoStore()) {
 			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 			return ref;
