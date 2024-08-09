@@ -32,6 +32,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
+		logger.info("{} Caching {}", ref.getOrigin(), ref.getUrl());
 		fileCache.refresh(ref.getUrl(), ref.getOrigin());
 	}
 }

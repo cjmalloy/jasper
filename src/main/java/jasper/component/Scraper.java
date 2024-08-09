@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import javax.persistence.EntityManager;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.time.Instant;
@@ -55,6 +56,9 @@ public class Scraper {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	EntityManager em;
+
 	@Timed(value = "jasper.scrape", histogram = true)
 	public Scrape getConfig(String url, String origin) {
 		var providers = configs.getAllConfigs(origin, "+plugin/scrape", Scrape.class);
@@ -85,8 +89,10 @@ public class Scraper {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
 		var data = proxy.fetchString(url, origin, refRepository.existsByUrlAndOrigin(url, origin));
-		if (!data.trim().startsWith("<")) return from(url, origin);
+		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
+		// Update ref but don't persist changes
+		em.detach(result);
 		var doc = Jsoup.parse(data, url);
 		result.setTitle(doc.title());
 		fixImages(doc, config);

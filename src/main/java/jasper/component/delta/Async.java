@@ -7,7 +7,6 @@ import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.repository.spec.QualifiedTag;
 import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +27,6 @@ import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
-import static jasper.repository.spec.QualifiedTag.qt;
-import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -122,7 +119,7 @@ public class Async {
 	}
 
 	private Ref fetch(RefDto ud) {
-		return this.refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
+		return refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
 			.orElseThrow(() -> new NotFoundException("Async"));
 	}
 
