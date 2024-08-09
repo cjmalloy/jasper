@@ -46,6 +46,7 @@ public class Tagger {
 		} else {
 			var ref = maybeRef.get();
 			if (ref.hasTag(tags)) return ref;
+			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			ingest.update(ref, false);
 			return ref;
@@ -73,6 +74,7 @@ public class Tagger {
 			var ref = maybeRef.get();
 			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
+			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			ingest.update(ref, false);
 			return ref;
