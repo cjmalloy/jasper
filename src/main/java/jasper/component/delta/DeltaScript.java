@@ -6,6 +6,7 @@ import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
+import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,12 @@ public class DeltaScript implements Async.AsyncRunner {
 		logger.info("{} Applying delta response to {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		var found = false;
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t)).toList()) {
+			if (scriptTag.startsWith("_plugin/scrape") || scriptTag.startsWith("_plugin/cache/async")) {
+				// Built-in scripts
+				// TODO: Move to mod scripts
+				found = true;
+				continue;
+			}
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent()) {
 				try {
@@ -60,7 +67,7 @@ public class DeltaScript implements Async.AsyncRunner {
 				found = true;
 			}
 		}
-		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find delta script");
+		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find delta script", String.join(", ", ref.getTags()));
 	}
 
 }
