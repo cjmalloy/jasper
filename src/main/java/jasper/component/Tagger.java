@@ -106,7 +106,7 @@ public class Tagger {
 		ref.setComment(logs);
 		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
 		if (parent.hasTag("public")) tags.add("public");
-		tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		if (parent.getTags() != null) tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
 		ref.setTags(tags);
 		ingest.create(ref, false);
 	}
