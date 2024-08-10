@@ -294,6 +294,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasTag(String ...tag) {
+		if (tags == null) return false;
 		return Arrays.stream(tag).allMatch(m -> tags.stream().anyMatch(t -> matchesTag(m, t)));
 	}
 
