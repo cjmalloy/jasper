@@ -163,7 +163,7 @@ public class RssParser {
 			throw new AlreadyExistsException();
 		}
 		if (config.isScrapeWebpage()) {
-			feed.addTag("_plugin/delta/scrape/ref");
+			ref.addTag("_plugin/delta/scrape/ref");
 		}
 		ref.setUrl(link);
 		ref.setTitle(entry.getTitle());
