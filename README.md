@@ -843,5 +843,24 @@ When playing on mutually replicating servers, each server is trusted to generate
 * [v1.1](./docs/release-notes/jasper-1.1.md)
 * [v1.0](./docs/release-notes/jasper-1.0.md)
 
-# Developing
-Run a dev database with `docker compose up db -d`.
+## Developing
+Run a dev server with `docker compose up`.  
+Run a supporting dev database and cache with `docker compose up db redis -d`.
+
+### Development application
+
+Run `npm start` to compile and start electron. Editing `app.ts` will require restarting, but you can edit any of the html views,
+`loading.html`, `logs.html`, `settings.html` and reload the electron window.
+
+### Build
+
+Run `docker build -t jasper .` to build the project.
+
+### Running unit tests
+
+Run `docker build --target=test -t jasper-tests .` to build the tests.  
+Run `docker run -it jasper-tests` to execute the unit tests.
+
+### Running end-to-end tests
+
+See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).
