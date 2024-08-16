@@ -53,7 +53,7 @@ public class Proxy {
 			return fileCache.get().fetchString(url, origin);
 		}
 		if (fetch.isEmpty()) return null;
-		try (var res = fetch.get().doScrape(url)) {
+		try (var res = fetch.get().doScrape(url, origin)) {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (Exception e) {
 			tagger.attachError(origin,
@@ -79,7 +79,7 @@ public class Proxy {
 		var existingCache = stat(url, origin);
 		if (bannedOrBroken(existingCache)) return existingCache;
 		if (fetch.isEmpty()) return existingCache;
-		try (var res = fetch.get().doScrape(url)) {
+		try (var res = fetch.get().doScrape(url, origin)) {
 			var cos = new CountingOutputStream(os);
 			StreamUtils.copy(res.getInputStream(), cos);
 			res.close();
@@ -107,7 +107,7 @@ public class Proxy {
 			return fetch(url, origin, os);
 		}
 		if (fetch.isEmpty()) return fullSize;
-		try (var res = fetch.get().doScrape(url)) {
+		try (var res = fetch.get().doScrape(url, origin)) {
 			var bytes = res.getInputStream().readAllBytes();
 			res.close();
 			var data = images.thumbnail(new ByteArrayInputStream(bytes));

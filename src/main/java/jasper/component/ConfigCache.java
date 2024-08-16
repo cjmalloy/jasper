@@ -13,6 +13,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -29,7 +30,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static jasper.domain.proj.HasOrigin.fromParts;
+import static jasper.domain.proj.HasOrigin.parts;
+import static jasper.plugin.Origin.getOrigin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class ConfigCache {
@@ -134,6 +139,31 @@ public class ConfigCache {
 					.query(tag).build().spec()).stream()
 			.map(r -> r.getPlugin(tag, toValueType))
 			.toList();
+	}
+
+	@Cacheable(value = "config-cache", key = "'+plugin/origin' + #local")
+	@Transactional(readOnly = true)
+	public RefDto getRemote(String local) {
+		configCacheTags.add("+plugin/origin");
+		String origin = "";
+		while (isNotBlank(local)) {
+			var finalLocal = local;
+			var remote = refRepository.findAll(
+					RefFilter.builder()
+						.origin(origin)
+						.query("+plugin/origin").build().spec())
+				.stream()
+				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))
+				.findFirst()
+				.map(dtoMapper::domainToDto)
+				.orElse(null);
+			if (remote != null) return remote;
+			var p = parts(local);
+			origin = fromParts(origin, p[0]);
+			p[0] = "";
+			local = fromParts(p);
+		}
+		return null;
 	}
 
 	public boolean isConfigTag(String tag) {

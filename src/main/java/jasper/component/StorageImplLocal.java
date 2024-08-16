@@ -131,14 +131,14 @@ public class StorageImplLocal implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public String store(String origin, String namespace, byte[] file) throws IOException {
-		var id = "cache_" + UUID.randomUUID();
+		var id = UUID.randomUUID().toString();
 		storeAt(origin, namespace, id, file);
 		return id;
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public String store(String origin, String namespace, InputStream is) throws IOException {
-		var id = "cache_" + UUID.randomUUID();
+		var id = UUID.randomUUID().toString();
 		var path = path(origin, namespace, id);
 		Files.createDirectories(path.getParent());
 		StreamUtils.copy(is, new FileOutputStream(path.toFile()));

@@ -40,6 +40,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -368,15 +369,35 @@ public class ReplicateController {
 	void fetch(
 		WebRequest request,
 		HttpServletResponse response,
-		@RequestParam @Length(max = URL_LEN) String url
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) throws IOException, URISyntaxException {
 		try (var os = response.getOutputStream()) {
 			if (isNotBlank(props.getCacheApi())) {
-				StreamUtils.copy(jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url).getBody().getInputStream(), os);
+				StreamUtils.copy(jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url, origin).getBody(), os);
 			} else {
-				proxyService.fetchIfExists(url, os);
+				proxyService.fetchIfExists(url, origin, os);
 				response.setStatus(HttpStatus.OK.value());
 			}
+		}
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@ResponseStatus(HttpStatus.CREATED)
+	@PutMapping("cache")
+	void push(
+		WebRequest request,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		InputStream data
+	) throws IOException, URISyntaxException {
+		if (isNotBlank(props.getCacheApi())) {
+			jasperClient.push(new URI(props.getCacheApi()), jasperHeaders(request), url, origin, data.readAllBytes());
+		} else {
+			proxyService.push(url, origin, data);
 		}
 	}
 
@@ -388,13 +409,14 @@ public class ReplicateController {
 	@PostMapping("cache")
 	RefReplDto save(
 		WebRequest request,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(required = false) String mime,
 		InputStream data
 	) throws IOException, URISyntaxException {
 		if (isNotBlank(props.getCacheApi())) {
-			return jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), mime, data.readAllBytes());
+			return jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), origin, mime, data.readAllBytes());
 		} else {
-			return mapper.dtoToRepl(proxyService.save(data, mime));
+			return mapper.dtoToRepl(proxyService.save(origin, data, mime));
 		}
 	}
 }
