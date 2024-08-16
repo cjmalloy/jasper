@@ -225,7 +225,7 @@ public class FileCache {
 		// M3U8 Manifest
 		var data = fetchString(url, origin);
 		if (data == null) return moreScrape;
-		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equals("application/x-mpegURL") || cache.getMimeType().equals("application/vnd.apple.mpegurl"))) {
+		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
 			try {
 				var urlObj = new URL(url);
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
