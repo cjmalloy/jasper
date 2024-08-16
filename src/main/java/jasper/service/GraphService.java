@@ -30,16 +30,7 @@ public class GraphService {
 	RefRepository refRepository;
 
 	@Autowired
-	Ingest ingest;
-
-	@Autowired
-	Auth auth;
-
-	@Autowired
 	DtoMapper mapper;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "graph"}, histogram = true)
