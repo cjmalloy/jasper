@@ -28,11 +28,22 @@ public class Fetch {
 	HostCheck hostCheck;
 
 	@Autowired
-	CloseableHttpClient client;
+	ConfigCache configs;
 
-	FileRequest doScrape(String url) throws IOException {
-		if (!url.startsWith("http:") && !url.startsWith("https:")) throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
-		return wrap(doWebScrape(url));
+	@Autowired
+	CloseableHttpClient http;
+
+	@Autowired
+	Replicator replicator;
+
+	FileRequest doScrape(String url, String origin) throws IOException {
+		if (url.startsWith("internal:")) {
+			return replicator.fetch(url, configs.getRemote(origin));
+		}
+		if (url.startsWith("http:") || url.startsWith("https:")) {
+			return wrap(doWebScrape(url));
+		}
+		throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
 	}
 
 	private CloseableHttpResponse doWebScrape(String url) throws IOException {
@@ -42,7 +53,7 @@ public class Fetch {
 			throw new NotFoundException("Invalid host.");
 		}
 		request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
-		var res = client.execute(request);
+		var res = http.execute(request);
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
 			return doWebScrape(res.getFirstHeader("Location").getElements()[0].getValue());
 		}

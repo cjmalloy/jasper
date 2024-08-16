@@ -47,6 +47,9 @@ public class FileCache {
 	Optional<Fetch> fetch;
 
 	@Autowired
+	Replicator replicator;
+
+	@Autowired
 	Images images;
 
 	@Autowired
@@ -96,6 +99,14 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache")
+	public byte[] fetchBytes(String url, String origin) {
+		var cache = getCache(fetch(url, origin));
+		if (cache == null) return null;
+		if (bannedOrBroken(cache)) return null;
+		return storage.get(origin, CACHE, cache.getId());
+	}
+
+	@Timed(value = "jasper.cache")
 	public Ref fetch(String url, String origin) {
 		return fetch(url, origin, null, false);
 	}
@@ -122,7 +133,7 @@ public class FileCache {
 		if (fetch.isEmpty()) return ref;
 		String mimeType;
 		String id;
-		try (var res = fetch.get().doScrape(url)) {
+		try (var res = fetch.get().doScrape(url, origin)) {
 			if (res == null) return ref;
 			mimeType = res.getMimeType();
 			id = storage.store(origin, CACHE, res.getInputStream());
@@ -217,6 +228,12 @@ public class FileCache {
 		var cache = getCache(fetch(url, origin));
 		if (cache == null) throw new NotFoundException("Overwriting cache that does not exist");
 		storage.overwrite(origin, CACHE, cache.getId(), bytes);
+	}
+
+	@Timed(value = "jasper.cache")
+	public void push(String url, String origin, InputStream in) throws IOException {
+		if (!url.startsWith("internal:")) throw new NotFoundException("URL is not cacheable");
+		storage.storeAt(origin, CACHE, url.substring("internal:".length()), in);
 	}
 
 	private List<String> createArchive(String url, String origin, Cache cache) {
