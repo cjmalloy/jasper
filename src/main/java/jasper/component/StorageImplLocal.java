@@ -5,7 +5,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.NotFoundException;
-import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,9 +38,6 @@ public class StorageImplLocal implements Storage {
 
 	@Autowired
 	Props props;
-
-	@Autowired
-	RefRepository refRepository;
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {

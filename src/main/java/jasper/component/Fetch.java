@@ -1,9 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.errors.NotFoundException;
 import jasper.errors.ScrapeProtocolException;
-import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -20,7 +18,6 @@ import org.springframework.stereotype.Component;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
 
 @Profile("proxy")
 @Component
@@ -29,24 +26,6 @@ public class Fetch {
 
 	@Autowired
 	HostCheck hostCheck;
-
-	@Autowired
-	ConfigCache configs;
-
-	@Autowired
-	RefRepository refRepository;
-
-	@Autowired
-	Tagger tagger;
-
-	@Autowired
-	Optional<FileCache> fileCache;
-
-	@Autowired
-	Sanitizer sanitizer;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@Autowired
 	CloseableHttpClient client;

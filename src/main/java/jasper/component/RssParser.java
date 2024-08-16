@@ -19,7 +19,6 @@ import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
-import jasper.security.Auth;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
@@ -52,9 +51,6 @@ public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
 
 	@Autowired
-	Auth auth;
-
-	@Autowired
 	HostCheck hostCheck;
 
 	@Autowired
@@ -68,9 +64,6 @@ public class RssParser {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	ConfigCache configs;
 
 	@Timed("jasper.feed")
 	public void scrape(Ref feed, boolean force) throws IOException, FeedException {

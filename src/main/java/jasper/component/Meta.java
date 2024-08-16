@@ -1,7 +1,6 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -27,9 +26,6 @@ import static org.springframework.data.domain.Sort.by;
 @Component
 public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	RefRepository refRepository;

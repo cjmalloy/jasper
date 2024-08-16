@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.domain.Ref;
 import jasper.errors.InvalidTunnelException;
 import jasper.plugin.Origin;
@@ -38,9 +37,6 @@ public class TunnelClient {
 
 	@Autowired
 	Tagger tagger;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	public void proxy(Ref remote, ProxyRequest request) {
 		try {
