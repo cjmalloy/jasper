@@ -13,7 +13,7 @@ FROM builder AS test
 COPY docker/entrypoint.sh .
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.23-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=oven/bun:1.1.25-slim /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
@@ -30,7 +30,7 @@ CMD mvn -gs settings.xml test; \
 FROM azul/zulu-openjdk-debian:21.0.4-21.36-jre AS deploy
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.23-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=oven/bun:1.1.25-slim /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
