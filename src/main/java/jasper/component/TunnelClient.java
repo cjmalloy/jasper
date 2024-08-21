@@ -86,12 +86,16 @@ public class TunnelClient {
 							logger.debug("{} Error creating tunnel tracker", remote.getOrigin(), e);
 							throw new InvalidTunnelException("Error creating tunnel tracker", e);
 						}
-					} catch (Exception e) {
+					} catch (InvalidTunnelException e) {
+						throw e;
+					}  catch (Exception e) {
 						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin(), e);
 						throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 					} finally {
 						client.stop();
 					}
+				} catch (InvalidTunnelException e) {
+					throw e;
 				} catch (Exception e) {
 					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin(), e);
 					throw new InvalidTunnelException("Error creating tunnel SSH client", e);
