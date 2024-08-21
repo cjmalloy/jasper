@@ -53,7 +53,10 @@ public class OriginService {
 	public void push(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
+		var start = Instant.now();
+		logger.info("{} Pushing origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
 		replicator.push(source);
+		logger.info("{} Finished pushing origin {} in {}", origin, origin, Duration.between(start, Instant.now()));
 	}
 
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
@@ -61,7 +64,10 @@ public class OriginService {
 	public void pull(String url, String origin) throws FeedException, IOException {
 		var source = refRepository.findOneByUrlAndOrigin(url, origin)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
+		var start = Instant.now();
+		logger.info("{} Pulling origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
 		replicator.pull(source);
+		logger.info("{} Finished pulling origin {} in {}", origin, origin, Duration.between(start, Instant.now()));
 	}
 
 	@Transactional
