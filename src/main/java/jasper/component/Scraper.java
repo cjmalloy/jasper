@@ -77,8 +77,9 @@ public class Scraper {
 		var data = proxy.fetchString(url);
 		if (!data.trim().startsWith("<")) return null;
 		var doc = Jsoup.parse(data, url);
+		// TODO: support application/feed+json
 		return doc.getElementsByTag("link").stream()
-			.filter(t -> t.attr("type").equals("application/rss+xml"))
+			.filter(t -> t.attr("type").equals("application/rss+xml") || t.attr("type").equals("application/atom+xml"))
 			.filter(t -> t.hasAttr("href"))
 			.map(t -> t.absUrl("href"))
 			.findFirst().orElse(null);
