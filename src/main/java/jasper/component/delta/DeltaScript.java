@@ -6,7 +6,6 @@ import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
-import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +46,7 @@ public class DeltaScript implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		logger.info("{} Applying delta response to {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		var found = false;
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t)).toList()) {
 			if (scriptTag.startsWith("_plugin/scrape") || scriptTag.startsWith("_plugin/cache/async")) {
@@ -59,6 +58,7 @@ public class DeltaScript implements Async.AsyncRunner {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent()) {
 				try {
+					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, config.get());
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
