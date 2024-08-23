@@ -15,9 +15,9 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class JavaScriptTest {
+class ShellTest {
 
-	JavaScript vm = new JavaScript();
+	Shell vm = new Shell();
 
 	@BeforeEach
 	public void init() throws IOException {
@@ -25,53 +25,53 @@ class JavaScriptTest {
 		var app = mapper.readValue(new File("src/test/resources/config/application.yml"), ObjectNode.class);
 		var props = app.get("jasper");
 
-		var node = System.getenv("JASPER_NODE");
-		if (isBlank(node)) {
-			node = props.get("node").textValue();
+		var shell = System.getenv("JASPER_SHELL");
+		if (isBlank(shell)) {
+			shell = props.get("shell").textValue();
 		}
-		node = node.replaceFirst("^~", System.getProperty("user.home"));
+		shell = shell.replaceFirst("^~", System.getProperty("user.home"));
 		vm.props = new Props();
-		vm.props.setNode(node);
+		vm.props.setShell(shell);
 		vm.api = "http://localhost:10344";
 	}
 
 	@Test
-	void testRunJavaScript() throws IOException, InterruptedException, ScriptException {
-		// language=JavaScript
+	void testRunShellScript() throws IOException, InterruptedException, ScriptException {
+		// language=sh
 		var targetScript = """
-			console.log(require('fs').readFileSync(0, 'utf-8').toUpperCase());
-		""";
+            echo $(cat) | tr '[:lower:]' '[:upper:]'
+        """;
 		var input = "test";
 
-		var output = vm.runJavaScript(targetScript, input, 30_000);
+		var output = vm.runShellScript(targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
 	}
 
 	@Test
-	void testRunJavaScriptTimeout() {
-		// language=JavaScript
+	void testRunShellScriptTimeout() {
+		// language=Bash
 		var targetScript = """
-            setTimeout(() => { console.log(require('fs').readFileSync(0, 'utf-8').toUpperCase()); }, 2000);
+            sleep 2
+            echo $(cat) | tr '[:lower:]' '[:upper:]'
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 1_000))
+		assertThatThrownBy(() -> vm.runShellScript(targetScript, input, 1_000))
 			.isInstanceOf(RuntimeException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
 
 	@Test
-	void testRunJavaScriptError() {
-		// language=JavaScript
+	void testRunShellScriptError() {
+		// language=Bash
 		var targetScript = """
-            console.log(require('fs').readFileSync('non_existent_file', 'utf-8'));
+            cat non_existent_file
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 30_000))
+		assertThatThrownBy(() -> vm.runShellScript(targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
 	}
-
 }
