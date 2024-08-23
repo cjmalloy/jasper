@@ -30,8 +30,6 @@ import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIden
 public class TunnelClient {
 	private static final Logger logger = LoggerFactory.getLogger(TunnelClient.class);
 
-	private static final int LOCAL_HTTP_PORT = 38080;
-
 	@Autowired
 	UserRepository userRepository;
 
@@ -79,17 +77,17 @@ public class TunnelClient {
 						loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(user.get().getKey()), null)
 							.forEach(session::addPublicKeyIdentity);
 						session.auth().verify(30, TimeUnit.SECONDS);
-						try (var tracker = session.createLocalPortForwardingTracker(LOCAL_HTTP_PORT, new SshdSocketAddress("localhost", httpPort[0]))) {
+						try (var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]))) {
 							logger.debug("{} Opened reverse proxy in SSH tunnel.", remote.getOrigin());
-							request.go(new URI("http://localhost:" + LOCAL_HTTP_PORT));
+							request.go(new URI("http://localhost:" + tracker.getBoundAddress().getPort()));
 						} catch (Exception e) {
-							logger.debug("{} Error creating tunnel tracker", remote.getOrigin(), e);
+							logger.debug("{} Error creating tunnel port forward", remote.getOrigin());
 							throw new InvalidTunnelException("Error creating tunnel tracker", e);
 						}
 					} catch (InvalidTunnelException e) {
 						throw e;
 					}  catch (Exception e) {
-						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin(), e);
+						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin());
 						throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 					} finally {
 						client.stop();
@@ -97,7 +95,7 @@ public class TunnelClient {
 				} catch (InvalidTunnelException e) {
 					throw e;
 				} catch (Exception e) {
-					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin(), e);
+					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin());
 					throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 				}
 			}
