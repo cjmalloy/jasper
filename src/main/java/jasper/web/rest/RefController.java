@@ -22,8 +22,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +44,7 @@ import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
@@ -126,6 +129,11 @@ public class RefController {
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
+		if ("!@*".equals(query)) {
+			ResponseEntity.ok()
+				.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
+				.body(Page.empty(pageable));
+		}
 		var rankedSort = false;
 		if (pageable.getSort().isUnsorted() || pageable.getSort().getOrderFor("rank") != null) {
 			if (isNotBlank(search)) {

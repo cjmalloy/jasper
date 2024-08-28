@@ -390,6 +390,40 @@ public class RefServiceIT {
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
 	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQuery() {
+		refWithTags("public");
+		refWithTags("public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQueryNoTags() {
+		refWithTags();
+		refWithTags("public");
+		refWithTags("public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
 	@Test
 	void testGetPageRefWithQueryPrivateTagFailed() {
 		refWithTags("public");
@@ -460,6 +494,40 @@ public class RefServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithOriginEmptyQuery() {
+		refWithOriginTags("@a", "public");
+		refWithOriginTags("@a", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithOriginEmptyQueryNoTags() {
+		refWithOriginTags("@a");
+		refWithOriginTags("@b");
+		refWithOriginTags("@a", "public");
+		refWithOriginTags("@a", "public", "custom", "extra");
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
 	}
 
 	@Test
