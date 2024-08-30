@@ -101,5 +101,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Built docker image: https://github.com/cjmalloy/jasper/pkgs/container/jasper/pr-${{ github.event.number }}'
+              body: 'Built docker image: https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}'
             })
