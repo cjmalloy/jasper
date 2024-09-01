@@ -68,6 +68,10 @@ public class Props {
 	private boolean allowUserRoleHeader = false;
 	private boolean allowAuthHeaders = false;
 	/**
+	 * Highest role allowed access.
+	 */
+	private String maxRole = "ROLE_ADMIN";
+	/**
 	 * Minimum role for basic access.
 	 */
 	private String minRole = "ROLE_ANONYMOUS";

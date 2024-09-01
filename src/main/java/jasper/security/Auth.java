@@ -22,7 +22,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -42,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.jsonwebtoken.Jwts.claims;
@@ -66,6 +68,7 @@ import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
+import static org.springframework.security.core.authority.AuthorityUtils.authorityListToSet;
 
 /**
  * This single class is where all authorization decisions are made.
@@ -545,7 +548,18 @@ public class Auth {
 	}
 
 	/**
-	 * Has the minimum role.
+	 * Has the maximum role or lower.
+	 */
+	private boolean maxRole(String role) {
+		if (props.getMaxRole().equals(role)) return true;
+		return roleHierarchy.getReachableGrantedAuthorities(List.of(new SimpleGrantedAuthority(role)))
+			.stream()
+			.map(GrantedAuthority::getAuthority)
+			.noneMatch(r -> props.getMaxRole().equals(r));
+	}
+
+	/**
+	 * Has the minimum role or higher.
 	 */
 	public boolean minRole() {
 		// Don't call hasRole() from here or you get an infinite loop
@@ -947,10 +961,11 @@ public class Auth {
 			if (getAuthentication() == null) {
 				roles = new HashSet<>();
 			} else {
-				var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-				roles = AuthorityUtils.authorityListToSet(roleHierarchy != null
-					? roleHierarchy.getReachableGrantedAuthorities(userAuthorities)
-					: userAuthorities);
+				var userAuthorities = getAuthentication().getAuthorities();
+				roles = authorityListToSet(roleHierarchy.getReachableGrantedAuthorities(userAuthorities))
+					.stream()
+					.filter(this::maxRole)
+					.collect(Collectors.toSet());
 			}
 		}
 		return roles;

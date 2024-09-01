@@ -68,6 +68,7 @@ server:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
+  max-role: ROLE_ADMIN
   push-cooldown-sec: 1
 #  local-origin: '@test'
   allow-user-role-header: true

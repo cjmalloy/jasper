@@ -126,6 +126,7 @@ public class SecurityConfiguration {
 
 	@Bean
 	JWTConfigurer securityConfigurerAdapter() {
+		logger.info("Maximum Role: {}", props.getMaxRole());
 		logger.info("Minimum Role: {}", props.getMinRole());
 		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider, configs);
 	}
