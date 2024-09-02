@@ -120,6 +120,7 @@ public class ScriptRunner {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage());
 			return;
 		}
+		if (isBlank(output)) return;
 		Bundle bundle;
 		try {
 			switch (config.getFormat().toLowerCase()) {
