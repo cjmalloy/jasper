@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 
 import static jasper.domain.proj.Tag.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("scripts")
 @Component
@@ -56,7 +57,7 @@ public class DeltaScript implements Async.AsyncRunner {
 				continue;
 			}
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
-			if (config.isPresent()) {
+			if (config.isPresent() && isNotBlank(config.get().getScript())) {
 				try {
 					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, config.get());
