@@ -1,18 +1,12 @@
 package jasper.component;
 
+import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
-import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import static jasper.domain.proj.Tag.matchesTag;
 
 @Component
 public class IngestBundle {
@@ -33,6 +27,7 @@ public class IngestBundle {
 	@Autowired
 	IngestTemplate ingestTemplate;
 
+	@Timed(value = "jasper.bundle", histogram = true)
 	public void createOrUpdate(Bundle bundle, String origin) {
 		if (bundle.getRef() != null) for (var ref : bundle.getRef()) {
 			ref.setOrigin(origin);

@@ -49,7 +49,7 @@ public class CronScript implements Scheduler.CronRunner {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent()) {
 				try {
-					scriptRunner.runScripts(ref, config.get());
+					scriptRunner.runScripts(ref, config.get(), "_seal/script");
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
 					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
