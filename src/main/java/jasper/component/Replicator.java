@@ -213,7 +213,7 @@ public class Replicator {
 						pull.migrate(ref, config);
 						try {
 							ingestRef.push(ref, validationOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-							if (pull.isCache() && fileCache.isPresent() && ref.getUrl().startsWith("internal:")) {
+							if (pull.isCache() && fileCache.isPresent() && ref.getUrl().startsWith("cache:")) {
 								try {
 									var cache = client.fetch(baseUri, ref.getUrl(), ref.getOrigin());
 									if (cache.getBody() != null) fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody().getInputStream());
@@ -386,7 +386,7 @@ public class Replicator {
 					}
 					if (push.isCache() && fileCache.isPresent()) {
 						for (var ref : refList) {
-							if (ref.getUrl().startsWith("internal:")) {
+							if (ref.getUrl().startsWith("cache:")) {
 								try {
 									var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
 									client.push(baseUri, ref.getUrl(), ref.getOrigin(), data);

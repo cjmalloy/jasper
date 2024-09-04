@@ -175,7 +175,7 @@ public class FileCache {
 		if (bannedOrBroken(fullSize)) return null;
 		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
-		var thumbnailUrl = "internal:" + thumbnailId;
+		var thumbnailUrl = "cache:" + thumbnailId;
 		if (storage.exists(origin, CACHE, thumbnailId)) {
 			return fetch(thumbnailUrl, origin, os, false);
 		} else {
@@ -220,7 +220,7 @@ public class FileCache {
 			.mimeType(mimeType)
 			.contentLength(storage.size(origin, CACHE, id))
 			.build();
-		return tagger.internalPlugin("internal:" + id, origin, "_plugin/cache", cache, tags);
+		return tagger.internalPlugin("cache:" + id, origin, "_plugin/cache", cache, tags);
 	}
 
 	@Timed(value = "jasper.cache")
@@ -232,8 +232,8 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public void push(String url, String origin, InputStream in) throws IOException {
-		if (!url.startsWith("internal:")) throw new NotFoundException("URL is not cacheable");
-		storage.storeAt(origin, CACHE, url.substring("internal:".length()), in);
+		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
+		storage.storeAt(origin, CACHE, url.substring("cache:".length()), in);
 	}
 
 	private List<String> createArchive(String url, String origin, Cache cache) {

@@ -37,8 +37,10 @@ public class Fetch {
 	Replicator replicator;
 
 	FileRequest doScrape(String url, String origin) throws IOException {
-		if (url.startsWith("internal:")) {
-			return replicator.fetch(url, configs.getRemote(origin));
+		if (url.startsWith("cache:")) {
+			var remote = configs.getRemote(origin);
+			if (remote == null) throw new ScrapeProtocolException("cache");
+			return replicator.fetch(url, remote);
 		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
 			return wrap(doWebScrape(url));
