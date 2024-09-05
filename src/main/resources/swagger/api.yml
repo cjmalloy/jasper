@@ -665,31 +665,6 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/proxy/refresh:
-    get:
-      tags:
-        - Proxy
-      operationId: refresh
-      description: Immediately re-scrape a webpage and replace it in the cache.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
-        '500':
-          description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/tags/response:
     post:
       tags:

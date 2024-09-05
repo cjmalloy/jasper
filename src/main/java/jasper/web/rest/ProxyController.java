@@ -56,15 +56,6 @@ public class ProxyController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
-	})
-	@GetMapping("refresh")
-	void refresh(@RequestParam @Length(max = URL_LEN) String url) throws IOException {
-		proxyService.refresh(url);
-	}
-
-	@ApiResponses({
-		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "404"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
