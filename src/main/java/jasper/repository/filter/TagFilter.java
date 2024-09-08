@@ -13,6 +13,7 @@ import java.time.Instant;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
+import static jasper.repository.spec.TagSpec.isLevel;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
 import static jasper.repository.spec.TagSpec.tagEndsWith;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -26,6 +27,7 @@ public class TagFilter implements Query {
 
 	private String origin;
 	private String query;
+	private Integer level;
 	private Boolean deleted;
 	private String search;
 	private Instant modifiedBefore;
@@ -38,6 +40,9 @@ public class TagFilter implements Query {
 		}
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).spec());
+		}
+		if (level != null) {
+			result = result.and(isLevel(level));
 		}
 		if (deleted == null || !deleted) {
 			result = result.and(not(tagEndsWith("deleted")));

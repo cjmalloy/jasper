@@ -35,6 +35,13 @@ public class TagSpec {
 					tag + "/%"));
 	}
 
+	public static <T extends Tag> Specification<T> isLevel(int level) {
+		return (root, query, cb) ->
+			cb.equal(
+				root.get("levels"),
+				level);
+	}
+
 	public static <T extends Tag> Specification<T> tagEndsWith(String tag) {
 		return (root, query, cb) ->
 			cb.or(

@@ -84,6 +84,7 @@ public class PluginController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -91,11 +92,12 @@ public class PluginController {
 	) {
 		return httpCache.ifNotModifiedPage(request, pluginService.page(
 			TagFilter.builder()
+				.query(query)
+				.level(level)
+				.deleted(deleted)
+				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
-				.search(search)
-				.query(query)
-				.deleted(deleted)
 				.build(),
 			pageable));
 	}

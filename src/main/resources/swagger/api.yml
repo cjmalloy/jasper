@@ -1089,6 +1089,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1345,6 +1350,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1525,6 +1535,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1710,6 +1725,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
