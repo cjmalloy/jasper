@@ -56,7 +56,7 @@ public class OriginService {
 		var start = Instant.now();
 		logger.info("{} Pushing origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
 		replicator.push(source);
-		logger.info("{} Finished pushing origin {} in {}", origin, origin, Duration.between(start, Instant.now()));
+		logger.info("{} Finished pushing origin in {} {}: {}", source.getOrigin(), Duration.between(start, Instant.now()), source.getTitle(), source.getUrl());
 	}
 
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
@@ -67,7 +67,7 @@ public class OriginService {
 		var start = Instant.now();
 		logger.info("{} Pulling origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
 		replicator.pull(source);
-		logger.info("{} Finished pulling origin {} in {}", origin, origin, Duration.between(start, Instant.now()));
+		logger.info("{} Finished pulling origin in {} {}: {}", source.getOrigin(), Duration.between(start, Instant.now()), source.getTitle(), source.getUrl());
 	}
 
 	@Transactional

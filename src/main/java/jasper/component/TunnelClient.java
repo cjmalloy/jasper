@@ -1,9 +1,7 @@
 package jasper.component;
 
-import jasper.domain.Ref;
+import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
-import jasper.plugin.Origin;
-import jasper.plugin.Tunnel;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -22,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 import static jasper.domain.proj.HasTags.authors;
 import static jasper.domain.proj.Tag.defaultOrigin;
 import static jasper.domain.proj.Tag.reverseOrigin;
+import static jasper.plugin.Origin.getOrigin;
+import static jasper.plugin.Tunnel.getTunnel;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.sshd.common.NamedResource.ofName;
 import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIdentities;
@@ -36,16 +36,16 @@ public class TunnelClient {
 	@Autowired
 	Tagger tagger;
 
-	public void proxy(Ref remote, ProxyRequest request) {
+	public void proxy(HasTags remote, ProxyRequest request) {
 		try {
-			var config = remote.getPlugin("+plugin/origin", Origin.class);
+			var config = getOrigin(remote);
 			URI url;
 			try {
 				url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
 			} catch (URISyntaxException e) {
 				throw new InvalidTunnelException("Error parsing tunnel URI", e);
 			}
-			var tunnel = remote.getPlugin("+plugin/origin/tunnel", Tunnel.class);
+			var tunnel = getTunnel(remote);
 			if (tunnel == null) {
 				request.go(url);
 			} else {
@@ -100,7 +100,7 @@ public class TunnelClient {
 				}
 			}
 		} catch (InvalidTunnelException e) {
-			tagger.attachError(remote.getOrigin(), remote,
+			tagger.attachError(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
 				e.getMessage());

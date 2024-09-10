@@ -16,6 +16,7 @@ import java.util.List;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Pull implements Serializable {
+	private boolean cache;
 	private String query;
 	private int batchSize;
 	private boolean validatePlugins;

@@ -72,7 +72,7 @@ public class ScriptRunner {
 	}
 
 	@Timed("jasper.scripts")
-	public void runScripts(Ref ref, Script config) throws UntrustedScriptException {
+	public void runScripts(Ref ref, Script config, String seal) throws UntrustedScriptException {
 		if (isBlank(config.getScript())) return;
 		validateScript(config.getScript());
 		String input;
@@ -138,6 +138,11 @@ public class ScriptRunner {
 			logger.error("{} Error parsing script return value", ref.getOrigin(), e);
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing script output", output);
 			return;
+		}
+		for (var r : bundle.getRef()) {
+			if (ref.getUrl().equals(r.getUrl())) {
+				r.addTag(seal);
+			}
 		}
 		ingest.createOrUpdate(bundle, ref.getOrigin());
 	}
