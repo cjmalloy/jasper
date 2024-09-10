@@ -123,9 +123,8 @@ public class RssParser {
 						}
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
-						Ref ref;
 						try {
-							ref = parseEntry(feed, config, entry, feedImage);
+							var ref = parseEntry(feed, config, entry, feedImage);
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
