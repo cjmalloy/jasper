@@ -122,7 +122,7 @@ public class RssParser {
 							ingest.update(feed, false);
 						}
 					}
-					for (var entry : syndFeed.getEntries()) {
+					for (var entry : syndFeed.getEntries().reversed()) {
 						Ref ref;
 						try {
 							ref = parseEntry(feed, config, entry, feedImage);
