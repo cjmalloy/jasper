@@ -47,15 +47,12 @@ public class DeltaScript implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
+		if (ref.hasTag("_seal/delta")) return;
+		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
+		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
 		logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		var found = false;
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t)).toList()) {
-			if (scriptTag.startsWith("_plugin/scrape") || scriptTag.startsWith("_plugin/cache/async")) {
-				// Built-in scripts
-				// TODO: Move to mod scripts
-				found = true;
-				continue;
-			}
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent() && isNotBlank(config.get().getScript())) {
 				try {
