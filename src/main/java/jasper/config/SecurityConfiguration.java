@@ -37,6 +37,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static org.apache.commons.lang3.ArrayUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @EnableWebSecurity
@@ -74,6 +75,25 @@ public class SecurityConfiguration {
 			logger.error("==================================================");
 			logger.error("==================================================");
 		}
+		logger.warn("==================================================");
+		logger.warn("==================================================");
+		logger.warn("DEFAULT ROLE:             {}", props.getDefaultRole());
+		logger.warn("DEFAULT READ ACCESS:      {}", isEmpty(props.getDefaultReadAccess()) ? "" : String.join(", ", props.getDefaultReadAccess()));
+		logger.warn("DEFAULT WRITE ACCESS:     {}", isEmpty(props.getDefaultWriteAccess()) ? "" : String.join(", ", props.getDefaultWriteAccess()));
+		logger.warn("DEFAULT TAG READ ACCESS:  {}", isEmpty(props.getDefaultTagReadAccess()) ? "" : String.join(", ", props.getDefaultTagReadAccess()));
+		logger.warn("DEFAULT TAG WRITE ACCESS: {}", isEmpty(props.getDefaultTagWriteAccess()) ? "" : String.join(", ", props.getDefaultTagWriteAccess()));
+		logger.warn("MAX ROLE:                 {}", props.getMaxRole());
+		logger.warn("MIN ROLE:                 {}", props.getMinRole());
+		logger.warn("MIN WRITE ROLE:           {}", props.getMinWriteRole());
+		logger.warn("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
+		logger.warn("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
+		logger.warn("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
+		logger.warn("USER HEADERS:             {}", props.isAllowUserTagHeader() ? "ENABLED" : "-");
+		logger.warn("ROLE HEADERS:             {}", props.isAllowUserRoleHeader() ? "ENABLED" : "-");
+		logger.warn("ROLE HEADERS:             {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
+		logger.warn("ORIGIN HEADERS:           {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
+		logger.warn("==================================================");
+		logger.warn("==================================================");
 	}
 
 	private boolean profile(String profile) {
@@ -126,8 +146,6 @@ public class SecurityConfiguration {
 
 	@Bean
 	JWTConfigurer securityConfigurerAdapter() {
-		logger.info("Maximum Role: {}", props.getMaxRole());
-		logger.info("Minimum Role: {}", props.getMinRole());
 		return new JWTConfigurer(props, tokenProvider, defaultTokenProvider, configs);
 	}
 

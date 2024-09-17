@@ -29,6 +29,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set Version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [[ $VERSION == v* ]]; then VERSION="${VERSION:1}"; fi
+          if [[ $VERSION == */merge ]]; then VERSION="pr-${VERSION%/merge}"; fi
+          sed -i.bak "s/<version>.*-SNAPSHOT<\/version>/<version>${VERSION}<\/version>/" pom.xml
+
       # Install the cosign tool
       # https://github.com/sigstore/cosign-installer
 #      - name: Install cosign
