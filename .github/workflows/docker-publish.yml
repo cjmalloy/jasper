@@ -29,6 +29,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set Version
+        run: sed -i.bak "s/<version>.*-SNAPSHOT<\/version>/<version>${{ github.ref_name }}<\/version>/" pom.xml
+
       # Install the cosign tool
       # https://github.com/sigstore/cosign-installer
 #      - name: Install cosign
