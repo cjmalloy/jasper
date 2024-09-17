@@ -192,7 +192,7 @@ public class Auth {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
 			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
 		if (logger.isTraceEnabled()) {
-			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(configs.security(getOrigin())));
+			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(security()));
 		}
 	}
 

@@ -30,6 +30,14 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Set Version
+        run: |
+          VERSION=${{ github.ref_name }}
+          if [ [[ $VERSION == v* ]] ]; then
+            VERSION=${VERSION:1}
+          fi
+          sed -i.bak "s/<version>.*-SNAPSHOT<\/version>/<version>${VERSION}<\/version>/" pom.xml
+
       - name: Build with Maven
         run: ./mvnw -B package -Dmaven.test.skip
 
