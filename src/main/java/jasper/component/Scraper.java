@@ -218,7 +218,7 @@ public class Scraper {
 			}
 			if (isBlank(date)) continue;
 			try {
-				result.setPublished(Instant.parse(date));
+				result.setPublished(parseDate(date));
 				return;
 			} catch (DateTimeParseException ignored) {}
 		}
@@ -294,15 +294,15 @@ public class Scraper {
 		}
 		var metaPublished = doc.select("meta[property=article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(Instant.parse(metaPublished.attr("content")));
+			result.setPublished(parseDate(metaPublished.attr("content")));
 		}
 		metaPublished = doc.select("meta[property=og:article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(Instant.parse(metaPublished.attr("content")));
+			result.setPublished(parseDate(metaPublished.attr("content")));
 		}
 		var metaReleased = doc.select("meta[property=og:book:release_date]").first();
 		if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
-			result.setPublished(Instant.parse(metaReleased.attr("content")));
+			result.setPublished(parseDate(metaReleased.attr("content")));
 		}
 	}
 
@@ -372,7 +372,7 @@ public class Scraper {
 		if (isNotBlank(ld.getThumbnailUrl())) addWeakThumbnail(result, ld.getThumbnailUrl());
 		if ("NewsArticle".equals(ld.getType())) {
 			if (isNotBlank(ld.getDatePublished())) {
-				result.setPublished(Instant.parse(ld.getDatePublished()));
+				result.setPublished(parseDate(ld.getDatePublished()));
 			}
 		}
 		if ("AudioObject".equals(ld.getType())) {
@@ -484,6 +484,15 @@ public class Scraper {
 		// TODO: Add plugin to override like oembeds
 //		return url.replaceAll("%20", "+");
 		return url.replaceAll(" ", "%20");
+	}
+
+	private Instant parseDate(String date) {
+		try {
+			return Instant.parse(date);
+		} catch (Exception e) {
+			// TODO: support other date formats
+			return null;
+		}
 	}
 
 }
