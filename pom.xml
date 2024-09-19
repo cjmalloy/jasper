@@ -39,7 +39,7 @@
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>4.5.14</apache-httpclient.version>
-		<commons-io.version>2.16.1</commons-io.version>
+		<commons-io.version>2.17.0</commons-io.version>
 		<jsoup.version>1.18.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<fabric8.version>6.4.1</fabric8.version>
