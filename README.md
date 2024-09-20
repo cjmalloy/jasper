@@ -855,11 +855,6 @@ When playing on mutually replicating servers, each server is trusted to generate
 Run a dev server with `docker compose up`.  
 Run a supporting dev database and cache with `docker compose up db redis -d`.
 
-### Development application
-
-Run `npm start` to compile and start electron. Editing `app.ts` will require restarting, but you can edit any of the html views,
-`loading.html`, `logs.html`, `settings.html` and reload the electron window.
-
 ### Build
 
 Run `docker build -t jasper .` to build the project.
