@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
-import org.springframework.integration.dsl.IntegrationFlows;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -86,65 +85,73 @@ public class SingleNodeConfig {
 
 	@Bean
 	public IntegrationFlow directCursorFlow() {
-		return IntegrationFlows.from(cursorTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(cursorRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(cursorTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(cursorRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directRefFlow() {
-		return IntegrationFlows.from(refTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(refRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(refTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(refRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directTagFlow() {
-		return IntegrationFlows.from(tagTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(tagRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(tagTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(tagRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directResponseFlow() {
-		return IntegrationFlows.from(responseTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(responseRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(responseTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(responseRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directUserFlow() {
-		return IntegrationFlows.from(userTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(userRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(userTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(userRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directExtFlow() {
-		return IntegrationFlows.from(extTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(extRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(extTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(extRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directPluginFlow() {
-		return IntegrationFlows.from(pluginTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(pluginRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(pluginTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(pluginRxChannel)
+			.get();
 	}
 
 	@Bean
 	public IntegrationFlow directTemplateFlow() {
-		return IntegrationFlows.from(templateTxChannel)
-							   .channel(new ExecutorChannel(taskExecutor))
-							   .channel(templateRxChannel)
-							   .get();
+		return IntegrationFlow
+			.from(templateTxChannel)
+			.channel(new ExecutorChannel(taskExecutor))
+			.channel(templateRxChannel)
+			.get();
 	}
 }
