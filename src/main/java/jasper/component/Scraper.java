@@ -6,6 +6,7 @@ import com.mdimension.jchronic.Chronic;
 import com.mdimension.jchronic.Options;
 import com.mdimension.jchronic.tags.Pointer;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
 import jasper.plugin.Scrape;
@@ -19,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.persistence.EntityManager;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.time.Instant;
