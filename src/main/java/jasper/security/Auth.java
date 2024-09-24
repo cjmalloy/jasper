@@ -1,6 +1,7 @@
 package jasper.security;
 
 import io.jsonwebtoken.Claims;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
@@ -31,7 +32,6 @@ import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.annotation.PostConstruct;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
