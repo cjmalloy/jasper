@@ -42,7 +42,7 @@
 		<commons-io.version>2.17.0</commons-io.version>
 		<jsoup.version>1.18.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<fabric8.version>6.4.1</fabric8.version>
+		<fabric8.version>6.13.4</fabric8.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
 	</properties>
