@@ -167,9 +167,15 @@ public class FileCache {
 		if (bannedOrBroken(fullSize)) return null;
 		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
+		var oldThumbnailUrl = "internal:" + thumbnailId;
 		var thumbnailUrl = "cache:" + thumbnailId;
 		if (storage.exists(origin, CACHE, thumbnailId)) {
-			return fetch(thumbnailUrl, origin, os, false);
+			try {
+				return fetch(thumbnailUrl, origin, os, false);
+			} catch (ScrapeProtocolException e) {
+				// TODO: remove support for old internal: scheme after migrating to cache: scheme
+				return fetch(oldThumbnailUrl, origin, os, false);
+			}
 		} else {
 			var existingCache = stat(thumbnailUrl, origin);
 			if (existingCache != null && isBlank(existingCache.getId())) {
