@@ -94,7 +94,11 @@ public class RssParser {
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request)) {
 				if (response.getStatusLine().getStatusCode() == 304) {
-					logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
+					if (lastScrape == null) {
+						logger.info("{} Feed {} not modified", feed.getOrigin(), feed.getTitle());
+					} else {
+						logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
+					}
 					return;
 				}
 				try (InputStream stream = response.getEntity().getContent()) {
