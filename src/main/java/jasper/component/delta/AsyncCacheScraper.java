@@ -38,6 +38,12 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 	public void run(Ref ref) throws Exception {
 		logger.info("{} Caching {}", ref.getOrigin(), ref.getUrl());
 		tagger.tag(ref.getUrl(), ref.getOrigin(), "-_plugin/delta/cache", "_plugin/cache");
-		fileCache.refresh(ref.getUrl(), ref.getOrigin());
+		try {
+			fileCache.refresh(ref.getUrl(), ref.getOrigin());
+		} catch (Exception e) {
+			tagger.attachError(ref.getOrigin(),
+				tagger.internalPlugin(ref.getUrl(), ref.getOrigin(), "_plugin/cache", null, "-_plugin/delta/cache"),
+				"Error Fetching", e.getMessage());
+		}
 	}
 }

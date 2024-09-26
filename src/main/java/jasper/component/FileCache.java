@@ -3,6 +3,7 @@ package jasper.component;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
+import jasper.errors.ScrapeProtocolException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -143,6 +144,8 @@ public class FileCache {
 				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
 			return tagger.internalPlugin(url, origin, "_plugin/cache", cache);
+		} catch (ScrapeProtocolException e) {
+			throw e;
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache"),
