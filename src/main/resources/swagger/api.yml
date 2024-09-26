@@ -7,8 +7,8 @@ info:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
-  - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.30
+  - description: Public Server
+    url: https://jasperkm.info/
 paths:
   /api/v1/ref:
     get:
