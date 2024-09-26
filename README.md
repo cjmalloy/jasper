@@ -2,7 +2,7 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.29-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.30-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -529,6 +529,29 @@ The tag permissions are stored in the User entities:
    * Can write ref with tag
    * Can edit tag Ext
 
+### Special URL Schemas
+
+### Cache
+URLs that have the `cache:` scheme represent items stored in a file cache.
+Most URLs with a resource in a file cache have a standard `https:` scheme,
+as they are just a cache of a resource that exists elsewhere.
+When a file is pushed into the cache (such as a generated thumbnail), it is
+generated a random `cache:<uuid>` URL.
+
+#### Tag URLs
+URLs that point to a tag, such as `tag:/history` ignore regular tagging access rules.
+Instead, you can access this Ref if you can access the tag it points to.
+
+#### User URLs
+URLs that point to a user tag, such as `tag:/+user/chris` are always owned by the user.
+These specials URLs can also be used to store per-plugin config data,
+such as `tag:/+user/chris?url=tag:/plugin/kanban`.
+Visibility of plugin setting can be set on a per-user, per-plugin basis.
+For convenience, the user URL is used if a blank URL is passed to the tagging response controller.
+This allows you to quickly ensure settings are initialized and fetch / edit Ref plugins and tags to read settings.
+If a tag are passed, for example `plugin/kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/plugin/kanban`.
+If a blank URL and a blank tag are passed, the default is the generic user settings Ref: `tag:/+user/chris`.
+
 ### Special Tags
 Some public tags have special significance:
  * `public`: everyone can read
@@ -575,7 +598,6 @@ Jasper generates the following metadata in Refs:
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 ## Server Scripting
-
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
 `plugin/script` tag.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script

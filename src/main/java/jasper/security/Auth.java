@@ -49,6 +49,9 @@ import java.util.stream.Stream;
 import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.Tag.tagUrl;
+import static jasper.domain.proj.Tag.urlToTag;
+import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
@@ -264,6 +267,10 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		// Min Role
 		if (!minRole()) return false;
+		// User URL
+		if (userUrl(ref.getUrl())) return isLoggedIn() && userUrl(ref.getUrl(), getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(ref.getUrl())) return canReadTag(urlToTag(ref.getUrl()) + ref.getOrigin());
 		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
@@ -312,9 +319,12 @@ public class Auth {
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
+		// User URL
+		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
-			if (url.startsWith("tag:/")) return hasRole(MOD) || url.startsWith("tag:/" + getUserTag().tag + "?");
 			// If we're creating, simply having the role USER is enough
 			return hasRole(USER);
 		}

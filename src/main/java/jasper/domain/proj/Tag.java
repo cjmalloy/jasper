@@ -21,8 +21,31 @@ public interface Tag extends Cursor {
 		return getTag() + getOrigin();
 	}
 
+	static boolean userUrl(String url) {
+		return
+			userUrl(url, "+user") || url.startsWith("tag:/+user/") ||
+			userUrl(url, "_user") || url.startsWith("tag:/_user/");
+	}
+
+	static boolean userUrl(String url, String user) {
+		return url.equals("tag:/" + user) ||
+			url.startsWith("tag:/" + user + "?") ||
+			url.startsWith("tag:/" + user + "/");
+	}
+
 	static String urlForUser(String url, String user) {
+		if (isBlank(url)) return "tag:/" + user;
 		return "tag:/" + user + "?url=" + url;
+	}
+
+	static boolean tagUrl(String url) {
+		return url.startsWith("tag:/");
+	}
+
+	static String urlToTag(String url) {
+		var tag = url.substring("tag:/".length());
+		if (tag.contains("?")) return tag.substring(0, tag.indexOf("?"));
+		return tag;
 	}
 
 	static boolean isPublicTag(String tag) {

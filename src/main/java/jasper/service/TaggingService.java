@@ -7,6 +7,8 @@ import jasper.errors.DuplicateTagException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.urlForUser;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
 public class TaggingService {
@@ -32,6 +36,9 @@ public class TaggingService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -86,9 +93,15 @@ public class TaggingService {
 
 	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
+	public RefDto getResponse(String tag, String url) {
+		return mapper.domainToDto(getRef(url, tag));
+	}
+
+	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
-		var ref = getResponseRef(url);
-		if (!ref.getTags().contains(tag)) {
+		var ref = getRef(url, tag);
+		if (isNotBlank(tag) && !ref.getTags().contains(tag)) {
 			ref.getTags().add(tag);
 		}
 		ingest.update(ref, false);
@@ -97,7 +110,7 @@ public class TaggingService {
 	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
-		var ref = getResponseRef(url);
+		var ref = getRef(url, tag);
 		ref.removeTag(tag);
 		ingest.update(ref, true);
 	}
@@ -105,15 +118,30 @@ public class TaggingService {
 	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
-		var ref = getResponseRef(url);
+		var ref = getRef(url, null);
 		for (var tag : tags) ref.addTag(tag);
 		ingest.update(ref, true);
 	}
 
+	private Ref getRef(String url, String tag) {
+		if (isNotBlank(url)) return getResponseRef(url);
+		if (isNotBlank(tag)) return getTagRef(tag);
+		return getUserRef();
+	}
+
+	private Ref getUserRef() {
+		return getResponseRef(null);
+	}
+
+	private Ref getTagRef(String tag) {
+		return getResponseRef("tag:/" + tag);
+	}
+
 	private Ref getResponseRef(String url) {
+		if (auth.getUserTag() == null || isBlank(auth.getUserTag().tag)) throw new NotFoundException("User URL");
 		var userUrl = urlForUser(url, auth.getUserTag().tag);
 		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
-				if (ref.getSources() == null || !ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
+				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
 				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
 					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
 				}
@@ -123,7 +151,7 @@ public class TaggingService {
 				var ref = new Ref();
 				ref.setUrl(userUrl);
 				ref.setOrigin(auth.getOrigin());
-				ref.setSources(new ArrayList<>(List.of(url)));
+				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
 				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
 				ingest.create(ref, false);
 				return ref;
