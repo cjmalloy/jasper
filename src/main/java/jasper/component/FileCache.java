@@ -167,22 +167,21 @@ public class FileCache {
 		if (bannedOrBroken(fullSize)) return null;
 		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
-		var oldThumbnailUrl = "internal:" + thumbnailId;
 		var thumbnailUrl = "cache:" + thumbnailId;
-		if (storage.exists(origin, CACHE, thumbnailId)) {
-			try {
-				return fetch(thumbnailUrl, origin, os, false);
-			} catch (ScrapeProtocolException e) {
-				// TODO: remove support for old internal: scheme after migrating to cache: scheme
-				return fetch(oldThumbnailUrl, origin, os, false);
-			}
+		var existingCache = stat(thumbnailUrl, origin);
+		if (existingCache == null) {
+			// TODO: stop checking internal: after cache migrates to cache: scheme
+			thumbnailUrl = "internal:" + thumbnailId;
+			existingCache = stat(thumbnailUrl, origin);
+		}
+		if (existingCache != null && isBlank(existingCache.getId())) {
+			// If id is blank the last thumbnail generation must have failed
+			// Wait for the user to manually refresh
+			return null;
+		}
+		if (existingCache != null && storage.exists(origin, CACHE, thumbnailId)) {
+			return fetch(thumbnailUrl, origin, os, false);
 		} else {
-			var existingCache = stat(thumbnailUrl, origin);
-			if (existingCache != null && isBlank(existingCache.getId())) {
-				// If id is blank the last thumbnail generation must have failed
-				// Wait for the user to manually refresh
-				return null;
-			}
 			var data = images.thumbnail(storage.stream(origin, CACHE, fullSize.getId()));
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
@@ -192,6 +191,9 @@ public class FileCache {
 				return tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 			}
 			try {
+				if (storage.exists(origin, CACHE, thumbnailId)) {
+					storage.delete(origin, CACHE, thumbnailId);
+				}
 				storage.storeAt(origin, CACHE, thumbnailId, data);
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
