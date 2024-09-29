@@ -190,16 +190,16 @@ public class Props {
 	@Getter
 	@Setter
 	public static class ApiDocs {
-		private String title = JHipsterDefaults.ApiDocs.title;
-		private String description = JHipsterDefaults.ApiDocs.description;
-		private String version = JHipsterDefaults.ApiDocs.version;
-		private String termsOfServiceUrl = JHipsterDefaults.ApiDocs.termsOfServiceUrl;
-		private String contactName = JHipsterDefaults.ApiDocs.contactName;
-		private String contactUrl = JHipsterDefaults.ApiDocs.contactUrl;
-		private String contactEmail = JHipsterDefaults.ApiDocs.contactEmail;
+		private String title = "";
+		private String description = "";
+		private String version = "";
+		private String termsOfServiceUrl = "";
+		private String contactName = "";
+		private String contactUrl = "";
+		private String contactEmail = "";
 		private License license;
-		private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
-		private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
+		private String defaultIncludePattern = "";
+		private String managementIncludePattern = "";
 		private List<Server> servers;
 	}
 
