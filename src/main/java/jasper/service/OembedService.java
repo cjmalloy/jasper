@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Service
 public class OembedService {
 	private static final Logger logger = LoggerFactory.getLogger(OembedService.class);
@@ -47,6 +49,7 @@ public class OembedService {
 	@PreAuthorize("@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
+		if (isBlank(params.get("url"))) return null;
 		var config = oembedProviders.getProvider(auth.getOrigin(), params.get("url"));
 		if (config == null) return null;
 		params.put("format", "json");
