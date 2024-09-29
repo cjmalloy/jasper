@@ -92,7 +92,7 @@ public class ConfigCache {
 		"plugin-dto-page-cache",
 	}, allEntries = true)
 	public void clearPluginCache() {
-		logger.info("Cleared plugin cache.");
+		logger.debug("Cleared plugin cache.");
 	}
 
 	@CacheEvict(value = {
@@ -104,7 +104,7 @@ public class ConfigCache {
 		"template-dto-page-cache",
 	}, allEntries = true)
 	public void clearTemplateCache() {
-		logger.info("Cleared template cache.");
+		logger.debug("Cleared template cache.");
 	}
 
 	@Cacheable("user-cache")
