@@ -47,6 +47,7 @@ public class OembedService {
 	@PreAuthorize("@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
+		if (params.get("url") == null) return null;
 		var config = oembedProviders.getProvider(auth.getOrigin(), params.get("url"));
 		if (config == null) return null;
 		params.put("format", "json");
