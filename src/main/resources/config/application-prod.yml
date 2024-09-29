@@ -15,9 +15,11 @@
 
 logging:
   level:
-    ROOT: INFO
+    ROOT: WARN
     jasper: INFO
-
+    org:
+      springframework:
+        boot: INFO
 management:
   metrics:
     export:
