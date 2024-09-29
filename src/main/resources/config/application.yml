@@ -21,6 +21,13 @@ springdoc:
   api-docs:
     enabled: false
 ---
+logging:
+  level:
+    ROOT: WARN
+    jasper: INFO
+    org:
+      springframework:
+        boot: INFO
 feign:
   circuitbreaker:
     enabled: true
@@ -212,7 +219,7 @@ jasper:
     management-include-pattern: ${server.servlet.context-path:}/management/**
     title: Jasper KMS API
     description: Jasper Knowledge Management Server API documentation
-    version: 1.2.0
+    version: 1.2.30
     terms-of-service-url:
     contact-name:
     contact-url:
@@ -221,7 +228,7 @@ jasper:
       name: MIT
       url: https://github.com/cjmalloy/jasper/blob/master/LICENSE
     servers:
-      - description: SwaggerHub API Auto Mocking
-        url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
+      - description: Public Server
+        url: https://jasperkm.info
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
