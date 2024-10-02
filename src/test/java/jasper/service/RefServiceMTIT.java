@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.MultiTenantIntegrationTest;
+import jasper.component.Ingest;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -31,6 +32,9 @@ public class RefServiceMTIT {
 
 	@Autowired
 	Props props;
+
+	@Autowired
+	Ingest ingest;
 
 	@Autowired
 	RefService refService;
@@ -249,6 +253,42 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
+	}
+
+	@Test
+	void testUpdateRefSetsMetadataObsolete() {
+		var ref = getRef("@other");
+		ref.setTitle("Ref");
+		refRepository.save(ref);
+		var other = getRef("@other.nested");
+		other.setTitle("Other");
+		ingest.push(other, "@other", true, true);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other.nested"))
+			.isTrue();
+		var fetched = refRepository.findAll(RefFilter.builder().url(URL).build().spec());
+		assertThat(fetched.size())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testUpdateRefIgnoresParentMetadataObsolete() {
+		var ref = getRef("");
+		ref.setTitle("Ref");
+		refRepository.save(ref);
+		var other = getRef("@other");
+		other.setTitle("Other");
+		refService.create(other,false);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findAll(RefFilter.builder().url(URL).build().spec());
+		assertThat(fetched.size())
+			.isEqualTo(2);
 	}
 
 	@Test

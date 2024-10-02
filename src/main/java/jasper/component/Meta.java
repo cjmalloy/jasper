@@ -34,10 +34,10 @@ public class Meta {
 	ConfigCache configs;
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void ref(Ref ref, String metadataPluginOrigin) {
+	public void ref(Ref ref, String rootOrigin) {
 		if (ref == null) return;
 		// Creating or updating (not deleting)
-		var metadataPlugins = configs.getMetadataPlugins(metadataPluginOrigin);
+		var metadataPlugins = configs.getMetadataPlugins(rootOrigin);
 		ref.setMetadata(Metadata
 			.builder()
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
@@ -57,11 +57,11 @@ public class Meta {
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void sources(Ref ref, Ref existing, String metadataPluginOrigin) {
-		var metadataPlugins = configs.getMetadataPlugins(metadataPluginOrigin);
+	public void sources(Ref ref, Ref existing, String rootOrigin) {
+		var metadataPlugins = configs.getMetadataPlugins(rootOrigin);
 		if (ref != null) {
 			// Creating or updating (not deleting)
-			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), ref.getModified());
+			refRepository.setObsolete(ref.getUrl(), rootOrigin, ref.getModified());
 
 			// Update sources
 			var internal = ref.getTags() != null && ref.getTags().contains("internal");

@@ -98,6 +98,7 @@ public class Replicator {
 		if (!root.getPullOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var pull = getPull(remote);
 		var config = getOrigin(remote);
+		var rootOrigin = remote.getOrigin();
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
@@ -146,7 +147,6 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				var validationOrigin = Objects.toString(pull.getValidationOrigin(), localOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var refList = client.refPull(url, params(
 						"size", size,
@@ -156,7 +156,7 @@ public class Replicator {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
 						try {
-							ingestRef.push(ref, validationOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
@@ -184,7 +184,7 @@ public class Replicator {
 					for (var ext : extList) {
 						ext.setOrigin(localOrigin);
 						try {
-							ingestExt.push(ext, validationOrigin, pull.isValidateTemplates());
+							ingestExt.push(ext, rootOrigin, pull.isValidateTemplates());
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping Ext with duplicate modified date {}: {}",

@@ -882,7 +882,6 @@ fields set.
     "generateMetadata": { "type": "boolean" },
     "validatePlugins": { "type": "boolean" },
     "validateTemplates": { "type": "boolean" },
-    "validationOrigin": { "type": "string" },
     "addTags": { "elements": { "type": "string" } },
     "removeTags": { "elements": { "type": "string" } }
   }

@@ -92,8 +92,8 @@ public class Validate {
 	}
 
 	@Timed("jasper.validate")
-	public void ext(String origin, Ext ext, String validationOrigin, boolean stripOnError) {
-		var templates = configs.getSchemas(ext.getTag(), validationOrigin);
+	public void ext(String origin, Ext ext, String rootOrigin, boolean stripOnError) {
+		var templates = configs.getSchemas(ext.getTag(), rootOrigin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());

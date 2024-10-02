@@ -26,7 +26,6 @@ import java.time.Instant;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class IngestExt {
@@ -74,8 +73,8 @@ public class IngestExt {
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void push(Ext ext, String templateOrigin, boolean validation) {
-		if (validation) validate.ext(ext.getOrigin(), ext, templateOrigin, true);
+	public void push(Ext ext, String rootOrigin, boolean validation) {
+		if (validation) validate.ext(ext.getOrigin(), ext, rootOrigin, true);
 		try {
 			extRepository.save(ext);
 		} catch (DataIntegrityViolationException e) {

@@ -86,18 +86,18 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, String pluginOrigin, boolean validation, boolean generateMetadata) {
+	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
-		if (validation) validate.ref(ref.getOrigin(), ref, pluginOrigin, true);
+		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
 		rng.update(ref, maybeExisting.orElse(null));
-		if (generateMetadata) meta.ref(ref, pluginOrigin);
+		if (generateMetadata) meta.ref(ref, rootOrigin);
 		try {
 			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
-		if (generateMetadata) meta.sources(ref, maybeExisting.orElse(null), pluginOrigin);
+		if (generateMetadata) meta.sources(ref, maybeExisting.orElse(null), rootOrigin);
 		messages.updateRef(ref);
 	}
 
