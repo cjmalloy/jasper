@@ -836,17 +836,17 @@ scraper:
 }
 ```
 
-**Add Tags:** Tags to apply to any Refs created by this feed.
-**Disable Etag:** Don't use etag headers to skip unchanged feeds.
-**Strip Query:** Remove query (HTTP search field) from any scraped links.
-**Scrape Webpage:** Scrape the web-page directly instead.
-**Scrape Description:** Use description field in the feed for the Ref comment field.  
-**Scrape Contents:** Use contents field in the feed for the Ref comment field.
-**Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.
-**Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.
-**Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.
-**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media.
-**Scrape Embed:** Add a `plugin/embed` tag to the Ref to load oEmbed.
+**Add Tags:** Tags to apply to any Refs created by this feed.  
+**Disable Etag:** Don't use etag headers to skip unchanged feeds.  
+**Strip Query:** Remove query (HTTP search field) from any scraped links.  
+**Scrape Webpage:** Scrape the web-page directly instead.  
+**Scrape Description:** Use description field in the feed for the Ref comment field.    
+**Scrape Contents:** Use contents field in the feed for the Ref comment field.  
+**Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.  
+**Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.  
+**Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.  
+**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media.  
+**Scrape Embed:** Add a `plugin/embed` tag to the Ref to load oEmbed.  
 
 The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
 `plugin/feed` it will be skipped.
