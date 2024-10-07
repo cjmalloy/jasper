@@ -26,10 +26,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.SSLHandshakeException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -429,6 +429,7 @@ public class Replicator {
 					size = min(batchSize, size * 2);
 				}
 			} catch (RetryableException e) {
+				if (e.getCause() instanceof SSLHandshakeException) throw e;
 				if (e.getCause() instanceof HttpHostConnectException) throw e;
 				if (e.getCause() instanceof NoHttpResponseException) throw e;
 				if (size == 1) {
