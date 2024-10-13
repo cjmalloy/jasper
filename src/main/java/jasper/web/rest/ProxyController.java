@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.domain.Ref;
+import jasper.domain.proj.HasOrigin;
 import jasper.service.ProxyService;
 import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
@@ -24,11 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.Ref.URL_LEN;
+import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @RestController
@@ -46,9 +50,10 @@ public class ProxyController {
 	})
 	@GetMapping("prefetch")
 	ResponseEntity<String> preFetch(
-		@RequestParam @Length(max = URL_LEN) String url
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		proxyService.preFetch(url);
+		proxyService.preFetch(url, origin);
 		return ResponseEntity.noContent()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.build();
@@ -63,10 +68,11 @@ public class ProxyController {
 	void fetch(
 		WebRequest request,
 		HttpServletResponse response,
-		@RequestParam @Length(max = URL_LEN) String url,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(defaultValue = "false") boolean thumbnail
 	) throws IOException {
-		var cache = proxyService.fetch(url);
+		var cache = proxyService.fetch(url, origin);
 		if (cache != null && isNotBlank(cache.getId())) {
 			response.setHeader(HttpHeaders.ETAG, "\"" + cache.getId() + "\"");
 			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.DAYS).mustRevalidate().cachePrivate().getHeaderValue());
@@ -77,7 +83,7 @@ public class ProxyController {
 			} else {
 				response.setStatus(HttpStatus.OK.value());
 				try (var os = response.getOutputStream()) {
-					proxyService.fetch(url, thumbnail, os);
+					proxyService.fetch(url, origin, thumbnail, os);
 				}
 			}
 		} else {
@@ -94,9 +100,10 @@ public class ProxyController {
 	@PostMapping()
 	RefDto save(
 		@RequestParam(required = false) String mime,
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		InputStream data
 	) throws IOException {
-		return proxyService.save(data, mime);
+		return proxyService.save(origin, data, mime);
 	}
 
 	@ApiResponses({
@@ -105,7 +112,9 @@ public class ProxyController {
 	})
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@DeleteMapping()
-	void clearDeleted() {
-		proxyService.clearDeleted();
+	void clearDeleted(
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+	) {
+		proxyService.clearDeleted(origin);
 	}
 }

@@ -48,6 +48,9 @@ public class FileCache {
 	Optional<Fetch> fetch;
 
 	@Autowired
+	Replicator replicator;
+
+	@Autowired
 	Images images;
 
 	@Autowired
@@ -97,6 +100,14 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache")
+	public byte[] fetchBytes(String url, String origin) {
+		var cache = getCache(fetch(url, origin));
+		if (cache == null) return null;
+		if (bannedOrBroken(cache)) return null;
+		return storage.get(origin, CACHE, cache.getId());
+	}
+
+	@Timed(value = "jasper.cache")
 	public Ref fetch(String url, String origin) {
 		return fetch(url, origin, null, false);
 	}
@@ -116,16 +127,20 @@ public class FileCache {
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		var existingCache = getCache(ref);
 		if (bannedOrBroken(existingCache, refresh)) return ref;
-		if (!refresh && existingCache != null && !existingCache.isNoStore()) {
+		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
 			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 			return ref;
 		}
 		if (fetch.isEmpty()) return ref;
 		String mimeType;
 		String id;
-		try (var res = fetch.get().doScrape(url)) {
+		try (var res = fetch.get().doScrape(url, origin)) {
 			if (res == null) return ref;
 			mimeType = res.getMimeType();
+			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
+				storage.storeAt(origin, CACHE, existingCache.getId(), res.getInputStream());
+				return ref;
+			}
 			id = storage.store(origin, CACHE, res.getInputStream());
 			var cache = Cache.builder()
 				.id(id)
@@ -228,6 +243,29 @@ public class FileCache {
 		var cache = getCache(fetch(url, origin));
 		if (cache == null) throw new NotFoundException("Overwriting cache that does not exist");
 		storage.overwrite(origin, CACHE, cache.getId(), bytes);
+	}
+
+	@Timed(value = "jasper.cache")
+	public void push(String url, String origin, InputStream in) throws IOException {
+		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
+		storage.storeAt(origin, CACHE, url.substring("cache:".length()), in);
+	}
+
+	@Timed(value = "jasper.cache")
+	public void push(String url, String origin, byte[] data) throws IOException {
+		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
+		var id = url.substring("cache:".length());
+		if (storage.exists(origin, CACHE, id)) {
+			storage.overwrite(origin, CACHE, id, data);
+		} else {
+			storage.storeAt(origin, CACHE, id, data);
+		}
+	}
+
+	@Timed(value = "jasper.cache")
+	public boolean cacheExists(String url, String origin) {
+		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
+		return storage.exists(origin, CACHE, url.substring("cache:".length()));
 	}
 
 	private List<String> createArchive(String url, String origin, Cache cache) {

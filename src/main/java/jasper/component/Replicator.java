@@ -8,6 +8,8 @@ import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.domain.proj.HasTags;
+import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Push;
@@ -27,9 +29,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -92,6 +98,53 @@ public class Replicator {
 	@Autowired
 	Tagger tagger;
 
+	@Autowired
+	Optional<FileCache> fileCache;
+
+	@Timed(value = "jasper.repl", histogram = true)
+	public Fetch.FileRequest fetch(String url, HasTags remote) {
+		var root = configs.root();
+		if (!root.getPullOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		var config = getOrigin(remote);
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+		var remoteOrigin = origin(config.getRemote());
+		String[] contentType = { "" };
+		byte[][] data = { null };
+		tunnel.proxy(remote, baseUri -> {
+			try {
+				var cache = client.fetch(baseUri, url, remoteOrigin);
+				data[0] = cache.getBody();
+				if (fileCache.isPresent()) {
+					fileCache.get().push(url, localOrigin, data[0]);
+				}
+				if (cache.getHeaders().getContentType() != null) {
+					contentType[0] = cache.getHeaders().getContentType().toString();
+				}
+			} catch (IOException e) {
+				logger.warn("{} Failed to fetch from remote cache ({}) {}",
+					remote.getOrigin(), remoteOrigin, url);
+			}
+		});
+		if (data[0] == null) return null;
+		var inputStream = new ByteArrayInputStream(data[0]);
+		return new Fetch.FileRequest() {
+			@Override
+			public String getMimeType() {
+				return contentType[0];
+			}
+
+			@Override
+			public InputStream getInputStream() {
+				return inputStream;
+			}
+
+			@Override
+			public void close() throws IOException {
+				inputStream.close();
+			}
+		};
+	}
+
 	@Timed(value = "jasper.repl", histogram = true)
 	public void pull(Ref remote) {
 		var root = configs.root();
@@ -103,10 +156,10 @@ public class Replicator {
 		var remoteOrigin = origin(config.getRemote());
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
 		var logs = new ArrayList<Tuple2<String, String>>();
-		tunnel.proxy(remote, url -> {
+		tunnel.proxy(remote, baseUri -> {
 			try {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var pluginList = client.pluginPull(url, params(
+					var pluginList = client.pluginPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
@@ -127,7 +180,7 @@ public class Replicator {
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var templateList = client.templatePull(url, params(
+					var templateList = client.templatePull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
@@ -148,7 +201,7 @@ public class Replicator {
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var refList = client.refPull(url, params(
+					var refList = client.refPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
@@ -157,6 +210,19 @@ public class Replicator {
 						pull.migrate(ref, config);
 						try {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+							if (pull.isCache() && fileCache.isPresent() && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) && ref.getUrl().startsWith("cache:")) {
+								try {
+									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
+									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
+								} catch (Exception e) {
+									logger.warn("{} Failed Cache Replication! Skipping cache of ref ({}) {}: {}",
+										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+									logs.add(Tuple.of(
+										"Failed Cache Replication! Skipping cache of ref %s %s: %s".formatted(
+											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+										e.getMessage()));
+								}
+							}
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
@@ -177,7 +243,7 @@ public class Replicator {
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var extList = client.extPull(url, params(
+					var extList = client.extPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
@@ -205,7 +271,7 @@ public class Replicator {
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var userList = client.userPull(url, params(
+					var userList = client.userPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
@@ -260,10 +326,10 @@ public class Replicator {
 			return;
 		}
 		var logs = new ArrayList<Tuple2<String, String>>();
-		tunnel.proxy(remote, url -> {
+		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				var modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(url, remoteOrigin) : push.getLastModifiedPluginWritten();
+				var modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(baseUri, remoteOrigin) : push.getLastModifiedPluginWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
@@ -275,13 +341,13 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} plugins to {}", remote.getOrigin(), pluginList.size(), remoteOrigin);
 					if (!pluginList.isEmpty()) {
-						client.pluginPush(url, remoteOrigin, pluginList);
+						client.pluginPush(baseUri, remoteOrigin, pluginList);
 						push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(url, remoteOrigin) : push.getLastModifiedTemplateWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(baseUri, remoteOrigin) : push.getLastModifiedTemplateWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
@@ -293,13 +359,13 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} templates to {}", remote.getOrigin(), templateList.size(), remoteOrigin);
 					if (!templateList.isEmpty()) {
-						client.templatePush(url, remoteOrigin, templateList);
+						client.templatePush(baseUri, remoteOrigin, templateList);
 						push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(url, remoteOrigin) : push.getLastModifiedRefWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(baseUri, remoteOrigin) : push.getLastModifiedRefWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
@@ -312,13 +378,30 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
-						client.refPush(url, remoteOrigin, refList);
+						client.refPush(baseUri, remoteOrigin, refList);
 						push.setLastModifiedRefWritten(refList.getLast().getModified());
+					}
+					if (push.isCache() && fileCache.isPresent()) {
+						for (var ref : refList) {
+							if (ref.getUrl().startsWith("cache:")) {
+								try {
+									var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
+									client.push(baseUri, ref.getUrl(), remoteOrigin, data);
+								} catch (Exception e) {
+									logger.warn("{} Failed Cache Replication! Skipping cache of ref ({}) {}: {}",
+										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+									logs.add(Tuple.of(
+										"Failed Cache Replication! Skipping cache of ref %s %s: %s".formatted(
+											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+										e.getMessage()));
+								}
+							}
+						}
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(url, remoteOrigin) : push.getLastModifiedExtWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(baseUri, remoteOrigin) : push.getLastModifiedExtWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
@@ -330,13 +413,13 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} exts to {}", remote.getOrigin(), extList.size(), remoteOrigin);
 					if (!extList.isEmpty()) {
-						client.extPush(url, remoteOrigin, extList);
+						client.extPush(baseUri, remoteOrigin, extList);
 						push.setLastModifiedExtWritten(extList.getLast().getModified());
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(url, remoteOrigin) : push.getLastModifiedUserWritten();
+				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(baseUri, remoteOrigin) : push.getLastModifiedUserWritten();
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
@@ -349,7 +432,7 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
 					if (!userList.isEmpty()) {
-						client.userPush(url, remoteOrigin, userList);
+						client.userPush(baseUri, remoteOrigin, userList);
 						push.setLastModifiedUserWritten(userList.getLast().getModified());
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;

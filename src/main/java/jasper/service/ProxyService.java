@@ -43,54 +43,64 @@ public class ProxyService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@PreAuthorize("@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void preFetch(String url) {
+	public void preFetch(String url, String origin) {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		fileCache.get().preFetch(url, auth.getOrigin());
+		fileCache.get().preFetch(url, origin);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void refresh(String url) throws IOException {
+	public void refresh(String url, String origin) throws IOException {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		fileCache.get().refresh(url, auth.getOrigin());
+		fileCache.get().refresh(url, origin);
 	}
 
+	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void fetchIfExists(String url, OutputStream os) {
+	public void fetchIfExists(String url, String origin, OutputStream os) {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		if (!refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new NotFoundException("Cache not found");
-		fileCache.get().fetch(url, auth.getOrigin(), os);
+		if (!refRepository.existsByUrlAndOrigin(url, origin)) throw new NotFoundException("Cache not found");
+		fileCache.get().fetch(url, origin, os);
 	}
 
+	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public Cache fetch(String url) {
+	public Cache fetch(String url, String origin) {
 		// Only require role for new scrapes
-		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new AccessDeniedException("Requires USER role to scrape.");
-		return proxy.fetch(url, auth.getOrigin());
+		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
+		return proxy.fetch(url, origin);
 	}
 
+	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public Cache fetch(String url, boolean thumbnail, OutputStream os) {
+	public Cache fetch(String url, String origin, boolean thumbnail, OutputStream os) {
 		// Only require role for new scrapes
-		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, auth.getOrigin())) throw new AccessDeniedException("Requires USER role to scrape.");
+		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return thumbnail
-			? proxy.fetchThumbnail(url, auth.getOrigin(), os)
-			: proxy.fetch(url, auth.getOrigin(), os);
+			? proxy.fetchThumbnail(url, origin, os)
+			: proxy.fetch(url, origin, os);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public RefDto save(InputStream in, String mime) throws IOException {
+	public RefDto save(String origin, InputStream in, String mime) throws IOException {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		return mapper.domainToDto(fileCache.get().save(auth.getOrigin(), in, mime, auth.getUserTag() == null ? null : auth.getUserTag().tag));
+		return mapper.domainToDto(fileCache.get().save(origin, in, mime, auth.getUserTag() == null ? null : auth.getUserTag().tag));
 	}
 
-	@PreAuthorize("@auth.hasRole('MOD')")
+	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void clearDeleted() {
+	public void push(String url, String origin, InputStream in) throws IOException {
+		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
+		fileCache.get().push(url, origin, in);
+	}
+
+	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
+	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
+	public void clearDeleted(String origin) {
 		if (fileCache.isEmpty()) return;
-		fileCache.get().clearDeleted(auth.getOrigin());
+		fileCache.get().clearDeleted(origin);
 	}
 }

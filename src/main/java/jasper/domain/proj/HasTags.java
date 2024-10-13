@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
+import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.matchesTag;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -49,5 +50,11 @@ public interface HasTags extends Cursor {
 		return hasTags.getTags().stream()
 					  .filter(HasTags::author)
 					  .toList();
+	}
+
+	static <T> T getPlugin(HasTags ref, String tag, Class<T> toValueType) {
+		if (ref.getPlugins() == null) return null;
+		if (!ref.getPlugins().has(tag)) return null;
+		return om().convertValue(ref.getPlugins().get(tag), toValueType);
 	}
 }

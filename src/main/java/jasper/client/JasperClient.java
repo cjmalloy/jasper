@@ -99,14 +99,18 @@ public interface JasperClient {
 	@RequestLine("POST /pub/api/v1/repl/template?origin={origin}")
 	void templatePush(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("origin") String origin, List<Template> push);
 
-	@RequestLine("GET /pub/api/v1/repl/cache?url={url}")
-	ResponseEntity<InputStreamResource> fetch(URI baseUri, @Param("url") String url);
-	@RequestLine("GET /pub/api/v1/repl/cache?url={url}")
-	ResponseEntity<InputStreamResource> fetch(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url);
-	@RequestLine("POST /pub/api/v1/repl/cache?mime={mime}")
-	RefReplDto save(URI baseUri, @Param("mime") String mime, byte[] data);
-	@RequestLine("POST /pub/api/v1/repl/cache?mime={mime}")
-	RefReplDto save(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("mime") String mime, byte[] data);
+	@RequestLine("GET /pub/api/v1/repl/cache?url={url}&origin={origin}")
+	ResponseEntity<byte[]> fetch(URI baseUri, @Param("url") String url, @Param("origin") String origin);
+	@RequestLine("GET /pub/api/v1/repl/cache?url={url}&origin={origin}")
+	ResponseEntity<byte[]> fetch(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url, @Param("origin") String origin);
+	@RequestLine("PUT /pub/api/v1/repl/cache?url={url}&origin={origin}")
+	void push(URI baseUri, @Param("url") String url, @Param("origin") String origin, byte[] data);
+	@RequestLine("PUT /pub/api/v1/repl/cache?url={url}&origin={origin}")
+	void push(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url, @Param("origin") String origin, byte[] data);
+	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&mime={mime}")
+	RefReplDto save(URI baseUri, @Param("origin") String origin, @Param("mime") String mime, byte[] data);
+	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&mime={mime}")
+	RefReplDto save(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("origin") String origin, @Param("mime") String mime, byte[] data);
 
 	static Map<String, Object> jasperHeaders(WebRequest req) {
 		return Map.of(
