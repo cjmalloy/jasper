@@ -39,13 +39,16 @@ public class FileCache {
 	private static final String CACHE = "cache";
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
 	Storage storage;
 
 	@Autowired
-	Optional<Fetch> fetch;
+	Fetch fetch;
 
 	@Autowired
 	Replicator replicator;
@@ -131,11 +134,25 @@ public class FileCache {
 			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 			return ref;
 		}
-		if (fetch.isEmpty()) return ref;
+		if (url.startsWith("cache:")) {
+			var id = url.substring("cache:".length());
+			if (storage.exists(origin, CACHE, id)) {
+				if (os != null) storage.stream(origin, CACHE, id, os);
+				return ref;
+			}
+		}
 		String mimeType;
 		String id;
-		try (var res = fetch.get().doScrape(url, origin)) {
+		try (var res = fetch.doScrape(url, origin)) {
 			if (res == null) return ref;
+			var remote = configs.getRemote(origin);
+			if (remote != null) {
+				if (os != null && url.startsWith("cache:")) {
+					id = url.substring("cache:".length());
+					if (storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
+				}
+				return ref;
+			}
 			mimeType = res.getMimeType();
 			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
 				storage.storeAt(origin, CACHE, existingCache.getId(), res.getInputStream());
@@ -178,7 +195,14 @@ public class FileCache {
 	@Timed(value = "jasper.cache")
 	public Ref fetchThumbnail(String url, String origin, OutputStream os) {
 		var fullSize = getCache(fetch(url, origin, false));
-		if (fullSize == null) return null;
+		if (fullSize == null) {
+			var remote = configs.getRemote(origin);
+			if (remote != null) {
+				origin = remote.getOrigin();
+				fullSize = getCache(fetch(url, origin, false));
+			}
+			if (fullSize == null) return null;
+		}
 		if (bannedOrBroken(fullSize)) return null;
 		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
 		var thumbnailId = "t_" + fullSize.getId();
