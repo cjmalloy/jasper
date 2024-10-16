@@ -9,7 +9,6 @@ import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
-import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Push;
@@ -210,19 +209,6 @@ public class Replicator {
 						pull.migrate(ref, config);
 						try {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-							if (pull.isCache() && fileCache.isPresent() && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) && ref.getUrl().startsWith("cache:")) {
-								try {
-									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
-									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
-								} catch (Exception e) {
-									logger.warn("{} Failed Cache Replication! Skipping cache of ref ({}) {}: {}",
-										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-									logs.add(Tuple.of(
-										"Failed Cache Replication! Skipping cache of ref %s %s: %s".formatted(
-											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-										e.getMessage()));
-								}
-							}
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
@@ -238,6 +224,19 @@ public class Replicator {
 								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
 									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 								e.getMessage()));
+						}
+						if (pull.isCache() && fileCache.isPresent() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin())) {
+							try {
+								var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
+								fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
+							} catch (Exception e) {
+								logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
+									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+								logs.add(Tuple.of(
+									"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
+										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+									e.getMessage()));
+							}
 						}
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
@@ -388,10 +387,10 @@ public class Replicator {
 									var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
 									client.push(baseUri, ref.getUrl(), remoteOrigin, data);
 								} catch (Exception e) {
-									logger.warn("{} Failed Cache Replication! Skipping cache of ref ({}) {}: {}",
+									logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 									logs.add(Tuple.of(
-										"Failed Cache Replication! Skipping cache of ref %s %s: %s".formatted(
+										"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 										e.getMessage()));
 								}
