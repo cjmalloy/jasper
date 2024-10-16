@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
@@ -29,8 +30,10 @@ import java.util.Optional;
 
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
+import static jasper.plugin.Pull.getPull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Profile("file-cache")
 @Component
@@ -39,13 +42,16 @@ public class FileCache {
 	private static final String CACHE = "cache";
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
 	Storage storage;
 
 	@Autowired
-	Optional<Fetch> fetch;
+	Fetch fetch;
 
 	@Autowired
 	Replicator replicator;
@@ -131,11 +137,26 @@ public class FileCache {
 			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 			return ref;
 		}
-		if (fetch.isEmpty()) return ref;
+		var remote = configs.getRemote(origin);
+		var pull = remote == null ? null : getPull(remote);
+		if (url.startsWith("cache:")) {
+			var id = url.substring("cache:".length());
+			if (storage.exists(origin, CACHE, id)) {
+				if (os != null) storage.stream(origin, CACHE, id, os);
+				return ref;
+			}
+		}
 		String mimeType;
 		String id;
-		try (var res = fetch.get().doScrape(url, origin)) {
+		try (var res = fetch.doScrape(url, origin)) {
 			if (res == null) return ref;
+			if (remote != null) {
+				if (os != null && url.startsWith("cache:")) {
+					id = url.substring("cache:".length());
+					if (storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
+				}
+				if (pull == null || !pull.isCacheFetch()) return ref;
+			}
 			mimeType = res.getMimeType();
 			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
 				storage.storeAt(origin, CACHE, existingCache.getId(), res.getInputStream());
@@ -156,15 +177,18 @@ public class FileCache {
 						logger.warn("Failed to delete {}", existingCache.getId());
 					}
 				}
+				if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
+			if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
 			return tagger.internalPlugin(url, origin, "_plugin/cache", cache);
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
-			tagger.attachError(origin,
-				tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache"),
-				"Error Fetching", e.getMessage());
+			var err = remote != null
+				? tagger.silentPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache")
+				: tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
+			tagger.attachError(remote != null ? remote.getOrigin()  : origin, err, "Error Fetching", e.getMessage());
 		} finally {
 			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
 		}
@@ -177,32 +201,50 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public Ref fetchThumbnail(String url, String origin, OutputStream os) {
+		var id = "";
+		if (url.startsWith("cache:")) {
+			id = url.substring("cache:".length());
+		}
 		var fullSize = getCache(fetch(url, origin, false));
-		if (fullSize == null) return null;
+		if (fullSize == null) {
+			var remote = configs.getRemote(origin);
+			if (remote == null) return null;
+		} else {
+			id = fullSize.getId();
+		}
+		if (isBlank(id)) return null;
 		if (bannedOrBroken(fullSize)) return null;
-		if (fullSize.isThumbnail()) return fetch(url, origin, os, false);
-		var thumbnailId = "t_" + fullSize.getId();
+		if (fullSize != null && fullSize.isThumbnail()) return fetch(url, origin, os, false);
+		var thumbnailId = "t_" + id;
 		var thumbnailUrl = "cache:" + thumbnailId;
 		var existingCache = stat(thumbnailUrl, origin);
 		if (existingCache == null) {
 			// TODO: stop checking internal: after cache migrates to cache: scheme
-			thumbnailUrl = "internal:" + thumbnailId;
 			existingCache = stat(thumbnailUrl, origin);
+			if (existingCache != null) {
+				thumbnailUrl = "internal:" + thumbnailId;
+			}
 		}
 		if (existingCache != null && isBlank(existingCache.getId())) {
 			// If id is blank the last thumbnail generation must have failed
 			// Wait for the user to manually refresh
 			return null;
 		}
-		if (existingCache != null && storage.exists(origin, CACHE, thumbnailId)) {
+		if (storage.exists(origin, CACHE, thumbnailId)) {
 			return fetch(thumbnailUrl, origin, os, false);
 		} else {
-			var data = images.thumbnail(storage.stream(origin, CACHE, fullSize.getId()));
+			var remote = configs.getRemote(origin);
+			var pull = remote == null ? null : getPull(remote);
+			if (remote != null) {
+				if (pull == null || !pull.isCacheFetch()) return null;
+			}
+			var data = images.thumbnail(storage.stream(origin, CACHE, id));
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
 				// Set this as a thumbnail to disable future attempts
-				fullSize.setThumbnail(true);
-				storage.stream(origin, CACHE, fullSize.getId(), os);
+				if (fullSize != null) fullSize.setThumbnail(true);
+				storage.stream(origin, CACHE, id, os);
+				if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 				return tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 			}
 			try {
@@ -212,9 +254,10 @@ public class FileCache {
 				storage.storeAt(origin, CACHE, thumbnailId, data);
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
-				tagger.attachError(origin,
-					tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build()),
-					"Error creating thumbnail", e.getMessage());
+				var err = remote == null
+					? tagger.silentPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build())
+					: tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
+				tagger.attachError(origin, err, "Error creating thumbnail", e.getMessage());
 				return null;
 			}
 			var cache = Cache.builder()
@@ -223,6 +266,7 @@ public class FileCache {
 				.mimeType("image/png")
 				.contentLength((long) data.length)
 				.build();
+			if (remote != null) return tagger.silentPlugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
 			return tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
 		}
 	}

@@ -5,11 +5,14 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.List;
+
+import static jasper.domain.proj.HasTags.getPlugin;
 
 
 @Getter
@@ -17,6 +20,8 @@ import java.util.List;
 @JsonInclude(Include.NON_NULL)
 public class Pull implements Serializable {
 	private boolean cache;
+	private boolean cacheProxy;
+	private boolean cacheFetch;
 	private String query;
 	private int batchSize;
 	private boolean validatePlugins;
@@ -60,8 +65,8 @@ public class Pull implements Serializable {
 	}
 
 	private static final Pull DEFAULTS = new Pull();
-	public static Pull getPull(Ref ref) {
-		var pull = ref == null ? null : ref.getPlugin("+plugin/origin/pull", Pull.class);
+	public static Pull getPull(HasTags ref) {
+		var pull = ref == null ? null : getPlugin(ref, "+plugin/origin/pull", Pull.class);
 		return pull == null ? DEFAULTS : pull;
 	}
 }

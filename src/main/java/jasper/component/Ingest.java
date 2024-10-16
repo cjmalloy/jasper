@@ -86,6 +86,17 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
+	public void silent(Ref ref) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		ref.addHierarchicalTags();
+		rng.update(ref, maybeExisting.orElse(null));
+		meta.ref(ref, ref.getOrigin());
+		refRepository.save(ref);
+		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
+		messages.updateRef(ref);
+	}
+
+	@Timed(value = "jasper.ref", histogram = true)
 	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
