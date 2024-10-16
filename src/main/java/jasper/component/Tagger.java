@@ -21,6 +21,9 @@ public class Tagger {
 	private static final Logger logger = LoggerFactory.getLogger(Tagger.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -38,6 +41,7 @@ public class Tagger {
 
 	public Ref tag(boolean internal, String url, String origin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
@@ -65,6 +69,7 @@ public class Tagger {
 
 	private Ref plugin(boolean internal, String url, String origin, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			if (internal) ref.addTag("internal");
@@ -98,6 +103,7 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String origin, Ref parent, String title, String logs) {
+		if (configs.getRemote(origin) != null) return;
 		var ref = new Ref();
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
@@ -128,6 +134,7 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
+		if (configs.getRemote(origin) != null) return;
 		attachLogs(origin, parent, title, logs);
 		if (!parent.hasTag("+plugin/error")) {
 			parent.addTag("+plugin/error");
