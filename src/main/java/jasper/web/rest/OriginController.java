@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.OriginService;
 import org.hibernate.validator.constraints.Length;
@@ -48,7 +49,7 @@ public class OriginController {
 	@PostMapping("push")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void push(
-		@RequestParam @Length(max = URL_LEN) @URL String url,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX)  @URL String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) throws FeedException, IOException {
 		originService.push(url, origin);
@@ -62,7 +63,7 @@ public class OriginController {
 	@PostMapping("pull")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void pull(
-		@RequestParam @Length(max = URL_LEN) @URL String url,
+		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX)  @URL String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) throws FeedException, IOException {
 		originService.pull(url, origin);
