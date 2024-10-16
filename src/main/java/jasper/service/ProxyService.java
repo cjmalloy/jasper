@@ -69,7 +69,7 @@ public class ProxyService {
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public Cache fetch(String url, String origin) {
 		// Only require role for new scrapes
-		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
+		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return proxy.fetch(url, origin);
 	}
 
@@ -77,7 +77,7 @@ public class ProxyService {
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public Cache fetch(String url, String origin, boolean thumbnail, OutputStream os) {
 		// Only require role for new scrapes
-		if (!auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
+		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return thumbnail
 			? proxy.fetchThumbnail(url, origin, os)
 			: proxy.fetch(url, origin, os);
