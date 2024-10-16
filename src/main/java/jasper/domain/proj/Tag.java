@@ -72,7 +72,7 @@ public interface Tag extends Cursor {
 	static String defaultOrigin(String tag, String origin) {
 		if (isBlank(tag)) return tag;
 		if (tag.endsWith("@")) return localTag(tag);
-		if (isNotBlank(tagOrigin(tag))) return tag;
+		if (tag.contains("@")) return tag;
 		if (isBlank(origin)) return tag;
 		if ("@".equals(origin)) return tag;
 		return tag + origin;
