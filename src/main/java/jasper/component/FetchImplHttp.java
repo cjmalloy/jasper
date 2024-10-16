@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static jasper.plugin.Pull.getPull;
+
 @Profile("proxy")
 @Component
 public class FetchImplHttp implements Fetch {
@@ -36,8 +38,14 @@ public class FetchImplHttp implements Fetch {
 	Replicator replicator;
 
 	public FileRequest doScrape(String url, String origin) throws IOException {
+		var remote = configs.getRemote(origin);
+		if (remote != null) {
+			var pull = getPull(remote);
+			if (pull.isCacheProxy()) {
+				return replicator.fetch(url, remote);
+			}
+		}
 		if (url.startsWith("cache:")) {
-			var remote = configs.getRemote(origin);
 			if (remote == null) throw new ScrapeProtocolException("cache");
 			return replicator.fetch(url, remote);
 		}

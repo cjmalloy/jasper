@@ -26,7 +26,7 @@ public class Proxy {
 	RefRepository refRepository;
 
 	@Autowired
-	Optional<Fetch> fetch;
+	Fetch fetch;
 
 	@Autowired
 	Optional<FileCache> fileCache;
@@ -52,8 +52,7 @@ public class Proxy {
 		if (cache && fileCache.isPresent()) {
 			return fileCache.get().fetchString(url, origin);
 		}
-		if (fetch.isEmpty()) return null;
-		try (var res = fetch.get().doScrape(url, origin)) {
+		try (var res = fetch.doScrape(url, origin)) {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (Exception e) {
 			tagger.attachError(origin,
@@ -78,8 +77,7 @@ public class Proxy {
 		}
 		var existingCache = stat(url, origin);
 		if (bannedOrBroken(existingCache)) return existingCache;
-		if (fetch.isEmpty()) return existingCache;
-		try (var res = fetch.get().doScrape(url, origin)) {
+		try (var res = fetch.doScrape(url, origin)) {
 			var cos = new CountingOutputStream(os);
 			StreamUtils.copy(res.getInputStream(), cos);
 			res.close();
@@ -106,8 +104,7 @@ public class Proxy {
 		if (fullSize != null && fullSize.isThumbnail()) {
 			return fetch(url, origin, os);
 		}
-		if (fetch.isEmpty()) return fullSize;
-		try (var res = fetch.get().doScrape(url, origin)) {
+		try (var res = fetch.doScrape(url, origin)) {
 			var bytes = res.getInputStream().readAllBytes();
 			res.close();
 			var data = images.thumbnail(new ByteArrayInputStream(bytes));

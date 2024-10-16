@@ -73,12 +73,13 @@ public class ProxyController {
 		@RequestParam(defaultValue = "false") boolean thumbnail
 	) throws IOException {
 		var cache = proxyService.fetch(url, origin);
-		if (cache != null && isNotBlank(cache.getId())) {
-			response.setHeader(HttpHeaders.ETAG, "\"" + cache.getId() + "\"");
+		if (url.startsWith("cache:") || cache != null && isNotBlank(cache.getId())) {
+			var id = url.startsWith("cache:") ? url.substring("cache:".length()) : cache.getId();
+			response.setHeader(HttpHeaders.ETAG, "\"" + id + "\"");
 			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.DAYS).mustRevalidate().cachePrivate().getHeaderValue());
-			if (isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
-			if (request.checkNotModified(cache.getId())) {
-				if (cache.getContentLength() != null) response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
+			if (cache != null && isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
+			if (request.checkNotModified(id)) {
+				if (cache != null && cache.getContentLength() != null) response.setIntHeader(HttpHeaders.CONTENT_LENGTH, Math.toIntExact(cache.getContentLength()));
 				response.sendError(HttpStatus.NOT_MODIFIED.value());
 			} else {
 				response.setStatus(HttpStatus.OK.value());

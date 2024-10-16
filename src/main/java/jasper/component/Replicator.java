@@ -113,7 +113,7 @@ public class Replicator {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
 				data[0] = cache.getBody();
-				if (fileCache.isPresent()) {
+				if (url.startsWith("cache:") && fileCache.isPresent()) {
 					fileCache.get().push(url, localOrigin, data[0]);
 				}
 				if (cache.getHeaders().getContentType() != null) {

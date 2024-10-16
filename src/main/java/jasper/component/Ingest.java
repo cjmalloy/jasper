@@ -86,6 +86,17 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
+	public void silent(Ref ref) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		ref.addHierarchicalTags();
+		rng.update(ref, maybeExisting.orElse(null));
+		meta.ref(ref, ref.getOrigin());
+		ensureSilentUniqueModified(ref);
+		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
+		messages.updateRef(ref);
+	}
+
+	@Timed(value = "jasper.ref", histogram = true)
 	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
@@ -118,6 +129,33 @@ public class Ingest {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					em.persist(ref);
+					em.flush();
+					return null;
+				});
+				break;
+			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e.getCause() instanceof ConstraintViolationException c) {
+					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
+				throw e;
+			}
+		}
+	}
+
+	void ensureSilentUniqueModified(Ref ref) {
+		var count = 0;
+		while (true) {
+			try {
+				count++;
+				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+				transactionTemplate.execute(status -> {
+					ref.setModified(ref.getModified().minusMillis(1));
 					em.persist(ref);
 					em.flush();
 					return null;
