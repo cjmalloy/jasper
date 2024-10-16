@@ -21,6 +21,9 @@ public class Tagger {
 	private static final Logger logger = LoggerFactory.getLogger(Tagger.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -38,6 +41,7 @@ public class Tagger {
 
 	public Ref tag(boolean internal, String url, String origin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
@@ -65,6 +69,7 @@ public class Tagger {
 
 	private Ref plugin(boolean internal, String url, String origin, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			if (internal) ref.addTag("internal");
@@ -106,7 +111,7 @@ public class Tagger {
 		ref.setComment(logs);
 		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
 		if (parent.hasTag("public")) tags.add("public");
-		if (parent.getTags() != null) tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		if (origin.equals(parent.getOrigin()) && parent.getTags() != null) tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
 		ref.setTags(tags);
 		ingest.create(ref, false);
 	}
@@ -128,8 +133,10 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
+		var remote = configs.getRemote(origin);
+		if (remote != null) origin = remote.getOrigin();
 		attachLogs(origin, parent, title, logs);
-		if (!parent.hasTag("+plugin/error")) {
+		if (remote == null && !parent.hasTag("+plugin/error")) {
 			parent.addTag("+plugin/error");
 			ingest.update(parent, false);
 		}
