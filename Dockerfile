@@ -35,7 +35,7 @@ CMD mvn -gs settings.xml test; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/
 
-FROM azul/zulu-openjdk-debian:21.0.4-21.36-jre AS deploy
+FROM azul/zulu-openjdk-debian:21.0.5-21.38-jre AS deploy
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=oven/bun:1.1.30-slim /usr/local/bin/bun /usr/local/bin/
