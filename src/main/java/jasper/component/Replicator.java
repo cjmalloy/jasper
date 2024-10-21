@@ -318,7 +318,7 @@ public class Replicator {
 		if (!root.getPushOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var push = getPush(remote);
 		var config = getOrigin(remote);
-		var localOrigin = origin(config.getLocal());
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
 			logger.debug("{} Skipping push, up to date {}", remote.getOrigin(), remoteOrigin);
