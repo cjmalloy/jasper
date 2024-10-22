@@ -39,9 +39,9 @@ in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/m
 ### Build your own client
 Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
 developers can create a bespoke interface without needing to make any server side changes. Create custom
-plugins and templates and ensure data integrity with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
+plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
-[OpenApi docs](https://app.swaggerhub.com/apis/cjmalloy/Jasper) to generate API stubs.
+[OpenApi docs](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml) to generate API stubs.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
