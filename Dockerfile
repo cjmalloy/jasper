@@ -1,3 +1,5 @@
+FROM oven/bun:1.1.32-slim AS bun
+
 FROM maven:3.9.8-amazoncorretto-21-debian AS builder
 WORKDIR /app
 COPY pom.xml .
@@ -13,7 +15,7 @@ FROM builder AS test
 COPY docker/entrypoint.sh .
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.31-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
@@ -38,7 +40,7 @@ CMD mvn -gs settings.xml test; \
 FROM azul/zulu-openjdk-debian:21.0.5-21.38-jre AS deploy
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.31-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
