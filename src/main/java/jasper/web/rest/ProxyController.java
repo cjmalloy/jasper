@@ -75,7 +75,7 @@ public class ProxyController {
 		var cache = proxyService.fetch(url, origin);
 		if (url.startsWith("cache:") || cache != null && isNotBlank(cache.getId())) {
 			var id = url.startsWith("cache:") ? url.substring("cache:".length()) : cache.getId();
-			response.setHeader(HttpHeaders.ETAG, "\"" + id + "\"");
+			response.setHeader(HttpHeaders.ETAG, "\"" + id.replaceAll("\\W", "") + "\"");
 			response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(5, TimeUnit.DAYS).mustRevalidate().cachePrivate().getHeaderValue());
 			if (cache != null && isNotBlank(cache.getMimeType())) response.setHeader(HttpHeaders.CONTENT_TYPE, cache.getMimeType());
 			if (request.checkNotModified(id)) {
