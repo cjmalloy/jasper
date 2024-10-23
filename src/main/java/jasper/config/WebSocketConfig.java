@@ -94,7 +94,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
 		registry
-			.addEndpoint("/")
+			.addEndpoint("/api/stomp/")
 				.setHandshakeHandler(new StompDefaultHandshakeHandler())
 				.addInterceptors(new StompHandshakeInterceptor())
 				.setAllowedOriginPatterns("*")
