@@ -88,7 +88,7 @@ public class Push {
 	}
 
 	private void push(String origin) {
-		logger.info(" {} Pushing remotes", origin);
+		logger.info("{} Pushing remotes", origin);
 		try {
 			if (pushes.containsKey(origin)) {
 				var deleted = new HashSet<Tuple2<String, String>>();
