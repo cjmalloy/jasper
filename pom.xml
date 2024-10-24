@@ -44,7 +44,6 @@
 		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.18.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<fabric8.version>6.4.1</fabric8.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
 	</properties>
@@ -370,13 +369,6 @@
 
 	<dependencyManagement>
 		<dependencies>
-			<dependency>
-				<groupId>io.fabric8</groupId>
-				<artifactId>kubernetes-client-bom</artifactId>
-				<version>${fabric8.version}</version>
-				<scope>import</scope>
-				<type>pom</type>
-			</dependency>
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
 				<artifactId>spring-cloud-dependencies</artifactId>
