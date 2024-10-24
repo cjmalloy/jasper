@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.RssParser;
 import jasper.component.Tagger;
@@ -12,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 
 @Profile("scripts")

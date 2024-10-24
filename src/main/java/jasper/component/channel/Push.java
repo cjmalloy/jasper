@@ -2,6 +2,7 @@ package jasper.component.channel;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
 import jasper.config.Props;
@@ -15,7 +16,6 @@ import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
