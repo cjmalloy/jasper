@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
@@ -26,14 +25,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Profile("file-cache")
 @Component
@@ -312,11 +309,19 @@ public class FileCache {
 		return storage.exists(origin, CACHE, url.substring("cache:".length()));
 	}
 
+	private String fetchExistingString(String url, String origin) {
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var cache = getCache(ref);
+		if (cache == null) return null;
+		if (bannedOrBroken(cache)) return null;
+		return new String(storage.get(origin, CACHE, cache.getId()));
+	}
+
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
 		if (cache == null || isBlank(cache.getId())) return moreScrape;
 		// M3U8 Manifest
-		var data = fetchString(url, origin);
+		var data = fetchExistingString(url, origin);
 		if (data == null) return moreScrape;
 		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
 			try {
