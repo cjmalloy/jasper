@@ -43,7 +43,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 		} catch (Exception e) {
 			tagger.attachError(ref.getOrigin(),
 				tagger.internalPlugin(ref.getUrl(), ref.getOrigin(), "_plugin/cache", null, "-_plugin/delta/cache"),
-				"Error Fetching", e.getMessage());
+				"Error Fetching for async scrape", e.getMessage());
 		}
 	}
 }

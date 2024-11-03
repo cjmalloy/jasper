@@ -57,7 +57,7 @@ public class Proxy {
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.internalPlugin(url, origin, "_plugin/cache", null),
-				"Error Fetching", e.getMessage());
+				"Error Fetching String", e.getMessage());
 		}
 		return null;
 	}
@@ -89,7 +89,7 @@ public class Proxy {
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.internalPlugin(url, origin, "_plugin/cache", null),
-				"Error Fetching", e.getMessage());
+				"Error Proxying", e.getMessage());
 		}
 		return existingCache;
 	}
