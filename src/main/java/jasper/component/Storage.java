@@ -10,6 +10,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.origin;
+
 @Component
 public interface Storage {
 	byte[] get(String origin, String namespace, String id);
@@ -18,8 +21,8 @@ public interface Storage {
 	InputStream stream(String origin, String namespace, String id);
 	long stream(String origin, String namespace, String id, OutputStream os);
 	Zipped streamZip(String origin, String namespace, String id) throws IOException;
-	void visitTenants(StorageImplLocal.PathVisitor v);
-	void visitStorage(String origin, String namespace, StorageImplLocal.PathVisitor v);
+	void visitTenants(PathVisitor v);
+	void visitStorage(String origin, String namespace, PathVisitor v);
 	List<String> listStorage(String origin, String namespace);
 	void overwrite(String origin, String namespace, String id, byte[] cache) throws IOException;
 	String store(String origin, String namespace, byte[] cache) throws IOException;
@@ -28,6 +31,14 @@ public interface Storage {
 	String store(String origin, String namespace, InputStream is) throws IOException;
 	Zipped zipAt(String origin, String namespace, String id) throws IOException;
 	void delete(String origin, String namespace, String id) throws IOException;
+
+	default String originTenant(String origin) {
+		return formatOrigin(origin);
+	}
+
+	default String tenantOrigin(String tenant) {
+		return origin(tenant);
+	}
 
 	default void sanitize(String ...paths) {
 		for (var p : paths) {
@@ -38,5 +49,9 @@ public interface Storage {
 	interface Zipped extends Closeable {
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
+	}
+
+	interface PathVisitor {
+		void visit(String filename);
 	}
 }

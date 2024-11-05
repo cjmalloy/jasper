@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static jasper.domain.proj.HasOrigin.formatOrigin;
-
 @Profile("storage")
 @Component
 public class StorageImplLocal implements Storage {
@@ -100,17 +98,13 @@ public class StorageImplLocal implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void visitTenants(PathVisitor v) {
-		var dir = tenats();
+		var dir = tenants();
 		if (!dir.toFile().exists()) return;
 		try (var list = Files.list(dir)) {
 			list.forEach(t -> {
 				if (!t.toFile().isDirectory()) return;
-				var origin = t.getFileName().toString();
-				if (origin.equals("default")) {
-					v.visit("");
-				} else if (!origin.startsWith("@")) {
-					v.visit(origin);
-				}
+				var tenant = t.getFileName().toString();
+				v.visit(tenantOrigin(tenant));
 			});
 		} catch (IOException e) {
 			logger.warn("Error reading tenant dir", e);
@@ -173,22 +167,18 @@ public class StorageImplLocal implements Storage {
 		Files.delete(path(origin, namespace, id));
 	}
 
-	Path tenats() {
+	Path tenants() {
 		return Paths.get(props.getStorage());
 	}
 
 	Path dir(String origin, String namespace) {
 		sanitize(origin, namespace);
-		return Paths.get(props.getStorage(), formatOrigin(origin), namespace);
+		return Paths.get(props.getStorage(), originTenant(origin), namespace);
 	}
 
 	Path path(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return Paths.get(props.getStorage(), formatOrigin(origin), namespace, id);
-	}
-
-	public interface PathVisitor {
-		void visit(String filename);
+		return Paths.get(props.getStorage(), originTenant(origin), namespace, id);
 	}
 
 	private class ZippedLocal implements Zipped {
