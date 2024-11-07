@@ -376,6 +376,18 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageRef() {
+		refWithTags("public");
+
+		var page = refService.page(
+			RefFilter.builder().build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
 	void testGetPageRefWithQuery() {
 		refWithTags("public");
 		refWithTags("public", "custom", "extra");
@@ -744,6 +756,56 @@ public class RefServiceIT {
 			.containsExactly("public", "plugin/test");
 		assertThat(page.getContent().get(0).getPlugins().has("plugin/test"))
 			.isTrue();
+	}
+
+	@Test
+	void testGetPageRefResponses() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public"));
+		refRepository.save(ref);
+		var response = new Ref();
+		var responseURL = URL + UUID.randomUUID();
+		response.setUrl(responseURL);
+		response.setSources(List.of(URL));
+		response.setTags(List.of("public"));
+		refRepository.save(response);
+
+		var page = refService.page(
+			RefFilter.builder()
+				.responses(URL)
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().getFirst().getUrl())
+			.isEqualTo(responseURL);
+	}
+
+	@Test
+	void testGetPageRefSources() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public"));
+		refRepository.save(ref);
+		var response = new Ref();
+		var responseURL = URL + UUID.randomUUID();
+		response.setUrl(responseURL);
+		response.setSources(List.of(URL));
+		response.setTags(List.of("public"));
+		refService.create(response, false);
+
+		var page = refService.page(
+			RefFilter.builder()
+				.sources(responseURL)
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().getFirst().getUrl())
+			.isEqualTo(URL);
 	}
 
 	@Test
