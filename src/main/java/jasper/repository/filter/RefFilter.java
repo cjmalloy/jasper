@@ -70,33 +70,27 @@ public class RefFilter implements Query {
 			result = result.and(endsWithTitle(endsTitle));
 		}
 		if (isNotBlank(sources)) {
-			// TODO: query across origins
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
 		if (isNotBlank(responses)) {
-			// TODO: query across origins
 			result = result.and(hasSource(responses));
 		}
 		if (untagged) {
 			result = result.and(hasNoTags());
 		}
 		if (uncited) {
-			// TODO: query across origins
 			result = result.and(hasNoResponses());
 		}
 		if (unsourced) {
-			// TODO: query across origins
 			result = result.and(hasNoSources());
 		}
 		if (pluginResponse != null) {
-			// TODO: query across origins
 			for (var r : pluginResponse) {
 				result = result.and(hasPluginResponses(r));
 			}
 		}
 		if (noPluginResponse != null) {
-			// TODO: query across origins
 			for (var nr : noPluginResponse) {
 				result = result.and(hasNoPluginResponses(nr));
 			}
