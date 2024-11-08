@@ -72,9 +72,10 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> endsWithTitle(String text) {
-		var textLower = text.toLowerCase();
 		return (root, query, cb) ->
-				cb.like(cb.literal(textLower), cb.concat("%", cb.lower(root.get(Ref_.title))));
+			cb.like(
+				cb.literal(text.toLowerCase()),
+				cb.concat("%", cb.lower(root.get(Ref_.title))));
 	}
 
 	public static Specification<Ref> hasSource(String url) {

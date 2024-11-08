@@ -809,6 +809,79 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageRefScheme() {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setTags(List.of("public"));
+		refRepository.save(ref1);
+		var ref2 = new Ref();
+		ref2.setUrl("other:test");
+		ref2.setTags(List.of("public"));
+		refRepository.save(ref2);
+
+		var page = refService.page(
+			RefFilter.builder()
+				.scheme("other:")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().getFirst().getUrl())
+			.isEqualTo("other:test");
+	}
+
+	@Test
+	void testGetPageRefSearch() {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setTitle("Yes");
+		ref1.setTags(List.of("public"));
+		refRepository.save(ref1);
+		var ref2 = new Ref();
+		ref1.setTitle("No");
+		ref2.setUrl(URL + "2");
+		ref2.setTags(List.of("public"));
+		refRepository.save(ref2);
+
+		var page = refService.page(
+			RefFilter.builder()
+				.search("yes")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().getFirst().getUrl())
+			.isEqualTo(URL);
+	}
+
+	@Test
+	void testGetPageRefEndsTitle() {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setTitle("Title");
+		ref1.setTags(List.of("public"));
+		refRepository.save(ref1);
+		var ref2 = new Ref();
+		ref1.setTitle("Other");
+		ref2.setUrl(URL + "2");
+		ref2.setTags(List.of("public"));
+		refRepository.save(ref2);
+
+		var page = refService.page(
+			RefFilter.builder()
+				.endsTitle("Re: Title")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+		assertThat(page.getContent().getFirst().getUrl())
+			.isEqualTo(URL);
+	}
+
+	@Test
 	void testUpdateUntaggedRefFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);
