@@ -27,7 +27,7 @@ jobs:
       if: always()
       run: docker cp test:/tests tests
     - name: Publish Unit Test Results
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v1.9.1
       if: always()
       continue-on-error: true
       with:
