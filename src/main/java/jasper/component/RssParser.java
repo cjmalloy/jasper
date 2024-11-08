@@ -69,12 +69,13 @@ public class RssParser {
 	public void scrape(Ref feed, boolean force) throws IOException, FeedException {
 		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
-		RequestConfig requestConfig = RequestConfig
-			.custom()
+		var requestConfig = RequestConfig.custom()
 			.setConnectTimeout(timeout)
 			.setConnectionRequestTimeout(timeout)
 			.setSocketTimeout(timeout).build();
-		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
+		var builder = HttpClients.custom()
+			.setDefaultRequestConfig(requestConfig)
+			.disableCookieManagement();
 		try (CloseableHttpClient client = builder.build()) {
 			HttpUriRequest request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
