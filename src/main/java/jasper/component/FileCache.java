@@ -185,7 +185,12 @@ public class FileCache {
 			var err = remote != null
 				? tagger.silentPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache")
 				: tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
-			tagger.attachError(remote != null ? remote.getOrigin()  : origin, err, "Error Fetching", e.getMessage());
+			tagger.attachError(remote != null ? remote.getOrigin() : origin, err, "Error Fetching", e.getMessage());
+			if (remote != null) {
+				var cache = existingCache != null ? existingCache : Cache.builder().build();
+				cache.setBan(true);
+				return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
+			}
 		} finally {
 			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
 		}
