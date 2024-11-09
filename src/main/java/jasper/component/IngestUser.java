@@ -1,8 +1,9 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
@@ -19,15 +20,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+
 
 @Component
 public class IngestUser {
@@ -44,9 +43,6 @@ public class IngestUser {
 
 	@Autowired
 	Messages messages;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
@@ -106,6 +102,13 @@ public class IngestUser {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e instanceof ConstraintViolationException c) {
+					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("users_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
@@ -133,10 +136,10 @@ public class IngestUser {
 						user.getOrigin(),
 						user.getName(),
 						user.getRole(),
-						user.getReadAccess() == null ? null : objectMapper.convertValue(user.getReadAccess(), ArrayNode.class),
-						user.getWriteAccess() == null ? null : objectMapper.convertValue(user.getWriteAccess(), ArrayNode.class),
-						user.getTagReadAccess() == null ? null : objectMapper.convertValue(user.getTagReadAccess(), ArrayNode.class),
-						user.getTagWriteAccess() == null ? null : objectMapper.convertValue(user.getTagWriteAccess(), ArrayNode.class),
+						user.getReadAccess(),
+						user.getWriteAccess(),
+						user.getTagReadAccess(),
+						user.getTagWriteAccess(),
 						user.getModified(),
 						user.getKey(),
 						user.getPubKey(),
@@ -148,6 +151,12 @@ public class IngestUser {
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof ConstraintViolationException c) {
+					if ("users_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();

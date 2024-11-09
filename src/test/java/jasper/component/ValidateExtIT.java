@@ -79,7 +79,7 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("+user/tester");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
@@ -180,7 +180,7 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("+slug/more/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100,
@@ -209,7 +209,7 @@ public class ValidateExtIT {
 				"age": { "type": "uint32" }
 			}
 		}"""));
-		template1.setDefaults(mapper.readTree("""
+		template1.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
@@ -225,7 +225,7 @@ public class ValidateExtIT {
 				"lng": { "type": "uint32" }
 			}
 		}"""));
-		template2.setDefaults(mapper.readTree("""
+		template2.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"location": "Paris",
 			"lat": 123,
@@ -260,7 +260,7 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("_slug/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
@@ -316,7 +316,7 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("_slug/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100

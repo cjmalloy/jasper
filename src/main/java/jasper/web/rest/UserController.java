@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import jasper.component.HttpCache;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
@@ -27,8 +29,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.WebRequest;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;

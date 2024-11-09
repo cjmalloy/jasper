@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Counted;
+import jakarta.annotation.PostConstruct;
 import jasper.config.Props;
 import jasper.domain.*;
 import jasper.repository.*;
@@ -10,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;

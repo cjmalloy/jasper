@@ -78,7 +78,7 @@ public class ValidateRefIT {
 				"age": { "type": "uint32" }
 			}
 		}"""));
-		plugin.setDefaults(mapper.readTree("""
+		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"invalid": "defaults"
 		}"""));
@@ -285,7 +285,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		var mapper = new ObjectMapper();
-		plugin.setDefaults(mapper.readTree("""
+		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100

@@ -1,6 +1,5 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.RssParser;
@@ -30,9 +29,6 @@ public class ScrapeService {
 
 	@Autowired
 	DtoMapper mapper;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@Autowired
 	RssParser rssParser;

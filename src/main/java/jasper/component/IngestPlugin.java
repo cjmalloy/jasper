@@ -1,6 +1,9 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
@@ -17,9 +20,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -107,6 +107,13 @@ public class IngestPlugin {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e instanceof ConstraintViolationException c) {
+					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
@@ -146,6 +153,12 @@ public class IngestPlugin {
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof ConstraintViolationException c) {
+					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
