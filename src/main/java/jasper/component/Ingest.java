@@ -164,7 +164,6 @@ public class Ingest {
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 				if (e.getCause() instanceof ConstraintViolationException c) {
-					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
