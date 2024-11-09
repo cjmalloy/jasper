@@ -77,7 +77,8 @@ public class Tagger {
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.addTag("internal");
-			ref.setModified(Instant.ofEpochSecond(-Instant.now().getEpochSecond()));
+			var cursor = refRepository.getCursor(origin);
+			ref.setModified(cursor == null ? Instant.now() : cursor.minusMillis(1));
 			ingest.silent(ref);
 			return ref;
 		} else {
