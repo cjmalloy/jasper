@@ -87,8 +87,8 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		rng.update(ref, maybeExisting.orElse(null));
 		meta.ref(ref, ref.getOrigin());
 		ensureSilentUniqueModified(ref);
@@ -98,8 +98,8 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		ref.addHierarchicalTags();
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
 		rng.update(ref, maybeExisting.orElse(null));
 		if (generateMetadata) meta.ref(ref, rootOrigin);
@@ -149,23 +149,27 @@ public class Ingest {
 	}
 
 	void ensureSilentUniqueModified(Ref ref) {
+		var cursor = ref.getModified();
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					ref.setModified(ref.getModified().minusMillis(1));
-					em.persist(ref);
-					em.flush();
+					refRepository.saveAndFlush(ref);
 					return null;
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
-				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						if (count > props.getIngestMaxRetry()) {
+							count = 0;
+							cursor = cursor.minusNanos((long) (1000 * Math.random()));
+							ref.setModified(cursor);
+						} else {
+							ref.setModified(ref.getModified().minusMillis(1));
+						}
 						continue;
 					}
 				}

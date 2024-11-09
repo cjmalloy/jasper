@@ -5,3 +5,5 @@ logging:
     org.springframework.orm.jpa: DEBUG
     org.springframework.transaction: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.batch: INFO
+    org.hibernate.engine.jdbc.spi: INFO

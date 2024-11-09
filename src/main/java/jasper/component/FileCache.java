@@ -51,9 +51,6 @@ public class FileCache {
 	Fetch fetch;
 
 	@Autowired
-	Replicator replicator;
-
-	@Autowired
 	Images images;
 
 	@Autowired
@@ -259,7 +256,12 @@ public class FileCache {
 				var err = remote == null
 					? tagger.silentPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build())
 					: tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
-				tagger.attachError(origin, err, "Error creating thumbnail", e.getMessage());
+				tagger.attachError(remote != null ? remote.getOrigin() : origin, err, "Error creating thumbnail", e.getMessage());
+				if (remote != null) {
+					var cache = existingCache != null ? existingCache : Cache.builder().build();
+					cache.setBan(true);
+					return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
+				}
 				return null;
 			}
 			var cache = Cache.builder()

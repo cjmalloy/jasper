@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
@@ -22,6 +23,9 @@ public class TaggerIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	static final String URL = "https://www.example.com/";
 
@@ -93,6 +97,83 @@ public class TaggerIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("test");
+	}
+
+	@Test
+	void testSilentPluginRef() {
+		tagger.silentPlugin(URL, "", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+	}
+
+	@Test
+	void testSilentPluginExistingRef() {
+		refWithTags(URL);
+
+		tagger.silentPlugin(URL, "", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+	}
+
+	@Test
+	void testSilentPluginRemoteRef() {
+		tagger.silentPlugin(URL, "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+	}
+
+	@Test
+	void testSilentPluginRemoteRefMultiple() {
+		tagger.silentPlugin(URL + 1, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 2, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 3, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 4, "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 1, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 2, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 3, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 4, "@other"))
+			.isTrue();
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL + 1, "@other").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		var fetched3 = refRepository.findOneByUrlAndOrigin(URL + 3, "@other").get();
+		var fetched4 = refRepository.findOneByUrlAndOrigin(URL + 4, "@other").get();
+		assertThat(fetched1.getTags())
+			.contains("plugin/test");
+		assertThat(fetched2.getTags())
+			.contains("plugin/test");
+		assertThat(fetched3.getTags())
+			.contains("plugin/test");
+		assertThat(fetched4.getTags())
+			.contains("plugin/test");
+	}
+
+	@Test
+	void testSilentPluginExistingRemoteRef() {
+		remoteRefWithTags(URL, "@other");
+
+		tagger.silentPlugin(URL, "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
 	}
 
 }
