@@ -3,4 +3,4 @@ java \
 	"-Xmx${JASPER_HEAP:-512m}" \
 	"-Xms${JASPER_HEAP:-512m}" \
 	-XX:+UseStringDeduplication \
-	org.springframework.boot.loader.JarLauncher
+	org.springframework.boot.loader.launch.JarLauncher

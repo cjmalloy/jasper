@@ -3,7 +3,6 @@ package jasper.domain.proj;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Tag extends Cursor {
 	String REGEX = "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*";

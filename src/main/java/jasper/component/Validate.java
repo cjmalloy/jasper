@@ -154,7 +154,7 @@ public class Validate {
 		}
 	}
 
-	public JsonNode templateDefaults(String qualifiedTag) {
+	public ObjectNode templateDefaults(String qualifiedTag) {
 		var qt = qt(qualifiedTag);
 		var templates = configs.getSchemas(qt.tag, qt.origin);
 		return templates
@@ -211,7 +211,7 @@ public class Validate {
 		}
 	}
 
-	private <T extends JsonNode> T merge(T a, T b) {
+	private ObjectNode merge(ObjectNode a, ObjectNode b) {
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return b.deepCopy();

@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.component.OembedProviders;
-import jasper.config.Props;
-import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +25,6 @@ public class OembedService {
 	private static final Logger logger = LoggerFactory.getLogger(OembedService.class);
 
 	@Autowired
-	RefRepository refRepository;
-
-	@Autowired
 	OembedClient oembedClient;
 
 	@Autowired
@@ -37,9 +32,6 @@ public class OembedService {
 
 	@Autowired
 	Auth auth;
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	ObjectMapper objectMapper;

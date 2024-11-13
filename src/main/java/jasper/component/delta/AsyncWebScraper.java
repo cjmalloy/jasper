@@ -1,5 +1,7 @@
 package jasper.component.delta;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Scraper;
@@ -13,12 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.persistence.EntityManager;
-
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.Tag.matchesTag;
-
 @Profile("proxy")
 @Component
 public class AsyncWebScraper implements Async.AsyncRunner {

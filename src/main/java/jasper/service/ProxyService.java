@@ -1,6 +1,5 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.FileCache;
 import jasper.component.Proxy;
@@ -39,9 +38,6 @@ public class ProxyService {
 
 	@Autowired
 	DtoMapper mapper;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)

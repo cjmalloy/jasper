@@ -61,7 +61,7 @@ public class RefServiceIT {
 					"age": { "type": "uint32" }
 				}
 			}"""));
-			plugin.setDefaults(mapper.readTree("""
+			plugin.setDefaults((ObjectNode) mapper.readTree("""
 			{
 				"name": "bob",
 				"age": 42

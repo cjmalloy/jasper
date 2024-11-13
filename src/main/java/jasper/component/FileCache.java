@@ -17,7 +17,7 @@ import org.springframework.util.StreamUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URL;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -217,13 +217,6 @@ public class FileCache {
 		var thumbnailId = "t_" + id;
 		var thumbnailUrl = "cache:" + thumbnailId;
 		var existingCache = stat(thumbnailUrl, origin);
-		if (existingCache == null) {
-			// TODO: stop checking internal: after cache migrates to cache: scheme
-			existingCache = stat(thumbnailUrl, origin);
-			if (existingCache != null) {
-				thumbnailUrl = "internal:" + thumbnailId;
-			}
-		}
 		if (existingCache != null && isBlank(existingCache.getId())) {
 			// If id is blank the last thumbnail generation must have failed
 			// Wait for the user to manually refresh
@@ -332,7 +325,7 @@ public class FileCache {
 		if (data == null) return moreScrape;
 		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
 			try {
-				var urlObj = new URL(url);
+				var urlObj = URI.create(url).toURL();
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = "/api/v1/scrape/fetch?url=";

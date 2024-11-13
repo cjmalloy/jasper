@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.30
+  version: 1.2.31
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -2658,6 +2658,21 @@ components:
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127
+    Page:
+      type: object
+      properties:
+        number:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     Ref:
       required:
         - published
@@ -2725,33 +2740,12 @@ components:
     PageRef:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Ref'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Ext:
       required:
         - tag
@@ -2771,33 +2765,12 @@ components:
     PageExt:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Ext'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Plugin:
       required:
         - tag
@@ -2823,33 +2796,12 @@ components:
     PagePlugin:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Plugin'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Template:
       type: object
       properties:
@@ -2871,33 +2823,12 @@ components:
     PageTemplate:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Template'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     User:
       required:
         - tag
@@ -2944,11 +2875,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/User'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
         first:
           type: boolean
         last:
@@ -2957,15 +2883,6 @@ components:
           type: integer
           format: int32
         empty:
-          type: boolean
-    Sort:
-      type: object
-      properties:
-        empty:
-          type: boolean
-        sorted:
-          type: boolean
-        unsorted:
           type: boolean
     BackupOptions:
       type: object

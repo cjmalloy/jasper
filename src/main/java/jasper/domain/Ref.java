@@ -3,8 +3,14 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vladmihalcea.hibernate.type.json.JsonType;
 import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.HasTags;
 import jasper.domain.proj.Tag;
@@ -12,19 +18,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-import org.hibernate.annotations.TypeDefs;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.CreatedDate;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,10 +39,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Getter
 @Setter
 @IdClass(RefId.class)
-@TypeDefs({
-	@TypeDef(name = "json", typeClass = JsonType.class),
-	@TypeDef(name = "tsvector", typeClass = PostgreSQLTSVectorType.class)
-})
 public class Ref implements HasTags {
 	public static final String REGEX = "^[^:/?#]+:(?://[^/?#]*)?[^?#]*(?:\\?[^#]*)?(?:#.*)?";
 	public static final String SCHEME_REGEX = "^[^:/?#]+:";
@@ -68,24 +63,19 @@ public class Ref implements HasTags {
 
 	private String comment;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode plugins;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
 	@Formula("COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
@@ -135,7 +125,7 @@ public class Ref implements HasTags {
 
 	private Instant modified = Instant.now();
 
-	@Type(type = "tsvector")
+	@Type(PostgreSQLTSVectorType.class)
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 

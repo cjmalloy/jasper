@@ -26,7 +26,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
@@ -44,9 +43,6 @@ public class ExtService {
 
 	@Autowired
 	IngestExt ingest;
-
-	@Autowired
-	EntityManager em;
 
 	@Autowired
 	Auth auth;

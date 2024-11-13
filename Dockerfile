@@ -8,7 +8,7 @@ RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -D
 COPY src ./src
 RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
-# java -Djarmode=layertools -jar target/docker-spring-boot-0.0.1.jar list
+# java -Djarmode=layertools -jar target/jasper-1.3.0-SNAPSHOT.jar list
 RUN java -Djarmode=layertools -jar target/*.jar extract
 
 FROM builder AS test

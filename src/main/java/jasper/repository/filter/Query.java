@@ -1,7 +1,5 @@
 package jasper.repository.filter;
 
-import jasper.repository.spec.QualifiedTag;
-
 public interface Query {
 //	String ATOM = "!?" + QualifiedTag.SELECTOR;
 //	String ATOMS = ATOM + "(?:[|:]" + ATOM + ")*";

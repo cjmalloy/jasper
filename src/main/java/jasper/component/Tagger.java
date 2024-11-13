@@ -8,13 +8,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.Tag.matchesTag;
+import static java.time.Instant.now;
 import static java.util.Arrays.asList;
 
 @Service
@@ -78,7 +78,7 @@ public class Tagger {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.addTag("internal");
 			var cursor = refRepository.getCursor(origin);
-			ref.setModified((cursor == null ? Instant.now() : cursor).minusMillis(1));
+			ref.setModified((cursor == null ? now() : cursor).minusMillis(1));
 			ingest.silent(ref);
 			return ref;
 		} else {

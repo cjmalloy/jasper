@@ -1,5 +1,6 @@
 package jasper.config;
 
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
@@ -9,25 +10,26 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
-import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.context.annotation.ApplicationScope;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
-import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,22 +41,21 @@ import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static org.apache.commons.lang3.ArrayUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl.fromHierarchy;
 
+@Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 @Import(SecurityProblemSupport.class)
 public class SecurityConfiguration {
 	private final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
 	@Autowired
-    Props props;
-
+	Props props;
 	@Autowired
 	ConfigCache configs;
-
 	@Autowired
-    SecurityProblemSupport problemSupport;
-
+	SecurityProblemSupport problemSupport;
 	@Autowired
 	TokenProvider tokenProvider;
 
@@ -104,35 +105,29 @@ public class SecurityConfiguration {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // @formatter:off
         http
-			.exceptionHandling()
-				.authenticationEntryPoint(problemSupport)
-				.accessDeniedHandler(problemSupport)
-				.and()
-			.headers()
-				.contentSecurityPolicy(props.getSecurity().getContentSecurityPolicy())
-				.and()
-			.referrerPolicy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
-				.and()
-			.permissionsPolicy().policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()")
-				.and()
-			.frameOptions()
-				.deny()
-				.and()
-			.sessionManagement()
-				.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-				.and()
-			.apply(securityConfigurerAdapter())
-				.and()
-			.authorizeRequests()
-				.antMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
-				.and()
-			.headers()
-				.frameOptions()
-				.sameOrigin()
-				.and()
-			.csrf()
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint(problemSupport)
+                .accessDeniedHandler(problemSupport)
+			)
+            .headers(h -> h
+				.contentSecurityPolicy(csp -> csp
+					.policyDirectives(props.getSecurity().getContentSecurityPolicy()))
+				.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+				.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+				.permissionsPolicy(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()"))
+			)
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.with(securityConfigurerAdapter(), Customizer.withDefaults())
+			.authorizeHttpRequests(r -> r
+				.requestMatchers("/api/**").permitAll()
+				.requestMatchers("/pub/api/**").permitAll()
+				.requestMatchers("/management/**").permitAll()
+			)
+			.csrf(c -> c
+				.csrfTokenRequestHandler(csrfRequestHandler())
 				.csrfTokenRepository(csrfTokenRepository())
-				.ignoringAntMatchers("/pub/api/**") // Public API
+				.ignoringRequestMatchers("/pub/api/**") // Public API
+			)
 		; // @formatter:on
 		return http.build();
 	}
@@ -152,23 +147,31 @@ public class SecurityConfiguration {
 	@Bean
 	CsrfTokenRepository csrfTokenRepository() {
 		var r = CookieCsrfTokenRepository.withHttpOnlyFalse();
-		r.setSecure(false); // Required when using SSL terminating gateway
+		r.setCookieCustomizer(c -> c
+			.secure(false) // Required when using SSL terminating gateway
+			.build());
 		return r;
+	}
+
+	@Bean
+	CsrfTokenRequestAttributeHandler csrfRequestHandler() {
+		CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+		// TODO: CSRF BREACH: https://docs.spring.io/spring-security/reference/5.8/migration/servlet/exploits.html
+		// Opt out of deferred csrf token loading
+		requestHandler.setCsrfRequestAttributeName(null);
+		return requestHandler;
 	}
 
 	@Bean
 	@ApplicationScope
 	public RoleHierarchy roleHierarchy() {
-		RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
-		String hierarchy = String.join("\n", List.of(
+		return fromHierarchy(String.join("\n", List.of(
 			ADMIN + " > " + MOD,
 			MOD + " > " + EDITOR,
 			EDITOR + " > " + USER,
 			USER + " > " + VIEWER,
 			VIEWER + " > " + ANONYMOUS
-		));
-		roleHierarchy.setHierarchy(hierarchy);
-		return roleHierarchy;
+		)));
 	}
 
 	@Bean

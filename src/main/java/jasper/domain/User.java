@@ -1,7 +1,14 @@
 package jasper.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.vladmihalcea.hibernate.type.json.JsonType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import lombok.AccessLevel;
@@ -9,20 +16,11 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.compress.utils.Sets;
 import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-import org.hibernate.annotations.TypeDefs;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.persistence.Table;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -40,9 +38,6 @@ import static jasper.security.AuthoritiesConstants.VIEWER;
 @Setter
 @IdClass(TagId.class)
 @Table(name = "users")
-@TypeDefs({
-	@TypeDef(name = "json", typeClass = JsonType.class)
-})
 public class User implements Tag {
 	public static final String REGEX = "[_+]user(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?";
 	public static final String ROLE_REGEX = "\\w*";
@@ -80,20 +75,16 @@ public class User implements Tag {
 	@Length(max = NAME_LEN)
 	private String name;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> readAccess;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> writeAccess;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagReadAccess;
 
-	@Type(type = "json")
-	@Column(columnDefinition = "jsonb")
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
 
 	@LastModifiedDate
