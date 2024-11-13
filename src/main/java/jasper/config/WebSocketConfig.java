@@ -75,7 +75,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
-		TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();;
+		var factory = new TomcatServletWebServerFactory();;
 		factory.setTomcatContextCustomizers(Collections.singletonList(tomcatContextCustomizer()));
 		return factory;
 	}
