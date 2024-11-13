@@ -55,9 +55,9 @@ public class IngestExt {
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext, boolean force) {
 		if (isDeletorTag(ext.getTag())) {
-			if (extRepository.existsByQualifiedTag(deletedTag(ext.getTag()) + ext.getOrigin())) throw new AlreadyExistsException();
+			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(ext.getTag()) + ext.getOrigin());
+			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext, force);
 		ensureCreateUniqueModified(ext);
@@ -66,7 +66,7 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void update(Ext ext, boolean force) {
-		if (!extRepository.existsByQualifiedTag(ext.getTag() + ext.getOrigin())) throw new NotFoundException("Ext");
+		if (!extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
 		validate.ext(ext.getOrigin(), ext, force);
 		ensureUpdateUniqueModified(ext);
 		messages.updateExt(ext);
@@ -81,9 +81,9 @@ public class IngestExt {
 			throw new DuplicateModifiedDateException();
 		}
 		if (isDeletorTag(ext.getTag())) {
-			delete(deletedTag(ext.getTag()) + ext.getOrigin());
+			delete(deletedTag(ext.getQualifiedTag()));
 		} else {
-			delete(deletorTag(ext.getTag()) + ext.getOrigin());
+			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		messages.updateExt(ext);
 	}

@@ -53,9 +53,9 @@ public class IngestUser {
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
-			if (userRepository.existsByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin())) throw new AlreadyExistsException();
+			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(user.getTag()) + user.getOrigin());
+			delete(deletorTag(user.getQualifiedTag()));
 		}
 		ensureCreateUniqueModified(user);
 		messages.updateUser(user);
@@ -63,7 +63,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
-		if (!userRepository.existsByQualifiedTag(user.getTag() + user.getOrigin())) throw new NotFoundException("User");
+		if (!userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new NotFoundException("User");
 		ensureUpdateUniqueModified(user);
 		messages.updateUser(user);
 	}
@@ -76,7 +76,7 @@ public class IngestUser {
 			throw new DuplicateModifiedDateException();
 		}
 		if (isDeletorTag(user.getTag())) {
-			delete(deletedTag(user.getTag()) + user.getOrigin());
+			delete(deletedTag(user.getQualifiedTag()));
 		}
 		messages.updateUser(user);
 	}

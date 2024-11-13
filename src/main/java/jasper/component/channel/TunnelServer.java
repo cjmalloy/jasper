@@ -60,7 +60,7 @@ public class TunnelServer {
 				.append("\n");
 			for (var u : userRepository.findAllByOriginAndAuthorizedKeysIsNotNull(origin)) {
 				if (isBlank(u.getAuthorizedKeys())) continue;
-				logger.debug("Enabling SSH access for {}",  u.getTag() + u.getOrigin());
+				logger.debug("Enabling SSH access for {}",  u.getQualifiedTag());
 				var lines = u.getAuthorizedKeys().split("\n");
 				for (var l : lines) {
 					if (isBlank(l)) continue;

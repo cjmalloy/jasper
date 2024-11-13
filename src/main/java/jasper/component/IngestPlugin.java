@@ -55,9 +55,9 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
-			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin())) throw new AlreadyExistsException();
+			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
+			delete(deletorTag(plugin.getQualifiedTag()));
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin);
@@ -66,7 +66,7 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
-		if (!pluginRepository.existsByQualifiedTag(plugin.getTag() + plugin.getOrigin())) throw new NotFoundException("Plugin");
+		if (!pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
@@ -81,7 +81,7 @@ public class IngestPlugin {
 			throw new DuplicateModifiedDateException();
 		}
 		if (isDeletorTag(plugin.getTag())) {
-			delete(deletedTag(plugin.getTag()) + plugin.getOrigin());
+			delete(deletedTag(plugin.getQualifiedTag()));
 		}
 		messages.updatePlugin(plugin);
 	}

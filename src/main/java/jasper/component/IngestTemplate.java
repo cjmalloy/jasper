@@ -55,9 +55,9 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
-			if (templateRepository.existsByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin())) throw new AlreadyExistsException();
+			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(template.getTag()) + template.getOrigin());
+			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
 		ensureCreateUniqueModified(template);
@@ -66,7 +66,7 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (!templateRepository.existsByQualifiedTag(template.getTag() + template.getOrigin())) throw new NotFoundException("Template");
+		if (!templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
 		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
@@ -81,7 +81,7 @@ public class IngestTemplate {
 			throw new DuplicateModifiedDateException();
 		}
 		if (isDeletorTag(template.getTag())) {
-			delete(deletedTag(template.getTag()) + template.getOrigin());
+			delete(deletedTag(template.getQualifiedTag()));
 		}
 		messages.updateTemplate(template);
 	}
