@@ -9,6 +9,7 @@ import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
+import jasper.errors.AlreadyExistsException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -70,7 +71,11 @@ public class ConfigCache {
 	public void init() {
 		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty() &&
 			(isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty())) {
-			ingest.create(config(""));
+			try {
+				ingest.create(config(""));
+			} catch (AlreadyExistsException e) {
+				// Race to init
+			}
 		}
 	}
 
