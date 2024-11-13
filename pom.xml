@@ -37,16 +37,19 @@
 		<problem-spring-web.version>0.29.1</problem-spring-web.version>
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
-		<commons.collections4.version>4.4</commons.collections4.version>
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.2.1</apache-httpclient.version>
 		<commons-io.version>2.17.0</commons-io.version>
+		<commons-collections4.version>4.4</commons-collections4.version>
+		<commons-compress.version>1.26.0</commons-compress.version>
 		<varv.version>0.10.4</varv.version>
 		<jsoup.version>1.18.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
+		<netty.version>4.1.115.Final</netty.version>
+		<xmlunit.version>2.10.0</xmlunit.version>
 	</properties>
 
 	<dependencies>
@@ -126,12 +129,13 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
+			<artifactId>commons-compress</artifactId>
+			<version>${commons-compress.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-collections4</artifactId>
-			<version>${commons.collections4.version}</version>
+			<version>${commons-collections4.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-io</groupId>
@@ -202,15 +206,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-logging</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.zalando</groupId>
@@ -340,16 +336,23 @@
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-registry-prometheus</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>io.micrometer</groupId>
-			<artifactId>micrometer-registry-prometheus</artifactId>
-			<scope>runtime</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.xmlunit</groupId>
+			<artifactId>xmlunit-core</artifactId>
+			<version>${xmlunit.version}</version>
+			<scope>compile</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
