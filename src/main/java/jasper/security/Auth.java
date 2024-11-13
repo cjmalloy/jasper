@@ -287,6 +287,12 @@ public class Auth {
 	public boolean canReadRef(String url, String origin) {
 		// Only origin and sub origins can be read
 		if (!subOrigin(origin)) return false;
+		// Mods can read anything
+		if (hasRole(MOD)) return true;
+		// User URL
+		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
