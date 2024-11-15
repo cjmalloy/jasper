@@ -143,6 +143,11 @@
 			<version>${commons-io.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>com.drewnoakes</groupId>
+			<artifactId>metadata-extractor</artifactId>
+			<version>2.19.0</version>
+		</dependency>
+		<dependency>
 			<groupId>io.vavr</groupId>
 			<artifactId>vavr</artifactId>
 			<version>${varv.version}</version>
