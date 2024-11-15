@@ -70,31 +70,28 @@ public class SecurityConfiguration {
 		var unsafeSecret = profile("dev") && isNotBlank(props.getOverride().getSecurity().getSecret());
 		if (!props.isDebug()) props.setDebug(unsafeSecret);
 		if (props.isDebug()) {
-			logger.error("==================================================");
-			logger.error("==================================================");
-			logger.error("DEBUG MODE");
-			logger.error("==================================================");
-			logger.error("==================================================");
+			logger.warn("==================================================");
+			logger.warn("==================================================");
+			logger.warn("DEBUG MODE");
+			logger.warn("==================================================");
+			logger.warn("==================================================");
 		}
-		logger.warn("==================================================");
-		logger.warn("==================================================");
-		logger.warn("DEFAULT ROLE:             {}", props.getDefaultRole());
-		logger.warn("DEFAULT READ ACCESS:      {}", isEmpty(props.getDefaultReadAccess()) ? "" : String.join(", ", props.getDefaultReadAccess()));
-		logger.warn("DEFAULT WRITE ACCESS:     {}", isEmpty(props.getDefaultWriteAccess()) ? "" : String.join(", ", props.getDefaultWriteAccess()));
-		logger.warn("DEFAULT TAG READ ACCESS:  {}", isEmpty(props.getDefaultTagReadAccess()) ? "" : String.join(", ", props.getDefaultTagReadAccess()));
-		logger.warn("DEFAULT TAG WRITE ACCESS: {}", isEmpty(props.getDefaultTagWriteAccess()) ? "" : String.join(", ", props.getDefaultTagWriteAccess()));
-		logger.warn("MAX ROLE:                 {}", props.getMaxRole());
-		logger.warn("MIN ROLE:                 {}", props.getMinRole());
-		logger.warn("MIN WRITE ROLE:           {}", props.getMinWriteRole());
-		logger.warn("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
-		logger.warn("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
-		logger.warn("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
-		logger.warn("USER HEADERS:             {}", props.isAllowUserTagHeader() ? "ENABLED" : "-");
-		logger.warn("ROLE HEADERS:             {}", props.isAllowUserRoleHeader() ? "ENABLED" : "-");
-		logger.warn("ROLE HEADERS:             {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
-		logger.warn("ORIGIN HEADERS:           {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
-		logger.warn("==================================================");
-		logger.warn("==================================================");
+		logger.info("LOCAL ORIGIN:             {}", props.getLocalOrigin());
+		logger.info("DEFAULT ROLE:             {}", props.getDefaultRole());
+		logger.info("DEFAULT READ ACCESS:      {}", isEmpty(props.getDefaultReadAccess()) ? "" : String.join(", ", props.getDefaultReadAccess()));
+		logger.info("DEFAULT WRITE ACCESS:     {}", isEmpty(props.getDefaultWriteAccess()) ? "" : String.join(", ", props.getDefaultWriteAccess()));
+		logger.info("DEFAULT TAG READ ACCESS:  {}", isEmpty(props.getDefaultTagReadAccess()) ? "" : String.join(", ", props.getDefaultTagReadAccess()));
+		logger.info("DEFAULT TAG WRITE ACCESS: {}", isEmpty(props.getDefaultTagWriteAccess()) ? "" : String.join(", ", props.getDefaultTagWriteAccess()));
+		logger.info("MAX ROLE:                 {}", props.getMaxRole());
+		logger.info("MIN ROLE:                 {}", props.getMinRole());
+		logger.info("MIN WRITE ROLE:           {}", props.getMinWriteRole());
+		logger.info("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
+		logger.info("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
+		logger.info("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
+		logger.info("USER HEADERS:             {}", props.isAllowUserTagHeader() ? "ENABLED" : "-");
+		logger.info("ROLE HEADERS:             {}", props.isAllowUserRoleHeader() ? "ENABLED" : "-");
+		logger.info("ROLE HEADERS:             {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
+		logger.info("ORIGIN HEADERS:           {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
 	}
 
 	private boolean profile(String profile) {
