@@ -1,4 +1,4 @@
-FROM oven/bun:1.1.34-slim AS bun
+FROM oven/bun:1.1.36-slim AS bun
 
 FROM maven:3.9.8-amazoncorretto-21-debian AS builder
 WORKDIR /app
