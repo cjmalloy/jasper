@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
-import tech.jhipster.config.JHipsterDefaults;
 
 import java.util.List;
 
@@ -170,21 +169,21 @@ public class Props {
 		@Getter
 		@Setter
 		public static class Cache {
-			private int timeToLiveInDays = JHipsterDefaults.Http.Cache.timeToLiveInDays;
+			private int timeToLiveInDays = 1461; // 4 years (including leap day)
 		}
 	}
 	@Getter
 	@Setter
 	public static class Mail {
-		private boolean enabled = JHipsterDefaults.Mail.enabled;
-		private String from = JHipsterDefaults.Mail.from;
-		private String baseUrl = JHipsterDefaults.Mail.baseUrl;
+		private boolean enabled = false;
+		private String from = "";
+		private String baseUrl = "";
 	}
 
 	@Getter
 	@Setter
 	public static class Security {
-		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
+		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 	}
 
 	@Getter
@@ -206,6 +205,6 @@ public class Props {
 	@Getter
 	@Setter
 	public static class AuditEvents {
-		private int retentionPeriod = JHipsterDefaults.AuditEvents.retentionPeriod;
+		private int retentionPeriod = 30;
 	}
 }

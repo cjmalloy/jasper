@@ -23,7 +23,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
-		<jhipster-framework.version>7.7.0</jhipster-framework.version>
+		<spring-cloud.version>2023.0.3</spring-cloud.version>
 		<lombok.version>1.18.36</lombok.version>
 		<testcontainers.version>1.20.4</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
@@ -33,7 +33,6 @@
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.12.5</jjwt.version>
-		<spring-cloud.version>2023.0.3</spring-cloud.version>
 		<problem-spring-web.version>0.29.1</problem-spring-web.version>
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
@@ -48,7 +47,6 @@
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
-		<netty.version>4.1.115.Final</netty.version>
 		<xmlunit.version>2.10.0</xmlunit.version>
 	</properties>
 
@@ -60,11 +58,6 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>tech.jhipster</groupId>
-			<artifactId>jhipster-framework</artifactId>
-			<version>${jhipster-framework.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
