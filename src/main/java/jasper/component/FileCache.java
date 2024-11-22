@@ -174,8 +174,8 @@ public class FileCache {
 				if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
-			if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
-			return tagger.internalPlugin(url, origin, "_plugin/cache", cache);
+			if (remote != null) return ref = tagger.silentPlugin(url, origin, "_plugin/cache", cache);
+			return ref = tagger.internalPlugin(url, origin, "_plugin/cache", cache);
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
@@ -323,12 +323,12 @@ public class FileCache {
 		// M3U8 Manifest
 		var data = fetchExistingString(url, origin);
 		if (data == null) return moreScrape;
-		if (data.trim().startsWith("#") && (url.endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
-			try {
-				var urlObj = URI.create(url).toURL();
+		try {
+			var urlObj = URI.create(url).toURL();
+			if (data.trim().startsWith("#") && (urlObj.getPath().endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
-				var basePath = "/api/v1/scrape/fetch?url=";
+				var basePath = "/api/v1/proxy?url=";
 				var buffer = new StringBuilder();
 				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
@@ -342,8 +342,8 @@ public class FileCache {
 					}
 				}
 				overwrite(url, origin, buffer.toString().getBytes());
-			} catch (Exception e) {}
-		}
+			}
+		} catch (Exception e) {}
 		return moreScrape;
 	}
 
