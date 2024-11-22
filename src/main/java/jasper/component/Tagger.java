@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
+import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,7 +164,11 @@ public class Tagger {
 		attachLogs(origin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
 			parent.addTag("+plugin/error");
-			ingest.update(parent, false);
+			try {
+				ingest.update(parent, false);
+			} catch (ModifiedException e) {
+				// Silently ignore, logs are already attached
+			}
 		}
 	}
 }
