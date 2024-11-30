@@ -35,6 +35,18 @@ public class OriginSpec {
 		}
 	}
 
+	public static <T extends HasOrigin> Specification<T> isUnderOrigin(String origin) {
+		if (isBlank(origin) || origin.equals("@") || origin.equals("@*")) return any();
+		return (root, query, cb) ->
+			cb.or(
+				cb.equal(
+					root.get("origin"),
+					origin),
+				cb.like(
+					root.get("origin"),
+					origin + ".%"));
+	}
+
 	public static <T extends HasOrigin> Specification<T> isAnyOrigin(List<String> origins) {
 		if (origins == null || origins.isEmpty()) return null;
 		for (var o : origins) if (o.equals("@*")) return any();

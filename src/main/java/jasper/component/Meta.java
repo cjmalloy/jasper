@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static org.springframework.data.domain.Sort.Order.desc;
@@ -68,9 +69,9 @@ public class Meta {
 			List<String> plugins = metadataPlugins.stream()
 				.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
 				.toList();
-			// TODO: Need to consider the origin of the source when deciding to generate metadata
-			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
+			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
+				if (source.getUrl().equals(ref.getUrl())) continue;
 				var metadata = source.getMetadata();
 				if (metadata == null) {
 					logger.debug("Ref missing metadata: {}", ref.getUrl());
@@ -97,7 +98,7 @@ public class Meta {
 			}
 		} else {
 			// Deleting
-			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
+			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (!maybeLatest.isEmpty()) {
 				var latest = maybeLatest.getContent().get(0);
 				if (latest.getMetadata() != null) {
@@ -114,9 +115,9 @@ public class Meta {
 				: existing.getSources().stream()
 					.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 					.toList();
-			// TODO: Need to consider the origin of the source when deciding to generate metadata
-			List<Ref> removed = refRepository.findAll(isUrls(removedSources));
+			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
+				if (source.getUrl().equals(existing.getUrl())) continue;
 				var metadata = source.getMetadata();
 				if (metadata == null) {
 					logger.warn("Ref missing metadata: {}", existing.getUrl());

@@ -310,7 +310,8 @@ public class Validate {
 	private void sources(String origin, Ref ref, boolean fix) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
+			if (sourceUrl.equals(ref.getUrl())) continue;
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, origin, ref.getPublished());
 			for (var source : sources) {
 				if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
 				if (source.getPublished().isAfter(ref.getPublished())) {
@@ -321,7 +322,7 @@ public class Validate {
 	}
 
 	private void responses(String origin, Ref ref, boolean fix) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getOrigin(), ref.getPublished());
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), origin, ref.getPublished());
 		for (var response : responses) {
 			if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
 			if (response.getPublished().isBefore(ref.getPublished())) {

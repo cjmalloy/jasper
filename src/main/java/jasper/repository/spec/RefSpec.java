@@ -80,7 +80,8 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasSource(String url) {
-		return (root, query, cb) -> cb.isTrue(
+		return (root, query, cb) -> cb.and(
+			cb.notEqual(root.get(Ref_.url), url),
 			cb.function("jsonb_exists", Boolean.class,
 				root.get(Ref_.sources),
 				cb.literal(url)));

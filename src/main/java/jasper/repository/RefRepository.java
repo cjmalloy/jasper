@@ -77,21 +77,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
 		FROM ref
-		WHERE ref.published <= :published
+		WHERE ref.url != :url
+			AND ref.published <= :published
 			AND jsonb_exists(ref.sources, :url)
 			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE jsonb_exists(ref.sources, :url)
+		WHERE ref.url != :url
+			AND jsonb_exists(ref.sources, :url)
 			AND jsonb_exists(ref.tags, :tag)
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE jsonb_exists(ref.sources, :url)
+		WHERE ref.url != :url
+			AND jsonb_exists(ref.sources, :url)
 			AND jsonb_exists(ref.tags, :tag) = false
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);

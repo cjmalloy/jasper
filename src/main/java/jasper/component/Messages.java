@@ -82,6 +82,7 @@ public class Messages {
 		}
 		if (ref.getSources() != null) {
 			for (var source : ref.getSources()) {
+				if (source.equals(ref.getUrl())) continue;
 				sendAndRetry(() -> responseTxChannel.send(createMessage(ref.getUrl(), responseHeaders(ref.getOrigin(), source))));
 			}
 		}
