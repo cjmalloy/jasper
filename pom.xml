@@ -23,7 +23,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
-		<spring-cloud.version>2023.0.4</spring-cloud.version>
+		<spring-cloud.version>2024.0.0</spring-cloud.version>
 		<lombok.version>1.18.36</lombok.version>
 		<testcontainers.version>1.20.4</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
