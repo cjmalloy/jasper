@@ -95,6 +95,23 @@ public class TemplateServiceIT {
 	}
 
 	@Test
+	void testGetPageRefWithEmptyQueryRoot() {
+		template("");
+		template("custom");
+		template("extra");
+
+		var page = templateService.page(
+			TemplateFilter
+				.builder()
+				.query("@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(3);
+	}
+
+	@Test
 	void testGetEmptyPageRefWithEmptyQueryRoot() {
 		template("");
 		template("custom");

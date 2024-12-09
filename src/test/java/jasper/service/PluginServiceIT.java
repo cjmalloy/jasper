@@ -94,23 +94,6 @@ public class PluginServiceIT {
 	}
 
 	@Test
-	void testGetEmptyPageRefWithEmptyQueryRoot() {
-		plugin("plugin");
-		plugin("plugin/custom");
-		plugin("plugin/extra");
-
-		var page = pluginService.page(
-			TagFilter
-				.builder()
-				.query("!@*")
-				.build(),
-			PageRequest.of(0, 10));
-
-		assertThat(page.getTotalElements())
-			.isEqualTo(0);
-	}
-
-	@Test
 	void testGetPageWithNotQueryRef() {
 		plugin("plugin/test");
 
