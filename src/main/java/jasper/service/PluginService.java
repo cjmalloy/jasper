@@ -78,7 +78,7 @@ public class PluginService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.minRole()")
 	@Cacheable(value = "plugin-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {

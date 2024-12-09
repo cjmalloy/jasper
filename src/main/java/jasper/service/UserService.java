@@ -97,7 +97,7 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.minRole()")
 	@Cacheable(value = "user-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
