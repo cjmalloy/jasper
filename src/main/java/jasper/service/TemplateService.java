@@ -78,7 +78,7 @@ public class TemplateService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.minRole()")
 	@Cacheable(value = "template-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
