@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static jasper.repository.spec.TagSpec.isLevel;
@@ -34,11 +35,12 @@ public class TagFilter implements Query {
 	private Instant modifiedAfter;
 
 	public <T extends Tag> Specification<T> spec() {
+		if ("!@*".equals(query)) return none();
 		var result = Specification.<T>where(null);
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
-		if (isNotBlank(query)) {
+		if (isNotBlank(query) && !query.equals("@*")) {
 			result = result.and(new TagQuery(query).spec());
 		}
 		if (level != null) {

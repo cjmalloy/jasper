@@ -437,6 +437,43 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testGetPageWithNotQueryRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public", "test"));
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+
+	@Test
+	void testGetPageWithNotQueryFoundRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public"));
+		refRepository.save(ref);
+
+		var page = refService.page(
+			RefFilter
+				.builder()
+				.query("!test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
 	void testGetPageRefWithQueryPrivateTagFailed() {
 		refWithTags("public");
 		refWithTags("public", "_custom", "extra");

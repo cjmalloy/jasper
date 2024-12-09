@@ -3,9 +3,9 @@ package jasper.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
-import jasper.domain.Plugin;
-import jasper.repository.PluginRepository;
-import jasper.repository.filter.TagFilter;
+import jasper.domain.Template;
+import jasper.repository.TemplateRepository;
+import jasper.repository.filter.TemplateFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,25 +18,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @WithMockUser(value = "admin", roles = "ADMIN")
 @IntegrationTest
-public class PluginServiceIT {
+public class TemplateServiceIT {
 
 	@Autowired
-	PluginService pluginService;
+	TemplateService templateService;
 
 	@Autowired
-	PluginRepository pluginRepository;
+	TemplateRepository templateRepository;
 
 	@BeforeEach
 	void init() {
-		pluginRepository.deleteAll();
+		templateRepository.deleteAll();
 	}
 
 	@Test
-	void testCreatePluginWithSchema() throws IOException {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
+	void testCreateTemplateWithSchema() throws IOException {
+		var template = new Template();
+		template.setTag("test");
 		var mapper = new ObjectMapper();
-		plugin.setSchema((ObjectNode) mapper.readTree("""
+		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
 				"name": { "type": "string" },
@@ -44,32 +44,32 @@ public class PluginServiceIT {
 			}
 		}"""));
 
-		pluginService.create(plugin);
+		templateService.create(template);
 
-		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
+		assertThat(templateRepository.existsByQualifiedTag("test"))
 			.isTrue();
-		var fetched = pluginRepository.findOneByQualifiedTag("plugin/test").get();
+		var fetched = templateRepository.findOneByQualifiedTag("test").get();
 		assertThat(fetched.getTag())
-			.isEqualTo("plugin/test");
+			.isEqualTo("test");
 	}
 
-	Plugin plugin(String tag) {
-		var t = new Plugin();
+	Template template(String tag) {
+		var t = new Template();
 		t.setTag(tag);
-		pluginRepository.save(t);
+		templateRepository.save(t);
 		return t;
 	}
 
 	@Test
 	void testGetPageRefWithQuery() {
-		plugin("plugin/public");
-		plugin("plugin/custom");
-		plugin("plugin/extra");
+		template("public");
+		template("custom");
+		template("extra");
 
-		var page = pluginService.page(
-			TagFilter
+		var page = templateService.page(
+			TemplateFilter
 				.builder()
-				.query("plugin/custom")
+				.query("custom")
 				.build(),
 			PageRequest.of(0, 10));
 
@@ -79,11 +79,12 @@ public class PluginServiceIT {
 
 	@Test
 	void testGetEmptyPageRefWithEmptyQuery() {
-		plugin("plugin/custom");
-		plugin("plugin/extra");
+		template("public");
+		template("custom");
+		template("extra");
 
-		var page = pluginService.page(
-			TagFilter
+		var page = templateService.page(
+			TemplateFilter
 				.builder()
 				.query("!@*")
 				.build(),
@@ -95,12 +96,12 @@ public class PluginServiceIT {
 
 	@Test
 	void testGetEmptyPageRefWithEmptyQueryRoot() {
-		plugin("plugin");
-		plugin("plugin/custom");
-		plugin("plugin/extra");
+		template("");
+		template("custom");
+		template("extra");
 
-		var page = pluginService.page(
-			TagFilter
+		var page = templateService.page(
+			TemplateFilter
 				.builder()
 				.query("!@*")
 				.build(),
@@ -112,12 +113,12 @@ public class PluginServiceIT {
 
 	@Test
 	void testGetPageWithNotQueryRef() {
-		plugin("plugin/test");
+		template("test");
 
-		var page = pluginService.page(
-			TagFilter
+		var page = templateService.page(
+			TemplateFilter
 				.builder()
-				.query("!plugin/test")
+				.query("!test")
 				.build(),
 			PageRequest.of(0, 10));
 
@@ -127,12 +128,12 @@ public class PluginServiceIT {
 
 	@Test
 	void testGetPageWithNotQueryFoundRef() {
-		plugin("plugin/public");
+		template("public");
 
-		var page = pluginService.page(
-			TagFilter
+		var page = templateService.page(
+			TemplateFilter
 				.builder()
-				.query("!plugin/test")
+				.query("!test")
 				.build(),
 			PageRequest.of(0, 10));
 
