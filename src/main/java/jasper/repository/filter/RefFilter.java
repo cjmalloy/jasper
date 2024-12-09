@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.RefSpec.*;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
@@ -47,10 +48,12 @@ public class RefFilter implements Query {
 	private Instant responseAfter;
 
 	public Specification<Ref> spec() {
+		if ("!@*".equals(query)) return none();
 		var result = Specification.<Ref>where(null);
 		if (origin != null && !origin.equals("@*")) {
-			result = result.and(isOrigin(origin));
-			result = result.and(isNotObsolete());
+			result = result
+				.and(isOrigin(origin))
+				.and(isNotObsolete());
 		} else if (!obsolete) {
 			result = result.and(isNotObsolete());
 		}

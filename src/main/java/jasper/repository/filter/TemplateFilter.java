@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static jasper.repository.spec.TagSpec.isLevel;
@@ -34,12 +35,13 @@ public class TemplateFilter implements Query {
 	private Instant modifiedAfter;
 
 	public Specification<Template> spec() {
+		if ("!@*".equals(query)) return none();
 		var result = Specification.<Template>where(null);
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
-		if (isNotBlank(query)) {
-			result = result.and(new TagQuery(query).templateSpec());
+		if (isNotBlank(query) && !query.equals("@*")) {
+			result = result.and(new TagQuery(query).spec());
 		}
 		if (level != null) {
 			result = result.and(isLevel(level));
