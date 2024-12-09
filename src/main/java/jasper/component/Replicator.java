@@ -536,7 +536,8 @@ public class Replicator {
 	}
 
 	public static String deletedTag(String deletor) {
-		return localTag(deletor).substring("/deleted".length()) + tagOrigin(deletor);
+		var local = localTag(deletor);
+		return local.substring(0, local.length() - "/deleted".length()) + tagOrigin(deletor);
 	}
 
 	interface ExpBackoff {
