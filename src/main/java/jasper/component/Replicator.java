@@ -46,6 +46,7 @@ import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.data.domain.Sort.by;
 
 @Component
@@ -528,15 +529,18 @@ public class Replicator {
 	}
 
 	public static boolean isDeletorTag(String tag) {
-		return localTag(tag).endsWith("/deleted");
+		tag = localTag(tag);
+		return tag.equals("deleted") || tag.endsWith("/deleted");
 	}
 
 	public static String deletorTag(String tag) {
+		if (isBlank(tag)) return "deleted";
 		return localTag(tag) + "/deleted" + tagOrigin(tag);
 	}
 
 	public static String deletedTag(String deletor) {
 		var local = localTag(deletor);
+		if (local.equals("deleted")) return "";
 		return local.substring(0, local.length() - "/deleted".length()) + tagOrigin(deletor);
 	}
 
