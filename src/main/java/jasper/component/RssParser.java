@@ -6,7 +6,6 @@ import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
-import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
@@ -24,8 +23,6 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +30,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -76,8 +72,8 @@ public class RssParser {
 		var builder = HttpClients.custom()
 			.setDefaultRequestConfig(requestConfig)
 			.disableCookieManagement();
-		try (CloseableHttpClient client = builder.build()) {
-			HttpUriRequest request = new HttpGet(feed.getUrl());
+		try (var client = builder.build()) {
+			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
 				return;
@@ -102,7 +98,7 @@ public class RssParser {
 					}
 					return;
 				}
-				try (InputStream stream = response.getEntity().getContent()) {
+				try (var stream = response.getEntity().getContent()) {
 					if (!force && !config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
@@ -115,8 +111,8 @@ public class RssParser {
 							ingest.update(feed, false);
 						}
 					}
-					SyndFeedInput input = new SyndFeedInput();
-					SyndFeed syndFeed = input.build(new XmlReader(stream));
+					var input = new SyndFeedInput();
+					var syndFeed = input.build(new XmlReader(stream));
 					Thumbnail feedImage = null;
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
