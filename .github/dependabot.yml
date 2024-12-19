@@ -13,6 +13,11 @@ updates:
   directory: /
   schedule:
     interval: daily
+  groups:
+    angular:
+      patterns:
+        - "*spring-boot*"
+        - "*spring-cloud*"
 - package-ecosystem: github-actions
   directory: /
   schedule:
