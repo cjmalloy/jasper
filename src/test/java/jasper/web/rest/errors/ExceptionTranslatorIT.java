@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+
 /**
  * Integration tests {@link ExceptionTranslator} controller advice.
  */
@@ -29,7 +30,7 @@ class ExceptionTranslatorIT {
             .perform(get("/api/exception-translator-test/concurrency-failure"))
             .andExpect(status().isConflict())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_CONCURRENCY_FAILURE));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_OPTIMISTIC_LOCK));
     }
 
     @Test
