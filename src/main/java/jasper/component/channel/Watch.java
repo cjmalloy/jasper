@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -34,8 +35,8 @@ public class Watch {
 	@Autowired
 	RefRepository refRepository;
 
-	Map<String, Map<String, Watcher>> watchers = new HashMap<>();
-	Map<String, Map<String, Set<String>>> watching = new HashMap<>();
+	Map<String, Map<String, Watcher>> watchers = new ConcurrentHashMap<>();
+	Map<String, Map<String, Set<String>>> watching = new ConcurrentHashMap<>();
 
 	/**
 	 * Register a watcher to watch all Refs in an origin.

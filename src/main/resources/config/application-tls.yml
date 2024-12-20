@@ -1,7 +1,7 @@
 # ===================================================================
 # Activate this profile to enable TLS and HTTP/2.
 #
-# JHipster has generated a self-signed certificate, which will be used to encrypt traffic.
+# keystore.p12 is a self-signed certificate, which will be used to encrypt traffic.
 # As your browser will not understand this certificate, you will need to import it.
 #
 # Another (easiest) solution with Chrome is to enable the "allow-insecure-localhost" flag
