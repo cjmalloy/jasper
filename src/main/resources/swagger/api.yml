@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.31
+  version: 1.2.32
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -291,6 +291,24 @@ paths:
             type: array
             items:
               $ref: '#/components/schemas/tag-plugin'
+        - name: userResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noUserResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
           required: false
@@ -408,6 +426,24 @@ paths:
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: userResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noUserResponse
           in: query
           required: false
           schema:
@@ -791,6 +827,7 @@ paths:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/feed:
     post:
+      deprecated: true
       tags:
         - Scrape
       operationId: scrapeFeed
@@ -823,6 +860,7 @@ paths:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/web:
     get:
+      deprecated: true
       tags:
         - Scrape
       operationId: scrapeWebpage
@@ -848,6 +886,7 @@ paths:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/rss:
     get:
+      deprecated: true
       tags:
         - Scrape
       operationId: rss
