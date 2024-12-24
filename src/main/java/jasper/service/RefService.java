@@ -108,7 +108,7 @@ public class RefService {
 		return refRepository
 			.findAll(
 				auth.refReadSpec()
-					.and(filter.spec(auth.getUserTag().tag)),
+					.and(filter.spec(auth.getUserTag())),
 				pageable)
 			.map(mapper::domainToDto);
 	}
@@ -120,7 +120,7 @@ public class RefService {
 		return refRepository
 			.count(
 				auth.refReadSpec()
-					.and(filter.spec(auth.getUserTag().tag)));
+					.and(filter.spec(auth.getUserTag())));
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")

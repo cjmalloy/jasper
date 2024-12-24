@@ -1,6 +1,7 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
+import jasper.repository.spec.QualifiedTag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -50,8 +51,8 @@ public class RefFilter implements Query {
 	private Instant responseBefore;
 	private Instant responseAfter;
 
-	public Specification<Ref> spec(String user) {
-		this.user = user;
+	public Specification<Ref> spec(QualifiedTag user) {
+		if (user != null) this.user = user.tag;
 		return spec();
 	}
 
