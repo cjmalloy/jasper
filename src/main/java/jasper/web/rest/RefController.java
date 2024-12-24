@@ -127,6 +127,8 @@ public class RefController {
 		@RequestParam(required = false) Instant responseAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		if ("!@*".equals(query)) {
@@ -170,6 +172,8 @@ public class RefController {
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.userResponse(userResponse)
+				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
 				.publishedBefore(publishedBefore)
@@ -206,6 +210,8 @@ public class RefController {
 		@RequestParam(required = false) Instant responseAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return refService.count(
@@ -222,6 +228,8 @@ public class RefController {
 				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.userResponse(userResponse)
+				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
 				.publishedBefore(publishedBefore)

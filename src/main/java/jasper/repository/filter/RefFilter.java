@@ -38,6 +38,9 @@ public class RefFilter implements Query {
 	private boolean unsourced;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
+	private String user;
+	private List<String> userResponse;
+	private List<String> noUserResponse;
 	private Instant modifiedBefore;
 	private Instant modifiedAfter;
 	private Instant publishedBefore;
@@ -46,6 +49,11 @@ public class RefFilter implements Query {
 	private Instant createdAfter;
 	private Instant responseBefore;
 	private Instant responseAfter;
+
+	public Specification<Ref> spec(String user) {
+		this.user = user;
+		return spec();
+	}
 
 	public Specification<Ref> spec() {
 		if ("!@*".equals(query)) return none();
@@ -96,6 +104,18 @@ public class RefFilter implements Query {
 		if (noPluginResponse != null) {
 			for (var nr : noPluginResponse) {
 				result = result.and(hasNoPluginResponses(nr));
+			}
+		}
+		if (isNotBlank(user)) {
+			if (userResponse != null) {
+				for (var r : userResponse) {
+					result = result.and(hasPluginResponses(user, r));
+				}
+			}
+			if (noUserResponse != null) {
+				for (var nr : noUserResponse) {
+					result = result.and(hasNoPluginResponses(user, nr));
+				}
 			}
 		}
 		if (modifiedBefore != null) {

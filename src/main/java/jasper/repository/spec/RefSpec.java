@@ -184,6 +184,44 @@ public class RefSpec {
 					cb.literal(0)));
 	}
 
+	public static Specification<Ref> hasNoPluginResponses(String user, String plugin) {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						root.get(Ref_.metadata),
+						cb.literal("plugins"))),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("plugins")),
+						cb.literal(plugin))),
+				cb.isFalse(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal("plugins")),
+							cb.literal(plugin)),
+						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+	}
+
+	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
+		return (root, query, cb) ->
+			cb.and(
+				cb.isNotNull(root.get(Ref_.metadata)),
+				cb.isTrue(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal("plugins")),
+							cb.literal(plugin)),
+						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+	}
+
 	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
