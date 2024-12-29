@@ -55,9 +55,11 @@ public class Proxy {
 		try (var res = fetch.doScrape(url, origin)) {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (Exception e) {
-			tagger.attachError(origin,
-				tagger.internalPlugin(url, origin, "_plugin/cache", null),
-				"Error Fetching String", e.getMessage());
+			if (refRepository.existsByUrlAndOrigin(url, origin)) {
+				tagger.attachError(origin,
+					tagger.internalPlugin(url, origin, "_plugin/cache", null),
+					"Error Fetching String", e.getMessage());
+			}
 		}
 		return null;
 	}
