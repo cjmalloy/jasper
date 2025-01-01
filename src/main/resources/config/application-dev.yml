@@ -71,6 +71,7 @@ jasper:
   max-role: ROLE_ADMIN
   push-cooldown-sec: 1
 #  local-origin: '@test'
+#  default-role: ROLE_ADMIN
   allow-user-role-header: true
   allow-user-tag-header: true
   allow-local-origin-header: true

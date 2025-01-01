@@ -44,9 +44,12 @@ public class Stomp {
 	@Order(0)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
-		var origins = originHierarchy(message.getHeaders().get("origin"));
+		var origin = message.getHeaders().get("origin").toString();
+		var path = message.getHeaders().get("tag").toString();
+		var tag = message.getPayload() + origin;
+		var origins = originHierarchy(origin);
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/tag/" + formatOrigin(o) + "/" + e(formatTag(message.getHeaders().get("tag"))), message.getPayload());
+			stomp.convertAndSend("/topic/tag/" + formatOrigin(o) + "/" + e(formatTag(path)), tag);
 		}
 	}
 
