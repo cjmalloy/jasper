@@ -2,7 +2,6 @@ package jasper.component.delta;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
-import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Scraper;
 import jasper.component.Tagger;
@@ -33,9 +32,6 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 
 	@Autowired
 	Tagger tagger;
-
-	@Autowired
-	ConfigCache configs;
 
 	@Autowired
 	RefRepository refRepository;

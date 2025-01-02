@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jasper.client.JasperClient;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -17,6 +18,7 @@ import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
+import jasper.errors.TooLargeException;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.filter.TemplateFilter;
@@ -81,6 +83,9 @@ public class ReplicateController {
 	Props props;
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	JasperClient jasperClient;
 
 	@Autowired
@@ -114,6 +119,7 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
+		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return refService.page(
 				RefFilter.builder()
 					.origin(origin)
@@ -166,6 +172,7 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
+		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return extService.page(
 				TagFilter.builder()
 					.origin(origin)
@@ -217,6 +224,7 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
+		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return userService.page(
 				TagFilter.builder()
 					.origin(origin)
@@ -268,6 +276,7 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
+		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return pluginService.page(
 				TagFilter.builder()
 					.origin(origin)
@@ -319,6 +328,7 @@ public class ReplicateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(defaultValue = "500") int size
 	) {
+		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return templateService.page(
 				TemplateFilter.builder()
 					.origin(origin)

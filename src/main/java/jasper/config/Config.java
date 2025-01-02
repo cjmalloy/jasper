@@ -44,6 +44,8 @@ public interface Config {
 		 * Whitelist origins to be allowed web access.
 		 */
 		private List<String> webOrigins = List.of("");
+		@Builder.Default
+		private int maxReplEntityBatch = 500;
 		/**
 		 * Whitelist origins to be allowed to open SSH tunnels.
 		 */
@@ -94,6 +96,7 @@ public interface Config {
 			if (isNotEmpty(server.getModSeals())) wrapped = wrapped.withModSeals(server.getModSeals());
 			if (isNotEmpty(server.getEditorSeals())) wrapped = wrapped.withEditorSeals(server.getEditorSeals());
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
+			if (server.getMaxReplEntityBatch() != null) wrapped = wrapped.withMaxReplEntityBatch(server.getMaxReplEntityBatch());
 			if (isNotEmpty(server.getSshOrigins())) wrapped = wrapped.withSshOrigins(server.getSshOrigins());
 			if (isNotEmpty(server.getPushOrigins())) wrapped = wrapped.withPushOrigins(server.getPushOrigins());
 			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());

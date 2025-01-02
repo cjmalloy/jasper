@@ -16,8 +16,6 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,14 +40,14 @@ public class Watch {
 	 * Register a watcher to watch all Refs in an origin.
 	 */
 	public void addWatch(String origin, Watcher w) {
-		watchers.computeIfAbsent(origin, o -> new HashMap<>()).put("", w);
+		watchers.computeIfAbsent(origin, o -> new ConcurrentHashMap<>()).put("", w);
 	}
 
 	/**
 	 * Register a watcher for all tagged Refs in an origin.
 	 */
 	public void addWatch(String origin, String tag, Watcher w) {
-		watchers.computeIfAbsent(origin, o -> new HashMap<>()).put(tag, w);
+		watchers.computeIfAbsent(origin, o -> new ConcurrentHashMap<>()).put(tag, w);
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
@@ -80,8 +78,8 @@ public class Watch {
 		var ref = message.getPayload();
 		for (var tag : watchers.get(origin).keySet()) {
 			var set = watching
-				.computeIfAbsent(origin, o -> new HashMap<>())
-				.computeIfAbsent(tag, t -> new HashSet<>());
+				.computeIfAbsent(origin, o -> new ConcurrentHashMap<>())
+				.computeIfAbsent(tag, t -> ConcurrentHashMap.newKeySet());
 			if (isNotBlank(tag)) {
 				if (!set.contains(ref.getUrl())) {
 					if (!hasMatchingTag(ref, tag)) continue;

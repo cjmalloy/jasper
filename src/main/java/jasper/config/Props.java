@@ -134,6 +134,7 @@ public class Props {
 		private List<String> modSeals;
 		private List<String> editorSeals;
 		private List<String> webOrigins;
+		private Integer maxReplEntityBatch;
 		private List<String> sshOrigins;
 		private List<String> pushOrigins;
 		private Integer maxPushEntityBatch;

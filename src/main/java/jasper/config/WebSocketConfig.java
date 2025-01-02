@@ -43,9 +43,9 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -71,7 +71,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Qualifier("authSingleton")
 	Auth auth;
 
-	private Set<WebSocketSession> sessions = new HashSet<>();
+	private Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {

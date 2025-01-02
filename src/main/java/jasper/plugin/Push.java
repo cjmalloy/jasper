@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 
 @Getter
@@ -18,12 +17,6 @@ public class Push implements Serializable {
 	private boolean cache;
 	private String query;
 	private int batchSize;
-	private boolean checkRemoteCursor;
-	private Instant lastModifiedRefWritten;
-	private Instant lastModifiedExtWritten;
-	private Instant lastModifiedUserWritten;
-	private Instant lastModifiedPluginWritten;
-	private Instant lastModifiedTemplateWritten;
 
 	private static final Push DEFAULTS = new Push();
 	public static Push getPush(Ref ref) {

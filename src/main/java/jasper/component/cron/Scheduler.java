@@ -15,8 +15,8 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -44,9 +44,9 @@ public class Scheduler {
 	@Autowired
 	Watch watch;
 
-	Map<String, ScheduledFuture<?>> tasks = new HashMap<>();
+	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 
-	Map<String, CronRunner> tags = new HashMap<>();
+	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
 	/**
 	 * Register a runner for a tag.

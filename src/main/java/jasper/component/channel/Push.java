@@ -17,7 +17,6 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -51,7 +50,7 @@ public class Push {
 
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
-	private Map<String, Set<Tuple2<String, String>>> pushes = new HashMap<>();
+	private Map<String, Set<Tuple2<String, String>>> pushes = new ConcurrentHashMap<>();
 
 	@PostConstruct
 	public void init() {
@@ -69,7 +68,7 @@ public class Push {
 		pushes.values().forEach(set -> set.remove(tuple));
 		if (!remote.hasTag("+plugin/error") && push.isPushOnChange()) {
 			pushes
-				.computeIfAbsent(origin.getLocal(), o -> new HashSet<>())
+				.computeIfAbsent(origin.getLocal(), o -> ConcurrentHashMap.newKeySet())
 				.add(tuple);
 		}
 	}
@@ -108,7 +107,7 @@ public class Push {
 	}
 
 	private void checkIfQueued(String origin) {
-		if (lastSent.containsKey(origin)) return;
+		if (!lastSent.containsKey(origin)) return;
 		var next = queued.remove(origin);
 		if (next != null) {
 			lastSent.put(origin, next);

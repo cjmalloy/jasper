@@ -1,7 +1,6 @@
 package jasper.component.delta;
 
 import jasper.component.ConfigCache;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
@@ -21,8 +20,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.origin;
@@ -45,9 +44,6 @@ public class Async {
 	private static final Logger logger = LoggerFactory.getLogger(Async.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
@@ -56,7 +52,7 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, AsyncRunner> tags = new HashMap<>();
+	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
 	/**
 	 * Register a runner for a tag.

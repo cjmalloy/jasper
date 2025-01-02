@@ -1,7 +1,6 @@
 package jasper.component.delta;
 
 import jakarta.annotation.PostConstruct;
-import jasper.component.ConfigCache;
 import jasper.component.FileCache;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -21,9 +20,6 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 
 	@Autowired
 	FileCache fileCache;
-
-	@Autowired
-	ConfigCache configs;
 
 	@Autowired
 	Tagger tagger;

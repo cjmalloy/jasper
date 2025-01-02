@@ -11,7 +11,6 @@ import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.OperationForbiddenOnOriginException;
-import jasper.plugin.Push;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -318,15 +317,11 @@ public class Replicator {
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		if (!push.isCheckRemoteCursor() && allPushed(push, localOrigin))  {
-			logger.debug("{} Skipping push, up to date {}", remote.getOrigin(), remoteOrigin);
-			return;
-		}
 		var logs = new ArrayList<Tuple2<String, String>>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				var modifiedAfter = push.isCheckRemoteCursor() ? client.pluginCursor(baseUri, remoteOrigin) : push.getLastModifiedPluginWritten();
+				var modifiedAfter = client.pluginCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
@@ -339,12 +334,11 @@ public class Replicator {
 					logger.debug("{} Pushing {} plugins to {}", remote.getOrigin(), pluginList.size(), remoteOrigin);
 					if (!pluginList.isEmpty()) {
 						client.pluginPush(baseUri, remoteOrigin, pluginList);
-						push.setLastModifiedPluginWritten(pluginList.getLast().getModified());
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.templateCursor(baseUri, remoteOrigin) : push.getLastModifiedTemplateWritten();
+				modifiedAfter = client.templateCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
@@ -357,12 +351,11 @@ public class Replicator {
 					logger.debug("{} Pushing {} templates to {}", remote.getOrigin(), templateList.size(), remoteOrigin);
 					if (!templateList.isEmpty()) {
 						client.templatePush(baseUri, remoteOrigin, templateList);
-						push.setLastModifiedTemplateWritten(templateList.getLast().getModified());
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.refCursor(baseUri, remoteOrigin) : push.getLastModifiedRefWritten();
+				modifiedAfter = client.refCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
@@ -376,7 +369,6 @@ public class Replicator {
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
 						client.refPush(baseUri, remoteOrigin, refList);
-						push.setLastModifiedRefWritten(refList.getLast().getModified());
 					}
 					if (push.isCache() && fileCache.isPresent()) {
 						for (var ref : refList) {
@@ -398,7 +390,7 @@ public class Replicator {
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.extCursor(baseUri, remoteOrigin) : push.getLastModifiedExtWritten();
+				modifiedAfter = client.extCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
@@ -411,12 +403,11 @@ public class Replicator {
 					logger.debug("{} Pushing {} exts to {}", remote.getOrigin(), extList.size(), remoteOrigin);
 					if (!extList.isEmpty()) {
 						client.extPush(baseUri, remoteOrigin, extList);
-						push.setLastModifiedExtWritten(extList.getLast().getModified());
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
 
-				modifiedAfter = push.isCheckRemoteCursor() ? client.userCursor(baseUri, remoteOrigin) : push.getLastModifiedUserWritten();
+				modifiedAfter = client.userCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
@@ -430,7 +421,6 @@ public class Replicator {
 					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
 					if (!userList.isEmpty()) {
 						client.userPush(baseUri, remoteOrigin, userList);
-						push.setLastModifiedUserWritten(userList.getLast().getModified());
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
@@ -451,50 +441,6 @@ public class Replicator {
 		});
 		remote.setPlugin("+plugin/origin/push", push);
 		refRepository.save(remote);
-	}
-
-	private boolean allPushed(Push push, String localOrigin) {
-		if (refRepository.count(
-				RefFilter.builder()
-					.origin(localOrigin)
-					.query(push.getQuery())
-					.modifiedAfter(push.getLastModifiedRefWritten())
-					.build().spec()) > 0) {
-			return false;
-		}
-		if (extRepository.count(
-				TagFilter.builder()
-					.origin(localOrigin)
-					.query(push.getQuery())
-					.modifiedAfter(push.getLastModifiedExtWritten())
-					.build().spec()) > 0) {
-			return false;
-		}
-		if (userRepository.count(
-				TagFilter.builder()
-					.origin(localOrigin)
-					.query(push.getQuery())
-					.modifiedAfter(push.getLastModifiedUserWritten())
-					.build().spec()) > 0) {
-			return false;
-		}
-		if (pluginRepository.count(
-			TagFilter.builder()
-				.origin(localOrigin)
-				.query(push.getQuery())
-				.modifiedAfter(push.getLastModifiedPluginWritten())
-				.build().spec()) > 0) {
-			return false;
-		}
-		if (templateRepository.count(
-			TagFilter.builder()
-				.origin(localOrigin)
-				.query(push.getQuery())
-				.modifiedAfter(push.getLastModifiedTemplateWritten())
-				.build().spec()) > 0) {
-			return false;
-		}
-		return true;
 	}
 
 	private List<Tuple2<String, String>> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
