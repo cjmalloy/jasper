@@ -81,13 +81,13 @@ public class TunnelClient {
 							logger.debug("{} Opened reverse proxy in SSH tunnel.", remote.getOrigin());
 							request.go(new URI("http://localhost:" + tracker.getBoundAddress().getPort()));
 						} catch (Exception e) {
-							logger.debug("{} Error creating tunnel port forward", remote.getOrigin());
+							logger.debug("{} Error creating tunnel port forward", remote.getOrigin(), e);
 							throw new InvalidTunnelException("Error creating tunnel tracker", e);
 						}
 					} catch (InvalidTunnelException e) {
 						throw e;
 					}  catch (Exception e) {
-						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin());
+						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin(), e);
 						throw new InvalidTunnelException("Error creating tunnel SSH session", e);
 					} finally {
 						client.stop();
@@ -95,7 +95,7 @@ public class TunnelClient {
 				} catch (InvalidTunnelException e) {
 					throw e;
 				} catch (Exception e) {
-					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin());
+					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin(), e);
 					throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 				}
 			}
