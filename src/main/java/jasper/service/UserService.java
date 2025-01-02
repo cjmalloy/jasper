@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -44,6 +45,7 @@ import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Service
 public class UserService {
@@ -76,6 +78,14 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void push(User user) {
+		if (isBlank(user.getAuthorizedKeys()) && user.getPubKey() != null) {
+			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
+		}
+		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		if (maybeExisting.isPresent()) {
+			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
+			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
+		}
 		ingest.push(user);
 	}
 

@@ -277,11 +277,8 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var user : userList) {
 						user.setOrigin(localOrigin);
+						user.setKey(null);
 						pull.migrate(user, config);
-						var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-						if (maybeExisting.isPresent() && user.getKey() == null) {
-							user.setKey(maybeExisting.get().getKey());
-						}
 						try {
 							ingestUser.push(user);
 						} catch (DuplicateModifiedDateException e) {
