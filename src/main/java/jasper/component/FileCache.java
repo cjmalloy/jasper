@@ -133,7 +133,7 @@ public class FileCache {
 		}
 		var remote = configs.getRemote(origin);
 		var pull = remote == null ? null : getPull(remote);
-		if (url.startsWith("cache:")) {
+		if (url.startsWith("cache:") || (pull != null && pull.isCacheProxy())) {
 			var id = url.substring("cache:".length());
 			if (storage.exists(origin, CACHE, id)) {
 				if (os != null) storage.stream(origin, CACHE, id, os);
@@ -144,12 +144,10 @@ public class FileCache {
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
 			if (res == null) return ref;
-			if (remote != null) {
-				if (os != null && url.startsWith("cache:")) {
-					id = url.substring("cache:".length());
-					if (storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
-				}
-				if (pull == null || !pull.isCacheFetch()) return ref;
+			if (url.startsWith("cache:") || (pull != null && pull.isCacheProxy())) {
+				id = url.substring("cache:".length());
+				if (os != null && storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
+				return ref;
 			}
 			mimeType = res.getMimeType();
 			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
@@ -226,10 +224,6 @@ public class FileCache {
 			return fetch(thumbnailUrl, origin, os, false);
 		} else {
 			var remote = configs.getRemote(origin);
-			var pull = remote == null ? null : getPull(remote);
-			if (remote != null) {
-				if (pull == null || !pull.isCacheFetch()) return null;
-			}
 			var data = images.thumbnail(storage.stream(origin, CACHE, id));
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
