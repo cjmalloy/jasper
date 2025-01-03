@@ -1,20 +1,30 @@
 package jasper.component;
 
+import io.vavr.Tuple;
+import io.vavr.Tuple3;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.session.Session;
+import org.apache.sshd.common.session.SessionListener;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.HasTags.authors;
@@ -35,6 +45,18 @@ public class TunnelClient {
 
 	@Autowired
 	Tagger tagger;
+
+	@Autowired
+	TaskScheduler taskScheduler;
+
+	Map<String, Tuple3<Integer, Integer, SshClient>> tunnels = new ConcurrentHashMap<>();
+
+	@Scheduled(fixedDelay = 1, initialDelay = 0, timeUnit = TimeUnit.MINUTES)
+	public void log() {
+		var connections = 0;
+		for (var t : tunnels.values()) connections += t._2();
+		logger.info("SSH Tunnel Pool: {} clients with {} connections", tunnels.size(), connections);
+	}
 
 	public void proxy(HasTags remote, ProxyRequest request) {
 		try {
@@ -57,46 +79,16 @@ public class TunnelClient {
 				if (user.isEmpty() || user.get().getKey() == null) {
 					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 				}
-				try (var client = SshClient.setUpDefaultClient()) {
-					final int[] httpPort = {38022};
-					client.setUserInteraction(new GetBanner() {
-						@Override
-						public void banner(String banner) {
-							logger.debug("Received SSH banner: {}", banner);
-							try {
-								httpPort[0] = Integer.parseInt(banner);
-							} catch (Exception e) {
-								logger.warn("{} Could not parse tunnel port from banner. Using default {}", remote.getOrigin(), httpPort[0]);
-							}
-						}
-					});
-					client.start();
-					var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
-					var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
-					try (var session = client.connect(username, host, tunnel.getSshPort()).verify(30, TimeUnit.SECONDS).getSession()) {
-						loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(user.get().getKey()), null)
-							.forEach(session::addPublicKeyIdentity);
-						session.auth().verify(30, TimeUnit.SECONDS);
-						try (var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]))) {
-							logger.debug("{} Opened reverse proxy in SSH tunnel.", remote.getOrigin());
-							request.go(new URI("http://localhost:" + tracker.getBoundAddress().getPort()));
-						} catch (Exception e) {
-							logger.debug("{} Error creating tunnel port forward", remote.getOrigin(), e);
-							throw new InvalidTunnelException("Error creating tunnel tracker", e);
-						}
-					} catch (InvalidTunnelException e) {
-						throw e;
-					}  catch (Exception e) {
-						logger.debug("{} Error creating tunnel SSH session", remote.getOrigin(), e);
-						throw new InvalidTunnelException("Error creating tunnel SSH session", e);
-					} finally {
-						client.stop();
-					}
-				} catch (InvalidTunnelException e) {
-					throw e;
-				} catch (Exception e) {
-					logger.debug("{} Error creating tunnel SSH client", remote.getOrigin(), e);
-					throw new InvalidTunnelException("Error creating tunnel SSH client", e);
+				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
+				var port = tunnel.getSshPort();
+				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, user.get().getKey());
+				try {
+					request.go(new URI("http://localhost:" + tunnelPort));
+				} catch (URISyntaxException e) {
+					throw new InvalidTunnelException("Error creating tunnel tracker", e);
+				} finally {
+					releaseTunnel(tunnelPort, host, username, port);
 				}
 			}
 		} catch (InvalidTunnelException e) {
@@ -106,6 +98,79 @@ public class TunnelClient {
 				e.getMessage());
 			throw e;
 		}
+	}
+
+	private int pooledConnection(String origin, String host, String username, int port, byte[] key) {
+		var remote = username + "@" + host + ":" + port;
+		return tunnels.compute(remote, (k, v) -> {
+			if (v != null) {
+				var tunnelPort = v._1();
+				var connections = v._2();
+				var client = v._3();
+				if  (client.isOpen()) return Tuple.of(tunnelPort, connections + 1, client);
+			}
+			var client = SshClient.setUpDefaultClient();
+			try {
+				final int[] httpPort = {38022};
+				client.setUserInteraction(new GetBanner() {
+					@Override
+					public void banner(String banner) {
+						logger.debug("Received SSH banner: {}", banner);
+						try {
+							httpPort[0] = Integer.parseInt(banner);
+						} catch (Exception e) {
+							logger.warn("{} Could not parse tunnel port from banner. Using default {}", origin, httpPort[0]);
+						}
+					}
+				});
+				client.start();
+				var session = client.connect(username, host, port).verify(30, TimeUnit.SECONDS).getSession();
+				loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null)
+					.forEach(session::addPublicKeyIdentity);
+				session.auth().verify(30, TimeUnit.SECONDS);
+				var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]));
+				var tunnelPort = tracker.getBoundAddress().getPort();
+				client.addSessionListener(new SessionListener() {
+					@Override
+					public void sessionClosed(Session session) {
+						logger.debug("{} SSH session closed for {}", origin, remote);
+						cleanupTunnel(tunnelPort, host, username, port);
+					}
+				});
+				return Tuple.of(tunnelPort, 1, client);
+			} catch (Exception e) {
+				client.stop();
+				logger.debug("{} Error creating tunnel SSH client", origin, e);
+				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
+			}
+		})._1();
+	}
+
+	private void releaseTunnel(int tunnelPort, String host, String username, int port) {
+		var remote = username + "@" + host + ":" + port;
+		tunnels.compute(remote, (k, v) -> {
+			if (v == null) return null;
+			if (v._1() != tunnelPort) return v;
+			var connections = v._2();
+			var client = v._3();
+			return Tuple.of(tunnelPort, connections - 1, client);
+		});
+		taskScheduler.schedule(() -> cleanupTunnel(tunnelPort, host, username, port), Instant.now().plus(1, ChronoUnit.MINUTES));
+	}
+
+	private void cleanupTunnel(int tunnelPort, String host, String username, int port) {
+		var remote = username + "@" + host + ":" + port;
+		tunnels.compute(remote, (k, v) -> {
+			if (v == null) return null;
+			if (v._1() != tunnelPort) return v;
+			var connections = v._2();
+			var client = v._3();
+			if (connections <= 0) {
+				client.stop();
+				return null;
+			}
+			return v;
+		});
 	}
 
 	public interface ProxyRequest {

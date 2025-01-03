@@ -80,7 +80,7 @@ public class Push {
 		if (!root.getPushOrigins().contains(origin)) return;
 		var cursor = message.getPayload();
 		if (cursor.equals(lastSent.computeIfAbsent(origin, o -> cursor))) {
-			push(origin);
+			taskScheduler.schedule(() -> push(origin), Instant.now());
 		} else {
 			queued.put(origin, cursor);
 		}
