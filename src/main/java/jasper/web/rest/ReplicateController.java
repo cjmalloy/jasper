@@ -156,6 +156,7 @@ public class ReplicateController {
 				ref.setOrigin(origin);
 				refService.push(ref);
 			} catch (RuntimeException e) {
+				// TODO: Ignore auth errors?
 				first = first == null ? e : first;
 			}
 		}
@@ -208,6 +209,7 @@ public class ReplicateController {
 				ext.setOrigin(origin);
 				extService.push(ext);
 			} catch (RuntimeException e) {
+				// TODO: Ignore auth errors?
 				first = first == null ? e : first;
 			}
 		}
@@ -260,6 +262,7 @@ public class ReplicateController {
 				user.setOrigin(origin);
 				userService.push(user);
 			} catch (RuntimeException e) {
+				// TODO: Ignore auth errors?
 				first = first == null ? e : first;
 			}
 		}
@@ -312,6 +315,7 @@ public class ReplicateController {
 				plugin.setOrigin(origin);
 				pluginService.push(plugin);
 			} catch (RuntimeException e) {
+				// TODO: Ignore auth errors?
 				first = first == null ? e : first;
 			}
 		}
@@ -364,6 +368,7 @@ public class ReplicateController {
 				template.setOrigin(origin);
 				templateService.push(template);
 			} catch (RuntimeException e) {
+				// TODO: Ignore auth errors?
 				first = first == null ? e : first;
 			}
 		}
