@@ -21,6 +21,7 @@ import static jasper.domain.proj.HasTags.getPlugin;
 public class Pull implements Serializable {
 	private boolean cache;
 	private boolean cacheProxy;
+	private boolean cacheProxyPrefetch;
 	private String query;
 	private int batchSize;
 	private boolean validatePlugins;

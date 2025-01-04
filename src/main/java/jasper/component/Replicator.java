@@ -41,6 +41,7 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
@@ -226,17 +227,20 @@ public class Replicator {
 									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 								e.getMessage()));
 						}
-						if (pull.isCache() && fileCache.isPresent() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin())) {
-							try {
-								var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
-								fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
-							} catch (Exception e) {
-								logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
-									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-								logs.add(Tuple.of(
-									"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
-										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-									e.getMessage()));
+						if (fileCache.isPresent()) {
+							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
+								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+								try {
+									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
+									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
+								} catch (Exception e) {
+									logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
+										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+									logs.add(Tuple.of(
+										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
+											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+										e.getMessage()));
+								}
 							}
 						}
 					}
