@@ -99,7 +99,8 @@ public class Validate {
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
-		var mergedDefaults = templates
+		var defaults = configs.getDefaults(ext.getTag(), rootOrigin);
+		var mergedDefaults = defaults
 			.stream()
 			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)

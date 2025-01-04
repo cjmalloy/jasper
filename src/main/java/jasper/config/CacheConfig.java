@@ -84,6 +84,11 @@ public class CacheConfig {
 			.expireAfterAccess(1, TimeUnit.DAYS)
 			.recordStats()
 			.build());
+		cacheManager.registerCustomCache("template-defaults-cache", Caffeine.newBuilder()
+			.maximumSize(1)
+			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
+			.build());
 		cacheManager.registerCustomCache("template-dto-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)

@@ -75,6 +75,20 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
+			AND t.defaults IS NOT NULL
+			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND (t.tag = ''
+				OR t.tag = :tag
+				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
+				OR locate(concat(t.tag, '/'), :tag) = 1
+				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
+				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
+		ORDER BY t.levels ASC""")
+	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
+
+	@Query("""
+		FROM Template AS t
+		WHERE t.origin = :origin
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
 			AND t.tag = :template""")
 	Optional<Template> findByTemplateAndOrigin(String template, String origin);

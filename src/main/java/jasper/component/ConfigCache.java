@@ -110,6 +110,7 @@ public class ConfigCache {
 		"template-config-cache",
 		"template-cache-wrapped",
 		"template-schemas-cache",
+		"template-defaults-cache",
 		"template-dto-cache",
 		"template-dto-page-cache",
 	}, allEntries = true)
@@ -235,6 +236,15 @@ public class ConfigCache {
 	@Transactional(readOnly = true)
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
+			.stream()
+			.map(dtoMapper::domainToDto)
+			.toList();
+	}
+
+	@Cacheable("template-defaults-cache")
+	@Transactional(readOnly = true)
+	public List<TemplateDto> getDefaults(String tag, String origin) {
+		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()
 			.map(dtoMapper::domainToDto)
 			.toList();
