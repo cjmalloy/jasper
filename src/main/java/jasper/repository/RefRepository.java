@@ -75,7 +75,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
+		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
 		FROM ref
 		WHERE ref.url != :url
 			AND ref.published <= :published
