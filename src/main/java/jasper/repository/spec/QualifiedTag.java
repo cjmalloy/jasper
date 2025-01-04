@@ -130,7 +130,7 @@ public class QualifiedTag {
 		for (var tag : tags) {
 			if (isEmpty(tag)) continue;
 			if (tag.startsWith("+") || tag.startsWith("_") || tag.startsWith("@")) tag = tag.substring(1);
-			if (result.length() > 0) result.append("/");
+			if (!result.isEmpty()) result.append("/");
 			result.append(tag);
 		}
 		return result.toString();
