@@ -99,6 +99,7 @@ public class ExtController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -108,6 +109,7 @@ public class ExtController {
 		return httpCache.ifNotModifiedPage(request, extService.page(
 			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
 				.level(level)
 				.deleted(deleted)
 				.search(search)
@@ -123,6 +125,7 @@ public class ExtController {
 	@GetMapping("count")
 	long countExts(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
@@ -132,6 +135,7 @@ public class ExtController {
 		return extService.count(
 			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
 				.level(level)
 				.deleted(deleted)
 				.search(search)

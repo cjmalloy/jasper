@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Pattern;
 import jasper.component.HttpCache;
 import jasper.domain.Template;
 import jasper.repository.filter.TagFilter;
-import jasper.repository.filter.TemplateFilter;
 import jasper.service.TemplateService;
 import jasper.service.dto.TemplateDto;
 import org.hibernate.validator.constraints.Length;
@@ -85,6 +84,7 @@ public class TemplateController {
 		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedBefore,
@@ -92,8 +92,9 @@ public class TemplateController {
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return httpCache.ifNotModifiedPage(request, templateService.page(
-			TemplateFilter.builder()
+			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
 				.level(level)
 				.deleted(deleted)
 				.search(search)

@@ -192,6 +192,7 @@ public class RefController {
 	@GetMapping("count")
 	long countRefs(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
@@ -217,6 +218,7 @@ public class RefController {
 		return refService.count(
 			RefFilter.builder()
 				.query(query)
+				.nesting(nesting)
 				.search(search)
 				.url(url)
 				.obsolete(obsolete)

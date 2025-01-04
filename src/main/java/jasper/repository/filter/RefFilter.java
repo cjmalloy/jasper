@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.RefSpec.*;
@@ -25,6 +26,7 @@ public class RefFilter implements Query {
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
+	private Integer nesting;
 	private String url;
 	private boolean obsolete;
 	private String scheme;
@@ -63,6 +65,9 @@ public class RefFilter implements Query {
 			result = result
 				.and(isOrigin(origin))
 				.and(isNotObsolete());
+		if (nesting != null) {
+			result = result.and(isNesting(nesting));
+		}
 		} else if (!obsolete) {
 			result = result.and(isNotObsolete());
 		}

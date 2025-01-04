@@ -78,6 +78,10 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
+	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
+	@Setter(AccessLevel.NONE)
+	private int nesting;
+
 	@Formula("COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
 	@Setter(AccessLevel.NONE)
 	private String metadataModified;

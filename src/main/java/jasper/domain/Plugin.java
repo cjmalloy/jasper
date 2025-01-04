@@ -71,6 +71,10 @@ public class Plugin implements Tag {
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
+	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
+	@Setter(AccessLevel.NONE)
+	private int nesting;
+
 	@Formula("ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1)")
 	@Setter(AccessLevel.NONE)
 	private int levels;

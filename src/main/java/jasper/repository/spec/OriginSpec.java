@@ -56,6 +56,13 @@ public class OriginSpec {
 				.in(origins);
 	}
 
+	public static <T extends HasOrigin> Specification<T> isNesting(int nesting) {
+		return (root, query, cb) ->
+			cb.equal(
+				root.get("nesting"),
+				nesting);
+	}
+
 	public static <T extends HasOrigin> Specification<T> any() {
 		return (root, query, cb) -> cb.conjunction();
 	}

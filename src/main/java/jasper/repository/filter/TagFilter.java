@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 
+import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
@@ -27,6 +28,7 @@ public class TagFilter implements Query {
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
 	private String origin;
+	private Integer nesting;
 	private String query;
 	private Integer level;
 	private Boolean deleted;
@@ -42,6 +44,9 @@ public class TagFilter implements Query {
 		}
 		if (isNotBlank(query) && !query.equals("@*")) {
 			result = result.and(new TagQuery(query).spec());
+		}
+		if (nesting != null) {
+			result = result.and(isNesting(nesting));
 		}
 		if (level != null) {
 			result = result.and(isLevel(level));

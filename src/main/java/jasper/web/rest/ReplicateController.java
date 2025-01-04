@@ -21,7 +21,6 @@ import jasper.domain.proj.HasOrigin;
 import jasper.errors.TooLargeException;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
-import jasper.repository.filter.TemplateFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
 import jasper.service.ProxyService;
@@ -330,7 +329,7 @@ public class ReplicateController {
 	) {
 		if (size > configs.root().getMaxReplEntityBatch()) throw new TooLargeException(size, configs.root().getMaxReplEntityBatch());
 		return templateService.page(
-				TemplateFilter.builder()
+				TagFilter.builder()
 					.origin(origin)
 					.query(query)
 					.modifiedAfter(modifiedAfter)

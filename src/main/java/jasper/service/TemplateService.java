@@ -11,7 +11,7 @@ import jasper.domain.Template;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
-import jasper.repository.filter.TemplateFilter;
+import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.TemplateDto;
@@ -81,7 +81,7 @@ public class TemplateService {
 	@PreAuthorize("@auth.minRole()")
 	@Cacheable(value = "template-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public Page<TemplateDto> page(TemplateFilter filter, Pageable pageable) {
+	public Page<TemplateDto> page(TagFilter filter, Pageable pageable) {
 		return templateRepository.findAll(
 			auth.<Template>tagReadSpec()
 				.and(filter.spec()),
