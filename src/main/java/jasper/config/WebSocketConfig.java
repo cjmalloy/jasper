@@ -1,6 +1,7 @@
 package jasper.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jasper.domain.proj.HasOrigin;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
@@ -47,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -134,13 +136,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
 
 		private String resolveOrigin(HttpServletRequest request) {
-			var origin = props.getLocalOrigin();
-			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
-			logger.debug("STOMP Local Origin Header: {}", headerOrigin);
-			if (props.isAllowLocalOriginHeader() && isNotBlank(headerOrigin)) {
-				return headerOrigin.toLowerCase();
+			var originHeader = request.getHeader(LOCAL_ORIGIN_HEADER);
+			logger.debug("STOMP Local Origin Header: {}", originHeader);
+			if (props.isAllowLocalOriginHeader() && isNotBlank(originHeader)) {
+				if ("default".equalsIgnoreCase(originHeader)) return props.getLocalOrigin();
+				if (originHeader.matches(HasOrigin.REGEX)) {
+					return subOrigin(props.getLocalOrigin(), originHeader.toLowerCase());
+				}
 			}
-			return origin;
+			return props.getOrigin();
 		}
 
 		@Override
@@ -193,7 +197,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					}
 				} else {
 					logger.debug("STOMP Default auth");
-					auth.clear(defaultTokenProvider.getAuthentication(null, props.getLocalOrigin()));
+					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());

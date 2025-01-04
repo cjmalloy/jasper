@@ -129,8 +129,11 @@ public class QualifiedTag {
 		var result = new StringBuilder();
 		for (var tag : tags) {
 			if (isEmpty(tag)) continue;
-			if (tag.startsWith("+") || tag.startsWith("_") || tag.startsWith("@")) tag = tag.substring(1);
-			if (!result.isEmpty()) result.append("/");
+			if (tag.startsWith("@")) tag = tag.substring(1);
+			if (!result.isEmpty()) {
+				result.append("/");
+				if (tag.startsWith("+") || tag.startsWith("_")) tag = tag.substring(1);
+			}
 			result.append(tag);
 		}
 		return result.toString();

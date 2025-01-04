@@ -51,9 +51,9 @@ public class Preload {
 			logger.error("Preload enabled but no storage present.");
 			return;
 		}
-		for (var zip : storage.get().listStorage(props.getLocalOrigin(), PRELOAD)) {
+		for (var zip : storage.get().listStorage(props.getOrigin(), PRELOAD)) {
 			if (!zip.toLowerCase().endsWith(".zip")) continue;
-			loadStatic(props.getLocalOrigin(), zip);
+			loadStatic(props.getOrigin(), zip);
 		}
 	}
 
@@ -66,11 +66,11 @@ public class Preload {
 		var start = Instant.now();
 		logger.info("{} Preloading static files {}", origin, id);
 		try (var zipped = storage.get().streamZip(origin, PRELOAD, id)) {
-			backup.restoreRepo(refRepository, props.getLocalOrigin(), zipped.in("/ref.json"), Ref.class);
-			backup.restoreRepo(extRepository, props.getLocalOrigin(), zipped.in("/ext.json"), Ext.class);
-			backup.restoreRepo(userRepository, props.getLocalOrigin(), zipped.in("/user.json"), User.class);
-			backup.restoreRepo(pluginRepository, props.getLocalOrigin(), zipped.in("/plugin.json"), Plugin.class);
-			backup.restoreRepo(templateRepository, props.getLocalOrigin(), zipped.in("/template.json"), Template.class);
+			backup.restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
+			backup.restoreRepo(extRepository, origin, zipped.in("/ext.json"), Ext.class);
+			backup.restoreRepo(userRepository, origin, zipped.in("/user.json"), User.class);
+			backup.restoreRepo(pluginRepository, origin, zipped.in("/plugin.json"), Plugin.class);
+			backup.restoreRepo(templateRepository, origin, zipped.in("/template.json"), Template.class);
 		} catch (Throwable e) {
 			logger.error("{} Error preloading {}", origin, id, e);
 		}

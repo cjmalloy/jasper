@@ -123,7 +123,7 @@ import static org.springframework.security.core.authority.AuthorityUtils.authori
  * access fields, the tags are all combined.
  *
  * The following headers are checked if enabled:
- * 1. Local-Origin
+ * 1. Local-Origin (sets origin to sub origin of application properties local origin)
  * 2. User-Tag
  * 3. User-Role
  * 4. Write-Access
@@ -813,9 +813,9 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			origin = props.getLocalOrigin();
+			origin = props.getOrigin();
 			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
-				origin = getOriginHeader();
+				origin = HasOrigin.subOrigin(props.getLocalOrigin(), getOriginHeader());
 			}
 		}
 		return origin;

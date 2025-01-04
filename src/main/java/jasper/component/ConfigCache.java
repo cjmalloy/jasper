@@ -33,7 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.parts;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
+import static jasper.repository.spec.QualifiedTag.concat;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -69,10 +71,9 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty() &&
-			(isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty())) {
+		if (templateRepository.findByTemplateAndOrigin(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
 			try {
-				ingest.create(config(""));
+				ingest.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
 			}
@@ -215,12 +216,8 @@ public class ConfigCache {
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
-			return getTemplateConfig("_config/server", "",  ServerConfig.class)
-				.orElse(new ServerConfig())
-				.wrap(props);
-		}
-		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
+		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(),  ServerConfig.class)
+			.or(() -> getTemplateConfig("_config/server", props.getOrigin(),  ServerConfig.class))
 			.orElseThrow()
 			.wrap(props);
 	}
@@ -228,7 +225,6 @@ public class ConfigCache {
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
 	@Transactional(readOnly = true)
 	public SecurityConfig security(String origin) {
-		// TODO: crawl origin hierarchy until found
 		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
 			.orElse(new SecurityConfig())
 			.wrap(props);
@@ -252,12 +248,12 @@ public class ConfigCache {
 			.toList();
 	}
 
-	private Template config(String origin) {
-		var config = ServerConfig.builderFor(origin).build();
+	private Template config(String name) {
+		var config = ServerConfig.builderFor(subOrigin(props.getLocalOrigin(), props.getWorkerOrigin())).build();
 		var template = new Template();
-		template.setOrigin(origin);
-		template.setTag("_config/server");
-		template.setName("Server Config");
+		template.setOrigin(props.getLocalOrigin());
+		template.setTag(concat("_config/server", props.getWorkerOrigin()));
+		template.setName(name);
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
 		return template;
 	}

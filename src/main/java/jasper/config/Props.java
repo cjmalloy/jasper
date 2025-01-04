@@ -9,7 +9,10 @@ import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
 
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static java.lang.Integer.parseInt;
+import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
@@ -24,32 +27,35 @@ public class Props {
 	private boolean debug = false;
 	/**
 	 * List of workers to create by origin. Each worker will use the
-	 * _config/server file in it's origin to perform certain tasks.
-	 * The local origin for this worker is at the index in the worker name.
+	 * _config/server/sub-origin file in the local origin to perform certain tasks.
+	 * The sub origin for this worker is at the index in the worker name.
 	 */
 	private String[] workload;
 	/**
 	 * The name of this worker. The number suffix is used as an index
-	 * into workload to determine the local origin.
+	 * into workload to determine the worker sub origin.
 	 */
 	private String worker;
 	/**
-	 * Override the worker origin;
+	 * Worker sub-origin.
 	 */
-	private String workerLocalOrigin;
+	public String getWorkerOrigin() {
+		if (isNotEmpty(workload) && isNotBlank(worker)) {
+			var index = worker.replaceAll("\\D", "");
+			return workload[isBlank(index) ? 0 : parseInt(index)];
+		} else {
+			return "";
+		}
+	}
 	/**
 	 * Local origin for this server.
-	 * Only used if worker name is not set.
 	 */
 	private String localOrigin = "";
-	public String getLocalOrigin() {
-		if (isNotBlank(workerLocalOrigin)) {
-			return workerLocalOrigin;
-		} else if (isNotBlank(worker)) {
-			return workerLocalOrigin = workload[parseInt(worker.replaceAll("\\D", ""))];
-		} else {
-			return localOrigin;
-		}
+	/**
+	 * Computed origin (local + worker).
+	 */
+	public String getOrigin() {
+		return subOrigin(getLocalOrigin(), getWorkerOrigin());
 	}
 	private int ingestMaxRetry = 5;
 	private int maxEtagPageSize = 300;

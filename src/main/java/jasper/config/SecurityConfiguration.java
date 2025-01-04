@@ -77,6 +77,7 @@ public class SecurityConfiguration {
 			logger.warn("==================================================");
 		}
 		logger.info("LOCAL ORIGIN:             {}", props.getLocalOrigin());
+		logger.info("WORKER ORIGIN:            {}", props.getWorkerOrigin());
 		logger.info("DEFAULT ROLE:             {}", props.getDefaultRole());
 		logger.info("DEFAULT READ ACCESS:      {}", isEmpty(props.getDefaultReadAccess()) ? "" : String.join(", ", props.getDefaultReadAccess()));
 		logger.info("DEFAULT WRITE ACCESS:     {}", isEmpty(props.getDefaultWriteAccess()) ? "" : String.join(", ", props.getDefaultWriteAccess()));
