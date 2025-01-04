@@ -365,6 +365,7 @@ public class Replicator {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
+								.obsolete(true)
 								.query(push.getQuery())
 								.modifiedAfter(after)
 								.build().spec(),

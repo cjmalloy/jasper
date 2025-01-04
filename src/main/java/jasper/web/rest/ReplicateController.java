@@ -122,6 +122,7 @@ public class ReplicateController {
 		return refService.page(
 				RefFilter.builder()
 					.origin(origin)
+					.obsolete(true)
 					.query(query)
 					.modifiedAfter(modifiedAfter)
 					.build(),

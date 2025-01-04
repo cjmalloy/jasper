@@ -59,6 +59,7 @@ public class Watch {
 				while (true) {
 					var maybeRef = refRepository.findAll(RefFilter.builder()
 						.origin(origin)
+						.obsolete(true)
 						.query(tag)
 						.modifiedAfter(lastModified)
 						.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));

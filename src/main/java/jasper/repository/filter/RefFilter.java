@@ -62,14 +62,13 @@ public class RefFilter implements Query {
 		if ("!@*".equals(query)) return none();
 		var result = Specification.<Ref>where(null);
 		if (origin != null && !origin.equals("@*")) {
-			result = result
-				.and(isOrigin(origin))
-				.and(isNotObsolete());
+			result = result.and(isOrigin(origin));
+		}
+		if (!obsolete) {
+			result = result.and(isNotObsolete());
+		}
 		if (nesting != null) {
 			result = result.and(isNesting(nesting));
-		}
-		} else if (!obsolete) {
-			result = result.and(isNotObsolete());
 		}
 		if (isNotBlank(url)) {
 			result = result.and(isUrl(url));
