@@ -1,5 +1,6 @@
 package jasper.component;
 
+import feign.FeignException.FeignClientException;
 import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
 import io.vavr.Tuple;
@@ -424,7 +425,7 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
-			} catch (RetryableException e) {
+			} catch (RetryableException | FeignClientException e) {
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -454,7 +455,11 @@ public class Replicator {
 				if (size < batchSize) {
 					size = min(batchSize, size * 2);
 				}
-			} catch (RetryableException e) {
+			} catch (FeignClientException | RetryableException e) {
+				if (e instanceof FeignClientException f) {
+					if (f.status() >= 500) throw e;
+					if (f.status() != 413) throw e;
+				}
 				if (e.getCause() instanceof SSLHandshakeException) throw e;
 				if (e.getCause() instanceof HttpHostConnectException) throw e;
 				if (e.getCause() instanceof NoHttpResponseException) throw e;
