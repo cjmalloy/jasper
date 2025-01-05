@@ -30,7 +30,6 @@ public class Rng {
 		if (existing != null) {
 			var remotes = refRepository.findAll(RefFilter.builder()
 				.url(ref.getUrl())
-				.obsolete(true)
 				.modifiedAfter(existing.getModified())
 				.build().spec().and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (remotes.isEmpty() || remotes.getContent().get(0).getOrigin().equals(ref.getOrigin())) {
@@ -45,7 +44,6 @@ public class Rng {
 		} else {
 			if (refRepository.count(RefFilter.builder()
 				.url(ref.getUrl())
-				.obsolete(true)
 				.build().spec()) == 0) {
 				return;
 			}

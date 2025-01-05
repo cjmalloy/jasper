@@ -124,7 +124,6 @@ public class Async {
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
-				.obsolete(true)
 				.query(trackingQuery())
 				.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
 				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));

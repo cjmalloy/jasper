@@ -18,6 +18,7 @@ import static jasper.repository.spec.RefSpec.*;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.jpa.domain.Specification.not;
 
 @Builder
 @Getter
@@ -28,7 +29,7 @@ public class RefFilter implements Query {
 	private String origin;
 	private Integer nesting;
 	private String url;
-	private boolean obsolete;
+	private Boolean obsolete;
 	private String scheme;
 	private String query;
 	private String search;
@@ -64,8 +65,12 @@ public class RefFilter implements Query {
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
-		if (!obsolete) {
-			result = result.and(isNotObsolete());
+		if (obsolete != null) {
+			if (!obsolete) {
+				result = result.and(isNotObsolete());
+			} else {
+				result = result.and(not(isNotObsolete()));
+			}
 		}
 		if (nesting != null) {
 			result = result.and(isNesting(nesting));

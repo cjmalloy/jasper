@@ -143,7 +143,6 @@ public class ConfigCache {
 		return refRepository.findAll(
 				RefFilter.builder()
 					.origin(origin)
-					.obsolete(true)
 					.query(tag).build().spec()).stream()
 			.map(r -> r.getPlugin(tag, toValueType))
 			.toList();
@@ -159,7 +158,6 @@ public class ConfigCache {
 			var remote = refRepository.findAll(
 					RefFilter.builder()
 						.origin(origin)
-						.obsolete(true)
 						.query("+plugin/origin").build().spec())
 				.stream()
 				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))

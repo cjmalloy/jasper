@@ -87,7 +87,6 @@ public class FileCache {
 		return refRepository.exists(RefFilter.builder()
 			.url(url)
 			.origin(origin)
-			.obsolete(true)
 			.query("_plugin/cache:!_plugin/delta/cache")
 			.build().spec());
 	}

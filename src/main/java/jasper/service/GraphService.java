@@ -32,7 +32,7 @@ public class GraphService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "graph"}, histogram = true)
 	public RefNodeDto get(String url) {
-		var page = refRepository.findAll(RefFilter.builder().url(url).obsolete(true).build().spec(),
+		var page = refRepository.findAll(RefFilter.builder().url(url).build().spec(),
 			PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 		if (page.isEmpty()) throw new NotFoundException("Ref " + url);
 		return mapper.domainToNodeDto(page.getContent().get(0));
