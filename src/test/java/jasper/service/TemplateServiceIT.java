@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Template;
 import jasper.repository.TemplateRepository;
-import jasper.repository.filter.TemplateFilter;
+import jasper.repository.filter.TagFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +67,7 @@ public class TemplateServiceIT {
 		template("extra");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("custom")
 				.build(),
@@ -84,7 +84,7 @@ public class TemplateServiceIT {
 		template("extra");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("!@*")
 				.build(),
@@ -101,7 +101,7 @@ public class TemplateServiceIT {
 		template("extra");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("@*")
 				.build(),
@@ -118,7 +118,7 @@ public class TemplateServiceIT {
 		template("extra");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("!@*")
 				.build(),
@@ -133,7 +133,7 @@ public class TemplateServiceIT {
 		template("test");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("!test")
 				.build(),
@@ -148,7 +148,7 @@ public class TemplateServiceIT {
 		template("public");
 
 		var page = templateService.page(
-			TemplateFilter
+			TagFilter
 				.builder()
 				.query("!test")
 				.build(),

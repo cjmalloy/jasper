@@ -216,7 +216,7 @@ public class ConfigCache {
 	public ServerConfig root() {
 		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(),  ServerConfig.class)
 			.or(() -> getTemplateConfig("_config/server", props.getOrigin(),  ServerConfig.class))
-			.orElseThrow()
+			.orElse(ServerConfig.builderFor(subOrigin(props.getLocalOrigin(), props.getWorkerOrigin())).build())
 			.wrap(props);
 	}
 

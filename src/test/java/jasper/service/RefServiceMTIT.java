@@ -268,7 +268,7 @@ public class RefServiceMTIT {
 			.isTrue();
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other.nested"))
 			.isTrue();
-		var fetched = refRepository.findAll(RefFilter.builder().url(URL).build().spec());
+		var fetched = refRepository.findAll(RefFilter.builder().url(URL).obsolete(false).build().spec());
 		assertThat(fetched.size())
 			.isEqualTo(1);
 	}
