@@ -51,7 +51,7 @@ public class TunnelClient {
 
 	Map<String, Tuple3<Integer, Integer, SshClient>> tunnels = new ConcurrentHashMap<>();
 
-	@Scheduled(fixedDelay = 1, initialDelay = 0, timeUnit = TimeUnit.MINUTES)
+	@Scheduled(fixedDelay = 5, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
 	public void log() {
 		var connections = 0;
 		for (var t : tunnels.values()) connections += t._2();
