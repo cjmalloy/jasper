@@ -48,7 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -140,8 +140,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			logger.debug("STOMP Local Origin Header: {}", originHeader);
 			if (props.isAllowLocalOriginHeader() && isNotBlank(originHeader)) {
 				if ("default".equalsIgnoreCase(originHeader)) return props.getLocalOrigin();
-				if (originHeader.matches(HasOrigin.REGEX)) {
-					return subOrigin(props.getLocalOrigin(), originHeader.toLowerCase());
+				if (originHeader.matches(HasOrigin.REGEX) && isSubOrigin(props.getLocalOrigin(), originHeader.toLowerCase())) {
+					return originHeader.toLowerCase();
 				}
 			}
 			return props.getOrigin();

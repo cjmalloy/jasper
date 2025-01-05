@@ -15,7 +15,7 @@ import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
 
-import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -75,7 +75,7 @@ public class JWTFilter extends GenericFilterBean {
 				headerOrigin = headerOrigin.toLowerCase();
 				logger.trace("Origin set by header ({})", headerOrigin);
 				if ("default".equalsIgnoreCase(headerOrigin)) return props.getLocalOrigin();
-				return subOrigin(props.getLocalOrigin(), headerOrigin);
+				if (isSubOrigin(props.getLocalOrigin(), headerOrigin)) return headerOrigin;
 			} else {
 				logger.trace("Origin header not allowed to be blank");
 			}
