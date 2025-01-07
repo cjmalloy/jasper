@@ -1,6 +1,7 @@
 package jasper.config;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.Filter;
 import jasper.component.ConfigCache;
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
@@ -28,6 +29,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.context.annotation.ApplicationScope;
+import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
 import java.util.Arrays;
@@ -177,5 +179,10 @@ public class SecurityConfiguration {
 		DefaultWebSecurityExpressionHandler expressionHandler = new DefaultWebSecurityExpressionHandler();
 		expressionHandler.setRoleHierarchy(roleHierarchy());
 		return expressionHandler;
+	}
+
+	@Bean
+	public Filter shallowEtagHeaderFilter() {
+		return new ShallowEtagHeaderFilter();
 	}
 }

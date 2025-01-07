@@ -24,7 +24,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.WebRequest;
 
 import java.time.Instant;
 
@@ -68,10 +67,9 @@ public class TemplateController {
 	})
 	@GetMapping
 	HttpEntity<TemplateDto> getTemplate(
-		WebRequest request,
 		@RequestParam(defaultValue = "") @Length(max = QTAG_LEN) @Pattern(regexp = Template.QTAG_REGEX) String tag
 	) {
-		return httpCache.ifNotModified(request, templateService.get(tag));
+		return httpCache.ifNotModified(templateService.get(tag));
 	}
 
 	@ApiResponses({
@@ -81,7 +79,6 @@ public class TemplateController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<TemplateDto>> getTemplatePage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Integer nesting,
@@ -91,7 +88,7 @@ public class TemplateController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return httpCache.ifNotModifiedPage(request, templateService.page(
+		return httpCache.ifNotModifiedPage(templateService.page(
 			TagFilter.builder()
 				.query(query)
 				.nesting(nesting)

@@ -25,17 +25,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 
@@ -79,11 +69,10 @@ public class ExtController {
 	})
 	@GetMapping
 	HttpEntity<ExtDto> getExt(
-		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
 		try {
-			return httpCache.ifNotModified(request, extService.get(tag));
+			return httpCache.ifNotModified(extService.get(tag));
 		} catch (NotFoundException e) {
 			// Catch to avoid error logging
 			return ResponseEntity.notFound().build();
@@ -96,7 +85,6 @@ public class ExtController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<ExtDto>> getExtPage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Integer nesting,
@@ -106,7 +94,7 @@ public class ExtController {
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return httpCache.ifNotModifiedPage(request, extService.page(
+		return httpCache.ifNotModifiedPage(extService.page(
 			TagFilter.builder()
 				.query(query)
 				.nesting(nesting)

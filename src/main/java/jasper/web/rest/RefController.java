@@ -30,17 +30,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -92,11 +82,10 @@ public class RefController {
 	})
 	@GetMapping
 	HttpEntity<RefDto> getRef(
-		WebRequest request,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		return httpCache.ifNotModified(request, refService.get(url, origin));
+		return httpCache.ifNotModified(refService.get(url, origin));
 	}
 
 	@ApiResponses({
@@ -106,7 +95,6 @@ public class RefController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<RefDto>> getRefPage(
-		WebRequest request,
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
@@ -157,7 +145,7 @@ public class RefController {
 						.toList()));
 			}
 		}
-		return httpCache.ifNotModifiedPage(request, refService.page(
+		return httpCache.ifNotModifiedPage(refService.page(
 			RefFilter.builder()
 				.url(url)
 				.obsolete(obsolete)

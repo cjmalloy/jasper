@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
 
 import java.util.List;
 
@@ -47,10 +46,9 @@ public class GraphController {
 	})
 	@GetMapping("list")
 	HttpEntity<List<RefNodeDto>> getGraphList(
-		WebRequest request,
 		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls
 	) {
-		return httpCache.ifNotModifiedList(request, urls.stream().map(url -> {
+		return httpCache.ifNotModifiedList( urls.stream().map(url -> {
 			try {
 				return graphService.get(url);
 			} catch (NotFoundException | AccessDeniedException e) {

@@ -27,7 +27,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.WebRequest;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -72,11 +71,10 @@ public class UserController {
 	})
 	@GetMapping
 	HttpEntity<UserDto> getUser(
-		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
 		try {
-			return httpCache.ifNotModified(request, userService.get(tag));
+			return httpCache.ifNotModified(userService.get(tag));
 		} catch (NotFoundException e) {
 			// Catch to avoid error logging
 			return ResponseEntity.notFound().build();
@@ -89,7 +87,6 @@ public class UserController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<UserDto>> getUserPage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
 		@RequestParam(required = false) Integer nesting,
@@ -99,7 +96,7 @@ public class UserController {
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return httpCache.ifNotModifiedPage(request, userService.page(
+		return httpCache.ifNotModifiedPage(userService.page(
 			TagFilter.builder()
 				.query(query)
 				.nesting(nesting)
