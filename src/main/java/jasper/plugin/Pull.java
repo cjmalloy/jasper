@@ -22,6 +22,7 @@ public class Pull implements Serializable {
 	private boolean cache;
 	private boolean cacheProxy;
 	private boolean cacheProxyPrefetch;
+	private boolean websocket;
 	private String query;
 	private int batchSize;
 	private boolean validatePlugins;

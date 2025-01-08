@@ -87,14 +87,17 @@ public class Push {
 	}
 
 	private void push(String origin) {
-		logger.info("{} Pushing remotes", origin);
 		try {
 			if (pushes.containsKey(origin)) {
 				var deleted = new HashSet<Tuple2<String, String>>();
 				pushes.get(origin).forEach(tuple -> {
-					var remote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
-					if (remote.isPresent()) {
-						replicator.push(remote.get());
+					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+					if (maybeRemote.isPresent()) {
+						var remote = maybeRemote.get();
+						replicator.push(remote);
+						logger.info("{} Pulling origin on schedule {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						replicator.push(remote);
+						logger.info("{} Finished pulling origin on schedule {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
 					} else {
 						deleted.add(tuple);
 					}

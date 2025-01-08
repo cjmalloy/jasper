@@ -100,6 +100,64 @@ public class TunnelClient {
 		}
 	}
 
+	public URI reserveProxy(HasTags remote) {
+		try {
+			var config = getOrigin(remote);
+			URI url;
+			try {
+				url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
+			} catch (URISyntaxException e) {
+				throw new InvalidTunnelException("Error parsing tunnel URI", e);
+			}
+			var tunnel = getTunnel(remote);
+			if (tunnel == null) {
+				return url;
+			} else {
+				var users = authors(remote);
+				if (users.isEmpty()) {
+					throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
+				}
+				var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
+				if (user.isEmpty() || user.get().getKey() == null) {
+					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
+				}
+				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
+				var port = tunnel.getSshPort();
+				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, user.get().getKey());
+				try {
+					return new URI("http://localhost:" + tunnelPort);
+				} catch (URISyntaxException e) {
+					throw new InvalidTunnelException("Error creating tunnel tracker", e);
+				}
+			}
+		} catch (InvalidTunnelException e) {
+			tagger.attachError(remote.getUrl(), remote.getOrigin(),
+				"Error creating SSH tunnel for %s: %s".formatted(
+					remote.getTitle(), remote.getUrl()),
+				e.getMessage());
+			throw e;
+		}
+	}
+
+	public void releaseProxy(HasTags remote) {
+		var config = getOrigin(remote);
+		URI url;
+		try {
+			url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
+		} catch (URISyntaxException e) {
+			throw new InvalidTunnelException("Error parsing tunnel URI", e);
+		}
+		var tunnel = getTunnel(remote);
+		if (tunnel != null) {
+			var users = authors(remote);
+			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
+			var port = tunnel.getSshPort();
+			releaseTunnel(null, host, username, port);
+		}
+	}
+
 	private int pooledConnection(String origin, String host, String username, int port, byte[] key) {
 		var remote = username + "@" + host + ":" + port;
 		return tunnels.compute(remote, (k, v) -> {
@@ -146,23 +204,23 @@ public class TunnelClient {
 		})._1();
 	}
 
-	private void releaseTunnel(int tunnelPort, String host, String username, int port) {
+	private void releaseTunnel(Integer tunnelPort, String host, String username, int port) {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			if (v._1() != tunnelPort) return v;
+			if (tunnelPort != null && v._1() != tunnelPort) return v;
 			var connections = v._2();
 			var client = v._3();
-			return Tuple.of(tunnelPort, connections - 1, client);
+			return Tuple.of(v._1(), connections - 1, client);
 		});
 		taskScheduler.schedule(() -> cleanupTunnel(tunnelPort, host, username, port), Instant.now().plus(1, ChronoUnit.MINUTES));
 	}
 
-	private void cleanupTunnel(int tunnelPort, String host, String username, int port) {
+	private void cleanupTunnel(Integer tunnelPort, String host, String username, int port) {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			if (v._1() != tunnelPort) return v;
+			if (tunnelPort != null && v._1() != tunnelPort) return v;
 			var connections = v._2();
 			var client = v._3();
 			if (connections <= 0) {
