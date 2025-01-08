@@ -163,7 +163,7 @@ public class Pull {
 				});
 			}
 		} finally {
-			taskScheduler.schedule(() -> checkIfQueued(local), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
+			taskScheduler.schedule(() -> checkIfQueued(local), Instant.now());
 		}
 	}
 
