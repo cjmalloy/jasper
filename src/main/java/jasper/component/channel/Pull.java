@@ -154,9 +154,9 @@ public class Pull {
 					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
 					if (maybeRemote.isPresent()) {
 						var remote = maybeRemote.get();
-						logger.info("{} Pulling origin on websocket {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
 						replicator.pull(remote);
-						logger.info("{} Finished pulling origin on websocket {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Finished pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
 						return tuple;
 					}
 					return null;

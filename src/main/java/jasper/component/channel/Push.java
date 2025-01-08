@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Push.getPush;
@@ -95,9 +96,9 @@ public class Push {
 					if (maybeRemote.isPresent()) {
 						var remote = maybeRemote.get();
 						replicator.push(remote);
-						logger.info("{} Pushing origin on change {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						replicator.push(remote);
-						logger.info("{} Finished pushing origin on change {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 					} else {
 						deleted.add(tuple);
 					}

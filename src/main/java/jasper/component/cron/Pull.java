@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.plugin.Origin.getOrigin;
+
 @Component("cronPull")
 public class Pull implements Scheduler.CronRunner  {
 	private static final Logger logger = LoggerFactory.getLogger(Pull.class);
@@ -30,9 +33,10 @@ public class Pull implements Scheduler.CronRunner  {
 	public void run(Ref ref) {
 		var root = configs.root();
 		if (!root.getPullOrigins().contains(ref.getOrigin())) return;
-		logger.info("{} Pulling origin on schedule {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		var local = getOrigin(ref).getLocal();
+		logger.info("{} Pulling origin ({}) on schedule {}: {}", ref.getOrigin(), formatOrigin(local), ref.getTitle(), ref.getUrl());
 		replicator.pull(ref);
-		logger.info("{} Finished pulling origin on schedule {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		logger.info("{} Finished pulling origin ({}) on schedule {}: {}", ref.getOrigin(), formatOrigin(local), ref.getTitle(), ref.getUrl());
 	}
 
 }
