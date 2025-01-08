@@ -88,7 +88,11 @@ public class Pull {
 				}
 				return null;
 			}
-			if (t != null) return t;
+			if (t != null) {
+				if (t._3().isRunning()) return t;
+				t._3().stop();
+				tunnelClient.releaseProxy(remote);
+			}
 			var stomp = new WebSocketStompClient(new SockJsClient(List.of(new WebSocketTransport(new StandardWebSocketClient()))));
 			stomp.setMessageConverter(new MessageConverter() {
 				@Override
