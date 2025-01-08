@@ -189,11 +189,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					auth.clear(authentication);
 					@SuppressWarnings("unchecked")
 					var headers = (Map<String, ArrayList<String>>) message.getHeaders().get("nativeHeaders", Map.class);
-					var token = headers.get("jwt").get(0);
-					var origin = auth.getOrigin();
-					if  (tokenProvider.validateToken(token, origin)) {
-						logger.debug("STOMP SUBSCRIBE Credentials Header");
-						auth.clear(tokenProvider.getAuthentication(token, origin));
+					if (headers != null && headers.get("jwt") != null && headers.get("jwt").size() > 0) {
+						var token = headers.get("jwt").get(0);
+						var origin = auth.getOrigin();
+						if  (tokenProvider.validateToken(token, origin)) {
+							logger.debug("STOMP SUBSCRIBE Credentials Header");
+							auth.clear(tokenProvider.getAuthentication(token, origin));
+						}
 					}
 				} else {
 					logger.debug("STOMP Default auth");
