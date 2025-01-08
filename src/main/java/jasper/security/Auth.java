@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
+import jasper.config.WebSocketConfig;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -1006,6 +1007,9 @@ public class Auth {
 	public static String getHeader(String headerName) {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
 			return a.getRequest().getHeader(headerName);
+		}
+		if (RequestContextHolder.getRequestAttributes() instanceof WebSocketConfig.WebSocketRequestAttributes a) {
+			return a.getHeader(headerName);
 		}
 		return null;
 	}

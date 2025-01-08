@@ -29,6 +29,8 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketSession;
@@ -44,12 +46,19 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.READ_ACCESS_HEADER;
+import static jasper.security.Auth.TAG_READ_ACCESS_HEADER;
+import static jasper.security.Auth.TAG_WRITE_ACCESS_HEADER;
+import static jasper.security.Auth.USER_ROLE_HEADER;
+import static jasper.security.Auth.USER_TAG_HEADER;
+import static jasper.security.Auth.WRITE_ACCESS_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -157,6 +166,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					attributes.put("jwt", token.substring("Bearer ".length()));
 				}
 				attributes.put("origin", resolveOrigin(httpServletRequest));
+				// Create WebSocket request attributes for proxy-controlled headers
+				var wsAttributes = new WebSocketRequestAttributes();
+				wsAttributes.setHeader(LOCAL_ORIGIN_HEADER, httpServletRequest.getHeader(LOCAL_ORIGIN_HEADER));
+				wsAttributes.setHeader(USER_ROLE_HEADER, httpServletRequest.getHeader(USER_ROLE_HEADER));
+				wsAttributes.setHeader(USER_TAG_HEADER, httpServletRequest.getHeader(USER_TAG_HEADER));
+				wsAttributes.setHeader(READ_ACCESS_HEADER, httpServletRequest.getHeader(READ_ACCESS_HEADER));
+				wsAttributes.setHeader(WRITE_ACCESS_HEADER, httpServletRequest.getHeader(WRITE_ACCESS_HEADER));
+				wsAttributes.setHeader(TAG_READ_ACCESS_HEADER, httpServletRequest.getHeader(TAG_READ_ACCESS_HEADER));
+				wsAttributes.setHeader(TAG_WRITE_ACCESS_HEADER, httpServletRequest.getHeader(TAG_WRITE_ACCESS_HEADER));
+				attributes.put("wsAttributes", wsAttributes);
 			}
 			return true;
 		}
@@ -170,9 +189,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
 			var origin = (String) attributes.get("origin");
 			logger.debug("STOMP Determine User: " + origin);
-			if (!attributes.containsKey("jwt")) return defaultTokenProvider.getAuthentication(null, origin);
-			var token = (String) attributes.get("jwt");
-			return tokenProvider.validateToken(token, origin) ? tokenProvider.getAuthentication(token, origin) : defaultTokenProvider.getAuthentication(null, origin);
+			try {
+				var wsAttributes = (WebSocketRequestAttributes) attributes.get("wsAttributes");
+				RequestContextHolder.setRequestAttributes(wsAttributes);
+				if (!attributes.containsKey("jwt")) return defaultTokenProvider.getAuthentication(null, origin);
+				var token = (String) attributes.get("jwt");
+				return tokenProvider.validateToken(token, origin) ? tokenProvider.getAuthentication(token, origin) : defaultTokenProvider.getAuthentication(null, origin);
+			} finally {
+				RequestContextHolder.resetRequestAttributes();
+			}
 		}
 	}
 
@@ -184,6 +209,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() == StompCommand.BEGIN) return null; // No Transactions
 				if (accessor.getCommand() == StompCommand.SEND) return null; // No Client Messages
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
+				var wsAttributes = (WebSocketRequestAttributes) accessor.getSessionAttributes().get("wsAttributes");
+				RequestContextHolder.setRequestAttributes(wsAttributes);
 				if (accessor.getUser() instanceof Authentication authentication) {
 					logger.debug("STOMP User Set");
 					auth.clear(authentication);
@@ -205,9 +232,57 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
 				logger.warn("Cannot authorize websocket subscription.");
+			} finally {
+				RequestContextHolder.resetRequestAttributes();
 			}
 			logger.error("Websocket authentication failed.");
 			return null;
 		}
+	}
+
+	public static class WebSocketRequestAttributes implements RequestAttributes {
+		private final Map<String, String> headers = new HashMap<>();
+
+		public void setHeader(String name, String value) {
+			headers.put(name, value);
+		}
+
+		public String getHeader(String name) {
+			return headers.get(name);
+		}
+
+		@Override
+		public Object getAttribute(String name, int scope) {
+			return headers.get(name);
+		}
+
+		@Override
+		public void setAttribute(String name, Object value, int scope) {
+			headers.put(name, (String)value);
+		}
+
+		@Override
+		public void removeAttribute(String name, int scope) {
+
+		}
+
+		@Override
+		public String[] getAttributeNames(int scope) {
+			return new String[0];
+		}
+
+		// Implement other required methods...
+
+		@Override
+		public void registerDestructionCallback(String name, Runnable callback, int scope) {}
+
+		@Override
+		public Object resolveReference(String key) { return null; }
+
+		@Override
+		public String getSessionId() { return null; }
+
+		@Override
+		public Object getSessionMutex() { return null; }
 	}
 }
