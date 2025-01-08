@@ -95,9 +95,9 @@ public class Push {
 					if (maybeRemote.isPresent()) {
 						var remote = maybeRemote.get();
 						replicator.push(remote);
-						logger.info("{} Pulling origin on schedule {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Pushing origin on change {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
 						replicator.push(remote);
-						logger.info("{} Finished pulling origin on schedule {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logger.info("{} Finished pushing origin on change {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
 					} else {
 						deleted.add(tuple);
 					}
