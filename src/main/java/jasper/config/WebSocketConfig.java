@@ -271,8 +271,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			return new String[0];
 		}
 
-		// Implement other required methods...
-
 		@Override
 		public void registerDestructionCallback(String name, Runnable callback, int scope) {}
 
