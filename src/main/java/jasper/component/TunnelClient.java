@@ -58,6 +58,38 @@ public class TunnelClient {
 		logger.info("SSH Tunnel Pool: {} clients with {} connections", tunnels.size(), connections);
 	}
 
+	@Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
+	public void healthCheck() {
+		for (var remote : tunnels.keySet()) {
+			tunnels.compute(remote, (k, v) -> {
+				if (v == null) {
+					logger.debug("Health check found null entry for {}", remote);
+					return null;
+				}
+				var tunnelPort = v._1();
+				var connections = v._2();
+				var client = v._3();
+
+				if (!client.isOpen()) {
+					logger.warn("Found closed client for {} with {} connections", remote, connections);
+					client.stop();
+					return null;
+				}
+
+				// Test SSH connection is responding
+				try {
+					client.getVersion();
+					logger.debug("Healthy connection for {} with {} connections", remote, connections);
+					return v;
+				} catch (Exception e) {
+					logger.warn("Failed connection test for {} with {} connections: {}", remote, connections, e.getMessage());
+					client.stop();
+					return null;
+				}
+			});
+		}
+	}
+
 	public void proxy(HasTags remote, ProxyRequest request) {
 		try {
 			var config = getOrigin(remote);
