@@ -40,7 +40,6 @@ management:
             'env',
             'health',
             'info',
-            'jhimetrics',
             'loggers',
             'prometheus',
             'threaddump',
@@ -57,8 +56,6 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db
-    jhimetrics:
-      enabled: true
   info:
     git:
       mode: full
