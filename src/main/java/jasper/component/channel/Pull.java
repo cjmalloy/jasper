@@ -138,7 +138,17 @@ public class Pull {
 						logger.error("Error in websocket connection", exception);
 						// Will automatically reconnect due to SockJS
 					}
-				}).get();
+				})
+				.thenAccept(session -> {
+					logger.info("Connection established");
+				})
+				.exceptionally(e -> {
+					logger.error("Error creating websocket session", e);
+					stomp.stop();
+					tunnelClient.killProxy(remote);
+					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+					return null;
+				});
 			} catch (Exception e) {
 				logger.error("Error creating websocket session", e);
 				stomp.stop();
