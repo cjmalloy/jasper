@@ -85,11 +85,11 @@ public class TunnelClient {
 				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, user.get().getKey());
 				try {
 					request.go(new URI("http://localhost:" + tunnelPort));
-				} catch (URISyntaxException e) {
+				} catch (Exception e) {
+					killTunnel(host, username, port);
 					throw new InvalidTunnelException("Error creating tunnel tracker", e);
-				} finally {
-					releaseTunnel(tunnelPort, host, username, port);
 				}
+				releaseTunnel(tunnelPort, host, username, port);
 			}
 		} catch (InvalidTunnelException e) {
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
@@ -128,6 +128,7 @@ public class TunnelClient {
 				try {
 					return new URI("http://localhost:" + tunnelPort);
 				} catch (URISyntaxException e) {
+					killTunnel(host, username, port);
 					throw new InvalidTunnelException("Error creating tunnel tracker", e);
 				}
 			}
@@ -155,6 +156,24 @@ public class TunnelClient {
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
 			var port = tunnel.getSshPort();
 			releaseTunnel(null, host, username, port);
+		}
+	}
+
+	public void killProxy(HasTags remote) {
+		var config = getOrigin(remote);
+		URI url;
+		try {
+			url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
+		} catch (URISyntaxException e) {
+			throw new InvalidTunnelException("Error parsing tunnel URI", e);
+		}
+		var tunnel = getTunnel(remote);
+		if (tunnel != null) {
+			var users = authors(remote);
+			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
+			var port = tunnel.getSshPort();
+			this.killTunnel(host, username, port);
 		}
 	}
 
@@ -192,7 +211,7 @@ public class TunnelClient {
 					@Override
 					public void sessionClosed(Session session) {
 						logger.debug("{} SSH session closed for {}", origin, remote);
-						cleanupTunnel(tunnelPort, host, username, port);
+						killTunnel(host, username, port);
 					}
 				});
 				return Tuple.of(tunnelPort, 1, client);
@@ -228,6 +247,16 @@ public class TunnelClient {
 				return null;
 			}
 			return v;
+		});
+	}
+
+	private void killTunnel(String host, String username, int port) {
+		var remote = username + "@" + host + ":" + port;
+		tunnels.compute(remote, (k, v) -> {
+			if (v == null) return null;
+			var client = v._3();
+			client.stop();
+			return null;
 		});
 	}
 

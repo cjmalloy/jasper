@@ -430,6 +430,7 @@ public class Replicator {
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
 			} catch (RetryableException | FeignClientException e) {
+				if (e.getCause() instanceof HttpHostConnectException) throw e;
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);

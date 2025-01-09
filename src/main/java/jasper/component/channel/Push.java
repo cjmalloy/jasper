@@ -17,6 +17,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -106,7 +107,7 @@ public class Push {
 				deleted.forEach(remote -> pushes.values().forEach(set -> set.remove(remote)));
 			}
 		} finally {
-			taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plusMillis(props.getPushCooldownSec() * 1000L));
+			taskScheduler.schedule(() -> checkIfQueued(origin), Instant.now().plus(props.getPushCooldownSec(), ChronoUnit.SECONDS));
 		}
 	}
 

@@ -31,6 +31,7 @@ import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -106,34 +107,45 @@ public class Pull {
 				}
 			});
 			var url = tunnelClient.reserveProxy(remote);
-			stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
-				@Override
-				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
-					session.subscribe("/topic/cursor/" + formatOrigin(origin.getRemote()), new StompFrameHandler() {
-						@Override
-						public Type getPayloadType(StompHeaders headers) {
-							return Instant.class;
-						}
+			try {
+				stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
+					@Override
+					public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+						session.subscribe("/topic/cursor/" + formatOrigin(origin.getRemote()), new StompFrameHandler() {
+							@Override
+							public Type getPayloadType(StompHeaders headers) {
+								return Instant.class;
+							}
 
-						@Override
-						public void handleFrame(StompHeaders headers, Object payload) {
-							handleCursorUpdate(remote.getOrigin(), origin.getLocal(), (Instant) payload);
-						}
-					});
-				}
+							@Override
+							public void handleFrame(StompHeaders headers, Object payload) {
+								handleCursorUpdate(remote.getOrigin(), origin.getLocal(), (Instant) payload);
+							}
+						});
+					}
 
-				@Override
-				public void handleTransportError(StompSession session, Throwable exception) {
-					logger.error("Transport error", exception);
-				}
+					@Override
+					public void handleTransportError(StompSession session, Throwable exception) {
+						logger.error("Transport error", exception);
+						stomp.stop();
+						tunnelClient.killProxy(remote);
+						taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+					}
 
-				@Override
-				public void handleException(StompSession session, StompCommand command,
-											StompHeaders headers, byte[] payload, Throwable exception) {
-					logger.error("Error in websocket connection", exception);
-					// Will automatically reconnect due to SockJS
-				}
-			});
+					@Override
+					public void handleException(StompSession session, StompCommand command,
+												StompHeaders headers, byte[] payload, Throwable exception) {
+						logger.error("Error in websocket connection", exception);
+						// Will automatically reconnect due to SockJS
+					}
+				}).get();
+			} catch (Exception e) {
+				logger.error("Error creating websocket session", e);
+				stomp.stop();
+				tunnelClient.killProxy(remote);
+				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+				return null;
+			}
 			return Tuple.of(remote.getUrl(), remote.getOrigin(), stomp);
 		});
 	}
