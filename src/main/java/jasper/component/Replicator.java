@@ -1,7 +1,6 @@
 package jasper.component;
 
-import feign.FeignException.FeignClientException;
-import feign.RetryableException;
+import feign.FeignException;
 import io.micrometer.core.annotation.Timed;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
@@ -297,7 +296,7 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
-			} catch (RetryableException e) {
+			} catch (FeignException e) {
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pulling {} from origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -429,7 +428,7 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
-			} catch (RetryableException | FeignClientException e) {
+			} catch (FeignException e) {
 				if (e.getCause() instanceof HttpHostConnectException) throw e;
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
@@ -460,8 +459,8 @@ public class Replicator {
 				if (size < batchSize) {
 					size = min(batchSize, size * 2);
 				}
-			} catch (FeignClientException | RetryableException e) {
-				if (e instanceof FeignClientException f) {
+			} catch (FeignException e) {
+				if (e instanceof FeignException f) {
 					if (f.status() >= 500) throw e;
 					if (f.status() != 413) throw e;
 				}
@@ -498,7 +497,7 @@ public class Replicator {
 	}
 
 	interface ExpBackoff {
-		Instant fetch(int skip, int size, Instant after) throws RetryableException;
+		Instant fetch(int skip, int size, Instant after) throws FeignException;
 	}
 
 }
