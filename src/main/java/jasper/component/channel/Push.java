@@ -70,7 +70,7 @@ public class Push {
 		var push = getPush(remote);
 		var tuple = Tuple.of(remote.getUrl(), remote.getOrigin());
 		pushes.values().forEach(set -> set.remove(tuple));
-		if (!remote.hasTag("+plugin/error") && push.isPushOnChange()) {
+		if (!remote.hasTag("+plugin/error") && remote.hasTag("+plugin/cron") && push.isPushOnChange()) {
 			pushes
 				.computeIfAbsent(localOrigin, o -> ConcurrentHashMap.newKeySet())
 				.add(tuple);

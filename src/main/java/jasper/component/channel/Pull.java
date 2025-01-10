@@ -93,7 +93,7 @@ public class Pull {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		pulls.compute(localOrigin, (o, t) -> {
-			if (remote.hasTag("+plugin/error") || !pull.isWebsocket()) {
+			if (remote.hasTag("+plugin/error") || !remote.hasTag("+plugin/cron") || !pull.isWebsocket()) {
 				if (t != null) {
 					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 					t._3().stop();
