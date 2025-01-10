@@ -59,6 +59,7 @@ public class FetchImplHttp implements Fetch {
 		}
 		request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 		var res = http.execute(request);
+		if (res == null) return null;
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
 			return doWebScrape(res.getFirstHeader("Location").getElements()[0].getValue());
 		}
@@ -66,6 +67,7 @@ public class FetchImplHttp implements Fetch {
 	}
 
 	private FileRequest wrap(CloseableHttpResponse res) {
+		if (res == null) return null;
 		return new FileRequest() {
 			@Override
 			public String getMimeType() {
