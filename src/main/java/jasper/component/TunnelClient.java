@@ -51,11 +51,11 @@ public class TunnelClient {
 
 	Map<String, Tuple3<Integer, Integer, SshClient>> tunnels = new ConcurrentHashMap<>();
 
-	@Scheduled(fixedDelay = 5, initialDelay = 5, timeUnit = TimeUnit.MINUTES)
+	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
-		var connections = 0;
-		for (var t : tunnels.values()) connections += t._2();
-		logger.info("SSH Tunnel Pool: {} clients with {} connections", tunnels.size(), connections);
+		for (var e : tunnels.entrySet()) {
+			logger.info("SSH Tunnel Pool: {} with {} connections", e.getKey(), e.getValue()._2());
+		}
 	}
 
 	@Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
