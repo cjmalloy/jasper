@@ -299,7 +299,7 @@ public class Replicator {
 				}));
 			} catch (RetryableException e) {
 				// Temporary connection issue, ignore
-				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
+				logger.warn("{} Error pulling {} from origin ({}) {}: {}",
 					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
 			} catch (Exception e) {
 				logger.error("{} Error pulling {} from origin {} {}: {}",
