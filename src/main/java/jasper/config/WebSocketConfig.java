@@ -126,6 +126,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				sessions.add(session);
 				super.afterConnectionEstablished(session);
 			}
+			@Override
+			public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
+				sessions.remove(session);
+				super.afterConnectionClosed(session, closeStatus);
+			}
+
 		});
 	}
 
