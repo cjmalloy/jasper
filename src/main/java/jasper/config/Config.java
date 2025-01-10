@@ -60,6 +60,7 @@ public interface Config {
 		 * Whitelist origins to be allowed to pull using +plugin/origin/pull.
 		 */
 		private List<String> pullOrigins = List.of("");
+		private List<String> pullWebsocketOrigins = List.of("");
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
@@ -115,6 +116,7 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.pushOrigins(List.of(origin))
 				.pullOrigins(List.of(origin))
+				.pullWebsocketOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
 	}

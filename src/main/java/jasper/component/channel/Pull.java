@@ -80,7 +80,7 @@ public class Pull {
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().getPullOrigins()) {
+		for (var origin : configs.root().getPullWebsocketOrigins()) {
 			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
 		}
 	}
@@ -175,7 +175,7 @@ public class Pull {
 	}
 
 	private void handleCursorUpdate(String origin, String local, Instant cursor) {
-		if (!configs.root().getPullOrigins().contains(origin)) return;
+		if (!configs.root().getPullWebsocketOrigins().contains(origin)) return;
 		if (cursor.equals(lastSent.computeIfAbsent(local, o -> cursor))) {
 			taskScheduler.schedule(() -> pull(local), Instant.now());
 		} else {

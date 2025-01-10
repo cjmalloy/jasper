@@ -61,8 +61,9 @@ public class Scheduler {
 		var root = configs.root();
 		if (isEmpty(root.getCachedScriptSelectors())) return;
 		for (var s : root.getCachedScriptSelectors()) {
-			if (!s.captures(tagOriginSelector("+plugin/cron" + s.origin))) continue;
-			watch.addWatch(s.origin, "+plugin/cron", this::schedule);
+			if (s.captures(tagOriginSelector("+plugin/cron" + s.origin))) {
+				watch.addWatch(s.origin, "+plugin/cron", this::schedule);
+			}
 		}
 	}
 
