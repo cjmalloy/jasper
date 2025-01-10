@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Push.getPush;
 
@@ -64,13 +65,14 @@ public class Push {
 	private void watch(HasTags update) {
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
 			.orElseThrow();
-		var origin = getOrigin(remote);
+		var config = getOrigin(remote);
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var push = getPush(remote);
 		var tuple = Tuple.of(remote.getUrl(), remote.getOrigin());
 		pushes.values().forEach(set -> set.remove(tuple));
 		if (!remote.hasTag("+plugin/error") && push.isPushOnChange()) {
 			pushes
-				.computeIfAbsent(origin.getLocal(), o -> ConcurrentHashMap.newKeySet())
+				.computeIfAbsent(localOrigin, o -> ConcurrentHashMap.newKeySet())
 				.add(tuple);
 		}
 	}

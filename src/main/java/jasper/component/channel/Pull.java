@@ -12,6 +12,7 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConverter;
@@ -34,9 +35,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.origin;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 
@@ -65,6 +70,10 @@ public class Pull {
 	@Autowired
 	Watch watch;
 
+	@Autowired
+	@Qualifier("websocketExecutor")
+	private Executor websocketExecutor;
+
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
 	private Map<String, Tuple3<String, String, WebSocketStompClient>> pulls = new ConcurrentHashMap<>();
@@ -79,11 +88,14 @@ public class Pull {
 	private void watch(HasTags update) {
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
 			.orElseThrow();
-		var origin = getOrigin(remote);
+		var config = getOrigin(remote);
 		var pull = getPull(remote);
-		pulls.compute(origin.getLocal(), (o, t) -> {
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+		var remoteOrigin = origin(config.getRemote());
+		pulls.compute(localOrigin, (o, t) -> {
 			if (remote.hasTag("+plugin/error") || !pull.isWebsocket()) {
 				if (t != null) {
+					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 					t._3().stop();
 					tunnelClient.releaseProxy(remote);
 				}
@@ -91,85 +103,74 @@ public class Pull {
 			}
 			if (t != null) {
 				if (t._3().isRunning()) return t;
-				t._3().stop();
+				logger.error("{} Restarting monitor ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				tunnelClient.releaseProxy(remote);
 			}
-			var stomp = new WebSocketStompClient(new SockJsClient(List.of(new WebSocketTransport(new StandardWebSocketClient()))));
-			stomp.setMessageConverter(new MessageConverter() {
+			logger.info("{} Monitoring origin ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+			var url = tunnelClient.reserveProxy(remote);
+			var stomp = getWebSocketStompClient();
+			stomp.setDefaultHeartbeat(new long[]{10000, 10000});
+			stomp.setTaskScheduler(taskScheduler);
+			var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
 				@Override
-				public Object fromMessage(Message<?> message, Class<?> targetClass) {
-					return Instant.parse(new String((byte[]) message.getPayload(), StandardCharsets.UTF_8));
+				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
+						@Override
+						public Type getPayloadType(StompHeaders headers) {
+							return Instant.class;
+						}
+
+						@Override
+						public void handleFrame(StompHeaders headers, Object payload) {
+							handleCursorUpdate(remote.getOrigin(), localOrigin, (Instant) payload);
+						}
+					});
 				}
 
 				@Override
-				public Message<?> toMessage(Object payload, MessageHeaders headers) {
-					return MessageBuilder.createMessage(payload, headers);
+				public void handleTransportError(StompSession session, Throwable exception) {
+					logger.debug("Websocket Client Transport error");
+					stomp.stop();
+					// Schedule retry with tunnel health check
+					taskScheduler.schedule(() -> {
+						// First verify/recreate SSH tunnel
+						var tunnelUrl = tunnelClient.reserveProxy(remote);
+						// Then attempt websocket reconnection
+						try {
+							stomp.connectAsync(tunnelUrl.resolve("/api/stomp/").toString(), this).get();
+						} catch (Exception e) {
+							logger.debug("Error reconnecting websocket", e);
+							tunnelClient.releaseProxy(remote);
+							// Schedule another retry
+							taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+						}
+					}, Instant.now().plus(1, ChronoUnit.SECONDS));
+				}
+
+				@Override
+				public void handleException(StompSession session, StompCommand command,
+											StompHeaders headers, byte[] payload, Throwable exception) {
+					logger.error("Error in websocket connection", exception);
+					// Will automatically reconnect due to SockJS
 				}
 			});
-			var url = tunnelClient.reserveProxy(remote);
-			try {
-				stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
-					@Override
-					public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
-						session.subscribe("/topic/cursor/" + formatOrigin(origin.getRemote()), new StompFrameHandler() {
-							@Override
-							public Type getPayloadType(StompHeaders headers) {
-								return Instant.class;
-							}
-
-							@Override
-							public void handleFrame(StompHeaders headers, Object payload) {
-								handleCursorUpdate(remote.getOrigin(), origin.getLocal(), (Instant) payload);
-							}
-						});
-					}
-
-					@Override
-					public void handleTransportError(StompSession session, Throwable exception) {
-						logger.error("Transport error", exception);
+			CompletableFuture.runAsync(() -> {
+				try {
+					future.thenAcceptAsync(session -> {
+						logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+					})
+					.exceptionally(e -> {
+						logger.error("Error creating websocket session", e);
 						stomp.stop();
-
-						// Schedule retry with tunnel health check
-						taskScheduler.schedule(() -> {
-							// First verify/recreate SSH tunnel
-							var tunnelUrl = tunnelClient.reserveProxy(remote);
-
-							// Then attempt websocket reconnection
-							try {
-								stomp.connectAsync(tunnelUrl.resolve("/api/stomp/").toString(), this).get();
-							} catch (Exception e) {
-								logger.error("Error reconnecting websocket", e);
-								tunnelClient.releaseProxy(remote);
-								// Schedule another retry
-								taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-							}
-						}, Instant.now().plus(1, ChronoUnit.SECONDS));
-					}
-
-					@Override
-					public void handleException(StompSession session, StompCommand command,
-												StompHeaders headers, byte[] payload, Throwable exception) {
-						logger.error("Error in websocket connection", exception);
-						// Will automatically reconnect due to SockJS
-					}
-				})
-				.thenAccept(session -> {
-					logger.info("Connection established");
-				})
-				.exceptionally(e -> {
-					logger.error("Error creating websocket session", e);
-					stomp.stop();
-					tunnelClient.killProxy(remote);
-					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-					return null;
-				});
-			} catch (Exception e) {
-				logger.error("Error creating websocket session", e);
-				stomp.stop();
-				tunnelClient.killProxy(remote);
-				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-				return null;
-			}
+						tunnelClient.killProxy(remote);
+						taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+						return null;
+					});
+				} catch (Exception e) {
+					logger.error("Error", e);
+				}
+			}, websocketExecutor);
 			return Tuple.of(remote.getUrl(), remote.getOrigin(), stomp);
 		});
 	}
@@ -212,5 +213,21 @@ public class Pull {
 		} else {
 			lastSent.remove(local);
 		}
+	}
+
+	private static WebSocketStompClient getWebSocketStompClient() {
+		var stomp = new WebSocketStompClient(new SockJsClient(List.of(new WebSocketTransport(new StandardWebSocketClient()))));
+		stomp.setMessageConverter(new MessageConverter() {
+			@Override
+			public Object fromMessage(Message<?> message, Class<?> targetClass) {
+				return Instant.parse(new String((byte[]) message.getPayload(), StandardCharsets.UTF_8));
+			}
+
+			@Override
+			public Message<?> toMessage(Object payload, MessageHeaders headers) {
+				return MessageBuilder.createMessage(payload, headers);
+			}
+		});
+		return stomp;
 	}
 }

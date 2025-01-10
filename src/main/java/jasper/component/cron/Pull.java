@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 
 @Component("cronPull")
@@ -30,13 +31,14 @@ public class Pull implements Scheduler.CronRunner  {
 		cron.addCronTag("+plugin/origin/pull", this);
 	}
 
-	public void run(Ref ref) {
+	public void run(Ref remote) {
 		var root = configs.root();
-		if (!root.getPullOrigins().contains(ref.getOrigin())) return;
-		var local = getOrigin(ref).getLocal();
-		logger.info("{} Pulling origin ({}) on schedule {}: {}", ref.getOrigin(), formatOrigin(local), ref.getTitle(), ref.getUrl());
-		replicator.pull(ref);
-		logger.info("{} Finished pulling origin ({}) on schedule {}: {}", ref.getOrigin(), formatOrigin(local), ref.getTitle(), ref.getUrl());
+		if (!root.getPullOrigins().contains(remote.getOrigin())) return;
+		var config = getOrigin(remote);
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+		logger.info("{} Pulling origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+		replicator.pull(remote);
+		logger.info("{} Finished pulling origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 	}
 
 }
