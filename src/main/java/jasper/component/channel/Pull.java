@@ -186,19 +186,18 @@ public class Pull {
 
 	private void pull(String local) {
 		try {
-			if (pulls.containsKey(local)) {
-				pulls.compute(local, (k, tuple) -> {
-					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
-					if (maybeRemote.isPresent()) {
-						var remote = maybeRemote.get();
-						logger.debug("{} Pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
-						replicator.pull(remote);
-						logger.debug("{} Finished pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
-						return tuple;
-					}
-					return null;
-				});
-			}
+			pulls.compute(local, (k, tuple) -> {
+				if (tuple == null) return null;
+				var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+				if (maybeRemote.isPresent()) {
+					var remote = maybeRemote.get();
+					logger.debug("{} Pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
+					replicator.pull(remote);
+					logger.debug("{} Finished pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
+					return tuple;
+				}
+				return null;
+			});
 		} finally {
 			taskScheduler.schedule(() -> checkIfQueued(local), Instant.now());
 		}
