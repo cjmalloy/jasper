@@ -213,8 +213,8 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		return tunnels.compute(remote, (k, v) -> {
 			if (v != null) {
-				var tunnelPort = v._1();
-				var connections = v._2();
+				int tunnelPort = v._1();
+				int connections = v._2();
 				var client = v._3();
 				if  (client.isOpen()) return Tuple.of(tunnelPort, connections + 1, client);
 			}
@@ -259,10 +259,11 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			if (tunnelPort != null && v._1() != tunnelPort) return v;
+			int p = v._1();
 			var connections = v._2();
 			var client = v._3();
-			return Tuple.of(v._1(), connections - 1, client);
+			if (tunnelPort != null && p != tunnelPort) return v;
+			return Tuple.of(p, connections - 1, client);
 		});
 		taskScheduler.schedule(() -> cleanupTunnel(tunnelPort, host, username, port), Instant.now().plus(1, ChronoUnit.MINUTES));
 	}
@@ -271,9 +272,10 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			if (tunnelPort != null && v._1() != tunnelPort) return v;
+			int p = v._1();
 			var connections = v._2();
 			var client = v._3();
+			if (tunnelPort != null && p != tunnelPort) return v;
 			if (connections <= 0) {
 				client.stop();
 				return null;
