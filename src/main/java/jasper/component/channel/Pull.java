@@ -114,7 +114,6 @@ public class Pull {
 			var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
-					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
 						@Override
 						public Type getPayloadType(StompHeaders headers) {
