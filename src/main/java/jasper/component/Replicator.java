@@ -2,8 +2,6 @@ package jasper.component;
 
 import feign.FeignException;
 import io.micrometer.core.annotation.Timed;
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
@@ -101,6 +99,8 @@ public class Replicator {
 	@Autowired
 	Optional<FileCache> fileCache;
 
+	record Log(String title, String message) {}
+
 	@Timed(value = "jasper.repl", histogram = true)
 	public Fetch.FileRequest fetch(String url, HasTags remote) {
 		var root = configs.root();
@@ -155,7 +155,7 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
-		var logs = new ArrayList<Tuple2<String, String>>();
+		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
@@ -171,7 +171,7 @@ public class Replicator {
 							// Should not be possible
 							logger.error("{} Skipping plugin with duplicate modified date {}: {}",
 								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Skipping replication of plugin with duplicate modified date %s: %s".formatted(
 									plugin.getName(), plugin.getTag()),
 								""+plugin.getModified()));
@@ -192,7 +192,7 @@ public class Replicator {
 							// Should not be possible
 							logger.error("{} Skipping template with duplicate modified date {}: {}",
 								remote.getOrigin(), template.getName(), template.getQualifiedTag());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Skipping replication of template with duplicate modified date %s: %s".formatted(
 									template.getName(), template.getTag()),
 								""+template.getModified()));
@@ -214,14 +214,14 @@ public class Replicator {
 							// Should not be possible
 							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
 								remote.getOrigin(), ref.getTitle(), ref.getUrl());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
 									ref.getTitle(), ref.getUrl()),
 								""+ref.getModified()));
 						} catch (RuntimeException e) {
 							logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
 								remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
 									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 								e.getMessage()));
@@ -235,7 +235,7 @@ public class Replicator {
 								} catch (Exception e) {
 									logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-									logs.add(Tuple.of(
+									logs.add(new Log(
 										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 										e.getMessage()));
@@ -258,7 +258,7 @@ public class Replicator {
 							// Should not be possible
 							logger.error("{} Skipping Ext with duplicate modified date {}: {}",
 								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Skipping replication of template with duplicate modified date %s: %s".formatted(
 									ext.getName(), ext.getTag()),
 								""+ext.getModified()));
@@ -288,7 +288,7 @@ public class Replicator {
 							// Should not be possible
 							logger.error("{} Skipping User with duplicate modified date {}: {}",
 								remote.getOrigin(), user.getName(), user.getQualifiedTag());
-							logs.add(Tuple.of(
+							logs.add(new Log(
 								"Skipping replication of user with duplicate modified date %s: %s".formatted(
 									user.getName(), user.getTag()),
 								""+user.getModified()));
@@ -308,7 +308,7 @@ public class Replicator {
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
 					e.getMessage());
 			} finally {
-				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log._1, log._2);
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
 	}
@@ -321,7 +321,7 @@ public class Replicator {
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		var logs = new ArrayList<Tuple2<String, String>>();
+		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
@@ -383,7 +383,7 @@ public class Replicator {
 								} catch (Exception e) {
 									logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-									logs.add(Tuple.of(
+									logs.add(new Log(
 										"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 										e.getMessage()));
@@ -441,15 +441,15 @@ public class Replicator {
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
 					e.getMessage());
 			} finally {
-				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log._1, log._2);
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
 		remote.setPlugin("+plugin/origin/push", push);
 		refRepository.save(remote);
 	}
 
-	private List<Tuple2<String, String>> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
-		var logs = new ArrayList<Tuple2<String, String>>();
+	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
+		var logs = new ArrayList<Log>();
 		var skip = 0;
 		var size = batchSize;
 		do {
@@ -469,10 +469,10 @@ public class Replicator {
 				if (e.getCause() instanceof NoHttpResponseException) throw e;
 				if (size == 1) {
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
-					logs.add(Tuple.of("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
+					logs.add(new Log("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
 					skip++;
 				} else {
-					logs.add(Tuple.of("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
+					logs.add(new Log("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
 					size = max(1, size / 2);
 				}
 			}

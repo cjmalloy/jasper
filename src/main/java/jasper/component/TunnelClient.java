@@ -1,7 +1,5 @@
 package jasper.component;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple3;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.repository.UserRepository;
@@ -49,12 +47,13 @@ public class TunnelClient {
 	@Autowired
 	TaskScheduler taskScheduler;
 
-	Map<String, Tuple3<Integer, Integer, SshClient>> tunnels = new ConcurrentHashMap<>();
+	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
+	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
 		for (var e : tunnels.entrySet()) {
-			logger.info("SSH Tunnel Pool: {} with {} connections", e.getKey(), e.getValue()._2());
+			logger.info("SSH Tunnel Pool: {} with {} connections", e.getKey(), e.getValue().connections);
 		}
 	}
 
@@ -66,24 +65,21 @@ public class TunnelClient {
 					logger.debug("Health check found null entry for {}", remote);
 					return null;
 				}
-				var tunnelPort = v._1();
-				var connections = v._2();
-				var client = v._3();
 
-				if (!client.isOpen()) {
-					logger.warn("Found closed client for {} with {} connections", remote, connections);
-					client.stop();
+				if (!v.client.isOpen()) {
+					logger.warn("Found closed client for {} with {} connections", remote, v.connections);
+					v.client.stop();
 					return null;
 				}
 
 				// Test SSH connection is responding
 				try {
-					client.getVersion();
-					logger.debug("Healthy connection for {} with {} connections", remote, connections);
+					v.client.getVersion();
+					logger.debug("Healthy connection for {} with {} connections", remote, v.connections);
 					return v;
 				} catch (Exception e) {
-					logger.warn("Failed connection test for {} with {} connections: {}", remote, connections, e.getMessage());
-					client.stop();
+					logger.warn("Failed connection test for {} with {} connections: {}", remote, v.connections, e.getMessage());
+					v.client.stop();
 					return null;
 				}
 			});
@@ -213,10 +209,7 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		return tunnels.compute(remote, (k, v) -> {
 			if (v != null) {
-				int tunnelPort = v._1();
-				int connections = v._2();
-				var client = v._3();
-				if  (client.isOpen()) return Tuple.of(tunnelPort, connections + 1, client);
+				if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
 			}
 			var client = SshClient.setUpDefaultClient();
 			try {
@@ -246,24 +239,21 @@ public class TunnelClient {
 						killTunnel(host, username, port);
 					}
 				});
-				return Tuple.of(tunnelPort, 1, client);
+				return new TunnelInfo(tunnelPort, 1, client);
 			} catch (Exception e) {
 				client.stop();
 				logger.debug("{} Error creating tunnel SSH client", origin, e);
 				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
 			}
-		})._1();
+		}).tunnelPort;
 	}
 
 	private void releaseTunnel(Integer tunnelPort, String host, String username, int port) {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			int p = v._1();
-			var connections = v._2();
-			var client = v._3();
-			if (tunnelPort != null && p != tunnelPort) return v;
-			return Tuple.of(p, connections - 1, client);
+			if (tunnelPort != null && v.tunnelPort != tunnelPort) return v;
+			return new TunnelInfo(v.tunnelPort, v.connections - 1, v.client);
 		});
 		taskScheduler.schedule(() -> cleanupTunnel(tunnelPort, host, username, port), Instant.now().plus(1, ChronoUnit.MINUTES));
 	}
@@ -272,12 +262,9 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			int p = v._1();
-			var connections = v._2();
-			var client = v._3();
-			if (tunnelPort != null && p != tunnelPort) return v;
-			if (connections <= 0) {
-				client.stop();
+			if (tunnelPort != null && v.tunnelPort != tunnelPort) return v;
+			if (v.connections <= 0) {
+				v.client.stop();
 				return null;
 			}
 			return v;
@@ -288,8 +275,7 @@ public class TunnelClient {
 		var remote = username + "@" + host + ":" + port;
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
-			var client = v._3();
-			client.stop();
+			v.client.stop();
 			return null;
 		});
 	}

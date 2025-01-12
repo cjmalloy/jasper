@@ -42,7 +42,6 @@
 		<commons-io.version>2.18.0</commons-io.version>
 		<commons-collections4.version>4.4</commons-collections4.version>
 		<commons-compress.version>1.27.1</commons-compress.version>
-		<varv.version>0.10.5</varv.version>
 		<jsoup.version>1.18.3</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
@@ -139,11 +138,6 @@
 			<groupId>com.drewnoakes</groupId>
 			<artifactId>metadata-extractor</artifactId>
 			<version>2.19.0</version>
-		</dependency>
-		<dependency>
-			<groupId>io.vavr</groupId>
-			<artifactId>vavr</artifactId>
-			<version>${varv.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openapitools</groupId>

@@ -1,7 +1,5 @@
 package jasper.component.channel;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
@@ -51,9 +49,10 @@ public class Push {
 	@Autowired
 	Watch watch;
 
+	record Remote(String url, String origin) {}
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
-	private Map<String, Set<Tuple2<String, String>>> pushes = new ConcurrentHashMap<>();
+	private Map<String, Set<Remote>> pushes = new ConcurrentHashMap<>();
 
 	@PostConstruct
 	public void init() {
@@ -68,12 +67,12 @@ public class Push {
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var push = getPush(remote);
-		var tuple = Tuple.of(remote.getUrl(), remote.getOrigin());
-		pushes.values().forEach(set -> set.remove(tuple));
+		var target = new Remote(remote.getUrl(), remote.getOrigin());
+		pushes.values().forEach(set -> set.remove(target));
 		if (!remote.hasTag("+plugin/error") && remote.hasTag("+plugin/cron") && push.isPushOnChange()) {
 			pushes
 				.computeIfAbsent(localOrigin, o -> ConcurrentHashMap.newKeySet())
-				.add(tuple);
+				.add(target);
 		}
 	}
 
@@ -93,9 +92,9 @@ public class Push {
 	private void push(String origin) {
 		try {
 			if (pushes.containsKey(origin)) {
-				var deleted = new HashSet<Tuple2<String, String>>();
+				var deleted = new HashSet<Remote>();
 				pushes.get(origin).forEach(tuple -> {
-					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple.url, tuple.origin);
 					if (maybeRemote.isPresent()) {
 						var remote = maybeRemote.get();
 						replicator.push(remote);

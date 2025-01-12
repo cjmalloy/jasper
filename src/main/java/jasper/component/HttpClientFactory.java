@@ -39,8 +39,9 @@ public class HttpClientFactory {
 	public void logStats() {
 		for (var entry : managers.entrySet()) {
 			var manager = entry.getValue();
-			logger.info("HTTP Connection Pool: {} with {}/{} connections (total/per-route)",
+			logger.info("HTTP Connection Pool: {} ({}) with {}/{} connections (total/per-route)",
 				formatOrigin(entry.getKey().tenantId),
+				entry.getKey().serial() ? "serial" : "parallel",
 				manager.getTotalStats().getLeased(),
 				manager.getDefaultMaxPerRoute());
 		}

@@ -1,6 +1,5 @@
 package jasper.component.delta;
 
-import io.vavr.Tuple;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.domain.Ref;
@@ -50,6 +49,8 @@ public class Mail implements Async.AsyncRunner {
 	@Autowired
 	ConfigCache configs;
 
+	record QT(String tag, String origin) {}
+
 	@PostConstruct
 	void init() {
 		async.addAsyncTag("plugin/email", this);
@@ -77,8 +78,8 @@ public class Mail implements Async.AsyncRunner {
 			outboxUserTags = stream(mb)
 				.filter(t -> t.startsWith("plugin/outbox/"))
 				.map(t -> t.substring("plugin/outbox/".length()))
-				.map(t -> Tuple.of(t.substring(0, t.indexOf("/")), t.substring(t.indexOf("/") + 1)))
-				.map(to -> to._2 + (isNotBlank(to._1) ? ("@" + to._1) : ""))
+				.map(t -> new QT(t.substring(t.indexOf("/") + 1), t.substring(0, t.indexOf("/"))))
+				.map(to -> to.tag + (isNotBlank(to.origin) ? ("@" + to.origin) : ""))
 				.toArray(String[]::new);
 			var query = String.join("|", concat(stream(inboxUserTags), stream(outboxUserTags)).toArray(String[]::new));
 			emails = extRepository.findAll(new TagQuery(query).spec())

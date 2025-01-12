@@ -1,7 +1,5 @@
 package jasper.component.channel;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple3;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
@@ -74,9 +72,10 @@ public class Pull {
 	@Qualifier("websocketExecutor")
 	private Executor websocketExecutor;
 
+	record MonitorInfo(String url, String origin, WebSocketStompClient client) {}
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
-	private Map<String, Tuple3<String, String, WebSocketStompClient>> pulls = new ConcurrentHashMap<>();
+	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
 
 	@PostConstruct
 	public void init() {
@@ -92,17 +91,17 @@ public class Pull {
 		var pull = getPull(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		pulls.compute(localOrigin, (o, t) -> {
+		pulls.compute(localOrigin, (o, info) -> {
 			if (remote.hasTag("+plugin/error") || !remote.hasTag("+plugin/cron") || !pull.isWebsocket()) {
-				if (t != null) {
+				if (info != null) {
 					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-					t._3().stop();
+					info.client.stop();
 					tunnelClient.releaseProxy(remote);
 				}
 				return null;
 			}
-			if (t != null) {
-				if (t._3().isRunning()) return t;
+			if (info != null) {
+				if (info.client.isRunning()) return info;
 				logger.error("{} Restarting monitor ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				tunnelClient.releaseProxy(remote);
 			}
@@ -157,6 +156,7 @@ public class Pull {
 			CompletableFuture.runAsync(() -> {
 				try {
 					future.thenAcceptAsync(session -> {
+						// TODO: add plugin response to origin to show connection status
 						logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 					})
 					.exceptionally(e -> {
@@ -170,7 +170,7 @@ public class Pull {
 					logger.error("Error", e);
 				}
 			}, websocketExecutor);
-			return Tuple.of(remote.getUrl(), remote.getOrigin(), stomp);
+			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp);
 		});
 	}
 
@@ -185,15 +185,15 @@ public class Pull {
 
 	private void pull(String local) {
 		try {
-			pulls.compute(local, (k, tuple) -> {
-				if (tuple == null) return null;
-				var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple._1, tuple._2);
+			pulls.compute(local, (k, info) -> {
+				if (info == null) return null;
+				var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 				if (maybeRemote.isPresent()) {
 					var remote = maybeRemote.get();
 					logger.debug("{} Pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
 					replicator.pull(remote);
 					logger.debug("{} Finished pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
-					return tuple;
+					return info;
 				}
 				return null;
 			});
