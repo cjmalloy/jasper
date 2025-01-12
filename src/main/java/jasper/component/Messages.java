@@ -2,7 +2,6 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -89,6 +88,10 @@ public class Messages {
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(ref.getModified(), originHeaders(ref.getOrigin()))));
 	}
 
+	public void deleteRef(Ref ref) {
+		updateRef(deleteNotice(ref));
+	}
+
 	public void updateExt(Ext ext) {
 		var update = mapper.domainToDto(ext);
 		sendAndRetry(() -> extTxChannel.send(createMessage(update, tagHeaders(ext.getOrigin(), ext.getTag()))));
@@ -132,10 +135,18 @@ public class Messages {
 	}
 
 	private ObjectNode deleteNotice(String tag, String origin) {
-		var notice = objectMapper.createObjectNode();
-		notice.set("tag", TextNode.valueOf(deletorTag(tag)));
-		notice.set("origin", TextNode.valueOf(origin));
-		return notice;
+		return objectMapper.convertValue(Map.of(
+			"tag", deletorTag(tag),
+			"origin", origin
+		), ObjectNode.class);
+	}
+
+	private Ref deleteNotice(Ref ref) {
+		return objectMapper.convertValue(Map.of(
+			"url", ref.getUrl(),
+			"origin", ref.getOrigin(),
+			"tags", List.of("internal", "plugin/delete")
+		), Ref.class);
 	}
 
 	private void sendAndRetry(Runnable fn) {

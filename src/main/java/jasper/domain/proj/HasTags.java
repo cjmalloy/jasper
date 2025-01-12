@@ -53,6 +53,7 @@ public interface HasTags extends Cursor {
 	}
 
 	static <T> T getPlugin(HasTags ref, String tag, Class<T> toValueType) {
+		if (ref == null) return null;
 		if (ref.getPlugins() == null) return null;
 		if (!ref.getPlugins().has(tag)) return null;
 		return om().convertValue(ref.getPlugins().get(tag), toValueType);

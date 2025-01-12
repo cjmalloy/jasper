@@ -40,6 +40,7 @@ import java.util.concurrent.Executor;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 
@@ -85,14 +86,24 @@ public class Pull {
 	}
 
 	private void watch(HasTags update) {
-		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
-			.orElseThrow();
+		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin()).orElse(null);
 		var config = getOrigin(remote);
 		var pull = getPull(remote);
+		if (remote == null || config == null || pull == null) {
+			for (var e : pulls.entrySet()) {
+				if (e.getValue().url.equals(update.getUrl()) && e.getValue().origin.equals(update.getOrigin())) {
+					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", update.getOrigin(), e.getKey(), update.getTitle(), update.getUrl());
+					pulls.remove(e.getKey());
+					e.getValue().client.stop();
+					return;
+				}
+			}
+			return;
+		}
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		pulls.compute(localOrigin, (o, info) -> {
-			if (remote.hasTag("+plugin/error") || !remote.hasTag("+plugin/cron") || !pull.isWebsocket()) {
+			if (hasMatchingTag(update, "plugin/delete") || remote.hasTag("+plugin/error") || !remote.hasTag("+plugin/cron") || !pull.isWebsocket()) {
 				if (info != null) {
 					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 					info.client.stop();
