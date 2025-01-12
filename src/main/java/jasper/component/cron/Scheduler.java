@@ -64,6 +64,9 @@ public class Scheduler {
 			if (s.captures(tagOriginSelector("+plugin/cron" + s.origin))) {
 				watch.addWatch(s.origin, "+plugin/cron", this::schedule);
 			}
+			if (s.captures(tagOriginSelector("+plugin/run" + s.origin))) {
+				watch.addWatch(s.origin, "+plugin/run", this::run);
+			}
 		}
 	}
 
@@ -96,6 +99,35 @@ public class Scheduler {
 				Instant.now().plus(config.getInterval()),
 				config.getInterval()));
 		}
+	}
+
+	private void run(HasTags target) {
+		if (!hasMatchingTag(target, "+plugin/run")) return;
+		var origin = target.getOrigin();
+		var runRequest = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin).orElseThrow();
+		var url = runRequest.getUrl();
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		if (ref == null) {
+			logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
+			return;
+		}
+		if (hasMatchingTag(target, "+plugin/error")) {
+			logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
+			return;
+		}
+		tagger.remove(target.getUrl(), target.getOrigin(), "+plugin/run");
+		tags.forEach((k, v) -> {
+			if (!hasMatchingTag(ref, k)) return;
+			logger.debug("{} Run Tag: {} {}", origin, k, url);
+			taskScheduler.schedule(() -> {
+				try {
+					v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+				} catch (Exception e) {
+					logger.error("{} Error in run tag {} ", origin, k, e);
+					tagger.attachError(url, origin, "Error in run tag " + k, e.getMessage());
+				}
+			}, Instant.now());
+		});
 	}
 
 	private boolean hasScheduler(HasTags ref) {

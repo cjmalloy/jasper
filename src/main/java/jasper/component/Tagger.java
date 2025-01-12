@@ -59,6 +59,18 @@ public class Tagger {
 		}
 	}
 
+	public Ref remove(String url, String origin, String ...tags) {
+		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
+		if (maybeRef.isEmpty()) return null;
+		var ref = maybeRef.get();
+		if (!ref.hasTag(tags)) return ref;
+		ref.removePrefixTags();
+		ref.removeTags(asList(tags));
+		ingest.update(ref, false);
+		return ref;
+	}
+
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
 		return plugin(false, url, origin, tag, plugin, tags);

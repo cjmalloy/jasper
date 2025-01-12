@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.32
+  version: 1.3.0
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -825,39 +825,6 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/scrape/feed:
-    post:
-      deprecated: true
-      tags:
-        - Scrape
-      operationId: scrapeFeed
-      description: Immediately scrape a feed. Ref must have `plugin/feed`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error scraping
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/web:
     get:
       deprecated: true
@@ -907,70 +874,6 @@ paths:
                 format: binary
         '500':
           description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/push:
-    post:
-      tags:
-        - Origin
-      operationId: push
-      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pushing
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/pull:
-    post:
-      tags:
-        - Origin
-      operationId: pull
-      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pulling
           content:
             '*/*':
               schema:

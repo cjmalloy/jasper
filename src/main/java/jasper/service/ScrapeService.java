@@ -1,11 +1,7 @@
 package jasper.service;
 
-import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.RssParser;
 import jasper.component.Scraper;
-import jasper.errors.NotFoundException;
-import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
@@ -22,27 +18,13 @@ import java.net.URISyntaxException;
 public class ScrapeService {
 
 	@Autowired
-	RefRepository refRepository;
-
-	@Autowired
 	Auth auth;
 
 	@Autowired
 	DtoMapper mapper;
 
 	@Autowired
-	RssParser rssParser;
-
-	@Autowired
 	Scraper scraper;
-
-	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)
-	public void feed(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findOneByUrlAndOrigin(url, origin)
-			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		rssParser.scrape(source, true);
-	}
 
 	@PreAuthorize("@auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "scrape"}, histogram = true)

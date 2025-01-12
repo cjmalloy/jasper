@@ -1,9 +1,6 @@
 package jasper.service;
 
-import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.Replicator;
-import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -17,7 +14,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -43,32 +39,7 @@ public class OriginService {
 	TemplateRepository templateRepository;
 
 	@Autowired
-	Replicator replicator;
-
-	@Autowired
 	Auth auth;
-
-	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
-	public void push(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findOneByUrlAndOrigin(url, origin)
-			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		var start = Instant.now();
-		logger.info("{} Pushing origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
-		replicator.push(source);
-		logger.info("{} Finished pushing origin in {} {}: {}", source.getOrigin(), Duration.between(start, Instant.now()), source.getTitle(), source.getUrl());
-	}
-
-	@PreAuthorize("@auth.hasRole('MOD') and @auth.local(#origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
-	public void pull(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findOneByUrlAndOrigin(url, origin)
-			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		var start = Instant.now();
-		logger.info("{} Pulling origin {}: {}", source.getOrigin(), source.getTitle(), source.getUrl());
-		replicator.pull(source);
-		logger.info("{} Finished pulling origin in {} {}: {}", source.getOrigin(), Duration.between(start, Instant.now()), source.getTitle(), source.getUrl());
-	}
 
 	@Transactional
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")
