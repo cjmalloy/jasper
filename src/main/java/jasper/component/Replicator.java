@@ -100,6 +100,8 @@ public class Replicator {
 	@Autowired
 	Optional<FileCache> fileCache;
 
+	boolean fileCacheMissingError = false;
+
 	record Log(String title, String message) {}
 
 	@Timed(value = "jasper.repl", histogram = true)
@@ -227,9 +229,9 @@ public class Replicator {
 									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 								e.getMessage()));
 						}
-						if (fileCache.isPresent()) {
-							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
-								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
+							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+							if (fileCache.isPresent()) {
 								try {
 									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
 									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
@@ -241,6 +243,14 @@ public class Replicator {
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 										e.getMessage()));
 								}
+							} else if (!fileCacheMissingError) {
+								fileCacheMissingError = true;
+								logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
+									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+								logs.add(new Log(
+									"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
+										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+									"File cache not present"));
 							}
 						}
 					}
@@ -380,19 +390,29 @@ public class Replicator {
 					if (!refList.isEmpty()) {
 						client.refPush(baseUri, remoteOrigin, refList);
 					}
-					if (push.isCache() && fileCache.isPresent()) {
+					if (push.isCache()) {
 						for (var ref : refList) {
 							if (ref.getUrl().startsWith("cache:")) {
-								try {
-									var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
-									client.push(baseUri, ref.getUrl(), remoteOrigin, data);
-								} catch (Exception e) {
-									logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
+								if (fileCache.isPresent()) {
+									try {
+										var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
+										client.push(baseUri, ref.getUrl(), remoteOrigin, data);
+									} catch (Exception e) {
+										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
+											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+										logs.add(new Log(
+											"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
+												ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+											e.getMessage()));
+									}
+								} else if (!fileCacheMissingError) {
+									fileCacheMissingError = true;
+									logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 									logs.add(new Log(
-										"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
+										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-										e.getMessage()));
+										"File cache not present"));
 								}
 							}
 						}
