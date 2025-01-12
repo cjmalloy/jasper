@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import jakarta.persistence.EntityManager;
+import jasper.component.Storage.Zipped;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import static jasper.component.FileCache.CACHE;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
@@ -91,19 +93,22 @@ public class Backup {
 		logger.info("{} Creating Backup", origin);
 		try (var zipped = storage.get().zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("/ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("/ext.json"));
+				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("ext.json"));
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("/user.json"));
+				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("user.json"));
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("/plugin.json"));
+				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("plugin.json"));
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("/template.json"));
+				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("template.json"));
+			}
+			if (options.isCache()) {
+				backupCache(origin, options.getNewerThan(), zipped);
 			}
 		}
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
@@ -150,6 +155,14 @@ public class Backup {
 		}
 	}
 
+	void backupCache(String origin, Instant newerThan, Zipped backup) {
+		try {
+			storage.get().backup(origin, CACHE, backup, newerThan);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Timed(value = "jasper.backup", histogram = true)
 	public byte[] get(String origin, String id) {
 		if (storage.isEmpty()) {
@@ -187,19 +200,22 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
+				restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.in("/ext.json"), Ext.class);
+				restoreRepo(extRepository, origin, zipped.in("ext.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.in("/user.json"), User.class);
+				restoreRepo(userRepository, origin, zipped.in("user.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.in("/plugin.json"), Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped.in("plugin.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.in("/template.json"), Template.class);
+				restoreRepo(templateRepository, origin, zipped.in("template.json"), Template.class);
+			}
+			if (options == null || options.isCache()) {
+				restoreCache(origin, zipped);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -244,6 +260,14 @@ public class Backup {
 			logger.error("Failed to restore", e);
 		}
     }
+
+	private void restoreCache(String origin, Zipped backup) {
+		try {
+			storage.get().restore(origin, CACHE, backup);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
 	@Timed(value = "jasper.backup", histogram = true)
 	public void store(String origin, String id, InputStream zipFile) throws IOException {

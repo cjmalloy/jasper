@@ -8,6 +8,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -31,6 +33,8 @@ public interface Storage {
 	String store(String origin, String namespace, InputStream is) throws IOException;
 	Zipped zipAt(String origin, String namespace, String id) throws IOException;
 	void delete(String origin, String namespace, String id) throws IOException;
+	void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException;
+	void restore(String origin, String namespace, Zipped backup) throws IOException;
 
 	default String originTenant(String origin) {
 		return formatOrigin(origin);
@@ -47,6 +51,7 @@ public interface Storage {
 	}
 
 	interface Zipped extends Closeable {
+		Path get(String first, String... more);
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
 	}

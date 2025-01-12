@@ -36,7 +36,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class FileCache {
 	private static final Logger logger = LoggerFactory.getLogger(FileCache.class);
-	private static final String CACHE = "cache";
+	static final String CACHE = "cache";
 
 	@Autowired
 	ConfigCache configs;

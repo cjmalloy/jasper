@@ -129,7 +129,8 @@ public class BackupController {
 	public void restoreBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
-		@RequestBody(required = false) BackupOptionsDto options) {
+		@RequestBody(required = false) BackupOptionsDto options
+	) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}

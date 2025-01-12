@@ -33,6 +33,7 @@ public class BackupService {
 		.user(true)
 		.plugin(false)
 		.template(false)
+		.cache(true)
 		.build();
 
 	@Autowired

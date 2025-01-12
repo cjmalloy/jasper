@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -167,6 +168,34 @@ public class StorageImplLocal implements Storage {
 		Files.delete(path(origin, namespace, id));
 	}
 
+	@Override
+	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
+		Files.createDirectories(backup.get(namespace));
+		Files.walk(dir(origin, namespace)).forEach(f -> {
+			if (Files.isRegularFile(f) && (modifiedAfter == null || f.toFile().lastModified() > modifiedAfter.toEpochMilli())) {
+				try {
+					Files.copy(f, backup.get(namespace, f.getFileName().toString()));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		});
+	}
+
+	@Override
+	public void restore(String origin, String namespace, Zipped backup) throws IOException {
+		Files.createDirectories(dir(origin, namespace));
+		Files.walk(backup.get(namespace)).forEach(f -> {
+			if (Files.isRegularFile(f)) {
+				try {
+					Files.copy(f, path(origin, namespace, f.getFileName().toString()));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		});
+	}
+
 	Path tenants() {
 		return Paths.get(props.getStorage());
 	}
@@ -194,6 +223,11 @@ public class StorageImplLocal implements Storage {
 			this.id = id;
 			this.create = create;
 			zipfs = FileSystems.newFileSystem(path(origin, namespace, create ? "_" + id : id), Map.of("create", create ? "true" : "false"));
+		}
+
+		@Override
+		public Path get(String first, String... more) {
+			return zipfs.getPath(first, more);
 		}
 
 		@Override

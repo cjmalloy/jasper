@@ -16,6 +16,7 @@ import java.time.Instant;
 @NoArgsConstructor
 public class BackupOptionsDto implements Serializable {
 	public static final int ID_LEN = 256;
+	private boolean cache;
 	private boolean ref;
 	private boolean ext;
 	private boolean user;
