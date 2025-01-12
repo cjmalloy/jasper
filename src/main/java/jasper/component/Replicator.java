@@ -444,8 +444,6 @@ public class Replicator {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
-		remote.setPlugin("+plugin/origin/push", push);
-		refRepository.save(remote);
 	}
 
 	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
