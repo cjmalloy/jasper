@@ -24,6 +24,12 @@ springdoc:
 feign:
   circuitbreaker:
     enabled: true
+    group:
+      default:
+        failureRateThreshold: 50  # Open circuit after 50% failures
+        waitDurationInOpenState: 20000  # Wait 20s before trying again
+        ringBufferSizeInHalfOpenState: 10  # Sample size when half-open
+        ringBufferSizeInClosedState: 100  # Sample size when closed
   # client:
   #   config:
   #     default:

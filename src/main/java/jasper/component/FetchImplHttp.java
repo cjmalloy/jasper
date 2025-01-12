@@ -7,7 +7,6 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +32,7 @@ public class FetchImplHttp implements Fetch {
 	ConfigCache configs;
 
 	@Autowired
-	CloseableHttpClient http;
+	HttpClientFactory httpClientFactory;
 
 	@Autowired
 	Replicator replicator;
@@ -58,6 +57,7 @@ public class FetchImplHttp implements Fetch {
 			throw new NotFoundException("Invalid host.");
 		}
 		request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
+		var http = httpClientFactory.getClient();
 		var res = http.execute(request);
 		if (res == null) return null;
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
