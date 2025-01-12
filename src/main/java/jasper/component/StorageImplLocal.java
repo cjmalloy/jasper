@@ -184,6 +184,7 @@ public class StorageImplLocal implements Storage {
 
 	@Override
 	public void restore(String origin, String namespace, Zipped backup) throws IOException {
+		if (!Files.exists(backup.get(namespace))) return;
 		Files.createDirectories(dir(origin, namespace));
 		Files.walk(backup.get(namespace)).forEach(f -> {
 			if (Files.isRegularFile(f)) {
