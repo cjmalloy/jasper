@@ -2,6 +2,7 @@ package jasper.component;
 
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
+import jasper.errors.RetryableTunnelException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -243,7 +244,7 @@ public class TunnelClient {
 			} catch (Exception e) {
 				client.stop();
 				logger.debug("{} Error creating tunnel SSH client", origin, e);
-				throw new InvalidTunnelException("Error creating tunnel SSH client", e);
+				throw new RetryableTunnelException("Error creating tunnel SSH client", e);
 			}
 		}).tunnelPort;
 	}
