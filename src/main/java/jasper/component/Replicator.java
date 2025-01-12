@@ -157,7 +157,7 @@ public class Replicator {
 		var rootOrigin = remote.getOrigin();
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
-		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxPullEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
+		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
 		var logs = new ArrayList<Log>();
 		try {
 			tunnel.proxy(remote, baseUri -> {
@@ -340,7 +340,7 @@ public class Replicator {
 		var logs = new ArrayList<Log>();
 		try {
 			tunnel.proxy(remote, baseUri -> {
-				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxPushEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
+				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
 				var modifiedAfter = client.pluginCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
