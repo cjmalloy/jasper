@@ -91,7 +91,12 @@ public class Tagger {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.addTag("internal");
 			var cursor = refRepository.getCursor(origin);
-			ref.setModified((cursor == null ? now() : cursor).minusMillis(1));
+			if (cursor == null) {
+				logger.warn("Silent plugin can't be first!");
+				ref.setModified(now().minusMillis(1));
+			} else {
+				ref.setModified(cursor.minusMillis(1));
+			}
 			ingest.silent(ref);
 			return ref;
 		} else {
