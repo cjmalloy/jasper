@@ -1,6 +1,7 @@
 package jasper.component.channel;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
 import jasper.component.TunnelClient;
@@ -164,23 +165,18 @@ public class Pull {
 					// Will automatically reconnect due to SockJS
 				}
 			});
-			CompletableFuture.runAsync(() -> {
-				try {
-					future.thenAcceptAsync(session -> {
-						// TODO: add plugin response to origin to show connection status
-						logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-					})
-					.exceptionally(e -> {
-						logger.error("Error creating websocket session", e);
-						stomp.stop();
-						tunnelClient.killProxy(remote);
-						taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-						return null;
-					});
-				} catch (Exception e) {
-					logger.error("Error", e);
-				}
-			}, websocketExecutor);
+			CompletableFuture.runAsync(() -> future.thenAcceptAsync(session -> {
+				// TODO: add plugin response to origin to show connection status
+				logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+			})
+			.exceptionally(e -> {
+				logger.error("Error creating websocket session", e);
+				stomp.stop();
+				tunnelClient.killProxy(remote);
+				if (e instanceof DeploymentException) return null;
+				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+				return null;
+			}), websocketExecutor);
 			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp);
 		});
 	}
