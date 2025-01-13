@@ -7,6 +7,7 @@ import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.session.Session;
 import org.apache.sshd.common.session.SessionListener;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
@@ -244,6 +245,7 @@ public class TunnelClient {
 			} catch (Exception e) {
 				client.stop();
 				logger.debug("{} Error creating tunnel SSH client", origin, e);
+				if (e instanceof SshException) throw new RuntimeException(e);
 				throw new RetryableTunnelException("Error creating tunnel SSH client", e);
 			}
 		}).tunnelPort;

@@ -455,8 +455,7 @@ public class Replicator {
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
 			});
-		} catch (FeignException e) {
-			if (e.getCause() instanceof HttpHostConnectException) throw e;
+		} catch (FeignException.Forbidden e) {
 			// Temporary connection issue, ignore
 			logger.warn("{} Error pushing {} to origin ({}) {}: {}",
 				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
@@ -489,19 +488,18 @@ public class Replicator {
 					size = min(batchSize, size * 2);
 				}
 			} catch (FeignException e) {
-				if (e instanceof FeignException f) {
-					if (f.status() >= 500) throw e;
-					if (f.status() != 413) throw e;
-				}
-				if (e.getCause() instanceof SSLHandshakeException) throw e;
-				if (e.getCause() instanceof HttpHostConnectException) throw e;
-				if (e.getCause() instanceof NoHttpResponseException) throw e;
+				if (e.getCause() instanceof SSLHandshakeException) throw new RuntimeException(e);
+				if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
+				if (e.getCause() instanceof NoHttpResponseException) throw new RuntimeException(e);
+				if (e.status() >= 500) throw e;
+				if (e.status() == 403) throw new RuntimeException(e);
+				if (e.status() != 413) throw e;
 				if (size == 1) {
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
-					logs.add(new Log("Skipping plugin with modified date after " + modifiedAfter, e.getMessage()));
+					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, e.getMessage()));
 					skip++;
 				} else {
-					logs.add(new Log("Error pulling plugins, reducing batch size to " + size, e.getMessage()));
+					logs.add(new Log("Error pulling entities, reducing batch size to " + size, e.getMessage()));
 					size = max(1, size / 2);
 				}
 			}

@@ -29,6 +29,7 @@ import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -117,8 +118,14 @@ public class Pull {
 				logger.error("{} Restarting monitor ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				tunnelClient.releaseProxy(remote);
 			}
+			URI url;
+			try {
+				url = tunnelClient.reserveProxy(remote);
+			} catch (Exception e) {
+				logger.info("{} Error connecting to ({}) via ssh {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+				return null;
+			}
 			logger.info("{} Monitoring origin ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-			var url = tunnelClient.reserveProxy(remote);
 			var stomp = getWebSocketStompClient();
 			stomp.setDefaultHeartbeat(new long[]{10000, 10000});
 			stomp.setTaskScheduler(taskScheduler);
