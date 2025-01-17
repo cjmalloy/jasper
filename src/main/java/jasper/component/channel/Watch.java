@@ -65,7 +65,11 @@ public class Watch {
 					if (maybeRef.isEmpty()) break;
 					var ref = maybeRef.getContent().getFirst();
 					lastModified = ref.getModified();
-					watchers.get(origin).get(tag).notify(ref);
+					try {
+						watchers.get(origin).get(tag).notify(ref);
+					} catch (Exception e) {
+						logger.warn("Error starting watcher", e);
+					}
 				}
 			}
 		}
@@ -86,9 +90,12 @@ public class Watch {
 					set.add(ref.getUrl());
 				}
 			}
-			watchers.get(origin).get(tag).notify(ref);
-			if (isNotBlank(tag) && !hasMatchingTag(ref, tag)) {
-				set.remove(ref.getUrl());
+			try {
+				watchers.get(origin).get(tag).notify(ref);
+			} finally {
+				if (isNotBlank(tag) && !hasMatchingTag(ref, tag)) {
+					set.remove(ref.getUrl());
+				}
 			}
 		}
 	}
