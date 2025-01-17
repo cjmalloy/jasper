@@ -1,6 +1,7 @@
 package jasper.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jasper.component.ConfigCache;
 import jasper.domain.proj.HasOrigin;
 import jasper.security.Auth;
 import jasper.security.jwt.TokenProvider;
@@ -71,6 +72,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	@Autowired
 	Props props;
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
 	TokenProvider tokenProvider;
@@ -194,7 +198,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		@Override
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
 			var origin = (String) attributes.get("origin");
-			logger.debug("STOMP Determine User: " + origin);
+			WebSocketConfig.logger.debug("{} STOMP Determine User", origin);
+			if (!configs.root().getWebOrigins().contains(origin)) {
+				WebSocketConfig.logger.debug("{} No web access for origin", origin);
+				return null;
+			}
 			try {
 				var wsAttributes = (WebSocketRequestAttributes) attributes.get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
@@ -233,6 +241,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				} else {
 					logger.debug("STOMP Default auth");
 					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
+				}
+				if (!configs.root().getWebOrigins().contains(auth.getOrigin())) {
+					logger.debug("{} No web access for origin", auth.getOrigin());
+					return null;
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
