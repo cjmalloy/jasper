@@ -34,9 +34,17 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test; \
+CMD mvn -gs settings.xml test surefire-report:report; \
 		mkdir -p /tests && \
-		cp target/surefire-reports/* /tests/
+		cp target/surefire-reports/* /tests/ && \
+		mkdir -p /reports && \
+		cp -r target/reports/* /reports/ && \
+		cp target/reports/surefire.html /reports/index.html
+
+FROM test AS gatling
+CMD mvn -gs settings.xml gatling:test; \
+		mkdir -p /report && \
+		cp -r target/gatling/simplejaspersimulation-*/* /report/
 
 FROM azul/zulu-openjdk-debian:21.0.5-21.38-jre AS deploy
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
