@@ -15,6 +15,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -104,8 +105,10 @@ public class Scheduler {
 	private void run(HasTags target) {
 		if (!hasMatchingTag(target, "+plugin/run")) return;
 		var origin = target.getOrigin();
-		var runRequest = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin).orElseThrow();
-		var url = runRequest.getUrl();
+		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
+			.map(Ref::getSources)
+			.map(List::getFirst)
+			.orElseThrow();
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
 			logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
