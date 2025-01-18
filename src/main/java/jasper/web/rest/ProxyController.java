@@ -100,11 +100,12 @@ public class ProxyController {
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping()
 	RefDto save(
+		@RequestParam(required = false) String title,
 		@RequestParam(required = false) String mime,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		InputStream data
 	) throws IOException {
-		return proxyService.save(origin, data, mime);
+		return proxyService.save(origin, title, data, mime);
 	}
 
 	@ApiResponses({

@@ -106,10 +106,10 @@ public interface JasperClient {
 	void push(URI baseUri, @Param("url") String url, @Param("origin") String origin, byte[] data);
 	@RequestLine("PUT /pub/api/v1/repl/cache?url={url}&origin={origin}")
 	void push(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url, @Param("origin") String origin, byte[] data);
-	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&mime={mime}")
-	RefReplDto save(URI baseUri, @Param("origin") String origin, @Param("mime") String mime, byte[] data);
-	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&mime={mime}")
-	RefReplDto save(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("origin") String origin, @Param("mime") String mime, byte[] data);
+	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&title={title}&mime={mime}")
+	RefReplDto save(URI baseUri, @Param("origin") String origin, @Param("title") String title, @Param("mime") String mime, byte[] data);
+	@RequestLine("POST /pub/api/v1/repl/cache?origin={origin}&title={title}&mime={mime}")
+	RefReplDto save(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("origin") String origin, @Param("title") String title, @Param("mime") String mime, byte[] data);
 
 	static Map<String, Object> jasperHeaders(WebRequest req) {
 		return Map.of(

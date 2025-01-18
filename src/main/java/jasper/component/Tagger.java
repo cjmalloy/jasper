@@ -73,12 +73,17 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(false, url, origin, tag, plugin, tags);
+		return plugin(false, url, origin, null, tag, plugin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref internalPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, url, origin, tag, plugin, tags);
+		return plugin(true, url, origin, null, tag, plugin, tags);
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public Ref newPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
+		return plugin(true, url, origin, title, tag, plugin, tags);
 	}
 
 	/**
@@ -110,11 +115,12 @@ public class Tagger {
 		}
 	}
 
-	private Ref plugin(boolean internal, String url, String origin, String tag, Object plugin, String ...tags) {
+	private Ref plugin(boolean internal, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
+			ref.setTitle(title);
 			if (internal) ref.addTag("internal");
 			ingest.create(ref, false);
 			return ref;

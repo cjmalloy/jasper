@@ -263,14 +263,14 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache")
-	public Ref save(String origin, InputStream in, String mimeType, String ...tags) throws IOException {
+	public Ref save(String origin, String title, InputStream in, String mimeType, String ...tags) throws IOException {
 		var id = storage.store(origin, CACHE, in);
 		var cache = Cache.builder()
 			.id(id)
 			.mimeType(mimeType)
 			.contentLength(storage.size(origin, CACHE, id))
 			.build();
-		return tagger.internalPlugin("cache:" + id, origin, "_plugin/cache", cache, tags);
+		return tagger.newPlugin("cache:" + id, title, origin, "_plugin/cache", cache, tags);
 	}
 
 	@Timed(value = "jasper.cache")

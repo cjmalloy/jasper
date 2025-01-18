@@ -424,13 +424,14 @@ public class ReplicateController {
 	RefReplDto save(
 		WebRequest request,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam(required = false) String title,
 		@RequestParam(required = false) String mime,
 		InputStream data
 	) throws IOException, URISyntaxException {
 		if (isNotBlank(props.getCacheApi())) {
-			return jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), origin, mime, data.readAllBytes());
+			return jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), origin, title, mime, data.readAllBytes());
 		} else {
-			return mapper.dtoToRepl(proxyService.save(origin, data, mime));
+			return mapper.dtoToRepl(proxyService.save(origin, title, data, mime));
 		}
 	}
 }
