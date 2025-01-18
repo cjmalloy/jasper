@@ -83,7 +83,7 @@ public class ProxyService {
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public RefDto save(String origin, String title, InputStream in, String mime) throws IOException {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		return mapper.domainToDto(fileCache.get().save(origin, title, in, mime, auth.getUserTag() == null ? null : auth.getUserTag().tag));
+		return mapper.domainToDto(fileCache.get().save(origin, title, in, mime, "plugin/file", auth.getUserTag() == null ? null : auth.getUserTag().tag));
 	}
 
 	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
