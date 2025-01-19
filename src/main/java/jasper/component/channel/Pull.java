@@ -133,7 +133,7 @@ public class Pull {
 			var stomp = getWebSocketStompClient();
 			stomp.setDefaultHeartbeat(new long[]{10000, 10000});
 			stomp.setTaskScheduler(taskScheduler);
-			var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), new StompSessionHandlerAdapter() {
+			var handler = new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
@@ -161,13 +161,13 @@ public class Pull {
 					logger.error("Error in websocket connection", exception);
 					// Will automatically reconnect due to SockJS
 				}
-			});
-			CompletableFuture.runAsync(() -> future.thenAcceptAsync(session -> {
+			};
+			CompletableFuture.runAsync(() -> stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler).thenAcceptAsync(session -> {
 				// TODO: add plugin response to origin to show connection status
 				logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 			})
 			.exceptionally(e -> {
-				logger.error("Error creating websocket session", e);
+				logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
 				stomp.stop();
 				tunnelClient.killProxy(remote);
 				if (e instanceof DeploymentException) return null;
