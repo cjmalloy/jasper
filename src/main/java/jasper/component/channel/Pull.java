@@ -153,7 +153,8 @@ public class Pull {
 				@Override
 				public void handleTransportError(StompSession session, Throwable exception) {
 					logger.debug("Websocket Client Transport error");
-					// Will automatically reconnect due to SockJS
+					stomp.stop();
+					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
 				}
 
 				@Override
@@ -166,21 +167,19 @@ public class Pull {
 			try {
 				var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler);
 				CompletableFuture.runAsync(() -> future.thenAcceptAsync(session -> {
-						// TODO: add plugin response to origin to show connection status
-						logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-					})
-					.exceptionally(e -> {
-						logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
-						stomp.stop();
-						tunnelClient.killProxy(remote);
-						if (e instanceof DeploymentException) return null;
-						taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-						return null;
-					}), websocketExecutor);
+					// TODO: add plugin response to origin to show connection status
+					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+				}).exceptionally(e -> {
+					logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
+					stomp.stop();
+					if (e instanceof DeploymentException) return null;
+					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+					return null;
+				}), websocketExecutor);
 			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
 				stomp.stop();
-				tunnelClient.killProxy(remote);
+				tunnelClient.releaseProxy(remote);
 				if (e instanceof DeploymentException) return null;
 				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
 				return null;

@@ -1,6 +1,7 @@
 package jasper.component;
 
 import feign.FeignException;
+import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
@@ -16,7 +17,6 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
-import org.apache.http.NoHttpResponseException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -484,11 +484,9 @@ public class Replicator {
 					size = min(batchSize, size * 2);
 				}
 			} catch (FeignException e) {
+				if (e instanceof RetryableException) throw e;
 				if (e.getCause() instanceof SSLHandshakeException) throw new RuntimeException(e);
 				if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
-				if (e.getCause() instanceof NoHttpResponseException) {
-					throw new RuntimeException(e);
-				}
 				if (e.status() >= 500) throw e;
 				if (e.status() == 403) throw new RuntimeException(e);
 				if (e.status() != 413) throw e;
