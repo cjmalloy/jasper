@@ -132,8 +132,8 @@ public class FileCache {
 			return ref;
 		}
 		var remote = configs.getRemote(origin);
-		var pull = remote == null ? null : getPull(remote);
-		if (url.startsWith("cache:") || (pull != null && pull.isCacheProxy())) {
+		var pull = getPull(remote);
+		if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
 			var id = url.substring("cache:".length());
 			if (storage.exists(origin, CACHE, id)) {
 				if (os != null) storage.stream(origin, CACHE, id, os);
@@ -144,7 +144,7 @@ public class FileCache {
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
 			if (res == null) return ref;
-			if (url.startsWith("cache:") || (pull != null && pull.isCacheProxy())) {
+			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
 				id = url.substring("cache:".length());
 				if (os != null && storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
 				return ref;
@@ -204,8 +204,7 @@ public class FileCache {
 		}
 		var fullSize = getCache(fetch(url, origin, false));
 		if (fullSize == null) {
-			var remote = configs.getRemote(origin);
-			if (remote == null) return null;
+			if (configs.getRemote(origin) == null) return null;
 		} else {
 			id = fullSize.getId();
 		}

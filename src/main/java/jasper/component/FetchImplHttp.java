@@ -40,7 +40,7 @@ public class FetchImplHttp implements Fetch {
 	public FileRequest doScrape(String url, String origin) throws IOException {
 		var remote = configs.getRemote(origin);
 		var pull = getPull(remote);
-		if (pull != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
+		if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
 			if (hasMatchingTag(remote, "+plugin/error")) throw new ScrapeProtocolException("cache");
 			return replicator.fetch(url, remote);
 		}

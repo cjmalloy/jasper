@@ -93,7 +93,7 @@ public class Pull {
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin()).orElse(null);
 		var config = getOrigin(remote);
 		var pull = getPull(remote);
-		if (remote == null || config == null || pull == null) {
+		if (remote == null || config == null) {
 			for (var e : pulls.entrySet()) {
 				if (e.getValue().url.equals(update.getUrl()) && e.getValue().origin.equals(update.getOrigin())) {
 					logger.info("{} Disconnecting origin ({}) from websocket {}: {}", update.getOrigin(), e.getKey(), update.getTitle(), update.getUrl());

@@ -115,17 +115,18 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
-				if (cache.getBody() != null) {
-					data[0] = cache.getBody();
-					if (url.startsWith("cache:") && fileCache.isPresent()) {
+				if (fileCache.isPresent()) {
+					if (cache.getBody() != null) {
+						data[0] = cache.getBody();
 						fileCache.get().push(url, localOrigin, cache.getBody());
+					} else {
+						fileCache.get().push(url, localOrigin, "".getBytes());
+						logger.warn("{} Empty response pulling cache ({}) {}",
+							remote.getOrigin(), localOrigin, url);
 					}
-					if (cache.getHeaders().getContentType() != null) {
-						contentType[0] = cache.getHeaders().getContentType().toString();
-					}
-				} else {
-					logger.warn("{} Empty response pulling cache ({}) {}",
-						remote.getOrigin(), localOrigin, url);
+				}
+				if (cache.getHeaders().getContentType() != null) {
+					contentType[0] = cache.getHeaders().getContentType().toString();
 				}
 			} catch (IOException e) {
 				logger.warn("{} Failed to fetch from remote cache ({}) {}",
@@ -241,6 +242,7 @@ public class Replicator {
 									if (cache.getBody() != null) {
 										fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
 									} else {
+										fileCache.get().push(ref.getUrl(), ref.getOrigin(), "".getBytes());
 										logger.warn("{} Empty response pulling cache ({}) {}: {}",
 											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 									}
