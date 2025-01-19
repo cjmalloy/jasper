@@ -44,16 +44,19 @@ public class JWTFilter extends GenericFilterBean {
 	public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
 		var httpServletRequest = (HttpServletRequest) servletRequest;
 		if (!"OPTIONS".equalsIgnoreCase(httpServletRequest.getMethod())) {
-			var origin = resolveOrigin(httpServletRequest);
-			var jwt = resolveToken(httpServletRequest);
-			if (configs.root().getWebOrigins().contains(origin)) {
-				if (tokenProvider.validateToken(jwt, origin)) {
-					SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
+			var route = httpServletRequest.getRequestURI();
+			if (route.startsWith("/api/") || route.startsWith("/pub/api/")) {
+				var origin = resolveOrigin(httpServletRequest);
+				var jwt = resolveToken(httpServletRequest);
+				if (configs.root().getWebOrigins().contains(origin)) {
+					if (tokenProvider.validateToken(jwt, origin)) {
+						SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
+					} else {
+						SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+					}
 				} else {
-					SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+					logger.error("{} No web access for origin ({}): {} ", props.getOrigin(), origin, route);
 				}
-			} else {
-				logger.error("{} No web access for origin ({}): {} ", props.getOrigin(), origin, httpServletRequest.getRequestURI());
 			}
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
