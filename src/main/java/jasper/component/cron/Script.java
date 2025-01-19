@@ -6,7 +6,6 @@ import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.UntrustedScriptException;
-import jasper.plugin.config.Script;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +17,8 @@ import static jasper.domain.proj.Tag.publicTag;
 
 @Profile("scripts")
 @Component
-public class CronScript implements Scheduler.CronRunner {
-	private static final Logger logger = LoggerFactory.getLogger(CronScript.class);
+public class Script implements Scheduler.CronRunner {
+	private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
 	@Autowired
 	ConfigCache configs;
@@ -43,12 +42,12 @@ public class CronScript implements Scheduler.CronRunner {
 	@Override
 	public void run(Ref ref) throws Exception {
 		var found = false;
-		logger.debug("{} Searching for scheduled scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		logger.debug("{} Searching scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/script", publicTag(t))).toList()) {
-			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
+			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), jasper.plugin.config.Script.class);
 			if (config.isPresent()) {
 				try {
-					logger.info("{} Running scheduled script {} to {} ({})", scriptTag, ref.getOrigin(), ref.getTitle(), ref.getUrl());
+					logger.info("{} Running script {} to {} ({})", scriptTag, ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, scriptTag, config.get());
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
@@ -57,7 +56,7 @@ public class CronScript implements Scheduler.CronRunner {
 				found = true;
 			}
 		}
-		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find cron script");
+		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find script");
 	}
 
 }

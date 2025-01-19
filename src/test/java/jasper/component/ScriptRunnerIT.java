@@ -71,7 +71,7 @@ public class ScriptRunnerIT {
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public");
 
-		scriptRunner.runScripts(input, script);
+		scriptRunner.runScripts(input, "plugin/script/uppercase", script);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);
@@ -107,7 +107,7 @@ print(json.dumps({
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public");
 
-		scriptRunner.runScripts(input, script);
+		scriptRunner.runScripts(input, "plugin/script/uppercase", script);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);
@@ -143,7 +143,7 @@ print(json.dumps({
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public");
 
-		scriptRunner.runScripts(input, script);
+		scriptRunner.runScripts(input, "plugin/script/uppercase", script);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);
@@ -179,7 +179,7 @@ print(yaml.dump({
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public");
 
-		scriptRunner.runScripts(input, script);
+		scriptRunner.runScripts(input, "plugin/script/uppercase", script);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);
@@ -210,7 +210,7 @@ print(yaml.dump({
 		var url = "comment:" + UUID.randomUUID();
 		var input = getRef(url, "My Ref", "test", "public");
 
-		scriptRunner.runScripts(input, script);
+		scriptRunner.runScripts(input, "plugin/script/uppercase", script);
 
 		var responses = refRepository.findAll(hasSource(url).and(hasTag("+needle")));
 		assertThat(responses.size()).isEqualTo(1);

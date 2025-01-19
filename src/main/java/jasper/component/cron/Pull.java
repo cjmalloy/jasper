@@ -36,9 +36,9 @@ public class Pull implements Scheduler.CronRunner  {
 		if (!root.getPullOrigins().contains(remote.getOrigin())) return;
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
-		logger.info("{} Pulling origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+		logger.info("{} Pulling origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 		replicator.pull(remote);
-		logger.info("{} Finished pulling origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+		logger.info("{} Finished pulling origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 	}
 
 }

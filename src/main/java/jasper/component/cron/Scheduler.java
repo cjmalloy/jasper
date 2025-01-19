@@ -121,7 +121,7 @@ public class Scheduler {
 		tagger.remove(target.getUrl(), target.getOrigin(), "+plugin/run");
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ref, k)) return;
-			logger.debug("{} Run Tag: {} {}", origin, k, url);
+			logger.warn("{} Run Tag: {} {}", origin, k, url);
 			taskScheduler.schedule(() -> {
 				try {
 					v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());

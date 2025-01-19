@@ -200,7 +200,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			var origin = (String) attributes.get("origin");
 			WebSocketConfig.logger.debug("{} STOMP Determine User", origin);
 			if (!configs.root().getWebOrigins().contains(origin)) {
-				WebSocketConfig.logger.debug("{} No web access for origin", origin);
+				WebSocketConfig.logger.error("{} No web access for origin", origin);
 				return null;
 			}
 			try {
@@ -243,17 +243,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
 				}
 				if (!configs.root().getWebOrigins().contains(auth.getOrigin())) {
-					logger.debug("{} No web access for origin", auth.getOrigin());
+					logger.error("{} No web access for origin", auth.getOrigin());
 					return null;
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
-				logger.error("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.warn("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
-				logger.warn("Cannot authorize websocket subscription.");
+				logger.error("Cannot authorize websocket subscription.", e);
 			} finally {
 				RequestContextHolder.resetRequestAttributes();
 			}
-			logger.error("Websocket authentication failed.");
 			return null;
 		}
 	}

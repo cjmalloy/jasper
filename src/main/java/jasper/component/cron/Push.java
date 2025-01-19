@@ -36,9 +36,9 @@ public class Push implements Scheduler.CronRunner  {
 		if (!root.getPushOrigins().contains(remote.getOrigin())) return;
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
-		logger.info("{} Pushing origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+		logger.info("{} Pushing origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 		replicator.push(remote);
-		logger.info("{} Finished pushing origin ({}) on schedule {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+		logger.info("{} Finished pushing origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 	}
 
 }

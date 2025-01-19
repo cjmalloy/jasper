@@ -23,13 +23,13 @@ import static jasper.repository.spec.RefSpec.hasTag;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
-public class CronScriptIT {
+public class ScriptIT {
 
 	@Autowired
 	Props props;
 
 	@Autowired
-	CronScript cronScript;
+	Script cronScript;
 
 	@Autowired
 	RefRepository refRepository;
