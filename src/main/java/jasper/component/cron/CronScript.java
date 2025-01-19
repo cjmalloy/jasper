@@ -42,12 +42,13 @@ public class CronScript implements Scheduler.CronRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		logger.info("{} Applying delta response to {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		var found = false;
+		logger.debug("{} Searching for scheduled scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/script", publicTag(t))).toList()) {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
 			if (config.isPresent()) {
 				try {
+					logger.info("{} Running scheduled script {} to {} ({})", scriptTag, ref.getOrigin(), ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, config.get());
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
