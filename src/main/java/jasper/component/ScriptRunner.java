@@ -72,7 +72,7 @@ public class ScriptRunner {
 	}
 
 	@Timed("jasper.scripts")
-	public void runScripts(Ref ref, Script config) throws UntrustedScriptException {
+	public void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
 		if (isBlank(config.getScript())) return;
 		validateScript(config.getScript());
 		String input;
@@ -85,13 +85,13 @@ public class ScriptRunner {
 				input = yamlMapper.writeValueAsString(mapper.domainToDto(ref));
 				break;
 			default:
-				logger.error("{} Script format not supported {}", ref.getOrigin(), config.getLanguage());
+				logger.error("{} Script {} format not supported {}", ref.getOrigin(), scriptTag, config.getLanguage());
 				tagger.attachError(ref.getOrigin(), ref, "Script runtime not supported: " + config.getLanguage());
 				return;
 			}
 		} catch (Exception e) {
-			logger.error("{} Error serializing script input", ref.getOrigin(), e);
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error serializing script input");
+			logger.error("{} Error serializing script {} input", ref.getOrigin(), scriptTag, e);
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error serializing script " + scriptTag + " input");
 			return;
 		}
 		String output;
@@ -107,16 +107,16 @@ public class ScriptRunner {
 				output = shell.runShellScript(config.getScript(), input, config.getTimeoutMs());
 				break;
 			default:
-				logger.error("{} Script runtime not supported {}", ref.getOrigin(), config.getLanguage());
-				tagger.attachError(ref.getOrigin(), ref, "Script runtime not supported: " + config.getLanguage());
+				logger.error("{} Script {} runtime not supported {}", ref.getOrigin(), scriptTag, config.getLanguage());
+				tagger.attachError(ref.getOrigin(), ref, "Script " + scriptTag + " runtime not supported: " + config.getLanguage());
 				return;
 			}
 		} catch (ScriptException e) {
-			logger.error("{} Error running script: {}", ref.getOrigin(), e.getMessage());
+			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), e.getMessage());
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage(), e.getLogs());
 			return;
 		} catch (Exception e) {
-			logger.error("{} Error running script: {}", ref.getOrigin(), e.getMessage());
+			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), e.getMessage());
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage());
 			return;
 		}
@@ -135,8 +135,8 @@ public class ScriptRunner {
 				throw new IllegalStateException();
 			}
 		} catch (Exception e) {
-			logger.error("{} Error parsing script return value", ref.getOrigin(), e);
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing script output", output);
+			logger.error("{} Error parsing script {} return value", ref.getOrigin(), scriptTag, e);
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing script " + scriptTag + " output", output);
 			return;
 		}
 		ingest.createOrUpdate(bundle, ref.getOrigin());

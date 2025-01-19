@@ -56,7 +56,7 @@ public class DeltaScript implements Async.AsyncRunner {
 			if (config.isPresent() && isNotBlank(config.get().getScript())) {
 				try {
 					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-					scriptRunner.runScripts(ref, config.get());
+					scriptRunner.runScripts(ref, scriptTag, config.get());
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
 					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
