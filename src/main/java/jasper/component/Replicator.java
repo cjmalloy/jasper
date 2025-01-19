@@ -106,7 +106,7 @@ public class Replicator {
 	@Timed(value = "jasper.repl", histogram = true)
 	public Fetch.FileRequest fetch(String url, HasTags remote) {
 		var root = configs.root();
-		if (!root.getPullOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
@@ -150,7 +150,7 @@ public class Replicator {
 	@Timed(value = "jasper.repl", histogram = true)
 	public void pull(Ref remote) {
 		var root = configs.root();
-		if (!root.getPullOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var pull = getPull(remote);
 		var config = getOrigin(remote);
 		var rootOrigin = remote.getOrigin();
@@ -243,6 +243,7 @@ public class Replicator {
 										e.getMessage()));
 								}
 							} else if (!fileCacheMissingError) {
+								// TODO: pull from to cache api
 								fileCacheMissingError = true;
 								logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
 									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
@@ -326,7 +327,7 @@ public class Replicator {
 	@Timed(value = "jasper.repl", histogram = true)
 	public void push(Ref remote) {
 		var root = configs.root();
-		if (!root.getPushOrigins().contains(remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var push = getPush(remote);
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
@@ -400,6 +401,7 @@ public class Replicator {
 											e.getMessage()));
 									}
 								} else if (!fileCacheMissingError) {
+									// TODO: push to cache api
 									fileCacheMissingError = true;
 									logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());

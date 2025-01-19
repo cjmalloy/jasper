@@ -22,8 +22,6 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
-import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
-import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 
 @Component
 public class Scheduler {
@@ -53,21 +51,17 @@ public class Scheduler {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
-		if (configs.root().getCachedScriptSelectors().stream().noneMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)))) return;
+		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
 	}
 
 	@PostConstruct
 	public void init() {
-		var root = configs.root();
-		if (isEmpty(root.getCachedScriptSelectors())) return;
-		for (var s : root.getCachedScriptSelectors()) {
-			if (s.captures(tagOriginSelector("+plugin/cron" + s.origin))) {
-				watch.addWatch(s.origin, "+plugin/cron", this::schedule);
-			}
-			if (s.captures(tagOriginSelector("+plugin/run" + s.origin))) {
-				watch.addWatch(s.origin, "+plugin/run", this::run);
-			}
+		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
+			watch.addWatch(origin, "+plugin/cron", this::schedule);
+		}
+		for (var origin : configs.root().scriptOrigins("+plugin/run")) {
+			watch.addWatch(origin, "+plugin/run", this::run);
 		}
 	}
 
@@ -88,6 +82,7 @@ public class Scheduler {
 		}
 		if (!hasScheduler(ref)) return;
 		var origin = ref.getOrigin();
+		if (!configs.root().script("+plugin/cron", origin)) return;
 		var url = ref.getUrl();
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
@@ -105,6 +100,7 @@ public class Scheduler {
 	private void run(HasTags target) {
 		if (!hasMatchingTag(target, "+plugin/run")) return;
 		var origin = target.getOrigin();
+		if (!configs.root().script("+plugin/run", origin)) return;
 		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
@@ -118,9 +114,10 @@ public class Scheduler {
 			logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
 			return;
 		}
-		tagger.remove(target.getUrl(), target.getOrigin(), "+plugin/run");
+		tagger.remove(target.getUrl(), origin, "+plugin/run");
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ref, k)) return;
+			if (!configs.root().script(k, origin)) return;
 			logger.warn("{} Run Tag: {} {}", origin, k, url);
 			taskScheduler.schedule(() -> {
 				try {
@@ -155,6 +152,7 @@ public class Scheduler {
 		}
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ref, k)) return;
+			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			try {
 				v.run(ref);

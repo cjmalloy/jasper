@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.List;
 
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
+import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -50,16 +51,12 @@ public interface Config {
 		 * Whitelist origins to be allowed to open SSH tunnels.
 		 */
 		private List<String> sshOrigins = List.of("");
-		/**
-		 * Whitelist origins to be allowed to push using +plugin/origin/push.
-		 */
-		private List<String> pushOrigins = List.of("");
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
 		/**
-		 * Whitelist origins to be allowed to pull using +plugin/origin/pull.
+		 * Whitelist origins to be allowed to monitor and pull using +plugin/origin/pull.
+		 * Requires +plugin/origin/pull in the script selectors.
 		 */
-		private List<String> pullOrigins = List.of("");
 		private List<String> pullWebsocketOrigins = List.of("");
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
@@ -67,6 +64,26 @@ public interface Config {
 		 * Whitelist selectors to run scripts on. No origin wildcards.
 		 */
 		private List<String> scriptSelectors = List.of("");
+		@JsonIgnore
+		private List<QualifiedTag> _scriptSelectors = null;
+		@JsonIgnore
+		public boolean script(String plugin) {
+			if (scriptSelectors == null) return false;
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)));
+		}
+		@JsonIgnore
+		public boolean script(String plugin, String origin) {
+			if (scriptSelectors == null) return false;
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
+		}
+		@JsonIgnore
+		public List<String> scriptOrigins(String plugin) {
+			if (scriptSelectors == null) return List.of();
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().filter(s -> s.captures(tagOriginSelector(plugin + s.origin))).map(s -> s.origin).toList();
+		}
 		/**
 		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
 		 */
@@ -80,15 +97,6 @@ public interface Config {
 		 */
 		private List<String> hostBlacklist = List.of("*.local");
 
-		@JsonIgnore
-		private List<QualifiedTag> _scriptSelectors = null;
-		@JsonIgnore
-		public List<QualifiedTag> getCachedScriptSelectors() {
-			if (scriptSelectors == null) return null;
-			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
-			return _scriptSelectors;
-		}
-
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
 			var server = props.getOverride().getServer();
@@ -99,9 +107,7 @@ public interface Config {
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
 			if (server.getMaxReplEntityBatch() != null) wrapped = wrapped.withMaxReplEntityBatch(server.getMaxReplEntityBatch());
 			if (isNotEmpty(server.getSshOrigins())) wrapped = wrapped.withSshOrigins(server.getSshOrigins());
-			if (isNotEmpty(server.getPushOrigins())) wrapped = wrapped.withPushOrigins(server.getPushOrigins());
 			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());
-			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
 			if (isNotEmpty(server.getScriptSelectors())) wrapped = wrapped.withScriptSelectors(server.getScriptSelectors());
 			if (isNotEmpty(server.getScriptWhitelist())) wrapped = wrapped.withScriptWhitelist(server.getScriptWhitelist());
@@ -114,8 +120,6 @@ public interface Config {
 			return ServerConfig.builder()
 				.webOrigins(List.of(origin))
 				.sshOrigins(List.of(origin))
-				.pushOrigins(List.of(origin))
-				.pullOrigins(List.of(origin))
 				.pullWebsocketOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}

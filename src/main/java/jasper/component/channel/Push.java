@@ -56,7 +56,7 @@ public class Push {
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().getPushOrigins()) {
+		for (var origin : configs.root().scriptOrigins("+plugin/origin/push")) {
 			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/push", this::watch);
 		}
@@ -81,7 +81,7 @@ public class Push {
 	public void handleCursorUpdate(Message<Instant> message) {
 		var root = configs.root();
 		var origin = origin(message.getHeaders().get("origin").toString());
-		if (!root.getPushOrigins().contains(origin)) return;
+		if (!root.script("+plugin/origin/push", origin)) return;
 		var cursor = message.getPayload();
 		if (cursor.equals(lastSent.computeIfAbsent(origin, o -> cursor))) {
 			taskScheduler.schedule(() -> push(origin), Instant.now());

@@ -33,8 +33,6 @@ public class Pull implements Scheduler.CronRunner  {
 	}
 
 	public void run(Ref remote) {
-		var root = configs.root();
-		if (!root.getPullOrigins().contains(remote.getOrigin())) return;
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		logger.info("{} Pulling origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());

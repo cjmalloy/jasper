@@ -143,9 +143,7 @@ public class Props {
 		private List<String> webOrigins;
 		private Integer maxReplEntityBatch;
 		private List<String> sshOrigins;
-		private List<String> pushOrigins;
 		private Integer maxPushEntityBatch;
-		private List<String> pullOrigins;
 		private Integer maxPullEntityBatch;
 		private List<String> scriptSelectors;
 		private List<String> scriptWhitelist;

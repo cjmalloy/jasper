@@ -33,8 +33,6 @@ public class Push implements Scheduler.CronRunner  {
 	}
 
 	public void run(Ref remote) {
-		var root = configs.root();
-		if (!root.getPushOrigins().contains(remote.getOrigin())) return;
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		logger.info("{} Pushing origin ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
