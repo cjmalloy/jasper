@@ -22,7 +22,7 @@ public class FetchImplCache implements Fetch {
 
 	public FileRequest doScrape(String url, String origin) {
 		var remote = configs.getRemote(origin);
-		if (remote == null || hasMatchingTag(remote, "+plugin/error")) throw new ScrapeProtocolException("cache");
+		if (remote == null || hasMatchingTag(remote, "+plugin/error")) return null;
 		return replicator.fetch(url, remote);
 	}
 

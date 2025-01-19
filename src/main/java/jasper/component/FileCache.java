@@ -133,10 +133,13 @@ public class FileCache {
 		}
 		var remote = configs.getRemote(origin);
 		var pull = getPull(remote);
-		if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
+		if (url.startsWith("cache:")) {
 			var id = url.substring("cache:".length());
 			if (storage.exists(origin, CACHE, id)) {
 				if (os != null) storage.stream(origin, CACHE, id, os);
+				return ref;
+			} else if (remote == null) {
+				// No cache found and no remote to fetch from
 				return ref;
 			}
 		}
