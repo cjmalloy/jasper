@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
+import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
@@ -47,14 +48,23 @@ public class Tagger {
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
-			ingest.create(ref, false);
+			try {
+				ingest.create(ref, false);
+			} catch (AlreadyExistsException e) {
+				tag(internal, url, origin, tags);
+			}
 			return ref;
 		} else {
 			var ref = maybeRef.get();
 			if (ref.hasTag(tags)) return ref;
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
-			ingest.update(ref, false);
+			try {
+				ingest.update(ref, false);
+			} catch (ModifiedException e) {
+				// TODO: infinite retrys?
+				tag(internal, url, origin, tags);
+			}
 			return ref;
 		}
 	}
@@ -122,7 +132,11 @@ public class Tagger {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
 			if (internal) ref.addTag("internal");
-			ingest.create(ref, false);
+			try {
+				ingest.create(ref, false);
+			} catch (AlreadyExistsException e) {
+				plugin(internal, url, origin, title, tag, plugin, tags);
+			}
 			return ref;
 		} else {
 			var ref = maybeRef.get();
@@ -130,7 +144,12 @@ public class Tagger {
 			ref.setPlugin(tag, plugin);
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
-			ingest.update(ref, false);
+			try {
+				ingest.update(ref, false);
+			} catch (ModifiedException e) {
+				// TODO: infinite retrys?
+				plugin(internal, url, origin, title, tag, plugin, tags);
+			}
 			return ref;
 		}
 	}
