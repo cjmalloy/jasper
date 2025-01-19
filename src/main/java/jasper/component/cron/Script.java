@@ -34,6 +34,7 @@ public class Script implements Scheduler.CronRunner {
 
 	@PostConstruct
 	void init() {
+		// TODO: redo on template change
 		cron.addCronTag("plugin/script", this);
 		cron.addCronTag("+plugin/script", this);
 		cron.addCronTag("_plugin/script", this);

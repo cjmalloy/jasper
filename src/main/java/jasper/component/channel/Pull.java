@@ -84,6 +84,7 @@ public class Pull {
 	@PostConstruct
 	public void init() {
 		for (var origin : configs.root().getPullWebsocketOrigins()) {
+			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
 		}
 	}

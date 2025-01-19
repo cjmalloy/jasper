@@ -37,6 +37,7 @@ public class FeedScraper implements Scheduler.CronRunner {
 
 	@PostConstruct
 	void init() {
+		// TODO: redo on template change
 		cron.addCronTag("plugin/feed", this);
 	}
 

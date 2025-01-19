@@ -57,6 +57,7 @@ public class Push {
 	@PostConstruct
 	public void init() {
 		for (var origin : configs.root().getPushOrigins()) {
+			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/push", this::watch);
 		}
 	}
