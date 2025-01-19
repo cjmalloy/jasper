@@ -124,6 +124,7 @@ public class Replicator {
 						contentType[0] = cache.getHeaders().getContentType().toString();
 					}
 				} else {
+					fileCache.get().push(url, localOrigin, "".getBytes());
 					logger.warn("{} Empty response pulling cache ({}) {}",
 						remote.getOrigin(), localOrigin, url);
 				}
@@ -241,6 +242,7 @@ public class Replicator {
 									if (cache.getBody() != null) {
 										fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
 									} else {
+										fileCache.get().push(ref.getUrl(), ref.getOrigin(), "".getBytes());
 										logger.warn("{} Empty response pulling cache ({}) {}: {}",
 											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 									}
