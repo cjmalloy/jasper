@@ -41,7 +41,7 @@ public class FetchImplHttp implements Fetch {
 		var remote = configs.getRemote(origin);
 		var pull = getPull(remote);
 		if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
-			if (hasMatchingTag(remote, "+plugin/error")) throw new ScrapeProtocolException("cache");
+			if (hasMatchingTag(remote, "+plugin/error")) return null;
 			return replicator.fetch(url, remote);
 		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
