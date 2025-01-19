@@ -308,11 +308,11 @@ public class Replicator {
 				}));
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
-				logger.warn("{} Error pulling {} from origin ({}) {}: {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				logger.warn("{} Error pulling {} from origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
 			} catch (Exception e) {
-				logger.error("{} Error pulling {} from origin {} {}: {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				logger.error("{} Error pulling {} from origin {} {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
 				tagger.attachError(remote.getOrigin(), remote,
 					"Error pulling %s from origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
@@ -450,11 +450,11 @@ public class Replicator {
 				}));
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
-				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				logger.warn("{} Error pushing {} to origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
 			} catch (Exception e) {
-				logger.error("{} Error pushing {} to origin ({}) {}: {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				logger.error("{} Error pushing {} to origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
 				tagger.attachError(remote.getOrigin(), remote,
 					"Error pushing %s to origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
