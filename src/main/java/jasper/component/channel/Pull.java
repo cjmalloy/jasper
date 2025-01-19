@@ -148,21 +148,7 @@ public class Pull {
 				@Override
 				public void handleTransportError(StompSession session, Throwable exception) {
 					logger.debug("Websocket Client Transport error");
-					stomp.stop();
-					// Schedule retry with tunnel health check
-					taskScheduler.schedule(() -> {
-						// First verify/recreate SSH tunnel
-						var tunnelUrl = tunnelClient.reserveProxy(remote);
-						// Then attempt websocket reconnection
-						try {
-							stomp.connectAsync(tunnelUrl.resolve("/api/stomp/").toString(), this).get();
-						} catch (Exception e) {
-							logger.debug("Error reconnecting websocket", e);
-							tunnelClient.releaseProxy(remote);
-							// Schedule another retry
-							taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
-						}
-					}, Instant.now().plus(1, ChronoUnit.SECONDS));
+					// Will automatically reconnect due to SockJS
 				}
 
 				@Override
