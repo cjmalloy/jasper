@@ -112,11 +112,11 @@ public class ScriptRunner {
 				return;
 			}
 		} catch (ScriptException e) {
-			logger.error("{} Error running script", ref.getOrigin(), e);
+			logger.error("{} Error running script: {}", ref.getOrigin(), e.getMessage());
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage(), e.getLogs());
 			return;
 		} catch (Exception e) {
-			logger.error("{} Error running script", ref.getOrigin(), e);
+			logger.error("{} Error running script: {}", ref.getOrigin(), e.getMessage());
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage());
 			return;
 		}
