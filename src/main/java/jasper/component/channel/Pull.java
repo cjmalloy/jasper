@@ -7,6 +7,7 @@ import jasper.component.Replicator;
 import jasper.component.TunnelClient;
 import jasper.config.Props;
 import jasper.domain.proj.HasTags;
+import jasper.errors.RetryableTunnelException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,8 +122,11 @@ public class Pull {
 			URI url;
 			try {
 				url = tunnelClient.reserveProxy(remote);
-			} catch (Exception e) {
+			} catch (RetryableTunnelException e) {
 				logger.info("{} Error connecting to ({}) via ssh {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+				return null;
+			} catch (Exception e) {
+				logger.error("{} Error connecting to ({}) via ssh {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				return null;
 			}
 			logger.info("{} Monitoring origin ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());

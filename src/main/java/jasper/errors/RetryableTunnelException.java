@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.REQUEST_TIMEOUT)
-public class RetryableTunnelException extends RuntimeException {
+public class RetryableTunnelException extends Exception {
 
 	public RetryableTunnelException(String msg) {
 		super(msg);

@@ -121,16 +121,24 @@ public class TunnelClient {
 				}
 				releaseTunnel(tunnelPort, host, username, port);
 			}
+		} catch (RetryableTunnelException e) {
+			logger.info("{} Error creating SSH tunnel for {}}: {}}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
+				"Error creating SSH tunnel for %s: %s".formatted(
+					remote.getTitle(), remote.getUrl()),
+				e.getMessage());
 		} catch (InvalidTunnelException e) {
+			logger.error("{} Error creating SSH tunnel for {}}: {}}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
 				e.getMessage());
-			throw e;
 		}
 	}
 
-	public URI reserveProxy(HasTags remote) {
+	public URI reserveProxy(HasTags remote) throws RetryableTunnelException {
 		try {
 			var config = getOrigin(remote);
 			URI url;
@@ -162,7 +170,17 @@ public class TunnelClient {
 					throw new InvalidTunnelException("Error creating tunnel tracker", e);
 				}
 			}
+		} catch (RetryableTunnelException e) {
+			logger.info("{} Error creating SSH tunnel for {}}: {}}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
+				"Error creating SSH tunnel for %s: %s".formatted(
+					remote.getTitle(), remote.getUrl()),
+				e.getMessage());
+			throw e;
 		} catch (InvalidTunnelException e) {
+			logger.error("{} Error creating SSH tunnel for {}}: {}}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
@@ -207,48 +225,52 @@ public class TunnelClient {
 		}
 	}
 
-	private int pooledConnection(String origin, String host, String username, int port, byte[] key) {
+	private int pooledConnection(String origin, String host, String username, int port, byte[] key) throws RetryableTunnelException {
 		var remote = username + "@" + host + ":" + port;
-		return tunnels.compute(remote, (k, v) -> {
-			if (v != null) {
-				if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
-			}
-			var client = SshClient.setUpDefaultClient();
-			try {
-				final int[] httpPort = {38022};
-				client.setUserInteraction(new GetBanner() {
-					@Override
-					public void banner(String banner) {
-						logger.debug("Received SSH banner: {}", banner);
-						try {
-							httpPort[0] = Integer.parseInt(banner);
-						} catch (Exception e) {
-							logger.warn("{} Could not parse tunnel port from banner. Using default {}", origin, httpPort[0]);
+		try {
+			return tunnels.compute(remote, (k, v) -> {
+				if (v != null) {
+					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
+				}
+				var client = SshClient.setUpDefaultClient();
+				try {
+					final int[] httpPort = {38022};
+					client.setUserInteraction(new GetBanner() {
+						@Override
+						public void banner(String banner) {
+							logger.debug("Received SSH banner: {}", banner);
+							try {
+								httpPort[0] = Integer.parseInt(banner);
+							} catch (Exception e) {
+								logger.warn("{} Could not parse tunnel port from banner. Using default {}", origin, httpPort[0]);
+							}
 						}
-					}
-				});
-				client.start();
-				var session = client.connect(username, host, port).verify(30, TimeUnit.SECONDS).getSession();
-				loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null)
-					.forEach(session::addPublicKeyIdentity);
-				session.auth().verify(30, TimeUnit.SECONDS);
-				var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]));
-				var tunnelPort = tracker.getBoundAddress().getPort();
-				client.addSessionListener(new SessionListener() {
-					@Override
-					public void sessionClosed(Session session) {
-						logger.debug("{} SSH session closed for {}", origin, remote);
-						killTunnel(host, username, port);
-					}
-				});
-				return new TunnelInfo(tunnelPort, 1, client);
-			} catch (Exception e) {
-				client.stop();
-				logger.debug("{} Error creating tunnel SSH client", origin, e);
-				if (e instanceof SshException) throw new RuntimeException(e);
-				throw new RetryableTunnelException("Error creating tunnel SSH client", e);
-			}
-		}).tunnelPort;
+					});
+					client.start();
+					var session = client.connect(username, host, port).verify(30, TimeUnit.SECONDS).getSession();
+					loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null)
+						.forEach(session::addPublicKeyIdentity);
+					session.auth().verify(30, TimeUnit.SECONDS);
+					var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]));
+					var tunnelPort = tracker.getBoundAddress().getPort();
+					client.addSessionListener(new SessionListener() {
+						@Override
+						public void sessionClosed(Session session) {
+							logger.debug("{} SSH session closed for {}", origin, remote);
+							killTunnel(host, username, port);
+						}
+					});
+					return new TunnelInfo(tunnelPort, 1, client);
+				} catch (Exception e) {
+					client.stop();
+					throw new RuntimeException(e);
+				}
+			}).tunnelPort;
+		} catch (RuntimeException e) {
+			logger.debug("{} Error creating tunnel SSH client", origin, e);
+			if (e.getCause() instanceof SshException) throw e;
+			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
+		}
 	}
 
 	private void releaseTunnel(Integer tunnelPort, String host, String username, int port) {

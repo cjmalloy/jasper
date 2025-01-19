@@ -9,7 +9,6 @@ import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.OperationForbiddenOnOriginException;
-import jasper.errors.RetryableTunnelException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -159,8 +158,8 @@ public class Replicator {
 		var remoteOrigin = origin(config.getRemote());
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
 		var logs = new ArrayList<Log>();
-		try {
-			tunnel.proxy(remote, baseUri -> {
+		tunnel.proxy(remote, baseUri -> {
+			try {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var pluginList = client.pluginPull(baseUri, params(
 						"size", size,
@@ -307,26 +306,21 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
-			});
-		} catch (FeignException e) {
-			// Temporary connection issue, ignore
-			logger.warn("{} Error pulling {} from origin ({}) {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-		} catch (RetryableTunnelException e) {
-			// Temporary SSH connection issue, ignore
-			logger.warn("{} Error pulling {} to origin ({}) {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-			tagger.attachLogs(remote.getOrigin(), remote, "SSH error while pulling", e.getMessage());
-		} catch (Exception e) {
-			logger.error("{} Error pulling {} from origin {} {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-			tagger.attachError(remote.getOrigin(), remote,
-				"Error pulling %s from origin (%s) %s: %s".formatted(
-					localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
-				e.getMessage());
-		} finally {
-			for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
-		}
+			} catch (FeignException e) {
+				// Temporary connection issue, ignore
+				logger.warn("{} Error pulling {} from origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+			} catch (Exception e) {
+				logger.error("{} Error pulling {} from origin {} {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				tagger.attachError(remote.getOrigin(), remote,
+					"Error pulling %s from origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
+					e.getMessage());
+			} finally {
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
+			}
+		});
 	}
 
 	@Timed(value = "jasper.repl", histogram = true)
@@ -338,8 +332,8 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var logs = new ArrayList<Log>();
-		try {
-			tunnel.proxy(remote, baseUri -> {
+		tunnel.proxy(remote, baseUri -> {
+			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
 				var modifiedAfter = client.pluginCursor(baseUri, remoteOrigin);
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
@@ -454,26 +448,21 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
-			});
-		} catch (FeignException.Forbidden e) {
-			// Temporary connection issue, ignore
-			logger.warn("{} Error pushing {} to origin ({}) {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-		} catch (RetryableTunnelException e) {
-			// Temporary SSH connection issue, ignore
-			logger.warn("{} Error pushing {} to origin ({}) {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-			tagger.attachLogs(remote.getOrigin(), remote, "SSH error while pushing", e.getMessage());
-		} catch (Exception e) {
-			logger.error("{} Error pushing {} to origin ({}) {}: {}",
-				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
-			tagger.attachError(remote.getOrigin(), remote,
-				"Error pushing %s to origin (%s) %s: %s".formatted(
-					localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
-				e.getMessage());
-		} finally {
-			for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
-		}
+			} catch (FeignException e) {
+				// Temporary connection issue, ignore
+				logger.warn("{} Error pushing {} to origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+			} catch (Exception e) {
+				logger.error("{} Error pushing {} to origin ({}) {}: {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e);
+				tagger.attachError(remote.getOrigin(), remote,
+					"Error pushing %s to origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
+					e.getMessage());
+			} finally {
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
+			}
+		});
 	}
 
 	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
@@ -490,7 +479,9 @@ public class Replicator {
 			} catch (FeignException e) {
 				if (e.getCause() instanceof SSLHandshakeException) throw new RuntimeException(e);
 				if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
-				if (e.getCause() instanceof NoHttpResponseException) throw new RuntimeException(e);
+				if (e.getCause() instanceof NoHttpResponseException) {
+					throw new RuntimeException(e);
+				}
 				if (e.status() >= 500) throw e;
 				if (e.status() == 403) throw new RuntimeException(e);
 				if (e.status() != 413) throw e;
