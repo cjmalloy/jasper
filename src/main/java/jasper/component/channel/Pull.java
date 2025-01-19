@@ -163,18 +163,28 @@ public class Pull {
 					// Will automatically reconnect due to SockJS
 				}
 			};
-			CompletableFuture.runAsync(() -> stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler).thenAcceptAsync(session -> {
-				// TODO: add plugin response to origin to show connection status
-				logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-			})
-			.exceptionally(e -> {
+			try {
+				var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler);
+				CompletableFuture.runAsync(() -> future.thenAcceptAsync(session -> {
+						// TODO: add plugin response to origin to show connection status
+						logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+					})
+					.exceptionally(e -> {
+						logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
+						stomp.stop();
+						tunnelClient.killProxy(remote);
+						if (e instanceof DeploymentException) return null;
+						taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+						return null;
+					}), websocketExecutor);
+			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
 				stomp.stop();
 				tunnelClient.killProxy(remote);
 				if (e instanceof DeploymentException) return null;
 				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
 				return null;
-			}), websocketExecutor);
+			}
 			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp);
 		});
 	}
