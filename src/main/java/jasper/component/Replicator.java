@@ -233,7 +233,12 @@ public class Replicator {
 							if (fileCache.isPresent()) {
 								try {
 									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
-									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
+									if (cache.getBody() != null) {
+										fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
+									} else {
+										logger.warn("{} Empty response pulling cache ({}) {}: {}",
+											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+									}
 								} catch (Exception e) {
 									logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
