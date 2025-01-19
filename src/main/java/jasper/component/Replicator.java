@@ -115,12 +115,17 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
-				data[0] = cache.getBody();
-				if (url.startsWith("cache:") && fileCache.isPresent()) {
-					fileCache.get().push(url, localOrigin, data[0]);
-				}
-				if (cache.getHeaders().getContentType() != null) {
-					contentType[0] = cache.getHeaders().getContentType().toString();
+				if (cache.getBody() != null) {
+					data[0] = cache.getBody();
+					if (url.startsWith("cache:") && fileCache.isPresent()) {
+						fileCache.get().push(url, localOrigin, cache.getBody());
+					}
+					if (cache.getHeaders().getContentType() != null) {
+						contentType[0] = cache.getHeaders().getContentType().toString();
+					}
+				} else {
+					logger.warn("{} Empty response pulling cache ({}) {}",
+						remote.getOrigin(), localOrigin, url);
 				}
 			} catch (IOException e) {
 				logger.warn("{} Failed to fetch from remote cache ({}) {}",
@@ -334,6 +339,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var push = getPush(remote);
+		// TODO: only push what user can see
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
@@ -396,7 +402,12 @@ public class Replicator {
 								if (fileCache.isPresent()) {
 									try {
 										var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
-										client.push(baseUri, ref.getUrl(), remoteOrigin, data);
+										if (data != null) {
+											client.push(baseUri, ref.getUrl(), remoteOrigin, data);
+										} else {
+											logger.warn("{} Skip pushing empty cache ({}) {}: {}",
+												remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+										}
 									} catch (Exception e) {
 										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
 											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
