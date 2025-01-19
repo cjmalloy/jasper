@@ -3,6 +3,7 @@ package jasper.component.delta;
 import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.domain.proj.HasTags;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -50,6 +52,8 @@ public class Async {
 
 	@Autowired
 	ConfigCache configs;
+
+	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
@@ -85,29 +89,42 @@ public class Async {
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
-		if (tags.isEmpty()) return;
-		if (isEmpty(configs.root().getScriptSelectors())) return;
 		var ud = message.getPayload();
-		if (ud.getTags() == null) return;
-		if (hasMatchingTag(ud, "+plugin/error")) return;
-		tags.forEach((k, v) -> {
-			if (!hasMatchingTag(ud, k)) return;
-			if (!configs.root().script(k, ud.getOrigin())) return;
-			if (isNotBlank(v.signature())) {
-				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
-					.orElse(null);
-				// TODO: Only check plugin responses in the same origin
-				if (ref != null && ref.hasPluginResponse(v.signature())) return;
-			}
-			logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
-			try {
-				v.run(fetch(ud));
-			} catch (NotFoundException e) {
-				logger.debug("{} Plugin not installed {} ", ud.getOrigin(), e.getMessage());
-			} catch (Exception e) {
-				logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
-			}
-		});
+		try {
+			if (tags.isEmpty()) throw new RuntimeException();
+			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
+			if (ud.getTags() == null) throw new RuntimeException();
+			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
+			tags.forEach((k, v) -> {
+				if (!hasMatchingTag(ud, k)) return;
+				if (!configs.root().script(k, ud.getOrigin())) return;
+				if (isNotBlank(v.signature())) {
+					var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
+						.orElse(null);
+					// TODO: Only check plugin responses in the same origin
+					if (ref != null && ref.hasPluginResponse(v.signature())) return;
+				}
+				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
+				refs.compute(getKey(ud), (u, existing) -> {
+					if (existing != null) existing.cancel(true);
+					return taskScheduler.schedule(() -> {
+						try {
+							v.run(fetch(ud));
+						} catch (NotFoundException e) {
+							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), e.getMessage());
+						} catch (Exception e) {
+							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
+						}
+					}, Instant.now());
+				});
+			});
+		} catch (Exception e) {
+			refs.computeIfPresent(getKey(ud), (k, existing) -> {
+				logger.info("{} Cancelled run {}: {}", ud.getOrigin(), ud.getTitle(), ud.getUrl());
+				existing.cancel(true);
+				return null;
+			});
+		}
 	}
 
 	private Ref fetch(RefDto ud) {
@@ -141,6 +158,10 @@ public class Async {
 				}
 			});
 		}
+	}
+
+	private String getKey(HasTags ref) {
+		return ref.getOrigin() + ":" + ref.getUrl();
 	}
 
 	public interface AsyncRunner {

@@ -44,6 +44,7 @@ public class Scheduler {
 	Watch watch;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
+	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
@@ -69,7 +70,7 @@ public class Scheduler {
 		var key = getKey(ref);
 		var existing = tasks.get(key);
 		if (existing != null) {
-			existing.cancel(false);
+			existing.cancel(true);
 			tasks.remove(key);
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
@@ -89,45 +90,61 @@ public class Scheduler {
 		if (config.getInterval().toMinutes() < 1) {
 			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
 		} else {
-			logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
-			tasks.put(key, taskScheduler.scheduleWithFixedDelay(
-				() -> runSchedule(url, origin),
-				Instant.now().plus(config.getInterval()),
-				config.getInterval()));
+			tasks.compute(key, (k, e) -> {
+				if (e != null) return e;
+				logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
+				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
+					Instant.now().plus(config.getInterval()),
+					config.getInterval());
+			});
 		}
 	}
 
 	private void run(HasTags target) {
-		if (!hasMatchingTag(target, "+plugin/run")) return;
 		var origin = target.getOrigin();
-		if (!configs.root().script("+plugin/run", origin)) return;
 		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
 			.orElseThrow();
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
-		if (ref == null) {
-			logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
-			return;
+		try {
+			if (!hasMatchingTag(target, "+plugin/run")) throw new RuntimeException();
+			if (!configs.root().script("+plugin/run", origin)) throw new RuntimeException();
+			if (ref == null) {
+				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
+				throw new RuntimeException();
+			}
+			if (hasMatchingTag(target, "+plugin/error")) {
+				logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
+				throw new RuntimeException();
+			}
+			tags.forEach((k, v) -> {
+				if (!hasMatchingTag(ref, k)) return;
+				if (!configs.root().script(k, origin)) return;
+				refs.compute(getKey(ref), (s, existing) -> {
+					if (existing != null) return existing;
+					return taskScheduler.schedule(() -> {
+						logger.warn("{} Run Tag: {} {}", origin, k, url);
+						try {
+							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+							tagger.remove(target.getUrl(), origin, "+plugin/run");
+						} catch (Exception e) {
+							logger.error("{} Error in run tag {} ", origin, k, e);
+							tagger.attachError(url, origin, "Error in run tag " + k, e.getMessage());
+						} finally {
+							refs.remove(k);
+						}
+					}, Instant.now());
+				});
+			});
+		} catch (Exception e) {
+			refs.computeIfPresent(getKey(origin, url), (k, existing) -> {
+				if (existing.isDone()) return null;
+				logger.info("{} Cancelled run {}: {}", origin, ref == null ? "" : ref.getTitle(), url);
+				existing.cancel(true);
+				return null;
+			});
 		}
-		if (hasMatchingTag(target, "+plugin/error")) {
-			logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
-			return;
-		}
-		tagger.remove(target.getUrl(), origin, "+plugin/run");
-		tags.forEach((k, v) -> {
-			if (!hasMatchingTag(ref, k)) return;
-			if (!configs.root().script(k, origin)) return;
-			logger.warn("{} Run Tag: {} {}", origin, k, url);
-			taskScheduler.schedule(() -> {
-				try {
-					v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-				} catch (Exception e) {
-					logger.error("{} Error in run tag {} ", origin, k, e);
-					tagger.attachError(url, origin, "Error in run tag " + k, e.getMessage());
-				}
-			}, Instant.now());
-		});
 	}
 
 	private boolean hasScheduler(HasTags ref) {
@@ -137,6 +154,11 @@ public class Scheduler {
 
 	private String getKey(HasTags ref) {
 		return ref.getOrigin() + ":" + ref.getUrl();
+	}
+
+
+	private String getKey(String origin, String url) {
+		return origin + ":" + url;
 	}
 
 	private void runSchedule(String url, String origin) {
