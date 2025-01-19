@@ -236,7 +236,7 @@ public class Replicator {
 									fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
 								} catch (Exception e) {
 									logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
-										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
 									logs.add(new Log(
 										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
@@ -245,10 +245,10 @@ public class Replicator {
 							} else if (!fileCacheMissingError) {
 								// TODO: pull from to cache api
 								fileCacheMissingError = true;
-								logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
+								logger.error("{} File cache not present! Skipping pull cache of ref ({}) {}: {}",
 									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 								logs.add(new Log(
-									"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
+									"File cache not present! Skipping pull cache of ref %s %s: %s".formatted(
 										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 									"File cache not present"));
 							}
@@ -394,7 +394,7 @@ public class Replicator {
 										client.push(baseUri, ref.getUrl(), remoteOrigin, data);
 									} catch (Exception e) {
 										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
-											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
 										logs.add(new Log(
 											"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
 												ref.getOrigin(), ref.getTitle(), ref.getUrl()),
@@ -403,10 +403,10 @@ public class Replicator {
 								} else if (!fileCacheMissingError) {
 									// TODO: push to cache api
 									fileCacheMissingError = true;
-									logger.error("{} File cache not present! Skipping cache of ref ({}) {}: {}",
+									logger.error("{} File cache not present! Skipping push cache of ref ({}) {}: {}",
 										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
 									logs.add(new Log(
-										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
+										"File cache not present! Skipping push cache of ref %s %s: %s".formatted(
 											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 										"File cache not present"));
 								}
