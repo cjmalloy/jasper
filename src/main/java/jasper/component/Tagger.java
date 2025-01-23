@@ -8,6 +8,7 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,15 +35,15 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref internalTag(String url, String origin, String ...tags) {
-		return tag(true, url, origin, tags);
+		return tag(true, true, url, origin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref tag(String url, String origin, String ...tags) {
-		return tag(false, url, origin, tags);
+		return tag(true, false, url, origin, tags);
 	}
 
-	public Ref tag(boolean internal, String url, String origin, String ...tags) {
+	public Ref tag(boolean retry, boolean internal, String url, String origin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
@@ -51,7 +52,7 @@ public class Tagger {
 			try {
 				ingest.create(ref, false);
 			} catch (AlreadyExistsException e) {
-				tag(internal, url, origin, tags);
+				return tag(retry, internal, url, origin, tags);
 			}
 			return ref;
 		} else {
@@ -63,7 +64,8 @@ public class Tagger {
 				ingest.update(ref, false);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
-				tag(internal, url, origin, tags);
+				if (retry) return tag(true, internal, url, origin, tags);
+				return null;
 			}
 			return ref;
 		}
@@ -83,17 +85,17 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(false, url, origin, null, tag, plugin, tags);
+		return plugin(true, false, url, origin, null, tag, plugin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref internalPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, url, origin, null, tag, plugin, tags);
+		return plugin(true, true, url, origin, null, tag, plugin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref newPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, url, origin, title, tag, plugin, tags);
+		return plugin(true, true, url, origin, title, tag, plugin, tags);
 	}
 
 	/**
@@ -125,7 +127,7 @@ public class Tagger {
 		}
 	}
 
-	private Ref plugin(boolean internal, String url, String origin, String title, String tag, Object plugin, String ...tags) {
+	private Ref plugin(boolean retry, boolean internal, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
@@ -135,7 +137,7 @@ public class Tagger {
 			try {
 				ingest.create(ref, false);
 			} catch (AlreadyExistsException e) {
-				plugin(internal, url, origin, title, tag, plugin, tags);
+				return plugin(retry, internal, url, origin, title, tag, plugin, tags);
 			}
 			return ref;
 		} else {
@@ -148,27 +150,32 @@ public class Tagger {
 				ingest.update(ref, false);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
-				plugin(internal, url, origin, title, tag, plugin, tags);
+				if (retry) return plugin(retry, internal, url, origin, title, tag, plugin, tags);
+				return null;
 			}
 			return ref;
 		}
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String url, String origin, String msg) {
 		attachLogs(origin, tag(url, origin, "+plugin/error"), "", msg);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String url, String origin, String title, String logs) {
 		attachLogs(origin, tag(url, origin, "+plugin/error"), title, logs);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String origin, Ref parent, String msg) {
 		attachLogs(origin, parent, "", msg);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String origin, Ref parent, String title, String logs) {
 		var ref = new Ref();
@@ -184,33 +191,32 @@ public class Tagger {
 		ingest.create(ref, false);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String url, String origin, String msg) {
 		attachError(origin, tag(url, origin, "+plugin/error"), "", msg);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String url, String origin, String title, String logs) {
 		attachError(origin, tag(url, origin, "+plugin/error"), title, logs);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String msg) {
 		attachError(origin, parent, "", msg);
 	}
 
+	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
 		attachLogs(origin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
-			parent.addTag("+plugin/error");
-			try {
-				ingest.update(parent, false);
-			} catch (ModifiedException e) {
-				// Silently ignore, logs are already attached
-			}
+			tag(false, true, parent.getUrl(), parent.getOrigin(), "+plugin/error");
 		}
 	}
 }

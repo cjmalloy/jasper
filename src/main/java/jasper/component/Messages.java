@@ -17,6 +17,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.MessageHeaders;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -68,6 +69,7 @@ public class Messages {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Async
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);
@@ -88,46 +90,54 @@ public class Messages {
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(ref.getModified(), originHeaders(ref.getOrigin()))));
 	}
 
+	@Async
 	public void deleteRef(Ref ref) {
 		updateRef(deleteNotice(ref));
 	}
 
+	@Async
 	public void updateExt(Ext ext) {
 		var update = mapper.domainToDto(ext);
 		sendAndRetry(() -> extTxChannel.send(createMessage(update, tagHeaders(ext.getOrigin(), ext.getTag()))));
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(ext.getModified(), originHeaders(ext.getOrigin()))));
 	}
 
+	@Async
 	public void updateUser(User user) {
 		var update = mapper.domainToDto(user);
 		sendAndRetry(() -> userTxChannel.send(createMessage(update, tagHeaders(user.getOrigin(), user.getTag()))));
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(user.getModified(), originHeaders(user.getOrigin()))));
 	}
 
+	@Async
 	public void deleteUser(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(origin, tag))));
 	}
 
+	@Async
 	public void updatePlugin(Plugin plugin) {
 		var update = mapper.domainToDto(plugin);
 		sendAndRetry(() -> pluginTxChannel.send(createMessage(update, tagHeaders(plugin.getOrigin(), plugin.getTag()))));
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(plugin.getModified(), originHeaders(plugin.getOrigin()))));
 	}
 
+	@Async
 	public void deletePlugin(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(origin, tag))));
 	}
 
+	@Async
 	public void updateTemplate(Template template) {
 		var update = mapper.domainToDto(template);
 		sendAndRetry(() -> templateTxChannel.send(createMessage(update, tagHeaders(template.getOrigin(), template.getTag()))));
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(template.getModified(), originHeaders(template.getOrigin()))));
 	}
 
+	@Async
 	public void deleteTemplate(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);

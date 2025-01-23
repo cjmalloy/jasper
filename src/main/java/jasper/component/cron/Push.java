@@ -1,7 +1,6 @@
 package jasper.component.cron;
 
 import jakarta.annotation.PostConstruct;
-import jasper.component.ConfigCache;
 import jasper.component.Replicator;
 import jasper.domain.Ref;
 import org.slf4j.Logger;
@@ -22,9 +21,6 @@ public class Push implements Scheduler.CronRunner  {
 
 	@Autowired
 	Replicator replicator;
-
-	@Autowired
-	ConfigCache configs;
 
 	@PostConstruct
 	void init() {

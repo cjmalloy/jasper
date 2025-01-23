@@ -120,6 +120,7 @@ public class Async {
 			});
 		} catch (Exception e) {
 			refs.computeIfPresent(getKey(ud), (k, existing) -> {
+				if (existing.isDone()) return null;
 				logger.info("{} Cancelled run {}: {}", ud.getOrigin(), ud.getTitle(), ud.getUrl());
 				existing.cancel(true);
 				return null;
