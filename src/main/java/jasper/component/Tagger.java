@@ -79,7 +79,12 @@ public class Tagger {
 		if (!ref.hasTag(tags)) return ref;
 		ref.removePrefixTags();
 		ref.removeTags(asList(tags));
-		ingest.update(ref, false);
+		try {
+			ingest.update(ref, false);
+		} catch (ModifiedException e) {
+			// TODO: infinite retrys?
+			return remove(url, origin, tags);
+		}
 		return ref;
 	}
 
