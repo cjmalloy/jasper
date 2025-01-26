@@ -50,6 +50,7 @@ import java.util.stream.Stream;
 import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.domain.proj.Tag.tagUrl;
 import static jasper.domain.proj.Tag.urlToTag;
 import static jasper.domain.proj.Tag.userUrl;
@@ -225,7 +226,7 @@ public class Auth {
 	 * Is this origin a sub-origin.
 	 */
 	public boolean subOrigin(String origin) {
-		return isSubOrigin(getOrigin(), origin);
+		return isSubOrigin(getOrigin(), tagOrigin(origin));
 	}
 
 	/**

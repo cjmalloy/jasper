@@ -137,7 +137,7 @@ public class ExtService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteTag(#qualifiedTag) or @auth.subOrigin(#origin) and @auth.hasRole('MOD')")
+	@PreAuthorize("@auth.canWriteTag(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

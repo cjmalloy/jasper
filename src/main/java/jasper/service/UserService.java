@@ -176,7 +176,7 @@ public class UserService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag) or @auth.subOrigin(#origin) and @auth.hasRole('MOD')")
+	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
