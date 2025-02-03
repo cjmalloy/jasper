@@ -173,6 +173,8 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var plugin : pluginList) {
 						plugin.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled plugin {}: {}",
+							remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
 						try {
 							ingestPlugin.push(plugin);
 						} catch (DuplicateModifiedDateException e) {
@@ -194,6 +196,8 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var template : templateList) {
 						template.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled template {}: {}",
+							remote.getOrigin(), template.getName(), template.getQualifiedTag());
 						try {
 							ingestTemplate.push(template);
 						} catch (DuplicateModifiedDateException e) {
@@ -220,6 +224,8 @@ public class Replicator {
 							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
 							ref.addTag("_plugin/delta/cache");
 						}
+						logger.trace("{} Ingesting pulled ref {}: {}",
+							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
 						} catch (DuplicateModifiedDateException e) {
@@ -248,6 +254,8 @@ public class Replicator {
 						"modifiedAfter", after));
 					for (var ext : extList) {
 						ext.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled ext {}: {}",
+							remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 						try {
 							ingestExt.push(ext, rootOrigin, pull.isValidateTemplates());
 						} catch (DuplicateModifiedDateException e) {
@@ -278,6 +286,8 @@ public class Replicator {
 						user.setOrigin(localOrigin);
 						user.setKey(null);
 						pull.migrate(user, config);
+						logger.trace("{} Ingesting pulled user {}: {}",
+							remote.getOrigin(), user.getName(), user.getQualifiedTag());
 						try {
 							ingestUser.push(user);
 						} catch (DuplicateModifiedDateException e) {
