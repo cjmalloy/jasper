@@ -1,6 +1,7 @@
 package jasper.repository;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.persistence.EntityManager;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
@@ -158,4 +159,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND ref.plugins->'_plugin/cache'->>'ban' != 'true'
 			AND ref.plugins->'_plugin/cache'->>'noStore' != 'true'""")
 	boolean cacheExists(String id);
+
+	@Transactional
+	default void dropIndexes(EntityManager em) {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_fulltext_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_published_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_modified_index").executeUpdate();
+	}
+
+	@Transactional
+	default void rebuildIndexes(EntityManager em) {
+		em.createNativeQuery("CREATE INDEX ref_tags_index ON ref USING GIN(tags)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX ref_sources_index ON ref USING GIN(sources)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX ref_published_index ON ref (published)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
+	}
 }

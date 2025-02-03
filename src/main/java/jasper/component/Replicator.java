@@ -3,6 +3,7 @@ package jasper.component;
 import feign.FeignException;
 import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
@@ -65,6 +66,9 @@ public class Replicator {
 
 	@Autowired
 	TemplateRepository templateRepository;
+
+	@Autowired
+	EntityManager entityManager;
 
 	@Autowired
 	JasperClient client;
@@ -212,41 +216,46 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
-					var refList = client.refPull(baseUri, params(
-						"size", size,
-						"origin", remoteOrigin,
-						"modifiedAfter", after));
-					for (var ref : refList) {
-						ref.setOrigin(localOrigin);
-						pull.migrate(ref, config);
-						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
-							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
-							ref.addTag("_plugin/delta/cache");
-						}
-						logger.trace("{} Ingesting pulled ref {}: {}",
-							remote.getOrigin(), ref.getTitle(), ref.getUrl());
-						try {
-							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-						} catch (DuplicateModifiedDateException e) {
-							// Should not be possible
-							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
+				try {
+					refRepository.dropIndexes(entityManager);
+					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+						var refList = client.refPull(baseUri, params(
+							"size", size,
+							"origin", remoteOrigin,
+							"modifiedAfter", after));
+						for (var ref : refList) {
+							ref.setOrigin(localOrigin);
+							pull.migrate(ref, config);
+							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
+								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+								ref.addTag("_plugin/delta/cache");
+							}
+							logger.trace("{} Ingesting pulled ref {}: {}",
 								remote.getOrigin(), ref.getTitle(), ref.getUrl());
-							logs.add(new Log(
-								"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
-									ref.getTitle(), ref.getUrl()),
-								""+ref.getModified()));
-						} catch (RuntimeException e) {
-							logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
-								remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-							logs.add(new Log(
-								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
-									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-								e.getMessage()));
+							try {
+								ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+							} catch (DuplicateModifiedDateException e) {
+								// Should not be possible
+								logger.error("{} Skipping Ref with duplicate modified date {}: {}",
+									remote.getOrigin(), ref.getTitle(), ref.getUrl());
+								logs.add(new Log(
+									"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
+										ref.getTitle(), ref.getUrl()),
+									""+ref.getModified()));
+							} catch (RuntimeException e) {
+								logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
+									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+								logs.add(new Log(
+									"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
+										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+									e.getMessage()));
+							}
 						}
-					}
-					return refList.size() == size ? refList.getLast().getModified() : null;
-				}));
+						return refList.size() == size ? refList.getLast().getModified() : null;
+					}));
+				} finally {
+					refRepository.rebuildIndexes(entityManager);
+				}
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
 						"size", size,
