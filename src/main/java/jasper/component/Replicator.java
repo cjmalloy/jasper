@@ -256,7 +256,9 @@ public class Replicator {
 						return refList.size() == size ? refList.getLast().getModified() : null;
 					}));
 				} finally {
-					refRepository.rebuildIndexes(entityManager);
+					try {
+						refRepository.rebuildIndexes(entityManager);
+					} catch (Exception e) {}
 				}
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
