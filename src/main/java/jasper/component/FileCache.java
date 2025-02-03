@@ -179,7 +179,7 @@ public class FileCache {
 			throw e;
 		} catch (Exception e) {
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
-			tagger.attachError(remote != null ? remote.getOrigin() : origin, err,
+			tagger.attachError(origin, err,
 				"Error Fetching (" + (e.getCause() == null ? e.getClass().getName() : e.getCause().getClass().getName()) + ")", e.getMessage());
 			if (remote != null) {
 				var cache = existingCache != null ? existingCache : Cache.builder().build();
@@ -239,8 +239,8 @@ public class FileCache {
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
 				var err = tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
-				tagger.attachError(remote != null ? remote.getOrigin() : origin, err, "Error creating thumbnail", e.getMessage());
-				if (remote != null) {
+				tagger.attachError(origin, err, "Error creating thumbnail", e.getMessage());
+				if (configs.getRemote(origin) != null) {
 					var cache = existingCache != null ? existingCache : Cache.builder().build();
 					cache.setBan(true);
 					return tagger.plugin(url, origin, "_plugin/cache", cache);
