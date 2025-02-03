@@ -57,7 +57,7 @@ public class Proxy {
 		} catch (Exception e) {
 			if (refRepository.existsByUrlAndOrigin(url, origin)) {
 				tagger.attachError(origin,
-					tagger.internalPlugin(url, origin, "_plugin/cache", null),
+					tagger.plugin(url, origin, "_plugin/cache", null),
 					"Error Fetching String", e.getMessage());
 			}
 		}
@@ -90,7 +90,7 @@ public class Proxy {
 				.build();
 		} catch (Exception e) {
 			tagger.attachError(origin,
-				tagger.internalPlugin(url, origin, "_plugin/cache", null),
+				tagger.plugin(url, origin, "_plugin/cache", null),
 				"Error Proxying", e.getMessage());
 		}
 		return existingCache;
@@ -115,7 +115,7 @@ public class Proxy {
 				// Set this as a thumbnail to disable future attempts
 				fullSize.setThumbnail(true);
 				StreamUtils.copy(bytes, os);
-				tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 				return fullSize;
 			}
 			StreamUtils.copy(data, os);

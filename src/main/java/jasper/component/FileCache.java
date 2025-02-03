@@ -172,23 +172,19 @@ public class FileCache {
 						logger.warn("Failed to delete {}", existingCache.getId());
 					}
 				}
-				if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
-				return tagger.internalPlugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
+				return tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
-			if (remote != null) return ref = tagger.silentPlugin(url, origin, "_plugin/cache", cache);
-			return ref = tagger.internalPlugin(url, origin, "_plugin/cache", cache);
+			return ref = tagger.plugin(url, origin, "_plugin/cache", cache);
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
-			var err = remote != null
-				? tagger.silentPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache")
-				: tagger.internalPlugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
+			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(remote != null ? remote.getOrigin() : origin, err,
 				"Error Fetching (" + (e.getCause() == null ? e.getClass().getName() : e.getCause().getClass().getName()) + ")", e.getMessage());
 			if (remote != null) {
 				var cache = existingCache != null ? existingCache : Cache.builder().build();
 				cache.setBan(true);
-				return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
+				return tagger.plugin(url, origin, "_plugin/cache", cache);
 			}
 		} finally {
 			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
@@ -233,8 +229,7 @@ public class FileCache {
 				// Set this as a thumbnail to disable future attempts
 				if (fullSize != null) fullSize.setThumbnail(true);
 				storage.stream(origin, CACHE, id, os);
-				if (remote != null) return tagger.silentPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
-				return tagger.internalPlugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				return tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
 			}
 			try {
 				if (storage.exists(origin, CACHE, thumbnailId)) {
@@ -243,14 +238,12 @@ public class FileCache {
 				storage.storeAt(origin, CACHE, thumbnailId, data);
 				if (os != null) StreamUtils.copy(data, os);
 			} catch (Exception e) {
-				var err = remote == null
-					? tagger.silentPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build())
-					: tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
+				var err = tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
 				tagger.attachError(remote != null ? remote.getOrigin() : origin, err, "Error creating thumbnail", e.getMessage());
 				if (remote != null) {
 					var cache = existingCache != null ? existingCache : Cache.builder().build();
 					cache.setBan(true);
-					return tagger.silentPlugin(url, origin, "_plugin/cache", cache);
+					return tagger.plugin(url, origin, "_plugin/cache", cache);
 				}
 				return null;
 			}
@@ -260,8 +253,7 @@ public class FileCache {
 				.mimeType("image/png")
 				.contentLength((long) data.length)
 				.build();
-			if (remote != null) return tagger.silentPlugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
-			return tagger.internalPlugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
+			return tagger.plugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
 		}
 	}
 

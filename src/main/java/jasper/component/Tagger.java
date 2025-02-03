@@ -90,27 +90,24 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, false, url, origin, null, tag, plugin, tags);
-	}
-
-	@Timed(value = "jasper.tagger", histogram = true)
-	public Ref internalPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, true, url, origin, null, tag, plugin, tags);
+		if (configs.getRemote(origin) != null) return silentPlugin(url, "", origin, tag, plugin, tags);
+		return plugin(true, url, origin, null, tag, plugin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref newPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
-		return plugin(true, true, url, origin, title, tag, plugin, tags);
+		if (configs.getRemote(origin) != null) return silentPlugin(url, title, origin, tag, plugin, tags);
+		return plugin(true, url, origin, title, tag, plugin, tags);
 	}
 
 	/**
 	 * For monkey patching replicated origins.
 	 */
-	@Timed(value = "jasper.tagger", histogram = true)
-	public Ref silentPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
+	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
+			ref.setTitle(title);
 			ref.addTag("internal");
 			var cursor = refRepository.getCursor(origin);
 			if (cursor == null) {
@@ -132,17 +129,17 @@ public class Tagger {
 		}
 	}
 
-	private Ref plugin(boolean retry, boolean internal, String url, String origin, String title, String tag, Object plugin, String ...tags) {
+	Ref plugin(boolean retry, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
-			if (internal) ref.addTag("internal");
+			ref.addTag("internal");
 			try {
 				ingest.create(ref, false);
 			} catch (AlreadyExistsException e) {
-				return plugin(retry, internal, url, origin, title, tag, plugin, tags);
+				return plugin(retry, url, origin, title, tag, plugin, tags);
 			}
 			return ref;
 		} else {
@@ -155,7 +152,7 @@ public class Tagger {
 				ingest.update(ref, false);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
-				if (retry) return plugin(retry, internal, url, origin, title, tag, plugin, tags);
+				if (retry) return plugin(retry, url, origin, title, tag, plugin, tags);
 				return null;
 			}
 			return ref;

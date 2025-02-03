@@ -101,7 +101,7 @@ public class TaggerIT {
 
 	@Test
 	void testSilentPluginRef() {
-		tagger.silentPlugin(URL, "", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL, "Test", "", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
@@ -114,7 +114,7 @@ public class TaggerIT {
 	void testSilentPluginExistingRef() {
 		refWithTags(URL);
 
-		tagger.silentPlugin(URL, "", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL, "Test", "", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
@@ -125,7 +125,7 @@ public class TaggerIT {
 
 	@Test
 	void testSilentPluginRemoteRef() {
-		tagger.silentPlugin(URL, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
@@ -136,10 +136,10 @@ public class TaggerIT {
 
 	@Test
 	void testSilentPluginRemoteRefMultiple() {
-		tagger.silentPlugin(URL + 1, "@other", "plugin/test", objectMapper.createObjectNode());
-		tagger.silentPlugin(URL + 2, "@other", "plugin/test", objectMapper.createObjectNode());
-		tagger.silentPlugin(URL + 3, "@other", "plugin/test", objectMapper.createObjectNode());
-		tagger.silentPlugin(URL + 4, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 1, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 3, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 4, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + 1, "@other"))
 			.isTrue();
@@ -167,7 +167,7 @@ public class TaggerIT {
 	void testSilentPluginExistingRemoteRef() {
 		remoteRefWithTags(URL, "@other");
 
-		tagger.silentPlugin(URL, "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
