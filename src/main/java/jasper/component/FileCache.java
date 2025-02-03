@@ -131,14 +131,12 @@ public class FileCache {
 			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
 			return ref;
 		}
-		var remote = configs.getRemote(origin);
-		var pull = getPull(remote);
 		if (url.startsWith("cache:")) {
 			var id = url.substring("cache:".length());
 			if (storage.exists(origin, CACHE, id)) {
 				if (os != null) storage.stream(origin, CACHE, id, os);
 				return ref;
-			} else if (remote == null) {
+			} else if (configs.getRemote(origin) == null) {
 				// No cache found and no remote to fetch from
 				return ref;
 			}
@@ -147,6 +145,8 @@ public class FileCache {
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
 			if (res == null) return ref;
+			var remote = configs.getRemote(origin);
+			var pull = getPull(remote);
 			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
 				id = url.substring("cache:".length());
 				if (os != null && storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
@@ -181,7 +181,7 @@ public class FileCache {
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
 				"Error Fetching (" + (e.getCause() == null ? e.getClass().getName() : e.getCause().getClass().getName()) + ")", e.getMessage());
-			if (remote != null) {
+			if (configs.getRemote(origin) != null) {
 				var cache = existingCache != null ? existingCache : Cache.builder().build();
 				cache.setBan(true);
 				return tagger.plugin(url, origin, "_plugin/cache", cache);
@@ -222,7 +222,6 @@ public class FileCache {
 		if (storage.exists(origin, CACHE, thumbnailId)) {
 			return fetch(thumbnailUrl, origin, os, false);
 		} else {
-			var remote = configs.getRemote(origin);
 			var data = images.thumbnail(storage.stream(origin, CACHE, id));
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
