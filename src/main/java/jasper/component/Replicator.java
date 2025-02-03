@@ -10,6 +10,8 @@ import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidTemplateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -226,30 +228,30 @@ public class Replicator {
 						for (var ref : refList) {
 							ref.setOrigin(localOrigin);
 							pull.migrate(ref, config);
-							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
-								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
+								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
 								ref.addTag("_plugin/delta/cache");
 							}
 							logger.trace("{} Ingesting pulled ref {}: {}",
 								remote.getOrigin(), ref.getTitle(), ref.getUrl());
-							try {
-								ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Skipping Ref with duplicate modified date {}: {}",
-									remote.getOrigin(), ref.getTitle(), ref.getUrl());
-								logs.add(new Log(
-									"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
-										ref.getTitle(), ref.getUrl()),
-									""+ref.getModified()));
-							} catch (RuntimeException e) {
-								logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
-									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-								logs.add(new Log(
-									"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
-										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-									e.getMessage()));
-							}
+						}
+						try {
+							ingestRef.push(refList, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Pulling batch failed with duplicate modified date (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()),
+								""+after));
+						} catch (InvalidTemplateException | InvalidPluginException e) {
+							logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
+								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Pulling batch failed with Validation! (%s) %s: %s".formatted(
+									localOrigin, remote.getTitle(), remote.getUrl()),
+								e.getMessage()));
 						}
 						return refList.size() == size ? refList.getLast().getModified() : null;
 					}));
@@ -395,29 +397,29 @@ public class Replicator {
 							if (ref.getUrl().startsWith("cache:")) {
 								if (fileCache.isPresent()) {
 									try {
-										var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
+										var data = fileCache.get().fetchBytes(ref.getUrl(), localOrigin);
 										if (data != null) {
 											client.push(baseUri, ref.getUrl(), remoteOrigin, data);
 										} else {
 											logger.warn("{} Skip pushing empty cache ({}) {}: {}",
-												remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+												remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
 										}
 									} catch (Exception e) {
 										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
-											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
+											remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl(), e);
 										logs.add(new Log(
-											"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
-												ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+											"Failed Pushing Cache! Skipping cache of ref (%s) %s: %s".formatted(
+												localOrigin, ref.getTitle(), ref.getUrl()),
 											e.getMessage()));
 									}
 								} else if (!fileCacheMissingError) {
 									// TODO: push to cache api
 									fileCacheMissingError = true;
 									logger.error("{} File cache not present! Skipping push cache of ref ({}) {}: {}",
-										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+										remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
 									logs.add(new Log(
-										"File cache not present! Skipping push cache of ref %s %s: %s".formatted(
-											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+										"File cache not present! Skipping push cache of ref (%s) %s: %s".formatted(
+											localOrigin, ref.getTitle(), ref.getUrl()),
 										"File cache not present"));
 								}
 							}

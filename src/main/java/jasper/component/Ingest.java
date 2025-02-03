@@ -23,6 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class Ingest {
@@ -91,19 +93,25 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
-		ref.addHierarchicalTags();
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
-		rng.update(ref, maybeExisting.orElse(null), rootOrigin);
-		if (generateMetadata) meta.ref(ref, rootOrigin);
+	public void push(List<Ref> refs, String rootOrigin, boolean validation, boolean generateMetadata) {
+		var maybeExisting = new ArrayList<Ref>();
+		for (var ref : refs) {
+			ref.addHierarchicalTags();
+			var ex = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
+			maybeExisting.add(ex);
+			if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
+			rng.update(ref, ex, rootOrigin);
+			if (generateMetadata) meta.ref(ref, rootOrigin);
+		}
 		try {
-			refRepository.save(ref);
+			refRepository.saveAll(refs);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
-		if (generateMetadata) meta.sources(ref, maybeExisting.orElse(null), rootOrigin);
-		messages.updateRef(ref);
+		for (var ref : refs) {
+			if (generateMetadata) meta.sources(ref, maybeExisting.removeFirst(), rootOrigin);
+			messages.updateRef(ref);
+		}
 	}
 
 	@Transactional
