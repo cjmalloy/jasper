@@ -216,6 +216,10 @@ public class Replicator {
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
+						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
+							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+							ref.addTag("_plugin/delta/cache");
+						}
 						try {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
 						} catch (DuplicateModifiedDateException e) {
@@ -233,37 +237,6 @@ public class Replicator {
 								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
 									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
 								e.getMessage()));
-						}
-						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
-							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
-							if (fileCache.isPresent()) {
-								try {
-									var cache = client.fetch(baseUri, ref.getUrl(), remoteOrigin);
-									if (cache.getBody() != null) {
-										fileCache.get().push(ref.getUrl(), ref.getOrigin(), cache.getBody());
-									} else {
-										fileCache.get().push(ref.getUrl(), ref.getOrigin(), "".getBytes());
-										logger.warn("{} Empty response pulling cache ({}) {}: {}",
-											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-									}
-								} catch (Exception e) {
-									logger.warn("{} Failed Pulling Cache! Skipping cache of ref ({}) {}: {}",
-										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
-									logs.add(new Log(
-										"Failed Pulling Cache! Skipping cache of ref %s %s: %s".formatted(
-											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-										e.getMessage()));
-								}
-							} else if (!fileCacheMissingError) {
-								// TODO: pull from to cache api
-								fileCacheMissingError = true;
-								logger.error("{} File cache not present! Skipping pull cache of ref ({}) {}: {}",
-									remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
-								logs.add(new Log(
-									"File cache not present! Skipping pull cache of ref %s %s: %s".formatted(
-										ref.getOrigin(), ref.getTitle(), ref.getUrl()),
-									"File cache not present"));
-							}
 						}
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
