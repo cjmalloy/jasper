@@ -32,7 +32,7 @@ public interface Tag extends Cursor {
 			url.startsWith("tag:/" + user + "/");
 	}
 
-	static String urlForUser(String url, String user) {
+	static String urlForTag(String url, String user) {
 		if (isBlank(url)) return "tag:/" + user;
 		return "tag:/" + user + "?url=" + url;
 	}

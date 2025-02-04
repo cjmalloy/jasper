@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
+import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.config.Props;
 import jasper.domain.proj.HasTags;
@@ -75,6 +76,8 @@ public class Pull {
 	@Autowired
 	@Qualifier("websocketExecutor")
 	private Executor websocketExecutor;
+	@Autowired
+	private Tagger tagger;
 
 	record MonitorInfo(String url, String origin, WebSocketStompClient client) {}
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
@@ -204,9 +207,7 @@ public class Pull {
 				var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 				if (maybeRemote.isPresent()) {
 					var remote = maybeRemote.get();
-					logger.debug("{} Pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
-					replicator.pull(remote);
-					logger.debug("{} Finished pulling origin ({}) on websocket {}: {}", remote.getOrigin(), formatOrigin(local), remote.getTitle(), remote.getUrl());
+					tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
 					return info;
 				}
 				return null;
