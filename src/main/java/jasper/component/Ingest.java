@@ -23,8 +23,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 @Component
 public class Ingest {
@@ -93,25 +91,19 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(List<Ref> refs, String rootOrigin, boolean validation, boolean generateMetadata) {
-		var maybeExisting = new ArrayList<Ref>();
-		for (var ref : refs) {
-			ref.addHierarchicalTags();
-			var ex = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
-			maybeExisting.add(ex);
-			if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
-			rng.update(ref, ex, rootOrigin);
-			if (generateMetadata) meta.ref(ref, rootOrigin);
-		}
+	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
+		ref.addHierarchicalTags();
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
+		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
+		rng.update(ref, maybeExisting, rootOrigin);
+		if (generateMetadata) meta.ref(ref, rootOrigin);
 		try {
-			refRepository.saveAll(refs);
+			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
-		for (var ref : refs) {
-			if (generateMetadata) meta.sources(ref, maybeExisting.removeFirst(), rootOrigin);
-			messages.updateRef(ref);
-		}
+		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);
+		messages.updateRef(ref);
 	}
 
 	@Transactional
@@ -129,8 +121,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ref);
 					em.flush();
@@ -164,8 +155,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					refRepository.saveAndFlush(ref);
 					return null;
 				});
@@ -195,8 +185,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = refRepository.optimisticUpdate(
 						cursor,

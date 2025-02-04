@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.ByteArrayInputStream;
@@ -100,6 +102,9 @@ public class Replicator {
 
 	@Autowired
 	Optional<FileCache> fileCache;
+
+	@Autowired
+	PlatformTransactionManager transactionManager;
 
 	boolean fileCacheMissingError = false;
 
@@ -219,34 +224,39 @@ public class Replicator {
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
-					for (var ref : refList) {
-						ref.setOrigin(localOrigin);
-						pull.migrate(ref, config);
-						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
-							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
-							ref.addTag("_plugin/delta/cache");
+					new TransactionTemplate(transactionManager).execute(status -> {
+						for (var ref : refList) {
+							ref.setOrigin(localOrigin);
+							pull.migrate(ref, config);
+							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
+								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
+								ref.addTag("_plugin/delta/cache");
+							}
+							logger.trace("{} Ingesting pulled ref {}: {}",
+								remote.getOrigin(), ref.getTitle(), ref.getUrl());
+							try {
+								ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+							} catch (DuplicateModifiedDateException e) {
+								// Should not be possible
+								logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
+									remote.getOrigin(), remote.getTitle(), remote.getUrl());
+								logs.add(new Log(
+									"Pulling batch failed with duplicate modified date (%s): %s".formatted(
+										remote.getTitle(), remote.getUrl()),
+									""+after));
+								throw e; // Will rollback, can't continue
+							} catch (InvalidTemplateException | InvalidPluginException e) {
+								logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
+									remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
+								logs.add(new Log(
+									"Pulling batch failed with Validation! (%s) %s: %s".formatted(
+										localOrigin, remote.getTitle(), remote.getUrl()),
+									e.getMessage()));
+								throw e; // Will rollback, can't continue
+							}
 						}
-						logger.trace("{} Ingesting pulled ref {}: {}",
-							remote.getOrigin(), ref.getTitle(), ref.getUrl());
-					}
-					try {
-						ingestRef.push(refList, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-					} catch (DuplicateModifiedDateException e) {
-						// Should not be possible
-						logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
-							remote.getOrigin(), remote.getTitle(), remote.getUrl());
-						logs.add(new Log(
-							"Pulling batch failed with duplicate modified date (%s): %s".formatted(
-								remote.getTitle(), remote.getUrl()),
-							""+after));
-					} catch (InvalidTemplateException | InvalidPluginException e) {
-						logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
-							remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
-						logs.add(new Log(
-							"Pulling batch failed with Validation! (%s) %s: %s".formatted(
-								localOrigin, remote.getTitle(), remote.getUrl()),
-							e.getMessage()));
-					}
+						return null;
+					});
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {

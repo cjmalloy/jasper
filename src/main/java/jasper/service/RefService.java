@@ -33,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -82,7 +81,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.push(List.of(ref), ref.getOrigin(), true, true);
+		ingest.push(ref, ref.getOrigin(), true, true);
 	}
 
 	@Transactional(readOnly = true)
