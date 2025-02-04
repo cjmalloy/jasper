@@ -1,7 +1,6 @@
 package jasper.repository;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import jakarta.persistence.EntityManager;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
@@ -161,22 +160,74 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	boolean cacheExists(String id);
 
 	@Transactional
-	default void dropIndexes(EntityManager em) {
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_index").executeUpdate();
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_index").executeUpdate();
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_index").executeUpdate();
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_fulltext_index").executeUpdate();
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_published_index").executeUpdate();
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_modified_index").executeUpdate();
-	}
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_tags_index""")
+	void dropTags();
 
 	@Transactional
-	default void rebuildIndexes(EntityManager em) {
-		em.createNativeQuery("CREATE INDEX ref_tags_index ON ref USING GIN(tags)").executeUpdate();
-		em.createNativeQuery("CREATE INDEX ref_sources_index ON ref USING GIN(sources)").executeUpdate();
-		em.createNativeQuery("CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
-		em.createNativeQuery("CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)").executeUpdate();
-		em.createNativeQuery("CREATE INDEX ref_published_index ON ref (published)").executeUpdate();
-		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
-	}
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_tags_index ON ref USING GIN(tags)""")
+	void buildTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_sources_index""")
+	void dropSources();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_sources_index ON ref USING GIN(sources)""")
+	void buildSources();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_alternate_urls_index""")
+	void dropAlts();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)""")
+	void buildAlts();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_fulltext_index""")
+	void dropFulltext();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)""")
+	void buildFulltext();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_published_index""")
+	void dropPublished();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_published_index ON ref (published)""")
+	void buildPublished();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_modified_index""")
+	void dropModified();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_modified_index ON ref (modified)""")
+	void buildModified();
 }

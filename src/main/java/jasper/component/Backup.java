@@ -200,12 +200,7 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				try {
-					refRepository.dropIndexes(entityManager);
-					restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
-				} finally {
-					refRepository.rebuildIndexes(entityManager);
-				}
+				restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
 				restoreRepo(extRepository, origin, zipped.in("ext.json"), Ext.class);

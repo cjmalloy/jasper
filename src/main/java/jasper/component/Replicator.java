@@ -3,7 +3,6 @@ package jasper.component;
 import feign.FeignException;
 import feign.RetryableException;
 import io.micrometer.core.annotation.Timed;
-import jakarta.persistence.EntityManager;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
@@ -68,9 +67,6 @@ public class Replicator {
 
 	@Autowired
 	TemplateRepository templateRepository;
-
-	@Autowired
-	EntityManager entityManager;
 
 	@Autowired
 	JasperClient client;
@@ -218,48 +214,41 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				try {
-					refRepository.dropIndexes(entityManager);
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
-						var refList = client.refPull(baseUri, params(
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var ref : refList) {
-							ref.setOrigin(localOrigin);
-							pull.migrate(ref, config);
-							if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
-								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
-								ref.addTag("_plugin/delta/cache");
-							}
-							logger.trace("{} Ingesting pulled ref {}: {}",
-								remote.getOrigin(), ref.getTitle(), ref.getUrl());
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var refList = client.refPull(baseUri, params(
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var ref : refList) {
+						ref.setOrigin(localOrigin);
+						pull.migrate(ref, config);
+						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
+							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
+							ref.addTag("_plugin/delta/cache");
 						}
-						try {
-							ingestRef.push(refList, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
-						} catch (DuplicateModifiedDateException e) {
-							// Should not be possible
-							logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
-								remote.getOrigin(), remote.getTitle(), remote.getUrl());
-							logs.add(new Log(
-								"Pulling batch failed with duplicate modified date (%s): %s".formatted(
-									remote.getTitle(), remote.getUrl()),
-								""+after));
-						} catch (InvalidTemplateException | InvalidPluginException e) {
-							logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
-								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
-							logs.add(new Log(
-								"Pulling batch failed with Validation! (%s) %s: %s".formatted(
-									localOrigin, remote.getTitle(), remote.getUrl()),
-								e.getMessage()));
-						}
-						return refList.size() == size ? refList.getLast().getModified() : null;
-					}));
-				} finally {
+						logger.trace("{} Ingesting pulled ref {}: {}",
+							remote.getOrigin(), ref.getTitle(), ref.getUrl());
+					}
 					try {
-						refRepository.rebuildIndexes(entityManager);
-					} catch (Exception e) {}
-				}
+						ingestRef.push(refList, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+					} catch (DuplicateModifiedDateException e) {
+						// Should not be possible
+						logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
+							remote.getOrigin(), remote.getTitle(), remote.getUrl());
+						logs.add(new Log(
+							"Pulling batch failed with duplicate modified date (%s): %s".formatted(
+								remote.getTitle(), remote.getUrl()),
+							""+after));
+					} catch (InvalidTemplateException | InvalidPluginException e) {
+						logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
+							remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
+						logs.add(new Log(
+							"Pulling batch failed with Validation! (%s) %s: %s".formatted(
+								localOrigin, remote.getTitle(), remote.getUrl()),
+							e.getMessage()));
+					}
+					return refList.size() == size ? refList.getLast().getModified() : null;
+				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
 						"size", size,
@@ -345,8 +334,7 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				var modifiedAfter = client.pluginCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.pluginCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -361,9 +349,7 @@ public class Replicator {
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.templateCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.templateCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -378,9 +364,7 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.refCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.refCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
@@ -429,9 +413,7 @@ public class Replicator {
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.extCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.extCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -446,9 +428,7 @@ public class Replicator {
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.userCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.userCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
