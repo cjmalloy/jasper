@@ -232,7 +232,7 @@ public class Ref implements HasTags {
 			var t = result.get(i);
 			while (t.contains("/")) {
 				t = t.substring(0, t.lastIndexOf("/"));
-				if (!result.contains(t) && !result.contains(t)) {
+				if (!result.contains(t)) {
 					result.add(t);
 				}
 			}

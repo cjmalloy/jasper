@@ -93,10 +93,13 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
 		ref.addHierarchicalTags();
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
-		rng.update(ref, maybeExisting, rootOrigin);
-		if (generateMetadata) meta.ref(ref, rootOrigin);
+		Ref maybeExisting = null;
+		if (generateMetadata) {
+			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
+			rng.update(ref, maybeExisting, rootOrigin);
+			meta.ref(ref, rootOrigin);
+		}
 		try {
 			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
