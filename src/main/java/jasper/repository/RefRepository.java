@@ -110,6 +110,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:rootOrigin = '' OR ref.origin = :rootOrigin OR ref.origin LIKE concat(:rootOrigin, '.%'))""")
 	int setObsolete(String url, String rootOrigin, Instant olderThan);
 
+	@Query(nativeQuery = true, value = """
+		SELECT EXISTS (
+			SELECT 1 FROM ref
+			WHERE url = :url
+			  AND modified > :newerThan
+			  AND (:rootOrigin = '' OR origin = :rootOrigin OR origin LIKE concat(:rootOrigin, '.%'))
+		)""")
+	boolean newerExists(String url, String rootOrigin, Instant newerThan);
+
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
 	@Query("""
@@ -141,6 +150,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		))
 		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)""")
 	int backfillMetadata(String origin, int batchSize);
+
+	@Query(nativeQuery = true, value = """
+		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
+		FROM ref
+		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR CAST(metadata->>'modified' AS timestamp) < modified)
+		AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+		ORDER BY modified DESC
+		LIMIT 1""")
+	Optional<Ref> getRefBackfill(String origin);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy

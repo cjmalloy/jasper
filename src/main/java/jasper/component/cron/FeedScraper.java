@@ -1,9 +1,7 @@
 package jasper.component.cron;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rometools.rome.io.FeedException;
 import jakarta.annotation.PostConstruct;
-import jasper.component.ConfigCache;
 import jasper.component.RssParser;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -29,12 +27,6 @@ public class FeedScraper implements Scheduler.CronRunner {
 
 	@Autowired
 	Tagger tagger;
-
-	@Autowired
-	ObjectMapper objectMapper;
-
-	@Autowired
-	ConfigCache configs;
 
 	@PostConstruct
 	void init() {

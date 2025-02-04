@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.ByteArrayInputStream;
@@ -101,9 +100,6 @@ public class Replicator {
 
 	@Autowired
 	Optional<FileCache> fileCache;
-
-	@Autowired
-	PlatformTransactionManager transactionManager;
 
 	boolean fileCacheMissingError = false;
 

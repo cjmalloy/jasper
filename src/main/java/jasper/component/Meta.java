@@ -5,6 +5,7 @@ import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
+import jasper.repository.spec.OriginSpec;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
+import static jasper.repository.spec.RefSpec.hasInternalResponse;
+import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static org.springframework.data.domain.Sort.Order.desc;
@@ -55,6 +58,23 @@ public class Meta {
 
 		// Set Not Obsolete
 		ref.getMetadata().setObsolete(false);
+	}
+
+	@Timed(value = "jasper.meta", histogram = true)
+	public void regen(Ref ref, String rootOrigin) {
+		ref(ref, rootOrigin);
+		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
+		if (ref.getMetadata().isObsolete()) return;
+		refRepository.setObsolete(ref.getUrl(), rootOrigin, ref.getModified());
+		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
+			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
+		for (var source : cleanupSources) {
+			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
+				ref(source, rootOrigin);
+			} else {
+				removeSource(source, ref.getUrl(), rootOrigin);
+			}
+		}
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -118,20 +138,21 @@ public class Meta {
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
-				var metadata = source.getMetadata();
-				if (metadata == null) {
-					logger.warn("Ref missing metadata: {}", existing.getUrl());
-					continue;
-				}
-				// TODO: Only do this part async, as we don't know if there is a duplicate response in another origin
-				metadata.remove(existing.getUrl());
-				source.setMetadata(metadata);
-				try {
-					refRepository.save(source);
-				} catch (DataAccessException e) {
-					logger.error("Error updating source metadata for {} {}", existing.getOrigin(), existing.getUrl(), e);
-				}
+				removeSource(source, existing.getUrl(), rootOrigin);
 			}
+		}
+	}
+
+	private void removeSource(Ref source, String url, String rootOrigin) {
+		var metadata = source.getMetadata();
+		if (metadata == null) return;
+		metadata.remove(url);
+		source.setMetadata(metadata);
+		try {
+			refRepository.save(source);
+		} catch (DataAccessException e) {
+			logger.error("{} Error updating source metadata for {} {}",
+				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
 	}
 }

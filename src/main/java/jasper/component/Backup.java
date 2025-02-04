@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static jasper.component.FileCache.CACHE;
-import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
 @Component
@@ -284,17 +283,17 @@ public class Backup {
 	 */
 	@Async
 	@Counted(value = "jasper.backup")
-	public void backfill(String origin) {
+	public void regen(String origin) {
 		var start = Instant.now();
-		logger.info("{} Starting Backfill", formatOrigin(origin));
+		logger.info("{} Starting Backfill", origin);
 		refRepository.dropMetadata(origin);
-		logger.info("{} Cleared old metadata", formatOrigin(origin));
+		logger.info("{} Cleared old metadata", origin);
 		int count = 0;
 		while (props.getBackfillBatchSize() == refRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
 			count += props.getBackfillBatchSize();
-			logger.info("{} Generating metadata... {} done", formatOrigin(origin), count);
+			logger.info("{} Generating metadata... {} done", origin, count);
 		}
-		logger.info("{} Finished Backfill in {}", formatOrigin(origin), Duration.between(start, Instant.now()));
+		logger.info("{} Finished Backfill in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
