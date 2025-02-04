@@ -172,6 +172,10 @@ public class Scheduler {
 			}
 			return;
 		}
+		if (ref.hasPluginResponse("+plugin/run")) {
+			// Skip scheduled run since we are running manually
+			return;
+		}
 		tags.forEach((k, v) -> {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
