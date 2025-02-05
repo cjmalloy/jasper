@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
@@ -13,8 +14,6 @@ import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,25 +69,24 @@ public class BackupController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping(value = "{id}")
-	public ResponseEntity<byte[]> downloadBackup(
+	public void downloadBackup(
+		HttpServletResponse response,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestParam(defaultValue = "") String p
-	) {
+	) throws IOException {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		byte[] file;
 		if (isBlank(p)) {
-			file = backupService.getBackup(origin, id);
+			 backupService.getBackup(origin, id, response.getOutputStream());
 		} else {
 			if (!backupService.unlock(p)) throw new NotFoundException(id);
-			file = backupService.getBackupPreauth(id);
+			backupService.getBackupPreauth(id, response.getOutputStream());
 		}
-		return ResponseEntity.ok()
-			.contentType(MediaType.valueOf("application/zip"))
-			.header("Content-Disposition", "attachment")
-			.body(file);
+		response.setStatus(HttpStatus.OK.value());
+		response.setContentType("application/zip");
+		response.setHeader("Content-Disposition", "attachment");
 	}
 
 	@ApiResponses({

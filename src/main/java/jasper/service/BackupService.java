@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -74,8 +75,8 @@ public class BackupService {
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public byte[] getBackup(String origin, String id) {
-		return backup.get(origin, id);
+	public void getBackup(String origin, String id, OutputStream os) {
+		backup.get(origin, id, os);
 	}
 
 	@PreAuthorize("@auth.minReadBackupRole()")
@@ -117,8 +118,8 @@ public class BackupService {
 		return key.equals(ref.getComment());
 	}
 
-	public byte[] getBackupPreauth(String id) {
-		return backup.get(auth.getOrigin(), id);
+	public void getBackupPreauth(String id, OutputStream os) {
+		backup.get(auth.getOrigin(), id, os);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")

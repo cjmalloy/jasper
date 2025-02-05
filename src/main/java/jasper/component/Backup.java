@@ -163,12 +163,12 @@ public class Backup {
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
-	public byte[] get(String origin, String id) {
+	public void get(String origin, String id, OutputStream os) {
 		if (storage.isEmpty()) {
 			logger.error("Backup get failed: No storage present.");
-			return null;
+			return;
 		}
-		return storage.get().get(origin, BACKUPS, id + ".zip");
+		storage.get().stream(origin, BACKUPS, id + ".zip", os);
 	}
 
 	public boolean exists(String origin, String id) {
