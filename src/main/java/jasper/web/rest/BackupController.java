@@ -5,8 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Pattern;
+import jasper.component.Backup;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
@@ -14,7 +14,10 @@ import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,26 +74,35 @@ public class BackupController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping(value = "{id}")
-	public void downloadBackup(
-		HttpServletResponse response,
+	public ResponseEntity<StreamingResponseBody> downloadBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestParam(defaultValue = "") String p
-	) throws IOException {
+	) {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		try (var os = response.getOutputStream()) {
-			if (isBlank(p)) {
-				backupService.getBackup(origin, id, os);
-			} else {
-				if (!backupService.unlock(p)) throw new NotFoundException(id);
-				backupService.getBackupPreauth(id, os);
-			}
+		Backup.BackupStream b;
+		if (isBlank(p)) {
+			b = backupService.getBackup(origin, id);
+		} else {
+			if (!backupService.unlock(p)) throw new NotFoundException(id);
+			b = backupService.getBackupPreauth(id);
 		}
-		response.setStatus(HttpStatus.OK.value());
-		response.setContentType("application/zip");
-		response.setHeader("Content-Disposition", "attachment");
+		if (b == null) throw new NotFoundException("Storage unavailable!");
+		StreamingResponseBody responseBody = outputStream -> {
+			byte[] buffer = new byte[8192];
+			int bytesRead;
+			while ((bytesRead = b.is().read(buffer)) != -1) {
+				outputStream.write(buffer, 0, bytesRead);
+				outputStream.flush();
+			}
+		};
+		return ResponseEntity.ok()
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + id + ".zip")
+			.contentLength(b.size())
+			.contentType(MediaType.APPLICATION_OCTET_STREAM)
+			.body(responseBody);
 	}
 
 	@ApiResponses({
