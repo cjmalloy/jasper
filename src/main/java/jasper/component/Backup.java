@@ -80,6 +80,8 @@ public class Backup {
 	@Autowired
 	Optional<Storage> storage;
 
+	public record BackupStream(InputStream inputStream, long size) {}
+
 	@Async
 	@Transactional(readOnly = true)
 	@Counted(value = "jasper.backup")
@@ -163,12 +165,15 @@ public class Backup {
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
-	public void get(String origin, String id, OutputStream os) {
+	public BackupStream get(String origin, String id) {
 		if (storage.isEmpty()) {
 			logger.error("Backup get failed: No storage present.");
-			return;
+			return null;
 		}
-		storage.get().stream(origin, BACKUPS, id + ".zip", os);
+		return new BackupStream(
+			storage.get().stream(origin, BACKUPS, id + ".zip"),
+			storage.get().size(origin, BACKUPS, id + ".zip")
+		);
 	}
 
 	public boolean exists(String origin, String id) {
