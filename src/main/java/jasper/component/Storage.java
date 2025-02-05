@@ -25,7 +25,7 @@ public interface Storage {
 	Zipped streamZip(String origin, String namespace, String id) throws IOException;
 	void visitTenants(PathVisitor v);
 	void visitStorage(String origin, String namespace, PathVisitor v);
-	List<String> listStorage(String origin, String namespace);
+	List<StorageRef> listStorage(String origin, String namespace);
 	void overwrite(String origin, String namespace, String id, byte[] cache) throws IOException;
 	String store(String origin, String namespace, byte[] cache) throws IOException;
 	void storeAt(String origin, String namespace, String id, byte[] cache) throws IOException;
@@ -59,4 +59,6 @@ public interface Storage {
 	interface PathVisitor {
 		void visit(String filename);
 	}
+
+	record StorageRef(String id, long length) {}
 }

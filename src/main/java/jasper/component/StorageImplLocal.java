@@ -87,10 +87,10 @@ public class StorageImplLocal implements Storage {
 	}
 
 	@Override
-	public List<String> listStorage(String origin, String namespace) {
+	public List<StorageRef> listStorage(String origin, String namespace) {
 		try (var list = Files.list(dir(origin, namespace))) {
 			return list
-				.map(f -> f.getFileName().toString())
+				.map(f -> new StorageRef(f.getFileName().toString(), f.toFile().length()))
 				.collect(Collectors.toList());
 		} catch (IOException e) {
 			return Collections.emptyList();

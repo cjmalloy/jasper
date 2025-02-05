@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
+import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping
-	public List<String> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
+	public List<BackupDto> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
 		return backupService.listBackups(origin);
 	}
 
