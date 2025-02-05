@@ -142,7 +142,7 @@ public class BackupController {
 	})
 	@PostMapping("regen")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void backfill(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
+	void regen(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
 		backupService.regen(origin);
 	}
 
