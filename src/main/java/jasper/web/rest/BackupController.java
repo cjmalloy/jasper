@@ -78,11 +78,13 @@ public class BackupController {
 		if (id.endsWith(".zip")) {
 			id = id.substring(0, id.length() - 4);
 		}
-		if (isBlank(p)) {
-			 backupService.getBackup(origin, id, response.getOutputStream());
-		} else {
-			if (!backupService.unlock(p)) throw new NotFoundException(id);
-			backupService.getBackupPreauth(id, response.getOutputStream());
+		try (var os = response.getOutputStream()) {
+			if (isBlank(p)) {
+				backupService.getBackup(origin, id, os);
+			} else {
+				if (!backupService.unlock(p)) throw new NotFoundException(id);
+				backupService.getBackupPreauth(id, os);
+			}
 		}
 		response.setStatus(HttpStatus.OK.value());
 		response.setContentType("application/zip");
