@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.3.0
+  version: 1.3.1
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -1958,11 +1958,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/backup/backfill:
+  /api/v1/backup/regen:
     post:
       tags:
         - Backup
-      operationId: backfill
+      operationId: regen
       parameters:
         - name: origin
           in: query

@@ -2,6 +2,7 @@ package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.NotFoundException;
@@ -17,10 +18,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
-import static jasper.domain.proj.Tag.urlForUser;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -33,6 +32,9 @@ public class TaggingService {
 
 	@Autowired
 	Ingest ingest;
+
+	@Autowired
+	Tagger tagger;
 
 	@Autowired
 	Auth auth;
@@ -141,22 +143,6 @@ public class TaggingService {
 
 	private Ref getResponseRef(String url) {
 		if (auth.getUserTag() == null || isBlank(auth.getUserTag().tag)) throw new NotFoundException("User URL");
-		var userUrl = urlForUser(url, auth.getUserTag().tag);
-		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
-				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
-					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
-				}
-				return ref;
-			})
-			.orElseGet(() -> {
-				var ref = new Ref();
-				ref.setUrl(userUrl);
-				ref.setOrigin(auth.getOrigin());
-				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
-				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
-				ingest.create(ref, false);
-				return ref;
-			});
+		return tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 	}
 }

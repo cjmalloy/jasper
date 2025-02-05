@@ -61,7 +61,7 @@ public class Props {
 	private int maxEtagPageSize = 300;
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
-	private int backfillBatchSize = 1000;
+	private int backfillBatchSize = 100;
 	private String pullDelayMin = "5";
 	private String pullIntervalMin = "1";
 	private String scrapeDelayMin = "5";

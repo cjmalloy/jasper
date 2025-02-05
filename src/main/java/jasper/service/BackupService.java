@@ -130,8 +130,8 @@ public class BackupService {
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public void backfill(String origin) {
-		backup.backfill(origin);
+	public void regen(String origin) {
+		backup.regen(origin);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")

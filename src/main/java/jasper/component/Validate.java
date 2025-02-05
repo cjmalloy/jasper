@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
-import static jasper.domain.proj.Tag.urlForUser;
+import static jasper.domain.proj.Tag.urlForTag;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
@@ -266,7 +266,7 @@ public class Validate {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
-		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForUser(ref.getSources().get(0), userTag.get()))) {
+		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForTag(ref.getSources().get(0), userTag.get()))) {
 			throw new InvalidPluginUserUrlException(plugin.getTag());
 		}
 	}

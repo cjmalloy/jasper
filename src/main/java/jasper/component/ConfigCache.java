@@ -10,6 +10,7 @@ import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
+import jasper.plugin.config.Index;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
@@ -74,6 +75,13 @@ public class ConfigCache {
 		if (templateRepository.findByTemplateAndOrigin(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
 			try {
 				ingest.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
+			} catch (AlreadyExistsException e) {
+				// Race to init
+			}
+		}
+		if (templateRepository.findByTemplateAndOrigin("_config/index", "").isEmpty()) {
+			try {
+				ingest.create(index("DB Indices"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
 			}
@@ -220,6 +228,14 @@ public class ConfigCache {
 			.wrap(props);
 	}
 
+	@Cacheable(value = "template-cache", key = "'_config/index'")
+	@Transactional(readOnly = true)
+	public Index index() {
+		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(),  Index.class)
+			.or(() -> getTemplateConfig("_config/index", props.getOrigin(),  Index.class))
+			.orElse(Index.builder().build());
+	}
+
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
 	@Transactional(readOnly = true)
 	public SecurityConfig security(String origin) {
@@ -251,6 +267,16 @@ public class ConfigCache {
 		var template = new Template();
 		template.setOrigin(props.getLocalOrigin());
 		template.setTag(concat("_config/server", props.getWorkerOrigin()));
+		template.setName(name);
+		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
+		return template;
+	}
+
+	private Template index(String name) {
+		var config = Index.builder().build();
+		var template = new Template();
+		template.setOrigin("");
+		template.setTag("_config/index");
 		template.setName(name);
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
 		return template;

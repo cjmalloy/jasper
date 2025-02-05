@@ -140,10 +140,10 @@ public class BackupController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
-	@PostMapping("backfill")
+	@PostMapping("regen")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void backfill(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
-		backupService.backfill(origin);
+		backupService.regen(origin);
 	}
 
 	@ApiResponses({

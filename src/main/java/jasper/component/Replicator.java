@@ -9,6 +9,8 @@ import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidTemplateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -213,6 +215,7 @@ public class Replicator {
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -220,8 +223,8 @@ public class Replicator {
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
-						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), ref.getOrigin()) ||
-							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), ref.getOrigin())) {
+						if (pull.isCache() && ref.getUrl().startsWith("cache:") && !fileCache.get().cacheExists(ref.getUrl(), localOrigin) ||
+							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin)) {
 							ref.addTag("_plugin/delta/cache");
 						}
 						logger.trace("{} Ingesting pulled ref {}: {}",
@@ -230,18 +233,18 @@ public class Replicator {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
-							logger.error("{} Skipping Ref with duplicate modified date {}: {}",
-								remote.getOrigin(), ref.getTitle(), ref.getUrl());
+							logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
-								"Skipping replication of Ref with duplicate modified date %s: %s".formatted(
-									ref.getTitle(), ref.getUrl()),
-								""+ref.getModified()));
-						} catch (RuntimeException e) {
-							logger.warn("{} Failed Plugin Validation! Skipping replication of ref ({}) {}: {}",
-								remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+								"Pulling batch failed with duplicate modified date (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()),
+								""+after));
+						} catch (InvalidTemplateException | InvalidPluginException e) {
+							logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
+								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
-								"Failed Plugin Validation! Skipping replication of ref %s %s: %s".formatted(
-									ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+								"Pulling batch failed with Validation! (%s) %s: %s".formatted(
+									localOrigin, remote.getTitle(), remote.getUrl()),
 								e.getMessage()));
 						}
 					}
@@ -332,8 +335,7 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				var modifiedAfter = client.pluginCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.pluginCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -348,9 +350,7 @@ public class Replicator {
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.templateCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.templateCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -365,9 +365,7 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.refCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.refCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
@@ -386,29 +384,29 @@ public class Replicator {
 							if (ref.getUrl().startsWith("cache:")) {
 								if (fileCache.isPresent()) {
 									try {
-										var data = fileCache.get().fetchBytes(ref.getUrl(), ref.getOrigin());
+										var data = fileCache.get().fetchBytes(ref.getUrl(), localOrigin);
 										if (data != null) {
 											client.push(baseUri, ref.getUrl(), remoteOrigin, data);
 										} else {
 											logger.warn("{} Skip pushing empty cache ({}) {}: {}",
-												remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+												remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
 										}
 									} catch (Exception e) {
 										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
-											remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
+											remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl(), e);
 										logs.add(new Log(
-											"Failed Pushing Cache! Skipping cache of ref %s %s: %s".formatted(
-												ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+											"Failed Pushing Cache! Skipping cache of ref (%s) %s: %s".formatted(
+												localOrigin, ref.getTitle(), ref.getUrl()),
 											e.getMessage()));
 									}
 								} else if (!fileCacheMissingError) {
 									// TODO: push to cache api
 									fileCacheMissingError = true;
 									logger.error("{} File cache not present! Skipping push cache of ref ({}) {}: {}",
-										remote.getOrigin(), ref.getOrigin(), ref.getTitle(), ref.getUrl());
+										remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
 									logs.add(new Log(
-										"File cache not present! Skipping push cache of ref %s %s: %s".formatted(
-											ref.getOrigin(), ref.getTitle(), ref.getUrl()),
+										"File cache not present! Skipping push cache of ref (%s) %s: %s".formatted(
+											localOrigin, ref.getTitle(), ref.getUrl()),
 										"File cache not present"));
 								}
 							}
@@ -416,9 +414,7 @@ public class Replicator {
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.extCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.extCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -433,9 +429,7 @@ public class Replicator {
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
-
-				modifiedAfter = client.userCursor(baseUri, remoteOrigin);
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, modifiedAfter, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.userCursor(baseUri, remoteOrigin), (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -474,6 +468,8 @@ public class Replicator {
 		var size = batchSize;
 		do {
 			try {
+				logger.trace("{} BATCH ({}, {}): {}",
+					origin, skip, size, modifiedAfter);
 				modifiedAfter = fn.fetch(skip, size, modifiedAfter);
 				skip = 0;
 				if (size < batchSize) {

@@ -17,8 +17,10 @@ import java.util.UUID;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.domain.proj.Tag.urlForTag;
 import static java.time.Instant.now;
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
 public class Tagger {
@@ -219,6 +221,42 @@ public class Tagger {
 		attachLogs(origin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
 			tag(false, true, parent.getUrl(), parent.getOrigin(), "+plugin/error");
+		}
+	}
+
+	@Timed(value = "jasper.tagger", histogram = true)
+	public Ref getResponseRef(String user, String origin, String url) {
+		var userUrl = urlForTag(url, user);
+		return refRepository.findOneByUrlAndOrigin(userUrl, origin).map(ref -> {
+				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
+				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
+					ref.setTags(new ArrayList<>(List.of("internal", user)));
+				}
+				return ref;
+			})
+			.orElseGet(() -> {
+				var ref = new Ref();
+				ref.setUrl(userUrl);
+				ref.setOrigin(origin);
+				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
+				ref.setTags(new ArrayList<>(List.of("internal", user)));
+				ingest.create(ref, false);
+				return ref;
+			});
+	}
+
+	@Async
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void response(String url, String origin, String ...tags) {
+		var remote = configs.getRemote(origin);
+		if (remote != null) origin = remote.getOrigin();
+		var ref = getResponseRef("_user", origin, url);
+		for (var tag : tags) ref.addTag(tag);
+		try {
+			ingest.update(ref, true);
+		} catch (ModifiedException e) {
+			// TODO: infinite retrys?
+			response(url, origin, tags);
 		}
 	}
 }

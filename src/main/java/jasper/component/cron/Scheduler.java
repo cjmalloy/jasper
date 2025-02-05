@@ -124,7 +124,7 @@ public class Scheduler {
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null) return existing;
 					return taskScheduler.schedule(() -> {
-						logger.warn("{} Run Tag: {} {}", origin, k, url);
+						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 							tagger.remove(target.getUrl(), origin, "+plugin/run");
@@ -170,6 +170,10 @@ public class Scheduler {
 				existing.cancel(false);
 				tasks.remove(key);
 			}
+			return;
+		}
+		if (ref.hasPluginResponse("+plugin/run")) {
+			// Skip scheduled run since we are running manually
 			return;
 		}
 		tags.forEach((k, v) -> {

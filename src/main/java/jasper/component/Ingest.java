@@ -93,16 +93,19 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
 		ref.addHierarchicalTags();
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
-		rng.update(ref, maybeExisting.orElse(null), rootOrigin);
-		if (generateMetadata) meta.ref(ref, rootOrigin);
+		Ref maybeExisting = null;
+		if (generateMetadata) {
+			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
+			rng.update(ref, maybeExisting, rootOrigin);
+			meta.ref(ref, rootOrigin);
+		}
 		try {
 			refRepository.save(ref);
 		} catch (DataIntegrityViolationException e) {
 			throw new DuplicateModifiedDateException();
 		}
-		if (generateMetadata) meta.sources(ref, maybeExisting.orElse(null), rootOrigin);
+		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);
 		messages.updateRef(ref);
 	}
 
@@ -121,8 +124,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ref);
 					em.flush();
@@ -156,8 +158,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					refRepository.saveAndFlush(ref);
 					return null;
 				});
@@ -187,8 +188,7 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
+				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = refRepository.optimisticUpdate(
 						cursor,
