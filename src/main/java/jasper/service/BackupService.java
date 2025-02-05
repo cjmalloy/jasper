@@ -7,7 +7,9 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
+import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
+import jasper.service.dto.DtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,6 +51,9 @@ public class BackupService {
 	@Autowired
 	Auth auth;
 
+	@Autowired
+	DtoMapper mapper;
+
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String createBackup(String origin, BackupOptionsDto options) throws IOException {
@@ -69,8 +74,10 @@ public class BackupService {
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public List<String> listBackups(String origin) {
-		return backup.listBackups(origin);
+	public List<BackupDto> listBackups(String origin) {
+		return backup.listBackups(origin).stream()
+			.map(mapper::domainToDto)
+			.toList();
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.minReadBackupRole()")

@@ -179,13 +179,13 @@ public class Backup {
 		return storage.get().exists(origin, BACKUPS, id + ".zip");
 	}
 
-	public List<String> listBackups(String origin) {
+	public List<Storage.StorageRef> listBackups(String origin) {
 		if (storage.isEmpty()) {
 			logger.error("Backup list failed: No storage present.");
 			return null;
 		}
 		return storage.get().listStorage(origin, BACKUPS).stream()
-			.filter(n -> n.endsWith(".zip")).toList();
+			.filter(n -> n.id().endsWith(".zip")).toList();
 	}
 
 	@Async

@@ -52,8 +52,8 @@ public class Preload {
 			return;
 		}
 		for (var zip : storage.get().listStorage(props.getOrigin(), PRELOAD)) {
-			if (!zip.toLowerCase().endsWith(".zip")) continue;
-			loadStatic(props.getOrigin(), zip);
+			if (!zip.id().toLowerCase().endsWith(".zip")) continue;
+			loadStatic(props.getOrigin(), zip.id());
 		}
 	}
 

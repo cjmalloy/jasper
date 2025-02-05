@@ -1,6 +1,7 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.component.Storage;
 import jasper.domain.Ext;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
@@ -48,6 +49,8 @@ public abstract class DtoMapper {
 	public abstract PluginDto domainToDto(Plugin plugin);
 
 	public abstract TemplateDto domainToDto(Template plugin);
+
+	public abstract BackupDto domainToDto(Storage.StorageRef plugin);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget HasTags ref) {
