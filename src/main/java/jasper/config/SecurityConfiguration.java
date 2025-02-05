@@ -2,6 +2,10 @@ package jasper.config;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
 import jasper.security.jwt.JWTConfigurer;
 import jasper.security.jwt.TokenProvider;
@@ -13,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -32,6 +37,8 @@ import org.springframework.web.context.annotation.ApplicationScope;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 
@@ -183,6 +190,32 @@ public class SecurityConfiguration {
 
 	@Bean
 	public Filter shallowEtagHeaderFilter() {
-		return new ShallowEtagHeaderFilter();
+		return new ShallowEtagHeaderFilter() {
+			@Override
+			protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException, IOException {
+				if (!shouldUseEtag(request, response)) {
+					ShallowEtagHeaderFilter.disableContentCaching(request);
+					filterChain.doFilter(request, response);
+				} else {
+					super.doFilterInternal(request, response, filterChain);
+				}
+			}
+
+			@Override
+			protected boolean isEligibleForEtag(
+				HttpServletRequest request,
+				HttpServletResponse response,
+				int responseStatusCode,
+				InputStream inputStream
+			) {
+				if (!shouldUseEtag(request,response)) return false;
+				return super.isEligibleForEtag(request, response, responseStatusCode, inputStream);
+			}
+
+			private boolean shouldUseEtag(HttpServletRequest request,
+										  HttpServletResponse response){
+				return response.containsHeader(HttpHeaders.CONTENT_DISPOSITION);
+			}
+		};
 	}
 }

@@ -94,7 +94,7 @@ public class BackupController {
 		if (b == null) throw new NotFoundException("Storage unavailable!");
 		StreamingResponseBody responseBody = outputStream -> {
 			try (var is = b.inputStream()) {
-				byte[] buffer = new byte[8192];
+				byte[] buffer = new byte[64 * 1024];
 				int bytesRead;
 				while ((bytesRead = is.read(buffer)) != -1) {
 					outputStream.write(buffer, 0, bytesRead);
