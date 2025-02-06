@@ -1,6 +1,8 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.Storage;
+import jasper.domain.proj.HasOrigin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -16,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
 
@@ -40,6 +45,27 @@ public class OriginService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	Optional<Storage> storage;
+
+	@PreAuthorize("@auth.hasRole('MOD')")
+	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
+	public List<String> listOrigins() {
+		var set = new HashSet<String>();
+		set.addAll(refRepository.origins());
+		set.addAll(extRepository.origins());
+		set.addAll(pluginRepository.origins());
+		set.addAll(templateRepository.origins());
+		set.addAll(userRepository.origins());
+		set.addAll(userRepository.origins());
+		if (storage.isPresent()) {
+			set.addAll(storage.get().listTenants().stream()
+				.map(HasOrigin::origin).toList());
+		}
+		return set.stream()
+			.filter(auth::subOrigin).toList();
+	}
 
 	@Transactional
 	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")

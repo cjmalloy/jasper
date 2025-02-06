@@ -48,6 +48,9 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		WHERE p.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from plugin")
+	List<String> origins();
+
 	@Modifying(clearAutomatically = true)
 	@Query("""
 		DELETE FROM Plugin plugin

@@ -44,6 +44,9 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		WHERE t.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from template")
+	List<String> origins();
+
 	@Modifying(clearAutomatically = true)
 	@Query("""
 		DELETE FROM Template template

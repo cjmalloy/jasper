@@ -52,6 +52,9 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		WHERE u.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from users")
+	List<String> origins();
+
 	@Modifying(clearAutomatically = true)
 	@Query("""
 		DELETE FROM User user

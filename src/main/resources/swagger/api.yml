@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.3.2
+  version: 1.3.3
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -879,6 +879,21 @@ paths:
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/origin:
+    get:
+      tags:
+        - Origin
+      operationId: listOrigins
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/origin'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     delete:
       tags:
         - Origin
