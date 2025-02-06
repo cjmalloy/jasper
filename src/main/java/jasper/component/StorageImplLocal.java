@@ -171,30 +171,36 @@ public class StorageImplLocal implements Storage {
 	@Override
 	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
 		Files.createDirectories(backup.get(namespace));
-		Files.walk(dir(origin, namespace)).forEach(f -> {
-			if (Files.isRegularFile(f) && (modifiedAfter == null || f.toFile().lastModified() > modifiedAfter.toEpochMilli())) {
-				try {
-					Files.copy(f, backup.get(namespace, f.getFileName().toString()));
-				} catch (IOException e) {
-					throw new RuntimeException(e);
+		try (var w = Files.walk(dir(origin, namespace))) {
+			w.forEach(f -> {
+				if (Files.isRegularFile(f) && (modifiedAfter == null || f.toFile().lastModified() > modifiedAfter.toEpochMilli())) {
+					try {
+						Files.copy(f, backup.get(namespace, f.getFileName().toString()));
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	@Override
 	public void restore(String origin, String namespace, Zipped backup) throws IOException {
 		if (!Files.exists(backup.get(namespace))) return;
 		Files.createDirectories(dir(origin, namespace));
-		Files.walk(backup.get(namespace)).forEach(f -> {
-			if (Files.isRegularFile(f)) {
-				try {
-					Files.copy(f, path(origin, namespace, f.getFileName().toString()));
-				} catch (IOException e) {
-					throw new RuntimeException(e);
+		try (var w = Files.walk(backup.get(namespace))) {
+			w.forEach(f -> {
+				if (Files.isRegularFile(f)) {
+					try {
+						Files.copy(f, path(origin, namespace, f.getFileName().toString()));
+					} catch (FileAlreadyExistsException e) {
+						// TODO: overwrite option?
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	Path tenants() {
