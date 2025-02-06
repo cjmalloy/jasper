@@ -28,7 +28,7 @@ public class Backfill {
 	@Autowired
 	Meta meta;
 
-	@Scheduled(fixedDelay = 60, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
+	@Scheduled(fixedRate = 60, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
 	public void backfill() {
 		if (!configs.root().script("+plugin/backfill")) return;
 		for (var origin : configs.root().scriptOrigins("+plugin/backfill")) {
