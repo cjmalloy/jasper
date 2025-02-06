@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 
 @Repository
 public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, StreamMixin<Ext>, ModifiedCursor, OriginMixin {
@@ -36,6 +37,9 @@ public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMi
 		FROM Ext e
 		WHERE e.origin = :origin""")
 	Instant getCursor(String origin);
+
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ext")
+	List<String> origins();
 
 	@Modifying(clearAutomatically = true)
 	@Query("""

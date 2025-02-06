@@ -60,6 +60,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")
+	List<String> origins();
+
 	@Modifying(clearAutomatically = true)
 	@Query("""
 		DELETE FROM Ref ref

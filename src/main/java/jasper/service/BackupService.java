@@ -71,6 +71,13 @@ public class BackupService {
 		backup.store(origin, id, zipFile);
 	}
 
+	@PreAuthorize("@auth.hasRole('MOD')")
+	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
+	public List<String> listOrigins() {
+		return backup.listOrigins().stream()
+			.filter(auth::subOrigin).toList();
+	}
+
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public List<BackupDto> listBackups(String origin) {

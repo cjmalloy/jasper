@@ -64,6 +64,14 @@ public class BackupController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
 	})
+	@GetMapping("origin")
+	public List<String> listOrigins() {
+		return backupService.listOrigins();
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+	})
 	@GetMapping
 	public List<BackupDto> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
 		return backupService.listBackups(origin);

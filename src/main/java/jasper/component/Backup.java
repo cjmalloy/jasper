@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Cursor;
+import jasper.domain.proj.HasOrigin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -37,6 +38,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -182,6 +184,21 @@ public class Backup {
 			return false;
 		}
 		return storage.get().exists(origin, BACKUPS, id + ".zip");
+	}
+
+	public List<String> listOrigins() {
+		var set = new HashSet<String>();
+		set.addAll(refRepository.origins());
+		set.addAll(extRepository.origins());
+		set.addAll(pluginRepository.origins());
+		set.addAll(templateRepository.origins());
+		set.addAll(userRepository.origins());
+		set.addAll(userRepository.origins());
+		if (storage.isPresent()) {
+			set.addAll(storage.get().listTenants().stream()
+				.map(HasOrigin::origin).toList());
+		}
+		return set.stream().toList();
 	}
 
 	public List<Storage.StorageRef> listBackups(String origin) {

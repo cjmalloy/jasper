@@ -1793,6 +1793,22 @@ paths:
                   $ref: '#/components/schemas/BackupDto'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/backup/origin:
+    get:
+      tags:
+        - Backup
+      operationId: listOrigins
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/origin'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       tags:
         - Backup

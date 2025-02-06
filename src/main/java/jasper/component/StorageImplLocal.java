@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -76,6 +77,32 @@ public class StorageImplLocal implements Storage {
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
+	public void visitTenants(PathVisitor v) {
+		var dir = tenants();
+		if (!dir.toFile().exists()) return;
+		try (var list = Files.list(dir)) {
+			list.forEach(t -> {
+				if (!t.toFile().isDirectory()) return;
+				var tenant = t.getFileName().toString();
+				v.visit(tenantOrigin(tenant));
+			});
+		} catch (IOException e) {
+			logger.warn("Error reading tenant dir", e);
+		}
+	}
+
+	@Override
+	public List<String> listTenants() {
+		try (var list = Files.list(tenants())) {
+			return list
+				.map(f -> f.getFileName().toString())
+				.collect(Collectors.toList());
+		} catch (IOException e) {
+			return Collections.emptyList();
+		}
+	}
+
+	@Timed(value = "jasper.storage", histogram = true)
 	public void visitStorage(String origin, String namespace, PathVisitor v) {
 		var dir = dir(origin, namespace);
 		if (!dir.toFile().exists()) return;
@@ -94,21 +121,6 @@ public class StorageImplLocal implements Storage {
 				.collect(Collectors.toList());
 		} catch (IOException e) {
 			return Collections.emptyList();
-		}
-	}
-
-	@Timed(value = "jasper.storage", histogram = true)
-	public void visitTenants(PathVisitor v) {
-		var dir = tenants();
-		if (!dir.toFile().exists()) return;
-		try (var list = Files.list(dir)) {
-			list.forEach(t -> {
-				if (!t.toFile().isDirectory()) return;
-				var tenant = t.getFileName().toString();
-				v.visit(tenantOrigin(tenant));
-			});
-		} catch (IOException e) {
-			logger.warn("Error reading tenant dir", e);
 		}
 	}
 
