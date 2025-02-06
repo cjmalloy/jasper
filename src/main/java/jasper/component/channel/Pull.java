@@ -3,7 +3,6 @@ package jasper.component.channel;
 import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
-import jasper.component.Replicator;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.config.Props;
@@ -65,9 +64,6 @@ public class Pull {
 	RefRepository refRepository;
 
 	@Autowired
-	Replicator replicator;
-
-	@Autowired
 	TunnelClient tunnelClient;
 
 	@Autowired
@@ -76,6 +72,7 @@ public class Pull {
 	@Autowired
 	@Qualifier("websocketExecutor")
 	private Executor websocketExecutor;
+
 	@Autowired
 	private Tagger tagger;
 
@@ -83,6 +80,10 @@ public class Pull {
 	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
+
+	private Map<String, Integer> retryCounts = new ConcurrentHashMap<>();
+	private final int BASE_BACKOFF_SECONDS = 5;
+	private final int MAX_BACKOFF_SECONDS = 300; // max backoff delay
 
 	@PostConstruct
 	public void init() {
@@ -128,6 +129,7 @@ public class Pull {
 				url = tunnelClient.reserveProxy(remote);
 			} catch (RetryableTunnelException e) {
 				logger.info("{} Error connecting to ({}) via ssh {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+				scheduleReconnect(update, localOrigin);
 				return null;
 			} catch (Exception e) {
 				logger.error("{} Error connecting to ({}) via ssh {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
@@ -140,6 +142,7 @@ public class Pull {
 			var handler = new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+					retryCounts.put(localOrigin, 0);
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
 						@Override
 						public Type getPayloadType(StompHeaders headers) {
@@ -155,15 +158,15 @@ public class Pull {
 
 				@Override
 				public void handleTransportError(StompSession session, Throwable exception) {
-					logger.debug("Websocket Client Transport error");
+					logger.debug("{} Websocket Client Transport error: {}", remote.getOrigin(), exception.getMessage());
 					stomp.stop();
-					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+					scheduleReconnect(update, localOrigin);
 				}
 
 				@Override
 				public void handleException(StompSession session, StompCommand command,
 											StompHeaders headers, byte[] payload, Throwable exception) {
-					logger.error("Error in websocket connection", exception);
+					logger.error("{} Error in websocket connection", remote.getOrigin(), exception);
 					// Will automatically reconnect due to SockJS
 				}
 			};
@@ -173,18 +176,18 @@ public class Pull {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {
-					logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
+					logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
 					stomp.stop();
 					if (e instanceof DeploymentException) return null;
-					taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+					scheduleReconnect(update, localOrigin);
 					return null;
 				}), websocketExecutor);
 			} catch (Exception e) {
-				logger.error("{} Error creating websocket session: {} ", remote.getOrigin(), e.getCause().getMessage());
+				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
 				stomp.stop();
 				tunnelClient.releaseProxy(remote);
 				if (e instanceof DeploymentException) return null;
-				taskScheduler.schedule(() -> watch(update), Instant.now().plus(props.getPullWebsocketCooldownSec(), ChronoUnit.SECONDS));
+				scheduleReconnect(update, localOrigin);
 				return null;
 			}
 			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp);
@@ -215,6 +218,14 @@ public class Pull {
 		} finally {
 			taskScheduler.schedule(() -> checkIfQueued(local), Instant.now());
 		}
+	}
+
+	private void scheduleReconnect(HasTags update, String localOrigin) {
+		int count = retryCounts.getOrDefault(localOrigin, 0) + 1;
+		retryCounts.put(localOrigin, count);
+		int delaySec = Math.min(BASE_BACKOFF_SECONDS * (1 << count), MAX_BACKOFF_SECONDS);
+		logger.info("{} Scheduling reconnect for {} in {} seconds (retry count: {})", update.getOrigin(), localOrigin, delaySec, count);
+		taskScheduler.schedule(() -> watch(update), Instant.now().plus(delaySec, ChronoUnit.SECONDS));
 	}
 
 	private void checkIfQueued(String local) {
