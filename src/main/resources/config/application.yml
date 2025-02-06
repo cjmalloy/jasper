@@ -147,6 +147,8 @@ spring:
     allow-bean-definition-overriding: true
     allow-circular-references: true
   mvc:
+    async:
+      request-timeout: 60s
     pathmatch:
       matching-strategy: ant_path_matcher
   task:
