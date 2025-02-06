@@ -75,7 +75,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping(value = "{id}")
+	@GetMapping("{id}")
 	public ResponseEntity<StreamingResponseBody> downloadBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
@@ -114,7 +114,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@PostMapping(value = "key")
+	@PostMapping("key")
 	public String getBackupKey(
 		@RequestParam(defaultValue = "") String key
 	) {
