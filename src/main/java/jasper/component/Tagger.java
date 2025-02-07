@@ -251,6 +251,7 @@ public class Tagger {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
 		var ref = getResponseRef("_user", origin, url);
+		if (ref.hasTag(tags)) return;
 		for (var tag : tags) ref.addTag(tag);
 		try {
 			ingest.update(ref, true);
