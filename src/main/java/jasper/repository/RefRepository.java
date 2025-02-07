@@ -157,7 +157,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
 		FROM ref
-		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR CAST(metadata->>'modified' AS timestamp) < modified)
+		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified'))
 		AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
 		ORDER BY modified DESC
 		LIMIT 1""")
