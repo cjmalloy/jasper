@@ -5,7 +5,6 @@ import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
-import jasper.config.Props;
 import jasper.domain.proj.HasTags;
 import jasper.errors.RetryableTunnelException;
 import jasper.repository.RefRepository;
@@ -52,9 +51,6 @@ public class Pull {
 	private static final Logger logger = LoggerFactory.getLogger(Pull.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
@@ -77,11 +73,10 @@ public class Pull {
 	private Tagger tagger;
 
 	record MonitorInfo(String url, String origin, WebSocketStompClient client) {}
-	private Map<String, Instant> lastSent = new ConcurrentHashMap<>();
-	private Map<String, Instant> queued = new ConcurrentHashMap<>();
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
 
-	private Map<String, Integer> retryCounts = new ConcurrentHashMap<>();
+	record RetryInfo(int count, boolean retrying) {}
+	private Map<String, RetryInfo> retryCounts = new ConcurrentHashMap<>();
 	private final int BASE_BACKOFF_SECONDS = 5;
 	private final int MAX_BACKOFF_SECONDS = 300; // max backoff delay
 
@@ -142,7 +137,7 @@ public class Pull {
 			var handler = new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
-					retryCounts.put(localOrigin, 0);
+					retryCounts.remove(localOrigin);
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
 						@Override
 						public Type getPayloadType(StompHeaders headers) {
@@ -196,51 +191,35 @@ public class Pull {
 
 	private void handleCursorUpdate(String origin, String local, Instant cursor) {
 		if (!configs.root().getPullWebsocketOrigins().contains(origin)) return;
-		if (cursor.equals(lastSent.computeIfAbsent(local, o -> cursor))) {
-			taskScheduler.schedule(() -> pull(local), Instant.now());
-		} else {
-			queued.put(local, cursor);
-		}
-	}
-
-	private void pull(String local) {
-		try {
-			pulls.compute(local, (k, info) -> {
-				if (info == null) return null;
-				var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
-				if (maybeRemote.isPresent()) {
-					var remote = maybeRemote.get();
-					tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
-					return info;
-				}
-				return null;
-			});
-		} finally {
-			taskScheduler.schedule(() -> checkIfQueued(local), Instant.now());
-		}
+		pulls.compute(local, (k, info) -> {
+			if (info == null) return null;
+			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
+			if (maybeRemote.isPresent()) {
+				var remote = maybeRemote.get();
+				tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
+				return info;
+			}
+			return null;
+		});
 	}
 
 	private void scheduleReconnect(HasTags update, String localOrigin) {
-		int count = retryCounts.getOrDefault(localOrigin, 0) + 1;
-		retryCounts.put(localOrigin, count);
-		int delaySec = Math.min(BASE_BACKOFF_SECONDS * (1 << count), MAX_BACKOFF_SECONDS);
-		logger.info("{} Scheduling reconnect for {} in {} seconds (retry count: {})", update.getOrigin(), localOrigin, delaySec, count);
-		taskScheduler.schedule(() -> watch(update), Instant.now().plus(delaySec, ChronoUnit.SECONDS));
+		retryCounts.compute(localOrigin, (k, info) -> {
+			if (info == null) info = new RetryInfo(0, false);
+			if (info.retrying) return info;
+			var count = info.count + 1;
+			int delaySec = Math.min(BASE_BACKOFF_SECONDS * (1 << count), MAX_BACKOFF_SECONDS);
+			logger.info("{} Scheduling reconnect for {} in {} seconds (retry count: {})",
+				update.getOrigin(), localOrigin, delaySec, count);
+			taskScheduler.schedule(() -> watch(update), Instant.now().plus(delaySec, ChronoUnit.SECONDS));
+			return new RetryInfo(count, true);
+		});
 	}
 
-	private void checkIfQueued(String local) {
-		if (!lastSent.containsKey(local)) return;
-		var next = queued.remove(local);
-		if (next != null) {
-			lastSent.put(local, next);
-			pull(local);
-		} else {
-			lastSent.remove(local);
-		}
-	}
-
-	private static WebSocketStompClient getWebSocketStompClient() {
-		var stomp = new WebSocketStompClient(new SockJsClient(List.of(new WebSocketTransport(new StandardWebSocketClient()))));
+	private WebSocketStompClient getWebSocketStompClient() {
+		var socks = new SockJsClient(List.of(new WebSocketTransport(new StandardWebSocketClient())));
+		socks.setConnectTimeoutScheduler(taskScheduler);
+		var stomp = new WebSocketStompClient(socks);
 		stomp.setMessageConverter(new MessageConverter() {
 			@Override
 			public Object fromMessage(Message<?> message, Class<?> targetClass) {
