@@ -211,7 +211,10 @@ public class Pull {
 			int delaySec = Math.min(BASE_BACKOFF_SECONDS * (1 << count), MAX_BACKOFF_SECONDS);
 			logger.info("{} Scheduling reconnect for {} in {} seconds (retry count: {})",
 				update.getOrigin(), localOrigin, delaySec, count);
-			taskScheduler.schedule(() -> watch(update), Instant.now().plus(delaySec, ChronoUnit.SECONDS));
+			taskScheduler.schedule(() -> {
+				retryCounts.put(localOrigin, new RetryInfo(count, false));
+				watch(update);
+			}, Instant.now().plus(delaySec, ChronoUnit.SECONDS));
 			return new RetryInfo(count, true);
 		});
 	}
