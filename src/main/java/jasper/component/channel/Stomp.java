@@ -4,6 +4,7 @@ import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
@@ -17,6 +18,7 @@ import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.originHierarchy;
 import static jasper.domain.proj.HasTags.formatTag;
 
+@Profile("!no-websocket")
 @Component
 public class Stomp {
 
