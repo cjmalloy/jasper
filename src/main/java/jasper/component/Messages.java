@@ -91,6 +91,13 @@ public class Messages {
 	}
 
 	@Async
+	public void updateMetadata(Ref ref) {
+		// TODO: Debounce
+		var update = mapper.domainToDto(ref);
+		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
+	}
+
+	@Async
 	public void deleteRef(Ref ref) {
 		updateRef(deleteNotice(ref));
 	}

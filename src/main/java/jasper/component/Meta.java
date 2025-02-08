@@ -37,6 +37,9 @@ public class Meta {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	Messages messages;
+
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(Ref ref, String rootOrigin) {
 		if (ref == null) return;
@@ -112,6 +115,7 @@ public class Meta {
 				source.setMetadata(metadata);
 				try {
 					refRepository.save(source);
+					messages.updateMetadata(source);
 				} catch (DataAccessException e) {
 					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 				}
@@ -124,6 +128,7 @@ public class Meta {
 				if (latest.getMetadata() != null) {
 					latest.getMetadata().setObsolete(false);
 					refRepository.save(latest);
+					messages.updateMetadata(latest);
 				}
 			}
 		}
@@ -138,6 +143,7 @@ public class Meta {
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
+				messages.updateMetadata(source);
 				removeSource(source, existing.getUrl(), rootOrigin);
 			}
 		}
