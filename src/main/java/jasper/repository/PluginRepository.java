@@ -8,12 +8,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
 
 	@Modifying
@@ -65,14 +67,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND p.tag = :tag""")
 	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
 
-	// TODO: Cache this, it rarely changes
-	@Query("""
-		FROM Plugin AS p
-		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false""")
-	List<Plugin> findAllByOrigin(String origin);
-
-	// TODO: Cache this, it rarely changes
 	@Query("""
 		SELECT p.tag
 		FROM Plugin AS p

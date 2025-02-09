@@ -186,7 +186,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
-	@Transactional(readOnly = true)
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
@@ -194,19 +193,16 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
-	@Transactional(readOnly = true)
 	public Optional<Plugin> getPlugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
 	}
 
 	@Cacheable("plugin-metadata-cache")
-	@Transactional(readOnly = true)
 	public List<String> getMetadataPlugins(String origin) {
 		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 	}
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
-	@Transactional(readOnly = true)
 	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
@@ -214,13 +210,11 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")
-	@Transactional(readOnly = true)
 	public Optional<Template> getTemplate(String template, String origin) {
 		return templateRepository.findByTemplateAndOrigin(template, origin);
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/server'")
-	@Transactional(readOnly = true)
 	public ServerConfig root() {
 		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(),  ServerConfig.class)
 			.or(() -> getTemplateConfig("_config/server", props.getOrigin(),  ServerConfig.class))
@@ -229,7 +223,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/index'")
-	@Transactional(readOnly = true)
 	public Index index() {
 		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(),  Index.class)
 			.or(() -> getTemplateConfig("_config/index", props.getOrigin(),  Index.class))
@@ -237,7 +230,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
-	@Transactional(readOnly = true)
 	public SecurityConfig security(String origin) {
 		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
 			.orElse(new SecurityConfig())
@@ -245,7 +237,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable("template-schemas-cache")
-	@Transactional(readOnly = true)
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
@@ -254,7 +245,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable("template-defaults-cache")
-	@Transactional(readOnly = true)
 	public List<TemplateDto> getDefaults(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()
