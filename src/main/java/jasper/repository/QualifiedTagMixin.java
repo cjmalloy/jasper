@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+@Transactional(readOnly = true)
 public interface QualifiedTagMixin<T extends Tag> extends JpaSpecificationExecutor<T> {
 	Optional<T> findOneByQualifiedTag(String tag);
 	boolean existsByQualifiedTag(String tag);

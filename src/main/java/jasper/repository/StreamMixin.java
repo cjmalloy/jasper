@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.QueryHints;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.stream.Stream;
@@ -10,6 +11,7 @@ import static org.hibernate.jpa.AvailableHints.HINT_CACHEABLE;
 import static org.hibernate.jpa.AvailableHints.HINT_FETCH_SIZE;
 import static org.hibernate.jpa.AvailableHints.HINT_READ_ONLY;
 
+@Transactional(readOnly = true)
 public interface StreamMixin<T> {
 
 	@QueryHints(value = {
