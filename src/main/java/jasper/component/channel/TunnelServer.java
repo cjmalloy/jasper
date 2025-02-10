@@ -1,6 +1,7 @@
 package jasper.component.channel;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
@@ -51,6 +52,7 @@ public class TunnelServer {
 
 	public void generateConfig() {
 		logger.info("Generating new authorized_keys");
+		var hostKey = new String(configs.user().getKey());
 		var root = configs.root();
 		var result = new StringBuilder();
 		for (var origin : root.getSshOrigins()) {
@@ -83,6 +85,15 @@ public class TunnelServer {
 						.withName(props.getSshConfigMapName())
 					.and()
 					.addToData("authorized_keys", result.toString())
+					.build())
+				.serverSideApply();
+			client.secrets()
+				.inNamespace(props.getSshConfigNamespace())
+				.resource(new SecretBuilder()
+					.withNewMetadata()
+					.withName(props.getSshSecretName())
+					.and()
+					.addToData("host_key", hostKey)
 					.build())
 				.serverSideApply();
 		}
