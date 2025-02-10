@@ -225,6 +225,5 @@ jasper:
 
 logging:
   level:
-    org.apache.sshd.client: ERROR
     org.hibernate.orm.jdbc.batch: OFF
     org.hibernate.engine.jdbc.spi: OFF

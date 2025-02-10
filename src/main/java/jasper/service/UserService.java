@@ -29,8 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
@@ -43,6 +41,7 @@ import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -166,9 +165,7 @@ public class UserService {
 		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-		kpg.initialize(4096);
-		KeyPair kp = kpg.generateKeyPair();
+		var kp = keyPair();
 		user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
 		user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), user.getQualifiedTag()).getBytes());
 		ingest.update(user);
