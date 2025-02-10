@@ -8,10 +8,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 public class Crypto {
+
+    public static KeyPair keyPair() throws NoSuchAlgorithmException {
+		var kpg = KeyPairGenerator.getInstance("RSA");
+		kpg.initialize(4096);
+		return kpg.generateKeyPair();
+    }
 
     public static String writeRsaPrivatePem(PrivateKey privateKey) throws IOException {
         var pkout = new StringWriter();
