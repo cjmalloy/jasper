@@ -111,6 +111,7 @@ public class Props {
 
 	private String sshConfigNamespace = "default";
 	private String sshConfigMapName = "ssh-authorized-keys";
+	private String sshSecretName = "ssh-host-key";
 
 	private final Overrides override = new Overrides();
 	private final Http http = new Http();

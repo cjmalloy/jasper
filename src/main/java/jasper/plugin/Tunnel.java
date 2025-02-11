@@ -14,6 +14,7 @@ import static jasper.domain.proj.HasTags.getPlugin;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Tunnel implements Serializable {
+	private String hostFingerprint;
 	private String remoteUser;
 	private String sshHost;
 	private int sshPort = 8022;

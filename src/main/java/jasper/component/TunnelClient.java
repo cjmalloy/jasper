@@ -6,8 +6,10 @@ import jasper.errors.RetryableTunnelException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.SshException;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.session.Session;
 import org.apache.sshd.common.session.SessionListener;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
@@ -112,7 +114,7 @@ public class TunnelClient {
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 				var port = tunnel.getSshPort();
-				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, user.get().getKey());
+				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
 				try {
 					request.go(new URI("http://localhost:" + tunnelPort));
 				} catch (Exception e) {
@@ -162,7 +164,7 @@ public class TunnelClient {
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 				var port = tunnel.getSshPort();
-				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, user.get().getKey());
+				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
 				try {
 					return new URI("http://localhost:" + tunnelPort);
 				} catch (URISyntaxException e) {
@@ -187,6 +189,19 @@ public class TunnelClient {
 				e.getMessage());
 			throw e;
 		}
+	}
+
+	private ServerKeyVerifier serverKeyVerifier(HasTags remote) {
+		return (sshdClientSession, remoteAddress, serverKey) -> {
+			var fingerprint = KeyUtils.getFingerPrint(serverKey);
+			var tunnel = getTunnel(remote);
+			if (tunnel.getHostFingerprint() == null) {
+				tunnel.setHostFingerprint(fingerprint);
+				tagger.plugin(remote.getUrl(), remote.getOrigin(), "+plugin/origin/tunnel", tunnel);
+				return true;
+			}
+			return fingerprint.equals(tunnel.getHostFingerprint());
+		};
 	}
 
 	public void releaseProxy(HasTags remote) {
@@ -225,7 +240,7 @@ public class TunnelClient {
 		}
 	}
 
-	private int pooledConnection(String origin, String host, String username, int port, byte[] key) throws RetryableTunnelException {
+	private int pooledConnection(String origin, String host, String username, int port, ServerKeyVerifier serverKeyVerifier, byte[] key) throws RetryableTunnelException {
 		var remote = username + "@" + host + ":" + port;
 		try {
 			return tunnels.compute(remote, (k, v) -> {
@@ -246,6 +261,7 @@ public class TunnelClient {
 							}
 						}
 					});
+					client.setServerKeyVerifier(serverKeyVerifier);
 					client.start();
 					var session = client.connect(username, host, port).verify(30, TimeUnit.SECONDS).getSession();
 					loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null)

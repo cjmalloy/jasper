@@ -9,6 +9,7 @@ import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
+import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.config.Index;
 import jasper.repository.PluginRepository;
@@ -19,6 +20,7 @@ import jasper.repository.filter.RefFilter;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,6 +39,9 @@ import static jasper.domain.proj.HasOrigin.parts;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.repository.spec.QualifiedTag.concat;
+import static jasper.util.Crypto.keyPair;
+import static jasper.util.Crypto.writeRsaPrivatePem;
+import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -59,7 +65,10 @@ public class ConfigCache {
 	TemplateRepository templateRepository;
 
 	@Autowired
-	IngestTemplate ingest;
+	IngestTemplate ingestTemplate;
+
+	@Autowired
+	IngestUser ingestUser;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -73,16 +82,28 @@ public class ConfigCache {
 	public void init() {
 		if (templateRepository.findByTemplateAndOrigin(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
 			try {
-				ingest.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
+				ingestTemplate.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
 			}
 		}
 		if (templateRepository.findByTemplateAndOrigin("_config/index", "").isEmpty()) {
 			try {
-				ingest.create(index("DB Indices"));
+				ingestTemplate.create(index("DB Indices"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
+			}
+		}
+		if (userRepository.findOneByQualifiedTag("+user").isEmpty()) {
+			try {
+				var user = new User();
+				user.setTag("+user");
+				var kp = keyPair();
+				user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
+				user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), KeyUtils.getFingerPrint(kp.getPublic())).getBytes());
+				ingestUser.create(user);
+			} catch (Exception e) {
+				// Could not generate host keys
 			}
 		}
 	}
@@ -130,6 +151,12 @@ public class ConfigCache {
 	public UserDto getUser(String tag) {
 		return userRepository.findOneByQualifiedTag(tag)
 			.map(dtoMapper::domainToDto)
+			.orElse(null);
+	}
+
+	@Cacheable(value = "user-cache", key = "'+user'")
+	public User user() {
+		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
@@ -211,16 +238,16 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-cache", key = "'_config/server'")
 	public ServerConfig root() {
-		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(),  ServerConfig.class)
-			.or(() -> getTemplateConfig("_config/server", props.getOrigin(),  ServerConfig.class))
-			.orElse(ServerConfig.builderFor(subOrigin(props.getLocalOrigin(), props.getWorkerOrigin())).build())
+		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(), ServerConfig.class)
+			.or(() -> getTemplateConfig("_config/server", props.getLocalOrigin(), ServerConfig.class))
+			.orElse(ServerConfig.builderFor(props.getOrigin()).build())
 			.wrap(props);
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/index'")
 	public Index index() {
-		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(),  Index.class)
-			.or(() -> getTemplateConfig("_config/index", props.getOrigin(),  Index.class))
+		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(), Index.class)
+			.or(() -> getTemplateConfig("_config/index", props.getLocalOrigin(), Index.class))
 			.orElse(Index.builder().build());
 	}
 
