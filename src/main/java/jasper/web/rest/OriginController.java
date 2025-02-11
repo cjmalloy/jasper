@@ -41,7 +41,7 @@ public class OriginController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping
-	public List<String> listOrigins() {
+	List<String> listOrigins() {
 		return originService.listOrigins();
 	}
 

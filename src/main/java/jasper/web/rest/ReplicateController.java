@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jasper.client.JasperClient;
@@ -18,6 +17,7 @@ import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
+import jasper.errors.NotFoundException;
 import jasper.errors.TooLargeException;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
@@ -38,8 +38,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.util.StreamUtils;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,13 +54,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static jasper.client.JasperClient.jasperHeaders;
 import static jasper.domain.Ref.URL_LEN;
@@ -380,20 +387,35 @@ public class ReplicateController {
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("cache")
-	void fetch(
+	ResponseEntity<StreamingResponseBody> fetch(
 		WebRequest request,
-		HttpServletResponse response,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
-	) throws IOException, URISyntaxException {
-		try (var os = response.getOutputStream()) {
-			if (isNotBlank(props.getCacheApi())) {
-				StreamUtils.copy(jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url, origin).getBody(), os);
-			} else {
-				proxyService.fetchIfExists(url, origin, os);
-				response.setStatus(HttpStatus.OK.value());
-			}
+	) throws URISyntaxException, IOException {
+		InputStream is;
+		if (isNotBlank(props.getCacheApi())) {
+			is = jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url, origin).getBody().getInputStream();
+		} else {
+			is = proxyService.fetchIfExists(url, origin);
 		}
+		if (is == null) throw new NotFoundException(url);
+		StreamingResponseBody responseBody = outputStream -> {
+			try (is) {
+				byte[] buffer = new byte[64 * 1024];
+				int bytesRead;
+				while ((bytesRead = is.read(buffer)) != -1) {
+					outputStream.write(buffer, 0, bytesRead);
+				}
+			}
+		};
+		var ref = proxyService.stat(url, origin, false);
+		var cache = proxyService.cache(url, origin, false);
+		return ResponseEntity.ok()
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + URLEncoder.encode(ref.getTitle(), StandardCharsets.UTF_8).replace("+", "%20"))
+			.contentLength(cache != null ? cache.getContentLength() : 0)
+			.contentType(cache != null && isNotBlank(cache.getMimeType()) ? MediaType.parseMediaType(cache.getMimeType()) : MediaType.APPLICATION_OCTET_STREAM)
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
+			.body(responseBody);
 	}
 
 	@ApiResponses({

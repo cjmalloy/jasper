@@ -14,9 +14,9 @@ import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,10 +34,12 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.service.dto.BackupOptionsDto.ID_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.http.MediaType.parseMediaType;
 
 @RestController
 @RequestMapping("api/v1/backup")
@@ -54,7 +56,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "201"),
 	})
 	@PostMapping
-	public String createBackup(
+	String createBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestBody(required = false) BackupOptionsDto options
 	) throws IOException {
@@ -65,7 +67,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "200"),
 	})
 	@GetMapping
-	public List<BackupDto> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
+	List<BackupDto> listBackups(@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin) {
 		return backupService.listBackups(origin);
 	}
 
@@ -76,7 +78,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping("{id}")
-	public ResponseEntity<StreamingResponseBody> downloadBackup(
+	ResponseEntity<StreamingResponseBody> downloadBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestParam(defaultValue = "") String p
@@ -92,20 +94,20 @@ public class BackupController {
 			b = backupService.getBackupPreauth(id);
 		}
 		if (b == null) throw new NotFoundException("Storage unavailable!");
-		StreamingResponseBody responseBody = outputStream -> {
-			try (var is = b.inputStream()) {
-				byte[] buffer = new byte[64 * 1024];
-				int bytesRead;
-				while ((bytesRead = is.read(buffer)) != -1) {
-					outputStream.write(buffer, 0, bytesRead);
-				}
-			}
-		};
 		return ResponseEntity.ok()
 			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + URLEncoder.encode(id + ".zip", StandardCharsets.UTF_8).replace("+", "%20"))
 			.contentLength(b.size())
-			.contentType(MediaType.APPLICATION_OCTET_STREAM)
-			.body(responseBody);
+			.contentType(parseMediaType("application/zip"))
+			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
+			.body(outputStream -> {
+				try (var is = b.inputStream()) {
+					byte[] buffer = new byte[64 * 1024];
+					int bytesRead;
+					while ((bytesRead = is.read(buffer)) != -1) {
+						outputStream.write(buffer, 0, bytesRead);
+					}
+				}
+			});
 	}
 
 	@ApiResponses({
@@ -115,7 +117,7 @@ public class BackupController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping("key")
-	public String getBackupKey(
+	String getBackupKey(
 		@RequestParam(defaultValue = "") String key
 	) {
 		return backupService.getKey(key);
@@ -126,7 +128,7 @@ public class BackupController {
 	})
 	@PostMapping("upload/{id}")
 	@ResponseStatus(HttpStatus.CREATED)
-	public void uploadBackup(
+	void uploadBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		InputStream zipFile
@@ -143,7 +145,7 @@ public class BackupController {
 	})
 	@PostMapping("restore/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void restoreBackup(
+	void restoreBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id,
 		@RequestBody(required = false) BackupOptionsDto options
@@ -168,7 +170,7 @@ public class BackupController {
 	})
 	@DeleteMapping("{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteBackup(
+	void deleteBackup(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@PathVariable @Length(max = ID_LEN) String id
 	) throws IOException {
