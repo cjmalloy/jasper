@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 
+import static jasper.util.Logging.getMessage;
 import static java.security.MessageDigest.getInstance;
 import static org.apache.commons.codec.binary.Hex.encodeHexString;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
@@ -112,12 +113,12 @@ public class ScriptRunner {
 				return;
 			}
 		} catch (ScriptException e) {
-			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), e.getMessage());
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage(), e.getLogs());
+			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), getMessage(e));
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), getMessage(e), e.getLogs());
 			return;
 		} catch (Exception e) {
-			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), e.getMessage());
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), e.getMessage());
+			logger.error("{} Error running script {} on {} ({}): {}", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl(), getMessage(e));
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), getMessage(e));
 			return;
 		}
 		if (isBlank(output)) return;

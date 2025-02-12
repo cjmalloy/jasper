@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
+import static jasper.util.Logging.getMessage;
 
 @Component
 public class Scheduler {
@@ -130,7 +131,7 @@ public class Scheduler {
 							tagger.remove(target.getUrl(), origin, "+plugin/run");
 						} catch (Exception e) {
 							logger.error("{} Error in run tag {} ", origin, k, e);
-							tagger.attachError(url, origin, "Error in run tag " + k, e.getMessage());
+							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 						} finally {
 							refs.remove(k);
 						}
@@ -184,7 +185,7 @@ public class Scheduler {
 				v.run(ref);
 			} catch (Exception e) {
 				logger.error("{} Error in cron tag {} ", origin, k, e);
-				tagger.attachError(url, origin, "Error in cron tag " + k, e.getMessage());
+				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 			}
 		});
 	}

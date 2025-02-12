@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.HasTags.hasMedia;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -326,7 +327,7 @@ public class Scraper {
 					objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
 				for (var c : configs) parseLd(result, c);
 			} catch (Exception e) {
-				logger.warn("Invalid LD+JSON. {}", e.getMessage());
+				logger.warn("Invalid LD+JSON. {}", getMessage(e));
 				logger.debug(json);
 			}
 		}

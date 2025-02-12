@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
+import static jasper.util.Logging.getMessage;
 
 @Component
 public class Proxy {
@@ -55,7 +56,7 @@ public class Proxy {
 			if (refRepository.existsByUrlAndOrigin(url, origin)) {
 				tagger.attachError(origin,
 					tagger.plugin(url, origin, "_plugin/cache", null),
-					"Error Fetching String", e.getMessage());
+					"Error Fetching String", getMessage(e));
 			}
 		}
 		return null;
@@ -72,7 +73,7 @@ public class Proxy {
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.plugin(url, origin, "_plugin/cache", null),
-				"Error Proxying", e.getMessage());
+				"Error Proxying", getMessage(e));
 			return null;
 		}
 	}
@@ -102,7 +103,7 @@ public class Proxy {
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),
-				"Error creating thumbnail", e.getMessage());
+				"Error creating thumbnail", getMessage(e));
 			return null;
 		}
 	}

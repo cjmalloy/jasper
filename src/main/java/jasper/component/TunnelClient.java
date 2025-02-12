@@ -34,6 +34,7 @@ import static jasper.domain.proj.Tag.defaultOrigin;
 import static jasper.domain.proj.Tag.reverseOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Tunnel.getTunnel;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.sshd.common.NamedResource.ofName;
 import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIdentities;
@@ -82,7 +83,7 @@ public class TunnelClient {
 					logger.debug("Healthy connection for {} with {} connections", remote, v.connections);
 					return v;
 				} catch (Exception e) {
-					logger.warn("Failed connection test for {} with {} connections: {}", remote, v.connections, e.getMessage());
+					logger.warn("Failed connection test for {} with {} connections: {}", remote, v.connections, getMessage(e));
 					v.client.stop();
 					return null;
 				}
@@ -128,15 +129,13 @@ public class TunnelClient {
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
-					remote.getTitle(), remote.getUrl()),
-				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
+					remote.getTitle(), remote.getUrl()), getMessage(e));
 		} catch (InvalidTunnelException e) {
 			logger.error("{} Fatal error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
 				"Fatal error creating SSH tunnel for %s: %s".formatted(
-					remote.getTitle(), remote.getUrl()),
-				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
+					remote.getTitle(), remote.getUrl()), getMessage(e));
 		}
 	}
 
@@ -177,16 +176,14 @@ public class TunnelClient {
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
-					remote.getTitle(), remote.getUrl()),
-				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
+					remote.getTitle(), remote.getUrl()), getMessage(e));
 			throw e;
 		} catch (InvalidTunnelException e) {
 			logger.error("{} Fatal error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
 				"Fatal error creating SSH tunnel for %s: %s".formatted(
-					remote.getTitle(), remote.getUrl()),
-				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
+					remote.getTitle(), remote.getUrl()), getMessage(e));
 			throw e;
 		}
 	}

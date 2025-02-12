@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+import static jasper.util.Logging.getMessage;
+
 @Profile("scripts")
 @Component
 public class FeedScraper implements Scheduler.CronRunner {
@@ -40,11 +42,11 @@ public class FeedScraper implements Scheduler.CronRunner {
 		try {
 			rssParser.scrape(ref, false);
 		} catch (IOException e) {
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", e.getMessage());
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
 		} catch (FeedException e) {
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", e.getMessage());
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 		} catch (Throwable e) {
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", e.getMessage());
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", getMessage(e));
 		}
 		logger.info("{} Finished scraping feed: {}.", ref.getOrigin(), ref.getUrl());
 	}

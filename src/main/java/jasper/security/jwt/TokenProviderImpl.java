@@ -39,6 +39,7 @@ import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -224,7 +225,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			logger.trace(INVALID_JWT_TOKEN, e);
 
 		} catch (IllegalArgumentException e) {
-			logger.error("Token validation error {}", e.getMessage());
+			logger.error("Token validation error {}", getMessage(e));
 		}
         return false;
 	}

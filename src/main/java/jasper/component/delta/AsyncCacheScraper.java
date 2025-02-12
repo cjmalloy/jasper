@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import static jasper.util.Logging.getMessage;
+
 @Profile("proxy & file-cache")
 @Component
 public class AsyncCacheScraper implements Async.AsyncRunner {
@@ -38,7 +40,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 		} catch (Exception e) {
 			tagger.attachError(ref.getOrigin(),
 				tagger.plugin(ref.getUrl(), ref.getOrigin(), "_plugin/cache", null, "-_plugin/delta/cache"),
-				"Error Fetching for async scrape", e.getMessage());
+				"Error Fetching for async scrape", getMessage(e));
 		}
 	}
 }

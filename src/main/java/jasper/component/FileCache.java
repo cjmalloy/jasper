@@ -28,6 +28,7 @@ import java.util.List;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -165,7 +166,7 @@ public class FileCache {
 		} catch (Exception e) {
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
-				"Error Fetching (" + (e.getCause() == null ? e.getClass().getName() : e.getCause().getClass().getName()) + ")", e.getMessage());
+				"Error Fetching: " + getMessage(e));
 			if (configs.getRemote(origin) != null) {
 				var cache = existingCache != null ? existingCache : Cache.builder().build();
 				cache.setBan(true);
@@ -234,7 +235,7 @@ public class FileCache {
 				return new ByteArrayInputStream(data);
 			} catch (Exception e) {
 				var err = tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
-				tagger.attachError(origin, err, "Error creating thumbnail", e.getMessage());
+				tagger.attachError(origin, err, "Error creating thumbnail", getMessage(e));
 				if (configs.getRemote(origin) != null) {
 					var cache = existingCache != null ? existingCache : Cache.builder().build();
 					cache.setBan(true);

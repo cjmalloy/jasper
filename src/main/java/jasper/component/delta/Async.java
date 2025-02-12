@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
@@ -111,7 +112,7 @@ public class Async {
 						try {
 							v.run(fetch(ud));
 						} catch (NotFoundException e) {
-							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), e.getMessage());
+							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
 						} catch (Exception e) {
 							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
 						}
@@ -153,7 +154,7 @@ public class Async {
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
-					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), e.getMessage());
+					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
 				} catch (Exception e) {
 					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 				}

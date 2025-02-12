@@ -43,6 +43,7 @@ import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static jasper.util.Logging.getMessage;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -234,15 +235,13 @@ public class Replicator {
 								remote.getOrigin(), remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
 								"Pulling batch failed with duplicate modified date (%s): %s".formatted(
-									remote.getTitle(), remote.getUrl()),
-								""+after));
+									remote.getTitle(), remote.getUrl()), ""+after));
 						} catch (InvalidTemplateException | InvalidPluginException e) {
 							logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
 								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
 								"Pulling batch failed with Validation! (%s) %s: %s".formatted(
-									localOrigin, remote.getTitle(), remote.getUrl()),
-								e.getMessage()));
+									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
 						}
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
@@ -264,15 +263,13 @@ public class Replicator {
 								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 							logs.add(new Log(
 								"Skipping replication of template with duplicate modified date %s: %s".formatted(
-									ext.getName(), ext.getTag()),
-								""+ext.getModified()));
+									ext.getName(), ext.getTag()), ""+ext.getModified()));
 						} catch (RuntimeException e) {
 							logger.warn("{} Failed Template Validation! Skipping replication of ext {}: {}",
 								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 							tagger.attachLogs(remote.getOrigin(), remote,
 								"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
-									ext.getName(), ext.getQualifiedTag()),
-								e.getMessage());
+									ext.getName(), ext.getQualifiedTag()), getMessage(e));
 						}
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
@@ -305,14 +302,13 @@ public class Replicator {
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pulling {} from origin ({}) {}: {} {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
 			} catch (Exception e) {
-				logger.error("{} Error pulling {} from origin {} {}: {} {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
+				logger.error("{} Fatal error pulling {} from origin {} {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
 				tagger.attachError(remote.getOrigin(), remote,
-					"Error pulling %s from origin (%s) %s: %s".formatted(
-						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
-					e.getMessage());
+					"Fatal error pulling %s from origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
 			} finally {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
@@ -394,7 +390,7 @@ public class Replicator {
 										logs.add(new Log(
 											"Failed Pushing Cache! Skipping cache of ref (%s) %s: %s".formatted(
 												localOrigin, ref.getTitle(), ref.getUrl()),
-											e.getMessage()));
+											getMessage(e)));
 									}
 								} else if (!fileCacheMissingError) {
 									// TODO: push to cache api
@@ -445,14 +441,13 @@ public class Replicator {
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pushing {} to origin ({}) {}: {} {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
 			} catch (Exception e) {
-				logger.error("{} Error pushing {} to origin ({}) {}: {} {}",
-					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), e.getMessage());
+				logger.error("{} Fatal error pushing {} to origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
 				tagger.attachError(remote.getOrigin(), remote,
-					"Error pushing %s to origin (%s) %s: %s".formatted(
-						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()),
-					e.getMessage());
+					"Fatal error pushing %s to origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
 			} finally {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
@@ -481,10 +476,10 @@ public class Replicator {
 				if (e.status() != 413) throw e;
 				if (size == 1) {
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
-					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, e.getMessage()));
+					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, getMessage(e)));
 					skip++;
 				} else {
-					logs.add(new Log("Error pulling entities, reducing batch size to " + size, e.getMessage()));
+					logs.add(new Log("Error pulling entities, reducing batch size to " + size, getMessage(e)));
 					size = max(1, size / 2);
 				}
 			}
