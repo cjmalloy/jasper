@@ -13,6 +13,7 @@
 logging:
   level:
     ROOT: INFO
+    jasper.component.cron.Backfill: TRACE
 
 spring:
   devtools:
