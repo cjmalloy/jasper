@@ -2,7 +2,7 @@ package jasper.plugin;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import jasper.domain.Ref;
+import jasper.domain.proj.HasTags;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +11,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 
+import static jasper.domain.proj.HasTags.getPlugin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Getter
@@ -27,8 +28,8 @@ public class Cache implements Serializable {
 	private boolean thumbnail;
 	private Long contentLength;
 
-	public static Cache getCache(Ref ref) {
-		return ref == null ? null : ref.getPlugin("_plugin/cache", Cache.class);
+	public static Cache getCache(HasTags ref) {
+		return ref == null ? null : getPlugin(ref, "_plugin/cache", Cache.class);
 	}
 
 	public static boolean bannedOrBroken(Cache cache) {

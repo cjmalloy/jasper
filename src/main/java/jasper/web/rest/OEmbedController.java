@@ -34,7 +34,7 @@ public class OEmbedController {
 		@ApiResponse(responseCode = "400", content = @Content()),
 		@ApiResponse(responseCode = "404", content = @Content()),
 	})
-	@GetMapping()
+	@GetMapping
 	ResponseEntity<JsonNode> oembed(@RequestParam Map<String, String> params) {
 		return ResponseEntity.ok()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())

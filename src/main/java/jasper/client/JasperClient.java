@@ -12,6 +12,7 @@ import jasper.domain.User;
 import jasper.service.dto.RefReplDto;
 import jasper.service.dto.UserDto;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.WebRequest;
 
@@ -99,9 +100,9 @@ public interface JasperClient {
 	void templatePush(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("origin") String origin, List<Template> push);
 
 	@RequestLine("GET /pub/api/v1/repl/cache?url={url}&origin={origin}")
-	ResponseEntity<byte[]> fetch(URI baseUri, @Param("url") String url, @Param("origin") String origin);
+	ResponseEntity<Resource> fetch(URI baseUri, @Param("url") String url, @Param("origin") String origin);
 	@RequestLine("GET /pub/api/v1/repl/cache?url={url}&origin={origin}")
-	ResponseEntity<byte[]> fetch(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url, @Param("origin") String origin);
+	ResponseEntity<Resource> fetch(URI baseUri, @HeaderMap Map<String, Object> headers, @Param("url") String url, @Param("origin") String origin);
 	@RequestLine("PUT /pub/api/v1/repl/cache?url={url}&origin={origin}")
 	void push(URI baseUri, @Param("url") String url, @Param("origin") String origin, byte[] data);
 	@RequestLine("PUT /pub/api/v1/repl/cache?url={url}&origin={origin}")

@@ -12,6 +12,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 
 @Component
@@ -22,9 +23,15 @@ public class Images {
 	@Timed(value = "jasper.images")
 	public byte[] thumbnail(InputStream image) {
 		try {
-			// Read the input stream into a byte array so we can use it twice
-			var imageData = image.readAllBytes();
+			return thumbnail(image.readAllBytes());
+		} catch (IOException e) {
+			return null;
+		}
+	}
 
+	@Timed(value = "jasper.images")
+	public byte[] thumbnail(byte[] imageData) {
+		try {
 			// Read orientation from metadata
 			var orientation = 1;
 			try {

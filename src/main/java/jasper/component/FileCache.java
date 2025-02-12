@@ -12,11 +12,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StreamUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -93,78 +92,63 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public String fetchString(String url, String origin) {
-		var cache = getCache(fetch(url, origin));
+		var is = fetch(url, origin);
+		if (is == null) return null;
+		var cache = cache(url, origin);
 		if (cache == null) return null;
 		if (bannedOrBroken(cache)) return null;
-		return new String(storage.get(origin, CACHE, cache.getId()));
+		try {
+			return new String(is.readAllBytes());
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
 	@Timed(value = "jasper.cache")
-	public byte[] fetchBytes(String url, String origin) {
-		var cache = getCache(fetch(url, origin));
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		return storage.get(origin, CACHE, cache.getId());
+	public InputStream fetch(String url, String origin) {
+		return fetch(url, origin, false);
 	}
 
 	@Timed(value = "jasper.cache")
-	public Ref fetch(String url, String origin) {
-		return fetch(url, origin, null, false);
-	}
-
-	@Timed(value = "jasper.cache")
-	public Ref fetch(String url, String origin, OutputStream os) {
-		return fetch(url, origin, os, false);
-	}
-
-	@Timed(value = "jasper.cache")
-	public Ref fetch(String url, String origin, boolean refresh) {
-		return fetch(url, origin, null, refresh);
-	}
-
-	@Timed(value = "jasper.cache")
-	public Ref fetch(String url, String origin, OutputStream os, boolean refresh) {
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
-		var existingCache = getCache(ref);
-		if (bannedOrBroken(existingCache, refresh)) return ref;
+	public InputStream fetch(String url, String origin, boolean refresh) {
+		var existingCache = cache(url, origin);
+		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
-			if (os != null) storage.stream(origin, CACHE, existingCache.getId(), os);
-			return ref;
+			return storage.stream(origin, CACHE, existingCache.getId());
 		}
 		if (url.startsWith("cache:")) {
 			var id = url.substring("cache:".length());
 			if (storage.exists(origin, CACHE, id)) {
-				if (os != null) storage.stream(origin, CACHE, id, os);
-				return ref;
+				return storage.stream(origin, CACHE, id);
 			} else if (configs.getRemote(origin) == null) {
 				// No cache found and no remote to fetch from
-				return ref;
+				return null;
 			}
 		}
 		String mimeType;
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
-			if (res == null) return ref;
+			if (res == null) return null;
 			var remote = configs.getRemote(origin);
 			var pull = getPull(remote);
 			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
 				id = url.substring("cache:".length());
-				if (os != null && storage.exists(origin, CACHE, id)) storage.stream(origin, CACHE, id, os);
-				return ref;
+				if (storage.exists(origin, CACHE, id)) return storage.stream(origin, CACHE, id);
+				return null;
 			}
 			mimeType = res.getMimeType();
 			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
-				storage.storeAt(origin, CACHE, existingCache.getId(), res.getInputStream());
-				return ref;
+				id = existingCache.getId();
+				storage.storeAt(origin, CACHE, id, res.getInputStream());
+			} else {
+				id = storage.store(origin, CACHE, res.getInputStream());
 			}
-			id = storage.store(origin, CACHE, res.getInputStream());
 			var cache = Cache.builder()
 				.id(id)
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
-			if (os != null) storage.stream(origin, CACHE, id, os);
-			if (ref != null) {
+			if (stat(url, origin) != null) {
 				if (existingCache != null && isNotBlank(existingCache.getId())) {
 					try {
 						storage.delete(origin, CACHE, existingCache.getId());
@@ -172,9 +156,10 @@ public class FileCache {
 						logger.warn("Failed to delete {}", existingCache.getId());
 					}
 				}
-				return tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
+				tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			}
-			return ref = tagger.plugin(url, origin, "_plugin/cache", cache);
+			tagger.plugin(url, origin, "_plugin/cache", cache);
+			return storage.stream(origin, CACHE, id);
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
@@ -184,25 +169,29 @@ public class FileCache {
 			if (configs.getRemote(origin) != null) {
 				var cache = existingCache != null ? existingCache : Cache.builder().build();
 				cache.setBan(true);
-				return tagger.plugin(url, origin, "_plugin/cache", cache);
+				tagger.plugin(url, origin, "_plugin/cache", cache);
 			}
+			return null;
 		} finally {
-			for (var other : createArchive(url, origin, getCache(ref))) cacheLater(other, origin);
+			for (var other : createArchive(url, origin, cache(url, origin))) cacheLater(other, origin);
 		}
-		return ref;
 	}
 
-	private Cache stat(String url, String origin) {
-		return getCache(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
+	private Ref stat(String url, String origin) {
+		return refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+	}
+
+	private Cache cache(String url, String origin) {
+		return getCache(stat(url, origin));
 	}
 
 	@Timed(value = "jasper.cache")
-	public Ref fetchThumbnail(String url, String origin, OutputStream os) {
+	public InputStream fetchThumbnail(String url, String origin) {
 		var id = "";
 		if (url.startsWith("cache:")) {
 			id = url.substring("cache:".length());
 		}
-		var fullSize = getCache(fetch(url, origin, false));
+		var fullSize = cache(url, origin);
 		if (fullSize == null) {
 			if (configs.getRemote(origin) == null) return null;
 		} else {
@@ -210,49 +199,49 @@ public class FileCache {
 		}
 		if (isBlank(id)) return null;
 		if (bannedOrBroken(fullSize)) return null;
-		if (fullSize != null && fullSize.isThumbnail()) return fetch(url, origin, os, false);
+		if (fullSize != null && fullSize.isThumbnail()) return fetch(url, origin, false);
 		var thumbnailId = "t_" + id;
 		var thumbnailUrl = "cache:" + thumbnailId;
-		var existingCache = stat(thumbnailUrl, origin);
+		var existingCache = cache(thumbnailUrl, origin);
 		if (existingCache != null && isBlank(existingCache.getId())) {
 			// If id is blank the last thumbnail generation must have failed
 			// Wait for the user to manually refresh
 			return null;
 		}
 		if (storage.exists(origin, CACHE, thumbnailId)) {
-			return fetch(thumbnailUrl, origin, os, false);
+			return fetch(thumbnailUrl, origin, false);
 		} else {
-			var data = images.thumbnail(storage.stream(origin, CACHE, id));
+			var data = images.thumbnail(fetch(url, origin));
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
 				// Set this as a thumbnail to disable future attempts
 				if (fullSize != null) fullSize.setThumbnail(true);
-				storage.stream(origin, CACHE, id, os);
-				return tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+				return storage.stream(origin, CACHE, id);
 			}
 			try {
 				if (storage.exists(origin, CACHE, thumbnailId)) {
 					storage.delete(origin, CACHE, thumbnailId);
 				}
 				storage.storeAt(origin, CACHE, thumbnailId, data);
-				if (os != null) StreamUtils.copy(data, os);
+				var cache = Cache.builder()
+					.id(thumbnailId)
+					.thumbnail(true)
+					.mimeType("image/png")
+					.contentLength((long) data.length)
+					.build();
+				tagger.plugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
+				return new ByteArrayInputStream(data);
 			} catch (Exception e) {
 				var err = tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
 				tagger.attachError(origin, err, "Error creating thumbnail", e.getMessage());
 				if (configs.getRemote(origin) != null) {
 					var cache = existingCache != null ? existingCache : Cache.builder().build();
 					cache.setBan(true);
-					return tagger.plugin(url, origin, "_plugin/cache", cache);
+					tagger.plugin(url, origin, "_plugin/cache", cache);
 				}
 				return null;
 			}
-			var cache = Cache.builder()
-				.id(thumbnailId)
-				.thumbnail(true)
-				.mimeType("image/png")
-				.contentLength((long) data.length)
-				.build();
-			return tagger.plugin(thumbnailUrl, origin, "_plugin/cache", cache, "plugin/thumbnail");
 		}
 	}
 
@@ -269,7 +258,7 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public void overwrite(String url, String origin, byte[] bytes) throws IOException {
-		var cache = getCache(fetch(url, origin));
+		var cache = cache(url, origin);
 		if (cache == null) throw new NotFoundException("Overwriting cache that does not exist");
 		storage.overwrite(origin, CACHE, cache.getId(), bytes);
 	}
@@ -298,7 +287,7 @@ public class FileCache {
 	}
 
 	private String fetchExistingString(String url, String origin) {
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = stat(url, origin);
 		var cache = getCache(ref);
 		if (cache == null) return null;
 		if (bannedOrBroken(cache)) return null;
@@ -338,7 +327,7 @@ public class FileCache {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = stat(url, origin);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}

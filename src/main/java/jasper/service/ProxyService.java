@@ -16,9 +16,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Optional;
 
+import static jasper.plugin.Cache.getCache;
 import static jasper.security.AuthoritiesConstants.USER;
 
 @Service
@@ -55,28 +55,40 @@ public class ProxyService {
 
 	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void fetchIfExists(String url, String origin, OutputStream os) {
+	public InputStream fetchIfExists(String url, String origin) {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
 		if (!refRepository.existsByUrlAndOrigin(url, origin)) throw new NotFoundException("Cache not found");
-		fileCache.get().fetch(url, origin, os);
+		return fileCache.get().fetch(url, origin);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public Cache fetch(String url, String origin) {
+	public RefDto stat(String url, String origin, boolean thumbnail) {
 		// Only require role for new scrapes
 		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
-		return proxy.fetch(url, origin);
+		return mapper.domainToDto(thumbnail
+			? proxy.statThumbnail(url, origin)
+			: proxy.stat(url, origin));
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public Cache fetch(String url, String origin, boolean thumbnail, OutputStream os) {
+	public Cache cache(String url, String origin, boolean thumbnail) {
+		// Only require role for new scrapes
+		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
+		return getCache(thumbnail
+			? proxy.statThumbnail(url, origin)
+			: proxy.stat(url, origin));
+	}
+
+	@PreAuthorize("@auth.subOrigin(#origin)")
+	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
+	public InputStream fetch(String url, String origin, boolean thumbnail) {
 		// Only require role for new scrapes
 		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return thumbnail
-			? proxy.fetchThumbnail(url, origin, os)
-			: proxy.fetch(url, origin, os);
+			? proxy.fetchThumbnail(url, origin)
+			: proxy.fetch(url, origin);
 	}
 
 	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")

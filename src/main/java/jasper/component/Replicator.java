@@ -27,7 +27,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -113,14 +112,12 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
-		byte[][] data = { null };
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
 				if (fileCache.isPresent()) {
 					if (cache.getBody() != null) {
-						data[0] = cache.getBody();
-						fileCache.get().push(url, localOrigin, cache.getBody());
+						fileCache.get().push(url, localOrigin, cache.getBody().getInputStream());
 					} else {
 						fileCache.get().push(url, localOrigin, "".getBytes());
 						logger.warn("{} Empty response pulling cache ({}) {}",
@@ -135,8 +132,8 @@ public class Replicator {
 					remote.getOrigin(), remoteOrigin, url);
 			}
 		});
-		if (data[0] == null) return null;
-		var inputStream = new ByteArrayInputStream(data[0]);
+		var inputStream = fileCache.get().fetch(url, localOrigin);
+		if (inputStream == null) return null;
 		return new Fetch.FileRequest() {
 			@Override
 			public String getMimeType() {
@@ -384,9 +381,9 @@ public class Replicator {
 							if (ref.getUrl().startsWith("cache:")) {
 								if (fileCache.isPresent()) {
 									try {
-										var data = fileCache.get().fetchBytes(ref.getUrl(), localOrigin);
-										if (data != null) {
-											client.push(baseUri, ref.getUrl(), remoteOrigin, data);
+										var is = fileCache.get().fetch(ref.getUrl(), localOrigin);
+										if (is != null) {
+											client.push(baseUri, ref.getUrl(), remoteOrigin, is.readAllBytes());
 										} else {
 											logger.warn("{} Skip pushing empty cache ({}) {}: {}",
 												remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());

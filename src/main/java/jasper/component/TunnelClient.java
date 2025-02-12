@@ -124,19 +124,19 @@ public class TunnelClient {
 				releaseTunnel(tunnelPort, host, username, port);
 			}
 		} catch (RetryableTunnelException e) {
-			logger.info("{} Error creating SSH tunnel for {}}: {}}",
+			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
-				e.getMessage());
+				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
 		} catch (InvalidTunnelException e) {
-			logger.error("{} Error creating SSH tunnel for {}}: {}}",
+			logger.error("{} Fatal error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
-				"Error creating SSH tunnel for %s: %s".formatted(
+				"Fatal error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
-				e.getMessage());
+				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
 		}
 	}
 
@@ -173,20 +173,20 @@ public class TunnelClient {
 				}
 			}
 		} catch (RetryableTunnelException e) {
-			logger.info("{} Error creating SSH tunnel for {}}: {}}",
+			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachLogs(remote.getUrl(), remote.getOrigin(),
 				"Error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
-				e.getMessage());
+				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
 			throw e;
 		} catch (InvalidTunnelException e) {
-			logger.error("{} Error creating SSH tunnel for {}}: {}}",
+			logger.error("{} Fatal error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getUrl(), remote.getOrigin(),
-				"Error creating SSH tunnel for %s: %s".formatted(
+				"Fatal error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()),
-				e.getMessage());
+				e.getMessage() + (e.getCause() == null ? "" : ": " + e.getCause().getMessage()));
 			throw e;
 		}
 	}
