@@ -67,9 +67,8 @@ public class Proxy {
 			return fileCache.get().fetch(url, origin);
 		}
 		if (bannedOrBroken(getCache(stat(url, origin)))) return null;
-		try (var res = fetch.doScrape(url, origin)) {
-			if (res == null) return null;
-			return res.getInputStream();
+		try {
+			return fetch.doScrape(url, origin).getInputStream();
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.plugin(url, origin, "_plugin/cache", null),
@@ -112,7 +111,7 @@ public class Proxy {
 	public Ref statThumbnail(String url, String origin) {
 		var ref = stat(url, origin);
 		var config = getCache(ref);
-		if (config.isThumbnail()) return ref;
+		if (config == null || config.isThumbnail()) return ref;
 		var thumbnailId = "t_" + config.getId();
 		var thumbnailUrl = "cache:" + thumbnailId;
 		return stat(thumbnailUrl, origin);
