@@ -209,7 +209,9 @@ public class Pull {
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
-				tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
+				if (remote.getPluginResponses("+plugin/run") == 0) {
+					tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
+				}
 				return info;
 			}
 			return null;

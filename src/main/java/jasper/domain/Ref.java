@@ -287,6 +287,15 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
+	public int getPluginResponses(String tag) {
+		if (metadata == null) return 0;
+		if (metadata.getPlugins() == null) return 0;
+		if (!metadata.getPlugins().containsKey(tag)) return 0;
+		if (metadata.getPlugins().get(tag) == null) return 0;
+		return metadata.getPlugins().get(tag).size();
+	}
+
+	@JsonIgnore
 	public boolean hasTag(String ...tag) {
 		if (tags == null) return false;
 		return Arrays.stream(tag).allMatch(m -> tags.stream().anyMatch(t -> matchesTag(m, t)));

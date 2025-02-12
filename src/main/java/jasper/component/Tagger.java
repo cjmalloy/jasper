@@ -260,4 +260,14 @@ public class Tagger {
 			response(url, origin, tags);
 		}
 	}
+
+	@Async
+	@Timed(value = "jasper.tagger", histogram = true)
+	public void removeAllResponses(String url, String origin, String tag) {
+		var remote = configs.getRemote(origin);
+		if (remote != null) origin = remote.getOrigin();
+		for (var res : refRepository.findAllResponsesWithTag(url, origin, tag)) {
+			internalTag(res, origin, "-" + tag);
+		}
+	}
 }

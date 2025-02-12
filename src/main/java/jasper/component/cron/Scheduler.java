@@ -109,14 +109,17 @@ public class Scheduler {
 			.orElseThrow();
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
-			if (!hasMatchingTag(target, "+plugin/run")) throw new RuntimeException();
 			if (!configs.root().script("+plugin/run", origin)) throw new RuntimeException();
 			if (ref == null) {
 				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
 				throw new RuntimeException();
 			}
-			if (hasMatchingTag(target, "+plugin/error")) {
+			if (hasMatchingTag(ref, "+plugin/error")) {
 				logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
+				throw new RuntimeException();
+			}
+			if (!hasMatchingTag(target, "+plugin/run") && ref.getPluginResponses("+plugin/run") == 0) {
+				// Was cancelled
 				throw new RuntimeException();
 			}
 			tags.forEach((k, v) -> {
@@ -128,7 +131,7 @@ public class Scheduler {
 						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-							tagger.remove(target.getUrl(), origin, "+plugin/run");
+							tagger.removeAllResponses(url, origin, "+plugin/run");
 						} catch (Exception e) {
 							logger.error("{} Error in run tag {} ", origin, k, e);
 							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
@@ -140,11 +143,13 @@ public class Scheduler {
 			});
 		} catch (Exception e) {
 			refs.computeIfPresent(getKey(origin, url), (k, existing) -> {
-				if (existing.isDone()) return null;
-				logger.info("{} Cancelled run {}: {}", origin, ref == null ? "" : ref.getTitle(), url);
-				existing.cancel(true);
+				if (!existing.isDone()) {
+					logger.info("{} Cancelled run {}: {}", origin, ref == null ? "" : ref.getTitle(), url);
+					existing.cancel(true);
+				}
 				return null;
 			});
+			tagger.removeAllResponses(url, origin, "+plugin/run");
 		}
 	}
 
