@@ -70,7 +70,7 @@ public class Push {
 		var push = getPush(remote);
 		var target = new Remote(remote.getUrl(), remote.getOrigin());
 		pushes.values().forEach(set -> set.remove(target));
-		if (!remote.hasTag("+plugin/error") && remote.hasTag("+plugin/cron") && push.isPushOnChange()) {
+		if (remote.hasTag("+plugin/origin/push") && !remote.hasTag("+plugin/error") && remote.hasTag("+plugin/cron") && push.isPushOnChange()) {
 			pushes
 				.computeIfAbsent(localOrigin, o -> ConcurrentHashMap.newKeySet())
 				.add(target);
@@ -94,16 +94,15 @@ public class Push {
 		try {
 			if (pushes.containsKey(origin)) {
 				var deleted = new HashSet<Remote>();
-				pushes.get(origin).forEach(tuple -> {
-					var maybeRemote = refRepository.findOneByUrlAndOrigin(tuple.url, tuple.origin);
-					if (maybeRemote.isPresent()) {
-						var remote = maybeRemote.get();
+				pushes.get(origin).forEach(target -> {
+					var remote = refRepository.findOneByUrlAndOrigin(target.url, target.origin).orElse(null);
+					if (remote != null && !remote.hasTag("+plugin/error")) {
 						replicator.push(remote);
 						logger.info("{} Pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						replicator.push(remote);
 						logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 					} else {
-						deleted.add(tuple);
+						deleted.add(target);
 					}
 				});
 				deleted.forEach(remote -> pushes.values().forEach(set -> set.remove(remote)));
