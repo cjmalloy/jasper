@@ -84,7 +84,7 @@ public class ProxyController {
 		try {
 			filename
 				= isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
-				: isNotBlank(ref.getTitle()) ? ref.getTitle()
+				: ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
 				: filename;
 		} catch (URISyntaxException ignored) { }
 		var response = ResponseEntity.ok();
