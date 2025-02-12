@@ -22,6 +22,7 @@ import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
@@ -38,6 +39,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -72,7 +75,7 @@ public class Pull {
 	@Autowired
 	private Tagger tagger;
 
-	record MonitorInfo(String url, String origin, WebSocketStompClient client) {}
+	record MonitorInfo(String url, String origin, WebSocketStompClient client, AtomicBoolean connected) {}
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
 
 	record RetryInfo(int count, boolean retrying) {}
@@ -85,6 +88,14 @@ public class Pull {
 		for (var origin : configs.root().getPullWebsocketOrigins()) {
 			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
+		}
+	}
+
+	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
+	public void log() {
+		for (var e : pulls.entrySet()) {
+			logger.info("Websocket Monitor: {} ({}): {}",
+				e.getKey(), e.getValue().url, e.getValue().connected.get() ? "CONNECTED" : "DISCONNECTED");
 		}
 	}
 
@@ -115,7 +126,7 @@ public class Pull {
 				return null;
 			}
 			if (info != null) {
-				if (info.client.isRunning()) return info;
+				if (info.connected.get()) return info;
 				logger.error("{} Restarting monitor ({}) from websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				tunnelClient.releaseProxy(remote);
 			}
@@ -137,6 +148,7 @@ public class Pull {
 			var handler = new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+					pulls.get(localOrigin).connected.set(true);
 					retryCounts.remove(localOrigin);
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
 						@Override
@@ -153,6 +165,7 @@ public class Pull {
 
 				@Override
 				public void handleTransportError(StompSession session, Throwable exception) {
+					pulls.get(localOrigin).connected.set(false);
 					logger.debug("{} Websocket Client Transport error: {}", remote.getOrigin(), exception.getMessage());
 					stomp.stop();
 					scheduleReconnect(update, localOrigin);
@@ -185,7 +198,7 @@ public class Pull {
 				scheduleReconnect(update, localOrigin);
 				return null;
 			}
-			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp);
+			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp, new AtomicBoolean());
 		});
 	}
 
