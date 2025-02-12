@@ -70,6 +70,7 @@ import static jasper.client.JasperClient.jasperHeaders;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
+import static org.apache.commons.io.FilenameUtils.getName;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -399,23 +400,30 @@ public class ReplicateController {
 			is = proxyService.fetchIfExists(url, origin);
 		}
 		if (is == null) throw new NotFoundException(url);
-		StreamingResponseBody responseBody = outputStream -> {
-			try (is) {
-				byte[] buffer = new byte[64 * 1024];
-				int bytesRead;
-				while ((bytesRead = is.read(buffer)) != -1) {
-					outputStream.write(buffer, 0, bytesRead);
-				}
-			}
-		};
 		var ref = proxyService.stat(url, origin, false);
+		String filename = "file";
+		try {
+			filename
+				= isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
+				: ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
+				: filename;
+		} catch (URISyntaxException ignored) { }
+		var response = ResponseEntity.ok();
 		var cache = proxyService.cache(url, origin, false);
-		return ResponseEntity.ok()
-			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + URLEncoder.encode(ref.getTitle(), StandardCharsets.UTF_8).replace("+", "%20"))
-			.contentLength(cache != null ? cache.getContentLength() : 0)
+		if (cache != null && cache.getContentLength() != null) response.contentLength(cache.getContentLength());
+		return response
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20"))
 			.contentType(cache != null && isNotBlank(cache.getMimeType()) ? MediaType.parseMediaType(cache.getMimeType()) : MediaType.APPLICATION_OCTET_STREAM)
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
-			.body(responseBody);
+			.body(outputStream -> {
+				try (is) {
+					byte[] buffer = new byte[64 * 1024];
+					int bytesRead;
+					while ((bytesRead = is.read(buffer)) != -1) {
+						outputStream.write(buffer, 0, bytesRead);
+					}
+				}
+			});
 	}
 
 	@ApiResponses({
