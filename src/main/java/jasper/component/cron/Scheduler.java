@@ -93,7 +93,7 @@ public class Scheduler {
 		} else {
 			tasks.compute(key, (k, e) -> {
 				if (e != null) return e;
-				logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
+				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
 				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
 					Instant.now().plus(config.getInterval()),
 					config.getInterval());
