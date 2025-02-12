@@ -128,7 +128,7 @@ public class Replicator {
 				if (cache.getHeaders().getContentType() != null) {
 					contentType[0] = cache.getHeaders().getContentType().toString();
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				logger.warn("{} Failed to fetch from remote cache ({}) {}",
 					remote.getOrigin(), remoteOrigin, url);
 			}
