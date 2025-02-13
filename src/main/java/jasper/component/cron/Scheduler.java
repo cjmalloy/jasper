@@ -118,7 +118,7 @@ public class Scheduler {
 				logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
 				throw new RuntimeException();
 			}
-			if (!hasMatchingTag(target, "+plugin/run") && ref.getPluginResponses("+plugin/run") == 0) {
+			if (!hasMatchingTag(target, "+plugin/run")) {
 				// Was cancelled
 				throw new RuntimeException();
 			}
