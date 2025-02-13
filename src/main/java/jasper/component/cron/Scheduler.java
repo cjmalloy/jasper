@@ -70,16 +70,16 @@ public class Scheduler {
 	private void schedule(HasTags ref) {
 		var key = getKey(ref);
 		var existing = tasks.get(key);
-		if (existing != null) {
+		if (existing != null && !existing.isDone()) {
 			existing.cancel(true);
 			tasks.remove(key);
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
-			if (existing != null) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (hasMatchingTag(ref, "+plugin/error")) {
-			if (existing != null) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (!hasScheduler(ref)) return;
@@ -92,7 +92,7 @@ public class Scheduler {
 			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
 		} else {
 			tasks.compute(key, (k, e) -> {
-				if (e != null) return e;
+				if (e != null && !e.isDone()) return e;
 				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
 				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
 					Instant.now().plus(config.getInterval()),
@@ -126,7 +126,7 @@ public class Scheduler {
 				if (!hasMatchingTag(ref, k)) return;
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
-					if (existing != null) return existing;
+					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
 						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
@@ -172,7 +172,7 @@ public class Scheduler {
 		if (ref == null) {
 			var key = origin + ":" + url;
 			var existing = tasks.get(key);
-			if (existing != null) {
+			if (existing != null && !existing.isDone()) {
 				existing.cancel(false);
 				tasks.remove(key);
 			}
