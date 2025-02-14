@@ -73,9 +73,13 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
-	public void preFetch(String url, String origin) {
+	public void preFetch(String url, String origin, boolean thumbnail) {
 		if (exists(url, origin)) return;
-		fetch(url, origin, true);
+		if (thumbnail) {
+			fetchThumbnail(url, origin);
+		} else {
+			fetch(url, origin, true);
+		}
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
@@ -192,6 +196,7 @@ public class FileCache {
 		if (url.startsWith("cache:")) {
 			id = url.substring("cache:".length());
 		}
+		fetch(url, origin);
 		var fullSize = cache(url, origin);
 		if (fullSize == null) {
 			if (configs.getRemote(origin) == null) return null;
@@ -200,7 +205,7 @@ public class FileCache {
 		}
 		if (isBlank(id)) return null;
 		if (bannedOrBroken(fullSize)) return null;
-		if (fullSize != null && fullSize.isThumbnail()) return fetch(url, origin, false);
+		if (fullSize != null && fullSize.isThumbnail()) return fetch(url, origin);
 		var thumbnailId = "t_" + id;
 		var thumbnailUrl = "cache:" + thumbnailId;
 		var existingCache = cache(thumbnailUrl, origin);
@@ -210,7 +215,7 @@ public class FileCache {
 			return null;
 		}
 		if (storage.exists(origin, CACHE, thumbnailId)) {
-			return fetch(thumbnailUrl, origin, false);
+			return fetch(thumbnailUrl, origin);
 		} else {
 			var data = images.thumbnail(fetch(url, origin));
 			if (data == null) {

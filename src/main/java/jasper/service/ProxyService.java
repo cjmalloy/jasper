@@ -41,16 +41,9 @@ public class ProxyService {
 
 	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void preFetch(String url, String origin) {
+	public void preFetch(String url, String origin, boolean thumbnail) {
 		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		fileCache.get().preFetch(url, origin);
-	}
-
-	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	public void refresh(String url, String origin) throws IOException {
-		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
-		fileCache.get().refresh(url, origin);
+		fileCache.get().preFetch(url, origin, thumbnail);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin)")
@@ -74,8 +67,6 @@ public class ProxyService {
 	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public Cache cache(String url, String origin, boolean thumbnail) {
-		// Only require role for new scrapes
-		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
 		return getCache(thumbnail
 			? proxy.statThumbnail(url, origin)
 			: proxy.stat(url, origin));

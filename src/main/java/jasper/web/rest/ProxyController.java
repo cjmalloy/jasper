@@ -58,9 +58,10 @@ public class ProxyController {
 	@GetMapping("prefetch")
 	ResponseEntity<String> preFetch(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
-		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
+		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
+		@RequestParam(defaultValue = "false") boolean thumbnail
 	) {
-		proxyService.preFetch(url, origin);
+		proxyService.preFetch(url, origin, thumbnail);
 		return ResponseEntity.noContent()
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.build();
