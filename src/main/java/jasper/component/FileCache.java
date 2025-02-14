@@ -73,9 +73,13 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
-	public void preFetch(String url, String origin) {
+	public void preFetch(String url, String origin, boolean thumbnail) {
 		if (exists(url, origin)) return;
-		fetch(url, origin, true);
+		if (thumbnail) {
+			fetchThumbnail(url, origin);
+		} else {
+			fetch(url, origin, true);
+		}
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
@@ -192,6 +196,7 @@ public class FileCache {
 		if (url.startsWith("cache:")) {
 			id = url.substring("cache:".length());
 		}
+		fetch(url, origin);
 		var fullSize = cache(url, origin);
 		if (fullSize == null) {
 			if (configs.getRemote(origin) == null) return null;
