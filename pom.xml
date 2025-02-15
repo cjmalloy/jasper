@@ -243,11 +243,6 @@
 			<version>${jjwt.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.javatuples</groupId>
-			<artifactId>javatuples</artifactId>
-			<version>${javatuples.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.rometools</groupId>
 			<artifactId>rome</artifactId>
 			<version>${rome.version}</version>

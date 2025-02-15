@@ -6,7 +6,6 @@ import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
 import jasper.repository.spec.OriginSpec;
-import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +39,8 @@ public class Meta {
 	@Autowired
 	Messages messages;
 
+	private record PluginResponses(String tag, List<String> responses) { }
+
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(Ref ref, String rootOrigin) {
 		if (ref == null) return;
@@ -51,11 +52,11 @@ public class Meta {
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
 			.plugins(metadataPlugins
 				.stream()
-				.map(tag -> new Pair<>(
+				.map(tag -> new PluginResponses(
 					tag,
 					refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), tag)))
-				.filter(p -> !p.getValue1().isEmpty())
-				.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
+				.filter(p -> !p.responses.isEmpty())
+				.collect(Collectors.toMap(PluginResponses::tag, PluginResponses::responses)))
 			.build()
 		);
 
