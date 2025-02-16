@@ -153,17 +153,7 @@ public class FileCache {
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
-			if (stat(url, origin) != null) {
-				if (existingCache != null && isNotBlank(existingCache.getId())) {
-					try {
-						storage.delete(origin, CACHE, existingCache.getId());
-					} catch (IOException e) {
-						logger.warn("Failed to delete {}", existingCache.getId());
-					}
-				}
-				tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
-			}
-			tagger.plugin(url, origin, "_plugin/cache", cache);
+			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
 		} catch (ScrapeProtocolException e) {
 			throw e;
