@@ -5,6 +5,6 @@ public class Logging {
 		if (e.getCause() != null) {
 			return e.getClass().getName() + " " + e.getMessage() + ": " + getMessage(e.getCause());
 		}
-		return e.getMessage();
+		return e.getClass().getName() + " " + e.getMessage();
 	}
 }
