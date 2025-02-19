@@ -69,7 +69,7 @@ public class Meta {
 		ref(ref, rootOrigin);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.setObsolete(ref.getUrl(), rootOrigin, ref.getModified());
+		refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
 			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
 		for (var source : cleanupSources) {
@@ -86,7 +86,7 @@ public class Meta {
 		var metadataPlugins = configs.getMetadataPlugins(rootOrigin);
 		if (ref != null) {
 			// Creating or updating (not deleting)
-			refRepository.setObsolete(ref.getUrl(), rootOrigin, ref.getModified());
+			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 
 			// Update sources
 			var internal = ref.getTags() != null && ref.getTags().contains("internal");
