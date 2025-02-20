@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.isPublicTag;
+import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.none;
 
 public class RefSpec {
@@ -227,6 +229,40 @@ public class RefSpec {
 			cb.function("jsonb_exists", Boolean.class,
 				root.get(Ref_.tags),
 				cb.literal(tag)));
+	}
+
+	public static Specification<Ref> hasDownwardTag(String tag) {
+		if (isPublicTag(tag)) {
+			return (root, query, cb) -> cb.isTrue(
+				cb.function("jsonb_exists", Boolean.class,
+					root.get(Ref_.tags),
+					cb.literal(tag)));
+		} else if (tag.startsWith("_")) {
+			return (root, query, cb) -> cb.isTrue(
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.tags),
+						cb.literal(tag)),
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.tags),
+						cb.literal("+" + publicTag(tag))),
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.tags),
+						cb.literal(publicTag(tag))))
+				));
+		} else {
+			// Protected tag
+			return (root, query, cb) -> cb.isTrue(
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.tags),
+						cb.literal(tag)),
+					cb.function("jsonb_exists", Boolean.class,
+						root.get(Ref_.tags),
+						cb.literal(publicTag(tag)))
+				));
+		}
 	}
 
 	public static Specification<Ref> hasAnyQualifiedTag(List<QualifiedTag> tags) {

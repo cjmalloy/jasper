@@ -202,12 +202,8 @@ public class Ref implements HasTags {
 	@JsonIgnore
 	public Ref addPlugins(List<String> toAdd, ObjectNode from) {
 		if (toAdd == null || from == null) return this;
-		if (plugins == null) {
-			plugins = from;
-		} else {
-			for (var t : toAdd) {
-				if (from.has(t)) plugins.set(t, from.get(t));
-			}
+		for (var t : toAdd) {
+			if (from.has(t)) setPlugin(t, from.get(t));
 		}
 		return this;
 	}

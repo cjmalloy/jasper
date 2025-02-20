@@ -422,7 +422,11 @@ public class Auth {
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
 		for (var tag : tags) {
-			if (!canTag(tag, url, origin)) return false;
+			if (tag.startsWith("-")) {
+				if (!canReadTag(tag.substring(1) + origin)) return false;
+			} else {
+				if (!canTag(tag, url, origin)) return false;
+			}
 		}
 		return true;
 	}
@@ -533,7 +537,7 @@ public class Auth {
 	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
-		return isLoggedIn() && getUserTag().matches(qt);
+		return isLoggedIn() && getUserTag().matchesDownwards(qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -710,7 +714,7 @@ public class Auth {
 			? isOrigin(getSubOrigins())
 			: selector("public" + getSubOrigins()).refSpec());
 		if (isLoggedIn()) {
-			spec = spec.or(getUserTag().refSpec());
+			spec = spec.or(getUserTag().downwardRefSpec());
 		}
 		return spec.or(hasAnyQualifiedTag(getReadAccess()));
 	}
@@ -719,7 +723,7 @@ public class Auth {
 		var spec = Specification.<T>where(isOrigin(getSubOrigins()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
-			spec = spec.or(getUserTag().spec());
+			spec = spec.or(getUserTag().downwardSpec());
 		}
 		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
@@ -750,7 +754,7 @@ public class Auth {
 		if (selectors.isEmpty()) return false;
 		if (target == null) return false;
 		for (var selector : selectors) {
-			if (selector.captures(target)) return true;
+			if (selector.matchesDownwards(target)) return true;
 		}
 		return false;
 	}
@@ -760,7 +764,7 @@ public class Auth {
 		if (target == null) return false;
 		if (target.isEmpty()) return false;
 		for (var t : target) {
-			if (selector.captures(t)) return true;
+			if (selector.capturesDownwards(t)) return true;
 		}
 		return false;
 	}

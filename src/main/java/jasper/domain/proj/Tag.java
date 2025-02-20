@@ -51,6 +51,7 @@ public interface Tag extends Cursor {
 		if (isBlank(tag)) return false;
 		return !tag.startsWith("_") && !tag.startsWith("+");
 	}
+
 	static String publicTag(String tag) {
 		if (isBlank(tag) || isPublicTag(tag)) return tag;
 		return tag.substring(1);
@@ -89,5 +90,31 @@ public interface Tag extends Cursor {
 		return isBlank(prefix) ||
 			prefix.equals(tag) ||
 			tag.startsWith(prefix);
+	}
+
+	/**
+	 * _tag can capture _tag, +tag, and tag
+	 * +tag can capture +tag and tag
+	 * tag can capture tag
+	 */
+	static boolean matchesDownwards(String upper, String lower) {
+		if (upper.equals(lower)) return true;
+		if (isPublicTag(upper)) return false;
+		if (upper.startsWith("_")) return publicTag(upper).equals(publicTag(lower));
+		// Protected tag
+		return publicTag(upper).equals(lower);
+	}
+
+	/**
+	 * _tag can capture _tag, +tag, and tag
+	 * +tag can capture +tag and tag
+	 * tag can capture tag
+	 */
+	static boolean capturesDownwards(String upper, String lower) {
+		if (matchesTag(upper, lower)) return true;
+		if (isPublicTag(upper)) return false;
+		if (upper.startsWith("_")) return matchesTag(publicTag(upper), publicTag(lower));
+		// Protected tag
+		return matchesTag(publicTag(upper), lower);
 	}
 }

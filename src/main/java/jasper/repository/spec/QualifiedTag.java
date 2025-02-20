@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.hasDownwardTag;
 import static jasper.repository.spec.RefSpec.hasTag;
+import static jasper.repository.spec.TagSpec.isDownwardTag;
 import static jasper.repository.spec.TagSpec.isTag;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -63,8 +65,19 @@ public class QualifiedTag {
 		return tag.equals(qt.tag) && origin.equals(qt.origin) && not == qt.not;
 	}
 
+	public boolean matchesDownwards(QualifiedTag qt) {
+		return Tag.matchesDownwards(tag, qt.tag) && origin.equals(qt.origin) && not == qt.not;
+	}
+
 	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
+		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;
+		if (origin.endsWith(".*") && !c.origin.equals(origin.substring(0, origin.length() - 2)) && !c.origin.startsWith(origin.substring(0, origin.length() - 1))) return not;
+		return !not;
+	}
+
+	public boolean capturesDownwards(QualifiedTag c) {
+		if (!tag.isEmpty() && !Tag.capturesDownwards(tag, c.tag)) return not;
 		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;
 		if (origin.endsWith(".*") && !c.origin.equals(origin.substring(0, origin.length() - 2)) && !c.origin.startsWith(origin.substring(0, origin.length() - 1))) return not;
 		return !not;
@@ -77,9 +90,23 @@ public class QualifiedTag {
 		return not ? Specification.not(spec) : spec;
 	}
 
+	public Specification<Ref> downwardRefSpec() {
+		var spec = Specification.<Ref>where(null);
+		if (isNotBlank(tag)) spec = spec.and(hasDownwardTag(tag));
+		spec = spec.and(isOrigin(origin));
+		return not ? Specification.not(spec) : spec;
+	}
+
 	public <T extends Tag> Specification<T> spec() {
 		var spec = Specification.<T>where(null);
 		if (isNotBlank(tag)) spec = spec.and(isTag(tag));
+		spec = spec.and(isOrigin(origin));
+		return not ? Specification.not(spec) : spec;
+	}
+
+	public <T extends Tag> Specification<T> downwardSpec() {
+		var spec = Specification.<T>where(null);
+		if (isNotBlank(tag)) spec = spec.and(isDownwardTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}

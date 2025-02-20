@@ -5,6 +5,9 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
+import static jasper.domain.proj.Tag.isPublicTag;
+import static jasper.domain.proj.Tag.publicTag;
+
 public class TagSpec {
 
 	public static <T extends Tag> Specification<T> searchTagOrName(String search) {
@@ -35,6 +38,56 @@ public class TagSpec {
 					tag + "/%"));
 	}
 
+	public static <T extends Tag> Specification<T> isDownwardTag(String tag) {
+		if (isPublicTag(tag)) {
+			return (root, query, cb) ->
+				cb.or(
+					cb.equal(
+						root.get("tag"),
+						tag),
+					cb.like(
+						root.get("tag"),
+						tag + "/%"));
+		} else if (tag.startsWith("_")) {
+			return (root, query, cb) ->
+				cb.or(
+					cb.equal(
+						root.get("tag"),
+						tag),
+					cb.equal(
+						root.get("tag"),
+						"+" + publicTag(tag)),
+					cb.equal(
+						root.get("tag"),
+						publicTag(tag)),
+					cb.like(
+						root.get("tag"),
+						tag + "/%"),
+					cb.like(
+						root.get("tag"),
+						"+" + publicTag(tag) + "/%"),
+					cb.like(
+						root.get("tag"),
+						publicTag(tag) + "/%"));
+		} else {
+			// Protected tag
+			return (root, query, cb) ->
+				cb.or(
+					cb.equal(
+						root.get("tag"),
+						tag),
+					cb.equal(
+						root.get("tag"),
+						publicTag(tag)),
+					cb.like(
+						root.get("tag"),
+						tag + "/%"),
+					cb.like(
+						root.get("tag"),
+						publicTag(tag) + "/%"));
+		}
+	}
+
 	public static <T extends Tag> Specification<T> isLevel(int level) {
 		return (root, query, cb) ->
 			cb.equal(
@@ -51,14 +104,6 @@ public class TagSpec {
 				cb.like(
 					root.get("tag"),
 					"%/" + tag));
-	}
-
-	public static <T extends Tag> Specification<T> isAnyTag(List<String> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		if (tags.size() == 1) return isTag(tags.get(0));
-		return (root, query, cb) ->
-			root.get("tag")
-				.in(tags);
 	}
 
 	public static <T extends Tag> Specification<T> isAnyQualifiedTag(List<QualifiedTag> tags) {

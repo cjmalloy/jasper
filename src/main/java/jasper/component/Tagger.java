@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
+import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static jasper.domain.Ref.from;
-import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.domain.proj.Tag.capturesDownwards;
 import static jasper.domain.proj.Tag.urlForTag;
 import static java.time.Instant.now;
 import static java.util.Arrays.asList;
@@ -190,7 +191,9 @@ public class Tagger {
 		ref.setComment(logs);
 		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
 		if (parent.hasTag("public")) tags.add("public");
-		if (origin.equals(parent.getOrigin()) && parent.getTags() != null) tags.addAll(parent.getTags().stream().filter(t -> matchesTag("+user", t) || matchesTag("_user", t)).toList());
+		if (origin.equals(parent.getOrigin()) && parent.getTags() != null) {
+			tags.addAll(parent.getTags().stream().filter(t -> capturesDownwards("_user", t)).map(Tag::publicTag).toList());
+		}
 		ref.setTags(tags);
 		ingest.create(ref, false);
 	}
