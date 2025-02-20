@@ -11,7 +11,7 @@ services:
     depends_on:
       - db
   db:
-    image: postgres:15
+    image: postgres:17
     ports:
       - 5432:5432
     environment:
