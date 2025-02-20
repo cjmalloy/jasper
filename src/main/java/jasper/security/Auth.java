@@ -754,7 +754,7 @@ public class Auth {
 		if (selectors.isEmpty()) return false;
 		if (target == null) return false;
 		for (var selector : selectors) {
-			if (selector.matchesDownwards(target)) return true;
+			if (selector.capturesDownwards(target)) return true;
 		}
 		return false;
 	}
