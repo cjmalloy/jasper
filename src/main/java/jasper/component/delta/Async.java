@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
+import static jasper.domain.proj.HasTags.hasPluginResponse;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -99,12 +100,7 @@ public class Async {
 			tags.forEach((k, v) -> {
 				if (!hasMatchingTag(ud, k)) return;
 				if (!configs.root().script(k, ud.getOrigin())) return;
-				if (isNotBlank(v.signature())) {
-					var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
-						.orElse(null);
-					// TODO: Only check plugin responses in the same origin
-					if (ref != null && ref.hasPluginResponse(v.signature())) return;
-				}
+				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
 				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;

@@ -89,7 +89,6 @@ public class Meta {
 			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 
 			// Update sources
-			var internal = ref.hasTag("internal");
 			List<String> plugins = metadataPlugins.stream()
 				.filter(ref::hasTag)
 				.toList();
@@ -107,7 +106,7 @@ public class Meta {
 						.build();
 				}
 				metadata.remove(ref.getUrl());
-				if (internal) {
+				if (ref.hasTag("internal")) {
 					metadata.addInternalResponse(ref.getUrl());
 				} else {
 					metadata.addResponse(ref.getUrl());
@@ -144,8 +143,8 @@ public class Meta {
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
-				messages.updateMetadata(source);
 				removeSource(source, existing.getUrl(), rootOrigin);
+				messages.updateMetadata(source);
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package jasper.domain.proj;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jasper.service.dto.RefDto;
 
 import java.util.List;
 
@@ -57,5 +58,13 @@ public interface HasTags extends Cursor {
 		if (ref.getPlugins() == null) return null;
 		if (!ref.getPlugins().has(tag)) return null;
 		return om().convertValue(ref.getPlugins().get(tag), toValueType);
+	}
+
+	static boolean hasPluginResponse(RefDto ref, String tag) {
+		if (ref.getMetadata() == null) return false;
+		if (ref.getMetadata().getPlugins() == null) return false;
+		return ref.getMetadata().getPlugins().keySet().stream()
+			.filter(t -> matchesTag(tag, t))
+			.anyMatch(t -> ref.getMetadata().getPlugins().get(t) > 0);
 	}
 }
