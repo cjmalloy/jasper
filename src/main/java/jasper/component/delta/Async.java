@@ -107,7 +107,7 @@ public class Async {
 				}
 				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
 				refs.compute(getKey(ud), (u, existing) -> {
-					if (existing != null && !existing.isDone()) existing.cancel(true);
+					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
 						try {
 							v.run(fetch(ud));

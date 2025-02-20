@@ -6,7 +6,6 @@ import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,7 +27,6 @@ public class IngestBundle {
 	@Autowired
 	IngestTemplate ingestTemplate;
 
-	@Async
 	@Timed(value = "jasper.bundle", histogram = true)
 	public void createOrUpdate(Bundle bundle, String origin) {
 		if (bundle.getRef() != null) for (var ref : bundle.getRef()) {
