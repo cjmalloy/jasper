@@ -24,10 +24,10 @@ public interface HasTags extends Cursor {
 	static boolean hasMedia(HasTags hasTags) {
 		if (hasTags == null) return false;
 		if (hasTags.getTags() == null) return false;
-		return hasTags.getTags().contains("plugin/audio") ||
-			hasTags.getTags().contains("plugin/video") ||
-			hasTags.getTags().contains("plugin/image") ||
-			hasTags.getTags().contains("plugin/embed");
+		return hasMatchingTag(hasTags, "plugin/audio") ||
+			hasMatchingTag(hasTags, "plugin/video") ||
+			hasMatchingTag(hasTags, "plugin/image") ||
+			hasMatchingTag(hasTags, "plugin/embed");
 	}
 
 	static boolean hasMatchingTag(HasTags hasTags, String prefix) {

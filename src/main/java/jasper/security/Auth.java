@@ -338,7 +338,7 @@ public class Auth {
 		}
 		var existing = maybeExisting.get();
 		// First write check of an existing Ref must be for the locked tag
-		if (existing.getTags() != null && existing.getTags().contains("locked")) return false;
+		if (existing.hasTag("locked")) return false;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		if (existing.getTags() == null) return false;

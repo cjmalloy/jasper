@@ -118,7 +118,7 @@ public class RssParser {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
 						feedImage = Thumbnail.builder().url(image).build();
-						if (!feed.getTags().contains("plugin/thumbnail")) {
+						if (!feed.hasTag("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", feedImage);
 							ingest.update(feed, false);
 						}

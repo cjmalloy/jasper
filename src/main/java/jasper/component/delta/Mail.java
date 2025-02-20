@@ -89,7 +89,7 @@ public class Mail implements Async.AsyncRunner {
 				.filter(StringUtils::isNotBlank)
 				.toArray(String[]::new);
 		}
-		if (!ref.getTags().contains("+user") && !ref.getTags().contains("_user") && emails.length == 0) {
+		if (!ref.hasTag("+user") && !ref.hasTag("_user") && emails.length == 0) {
 			// Mail from webhook with no recipient
 			return;
 		}

@@ -89,9 +89,9 @@ public class Meta {
 			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 
 			// Update sources
-			var internal = ref.getTags() != null && ref.getTags().contains("internal");
+			var internal = ref.hasTag("internal");
 			List<String> plugins = metadataPlugins.stream()
-				.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
+				.filter(ref::hasTag)
 				.toList();
 			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {

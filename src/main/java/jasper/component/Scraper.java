@@ -353,7 +353,7 @@ public class Scraper {
 	}
 
 	private void addWeakThumbnail(Ref ref, String url) {
-		if (!ref.getTags().contains("plugin/thumbnail")) addThumbnailUrl(ref, url);
+		if (!ref.hasTag("plugin/thumbnail")) addThumbnailUrl(ref, url);
 	}
 
 	private void addThumbnailUrl(Ref ref, String url) {

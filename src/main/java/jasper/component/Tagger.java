@@ -229,7 +229,7 @@ public class Tagger {
 		var userUrl = urlForTag(url, user);
 		return refRepository.findOneByUrlAndOrigin(userUrl, origin).map(ref -> {
 				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
+				if (ref.getTags() == null || ref.hasTag("plugin/deleted")) {
 					ref.setTags(new ArrayList<>(List.of("internal", user)));
 				}
 				return ref;

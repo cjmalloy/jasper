@@ -48,7 +48,7 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
+		if (ref.hasTag(tag)) throw new DuplicateTagException(tag);
 		ref.addTag(tag);
 		ingest.update(ref, false);
 		return ref.getModified();
@@ -65,7 +65,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		ref.removePrefixTags();
 		if (!ref.hasTag(tag)) return ref.getModified();
-		if (ref.getTags().contains("locked") && ref.hasPlugin(tag)) {
+		if (ref.hasTag("locked") && ref.hasPlugin(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removeTag(tag);
@@ -83,7 +83,7 @@ public class TaggingService {
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		ref.removePrefixTags();
-		if (ref.getTags() != null && ref.getTags().contains("locked")) {
+		if (ref.hasTag("locked")) {
 			for (var t : tags) {
 				if (t.startsWith("-") && ref.hasPlugin(t.substring(1))) {
 					throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
@@ -105,10 +105,10 @@ public class TaggingService {
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
 		var ref = getRef(url, tag);
-		if (isNotBlank(tag) && !ref.getTags().contains(tag)) {
-			ref.getTags().add(tag);
+		if (isNotBlank(tag) && !ref.hasTag(tag)) {
+			ref.addTag(tag);
+			ingest.update(ref, false);
 		}
-		ingest.update(ref, false);
 	}
 
 	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")

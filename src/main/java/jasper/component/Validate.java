@@ -198,7 +198,7 @@ public class Validate {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (ref.getTags() == null || !ref.getTags().contains(field)) {
+				if (!ref.hasTag(field)) {
 					logger.debug("{} Plugin missing tag: {}", origin, field);
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
