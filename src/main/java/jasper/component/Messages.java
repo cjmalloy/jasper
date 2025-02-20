@@ -1,7 +1,7 @@
 package jasper.component;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -9,6 +9,9 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
+import jasper.service.dto.PluginDto;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,7 +123,7 @@ public class Messages {
 	public void deleteUser(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> userTxChannel.send(createMessage(this.<UserDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
 	}
 
 	@Async
@@ -134,7 +137,7 @@ public class Messages {
 	public void deletePlugin(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> pluginTxChannel.send(createMessage(this.<PluginDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
 	}
 
 	@Async
@@ -148,14 +151,14 @@ public class Messages {
 	public void deleteTemplate(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> templateTxChannel.send(createMessage(this.<TemplateDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
 	}
 
-	private ObjectNode deleteNotice(String tag, String origin) {
+	private <T> T deleteNotice(String tag, String origin) {
 		return objectMapper.convertValue(Map.of(
 			"tag", deletorTag(tag),
 			"origin", origin
-		), ObjectNode.class);
+		), new TypeReference<T>() {});
 	}
 
 	private Ref deleteNotice(Ref ref) {
