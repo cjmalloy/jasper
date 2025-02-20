@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
@@ -123,7 +122,7 @@ public class Messages {
 	public void deleteUser(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> userTxChannel.send(createMessage(this.<UserDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag))));
 	}
 
 	@Async
@@ -137,7 +136,7 @@ public class Messages {
 	public void deletePlugin(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> pluginTxChannel.send(createMessage(this.<PluginDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag))));
 	}
 
 	@Async
@@ -151,14 +150,14 @@ public class Messages {
 	public void deleteTemplate(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		sendAndRetry(() -> templateTxChannel.send(createMessage(this.<TemplateDto>deleteNotice(tag, origin), tagHeaders(origin, tag))));
+		sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag))));
 	}
 
-	private <T> T deleteNotice(String tag, String origin) {
+	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
 		return objectMapper.convertValue(Map.of(
 			"tag", deletorTag(tag),
 			"origin", origin
-		), new TypeReference<T>() {});
+		), type);
 	}
 
 	private Ref deleteNotice(Ref ref) {
