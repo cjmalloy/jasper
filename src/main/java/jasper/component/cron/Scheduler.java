@@ -15,6 +15,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -122,7 +123,9 @@ public class Scheduler {
 				// Was cancelled
 				throw new RuntimeException();
 			}
+			var ran = new HashSet<CronRunner>();
 			tags.forEach((k, v) -> {
+				if (ran.contains(v)) return;
 				if (!hasMatchingTag(ref, k)) return;
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
@@ -131,6 +134,7 @@ public class Scheduler {
 						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+							ran.add(v);
 							tagger.removeAllResponses(url, origin, "+plugin/run");
 						} catch (Exception e) {
 							logger.error("{} Error in run tag {} ", origin, k, e);
@@ -182,12 +186,15 @@ public class Scheduler {
 			// Skip scheduled run since we are running manually
 			return;
 		}
+		var ran = new HashSet<CronRunner>();
 		tags.forEach((k, v) -> {
+			if (ran.contains(v)) return;
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			try {
 				v.run(ref);
+				ran.add(v);
 			} catch (Exception e) {
 				logger.error("{} Error in cron tag {} ", origin, k, e);
 				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));

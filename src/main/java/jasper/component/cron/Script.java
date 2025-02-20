@@ -44,7 +44,12 @@ public class Script implements Scheduler.CronRunner {
 	public void run(Ref ref) throws Exception {
 		var found = false;
 		logger.debug("{} Searching scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
-		for (var scriptTag : ref.getTags().stream().filter(t -> matchesTag("plugin/script", publicTag(t))).toList()) {
+		var tags = ref.getTags().stream()
+			.filter(t -> matchesTag("plugin/script", publicTag(t)))
+			.sorted()
+			.toList()
+			.reversed();
+		for (var scriptTag : tags) {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), jasper.plugin.config.Script.class);
 			if (config.isPresent()) {
 				try {
