@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+
 @Component
 public class IngestBundle {
 	private static final Logger logger = LoggerFactory.getLogger(IngestBundle.class);
@@ -27,8 +29,14 @@ public class IngestBundle {
 	@Autowired
 	IngestTemplate ingestTemplate;
 
+	@Autowired
+	Tagger tagger;
+
+	private record Log(String title, String message) {}
+
 	@Timed(value = "jasper.bundle", histogram = true)
-	public void createOrUpdate(Bundle bundle, String origin) {
+	public void createOrUpdate(Bundle bundle, String origin, String parentUrl) {
+		var logs = new ArrayList<Log>();
 		if (bundle.getRef() != null) for (var ref : bundle.getRef()) {
 			ref.setOrigin(origin);
 			try {
@@ -39,6 +47,7 @@ public class IngestBundle {
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Ref {}", ref.getUrl(), e);
+				logs.add(new Log("Error ingesting Ref " + ref.getUrl(), e.getMessage()));
 			}
 		}
 		if (bundle.getExt() != null) for (var ext : bundle.getExt()) {
@@ -51,6 +60,7 @@ public class IngestBundle {
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Ext {}", ext.getTag(), e);
+				logs.add(new Log("Error ingesting Ext " + ext.getTag(), e.getMessage()));
 			}
 		}
 		if (bundle.getUser() != null) for (var user : bundle.getUser()) {
@@ -63,6 +73,7 @@ public class IngestBundle {
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting User {}", user.getTag(), e);
+				logs.add(new Log("Error ingesting User " + user.getTag(), e.getMessage()));
 			}
 		}
 		if (bundle.getPlugin() != null) for (var plugin : bundle.getPlugin()) {
@@ -75,6 +86,7 @@ public class IngestBundle {
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Plugin {}", plugin.getTag(), e);
+				logs.add(new Log("Error ingesting Plugin " + plugin.getTag(), e.getMessage()));
 			}
 		}
 		if (bundle.getTemplate() != null) for (var template : bundle.getTemplate()) {
@@ -87,7 +99,9 @@ public class IngestBundle {
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Template {}", template.getTag(), e);
+				logs.add(new Log("Error ingesting Template " + template.getTag(), e.getMessage()));
 			}
 		}
+		for (var log : logs) tagger.attachError(parentUrl, origin, log.title, log.message);
 	}
 }

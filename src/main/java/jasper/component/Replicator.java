@@ -103,7 +103,7 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
-	record Log(String title, String message) {}
+	private record Log(String title, String message) {}
 
 	@Timed(value = "jasper.repl", histogram = true)
 	public Fetch.FileRequest fetch(String url, HasTags remote) {

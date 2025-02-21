@@ -140,7 +140,7 @@ public class ScriptRunner {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing script " + scriptTag + " output", output);
 			return;
 		}
-		ingest.createOrUpdate(bundle, ref.getOrigin());
+		ingest.createOrUpdate(bundle, ref.getOrigin(), ref.getUrl());
 	}
 
 }
