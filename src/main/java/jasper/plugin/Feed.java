@@ -25,6 +25,7 @@ public class Feed implements Serializable {
 	private boolean scrapeAudio;
 	private boolean scrapeVideo;
 	private boolean scrapeEmbed;
+	private Thumbnail defaultThumbnail;
 
 	private static final Feed DEFAULTS = new Feed();
 	public static Feed getFeed(Ref ref) {

@@ -113,19 +113,17 @@ public class RssParser {
 					}
 					var input = new SyndFeedInput();
 					var syndFeed = input.build(new XmlReader(stream));
-					Thumbnail feedImage = null;
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
-						feedImage = Thumbnail.builder().url(image).build();
 						if (!feed.hasTag("plugin/thumbnail")) {
-							feed.setPlugin("plugin/thumbnail", feedImage);
+							feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
 							ingest.update(feed, false);
 						}
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
 						try {
-							var ref = parseEntry(feed, config, entry, feedImage);
+							var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
