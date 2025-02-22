@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,8 @@ public class IngestBundle {
 				} catch (NotFoundException e) {
 					ingestRef.create(ref, false);
 				}
+			} catch (ModifiedException e) {
+				logger.warn("Duplicate ingesting Ref {}", ref.getUrl(), e);
 			} catch (Exception e) {
 				logger.error("Error ingesting Ref {}", ref.getUrl(), e);
 				logs.add(new Log("Error ingesting Ref " + ref.getUrl(), e.getMessage()));
@@ -58,6 +61,8 @@ public class IngestBundle {
 				} catch (NotFoundException e) {
 					ingestExt.create(ext, false);
 				}
+			} catch (ModifiedException e) {
+				logger.error("Duplicate ingesting Ext {}", ext.getTag(), e);
 			} catch (Exception e) {
 				logger.error("Error ingesting Ext {}", ext.getTag(), e);
 				logs.add(new Log("Error ingesting Ext " + ext.getTag(), e.getMessage()));
@@ -71,6 +76,8 @@ public class IngestBundle {
 				} catch (NotFoundException e) {
 					ingestUser.create(user);
 				}
+			} catch (ModifiedException e) {
+				logger.error("Duplicate ingesting User {}", user.getTag(), e);
 			} catch (Exception e) {
 				logger.error("Error ingesting User {}", user.getTag(), e);
 				logs.add(new Log("Error ingesting User " + user.getTag(), e.getMessage()));
@@ -84,6 +91,8 @@ public class IngestBundle {
 				} catch (NotFoundException e) {
 					ingestPlugin.create(plugin);
 				}
+			} catch (ModifiedException e) {
+				logger.error("Duplicate ingesting Plugin {}", plugin.getTag(), e);
 			} catch (Exception e) {
 				logger.error("Error ingesting Plugin {}", plugin.getTag(), e);
 				logs.add(new Log("Error ingesting Plugin " + plugin.getTag(), e.getMessage()));
@@ -97,6 +106,8 @@ public class IngestBundle {
 				} catch (NotFoundException e) {
 					ingestTemplate.create(template);
 				}
+			} catch (ModifiedException e) {
+				logger.error("Duplicate ingesting Template {}", template.getTag(), e);
 			} catch (Exception e) {
 				logger.error("Error ingesting Template {}", template.getTag(), e);
 				logs.add(new Log("Error ingesting Template " + template.getTag(), e.getMessage()));
