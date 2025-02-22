@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,8 @@ public class IngestBundle {
 			try {
 				try {
 					ingestRef.update(ref, false);
+				} catch (ModifiedException e) {
+					logger.warn("Duplicate ingesting Ref {}", ref.getUrl());
 				} catch (NotFoundException e) {
 					ingestRef.create(ref, false);
 				}
@@ -55,6 +58,8 @@ public class IngestBundle {
 			try {
 				try {
 					ingestExt.update(ext, false);
+				} catch (ModifiedException e) {
+					logger.error("Duplicate ingesting Ext {}", ext.getTag());
 				} catch (NotFoundException e) {
 					ingestExt.create(ext, false);
 				}
@@ -68,6 +73,8 @@ public class IngestBundle {
 			try {
 				try {
 					ingestUser.update(user);
+				} catch (ModifiedException e) {
+					logger.error("Duplicate ingesting User {}", user.getTag());
 				} catch (NotFoundException e) {
 					ingestUser.create(user);
 				}
@@ -81,6 +88,8 @@ public class IngestBundle {
 			try {
 				try {
 					ingestPlugin.update(plugin);
+				} catch (ModifiedException e) {
+					logger.error("Duplicate ingesting Plugin {}", plugin.getTag());
 				} catch (NotFoundException e) {
 					ingestPlugin.create(plugin);
 				}
@@ -94,6 +103,8 @@ public class IngestBundle {
 			try {
 				try {
 					ingestTemplate.update(template);
+				} catch (ModifiedException e) {
+					logger.error("Duplicate ingesting Template {}", template.getTag());
 				} catch (NotFoundException e) {
 					ingestTemplate.create(template);
 				}
