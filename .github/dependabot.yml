@@ -9,10 +9,12 @@ updates:
   directory: /
   schedule:
     interval: daily
+    timezone: America/Halifax
 - package-ecosystem: maven
   directory: /
   schedule:
     interval: daily
+    timezone: America/Halifax
   groups:
     spring-boot:
       patterns:
@@ -22,3 +24,4 @@ updates:
   directory: /
   schedule:
     interval: daily
+    timezone: America/Halifax
