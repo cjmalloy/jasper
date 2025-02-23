@@ -190,6 +190,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: noDescendents
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
         - name: url
           in: query
           required: false
@@ -205,7 +210,17 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: noSources
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
         - name: responses
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: noResponses
           in: query
           required: false
           schema:

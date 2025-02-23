@@ -32,11 +32,14 @@ public class RefFilter implements Query {
 	private Boolean obsolete;
 	private String scheme;
 	private String query;
+	private String noDescendents;
 	private String search;
 	private String endsTitle;
 	private boolean rankedOrder;
 	private String sources;
+	private String noSources;
 	private String responses;
+	private String noResponses;
 	private boolean untagged;
 	private boolean uncited;
 	private boolean unsourced;
@@ -84,6 +87,9 @@ public class RefFilter implements Query {
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
+		if (isNotBlank(noDescendents)) {
+			result = result.and(hasNoChildTag(noDescendents));
+		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
 		}
@@ -94,8 +100,15 @@ public class RefFilter implements Query {
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
+		if (isNotBlank(noSources)) {
+			result = result.and(not(hasResponse(sources))
+				.and(not(hasInternalResponse(sources))));
+		}
 		if (isNotBlank(responses)) {
 			result = result.and(hasSource(responses));
+		}
+		if (isNotBlank(noResponses)) {
+			result = result.and(not(hasSource(responses)));
 		}
 		if (untagged) {
 			result = result.and(hasNoTags());

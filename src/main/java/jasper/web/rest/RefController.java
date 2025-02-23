@@ -97,11 +97,14 @@ public class RefController {
 	HttpEntity<Page<RefDto>> getRefPage(
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.REGEX) String noDescendents,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) Boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noSources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noResponses,
 		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
@@ -151,10 +154,13 @@ public class RefController {
 				.obsolete(obsolete)
 				.scheme(scheme)
 				.query(query)
+				.noDescendents(noDescendents)
 				.search(search)
 				.rankedOrder(rankedSort)
 				.sources(sources)
+				.noSources(noSources)
 				.responses(responses)
+				.noResponses(noResponses)
 				.untagged(untagged)
 				.uncited(uncited)
 				.unsourced(unsourced)
@@ -180,12 +186,15 @@ public class RefController {
 	@GetMapping("count")
 	long countRefs(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
+		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.REGEX) String noDescendents,
 		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) Boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noSources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
+		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noResponses,
 		@RequestParam(required = false) boolean untagged,
 		@RequestParam(required = false) boolean uncited,
 		@RequestParam(required = false) boolean unsourced,
@@ -206,13 +215,16 @@ public class RefController {
 		return refService.count(
 			RefFilter.builder()
 				.query(query)
+				.noDescendents(noDescendents)
 				.nesting(nesting)
 				.search(search)
 				.url(url)
 				.obsolete(obsolete)
 				.scheme(scheme)
 				.sources(sources)
+				.noSources(noSources)
 				.responses(responses)
+				.noResponses(noResponses)
 				.untagged(untagged)
 				.uncited(uncited)
 				.unsourced(unsourced)

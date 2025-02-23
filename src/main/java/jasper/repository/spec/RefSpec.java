@@ -231,6 +231,15 @@ public class RefSpec {
 				cb.literal(tag)));
 	}
 
+	public static Specification<Ref> hasNoChildTag(String tag) {
+		return (root, query, cb) -> cb.isFalse(
+			cb.like(
+				cb.function("jsonb_extract_path_text", String.class,
+					root.get(Ref_.tags),
+					cb.literal("{}")),
+				"%\"" + tag + "/%"));
+	}
+
 	public static Specification<Ref> hasDownwardTag(String tag) {
 		if (isPublicTag(tag)) {
 			return (root, query, cb) -> cb.isTrue(
