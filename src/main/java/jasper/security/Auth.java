@@ -50,6 +50,8 @@ import java.util.stream.Stream;
 import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.domain.proj.Tag.tagUrl;
 import static jasper.domain.proj.Tag.urlToTag;
@@ -447,10 +449,12 @@ public class Auth {
 		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
 			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
 			// Except for public, an Editor cannot make a private Ref public or vice-versa
-			!tag.equals("public") &&
+			!matchesTag("public", tag) &&
 			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
-			!tag.equals("locked") &&
+			!matchesTag("locked", tag) &&
 			canReadRef(url, origin)) return true;
 		// You can add the tag, and you can edit the ref
 		return canAddTag(tag) && canWriteRef(url, origin);

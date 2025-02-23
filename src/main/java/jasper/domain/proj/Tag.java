@@ -92,6 +92,14 @@ public interface Tag extends Cursor {
 			tag.startsWith(prefix);
 	}
 
+	static boolean matchesTemplate(String prefix, String tag) {
+		return isBlank(prefix) ||
+			prefix.equals(tag) ||
+			prefix.equals(publicTag(tag)) ||
+			tag.startsWith(prefix) ||
+			publicTag(tag).startsWith(prefix);
+	}
+
 	/**
 	 * _tag can capture _tag, +tag, and tag
 	 * +tag can capture +tag and tag
