@@ -167,7 +167,7 @@ public class Ref implements HasTags {
 		if (plugins != null) {
 			var remove = new ArrayList<String>();
 			plugins.fieldNames().forEachRemaining(p -> {
-				if (!hasTag(p)) remove.add(p);
+				if (matchesTag(p, tag) && !hasTag(p)) remove.add(p);
 			});
 			for (var p : remove) setPlugin(p, null);
 		}

@@ -253,7 +253,6 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-
 		assertThatThrownBy(() -> validate.ref("", ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
