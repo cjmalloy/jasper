@@ -107,7 +107,12 @@ public class Scheduler {
 		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
-			.orElseThrow();
+			.orElse(null);
+		if (url == null) {
+			logger.error("{} Error in run tag: No source", origin);
+			tagger.remove(target.getUrl(), origin, "+plugin/run");
+			return;
+		}
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
 			if (!configs.root().script("+plugin/run", origin)) throw new RuntimeException();
