@@ -113,6 +113,7 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
+		InputStream[] inputStream = { null };
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
@@ -124,6 +125,9 @@ public class Replicator {
 						logger.warn("{} Empty response pulling cache ({}) {}",
 							remote.getOrigin(), localOrigin, url);
 					}
+					inputStream[0] = fileCache.get().fetch(url, localOrigin);
+				} else if (cache.getBody() != null) {
+					inputStream[0] = cache.getBody().getInputStream();
 				}
 				if (cache.getHeaders().getContentType() != null) {
 					contentType[0] = cache.getHeaders().getContentType().toString();
@@ -133,8 +137,7 @@ public class Replicator {
 					remote.getOrigin(), remoteOrigin, url);
 			}
 		});
-		var inputStream = fileCache.get().fetch(url, localOrigin);
-		if (inputStream == null) return null;
+		if (inputStream[0] == null) return null;
 		return new Fetch.FileRequest() {
 			@Override
 			public String getMimeType() {
@@ -143,12 +146,12 @@ public class Replicator {
 
 			@Override
 			public InputStream getInputStream() {
-				return inputStream;
+				return inputStream[0];
 			}
 
 			@Override
 			public void close() throws IOException {
-				inputStream.close();
+				inputStream[0].close();
 			}
 		};
 	}
