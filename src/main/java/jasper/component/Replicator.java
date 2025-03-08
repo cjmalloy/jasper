@@ -12,6 +12,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.OperationForbiddenOnOriginException;
+import jasper.errors.PullLocalException;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -163,6 +164,7 @@ public class Replicator {
 		var pull = getPull(remote);
 		var config = getOrigin(remote);
 		var rootOrigin = remote.getOrigin();
+		if (isBlank(config.getLocal())) throw new PullLocalException(remote.getOrigin());
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
