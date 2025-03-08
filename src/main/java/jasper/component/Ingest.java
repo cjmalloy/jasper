@@ -87,7 +87,7 @@ public class Ingest {
 		meta.ref(ref, ref.getOrigin());
 		ensureSilentUniqueModified(ref);
 		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
-		messages.updateRef(ref);
+		messages.updateSilentRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
