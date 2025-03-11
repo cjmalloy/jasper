@@ -75,7 +75,7 @@ public class Pull {
 	@Autowired
 	private Tagger tagger;
 
-	record MonitorInfo(String url, String origin, WebSocketStompClient client, AtomicBoolean connected) {}
+	record MonitorInfo(String url, String origin, WebSocketStompClient client, String proxy, AtomicBoolean connected) {}
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
 
 	record RetryInfo(int count, boolean retrying) {}
@@ -94,8 +94,8 @@ public class Pull {
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
 		for (var e : pulls.entrySet()) {
-			logger.info("Websocket Monitor: {} ({}): {}",
-				e.getKey(), e.getValue().url, e.getValue().connected.get() ? "CONNECTED" : "DISCONNECTED");
+			logger.info("Websocket Monitor[{}]: {} ({}): {}",
+				e.getValue().proxy, e.getKey(), e.getValue().url, e.getValue().connected.get() ? "CONNECTED" : "DISCONNECTED");
 		}
 	}
 
@@ -198,7 +198,7 @@ public class Pull {
 				scheduleReconnect(update, localOrigin);
 				return null;
 			}
-			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp, new AtomicBoolean());
+			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp, url.toString(), new AtomicBoolean());
 		});
 	}
 
