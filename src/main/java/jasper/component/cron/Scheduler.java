@@ -136,7 +136,7 @@ public class Scheduler {
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
-						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
+						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 							ran.add(v);

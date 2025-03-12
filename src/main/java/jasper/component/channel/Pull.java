@@ -3,6 +3,7 @@ package jasper.component.channel;
 import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
+import jasper.component.Replicator;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.domain.proj.HasTags;
@@ -69,6 +70,9 @@ public class Pull {
 	Watch watch;
 
 	@Autowired
+	Replicator replicator;
+
+	@Autowired
 	@Qualifier("websocketExecutor")
 	private Executor websocketExecutor;
 
@@ -85,7 +89,7 @@ public class Pull {
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().getPullWebsocketOrigins()) {
+		for (var origin : configs.root().scriptOrigins("+plugin/origin/pull")) {
 			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
 		}
@@ -203,14 +207,20 @@ public class Pull {
 	}
 
 	private void handleCursorUpdate(String origin, String local, Instant cursor) {
-		if (!configs.root().getPullWebsocketOrigins().contains(origin)) return;
+		if (!configs.root().script("+plugin/origin/pull", origin)) return;
 		pulls.compute(local, (k, info) -> {
 			if (info == null) return null;
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
 				if (remote.getPluginResponses("+plugin/run") == 0) {
-					tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
+					taskScheduler.schedule(() -> {
+						var config = getOrigin(remote);
+						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+						logger.debug("{} Pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+						replicator.pull(remote);
+						logger.debug("{} Finished pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+					}, Instant.now());
 				}
 				return info;
 			}

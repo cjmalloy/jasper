@@ -53,11 +53,6 @@ public interface Config {
 		private List<String> sshOrigins = List.of("");
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
-		/**
-		 * Whitelist origins to be allowed to monitor and pull using +plugin/origin/pull.
-		 * Requires +plugin/origin/pull in the script selectors.
-		 */
-		private List<String> pullWebsocketOrigins = List.of("");
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
@@ -120,7 +115,6 @@ public interface Config {
 			return ServerConfig.builder()
 				.webOrigins(List.of(origin))
 				.sshOrigins(List.of(origin))
-				.pullWebsocketOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
 	}
