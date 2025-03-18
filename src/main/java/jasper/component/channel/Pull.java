@@ -49,6 +49,7 @@ import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
+import static jasper.util.Logging.getMessage;
 
 @Component
 public class Pull {
@@ -218,8 +219,13 @@ public class Pull {
 						var config = getOrigin(remote);
 						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 						logger.debug("{} Pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
-						replicator.pull(remote);
-						logger.debug("{} Finished pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+						try {
+							replicator.pull(remote);
+							logger.debug("{} Finished pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+						} catch (Exception e) {
+							logger.error("{} Error pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+							tagger.attachError(remote.getUrl(), origin, "Error pulling", getMessage(e));
+						}
 					}, Instant.now());
 				}
 				return info;

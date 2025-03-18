@@ -3,6 +3,7 @@ package jasper.component.channel;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
+import jasper.component.Tagger;
 import jasper.config.Props;
 import jasper.domain.proj.HasTags;
 import jasper.repository.RefRepository;
@@ -26,6 +27,7 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Push.getPush;
+import static jasper.util.Logging.getMessage;
 
 @Component
 public class Push {
@@ -45,6 +47,9 @@ public class Push {
 
 	@Autowired
 	Replicator replicator;
+
+	@Autowired
+	Tagger tagger;
 
 	@Autowired
 	Watch watch;
@@ -98,8 +103,13 @@ public class Push {
 					var remote = refRepository.findOneByUrlAndOrigin(target.url, target.origin).orElse(null);
 					if (remote != null && !remote.hasTag("+plugin/error")) {
 						logger.info("{} Pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
-						replicator.push(remote);
-						logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
+						try  {
+							replicator.push(remote);
+							logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
+						} catch (Exception e) {
+							logger.error("{} Error pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
+							tagger.attachError(remote.getUrl(), origin, "Error pushing", getMessage(e));
+						}
 					} else {
 						deleted.add(target);
 					}
