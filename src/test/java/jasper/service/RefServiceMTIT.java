@@ -262,7 +262,7 @@ public class RefServiceMTIT {
 		refRepository.save(ref);
 		var other = getRef("@other.nested");
 		other.setTitle("Other");
-		ingest.push(other, "@other", true, true);
+		ingest.push(other, "@other", true);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
