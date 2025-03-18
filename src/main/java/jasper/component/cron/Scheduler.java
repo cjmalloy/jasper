@@ -142,7 +142,7 @@ public class Scheduler {
 							ran.add(v);
 							tagger.removeAllResponses(url, origin, "+plugin/run");
 						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k, e);
+							logger.error("{} Error in run tag {} ", origin, k);
 							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 						} finally {
 							refs.remove(k);
@@ -201,7 +201,7 @@ public class Scheduler {
 				v.run(ref);
 				ran.add(v);
 			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k, e);
+				logger.error("{} Error in cron tag {} ", origin, k);
 				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 			}
 		});
