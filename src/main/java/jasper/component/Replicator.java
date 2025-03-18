@@ -8,8 +8,10 @@ import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
+import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidPushException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.PullLocalException;
@@ -182,14 +184,25 @@ public class Replicator {
 							remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
 						try {
 							ingestPlugin.push(plugin);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling plugin skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping plugin with duplicate modified date {}: {}",
 								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
 							logs.add(new Log(
 								"Skipping replication of plugin with duplicate modified date %s: %s".formatted(
-									plugin.getName(), plugin.getTag()),
-								""+plugin.getModified()));
+									plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
+						} catch (InvalidPushException e) {
+							// Indicates a double pull
+							logger.error("{} Skipping plugin with invalid data {}: {}",
+								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of plugin with invalid data %s: %s".formatted(
+									plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
 						}
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
@@ -205,14 +218,25 @@ public class Replicator {
 							remote.getOrigin(), template.getName(), template.getQualifiedTag());
 						try {
 							ingestTemplate.push(template);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling template skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping template with duplicate modified date {}: {}",
 								remote.getOrigin(), template.getName(), template.getQualifiedTag());
 							logs.add(new Log(
 								"Skipping replication of template with duplicate modified date %s: %s".formatted(
-									template.getName(), template.getTag()),
-								""+template.getModified()));
+									template.getName(), template.getTag()), ""+template.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Skipping template with invalid data {}: {}",
+								remote.getOrigin(), template.getName(), template.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of template with invalid data %s: %s".formatted(
+									template.getName(), template.getTag()), ""+template.getModified()));
 						}
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
@@ -234,18 +258,30 @@ public class Replicator {
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
 							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins());
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
-							logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
-								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							logger.error("{} Pulling Ref skipped with duplicate modified date {} {}: {}",
+								remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
-								"Pulling batch failed with duplicate modified date (%s): %s".formatted(
-									remote.getTitle(), remote.getUrl()), ""+after));
-						} catch (InvalidTemplateException | InvalidPluginException e) {
-							logger.warn("{} Pulling batch failed with Validation! ({}) {}: {}",
+								"Pulling Ref skipped with duplicate modified date (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Pulling Ref skipped with invalid data {} {}: {}",
+								remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Pulling Ref skipped with invalid data (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
+						} catch (InvalidPluginException e) {
+							logger.warn("{} Failed Plugin Validation! Skipping replication of Ref ({}) {}: {}",
 								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
 							logs.add(new Log(
-								"Pulling batch failed with Validation! (%s) %s: %s".formatted(
+								"Failed Plugin Validation! Skipping replication of Ref (%s) %s: %s".formatted(
 									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
 						}
 					}
@@ -262,6 +298,11 @@ public class Replicator {
 							remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 						try {
 							ingestExt.push(ext, rootOrigin, pull.isValidateTemplates());
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling Ext skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping Ext with duplicate modified date {}: {}",
@@ -269,7 +310,7 @@ public class Replicator {
 							logs.add(new Log(
 								"Skipping replication of template with duplicate modified date %s: %s".formatted(
 									ext.getName(), ext.getTag()), ""+ext.getModified()));
-						} catch (RuntimeException e) {
+						} catch (InvalidTemplateException e) {
 							logger.warn("{} Failed Template Validation! Skipping replication of ext {}: {}",
 								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 							tagger.attachLogs(remote.getOrigin(), remote,
@@ -292,14 +333,25 @@ public class Replicator {
 							remote.getOrigin(), user.getName(), user.getQualifiedTag());
 						try {
 							ingestUser.push(user);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling User skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Skipping User with duplicate modified date {}: {}",
 								remote.getOrigin(), user.getName(), user.getQualifiedTag());
 							logs.add(new Log(
 								"Skipping replication of user with duplicate modified date %s: %s".formatted(
-									user.getName(), user.getTag()),
-								""+user.getModified()));
+									user.getName(), user.getTag()), ""+user.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Skipping user with invalid data {}: {}",
+								remote.getOrigin(), user.getName(), user.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of user with invalid data %s: %s".formatted(
+									user.getName(), user.getTag()), ""+user.getModified()));
 						}
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
