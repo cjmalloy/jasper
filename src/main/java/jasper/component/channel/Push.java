@@ -97,7 +97,6 @@ public class Push {
 				pushes.get(origin).forEach(target -> {
 					var remote = refRepository.findOneByUrlAndOrigin(target.url, target.origin).orElse(null);
 					if (remote != null && !remote.hasTag("+plugin/error")) {
-						replicator.push(remote);
 						logger.info("{} Pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						replicator.push(remote);
 						logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
