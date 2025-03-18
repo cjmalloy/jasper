@@ -80,6 +80,8 @@ public class Pull {
 	@Autowired
 	private Tagger tagger;
 
+	private final ConcurrentHashMap<String, Boolean> isPulling = new ConcurrentHashMap<>();
+
 	record MonitorInfo(String url, String origin, WebSocketStompClient client, String proxy, AtomicBoolean connected) {}
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
 
@@ -214,7 +216,7 @@ public class Pull {
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
-				if (remote.getPluginResponses("+plugin/run") == 0) {
+				if (remote.getPluginResponses("+plugin/run") == 0 && isPulling.putIfAbsent(local, true) == null) {
 					taskScheduler.schedule(() -> {
 						var config = getOrigin(remote);
 						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
@@ -225,6 +227,8 @@ public class Pull {
 						} catch (Exception e) {
 							logger.error("{} Error pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 							tagger.attachError(remote.getUrl(), origin, "Error pulling", getMessage(e));
+						} finally {
+							isPulling.remove(local);
 						}
 					}, Instant.now());
 				}
