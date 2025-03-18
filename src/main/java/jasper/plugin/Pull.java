@@ -29,7 +29,6 @@ public class Pull implements Serializable {
 	private boolean stripInvalidPlugins;
 	private boolean validateTemplates;
 	private boolean stripInvalidTemplates;
-	private boolean generateMetadata;
 	private List<String> addTags;
 	private List<String> removeTags;
 

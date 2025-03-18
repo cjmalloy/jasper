@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Component
 public class Ingest {
@@ -91,7 +92,8 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, String rootOrigin, boolean validation, boolean generateMetadata) {
+	public void push(Ref ref, String rootOrigin, boolean validation) {
+		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
 		ref.addHierarchicalTags();
 		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
 		Ref maybeExisting = null;

@@ -233,7 +233,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ref {}: {}",
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
-							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins(), pull.isGenerateMetadata());
+							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins());
 						} catch (DuplicateModifiedDateException e) {
 							// Should not be possible
 							logger.error("{} Pulling batch failed with duplicate modified date {}: {}",
