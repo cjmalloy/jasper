@@ -4,6 +4,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidPluginException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
@@ -65,6 +66,8 @@ public class Tagger {
 			ref.addTags(asList(tags));
 			try {
 				ingest.update(ref, false);
+			} catch (InvalidPluginException e) {
+				ingest.silent(ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				if (retry) return tag(true, internal, url, origin, tags);
