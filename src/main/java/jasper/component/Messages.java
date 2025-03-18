@@ -176,11 +176,19 @@ public class Messages {
 	}
 
 	private void sendAndRetry(Runnable fn) {
+		sendAndRetry(fn, 5);
+	}
+
+	private void sendAndRetry(Runnable fn, int tries) {
 		try {
 			fn.run();
 		} catch (MessageDeliveryException e) {
-			// TODO: give up after 3 tries
-			taskExecutor.execute(() -> sendAndRetry(fn));
+			if (tries > 0) {
+				logger.debug("Retrying message delivery", e);
+				taskExecutor.execute(() -> sendAndRetry(fn, tries - 1));
+			} else {
+				logger.error("Message delivery failed", e);
+			}
 		}
 	}
 
