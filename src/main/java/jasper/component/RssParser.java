@@ -40,6 +40,7 @@ import java.util.Map;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -199,7 +200,7 @@ public class RssParser {
 		if (config.isScrapeThumbnail()) {
 			parseThumbnail(entry, ref);
 			if (!ref.hasPlugin("plugin/thumbnail")) {
-				if (defaultThumbnail != null) {
+				if (defaultThumbnail != null && !defaultThumbnail.isBlank()) {
 					ref.setPlugin("plugin/thumbnail", defaultThumbnail);
 				}
 			}
@@ -326,6 +327,7 @@ public class RssParser {
 	}
 
 	private void cacheLater(String url, String origin) {
+		if (isBlank(url)) return;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
