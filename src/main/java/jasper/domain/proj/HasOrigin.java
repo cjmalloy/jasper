@@ -43,6 +43,12 @@ public interface HasOrigin {
 		return origin.substring(1).split("\\.");
 	}
 
+	static String parentOrigin(String origin) {
+		if (isBlank(origin)) return "";
+		if (!origin.contains(".")) return "";
+		return origin.substring(0, origin.lastIndexOf("."));
+	}
+
 	static String fromParts(String ...parts) {
 		if (parts == null) return "";
 		if (parts.length == 0) return "";

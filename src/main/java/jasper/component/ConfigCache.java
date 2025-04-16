@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.fromParts;
+import static jasper.domain.proj.HasOrigin.parentOrigin;
 import static jasper.domain.proj.HasOrigin.parts;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
@@ -253,9 +254,12 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
 	public SecurityConfig security(String origin) {
-		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
-			.orElse(new SecurityConfig())
-			.wrap(props);
+		do {
+			var security = getTemplateConfig("_config/security", origin, SecurityConfig.class);
+			if (security.isPresent()) return security.get().wrap(props);
+			origin = parentOrigin(origin);
+		} while (isNotBlank(origin));
+		return new SecurityConfig().wrap(props);
 	}
 
 	@Cacheable("template-schemas-cache")
