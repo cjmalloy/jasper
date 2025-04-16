@@ -251,11 +251,18 @@ public class ConfigCache {
 			.orElse(Index.builder().build());
 	}
 
-	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
-	public SecurityConfig security(String origin) {
-		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
-			.orElse(new SecurityConfig())
-			.wrap(props);
+	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #local")
+	public SecurityConfig security(String local) {
+		String origin = "";
+		while (isNotBlank(local)) {
+			var security = getTemplateConfig("_config/security", origin, SecurityConfig.class);
+			if (security.isPresent()) return security.get().wrap(props);
+			var p = parts(local);
+			origin = fromParts(origin, p[0]);
+			p[0] = "";
+			local = fromParts(p);
+		}
+		return new SecurityConfig().wrap(props);
 	}
 
 	@Cacheable("template-schemas-cache")
