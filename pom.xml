@@ -42,7 +42,7 @@
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.4.3</apache-httpclient.version>
 		<commons-io.version>2.19.0</commons-io.version>
-		<commons-collections4.version>4.4</commons-collections4.version>
+		<commons-collections4.version>4.5.0</commons-collections4.version>
 		<commons-compress.version>1.27.1</commons-compress.version>
 		<jsoup.version>1.19.1</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
