@@ -28,7 +28,6 @@ public class JavaScript {
 
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
-		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
 		const fs = require('fs');
 		const vm = require('node:vm');
 		const stdin = fs.readFileSync(0, 'utf-8');
@@ -61,7 +60,7 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api).start();
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
