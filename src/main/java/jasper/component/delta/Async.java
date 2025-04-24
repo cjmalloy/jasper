@@ -103,7 +103,10 @@ public class Async {
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
 				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
 				refs.compute(getKey(ud), (u, existing) -> {
-					if (existing != null && !existing.isDone()) return existing;
+					if (existing != null && !existing.isDone()) {
+						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
+						return existing;
+					}
 					return taskScheduler.schedule(() -> {
 						try {
 							v.run(fetch(ud));
