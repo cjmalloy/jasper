@@ -91,7 +91,7 @@ public class JavaScript {
 		}
 	}
 
-	private String getErrors(InputStream is) throws IOException {
+	private String getErrors(InputStream is) {
 		var logs = new StringBuilder();
 		try (var reader = new BufferedReader(new InputStreamReader(is))) {
 			String line;
@@ -99,7 +99,7 @@ public class JavaScript {
 				logger.debug(line);
 				logs.append(line).append("\n");
 			}
-		}
+		} catch (Exception ignored) { }
 		return logs.toString();
 	}
 }
