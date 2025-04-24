@@ -71,11 +71,12 @@ public class JavaScript {
 			logger.warn("Script terminated before receiving input.");
 		}
 		var finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
+		var logs = getErrors(process.getErrorStream());
 		if (!finished) {
 			process.destroy();
-			throw new RuntimeException("Script execution timed out");
+			logs = getErrors(process.getInputStream()) + logs;
+			throw new ScriptException("Script execution timed out", logs);
 		}
-		var logs = getErrors(process.getErrorStream());
 		var exitCode = process.exitValue();
 		if (exitCode != 0) {
 			logs = getErrors(process.getInputStream()) + logs;
