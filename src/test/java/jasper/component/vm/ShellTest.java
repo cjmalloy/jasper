@@ -60,7 +60,7 @@ class ShellTest {
 		var input = "test";
 
 		assertThatThrownBy(() -> vm.runShellScript(targetScript, input, 1_000))
-			.isInstanceOf(RuntimeException.class)
+			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
 
@@ -84,6 +84,7 @@ class ShellTest {
             printf 'a%.0s' {1..65537}
         """;
 		var input = "test";
+
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
 				return vm.runShellScript(targetScript, input, 30_000);
@@ -91,7 +92,6 @@ class ShellTest {
 				throw new RuntimeException(e);
 			}
 		});
-
 		assertThat(future)
 			.succeedsWithin(Duration.ofSeconds(2));
 	}
