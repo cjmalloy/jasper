@@ -57,7 +57,7 @@ class JavaScriptTest {
 		var input = "test";
 
 		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 1_000))
-			.isInstanceOf(RuntimeException.class)
+			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
 
