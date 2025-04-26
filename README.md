@@ -276,7 +276,6 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
     }
   },
   "generateMetadata": false,
-  "userUrl": false,
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
@@ -293,8 +292,6 @@ data according to the Plugin schema.
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
 this plugin in all Ref metadata.  
-**User Url:** Flag to only allow this plugin on a User Url, which is a specially constructed URL
-of the form `tag:/{tag}?user={user}`. This has the effect of restricting the plugin to one Ref per user.
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
@@ -628,6 +625,7 @@ For convenience, the user URL is used if a blank URL is passed to the tagging re
 This allows you to quickly ensure settings are initialized and fetch / edit Ref plugins and tags to read settings.
 If a tag are passed, for example `plugin/kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/plugin/kanban`.
 If a blank URL and a blank tag are passed, the default is the generic user settings Ref: `tag:/+user/chris`.
+User plugins, which follow the template `plugin/user`, may **only** be added to user URL Refs.
 
 ### Special Tags
 Some public tags have special significance:
@@ -679,7 +677,10 @@ Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+ * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
+While the metadata is not transferred during replication, a simplified version is sent over the client API, with
+counts for each response type, and user plugin responses for the current user.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the

@@ -89,15 +89,15 @@ public interface Tag extends Cursor {
 	static boolean matchesTag(String prefix, String tag) {
 		return isBlank(prefix) ||
 			prefix.equals(tag) ||
-			tag.startsWith(prefix);
+			tag.startsWith(prefix + "/");
 	}
 
 	static boolean matchesTemplate(String prefix, String tag) {
 		return isBlank(prefix) ||
 			prefix.equals(tag) ||
 			prefix.equals(publicTag(tag)) ||
-			tag.startsWith(prefix) ||
-			publicTag(tag).startsWith(prefix);
+			tag.startsWith(prefix + "/") ||
+			publicTag(tag).startsWith(prefix + "/");
 	}
 
 	/**
