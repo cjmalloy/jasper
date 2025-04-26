@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,5 +75,24 @@ class ShellTest {
 		assertThatThrownBy(() -> vm.runShellScript(targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
+	}
+
+	@Test
+	void testRunShellFillStdoutBuffer() {
+		// language=Bash
+		var targetScript = """
+            printf 'a%.0s' {1..65537}
+        """;
+		var input = "test";
+		var future = CompletableFuture.supplyAsync(() -> {
+			try {
+				return vm.runShellScript(targetScript, input, 30_000);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+
+		assertThat(future)
+			.succeedsWithin(Duration.ofSeconds(2));
 	}
 }

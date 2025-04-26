@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,6 +92,25 @@ open('non_existent_file')
 		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
+	}
+
+	@Test
+	void testRunPythonFillStdoutBuffer() {
+		// language=Python
+		var targetScript = """
+print("a" * 65_536)
+        """;
+		var input = "test";
+		var future = CompletableFuture.supplyAsync(() -> {
+			try {
+				return vm.runPython("", targetScript, input, 30_000);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+
+		assertThat(future)
+			.succeedsWithin(Duration.ofSeconds(2));
 	}
 
 }
