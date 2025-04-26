@@ -9,12 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.util.concurrent.TimeUnit;
+
+import static jasper.component.vm.RunProcess.runProcess;
 
 @Component
 public class JavaScript {
@@ -69,37 +67,6 @@ public class JavaScript {
 		} catch (IOException e) {
 			logger.warn("Script terminated before receiving input.");
 		}
-		var finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
-		var logs = getErrors(process.getErrorStream());
-		if (!finished) {
-			process.destroy();
-			logs = getErrors(process.getInputStream()) + logs;
-			throw new ScriptException("Script execution timed out", logs);
-		}
-		var exitCode = process.exitValue();
-		if (exitCode != 0) {
-			logs = getErrors(process.getInputStream()) + logs;
-			throw new ScriptException("Script execution failed with exit code: " + exitCode, logs);
-		}
-		try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-			var output = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				output.append(line).append("\n");
-			}
-			return output.toString();
-		}
-	}
-
-	private String getErrors(InputStream is) {
-		var logs = new StringBuilder();
-		try (var reader = new BufferedReader(new InputStreamReader(is))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				logger.debug(line);
-				logs.append(line).append("\n");
-			}
-		} catch (Exception ignored) { }
-		return logs.toString();
+		return runProcess(process, timeoutMs);
 	}
 }

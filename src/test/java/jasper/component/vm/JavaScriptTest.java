@@ -83,6 +83,7 @@ class JavaScriptTest {
             console.log("a".repeat(65_536))
         """;
 		var input = "test";
+
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
 				return vm.runJavaScript(targetScript, input, 30_000);
@@ -90,7 +91,6 @@ class JavaScriptTest {
 				throw new RuntimeException(e);
 			}
 		});
-
 		assertThat(future)
 			.succeedsWithin(Duration.ofSeconds(2));
 	}

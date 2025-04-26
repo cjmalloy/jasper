@@ -163,6 +163,9 @@ spring:
       thread-name-prefix: jasper-scheduling-
       pool:
         size: 50
+  threads:
+    virtual:
+      enabled: false
   output:
     ansi:
       console-available: true

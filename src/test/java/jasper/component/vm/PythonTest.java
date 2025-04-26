@@ -77,7 +77,7 @@ time.sleep(2)
 		var input = "test";
 
 		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 1_000))
-			.isInstanceOf(RuntimeException.class)
+			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
 
@@ -101,6 +101,7 @@ open('non_existent_file')
 print("a" * 65_536)
         """;
 		var input = "test";
+
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
 				return vm.runPython("", targetScript, input, 30_000);
@@ -108,7 +109,6 @@ print("a" * 65_536)
 				throw new RuntimeException(e);
 			}
 		});
-
 		assertThat(future)
 			.succeedsWithin(Duration.ofSeconds(2));
 	}
