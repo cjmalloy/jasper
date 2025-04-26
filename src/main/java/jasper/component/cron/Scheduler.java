@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,9 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -34,6 +37,10 @@ public class Scheduler {
 	TaskScheduler taskScheduler;
 
 	@Autowired
+	@Qualifier("taskExecutor")
+	AsyncTaskExecutor taskExecutor;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -46,7 +53,8 @@ public class Scheduler {
 	Watch watch;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, CompletableFuture<?>> runningTasks = new ConcurrentHashMap<>();
+	Map<String, Future<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
@@ -71,16 +79,18 @@ public class Scheduler {
 	private void schedule(HasTags ref) {
 		var key = getKey(ref);
 		var existing = tasks.get(key);
+		var cancelled = false;
 		if (existing != null && !existing.isDone()) {
 			existing.cancel(true);
 			tasks.remove(key);
+			cancelled = true;
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (hasMatchingTag(ref, "+plugin/error")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (!hasScheduler(ref)) return;
@@ -95,7 +105,12 @@ public class Scheduler {
 			tasks.compute(key, (k, e) -> {
 				if (e != null && !e.isDone()) return e;
 				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
-				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
+				return taskScheduler.scheduleWithFixedDelay(() -> {
+						runningTasks.compute(key, (k1, inFlight) -> {
+							if (inFlight != null && !inFlight.isDone()) return inFlight;
+							return CompletableFuture.runAsync(() -> runSchedule(url, origin), taskExecutor);
+						});
+					},
 					Instant.now().plus(config.getInterval()),
 					config.getInterval());
 			});
@@ -135,7 +150,7 @@ public class Scheduler {
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return taskScheduler.schedule(() -> {
+					return taskExecutor.submit(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
@@ -147,7 +162,7 @@ public class Scheduler {
 						} finally {
 							refs.remove(k);
 						}
-					}, Instant.now());
+					});
 				});
 			});
 		} catch (Exception e) {
