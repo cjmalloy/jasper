@@ -43,7 +43,12 @@ public class Backfill {
 			logger.trace("{} Backfilling ref ({}) {}: {}",
 				origin, ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			meta.regen(ref, origin);
-			refRepository.save(ref);
+			try {
+				refRepository.save(ref);
+			} catch (Exception e) {
+				logger.error("Error backfilling", e);
+				return;
+			}
 		}
 	}
 }
