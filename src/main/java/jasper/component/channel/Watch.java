@@ -52,26 +52,30 @@ public class Watch {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		for (var origin : watchers.keySet()) {
-			for (var tag : watchers.get(origin).keySet()) {
-				if (isBlank(tag)) continue;
-				Instant lastModified = null;
-				while (true) {
-					var maybeRef = refRepository.findAll(RefFilter.builder()
-						.origin(origin)
-						.query(tag)
-						.modifiedAfter(lastModified)
-						.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
-					if (maybeRef.isEmpty()) break;
-					var ref = maybeRef.getContent().getFirst();
-					lastModified = ref.getModified();
-					try {
-						watchers.get(origin).get(tag).notify(ref);
-					} catch (Exception e) {
-						logger.warn("Error starting watcher", e);
+		try {
+			for (var origin : watchers.keySet()) {
+				for (var tag : watchers.get(origin).keySet()) {
+					if (isBlank(tag)) continue;
+					Instant lastModified = null;
+					while (true) {
+						var maybeRef = refRepository.findAll(RefFilter.builder()
+							.origin(origin)
+							.query(tag)
+							.modifiedAfter(lastModified)
+							.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
+						if (maybeRef.isEmpty()) break;
+						var ref = maybeRef.getContent().getFirst();
+						lastModified = ref.getModified();
+						try {
+							watchers.get(origin).get(tag).notify(ref);
+						} catch (Exception e) {
+							logger.warn("Error starting watcher", e);
+						}
 					}
 				}
 			}
+		} catch (Exception e) {
+			logger.error("Error serializing watchers", e);
 		}
 	}
 
