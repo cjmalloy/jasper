@@ -1252,8 +1252,8 @@ public class RefServiceMTIT {
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.containsExactly(URL);
+		assertThat(fetched.getMetadata().getPluginCounts().get("plugin/comment"))
+			.isEqualTo(1);
 	}
 
 	@Test
@@ -1286,9 +1286,9 @@ public class RefServiceMTIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isNull();
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.isEmpty();
+			.isNullOrEmpty();
+		assertThat(fetched.getMetadata().getPluginCounts())
+			.isNullOrEmpty();
 	}
 
 	@Test

@@ -22,6 +22,8 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
+import static jasper.repository.spec.RefSpec.hasSource;
+import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static org.springframework.data.domain.Sort.Order.desc;
@@ -37,7 +39,8 @@ public class Meta {
 	@Autowired
 	Messages messages;
 
-	private record PluginResponses(String tag, List<String> responses) { }
+	private record PluginResponses(String tag, long count) { }
+	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(Ref ref) {
@@ -46,13 +49,20 @@ public class Meta {
 			.builder()
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
 				.stream()
-				.map(tag -> new PluginResponses(
+				.map(tag -> new UserUrlResponse(
 					tag,
 					refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), tag)))
 				.filter(p -> !p.responses.isEmpty())
-				.collect(Collectors.toMap(PluginResponses::tag, PluginResponses::responses)))
+				.collect(Collectors.toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
+			.pluginCounts(refRepository.findAllPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+				.stream()
+				.map(tag -> new PluginResponses(
+					tag,
+					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(ref.getOrigin())).and(hasTag(tag)))))
+				.filter(p -> p.count() > 0)
+				.collect(Collectors.toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()
 		);
 
@@ -72,7 +82,7 @@ public class Meta {
 			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
 				ref(source);
 			} else {
-				removeSource(source, ref.getUrl(), rootOrigin);
+				removeSource(source, ref, rootOrigin);
 			}
 		}
 	}
@@ -94,18 +104,24 @@ public class Meta {
 						.builder()
 						.responses(new ArrayList<>())
 						.internalResponses(new ArrayList<>())
-						.plugins(new HashMap<>())
+						.pluginCounts(new HashMap<>())
 						.build();
 				}
-				metadata.remove(ref.getUrl());
 				if (ref.hasTag("internal")) {
 					metadata.addInternalResponse(ref.getUrl());
 				} else {
 					metadata.addResponse(ref.getUrl());
 				}
+				if (existing != null && existing.getTags() != null) {
+					metadata.removePlugins(existing.getTags().stream()
+							.filter(tag -> matchesTemplate("plugin", tag))
+							.toList(),
+						ref.getUrl());
+				}
 				metadata.addPlugins(ref.getTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
-					.toList(), ref.getUrl());
+					.toList(),
+					ref.getUrl());
 				source.setMetadata(metadata);
 				try {
 					refRepository.save(source);
@@ -137,16 +153,22 @@ public class Meta {
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
-				removeSource(source, existing.getUrl(), rootOrigin);
+				removeSource(source, existing, rootOrigin);
 				messages.updateMetadata(source);
 			}
 		}
 	}
 
-	private void removeSource(Ref source, String url, String rootOrigin) {
+	private void removeSource(Ref source, Ref existing, String rootOrigin) {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
-		metadata.remove(url);
+		metadata.remove(existing.getUrl());
+		if (existing.getTags() != null) {
+			metadata.removePlugins(existing.getTags().stream()
+					.filter(tag -> matchesTemplate("plugin", tag))
+					.toList(),
+				existing.getUrl());
+		}
 		source.setMetadata(metadata);
 		try {
 			refRepository.save(source);
