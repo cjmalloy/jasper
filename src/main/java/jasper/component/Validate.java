@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.urlForTag;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -224,10 +225,10 @@ public class Validate {
 	}
 
 	private void plugin(String origin, Ref ref, String tag, String pluginOrigin, boolean stripOnError) {
+		if (matchesTemplate("plugin/user", tag)) {
+			userUrl(ref, tag);
+		}
 		var plugin = configs.getPlugin(tag, pluginOrigin);
-		plugin.ifPresent(p -> {
-			if (p.isUserUrl()) userUrl(ref, p);
-		});
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
@@ -261,13 +262,13 @@ public class Validate {
 		}
 	}
 
-	private void userUrl(Ref ref, Plugin plugin) {
+	private void userUrl(Ref ref, String plugin) {
 		if (ref.getSources() == null || ref.getSources().size() != 1) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+			throw new InvalidPluginUserUrlException(plugin);
 		}
 		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
 		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForTag(ref.getSources().get(0), userTag.get()))) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+			throw new InvalidPluginUserUrlException(plugin);
 		}
 	}
 

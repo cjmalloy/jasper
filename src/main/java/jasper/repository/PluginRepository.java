@@ -26,7 +26,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			schema = :schema,
 			defaults = :defaults,
 			generateMetadata = :generateMetadata,
-			userUrl = :userUrl,
 			modified = :modified
 		WHERE
 			tag = :tag AND
@@ -41,7 +40,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		ObjectNode schema,
 		JsonNode defaults,
 		boolean generateMetadata,
-		boolean userUrl,
 		Instant modified);
 
 	@Query("""
