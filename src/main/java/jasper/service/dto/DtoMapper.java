@@ -99,10 +99,10 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
-		if (source.getPlugins() == null) return;
+		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
 		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
-		target.setUserUrls(source.getPlugins().entrySet().stream()
+		target.setUserUrls(source.getUserUrls().entrySet().stream()
 			// TODO: how is null getting in here
 			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
 			.map(Map.Entry::getKey)

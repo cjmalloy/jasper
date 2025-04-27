@@ -142,6 +142,17 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	""")
 	List<String> findAllPluginTagsInResponses(String url, String origin);
 
+	@Query(nativeQuery = true, value = """
+		SELECT DISTINCT t.tag
+		FROM ref r
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.tags) AS t(tag)
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url)
+			AND t.tag ~ '^[_+]?plugin/user(/|$)'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+	""")
+	List<String> findAllUserPluginTagsInResponses(String url, String origin);
+
 	// TODO: Sync cache
 	@Modifying
 	@Transactional
