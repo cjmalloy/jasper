@@ -1225,7 +1225,6 @@ public class RefServiceMTIT {
 	void testUpdateRefCreatesPluginMetadata() {
 		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = getRef();
 		source.setUrl(URL + "source");
@@ -1261,7 +1260,6 @@ public class RefServiceMTIT {
 	void testUpdateRefUpdatesPluginMetadata() {
 		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = getRef();
 		source.setUrl(URL + "source");

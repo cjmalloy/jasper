@@ -65,7 +65,7 @@ public class Ingest {
 		ref.setCreated(Instant.now());
 		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, null, ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		meta.ref(ref);
 		ensureCreateUniqueModified(ref);
 		meta.sources(ref, null, ref.getOrigin());
 		messages.updateRef(ref);
@@ -78,7 +78,7 @@ public class Ingest {
 		ref.addHierarchicalTags();
 		validate.ref(ref.getOrigin(), ref, force);
 		rng.update(ref, maybeExisting.get(), ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		meta.ref(ref);
 		ensureUpdateUniqueModified(ref);
 		meta.sources(ref, maybeExisting.get(), ref.getOrigin());
 		messages.updateRef(ref);
@@ -88,7 +88,7 @@ public class Ingest {
 	public void silent(Ref ref) {
 		ref.addHierarchicalTags();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		meta.ref(ref);
 		ensureSilentUniqueModified(ref);
 		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
 		messages.updateSilentRef(ref);
@@ -103,7 +103,7 @@ public class Ingest {
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(ref, maybeExisting, rootOrigin);
-			meta.ref(ref, rootOrigin);
+			meta.ref(ref);
 		}
 		pushUniqueModified(ref, generateMetadata);
 		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);

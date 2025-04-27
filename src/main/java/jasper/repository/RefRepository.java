@@ -131,6 +131,17 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
+	@Query(nativeQuery = true, value = """
+		SELECT DISTINCT t.tag
+		FROM ref r
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.tags) AS t(tag)
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url)
+			AND t.tag ~ '^[_+]?plugin(/|$)'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+	""")
+	List<String> findAllPluginTagsInResponses(String url, String origin);
+
 	// TODO: Sync cache
 	@Modifying
 	@Transactional

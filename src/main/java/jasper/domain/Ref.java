@@ -134,7 +134,6 @@ public class Ref implements HasTags {
 	private String textsearchEn;
 
 	public boolean hasPluginResponse(String tag) {
-		// TODO: group plugin responses by origin
 		if (metadata == null) return false;
 		if (metadata.getPlugins() == null) return false;
 		return metadata.getPlugins().keySet().stream()

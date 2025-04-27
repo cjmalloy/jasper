@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
@@ -35,23 +36,18 @@ public class Meta {
 	RefRepository refRepository;
 
 	@Autowired
-	ConfigCache configs;
-
-	@Autowired
 	Messages messages;
 
 	private record PluginResponses(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void ref(Ref ref, String rootOrigin) {
+	public void ref(Ref ref) {
 		if (ref == null) return;
-		// Creating or updating (not deleting)
-		var metadataPlugins = configs.getMetadataPlugins(rootOrigin);
 		ref.setMetadata(Metadata
 			.builder()
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.plugins(metadataPlugins
+			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
 				.stream()
 				.map(tag -> new PluginResponses(
 					tag,
@@ -68,7 +64,7 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(Ref ref, String rootOrigin) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
-		ref(ref, rootOrigin);
+		ref(ref);
 		ref.getMetadata().setModified(originalDate);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
@@ -77,7 +73,7 @@ public class Meta {
 			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
 		for (var source : cleanupSources) {
 			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
-				ref(source, rootOrigin);
+				ref(source);
 			} else {
 				removeSource(source, ref.getUrl(), rootOrigin);
 			}
@@ -86,15 +82,11 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(Ref ref, Ref existing, String rootOrigin) {
-		var metadataPlugins = configs.getMetadataPlugins(rootOrigin);
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 
 			// Update sources
-			List<String> plugins = metadataPlugins.stream()
-				.filter(ref::hasTag)
-				.toList();
 			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
 				if (source.getUrl().equals(ref.getUrl())) continue;
@@ -114,7 +106,9 @@ public class Meta {
 				} else {
 					metadata.addResponse(ref.getUrl());
 				}
-				metadata.addPlugins(plugins, ref.getUrl());
+				metadata.addPlugins(ref.getTags().stream()
+					.filter(tag -> matchesTemplate("plugin", tag))
+					.toList(), ref.getUrl());
 				source.setMetadata(metadata);
 				try {
 					refRepository.save(source);

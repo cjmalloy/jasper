@@ -64,8 +64,6 @@ public class Plugin implements Tag {
 	@SchemaValid
 	private ObjectNode schema;
 
-	private boolean generateMetadata = false;
-
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
@@ -93,12 +91,6 @@ public class Plugin implements Tag {
 	@Override
 	public int hashCode() {
 		return Objects.hash(tag, origin);
-	}
-
-	public static boolean isPlugin(String tag) {
-		return tag.startsWith("plugin/") ||
-			tag.startsWith("_plugin/") ||
-			tag.startsWith("+plugin/");
 	}
 
 	@JsonIgnore

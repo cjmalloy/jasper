@@ -1402,7 +1402,6 @@ public class RefServiceIT {
 	void testUpdateRefCreatesPluginMetadata() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = new Ref();
 		source.setUrl(URL + "source");
@@ -1438,7 +1437,6 @@ public class RefServiceIT {
 	void testUpdateRefUpdatesPluginMetadata() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = new Ref();
 		source.setUrl(URL + "source");
