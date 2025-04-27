@@ -35,7 +35,7 @@ public class MetaIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester"));
 
-		meta.ref(ref, "");
+		meta.ref(ref);
 
 		assertThat(ref.getMetadata().getResponses()).isEmpty();
 		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
@@ -95,7 +95,6 @@ public class MetaIT {
 		refRepository.save(ref);
 		var comment = new Plugin();
 		comment.setTag("plugin/comment");
-		comment.setGenerateMetadata(true);
 		pluginRepository.save(comment);
 		var child = new Ref();
 		child.setUrl(URL + 2);

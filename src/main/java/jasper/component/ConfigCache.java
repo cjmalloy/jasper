@@ -128,7 +128,6 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"plugin-cache",
 		"plugin-config-cache",
-		"plugin-metadata-cache",
 		"plugin-dto-cache",
 		"plugin-dto-page-cache",
 	}, allEntries = true)
@@ -228,11 +227,6 @@ public class ConfigCache {
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
 	public Optional<Plugin> getPlugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
-	}
-
-	@Cacheable("plugin-metadata-cache")
-	public List<String> getMetadataPlugins(String origin) {
-		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 	}
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
