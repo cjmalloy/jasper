@@ -218,12 +218,11 @@ public class RssParser {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
-			}
-		}
-		if (config.isScrapeEmbed()) {
-			parseEmbed(entry, ref);
-			if (ref.hasPlugin("plugin/embed")) {
-				cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
+			} else {
+				parseEmbed(entry, ref);
+				if (ref.hasPlugin("plugin/embed")) {
+					cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
+				}
 			}
 		}
 		return ref;
@@ -316,14 +315,7 @@ public class RssParser {
 			.findFirst();
 		if (youtubeEmbed.isPresent()) {
 			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
-			return;
 		}
-
-		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
-		if (media == null) return;
-		if (media.getMetadata() == null) return;
-		if (media.getMetadata().getEmbed() == null) return;
-		ref.setPlugin("plugin/embed", media.getMetadata().getEmbed());
 	}
 
 	private void cacheLater(String url, String origin) {
