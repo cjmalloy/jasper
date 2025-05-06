@@ -101,14 +101,14 @@ public class RefFilter implements Query {
 				.or(hasInternalResponse(sources)));
 		}
 		if (isNotBlank(noSources)) {
-			result = result.and(not(hasResponse(sources))
-				.and(not(hasInternalResponse(sources))));
+			result = result.and(not(hasResponse(noSources))
+				.and(not(hasInternalResponse(noSources))));
 		}
 		if (isNotBlank(responses)) {
 			result = result.and(hasSource(responses));
 		}
 		if (isNotBlank(noResponses)) {
-			result = result.and(not(hasSource(responses)));
+			result = result.and(not(hasSource(noResponses)));
 		}
 		if (untagged) {
 			result = result.and(hasNoTags());
