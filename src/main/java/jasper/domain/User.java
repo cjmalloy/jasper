@@ -105,6 +105,9 @@ public class User implements Tag {
 	@Size(max = AUTHORIZED_KEYS_LEN)
 	private String authorizedKeys;
 
+	@JdbcTypeCode(SqlTypes.JSON)
+	private External external;
+
 	@JsonIgnore
 	public String getQualifiedTag() {
 		return getTag() + getOrigin();

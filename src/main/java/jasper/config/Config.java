@@ -137,6 +137,7 @@ public interface Config {
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
 		private String usernameClaim = "sub";
+		private boolean externalId = false;
 		private boolean emailDomainInUsername = false;
 		private String rootEmailDomain = "";
 		private String verifiedEmailClaim = "verified_email";

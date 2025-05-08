@@ -71,6 +71,7 @@ public class UserService {
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
 		ingest.create(user);
+		if (!auth.hasRole(MOD)) user.setExternal(null);
 		return user.getModified();
 	}
 
@@ -84,7 +85,9 @@ public class UserService {
 		if (maybeExisting.isPresent()) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
+			if (user.getExternal() == null) user.setExternal(maybeExisting.get().getExternal());
 		}
+		if (!auth.hasRole(MOD)) user.setExternal(null);
 		ingest.push(user);
 	}
 
@@ -128,6 +131,7 @@ public class UserService {
 		user.addWriteAccess(auth.hiddenTags(existing.getWriteAccess()));
 		user.setKey(existing.getKey());
 		user.setPubKey(existing.getPubKey());
+		if (!auth.hasRole(MOD)) user.setExternal(null);
 		ingest.update(user);
 		return user.getModified();
 	}

@@ -24,4 +24,17 @@ public class UserDto implements Tag, Serializable {
 	private Instant modified;
 	private byte[] pubKey;
 	private String authorizedKeys;
+	private ExternalDto external;
+
+	public boolean hasExternalId() {
+		if (external == null) return false;
+		if (external.getIds() == null) return false;
+		return !external.getIds().isEmpty();
+	}
+
+	public boolean hasExternalId(String id) {
+		if (external == null) return false;
+		if (external.getIds() == null) return false;
+		return external.getIds().contains(id);
+	}
 }
