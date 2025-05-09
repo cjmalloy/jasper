@@ -118,7 +118,8 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"user-cache",
 		"user-dto-cache",
-		"user-dto-page-cache"
+		"user-dto-page-cache",
+		"external-user-cache"
 	}, allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
@@ -153,6 +154,15 @@ public class ConfigCache {
 		return userRepository.findOneByQualifiedTag(tag)
 			.map(dtoMapper::domainToDto)
 			.orElse(null);
+	}
+
+	@Cacheable(value = "external-user-cache", unless = "#result == null")
+	public Optional<String> getUserByExternalId(String origin, String externalId) {
+		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	}
+
+	public void setExternalId(String tag, String origin, String externalId) {
+		userRepository.setExternalId(tag, origin, externalId);
 	}
 
 	@Cacheable(value = "user-cache", key = "'+user'")

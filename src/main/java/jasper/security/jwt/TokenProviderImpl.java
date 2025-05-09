@@ -83,7 +83,19 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var claims = getParser(origin).parseSignedClaims(token).getPayload();
 		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
-		logger.debug("Token Auth {} {}", principal, origin);
+		var security = configs.security(origin);
+		if (security.isExternalId()) {
+			var email = claims.get(security.getUsernameClaim(), String.class);
+			var existingUser = configs.getUserByExternalId(origin, email);
+			if (existingUser.isEmpty() && user.hasExternalId()) {
+				logger.error("{} External ID {} already mapped to user {} ({})", origin, email, user.getTag());
+				return null;
+			}
+			if (!user.hasExternalId(email)) {
+				configs.setExternalId(user.getTag(), origin, email);
+			}
+		}
+		logger.debug("{} Token Auth {} {}", origin, principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
@@ -139,16 +151,23 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	String getUsername(Claims claims, String origin) {
 		if (props.isAllowLocalOriginHeader() && isNotBlank(getOriginHeader())) {
 			origin = getOriginHeader();
-			logger.debug("Origin set by header {}", origin);
+			logger.debug("{} Origin set by header", origin);
 		}
 		var principal = "";
 		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
 			principal = getHeader(USER_TAG_HEADER);
-			logger.debug("User tag set by header: {} ({})", principal, origin);
+			logger.debug("{} User tag set by header: {}", principal);
 		} else {
 			var security = configs.security(origin);
 			principal = claims.get(security.getUsernameClaim(), String.class);
-			logger.debug("User tag set by JWT claim {}: {} ({})", security.getUsernameClaim(), principal, origin);
+			logger.debug("{} User tag set by JWT claim {}: {})", origin, security.getUsernameClaim(), principal, origin);
+			if (security.isExternalId()) {
+				var user = configs.getUserByExternalId(origin, principal);
+				if (user.isPresent()) {
+					logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
+					return user.get() + origin;
+				}
+			}
 		}
 		logger.debug("Principal: {}", principal);
 		if (principal != null && principal.contains("@")) {
@@ -164,11 +183,11 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
 			principal.equals("_user")) {
-			logger.debug("Invalid principal {}.", principal);
+			logger.debug("{} Invalid principal {}.", origin, principal);
 			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
 				// Invalid username and can't fall back to root user
-				logger.debug("Root role not allowed.");
+				logger.debug("{} Root role not allowed.", origin);
 				return null;
 			}
 			// The root user has access to every other user.
@@ -181,7 +200,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 			principal = (isPrivate ? "_user/" : "+user/") + principal;
 		}
-		logger.debug("Username: {}", principal + origin);
+		logger.debug("{} Username: {}", origin, principal + origin);
 		return principal + origin;
 	}
 

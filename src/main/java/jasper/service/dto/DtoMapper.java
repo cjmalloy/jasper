@@ -3,6 +3,7 @@ package jasper.service.dto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.Storage;
 import jasper.domain.Ext;
+import jasper.domain.External;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -45,6 +46,7 @@ public abstract class DtoMapper {
 	public abstract ExtDto domainToDto(Ext ext);
 
 	public abstract UserDto domainToDto(User user);
+	public abstract ExternalDto domainToDto(External external);
 
 	public abstract PluginDto domainToDto(Plugin plugin);
 

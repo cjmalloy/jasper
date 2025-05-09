@@ -1,5 +1,6 @@
 package jasper.repository;
 
+import jasper.domain.External;
 import jasper.domain.TagId;
 import jasper.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
@@ -28,7 +30,8 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 			modified = :modified,
 			key = :key,
 			pubKey = :pubKey,
-			authorizedKeys = :authorizedKeys
+			authorizedKeys = :authorizedKeys,
+			external = :external
 		WHERE
 			tag = :tag AND
 			origin = :origin AND
@@ -46,7 +49,8 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		Instant modified,
 		byte[] key,
 		byte[] pubKey,
-		String authorizedKeys);
+		String authorizedKeys,
+		External external);
 
 	@Query("""
 		SELECT max(u.modified)
@@ -65,4 +69,26 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	List<User> findAllByOriginAndAuthorizedKeysIsNotNull(String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT tag FROM users
+		WHERE users.origin = :origin
+			AND jsonb_exists(users.external->'ids', :externalId)
+		LIMIT 1""")
+	Optional<String> findOneByOriginAndExternalId(String origin, String externalId);
+
+	// TODO: Sync cache
+	@Modifying
+	@Transactional
+	@Query(nativeQuery = true, value = """
+		UPDATE users users
+		SET external = jsonb_set(
+				COALESCE(users.external, '{}'::jsonb),
+				'{ids}',
+				COALESCE(users.external->'ids', '[]'::jsonb) || to_jsonb(CAST(:externalId as text)),
+				true)
+		WHERE users.tag = :tag
+			AND users.origin = :origin
+			AND NOT COALESCE(jsonb_exists(users.external->'ids', :externalId), false)""")
+	int setExternalId(String tag, String origin, String externalId);
 }

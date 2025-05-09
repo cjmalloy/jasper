@@ -39,6 +39,11 @@ public class CacheConfig {
 			.expireAfterAccess(15, TimeUnit.MINUTES)
 			.recordStats()
 			.build());
+		cacheManager.registerCustomCache("external-user-cache", Caffeine.newBuilder()
+			.maximumSize(10_000)
+			.expireAfterAccess(15, TimeUnit.MINUTES)
+			.recordStats()
+			.build());
 		cacheManager.registerCustomCache("plugin-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
