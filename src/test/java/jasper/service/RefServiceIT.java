@@ -1429,15 +1429,12 @@ public class RefServiceIT {
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.containsExactly(URL);
+		assertThat(fetched.getMetadata().getPluginCounts().get("plugin/comment"))
+			.isEqualTo(1);
 	}
 
 	@Test
 	void testUpdateRefUpdatesPluginMetadata() {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/comment");
-		pluginRepository.save(plugin);
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
@@ -1464,8 +1461,8 @@ public class RefServiceIT {
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
 			.isNull();
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.isEmpty();
+		assertThat(fetched.getMetadata().getPluginCounts())
+			.isNullOrEmpty();
 	}
 
 	@Test

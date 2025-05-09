@@ -28,6 +28,7 @@ public abstract class ComponentDtoMapper {
 	ObjectMapper objectMapper;
 
 	@Mapping(target = "metadata.userUrls", ignore = true)
+	@Mapping(target = "metadata.plugins", source = "metadata.pluginCounts")
 	public abstract RefDto domainToDto(Ref ref);
 
 	public abstract UserDto domainToDto(User ref);
