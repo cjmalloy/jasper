@@ -689,6 +689,13 @@ public class Auth {
 		return true;
 	}
 
+	public UserDto filterUser(UserDto user) {
+		if (hasRole(MOD)) return user;
+		if (canWriteUserTag(user.getQualifiedTag())) return user;
+		user.setExternal(null);
+		return user;
+	}
+
 	public List<String> filterTags(List<String> tags) {
 		if (tags == null) return null;
 		if (hasRole(MOD)) return tags;

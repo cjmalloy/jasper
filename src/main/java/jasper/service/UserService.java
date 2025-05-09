@@ -98,6 +98,7 @@ public class UserService {
 	public UserDto get(String qualifiedTag) {
 		return userRepository.findOneByQualifiedTag(qualifiedTag)
 							 .map(mapper::domainToDto)
+							 .map(auth::filterUser)
 							 .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
 	}
 
@@ -118,7 +119,8 @@ public class UserService {
 				auth.<User>tagReadSpec()
 					.and(filter.spec()),
 				pageable)
-			.map(mapper::domainToDto);
+			.map(mapper::domainToDto)
+			.map(auth::filterUser);
 	}
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
