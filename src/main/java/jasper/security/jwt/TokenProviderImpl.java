@@ -84,7 +84,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var principal = getUsername(claims, origin);
 		var user = getUser(principal);
 		var security = configs.security(origin);
-		if (security.isExternalId()) {
+		if (user != null && security.isExternalId()) {
 			var email = claims.get(security.getUsernameClaim(), String.class);
 			var existingUser = configs.getUserByExternalId(origin, email);
 			if (existingUser.isEmpty() && user.hasExternalId()) {
