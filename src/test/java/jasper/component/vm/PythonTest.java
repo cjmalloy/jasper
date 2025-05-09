@@ -56,13 +56,13 @@ print(sys.stdin.read().upper())
 	void testPythonRequirements() throws IOException, InterruptedException, ScriptException, NoSuchAlgorithmException {
 		// language=Python
 		var targetScript = """
-import sklearn
-sklearn.show_versions()
+import requests
+print(f"requests: {requests.__version__}")
 		""";
 
-		var output = vm.runPython("scikit-learn==1.3.2", targetScript, "", 30_000);
+		var output = vm.runPython("requests==2.31.0", targetScript, "", 30_000);
 
-		assertThat(output).contains("sklearn: 1.3.2");
+		assertThat(output).contains("requests: 2.31.0");
 	}
 
 	@Test
