@@ -26,7 +26,6 @@ public class Metadata implements Serializable {
 	private String modified = Instant.now().toString();
 	private List<String> responses;
 	private List<String> internalResponses;
-	// TODO: Group plugin responses by origin
 	private Map<String, List<String>> plugins;
 	private boolean obsolete = false;
 
