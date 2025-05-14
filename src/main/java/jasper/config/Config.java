@@ -44,12 +44,14 @@ public interface Config {
 		/**
 		 * Whitelist origins to be allowed web access.
 		 */
+		@Builder.Default
 		private List<String> webOrigins = List.of("");
 		@Builder.Default
 		private int maxReplEntityBatch = 500;
 		/**
 		 * Whitelist origins to be allowed to open SSH tunnels.
 		 */
+		@Builder.Default
 		private List<String> sshOrigins = List.of("");
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
@@ -58,8 +60,10 @@ public interface Config {
 		/**
 		 * Whitelist selectors to run scripts on. No origin wildcards.
 		 */
+		@Builder.Default
 		private List<String> scriptSelectors = List.of("");
 		@JsonIgnore
+		@Builder.Default
 		private List<QualifiedTag> _scriptSelectors = null;
 		@JsonIgnore
 		public boolean script(String plugin) {
@@ -82,14 +86,17 @@ public interface Config {
 		/**
 		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
 		 */
+		@Builder.Default
 		private List<String> scriptWhitelist = null;
 		/**
 		 * Whitelist domains to be allowed to fetch from.
 		 */
+		@Builder.Default
 		private List<String> hostWhitelist = null;
 		/**
 		 * Blacklist domains to be allowed to fetch from. Takes precedence over domain whitelist.
 		 */
+		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 
 		public ServerConfig wrap(Props props) {
