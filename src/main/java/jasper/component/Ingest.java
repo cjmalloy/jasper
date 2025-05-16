@@ -105,25 +105,7 @@ public class Ingest {
 			rng.update(ref, maybeExisting, rootOrigin);
 			meta.ref(ref, rootOrigin);
 		}
-		try {
-			refRepository.save(ref);
-		} catch (DataIntegrityViolationException | PersistenceException e) {
-			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-			if (e instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			if (e.getCause() instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			throw e;
-		} catch (TransactionSystemException e) {
-			if (e.getCause() instanceof RollbackException r) {
-				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
-			}
-			throw e;
-		}
+		pushUniqueModified(ref, generateMetadata);
 		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);
 		messages.updateRef(ref);
 	}
@@ -243,6 +225,46 @@ public class Ingest {
 				}
 				throw e;
 			}
+		}
+	}
+
+	void pushUniqueModified(Ref ref, boolean generateMetadata) {
+		try {
+			if (generateMetadata) {
+				refRepository.save(ref);
+			} else {
+				var updated = refRepository.pushAsyncMetadata(
+					ref.getUrl(),
+					ref.getOrigin(),
+					ref.getTitle(),
+					ref.getComment(),
+					ref.getTags(),
+					ref.getSources(),
+					ref.getAlternateUrls(),
+					ref.getPlugins(),
+					ref.getPublished(),
+					ref.getModified());
+				if (updated == 0) {
+					ref.setMetadata(null);
+					refRepository.save(ref);
+				}
+			}
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 	}
 

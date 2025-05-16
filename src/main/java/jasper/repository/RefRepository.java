@@ -55,6 +55,34 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		Instant published,
 		Instant modified);
 
+	@Transactional
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			title = :title,
+			comment = :comment,
+			tags = :tags,
+			sources = :sources,
+			alternateUrls = :alternateUrls,
+			plugins = :plugins,
+			metadata = jsonb_set(metadata, '{regen}', cast_to_jsonb('true'), true),
+			published = :published,
+			modified = :modified
+		WHERE
+			url = :url AND
+			origin = :origin""")
+	int pushAsyncMetadata(
+		String url,
+		String origin,
+		String title,
+		String comment,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
+		ObjectNode plugins,
+		Instant published,
+		Instant modified);
+
 	@Query("""
 		SELECT max(r.modified)
 		FROM Ref r
@@ -108,7 +136,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Transactional
 	@Query(nativeQuery = true, value = """
 		UPDATE ref ref
-		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
+		SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{obsolete}', CAST('true' as jsonb), true)
 		WHERE ref.url = :url
 			AND ref.origin != :origin
 			AND ref.modified <= :olderThan
