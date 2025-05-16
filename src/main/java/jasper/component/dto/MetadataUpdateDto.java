@@ -8,9 +8,11 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+
 @Getter
 @Setter
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(NON_EMPTY)
 public class MetadataUpdateDto implements Serializable {
 	private String modified = Instant.now().toString();
 	private int responses;

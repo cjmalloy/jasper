@@ -10,9 +10,11 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+
 @Getter
 @Setter
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(NON_EMPTY)
 public class RefNodeDto implements HasTags, Serializable {
 	private String url;
 	private String origin;

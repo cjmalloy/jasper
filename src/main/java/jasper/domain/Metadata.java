@@ -14,12 +14,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+import static jasper.domain.proj.Tag.matchesTemplate;
+
 @Getter
 @Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(NON_EMPTY)
 public class Metadata implements Serializable {
 
 	@Builder.Default
@@ -28,6 +32,7 @@ public class Metadata implements Serializable {
 	private List<String> internalResponses;
 	// TODO: Group plugin responses by origin
 	private Map<String, List<String>> plugins;
+	@JsonInclude(NON_DEFAULT)
 	private boolean obsolete = false;
 
 	public void addResponse(String url) {
