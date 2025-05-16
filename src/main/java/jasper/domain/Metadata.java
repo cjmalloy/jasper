@@ -34,6 +34,8 @@ public class Metadata implements Serializable {
 	private Map<String, List<String>> plugins;
 	@JsonInclude(NON_DEFAULT)
 	private boolean obsolete = false;
+	@JsonInclude(NON_DEFAULT)
+	private boolean regen = false;
 
 	public void addResponse(String url) {
 		if (responses == null) {

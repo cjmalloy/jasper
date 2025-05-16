@@ -23,6 +23,7 @@ import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
+import static java.time.Instant.now;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
@@ -66,7 +67,9 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(Ref ref, String rootOrigin) {
+		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
 		ref(ref, rootOrigin);
+		ref.getMetadata().setModified(originalDate);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());

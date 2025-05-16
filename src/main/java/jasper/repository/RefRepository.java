@@ -126,11 +126,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
-	@Query("""
-		UPDATE Ref ref
-		SET ref.metadata = NULL
+	@Query(nativeQuery = true, value = """
+		UPDATE ref ref
+		SET metadata = jsonb_set(metadata, '{regen}', CAST('true' as jsonb), true)
 		WHERE ref.metadata IS NOT NULL
-		AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+			AND NOT ref.metadata->>'regen' = 'true'
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -138,13 +139,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		WITH rows as (
 			SELECT url, origin from ref
-			WHERE metadata IS NULL
+			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
 			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
 			LIMIT :batchSize
 		)
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
-			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
 			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.tags, 'internal') = false),
 			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.tags, 'internal') = true),
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
@@ -159,8 +160,8 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
 		FROM ref
-		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified'))
-		AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR metadata->>'regen' = 'true')
+			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
 		ORDER BY modified DESC
 		LIMIT 1""")
 	Optional<Ref> getRefBackfill(String origin);
