@@ -40,6 +40,7 @@ public class MetaIT {
 		assertThat(ref.getMetadata().getResponses()).isEmpty();
 		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
 		assertThat(ref.getMetadata().getPlugins()).isEmpty();
+		assertThat(ref.getMetadata().getUserUrls()).isEmpty();
 	}
 
 	@Test
@@ -60,8 +61,9 @@ public class MetaIT {
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getInternalResponses()).isEmpty();
-		assertThat(parent.get().getMetadata().getPlugins()).isEmpty();
+		assertThat(parent.get().getMetadata().getInternalResponses()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getUserUrls()).isNullOrEmpty();
 	}
 
 	@Test
@@ -81,9 +83,10 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
-		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
+		assertThat(parent.get().getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getPlugins()).isEmpty();
+		assertThat(parent.get().getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getUserUrls()).isNullOrEmpty();
 	}
 
 	@Test
@@ -108,7 +111,7 @@ public class MetaIT {
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).containsExactly(URL+2);
+		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).isEqualTo(1);
 	}
 
 }
