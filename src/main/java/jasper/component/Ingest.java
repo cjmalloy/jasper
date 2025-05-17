@@ -84,12 +84,15 @@ public class Ingest {
 		messages.updateRef(ref);
 	}
 
+	/**
+	 * Update Ref without validating or changing modified timestamp.
+	 */
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
 		ref.addHierarchicalTags();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		meta.ref(rootOrigin, ref);
-		ensureSilentUniqueModified(ref);
+		refRepository.save(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
 	}
@@ -149,36 +152,6 @@ public class Ingest {
 					}
 				}
 				throw e;
-			}
-		}
-	}
-
-	void ensureSilentUniqueModified(Ref ref) {
-		var cursor = ref.getModified();
-		var count = 0;
-		while (true) {
-			try {
-				count++;
-				new TransactionTemplate(transactionManager).execute(status -> {
-					refRepository.saveAndFlush(ref);
-					return null;
-				});
-				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
-				if (e instanceof ConstraintViolationException c) {
-					if (!"ref_modified_origin_key".equals(c.getConstraintName())) throw e;
-				} else if (e.getCause() instanceof ConstraintViolationException c) {
-					if (!"ref_modified_origin_key".equals(c.getConstraintName())) throw e;
-				} else {
-					throw e;
-				}
-				if (count > props.getIngestMaxRetry()) {
-					count = 0;
-					cursor = cursor.minusNanos((long) (1000 * Math.random()));
-					ref.setModified(cursor);
-				} else {
-					ref.setModified(ref.getModified().minusMillis(1));
-				}
 			}
 		}
 	}
