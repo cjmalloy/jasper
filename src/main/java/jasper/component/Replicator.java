@@ -244,6 +244,7 @@ public class Replicator {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
 					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
+						"query", pull.getQuery(),
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
