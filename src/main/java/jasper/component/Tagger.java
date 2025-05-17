@@ -54,7 +54,7 @@ public class Tagger {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
 			try {
-				ingest.create(ref, false);
+				ingest.create(origin, ref, false);
 			} catch (AlreadyExistsException e) {
 				return tag(retry, internal, url, origin, tags);
 			}
@@ -65,9 +65,9 @@ public class Tagger {
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(ref, false);
+				ingest.update(origin, ref, false);
 			} catch (InvalidPluginException e) {
-				ingest.silent(ref);
+				ingest.silent(origin, ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				if (retry) return tag(true, internal, url, origin, tags);
@@ -86,7 +86,7 @@ public class Tagger {
 		ref.removePrefixTags();
 		ref.removeTags(asList(tags));
 		try {
-			ingest.update(ref, false);
+			ingest.update(origin, ref, false);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			return remove(url, origin, tags);
@@ -122,7 +122,7 @@ public class Tagger {
 			} else {
 				ref.setModified(cursor.minusMillis(1));
 			}
-			ingest.silent(ref);
+			ingest.silent(origin, ref);
 			return ref;
 		} else {
 			var ref = maybeRef.get();
@@ -130,7 +130,7 @@ public class Tagger {
 			ref.setPlugin(tag, plugin);
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
-			ingest.silent(ref);
+			ingest.silent(origin, ref);
 			return ref;
 		}
 	}
@@ -143,7 +143,7 @@ public class Tagger {
 			ref.setTitle(title);
 			ref.addTag("internal");
 			try {
-				ingest.create(ref, false);
+				ingest.create(origin, ref, false);
 			} catch (AlreadyExistsException e) {
 				return plugin(retry, url, origin, title, tag, plugin, tags);
 			}
@@ -155,7 +155,7 @@ public class Tagger {
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(ref, false);
+				ingest.update(origin, ref, false);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				if (retry) return plugin(retry, url, origin, title, tag, plugin, tags);
@@ -198,7 +198,7 @@ public class Tagger {
 			tags.addAll(parent.getTags().stream().filter(t -> capturesDownwards("_user", t)).map(Tag::publicTag).toList());
 		}
 		ref.setTags(tags);
-		ingest.create(ref, false);
+		ingest.create(origin, ref, false);
 	}
 
 	@Async
@@ -246,7 +246,7 @@ public class Tagger {
 				ref.setOrigin(origin);
 				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
 				ref.setTags(new ArrayList<>(List.of("internal", user)));
-				ingest.create(ref, false);
+				ingest.create(origin, ref, false);
 				return ref;
 			});
 	}
@@ -260,7 +260,7 @@ public class Tagger {
 		if (ref.hasTag(tags)) return;
 		for (var tag : tags) ref.addTag(tag);
 		try {
-			ingest.update(ref, true);
+			ingest.update(origin, ref, true);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			response(url, origin, tags);

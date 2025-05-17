@@ -82,7 +82,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private int nesting;
 
-	@Formula("COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
+	@Formula("COALESCE(metadata->>'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
 	@Setter(AccessLevel.NONE)
 	private String metadataModified;
 
@@ -90,7 +90,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
-	@Formula("metadata -> 'obsolete'")
+	@Formula("metadata->'obsolete'")
 	@Setter(AccessLevel.NONE)
 	private Boolean obsolete;
 
@@ -102,21 +102,21 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String sourceCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'responses'), 0)")
+	@Formula("COALESCE(jsonb_array_length(metadata->'responses'), 0)")
 	@Setter(AccessLevel.NONE)
 	private String responseCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/comment'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/comment')::int, 0)")
 	@Setter(AccessLevel.NONE)
 	private String commentCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/vote/down')::int, 0)")
 	private String voteCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/vote/down')::int, 0)")
 	private String voteScore;
 
-	@Formula("floor((3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)) * pow(CASE WHEN 3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) > COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
+	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/vote/down')::int, 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
 	private String voteScoreDecay;
 
 	@Column
@@ -134,12 +134,11 @@ public class Ref implements HasTags {
 	private String textsearchEn;
 
 	public boolean hasPluginResponse(String tag) {
-		// TODO: group plugin responses by origin
 		if (metadata == null) return false;
 		if (metadata.getPlugins() == null) return false;
 		return metadata.getPlugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> !metadata.getPlugins().get(t).isEmpty());
+			.anyMatch(t -> metadata.getPlugins().get(t) > 0);
 	}
 
 	public void setOrigin(String value) {
@@ -290,12 +289,12 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
-	public int getPluginResponses(String tag) {
+	public long getPluginResponses(String tag) {
 		if (metadata == null) return 0;
 		if (metadata.getPlugins() == null) return 0;
 		if (!metadata.getPlugins().containsKey(tag)) return 0;
 		if (metadata.getPlugins().get(tag) == null) return 0;
-		return metadata.getPlugins().get(tag).size();
+		return metadata.getPlugins().get(tag);
 	}
 
 	@JsonIgnore

@@ -42,11 +42,11 @@ public class IngestBundle {
 			ref.setOrigin(origin);
 			try {
 				try {
-					ingestRef.update(ref, false);
+					ingestRef.update(origin, ref, false);
 				} catch (ModifiedException e) {
 					logger.warn("Duplicate ingesting Ref {}", ref.getUrl());
 				} catch (NotFoundException e) {
-					ingestRef.create(ref, false);
+					ingestRef.create(origin, ref, false);
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Ref {}", ref.getUrl(), e);

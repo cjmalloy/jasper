@@ -275,7 +275,6 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
       "height": {"type": "int32", "nullable": true}
     }
   },
-  "generateMetadata": false,
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
@@ -290,8 +289,6 @@ data according to the Plugin schema.
 **Config:** Arbitrary JSON.  
 **Defaults:** Default plugin data if creating a new Ref with empty plugin data.  
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
-**Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
-this plugin in all Ref metadata.  
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
@@ -676,7 +673,7 @@ Jasper uses metadata generation pre-compute graph connections without including 
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
- * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+ * List of plugin responses: A list of responses with that plugin.
  * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
 While the metadata is not transferred during replication, a simplified version is sent over the client API, with
@@ -764,10 +761,6 @@ const whatPlugin = {
       }));
     `,
   },
-};
-const whatPluginSignature = {
-  tag: '+plugin/delta/what',
-  generateMetadata: true,
 };
 ```
 

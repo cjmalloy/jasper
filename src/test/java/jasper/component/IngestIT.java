@@ -46,7 +46,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
@@ -60,7 +60,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 
-		assertThatThrownBy(() -> ingest.create(ref, false))
+		assertThatThrownBy(() -> ingest.create("", ref, false))
 			.isInstanceOf(AlreadyExistsException.class);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
@@ -95,7 +95,7 @@ public class IngestIT {
 		ref.setTitle("Second");
 		ref.setModified(existing.getModified());
 
-		ingest.update(ref, false);
+		ingest.update("", ref, false);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
@@ -112,12 +112,12 @@ public class IngestIT {
 			var ref1 = new Ref();
 			ref1.setUrl(URL);
 			ref1.setTitle("First");
-			ingest.create(ref1, false);
+			ingest.create("", ref1, false);
 			var ref2 = new Ref();
 			ref2.setUrl(OTHER_URL);
 			ref2.setTitle("Second");
 
-			assertThatThrownBy(() -> ingest.create(ref2, false))
+			assertThatThrownBy(() -> ingest.create("", ref2, false))
 				.isInstanceOf(DuplicateModifiedDateException.class);
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
@@ -141,18 +141,18 @@ public class IngestIT {
 			var ref1 = new Ref();
 			ref1.setUrl(URL);
 			ref1.setTitle("First");
-			ingest.create(ref1, false);
+			ingest.create("", ref1, false);
 			setField(ingest, "ensureUniqueModifiedClock", fixedClock);
 			var ref2 = new Ref();
 			ref2.setUrl(OTHER_URL);
 			ref2.setTitle("Second");
-			ingest.create(ref2, false);
+			ingest.create("", ref2, false);
 			var update = new Ref();
 			update.setUrl(URL);
 			update.setTitle("Modified");
 			update.setModified(ref1.getModified());
 
-			assertThatThrownBy(() -> ingest.update(update, false))
+			assertThatThrownBy(() -> ingest.update("", update, false))
 				.isInstanceOf(DuplicateModifiedDateException.class);
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
@@ -175,7 +175,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update1 = new Ref();
 		update1.setUrl(URL);
 		update1.setTitle("M1");
@@ -185,9 +185,9 @@ public class IngestIT {
 		update2.setTitle("M2");
 		update2.setModified(ref.getModified());
 
-		ingest.update(update1, false);
+		ingest.update("", update1, false);
 		Thread.sleep(1);
-		assertThatThrownBy(() -> ingest.update(update2, false))
+		assertThatThrownBy(() -> ingest.update("", update2, false))
 			.isInstanceOf(ModifiedException.class);
 	}
 
@@ -196,7 +196,7 @@ public class IngestIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update1 = new Ref();
 		update1.setUrl(URL);
 		update1.setTitle("M1");
@@ -211,14 +211,14 @@ public class IngestIT {
 
 		var thread1 = new Thread(() -> {
 			try {
-				ingest.update(update1, false);
+				ingest.update("", update1, false);
 			} catch (ModifiedException t) {
 				firstException.set(true);
 			}
 		});
 		var thread2 = new Thread(() -> {
 			try {
-				ingest.update(update2, false);
+				ingest.update("", update2, false);
 			} catch (ModifiedException t) {
 				secondException.set(true);
 			}

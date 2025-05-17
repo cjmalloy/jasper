@@ -258,7 +258,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ref {}: {}",
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
-							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins());
+							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins());
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
@@ -298,7 +298,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ext {}: {}",
 							remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 						try {
-							ingestExt.push(ext, rootOrigin, pull.isValidateTemplates());
+							ingestExt.push(rootOrigin, ext, pull.isValidateTemplates());
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling Ext skipped (double pull detected) {}: {}",

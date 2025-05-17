@@ -262,7 +262,7 @@ public class RefServiceMTIT {
 		refRepository.save(ref);
 		var other = getRef("@other.nested");
 		other.setTitle("Other");
-		ingest.push(other, "@other", true);
+		ingest.push("@other", other, true);
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
@@ -1225,7 +1225,6 @@ public class RefServiceMTIT {
 	void testUpdateRefCreatesPluginMetadata() {
 		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = getRef();
 		source.setUrl(URL + "source");
@@ -1254,14 +1253,13 @@ public class RefServiceMTIT {
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.containsExactly(URL);
+			.isEqualTo(1);
 	}
 
 	@Test
 	void testUpdateRefUpdatesPluginMetadata() {
 		var plugin = getPlugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = getRef();
 		source.setUrl(URL + "source");
@@ -1288,9 +1286,9 @@ public class RefServiceMTIT {
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
-			.isNull();
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.isEmpty();
+			.isNullOrEmpty();
+		assertThat(fetched.getMetadata().getPlugins())
+			.isNullOrEmpty();
 	}
 
 	@Test

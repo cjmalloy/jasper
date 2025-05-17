@@ -76,8 +76,8 @@ public class IngestExt {
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void push(Ext ext, String rootOrigin, boolean validation) {
-		if (validation) validate.ext(ext.getOrigin(), ext, rootOrigin, true);
+	public void push(String rootOrigin, Ext ext, boolean validation) {
+		if (validation) validate.ext(rootOrigin, ext, true);
 		try {
 			extRepository.save(ext);
 		} catch (DataIntegrityViolationException | PersistenceException e) {

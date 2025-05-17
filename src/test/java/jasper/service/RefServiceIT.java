@@ -740,7 +740,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -760,7 +760,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -781,7 +781,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "plugin/test", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -1190,7 +1190,7 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
@@ -1225,7 +1225,7 @@ public class RefServiceIT {
 				"age": 42
 			}
 		}"""));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
@@ -1402,7 +1402,6 @@ public class RefServiceIT {
 	void testUpdateRefCreatesPluginMetadata() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
 		pluginRepository.save(plugin);
 		var source = new Ref();
 		source.setUrl(URL + "source");
@@ -1431,15 +1430,11 @@ public class RefServiceIT {
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.containsExactly(URL);
+			.isEqualTo(1);
 	}
 
 	@Test
 	void testUpdateRefUpdatesPluginMetadata() {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/comment");
-		plugin.setGenerateMetadata(true);
-		pluginRepository.save(plugin);
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTitle("Source");
@@ -1466,8 +1461,8 @@ public class RefServiceIT {
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
 			.isNull();
-		assertThat(fetched.getMetadata().getPlugins().get("plugin/comment"))
-			.isEmpty();
+		assertThat(fetched.getMetadata().getPlugins())
+			.isNullOrEmpty();
 	}
 
 	@Test

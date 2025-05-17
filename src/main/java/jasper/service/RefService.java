@@ -70,7 +70,7 @@ public class RefService {
 			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
 		}
-		ingest.create(ref, force);
+		ingest.create(auth.getOrigin(), ref, force);
 		return ref.getModified();
 	}
 
@@ -81,7 +81,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.push(ref, ref.getOrigin(), true);
+		ingest.push(auth.getOrigin(), ref, true);
 	}
 
 	@Transactional(readOnly = true)
@@ -141,7 +141,7 @@ public class RefService {
 		// Unwritable tags may only be removed, plugin data may not be modified
 		var unwritableTags = auth.unwritableTags(ref.getTags());
 		ref.addPlugins(unwritableTags, existing.getPlugins());
-		ingest.update(ref, force);
+		ingest.update(auth.getOrigin(), ref, force);
 		return ref.getModified();
 	}
 
@@ -157,7 +157,7 @@ public class RefService {
 			ref.setUrl(url);
 			ref.setOrigin(origin);
 		}
-		ref.setPlugins(validate.pluginDefaults(ref));
+		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
@@ -183,7 +183,7 @@ public class RefService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void delete(String url, String origin) {
 		try {
-			ingest.delete(url, origin);
+			ingest.delete(auth.getOrigin(), url, origin);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}
