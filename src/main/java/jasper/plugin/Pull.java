@@ -19,7 +19,7 @@ import static jasper.domain.proj.HasTags.getPlugin;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Pull implements Serializable {
-	private boolean cache;
+	private boolean cachePrefetch;
 	private boolean cacheProxy;
 	private boolean cacheProxyPrefetch;
 	private boolean websocket;

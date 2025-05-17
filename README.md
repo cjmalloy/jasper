@@ -826,7 +826,14 @@ scraper:
     "scrapeThumbnail": { "type": "boolean" },
     "scrapeAudio": { "type": "boolean" },
     "scrapeVideo": { "type": "boolean" },
-    "scrapeEmbed": { "type": "boolean" }
+    "defaultThumbnail": {
+      "optionalProperties": {
+        "url": { "type": "string" },
+        "color": { "type": "string" },
+        "emoji": { "type": "string" },
+        "radius": { "type": "int32" }
+      }
+    }
   }
 }
 ```
@@ -840,8 +847,8 @@ scraper:
 **Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.  
 **Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.  
 **Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.  
-**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media.  
-**Scrape Embed:** Add a `plugin/embed` tag to the Ref to load oEmbed.  
+**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media or `plugin/embed` tag to the Ref to load oEmbed.  
+**Default Thumbnail:** Default thumbnail if none found in entry.  
 
 The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
 `plugin/feed` it will be skipped.
@@ -872,7 +879,7 @@ fields set.
     "query": { "type": "string" },
     "batchSize": { "type": "int32" },
     "websocket": { "type": "boolean" },
-    "cache": { "type": "boolean" },
+    "cachePrefetch": { "type": "boolean" },
     "cacheProxy": { "type": "boolean" },
     "cacheProxyPrefetch": { "type": "boolean" },
     "validatePlugins": { "type": "boolean" },
@@ -889,7 +896,7 @@ fields set.
 a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
 **Batch Size:** The max page size to pull each request.  
 **Websocket:** Listen to websocket cursor updates to pull.  
-**Cache:** Attempt to pull cached files while pulling Refs.  
+**Cache Prefetch:** Attempt to pull cached files while pulling Refs.  
 **Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
 **Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
