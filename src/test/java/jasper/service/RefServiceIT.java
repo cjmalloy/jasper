@@ -740,7 +740,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -760,7 +760,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -781,7 +781,7 @@ public class RefServiceIT {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public", "plugin/test", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 
 		var page = refService.page(
 			RefFilter.builder().build(),
@@ -1190,7 +1190,7 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "_plugin/test")));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");
@@ -1225,7 +1225,7 @@ public class RefServiceIT {
 				"age": 42
 			}
 		}"""));
-		ingest.create(ref, false);
+		ingest.create("", ref, false);
 		var update = new Ref();
 		update.setUrl(URL);
 		update.setTitle("Second");

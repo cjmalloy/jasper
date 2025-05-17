@@ -44,24 +44,24 @@ public class Meta {
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void ref(Ref ref) {
+	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
 		ref.setMetadata(Metadata
 			.builder()
-			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
+			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
+			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), tag)))
+					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(Collectors.toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new PluginResponses(
 					tag,
-					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(ref.getOrigin())).and(hasTag(tag)))))
+					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
 				.filter(p -> p.count() > 0)
 				.collect(Collectors.toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()
@@ -72,9 +72,9 @@ public class Meta {
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void regen(Ref ref, String rootOrigin) {
+	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
-		ref(ref);
+		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(originalDate);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
@@ -83,15 +83,15 @@ public class Meta {
 			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
 		for (var source : cleanupSources) {
 			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
-				ref(source);
+				ref(rootOrigin, source);
 			} else {
-				removeSource(source, ref, rootOrigin);
+				removeSource(rootOrigin, source, ref);
 			}
 		}
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void sources(Ref ref, Ref existing, String rootOrigin) {
+	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
@@ -156,13 +156,13 @@ public class Meta {
 			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
-				removeSource(source, existing, rootOrigin);
+				removeSource(rootOrigin, source, existing);
 				messages.updateMetadata(source);
 			}
 		}
 	}
 
-	private void removeSource(Ref source, Ref existing, String rootOrigin) {
+	private void removeSource(String rootOrigin, Ref source, Ref existing) {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
 		metadata.remove(existing.getUrl());

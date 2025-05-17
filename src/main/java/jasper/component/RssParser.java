@@ -105,11 +105,11 @@ public class RssParser {
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
 							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed, false);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
 							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed, false);
 						}
 					}
 					var input = new SyndFeedInput();
@@ -119,7 +119,7 @@ public class RssParser {
 						cacheLater(image, feed.getOrigin());
 						if (!feed.hasTag("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed, false);
 						}
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
@@ -130,9 +130,9 @@ public class RssParser {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
 									feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
-								ingest.update(feed, false);
+								ingest.update(feed.getOrigin(), feed, false);
 							}
-							ingest.create(ref, false);
+							ingest.create(feed.getOrigin(), ref, false);
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());

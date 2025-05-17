@@ -97,12 +97,12 @@ public class BackupService {
 			ref.addTag("_plugin/system");
 			ref.setTitle("Backup Key");
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.create(ref, false);
+			ingest.create(auth.getOrigin(), ref, false);
 			return ref.getComment();
 		}
 		if (isBlank(ref.getComment()) || !ref.getComment().equals(key)) {
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.update(ref, false);
+			ingest.update(auth.getOrigin(), ref, false);
 		}
 		return ref.getComment();
 	}
@@ -112,7 +112,7 @@ public class BackupService {
 		var list = refRepository.findAll(isUrl("system:backup-key"));
 		for (var ref : list) {
 			if (ref.getCreated().isAfter(Instant.now().minus(15, ChronoUnit.SECONDS))) {
-				ingest.delete("system:backup-key", ref.getOrigin());
+				ingest.delete(auth.getOrigin(), "system:backup-key", ref.getOrigin());
 			}
 		}
 	}

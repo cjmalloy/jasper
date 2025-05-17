@@ -63,7 +63,7 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 		if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/published", t))) ref.setPublished(web.getPublished());
 		ref.removePrefixTags();
 		ref.removeTag("_plugin/delta/scrape");
-		ingest.update(ref, false);
+		ingest.update(ref.getOrigin(), ref, false);
 	}
 
 	private Ref fetch(String url, String origin) {

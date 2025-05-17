@@ -60,64 +60,64 @@ public class Ingest {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void create(Ref ref, boolean force) {
+	public void create(String rootOrigin, Ref ref, boolean force) {
 		ref.addHierarchicalTags();
 		ref.setCreated(Instant.now());
-		validate.ref(ref.getOrigin(), ref, force);
-		rng.update(ref, null, ref.getOrigin());
-		meta.ref(ref);
+		validate.ref(rootOrigin, ref, force);
+		rng.update(rootOrigin, ref, null);
+		meta.ref(rootOrigin, ref);
 		ensureCreateUniqueModified(ref);
-		meta.sources(ref, null, ref.getOrigin());
+		meta.sources(rootOrigin, ref, null);
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void update(Ref ref, boolean force) {
+	public void update(String rootOrigin, Ref ref, boolean force) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		ref.addHierarchicalTags();
-		validate.ref(ref.getOrigin(), ref, force);
-		rng.update(ref, maybeExisting.get(), ref.getOrigin());
-		meta.ref(ref);
+		validate.ref(rootOrigin, ref, force);
+		rng.update(rootOrigin, ref, maybeExisting.get());
+		meta.ref(rootOrigin, ref);
 		ensureUpdateUniqueModified(ref);
-		meta.sources(ref, maybeExisting.get(), ref.getOrigin());
+		meta.sources(rootOrigin, ref, maybeExisting.get());
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void silent(Ref ref) {
+	public void silent(String rootOrigin, Ref ref) {
 		ref.addHierarchicalTags();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		meta.ref(ref);
+		meta.ref(rootOrigin, ref);
 		ensureSilentUniqueModified(ref);
-		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
+		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, String rootOrigin, boolean validation) {
+	public void push(String rootOrigin, Ref ref, boolean validation) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
 		ref.addHierarchicalTags();
-		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
+		if (validation) validate.ref(rootOrigin, ref, true);
 		Ref maybeExisting = null;
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
-			rng.update(ref, maybeExisting, rootOrigin);
-			meta.ref(ref);
+			rng.update(rootOrigin, ref, maybeExisting);
+			meta.ref(rootOrigin, ref);
 		}
 		pushUniqueModified(ref, generateMetadata);
-		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);
+		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);
 	}
 
 	@Transactional
 	@Timed(value = "jasper.ref", histogram = true)
-	public void delete(String url, String origin) {
+	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
-		meta.sources(null, maybeExisting.get(), origin);
+		meta.sources(rootOrigin, null, maybeExisting.get());
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
