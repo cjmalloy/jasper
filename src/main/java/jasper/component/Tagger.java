@@ -18,9 +18,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static jasper.domain.Ref.from;
+import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.capturesDownwards;
 import static jasper.domain.proj.Tag.urlForTag;
-import static java.time.Instant.now;
 import static java.util.Arrays.asList;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -48,15 +48,21 @@ public class Tagger {
 	}
 
 	public Ref tag(boolean retry, boolean internal, String url, String origin, String ...tags) {
+		var local = origin;
+		var rootOrigin = origin;
+		var remote = configs.getRemote(origin);
+		if (remote != null) {
+			rootOrigin = remote.getOrigin();
+			origin = subOrigin(origin, "@annotate");
+		}
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
 			try {
-				ingest.create(origin, ref, false);
+				ingest.create(rootOrigin, ref, false);
 			} catch (AlreadyExistsException e) {
-				return tag(retry, internal, url, origin, tags);
+				return tag(retry, internal, url, local, tags);
 			}
 			return ref;
 		} else {
@@ -65,12 +71,16 @@ public class Tagger {
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(origin, ref, false);
+				if (remote != null) {
+					ingest.silent(rootOrigin, ref);
+				} else {
+					ingest.update(rootOrigin, ref, false);
+				}
 			} catch (InvalidPluginException e) {
-				ingest.silent(origin, ref);
+				ingest.silent(rootOrigin, ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
-				if (retry) return tag(true, internal, url, origin, tags);
+				if (retry) return tag(true, internal, url, local, tags);
 				return null;
 			}
 			return ref;
@@ -79,14 +89,16 @@ public class Tagger {
 
 	public Ref remove(String url, String origin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
+		var rootOrigin = origin;
+		var remote = configs.getRemote(origin);
+		if (remote != null) rootOrigin = remote.getOrigin();
 		if (maybeRef.isEmpty()) return null;
 		var ref = maybeRef.get();
 		if (!ref.hasTag(tags)) return ref;
 		ref.removePrefixTags();
 		ref.removeTags(asList(tags));
 		try {
-			ingest.update(origin, ref, false);
+			ingest.update(rootOrigin, ref, false);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			return remove(url, origin, tags);
@@ -96,56 +108,31 @@ public class Tagger {
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref plugin(String url, String origin, String tag, Object plugin, String ...tags) {
-		if (configs.getRemote(origin) != null) return silentPlugin(url, "", origin, tag, plugin, tags);
 		return plugin(true, url, origin, null, tag, plugin, tags);
 	}
 
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref newPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
-		if (configs.getRemote(origin) != null) return silentPlugin(url, title, origin, tag, plugin, tags);
 		return plugin(true, url, origin, title, tag, plugin, tags);
-	}
-
-	/**
-	 * For monkey patching replicated origins.
-	 */
-	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeRef.isEmpty()) {
-			var ref = from(url, origin, tags).setPlugin(tag, plugin);
-			ref.setTitle(title);
-			ref.addTag("internal");
-			var cursor = refRepository.getCursor(origin);
-			if (cursor == null) {
-				logger.warn("Silent plugin can't be first!");
-				ref.setModified(now().minusMillis(1));
-			} else {
-				ref.setModified(cursor.minusMillis(1));
-			}
-			ingest.silent(origin, ref);
-			return ref;
-		} else {
-			var ref = maybeRef.get();
-			// TODO: check if plugin already matches exactly and skip
-			ref.setPlugin(tag, plugin);
-			ref.removePrefixTags();
-			ref.addTags(asList(tags));
-			ingest.silent(origin, ref);
-			return ref;
-		}
 	}
 
 	Ref plugin(boolean retry, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
+		var local = origin;
+		var rootOrigin = origin;
+		var remote = configs.getRemote(origin);
+		if (remote != null) {
+			rootOrigin = remote.getOrigin();
+			origin = subOrigin(origin, "@annotate");
+		}
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
 			ref.addTag("internal");
 			try {
-				ingest.create(origin, ref, false);
+				ingest.create(rootOrigin, ref, false);
 			} catch (AlreadyExistsException e) {
-				return plugin(retry, url, origin, title, tag, plugin, tags);
+				return plugin(retry, url, local, title, tag, plugin, tags);
 			}
 			return ref;
 		} else {
@@ -155,10 +142,14 @@ public class Tagger {
 			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(origin, ref, false);
+				if (remote != null) {
+					ingest.silent(rootOrigin, ref);
+				} else {
+					ingest.update(rootOrigin, ref, false);
+				}
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
-				if (retry) return plugin(retry, url, origin, title, tag, plugin, tags);
+				if (retry) return plugin(retry, url, local, title, tag, plugin, tags);
 				return null;
 			}
 			return ref;
@@ -222,9 +213,10 @@ public class Tagger {
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
+		var rootOrigin = origin;
 		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
-		attachLogs(origin, parent, title, logs);
+		if (remote != null) rootOrigin = remote.getOrigin();
+		attachLogs(rootOrigin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
 			tag(false, true, parent.getUrl(), parent.getOrigin(), "+plugin/error");
 		}
@@ -254,13 +246,14 @@ public class Tagger {
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void response(String url, String origin, String ...tags) {
+		var rootOrigin = origin;
 		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
-		var ref = getResponseRef("_user", origin, url);
+		if (remote != null) rootOrigin = remote.getOrigin();
+		var ref = getResponseRef("_user", rootOrigin, url);
 		if (ref.hasTag(tags)) return;
 		for (var tag : tags) ref.addTag(tag);
 		try {
-			ingest.update(origin, ref, true);
+			ingest.update(rootOrigin, ref, true);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			response(url, origin, tags);
@@ -270,10 +263,11 @@ public class Tagger {
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void removeAllResponses(String url, String origin, String tag) {
+		var rootOrigin = origin;
 		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
-		for (var res : refRepository.findAllResponsesWithTag(url, origin, tag)) {
-			internalTag(res, origin, "-" + tag);
+		if (remote != null) rootOrigin = remote.getOrigin();
+		for (var res : refRepository.findAllResponsesWithTag(url, rootOrigin, tag)) {
+			internalTag(res, rootOrigin, "-" + tag);
 		}
 	}
 }
