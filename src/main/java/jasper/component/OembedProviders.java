@@ -50,7 +50,7 @@ public class OembedProviders {
 			plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
 			ref.setPlugins(plugins);
 			ref.setOrigin(origin);
-			ingest.push(origin, ref, true);
+			ingest.push(origin, ref, true, false);
 		}
 		logger.info("Done restoring default oEmbed providers.");
 	}

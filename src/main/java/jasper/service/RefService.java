@@ -81,7 +81,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.push(auth.getOrigin(), ref, true);
+		ingest.push(auth.getOrigin(), ref, true, false);
 	}
 
 	@Transactional(readOnly = true)

@@ -76,27 +76,9 @@ public class IngestExt {
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void push(String rootOrigin, Ext ext, boolean validation) {
-		if (validation) validate.ext(rootOrigin, ext, true);
-		try {
-			extRepository.save(ext);
-		} catch (DataIntegrityViolationException | PersistenceException e) {
-			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-			if (e instanceof ConstraintViolationException c) {
-				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			if (e.getCause() instanceof ConstraintViolationException c) {
-				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			throw e;
-		} catch (TransactionSystemException e) {
-			if (e.getCause() instanceof RollbackException r) {
-				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
-			}
-			throw e;
-		}
+	public void push(String rootOrigin, Ext ext, boolean validation, boolean force) {
+		if (validation) validate.ext(rootOrigin, ext, force);
+		pushUniqueModified(ext);
 		if (isDeletorTag(ext.getTag())) {
 			delete(deletedTag(ext.getQualifiedTag()));
 		} else {
@@ -181,6 +163,28 @@ public class IngestExt {
 				}
 				throw e;
 			}
+		}
+	}
+
+	private void pushUniqueModified(Ext ext) {
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 	}
 
