@@ -852,13 +852,15 @@ The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a
 {
   "optionalProperties": {
     "local": { "type": "string" },
-    "remote": { "type": "string" }
+    "remote": { "type": "string" },
+    "proxy": { "type": "string" }
   }
 }
 ```
 
 **Local:** Local alias for the remote origin.  
 **Remote:** Remote origin to query, or blank for the default.  
+**Proxy:** Alternate URL to replicate from.  
 
 ## Replicating Remote Origin
 The `+plugin/origin/pull` tag can be used to replicate remote origins. Since this plugin
@@ -866,17 +868,17 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pullInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPull": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "generateMetadata": { "type": "boolean" },
+    "websocket": { "type": "boolean" },
+    "cache": { "type": "boolean" },
+    "cacheProxy": { "type": "boolean" },
+    "cacheProxyPrefetch": { "type": "boolean" },
     "validatePlugins": { "type": "boolean" },
+    "stripInvalidPlugins": { "type": "boolean" },
     "validateTemplates": { "type": "boolean" },
+    "stripInvalidTemplates": { "type": "boolean" },
     "addTags": { "elements": { "type": "string" } },
     "removeTags": { "elements": { "type": "string" } }
   }
@@ -884,15 +886,16 @@ fields set.
 ```
 
 **Query:** Restrict results using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to replicate from.  
-**Last Pull:** The time this origin was last replicated.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Generate Metadata:** Flag to enable, disable metadata generation.  
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size to pull each request.  
+**Websocket:** Listen to websocket cursor updates to pull.  
+**Cache:** Attempt to pull cached files while pulling Refs.  
+**Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
+**Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
+**Strip Invalid Plugins:** If plugin validation is enabled, strip invalid plugins instead of skipping invalid Refs.  
 **Validate Templates:** Flag to enable, disable template validation.  
-**Validation Origin:** Origin to get plugin and templates for validation.  
+**Strip Invalid Template:** If template validation is enabled, strip invalid templates instead of skipping invalid Exts.
 **Add Tags:** Tags to apply to any Refs replicated from this origin.  
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
 
@@ -902,36 +905,20 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pushInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPush": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "writeOnly": { "type": "boolean" },
-    "lastModifiedRefWritten": { "elements": { "type": "string" } },
-    "lastModifiedExtWritten": { "elements": { "type": "string" } },
-    "lastModifiedUserWritten": { "elements": { "type": "string" } },
-    "lastModifiedPluginWritten": { "elements": { "type": "string" } },
-    "lastModifiedTemplateWritten": { "elements": { "type": "string" } }
+    "pushOnChange": { "type": "boolean" },
+    "cache": { "type": "boolean" }
   }
 }
 ```
 
 **Query:** Restrict push using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to push to.  
-**Last Push:** The time this origin was last pushed to.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Write Only:** Do not query remote for last modified cursor, just use saved cursor.  
-**Last Modified Ref Written:** Modified date of last Ref pushed.    
-**Last Modified Ext Written:** Modified date of last Ext pushed.    
-**Last Modified User Written:** Modified date of last User pushed.    
-**Last Modified Plugin Written:** Modified date of last Plugin pushed.    
-**Last Modified Template Written:** Modified date of last Template pushed.    
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size of entities to push.  
+**Push On Change:** Push entities immediately after modification.
+**Cache:** Also push cached files.  
 
 ## Random Number Generator
 
