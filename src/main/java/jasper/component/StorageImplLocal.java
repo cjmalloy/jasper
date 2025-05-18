@@ -182,6 +182,7 @@ public class StorageImplLocal implements Storage {
 
 	@Override
 	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
+		if (!dir(origin, namespace).toFile().exists()) return;
 		Files.createDirectories(backup.get(namespace));
 		try (var w = Files.walk(dir(origin, namespace))) {
 			w.forEach(f -> {
