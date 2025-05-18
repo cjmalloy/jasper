@@ -1,6 +1,7 @@
 package jasper.component.cron;
 
 import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.ParsingFeedException;
 import jakarta.annotation.PostConstruct;
 import jasper.component.RssParser;
 import jasper.component.Tagger;
@@ -43,6 +44,13 @@ public class FeedScraper implements Scheduler.CronRunner {
 			rssParser.scrape(ref, false);
 		} catch (IOException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
+		} catch (ParsingFeedException e) {
+			if (e.getLineNumber() == 1) {
+				// Temporary error page, retry later
+				tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			} else {
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			}
 		} catch (FeedException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 		} catch (Throwable e) {
