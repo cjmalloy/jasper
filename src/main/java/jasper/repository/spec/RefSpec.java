@@ -156,34 +156,23 @@ public class RefSpec {
 					cb.function("jsonb_object_field", Object.class,
 						root.get(Ref_.metadata),
 						cb.literal("plugins"))),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
+				cb.isFalse(
+					cb.function("jsonb_exists", Boolean.class,
 						cb.function("jsonb_object_field", Object.class,
 							root.get(Ref_.metadata),
 							cb.literal("plugins")),
-						cb.literal(plugin))),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", Object.class,
-							cb.function("jsonb_object_field", Object.class,
-								root.get(Ref_.metadata),
-								cb.literal("plugins")),
-							cb.literal(plugin))),
-					cb.literal(0)));
+						cb.literal(plugin))));
 	}
 
 	public static Specification<Ref> hasPluginResponses(String plugin) {
 		return (root, query, cb) ->
 			cb.and(
 				cb.isNotNull(root.get(Ref_.metadata)),
-				cb.gt(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", Object.class,
-							cb.function("jsonb_object_field", Object.class,
-								root.get(Ref_.metadata),
-								cb.literal("plugins")),
-							cb.literal(plugin))),
-					cb.literal(0)));
+				cb.function("jsonb_exists", Boolean.class,
+					cb.function("jsonb_object_field", Object.class,
+						root.get(Ref_.metadata),
+						cb.literal("plugins")),
+					cb.literal(plugin)));
 	}
 
 	public static Specification<Ref> hasNoPluginResponses(String user, String plugin) {
@@ -193,19 +182,19 @@ public class RefSpec {
 				cb.isNull(
 					cb.function("jsonb_object_field", Object.class,
 						root.get(Ref_.metadata),
-						cb.literal("plugins"))),
+						cb.literal("userUrls"))),
 				cb.isNull(
 					cb.function("jsonb_object_field", Object.class,
 						cb.function("jsonb_object_field", Object.class,
 							root.get(Ref_.metadata),
-							cb.literal("plugins")),
+							cb.literal("userUrls")),
 						cb.literal(plugin))),
 				cb.isFalse(
 					cb.function("jsonb_exists", Boolean.class,
 						cb.function("jsonb_object_field", Object.class,
 							cb.function("jsonb_object_field", Object.class,
 								root.get(Ref_.metadata),
-								cb.literal("plugins")),
+								cb.literal("userUrls")),
 							cb.literal(plugin)),
 						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
 	}
@@ -219,7 +208,7 @@ public class RefSpec {
 						cb.function("jsonb_object_field", Object.class,
 							cb.function("jsonb_object_field", Object.class,
 								root.get(Ref_.metadata),
-								cb.literal("plugins")),
+								cb.literal("userUrls")),
 							cb.literal(plugin)),
 						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
 	}
