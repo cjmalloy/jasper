@@ -68,29 +68,22 @@ public class Metadata implements Serializable {
 	public void addPlugins(List<String> add, String url) {
 		if (plugins == null) plugins = new HashMap<>();
 		if (userUrls == null) userUrls = new HashMap<>();
-		var changed = false;
 		for (var plugin : add) {
+			if (plugins.containsKey(plugin)) {
+				plugins.put(plugin, plugins.get(plugin) + 1);
+			} else {
+				plugins.put(plugin, 1L);
+			}
 			if (matchesTemplate("plugin/user", plugin)) {
 				if (userUrls.containsKey(plugin)) {
 					var list = userUrls.get(plugin);
-					if (!list.contains(url)) {
-						changed = true;
-						list.add(url);
-					}
+					if (!list.contains(url)) list.add(url);
 				} else {
-					changed = true;
-					userUrls.put(plugin, List.of(url));
-				}
-			} else {
-				changed = true;
-				if (plugins.containsKey(plugin)) {
-					plugins.put(plugin, plugins.get(plugin) + 1);
-				} else {
-					plugins.put(plugin, 1L);
+					userUrls.put(plugin, new ArrayList<>(List.of(url)));
 				}
 			}
 		}
-		if (changed) modified = Instant.now().toString();
+		modified = Instant.now().toString();
 	}
 
 	public void removePlugins(List<String> remove, String url) {
@@ -98,6 +91,15 @@ public class Metadata implements Serializable {
 		if (userUrls == null) userUrls = new HashMap<>();
 		var changed = false;
 		for (var plugin : remove) {
+			if (plugins.containsKey(plugin)) {
+				changed = true;
+				var count = plugins.get(plugin) - 1;
+				if (count > 0) {
+					plugins.put(plugin, plugins.get(plugin) - 1);
+				} else {
+					plugins.remove(plugin);
+				}
+			}
 			if (matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
@@ -110,14 +112,6 @@ public class Metadata implements Serializable {
 							list.remove(url);
 						}
 					}
-				}
-			} else if (plugins.containsKey(plugin)) {
-				changed = true;
-				var count = plugins.get(plugin) - 1;
-				if (count > 0) {
-					plugins.put(plugin, plugins.get(plugin) - 1);
-				} else {
-					plugins.remove(plugin);
 				}
 			}
 		}
