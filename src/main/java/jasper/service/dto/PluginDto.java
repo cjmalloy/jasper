@@ -22,7 +22,5 @@ public class PluginDto implements Tag, Serializable {
 	private ObjectNode defaults;
 	@JsonInclude()
 	private ObjectNode schema;
-	private boolean generateMetadata = false;
-	private boolean userUrl = false;
 	private Instant modified;
 }
