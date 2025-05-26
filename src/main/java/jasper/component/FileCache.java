@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
@@ -130,6 +131,7 @@ public class FileCache {
 				return null;
 			}
 		}
+		if (hasMatchingTag(stat(url, origin), "+plugin/error")) return null;
 		String mimeType;
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
@@ -207,7 +209,9 @@ public class FileCache {
 		if (storage.exists(origin, CACHE, thumbnailId)) {
 			return fetch(thumbnailUrl, origin);
 		} else {
-			var data = images.thumbnail(fetch(url, origin));
+			var is = fetch(url, origin);
+			if (is == null) return null;
+			var data = images.thumbnail(is);
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
 				// Set this as a thumbnail to disable future attempts
