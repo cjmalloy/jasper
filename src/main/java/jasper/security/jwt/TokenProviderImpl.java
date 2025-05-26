@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -42,6 +41,7 @@ import static jasper.security.AuthoritiesConstants.PRIVATE;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.util.StringUtils.hasText;
 
 public class TokenProviderImpl extends AbstractTokenProvider implements TokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
@@ -211,7 +211,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			logger.error("No client for origin {} in security settings", formatOrigin(origin));
 			return false;
 		}
-		if (!StringUtils.hasText(authToken)) return false;
+		if (!hasText(authToken)) return false;
 		try {
 			var claims = getParser(origin).parseSignedClaims(authToken).getPayload();
 			if (isBlank(security.getClientId()) &&
