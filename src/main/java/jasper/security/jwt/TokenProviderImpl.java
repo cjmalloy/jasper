@@ -206,14 +206,19 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	@Override
 	public boolean validateToken(String authToken, String origin) {
+		if (!hasText(authToken)) return false;
 		var security = configs.security(origin);
 		if (isBlank(security.getMode())) {
 			logger.error("No client for origin {} in security settings", formatOrigin(origin));
 			return false;
 		}
-		if (!hasText(authToken)) return false;
 		try {
-			var claims = getParser(origin).parseSignedClaims(authToken).getPayload();
+			var parser = getParser(origin);
+			if (parser == null) {
+				logger.error("No client for origin {} in security settings", formatOrigin(origin));
+				return false;
+			}
+			var claims = parser.parseSignedClaims(authToken).getPayload();
 			if (isBlank(security.getClientId()) &&
 				claims.getAudience() != null &&
 				(!claims.getAudience().contains("") || !claims.getAudience().isEmpty())) {
