@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
@@ -27,6 +26,7 @@ import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
+import static java.util.stream.Collectors.toMap;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
@@ -48,6 +48,7 @@ public class Meta {
 		if (ref == null) return;
 		ref.setMetadata(Metadata
 			.builder()
+			.expandedTags(expandTags(ref.getTags()))
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
 			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
@@ -56,19 +57,34 @@ public class Meta {
 					tag,
 					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
-				.collect(Collectors.toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
+				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
 			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new PluginResponses(
 					tag,
 					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
 				.filter(p -> p.count() > 0)
-				.collect(Collectors.toMap(PluginResponses::tag, PluginResponses::count)))
+				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()
 		);
 
 		// Set Not Obsolete
 		ref.getMetadata().setObsolete(false);
+	}
+
+	public static List<String> expandTags(List<String> tags) {
+		if (tags == null) return new ArrayList<>();
+		var result = new ArrayList<>(tags);
+		for (var i = result.size() - 1; i >= 0; i--) {
+			var t = result.get(i);
+			while (t.contains("/")) {
+				t = t.substring(0, t.lastIndexOf("/"));
+				if (!result.contains(t)) {
+					result.add(t);
+				}
+			}
+		}
+		return result;
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)

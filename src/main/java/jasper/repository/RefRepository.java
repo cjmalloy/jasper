@@ -65,7 +65,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_set(metadata, '{regen}', cast_to_jsonb('true'), true),
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')),  :partialMetadata),
 			published = :published,
 			modified = :modified
 		WHERE
@@ -80,6 +80,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		List<String> sources,
 		List<String> alternateUrls,
 		ObjectNode plugins,
+		Metadata partialMetadata,
 		Instant published,
 		Instant modified);
 
@@ -119,7 +120,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SELECT url FROM ref
 		WHERE ref.url != :url
 			AND jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag)
+			AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
@@ -127,14 +128,14 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SELECT url FROM ref
 		WHERE ref.url != :url
 			AND jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag) = false
+			AND NOT jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT DISTINCT t.tag
 		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.tags) AS t(tag)
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url)
 			AND t.tag ~ '^[_+]?plugin(/|$)'
@@ -145,7 +146,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT DISTINCT t.tag
 		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.tags) AS t(tag)
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url)
 			AND t.tag ~ '^[_+]?plugin/user(/|$)'
@@ -196,11 +197,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
 			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.tags, 'internal') = false),
-			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->expandedTags, 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->expandedTags, 'internal') = true),
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
-				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.tags, p.tag) = true)
+				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
 			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
 			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
 		))
@@ -220,7 +221,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
 		FROM ref
 		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin')
+			AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), '+plugin/origin')
 			AND (plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
 				OR plugins->'+plugin/origin'->>'local' = :remote
 		LIMIT 1""")
@@ -244,6 +245,18 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		CREATE INDEX ref_tags_index ON ref USING GIN(tags)""")
 	void buildTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_expanded_tags_index""")
+	void dropExpandedTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))""")
+	void buildExpandedTags();
 
 	@Transactional
 	@Modifying

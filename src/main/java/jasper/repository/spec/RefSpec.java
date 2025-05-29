@@ -2,6 +2,7 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import org.springframework.data.jpa.domain.Specification;
@@ -213,10 +214,20 @@ public class RefSpec {
 						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
 	}
 
+	private static Expression<Object> getTagsExpression(Root<Ref> root, CriteriaBuilder cb) {
+		return cb.function("COALESCE", Object.class,
+			cb.function("jsonb_object_field", Object.class,
+				root.get(Ref_.metadata),
+				cb.literal("expandedTags")),
+			root.get(Ref_.tags),
+			cb.literal("[]")
+		);
+	}
+
 	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				root.get(Ref_.tags),
+				getTagsExpression(root, cb),
 				cb.literal(tag)));
 	}
 
@@ -233,20 +244,20 @@ public class RefSpec {
 		if (isPublicTag(tag)) {
 			return (root, query, cb) -> cb.isTrue(
 				cb.function("jsonb_exists", Boolean.class,
-					root.get(Ref_.tags),
+					getTagsExpression(root, cb),
 					cb.literal(tag)));
 		} else if (tag.startsWith("_")) {
 			return (root, query, cb) -> cb.isTrue(
 				cb.or(
 					cb.function("jsonb_exists", Boolean.class,
-						root.get(Ref_.tags),
+						getTagsExpression(root, cb),
 						cb.literal(tag)),
 				cb.or(
 					cb.function("jsonb_exists", Boolean.class,
-						root.get(Ref_.tags),
+						getTagsExpression(root, cb),
 						cb.literal("+" + publicTag(tag))),
 					cb.function("jsonb_exists", Boolean.class,
-						root.get(Ref_.tags),
+						getTagsExpression(root, cb),
 						cb.literal(publicTag(tag))))
 				));
 		} else {
@@ -254,10 +265,10 @@ public class RefSpec {
 			return (root, query, cb) -> cb.isTrue(
 				cb.or(
 					cb.function("jsonb_exists", Boolean.class,
-						root.get(Ref_.tags),
+						getTagsExpression(root, cb),
 						cb.literal(tag)),
 					cb.function("jsonb_exists", Boolean.class,
-						root.get(Ref_.tags),
+						getTagsExpression(root, cb),
 						cb.literal(publicTag(tag)))
 				));
 		}

@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -145,12 +146,14 @@ public class Ref implements HasTags {
 		origin = value == null ? "" : value;
 	}
 
-	public void addHierarchicalTags() {
-		addTags(getHierarchicalTags(this.tags));
-	}
-
-	public void removePrefixTags() {
-		removePrefixTags(tags);
+	@JsonIgnore
+	public List<String> getExpandedTags() {
+		if (metadata != null &&
+			metadata.getExpandedTags() != null &&
+			!metadata.getExpandedTags().isEmpty()) {
+			return metadata.getExpandedTags();
+		}
+		return expandTags(tags);
 	}
 
 	@JsonIgnore
@@ -237,34 +240,6 @@ public class Ref implements HasTags {
 	@Override
 	public int hashCode() {
 		return Objects.hash(url, origin);
-	}
-
-	public static List<String> getHierarchicalTags(List<String> tags) {
-		if (tags == null) return new ArrayList<>();
-		var result = new ArrayList<>(tags);
-		for (var i = result.size() - 1; i >= 0; i--) {
-			var t = result.get(i);
-			while (t.contains("/")) {
-				t = t.substring(0, t.lastIndexOf("/"));
-				if (!result.contains(t)) {
-					result.add(t);
-				}
-			}
-		}
-		return result;
-	}
-
-	public static void removePrefixTags(List<String> tags) {
-		if (tags == null) return;
-		for (int i = tags.size() - 1; i >= 0; i--) {
-			var check = tags.get(i) + "/";
-			for (int j = 0; j < tags.size(); j++) {
-				if (tags.get(j).startsWith(check)) {
-					tags.remove(i);
-					break;
-				}
-			}
-		}
 	}
 
 	@JsonIgnore

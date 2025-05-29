@@ -16,6 +16,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("jsonb_exists", "jsonb_exists(?1, ?2)", bool);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
 		functionRegistry.registerPattern("cast_to_jsonb", "?1::jsonb", jsonb);
+		functionRegistry.registerPattern("jsonb_concat", "jsonb_concat(?1, ?2)", jsonb);
 	}
 
 }

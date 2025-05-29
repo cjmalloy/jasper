@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static jasper.domain.Ref.removePrefixTags;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.util.Arrays.stream;
@@ -64,7 +63,6 @@ public class Mail implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) throws Exception {
 		var ts = new ArrayList<>(ref.getTags());
-		removePrefixTags(ts);
 		var mb = ts.stream()
 			.filter(t -> t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/"))
 			.toArray(String[]::new);

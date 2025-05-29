@@ -36,14 +36,12 @@ public class Pull implements Serializable {
 
 	public void migrate(Ref ref, Origin config) {
 		if (ref.getTags() != null && removeTags != null) {
-			ref.removePrefixTags();
 			ref.removeTags(removeTags);
 			ref.clearPlugins();
 		}
 		if (addTags != null) {
 			ref.addTags(addTags);
 		}
-		ref.addHierarchicalTags();
 	}
 
 	public void migrate(User user, Origin config) {
