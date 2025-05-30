@@ -223,6 +223,8 @@ public class RefServiceMTIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
+			.containsExactly("+user/tester");
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getExpandedTags())
 			.containsExactly("+user/tester", "+user");
 	}
 
@@ -238,6 +240,8 @@ public class RefServiceMTIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
+			.containsExactly("_user/tester");
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getExpandedTags())
 			.containsExactly("_user/tester", "_user");
 	}
 

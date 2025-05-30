@@ -28,6 +28,7 @@ public class Metadata implements Serializable {
 
 	@Builder.Default
 	private String modified = Instant.now().toString();
+	private List<String> expandedTags;
 	private List<String> responses;
 	private List<String> internalResponses;
 	private Map<String, Long> plugins;

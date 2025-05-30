@@ -62,7 +62,6 @@ public class Tagger {
 		} else {
 			var ref = maybeRef.get();
 			if (ref.hasTag(tags)) return ref;
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
 				ingest.update(origin, ref, false);
@@ -83,7 +82,6 @@ public class Tagger {
 		if (maybeRef.isEmpty()) return null;
 		var ref = maybeRef.get();
 		if (!ref.hasTag(tags)) return ref;
-		ref.removePrefixTags();
 		ref.removeTags(asList(tags));
 		try {
 			ingest.update(origin, ref, false);
@@ -128,7 +126,6 @@ public class Tagger {
 			var ref = maybeRef.get();
 			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			ingest.silent(origin, ref);
 			return ref;
@@ -152,7 +149,6 @@ public class Tagger {
 			var ref = maybeRef.get();
 			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
 				ingest.update(origin, ref, false);

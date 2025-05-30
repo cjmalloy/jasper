@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.RollbackException;
 import jasper.config.Props;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -27,6 +28,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+
+import static jasper.component.Meta.expandTags;
 
 @Component
 public class Ingest {
@@ -61,7 +64,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref, boolean force) {
-		ref.addHierarchicalTags();
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref, force);
 		rng.update(rootOrigin, ref, null);
@@ -75,7 +77,6 @@ public class Ingest {
 	public void update(String rootOrigin, Ref ref, boolean force) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		ref.addHierarchicalTags();
 		validate.ref(rootOrigin, ref, force);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.ref(rootOrigin, ref);
@@ -86,7 +87,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
-		ref.addHierarchicalTags();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		meta.ref(rootOrigin, ref);
 		ensureSilentUniqueModified(ref);
@@ -97,15 +97,21 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(String rootOrigin, Ref ref, boolean validation, boolean force) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
-		ref.addHierarchicalTags();
 		if (validation) validate.ref(rootOrigin, ref, force);
 		Ref maybeExisting = null;
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(rootOrigin, ref, maybeExisting);
 			meta.ref(rootOrigin, ref);
+		} else {
+			ref.setMetadata(Metadata
+				.builder()
+				.modified(null)
+				.regen(true)
+				.expandedTags(expandTags(ref.getTags()))
+				.build());
 		}
-		pushUniqueModified(ref, generateMetadata);
+		pushUniqueModified(ref);
 		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);
 	}
@@ -228,26 +234,22 @@ public class Ingest {
 		}
 	}
 
-	void pushUniqueModified(Ref ref, boolean generateMetadata) {
+	void pushUniqueModified(Ref ref) {
 		try {
-			if (generateMetadata) {
+			var updated = refRepository.pushAsyncMetadata(
+				ref.getUrl(),
+				ref.getOrigin(),
+				ref.getTitle(),
+				ref.getComment(),
+				ref.getTags(),
+				ref.getSources(),
+				ref.getAlternateUrls(),
+				ref.getPlugins(),
+				ref.getMetadata(),
+				ref.getPublished(),
+				ref.getModified());
+			if (updated == 0) {
 				refRepository.save(ref);
-			} else {
-				var updated = refRepository.pushAsyncMetadata(
-					ref.getUrl(),
-					ref.getOrigin(),
-					ref.getTitle(),
-					ref.getComment(),
-					ref.getTags(),
-					ref.getSources(),
-					ref.getAlternateUrls(),
-					ref.getPlugins(),
-					ref.getPublished(),
-					ref.getModified());
-				if (updated == 0) {
-					ref.setMetadata(null);
-					refRepository.save(ref);
-				}
 			}
 		} catch (DataIntegrityViolationException | PersistenceException e) {
 			if (e instanceof EntityExistsException) throw new AlreadyExistsException();

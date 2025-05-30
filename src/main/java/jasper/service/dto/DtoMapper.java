@@ -58,7 +58,6 @@ public abstract class DtoMapper {
 	protected void filterTags(@MappingTarget HasTags ref) {
 		if (ref.getTags() == null) return;
 		ref.setTags(new ArrayList<>(auth.filterTags(ref.getTags())));
-		Ref.removePrefixTags(ref.getTags());
 	}
 
 	@AfterMapping
