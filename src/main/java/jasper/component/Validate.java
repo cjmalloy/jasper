@@ -197,8 +197,7 @@ public class Validate {
 			});
 			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
-		if (ref.getTags() == null) return;
-		for (var tag : ref.getTags()) {
+		for (var tag : ref.getExpandedTags()) {
 			plugin(rootOrigin, ref, tag, stripOnError);
 		}
 	}
@@ -264,8 +263,7 @@ public class Validate {
 
 	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
 		var result = objectMapper.getNodeFactory().objectNode();
-		if (ref.getTags() == null) return result;
-		for (var tag : ref.getTags()) {
+		for (var tag : ref.getExpandedTags()) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
 				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());

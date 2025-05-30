@@ -135,11 +135,11 @@ public class RefService {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		// Hidden tags cannot be removed
-		var hiddenTags = auth.hiddenTags(existing.getTags());
+		var hiddenTags = auth.hiddenTags(existing.getExpandedTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
 		// Unwritable tags may only be removed, plugin data may not be modified
-		var unwritableTags = auth.unwritableTags(ref.getTags());
+		var unwritableTags = auth.unwritableTags(ref.getExpandedTags());
 		ref.addPlugins(unwritableTags, existing.getPlugins());
 		ingest.update(auth.getOrigin(), ref, force);
 		return ref.getModified();

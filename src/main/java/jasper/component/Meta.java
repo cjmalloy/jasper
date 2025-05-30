@@ -131,13 +131,13 @@ public class Meta {
 				} else {
 					metadata.addResponse(ref.getUrl());
 				}
-				if (existing != null && existing.getTags() != null) {
-					metadata.removePlugins(existing.getTags().stream()
+				if (existing != null) {
+					metadata.removePlugins(existing.getExpandedTags().stream()
 							.filter(tag -> matchesTemplate("plugin", tag))
 							.toList(),
 						ref.getUrl());
 				}
-				metadata.addPlugins(ref.getTags().stream()
+				metadata.addPlugins(ref.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
 					ref.getUrl());
@@ -182,12 +182,10 @@ public class Meta {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
 		metadata.remove(existing.getUrl());
-		if (existing.getTags() != null) {
-			metadata.removePlugins(existing.getTags().stream()
-					.filter(tag -> matchesTemplate("plugin", tag))
-					.toList(),
-				existing.getUrl());
-		}
+		metadata.removePlugins(existing.getExpandedTags().stream()
+				.filter(tag -> matchesTemplate("plugin", tag))
+				.toList(),
+			existing.getUrl());
 		source.setMetadata(metadata);
 		try {
 			refRepository.save(source);

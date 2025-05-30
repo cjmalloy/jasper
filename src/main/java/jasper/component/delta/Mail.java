@@ -62,8 +62,7 @@ public class Mail implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		var ts = new ArrayList<>(ref.getTags());
-		var mb = ts.stream()
+		var mb = ref.getExpandedTags().stream()
 			.filter(t -> t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/"))
 			.toArray(String[]::new);
 		String[] emails = new String[]{};
@@ -112,7 +111,7 @@ public class Mail implements Async.AsyncRunner {
 				return null;
 			}
 		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), configs.root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
-		message.setFrom(ts.stream()
+		message.setFrom(ref.getExpandedTags().stream()
 			.filter(t -> t.startsWith("+user/") || t.startsWith("+user") || t.startsWith("_user/") || t.startsWith("_user"))
 			.findFirst()
 			.map(t -> t + "@" + host)
