@@ -18,10 +18,10 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
-		<spring-boot.version>3.4.6</spring-boot.version>
+		<spring-boot.version>3.5.0</spring-boot.version>
 		<gatling-maven-plugin.version>4.19.0</gatling-maven-plugin.version>
 		<gatling.version>3.13.5</gatling.version>
-		<spring-cloud.version>2024.0.1</spring-cloud.version>
+		<spring-cloud.version>2025.0.0</spring-cloud.version>
 		<lombok.version>1.18.38</lombok.version>
 		<testcontainers.version>1.21.1</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
@@ -430,7 +430,6 @@
 					<mainClass>${start-class}</mainClass>
 					<layers>
 						<enabled>true</enabled>
-						<includeLayerTools>true</includeLayerTools>
 					</layers>
 				</configuration>
 			</plugin>
