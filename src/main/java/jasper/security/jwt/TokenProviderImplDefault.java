@@ -30,7 +30,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 			principal = getHeader(USER_TAG_HEADER) + origin;
 			logger.debug("User tag set by header: {} ({})", principal, origin);
 		}
-		var user = getUser(principal);
+		var user = configs.getUser(principal);
 		logger.debug("Default Auth {} ({})", principal, origin);
 		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user, origin));
 	}
