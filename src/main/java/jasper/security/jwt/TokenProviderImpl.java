@@ -12,6 +12,7 @@ import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
+import jasper.errors.UserTagInUseException;
 import jasper.management.SecurityMetersService;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -82,20 +83,14 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	public Authentication getAuthentication(String token, String origin) {
 		var claims = getParser(origin).parseSignedClaims(token).getPayload();
 		var principal = getUsername(claims, origin);
-		var user = getUser(principal);
-		var security = configs.security(origin);
-		if (user != null && security.isExternalId()) {
-			var email = claims.get(security.getUsernameClaim(), String.class);
-			var existingUser = configs.getUserByExternalId(origin, email);
-			if (existingUser.isEmpty() && user.hasExternalId()) {
-				logger.error("{} External ID {} already mapped to user {} ({})", origin, email, user.getTag());
-				return null;
-			}
-			if (!user.hasExternalId(email)) {
-				configs.setExternalId(user.getTag(), origin, email);
-			}
+		UserDto user;
+		try {
+			user = getUser(principal, claims, origin);
+		} catch (UserTagInUseException e) {
+			principal = principal + "." + Math.floor(Math.random() * 1000);
+			user = getUser(principal, claims, origin);
 		}
-		logger.debug("{} Token Auth {} {}", origin, principal);
+		logger.debug("{} Token Auth {}", origin, principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 

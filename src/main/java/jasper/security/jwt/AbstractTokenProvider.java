@@ -1,8 +1,10 @@
 package jasper.security.jwt;
 
+import io.jsonwebtoken.Claims;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
+import jasper.errors.UserTagInUseException;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +32,21 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		this.configs = configs;
 	}
 
-	UserDto getUser(String userTag) {
-		if (configs == null) return null;
-		return configs.getUser(userTag);
+	UserDto getUser(String userTag, Claims claims, String origin) {
+		var user = configs.getUser(userTag);
+		var security = configs.security(origin);
+		if (user != null && security.isExternalId()) {
+			var email = claims.get(security.getUsernameClaim(), String.class);
+			var existingUser = configs.getUserByExternalId(origin, email);
+			if (existingUser.isEmpty() && user.hasExternalId()) {
+				logger.warn("{} External ID {} already mapped to user {} ({})", origin, email, user.getTag());
+				throw new UserTagInUseException();
+			}
+			if (!user.hasExternalId(email)) {
+				configs.setExternalId(user.getTag(), origin, email);
+			}
+		}
+		return user;
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
