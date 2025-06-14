@@ -7,6 +7,7 @@ import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
+import jasper.domain.External;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.domain.User;
@@ -158,6 +159,17 @@ public class ConfigCache {
 	@Cacheable(value = "external-user-cache", unless = "#result == null")
 	public Optional<String> getUserByExternalId(String origin, String externalId) {
 		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	}
+
+	public UserDto createUser(String tag, String origin, String externalId) {
+		var user = new User();
+		user.setTag(tag);
+		user.setOrigin(origin);
+		user.setExternal(External.builder()
+			.ids(List.of(externalId))
+			.build());
+		ingestUser.create(user);
+		return dtoMapper.domainToDto(user);
 	}
 
 	public void setExternalId(String tag, String origin, String externalId) {
