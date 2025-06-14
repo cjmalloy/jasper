@@ -214,9 +214,7 @@ public class Validate {
 	}
 
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
-		if (matchesTemplate("plugin/user", tag)) {
-			userUrl(ref, tag);
-		}
+		userUrl(ref, tag);
 		var plugin = configs.getPlugin(tag, rootOrigin);
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
@@ -252,11 +250,16 @@ public class Validate {
 	}
 
 	private void userUrl(Ref ref, String plugin) {
+		if (!matchesTemplate("plugin/user", plugin)) return;
 		if (ref.getSources() == null || ref.getSources().size() != 1) {
 			throw new InvalidPluginUserUrlException(plugin);
 		}
 		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
-		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForTag(ref.getSources().get(0), userTag.get()))) {
+		if (userTag.isEmpty()) {
+			throw new InvalidPluginUserUrlException(plugin);
+		}
+		var target = ref.getSources().getFirst();
+		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
 			throw new InvalidPluginUserUrlException(plugin);
 		}
 	}
