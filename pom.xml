@@ -23,7 +23,7 @@
 		<gatling.version>3.13.5</gatling.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
 		<lombok.version>1.18.38</lombok.version>
-		<testcontainers.version>1.21.1</testcontainers.version>
+		<testcontainers.version>1.21.2</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.6</jackson-databind-nullable.version>
 		<postgresql.version>42.3.9</postgresql.version>
