@@ -41,7 +41,7 @@
 		<commons-collections4.version>4.5.0</commons-collections4.version>
 		<commons-compress.version>1.27.1</commons-compress.version>
 		<jsoup.version>1.21.1</jsoup.version>
-		<scim2-client.version>2.3.8</scim2-client.version>
+		<scim2-client.version>4.0.0</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
 		<xmlunit.version>2.10.3</xmlunit.version>
