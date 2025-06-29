@@ -15,7 +15,7 @@ public class RunProcess {
 	public static String runProcess(Process process, int timeoutMs) throws ScriptException {
 		final var output = new StringBuilder();
 		final var errors = new StringBuilder();
-		var outputThread = new Thread(() -> {
+		var outputThread = Thread.ofVirtual().start(() -> {
 			try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -25,7 +25,7 @@ public class RunProcess {
 				logger.error("Error reading output stream: {}", e.getMessage());
 			}
 		});
-		var errorThread = new Thread(() -> {
+		var errorThread = Thread.ofVirtual().start(() -> {
 			try (var reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -35,8 +35,6 @@ public class RunProcess {
 				logger.error("Error reading error stream: {}", e.getMessage());
 			}
 		});
-		outputThread.start();
-		errorThread.start();
 
 		boolean finished;
 		try {
