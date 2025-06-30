@@ -1,8 +1,10 @@
 package jasper.security.jwt;
 
+import io.jsonwebtoken.Claims;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
+import jasper.errors.UserTagInUseException;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +32,24 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		this.configs = configs;
 	}
 
-	UserDto getUser(String userTag) {
-		if (configs == null) return null;
-		return configs.getUser(userTag);
+	UserDto getUser(String userTag, Claims claims, String origin) {
+		var user = configs.getUser(userTag);
+		var security = configs.security(origin);
+		if (security.isExternalId()) {
+			var email = claims.get(security.getUsernameClaim(), String.class);
+			if (user == null) {
+				return configs.createUser(userTag, origin, email);
+			} else if (configs.getUserByExternalId(origin, email).isEmpty() && user.hasExternalId()) {
+				// There is no explicit mapping for `email`, but `user` has an explicit mapping,
+				// Therefore, the current `userTag` cannot be implicitly mapped to `user`
+				logger.warn("{} External ID {} already mapped to user {}", origin, email, userTag);
+				throw new UserTagInUseException();
+			} else if (!user.hasExternalId(email)) {
+				// After a user is implicitly mapped for the first time, save the external ID to make it explicit
+				configs.setExternalId(userTag, origin, email);
+			}
+		}
+		return user;
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
