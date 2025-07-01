@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.Tag.localTag;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
 import static jasper.security.Auth.getOriginHeader;
@@ -85,10 +86,10 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var principal = getUsername(claims, origin);
 		UserDto user;
 		try {
-			user = getUser(principal, claims, origin);
+			user = getUser(localTag(principal), claims, origin);
 		} catch (UserTagInUseException e) {
-			principal = principal + "." + Math.floor(Math.random() * 1000);
-			user = getUser(principal, claims, origin);
+			principal = localTag(principal) + "." + (int) Math.floor(Math.random() * 1000) + origin;
+			user = getUser(localTag(principal), claims, origin);
 		}
 		logger.debug("{} Token Auth {}", origin, principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
@@ -155,7 +156,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		} else {
 			var security = configs.security(origin);
 			principal = claims.get(security.getUsernameClaim(), String.class);
-			logger.debug("{} User tag set by JWT claim {}: {})", origin, security.getUsernameClaim(), principal, origin);
+			logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal, origin);
 			if (security.isExternalId()) {
 				var user = configs.getUserByExternalId(origin, principal);
 				if (user.isPresent()) {
