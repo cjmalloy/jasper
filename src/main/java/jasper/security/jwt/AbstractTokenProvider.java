@@ -33,7 +33,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	UserDto getUser(String userTag, Claims claims, String origin) {
-		var user = configs.getUser(userTag);
+		var user = configs.getUser(userTag + origin);
 		var security = configs.security(origin);
 		if (security.isExternalId()) {
 			var email = claims.get(security.getUsernameClaim(), String.class);
