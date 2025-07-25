@@ -46,7 +46,7 @@ CMD mvn -gs settings.xml gatling:test; \
 		mkdir -p /report && \
 		cp -r target/gatling/simplejaspersimulation-*/* /report/
 
-FROM azul/zulu-openjdk-debian:21.0.7-21.42-jre AS deploy
+FROM azul/zulu-openjdk-debian:21.0.8-21.44-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
