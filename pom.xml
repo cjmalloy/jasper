@@ -18,7 +18,7 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
-		<spring-boot.version>3.5.3</spring-boot.version>
+		<spring-boot.version>3.5.4</spring-boot.version>
 		<gatling-maven-plugin.version>4.20.0</gatling-maven-plugin.version>
 		<gatling.version>3.13.5</gatling.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
