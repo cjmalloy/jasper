@@ -58,7 +58,7 @@ public class StorageImplLocal implements Storage {
 		try {
 			return new FileInputStream(path(origin, namespace, id).toFile());
 		} catch (IOException e) {
-			throw new NotFoundException("Storage file (" + namespace + ") " + id);
+			throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
 		}
 	}
 
@@ -67,7 +67,7 @@ public class StorageImplLocal implements Storage {
 		try {
 			return Files.copy(path(origin, namespace, id), os);
 		} catch (IOException e) {
-			throw new NotFoundException("Storage file (" + namespace + ") " + id);
+			throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
 		}
 	}
 

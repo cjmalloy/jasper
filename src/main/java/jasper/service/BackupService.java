@@ -124,8 +124,9 @@ public class BackupService {
 		return key.equals(ref.getComment());
 	}
 
-	public Backup.BackupStream getBackupPreauth(String id) {
-		return backup.get(auth.getOrigin(), id);
+	@PreAuthorize("@auth.subOrigin(#origin)")
+	public Backup.BackupStream getBackupPreauth(String origin, String id) {
+		return backup.get(origin, id);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
