@@ -54,3 +54,37 @@ jobs:
           name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: reports
           retention-days: 90
+
+  clean:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup old artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const maxVersions = 5;
+            const response = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const artifacts = response.data.artifacts
+              .filter(artifact => artifact.name.startsWith('junit-reports-' + '${{ github.ref_name }}'));
+            if (artifacts.length > maxVersions) {
+              // Sort by created_at descending
+              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // Delete all but the latest maxVersions
+              for (const artifact of artifacts.slice(maxVersions)) {
+                console.log('Deleting artifact:', artifact.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+              }
+            }
