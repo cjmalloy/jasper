@@ -10,14 +10,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import static jasper.domain.proj.HasOrigin.formatOrigin;
 
 @Component
 public class OembedProviders {
@@ -35,12 +34,13 @@ public class OembedProviders {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Async
 	public void defaults(String origin) throws IOException {
 		create(origin, objectMapper.readValue(defaultProviders.getFile(), new TypeReference<List<Oembed>>() {}));
 	}
 
 	public void create(String origin, List<Oembed> providers) {
-		logger.info("Restoring default oEmbed providers... (\"{}\")", formatOrigin(origin));
+		logger.info("{} Restoring default oEmbed providers...", origin);
 		for (var p : providers) {
 			var ref = new Ref();
 			ref.setUrl(p.getProvider_url());
@@ -52,7 +52,7 @@ public class OembedProviders {
 			ref.setOrigin(origin);
 			ingest.push(origin, ref, true, false);
 		}
-		logger.info("Done restoring default oEmbed providers.");
+		logger.info("{} Done restoring default oEmbed providers.", origin);
 	}
 
 	public Oembed.Endpoints getProvider(String origin, String url) {
