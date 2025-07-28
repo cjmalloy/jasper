@@ -27,6 +27,7 @@ jobs:
 
       # Create site directory
       - name: Create site directory
+        # language=bash
         run: |
           mkdir -p _build _site
           cp README.md _build/
@@ -42,6 +43,7 @@ jobs:
 
       # Download and merge any test reports
       - name: Process Reports
+        # language=bash
         run: |
           mkdir -p "_site/reports"
           gh auth login --with-token <<< "${{ github.token }}"

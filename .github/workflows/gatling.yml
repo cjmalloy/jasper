@@ -38,6 +38,7 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
+          # language=JavaScript
           script: |
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
             github.rest.issues.createComment({
@@ -58,6 +59,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/github-script@v7
         with:
+          # language=JavaScript
           script: |
             const maxVersions = 5;
             const response = await github.rest.actions.listArtifactsForRepo({

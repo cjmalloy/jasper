@@ -31,6 +31,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Set Version
+        # language=bash
         run: |
           VERSION="${{ github.ref_name }}"
           if [[ $VERSION == v* ]]; then VERSION="${VERSION:1}"; fi
