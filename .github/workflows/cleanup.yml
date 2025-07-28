@@ -39,11 +39,16 @@ jobs:
             });
             const artifacts = response.data.artifacts
               .filter(artifact => artifact.name.endswith('-pr-' + '${{ github.event.pull_request.number }}'));
-            for (const artifact of artifacts) {
-              console.log('Deleting artifact:', artifact.name);
-              await github.rest.actions.deleteArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id
-              });
+            if (artifacts.length > maxVersions) {
+              // Sort by created_at descending
+              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // Delete all but the latest maxVersions
+              for (const artifact of artifacts.slice(maxVersions)) {
+                console.log('Deleting artifact:', artifact.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+              }
             }
