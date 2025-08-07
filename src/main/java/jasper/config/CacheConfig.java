@@ -23,6 +23,7 @@ public class CacheConfig {
 		cacheManager.registerCustomCache("config-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
 			.expireAfterAccess(1, TimeUnit.DAYS)
+			.recordStats()
 			.build());
 		cacheManager.registerCustomCache("user-cache", Caffeine.newBuilder()
 			.maximumSize(10_000)
