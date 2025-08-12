@@ -17,7 +17,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run load tests
         run:  docker compose --profile lt -f 'gatling/docker-compose.yaml' up --build --exit-code-from gatling
       - name: Upload PR Report
