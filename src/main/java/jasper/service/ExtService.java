@@ -55,8 +55,8 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant create(Ext ext, boolean force) {
-		ingest.create(ext, force);
+	public Instant create(Ext ext) {
+		ingest.create(ext);
 		return ext.getModified();
 	}
 
@@ -106,8 +106,8 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant update(Ext ext, boolean force) {
-		ingest.update(ext, force);
+	public Instant update(Ext ext) {
+		ingest.update(ext);
 		return ext.getModified();
 	}
 
@@ -126,10 +126,10 @@ public class ExtService {
 			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ext.class);
 			if (created) {
-				return create(updated, false);
+				return create(updated);
 			} else {
 				updated.setModified(cursor);
-				return update(updated, false);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);

@@ -48,7 +48,7 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		if (ref.hasTag(tag)) throw new DuplicateTagException(tag);
 		ref.addTag(tag);
-		ingest.update(auth.getOrigin(), ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -66,7 +66,7 @@ public class TaggingService {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removeTag(tag);
-		ingest.update(auth.getOrigin(), ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -87,7 +87,7 @@ public class TaggingService {
 			}
 		}
 		ref.addTags(tags);
-		ingest.update(auth.getOrigin(), ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -104,7 +104,7 @@ public class TaggingService {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		if (isNotBlank(tag) && !ref.hasTag(tag)) {
 			ref.addTag(tag);
-			ingest.update(auth.getOrigin(), ref, false);
+			ingest.update(auth.getOrigin(), ref);
 		}
 	}
 
@@ -113,7 +113,7 @@ public class TaggingService {
 	public void deleteResponse(String tag, String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
-		ingest.update(auth.getOrigin(), ref, true);
+		ingest.update(auth.getOrigin(), ref);
 	}
 
 	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
@@ -121,6 +121,6 @@ public class TaggingService {
 	public void respond(List<String> tags, String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		for (var tag : tags) ref.addTag(tag);
-		ingest.update(auth.getOrigin(), ref, true);
+		ingest.update(auth.getOrigin(), ref);
 	}
 }

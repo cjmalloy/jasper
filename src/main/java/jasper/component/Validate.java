@@ -60,7 +60,12 @@ public class Validate {
 	ConfigCache configs;
 
 	@Timed("jasper.validate")
-	public void ref(String rootOrigin, Ref ref, boolean force) {
+	public void ref(String rootOrigin, Ref ref) {
+		ref(rootOrigin, ref, false);
+	}
+
+	@Timed("jasper.validate")
+	public void ref(String rootOrigin, Ref ref, boolean stripOnError) {
 		var root = configs.root();
 		try {
 			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
@@ -70,7 +75,7 @@ public class Validate {
 			ref.removeTags(root.getEditorSeals());
 		}
 		tags(rootOrigin, ref);
-		plugins(rootOrigin, ref, force);
+		plugins(rootOrigin, ref, stripOnError);
 		sources(rootOrigin, ref, true);
 		responses(rootOrigin, ref, true);
 		sources(rootOrigin, ref, false);

@@ -64,13 +64,12 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant create(Ref ref, boolean force) {
+	public Instant create(Ref ref) {
 		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
+			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.create(auth.getOrigin(), ref, force);
+		ingest.create(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -125,11 +124,10 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant update(Ref ref, boolean force) {
+	public Instant update(Ref ref) {
 		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
+			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
@@ -141,7 +139,7 @@ public class RefService {
 		// Unwritable tags may only be removed, plugin data may not be modified
 		var unwritableTags = auth.unwritableTags(ref.getExpandedTags());
 		ref.addPlugins(unwritableTags, existing.getPlugins());
-		ingest.update(auth.getOrigin(), ref, force);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -168,10 +166,10 @@ public class RefService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(updated, false);
+				return create(updated);
 			} else {
 				updated.setModified(cursor);
-				return update(updated, false);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
