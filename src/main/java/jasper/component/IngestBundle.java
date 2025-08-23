@@ -42,11 +42,11 @@ public class IngestBundle {
 			ref.setOrigin(origin);
 			try {
 				try {
-					ingestRef.update(origin, ref, false);
+					ingestRef.update(origin, ref);
 				} catch (ModifiedException e) {
 					logger.warn("Duplicate ingesting Ref {}", ref.getUrl());
 				} catch (NotFoundException e) {
-					ingestRef.create(origin, ref, false);
+					ingestRef.create(origin, ref);
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Ref {}", ref.getUrl(), e);
@@ -57,11 +57,11 @@ public class IngestBundle {
 			ext.setOrigin(origin);
 			try {
 				try {
-					ingestExt.update(ext, false);
+					ingestExt.update(ext);
 				} catch (ModifiedException e) {
 					logger.error("Duplicate ingesting Ext {}", ext.getTag());
 				} catch (NotFoundException e) {
-					ingestExt.create(ext, false);
+					ingestExt.create(ext);
 				}
 			} catch (Exception e) {
 				logger.error("Error ingesting Ext {}", ext.getTag(), e);

@@ -97,12 +97,12 @@ public class BackupService {
 			ref.addTag("_plugin/system");
 			ref.setTitle("Backup Key");
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.create(auth.getOrigin(), ref, false);
+			ingest.create(auth.getOrigin(), ref);
 			return ref.getComment();
 		}
 		if (isBlank(ref.getComment()) || !ref.getComment().equals(key)) {
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.update(auth.getOrigin(), ref, false);
+			ingest.update(auth.getOrigin(), ref);
 		}
 		return ref.getComment();
 	}

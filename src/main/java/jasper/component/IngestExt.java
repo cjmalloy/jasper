@@ -56,28 +56,28 @@ public class IngestExt {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void create(Ext ext, boolean force) {
+	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
 			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
-		validate.ext(ext.getOrigin(), ext, force);
+		validate.ext(ext.getOrigin(), ext);
 		ensureCreateUniqueModified(ext);
 		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void update(Ext ext, boolean force) {
+	public void update(Ext ext) {
 		if (!extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
-		validate.ext(ext.getOrigin(), ext, force);
+		validate.ext(ext.getOrigin(), ext);
 		ensureUpdateUniqueModified(ext);
 		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void push(String rootOrigin, Ext ext, boolean validation, boolean force) {
-		if (validation) validate.ext(rootOrigin, ext, force);
+	public void push(String rootOrigin, Ext ext, boolean validation, boolean stripInvalidTemplates) {
+		if (validation) validate.ext(rootOrigin, ext, stripInvalidTemplates);
 		pushUniqueModified(ext);
 		if (isDeletorTag(ext.getTag())) {
 			delete(deletedTag(ext.getQualifiedTag()));

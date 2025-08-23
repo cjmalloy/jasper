@@ -63,9 +63,9 @@ public class Ingest {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void create(String rootOrigin, Ref ref, boolean force) {
+	public void create(String rootOrigin, Ref ref) {
 		ref.setCreated(Instant.now());
-		validate.ref(rootOrigin, ref, force);
+		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
 		meta.ref(rootOrigin, ref);
 		ensureCreateUniqueModified(ref);
@@ -74,10 +74,10 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void update(String rootOrigin, Ref ref, boolean force) {
+	public void update(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		validate.ref(rootOrigin, ref, force);
+		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.ref(rootOrigin, ref);
 		ensureUpdateUniqueModified(ref);
@@ -95,9 +95,9 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(String rootOrigin, Ref ref, boolean validation, boolean force) {
+	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
-		if (validation) validate.ref(rootOrigin, ref, force);
+		if (validation) validate.ref(rootOrigin, ref);
 		Ref maybeExisting = null;
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
