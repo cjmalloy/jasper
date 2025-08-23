@@ -273,11 +273,6 @@
 			<version>2.15.0</version>
 		</dependency>
 		<dependency>
-			<groupId>net.i2p.crypto</groupId>
-			<artifactId>eddsa</artifactId>
-			<version>0.3.0</version>
-		</dependency>
-		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
