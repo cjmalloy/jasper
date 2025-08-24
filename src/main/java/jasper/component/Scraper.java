@@ -469,7 +469,7 @@ public class Scraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		cacheLater(url, ref.getOrigin());
+		if (!"plugin/embed".equals(tag)) cacheLater(url, ref.getOrigin());
 		ref.setPlugin(tag, Map.of("url", url));
 	}
 

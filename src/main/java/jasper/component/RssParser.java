@@ -13,7 +13,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.Audio;
-import jasper.plugin.Embed;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
@@ -220,9 +219,6 @@ public class RssParser {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
 			} else {
 				parseEmbed(entry, ref);
-				if (ref.hasPlugin("plugin/embed")) {
-					cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
-				}
 			}
 		}
 		return ref;
