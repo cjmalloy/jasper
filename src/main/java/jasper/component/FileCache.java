@@ -30,6 +30,7 @@ import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
 import static jasper.util.Logging.getMessage;
+import static org.apache.commons.io.IOUtils.closeQuietly;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -100,10 +101,10 @@ public class FileCache {
 	public String fetchString(String url, String origin) {
 		var is = fetch(url, origin);
 		if (is == null) return null;
-		var cache = cache(url, origin);
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		try {
+		try (is) {
+			var cache = cache(url, origin);
+			if (cache == null) return null;
+			if (bannedOrBroken(cache)) return null;
 			return new String(is.readAllBytes());
 		} catch (IOException e) {
 			return null;
@@ -144,11 +145,13 @@ public class FileCache {
 				return null;
 			}
 			mimeType = res.getMimeType();
-			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
-				id = existingCache.getId();
-				storage.storeAt(origin, CACHE, id, res.getInputStream());
-			} else {
-				id = storage.store(origin, CACHE, res.getInputStream());
+			try (var is = res.getInputStream()) {
+				if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
+					id = existingCache.getId();
+					storage.storeAt(origin, CACHE, id, is);
+				} else {
+					id = storage.store(origin, CACHE, is);
+				}
 			}
 			var cache = Cache.builder()
 				.id(id)
@@ -189,7 +192,7 @@ public class FileCache {
 		if (url.startsWith("cache:")) {
 			id = url.substring("cache:".length());
 		}
-		fetch(url, origin);
+		closeQuietly(fetch(url, origin));
 		var fullSize = cache(url, origin);
 		if (fullSize == null) {
 			if (configs.getRemote(origin) == null) return null;
