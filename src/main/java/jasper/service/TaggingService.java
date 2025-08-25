@@ -52,7 +52,7 @@ public class TaggingService {
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
+	@PreAuthorize("@auth.canReadTag(#tag) and @auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant delete(String tag, String url, String origin) {
 		if (tag.equals("locked")) {
