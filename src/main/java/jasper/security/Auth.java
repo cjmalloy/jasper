@@ -437,6 +437,10 @@ public class Auth {
 		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
 	}
 
+	public String tagPatch(String tag) {
+		return tag.startsWith("-") ? tag.substring(1) : tag;
+	}
+
 	/**
 	 * Can the user add this tag to an existing ref?
 	 */

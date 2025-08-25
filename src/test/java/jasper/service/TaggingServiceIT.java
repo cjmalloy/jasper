@@ -54,6 +54,34 @@ public class TaggingServiceIT {
 	}
 
 	@Test
+	void testCreatePrivateTagRef() {
+		refWithTags(URL, "+user/tester");
+
+		assertThatThrownBy(() -> taggingService.create("_test", URL, ""))
+			.isInstanceOf(AccessDeniedException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.doesNotContain("_test");
+	}
+
+	@Test
+	void testDeletePrivateTagRef() {
+		refWithTags(URL, "+user/tester", "_test");
+
+		assertThatThrownBy(() -> taggingService.delete("_test", URL, ""))
+			.isInstanceOf(AccessDeniedException.class);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.contains("_test");
+	}
+
+	@Test
 	void testCreateTagRefUnauthorized() {
 		refWithTags(URL, "public");
 
