@@ -401,21 +401,42 @@ public class Auth {
 	}
 
 	/**
-	 * Does the user have permission to use all tags when tagging Refs?
+	 * Does the user have permission to remove a tag when tagging Refs?
 	 */
-	public boolean canAddTags(List<String> tags) {
+	public boolean canDeleteTag(String tag) {
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		return tags.stream().allMatch(this::canAddTag);
+		if (!isPrivateTag(tag)) return true;
+		var qt = qt(tag + getOrigin());
+		if (isUser(qt)) return true;
+		return captures(getTagReadAccess(), qt);
+	}
+
+	/**
+	 * Does the user have permission to use all tags when tagging Refs?
+	 */
+	public boolean canPatchTags(List<String> tags) {
+		// Min Role
+		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
+		if (hasRole(MOD)) return true;
+		return tags.stream().allMatch(t -> {
+			if (t.startsWith("-")) {
+				return this.canDeleteTag(t.substring(1));
+			} else {
+				return this.canAddTag(t);
+			}
+		});
 	}
 
 	/**
 	 * Can the user add these tags to an existing ref?
 	 */
-	public boolean canTagAll(List<String> tags, String url, String origin) {
+	public boolean canPatchTags(List<String> tags, String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
@@ -425,20 +446,12 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		for (var tag : tags) {
 			if (tag.startsWith("-")) {
-				if (!canReadTag(tag.substring(1) + origin)) return false;
+				if (!canUntag(tag.substring(1), url, origin)) return false;
 			} else {
 				if (!canTag(tag, url, origin)) return false;
 			}
 		}
 		return true;
-	}
-
-	public List<String> tagPatch(List<String> patch) {
-		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
-	}
-
-	public String tagPatch(String tag) {
-		return tag.startsWith("-") ? tag.substring(1) : tag;
 	}
 
 	/**
@@ -462,6 +475,28 @@ public class Auth {
 			canReadRef(url, origin)) return true;
 		// You can add the tag, and you can edit the ref
 		return canAddTag(tag) && canWriteRef(url, origin);
+	}
+
+	/**
+	 * Can the user remove this tag to an existing ref?
+	 */
+	public boolean canUntag(String tag, String url, String origin) {
+		// Only writing to the local origin ever permitted
+		if (!local(origin)) return false;
+		// Min Role
+		if (!minRole()) return false;
+		// Editor has special access to remove public tags to Refs they can read
+		if (hasRole(EDITOR) &&
+			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
+			// Except for public, an Editor cannot make a private Ref public or vice-versa
+			!matchesTag("public", tag) &&
+			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
+			!matchesTag("locked", tag) &&
+			canReadRef(url, origin)) return true;
+		// You can delete the tag, and you can edit the ref
+		return canDeleteTag(tag) && canWriteRef(url, origin);
 	}
 
 	/**

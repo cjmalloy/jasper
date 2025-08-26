@@ -52,7 +52,7 @@ public class TaggingService {
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canReadTag(@auth.tagPatch(#tag)) and @auth.canWriteRef(#url, #origin)")
+	@PreAuthorize("@auth.canUntag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant delete(String tag, String url, String origin) {
 		if (tag.equals("locked")) {
@@ -70,7 +70,7 @@ public class TaggingService {
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
+	@PreAuthorize("@auth.canPatchTags(#tags, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant tag(List<String> tags, String url, String origin) {
 		if (tags.contains("-locked")) {
@@ -91,7 +91,7 @@ public class TaggingService {
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public RefDto getResponse(String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
@@ -116,7 +116,7 @@ public class TaggingService {
 		ingest.update(auth.getOrigin(), ref);
 	}
 
-	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canPatchTags(#tags)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
