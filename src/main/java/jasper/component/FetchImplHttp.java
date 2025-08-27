@@ -56,6 +56,7 @@ public class FetchImplHttp implements Fetch {
 	}
 
 	private CloseableHttpResponse doWebScrape(String url) throws IOException {
+		logger.debug("Starting request to {}", url);
 		HttpUriRequest request = new HttpGet(url);
 		if (!hostCheck.validHost(request.getURI())) {
 			logger.info("Invalid host {}", request.getURI().getHost());
@@ -66,8 +67,12 @@ public class FetchImplHttp implements Fetch {
 		var res = http.execute(request);
 		if (res == null) return null;
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
-			return doWebScrape(res.getFirstHeader("Location").getElements()[0].getValue());
+			var location = res.getFirstHeader("Location").getElements()[0].getValue();
+			res.close();
+			logger.debug("Forwarding request to {} -> {}", url, location);
+			return doWebScrape(location);
 		}
+		logger.debug("Request completed {}", url);
 		return res;
 	}
 
