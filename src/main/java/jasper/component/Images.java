@@ -22,7 +22,7 @@ public class Images {
 
 	@Timed(value = "jasper.images")
 	public byte[] thumbnail(InputStream image) {
-		try {
+		try (image) {
 			return thumbnail(image.readAllBytes());
 		} catch (IOException e) {
 			return null;

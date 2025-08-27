@@ -7,18 +7,19 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Pull.getPull;
+import static org.apache.http.util.EntityUtils.consumeQuietly;
 
 @Profile("proxy")
 @Component
@@ -80,12 +81,21 @@ public class FetchImplHttp implements Fetch {
 
 			@Override
 			public InputStream getInputStream() throws IOException {
-				return res.getEntity().getContent();
+				return new FilterInputStream(res.getEntity().getContent()) {
+					@Override
+					public void close() throws IOException {
+						try {
+							super.close();
+						} finally {
+							res.close();
+						}
+					}
+				};
 			}
 
 			@Override
 			public void close() throws IOException {
-				EntityUtils.consumeQuietly(res.getEntity());
+				consumeQuietly(res.getEntity());
 				res.close();
 			}
 		};

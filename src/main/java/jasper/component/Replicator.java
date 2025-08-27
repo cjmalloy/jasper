@@ -122,7 +122,9 @@ public class Replicator {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
 				if (fileCache.isPresent()) {
 					if (cache.getBody() != null) {
-						fileCache.get().push(url, localOrigin, cache.getBody().getInputStream());
+						try (var is = cache.getBody().getInputStream()) {
+							fileCache.get().push(url, localOrigin, is);
+						}
 					} else {
 						fileCache.get().push(url, localOrigin, "".getBytes());
 						logger.warn("{} Empty response pulling cache ({}) {}",
@@ -434,8 +436,7 @@ public class Replicator {
 						for (var ref : refList) {
 							if (ref.getUrl().startsWith("cache:")) {
 								if (fileCache.isPresent()) {
-									try {
-										var is = fileCache.get().fetch(ref.getUrl(), localOrigin);
+									try (var is = fileCache.get().fetch(ref.getUrl(), localOrigin)) {
 										if (is != null) {
 											client.push(baseUri, ref.getUrl(), remoteOrigin, is.readAllBytes());
 										} else {
