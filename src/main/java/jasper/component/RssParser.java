@@ -147,6 +147,10 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();
 		var link = entry.getLink();
+		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
+			// Atom ID, RSS GUID
+			link = entry.getUri();
+		}
 		if (config.isStripQuery() && link.contains("?")) {
 			link = link.substring(0, link.indexOf("?"));
 		}
