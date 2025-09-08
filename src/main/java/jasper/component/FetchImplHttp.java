@@ -67,10 +67,16 @@ public class FetchImplHttp implements Fetch {
 		var res = http.execute(request);
 		if (res == null) return null;
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
-			var location = res.getFirstHeader("Location").getElements()[0].getValue();
-			res.close();
-			logger.debug("Forwarding request to {} -> {}", url, location);
-			return doWebScrape(location);
+			try {
+				var location = res.getFirstHeader("Location").getElements()[0].getValue();
+				logger.debug("Forwarding request to {} -> {}", url, location);
+				return doWebScrape(location);
+			} catch (Exception e) {
+				logger.error("Error forwarding request from {}", url, e);
+				return null;
+			} finally {
+				res.close();
+			}
 		}
 		logger.debug("Request completed {}", url);
 		return res;
@@ -81,7 +87,8 @@ public class FetchImplHttp implements Fetch {
 		return new FileRequest() {
 			@Override
 			public String getMimeType() {
-				return res.getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
+				var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+				return header == null ? null : header.getValue();
 			}
 
 			@Override
