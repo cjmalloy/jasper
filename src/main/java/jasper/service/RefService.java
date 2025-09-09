@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
 
@@ -137,7 +138,7 @@ public class RefService {
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
 		// Unwritable tags may only be removed, plugin data may not be modified
-		var unwritableTags = auth.unwritableTags(ref.getExpandedTags());
+		var unwritableTags = auth.unwritableTags(expandTags(ref.getTags()));
 		ref.addPlugins(unwritableTags, existing.getPlugins());
 		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();

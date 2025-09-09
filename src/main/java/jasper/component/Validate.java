@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.urlForTag;
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -202,7 +203,7 @@ public class Validate {
 			});
 			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
-		for (var tag : ref.getExpandedTags()) {
+		for (var tag : expandTags(ref.getTags())) {
 			plugin(rootOrigin, ref, tag, stripOnError);
 		}
 	}
@@ -271,7 +272,7 @@ public class Validate {
 
 	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
 		var result = objectMapper.getNodeFactory().objectNode();
-		for (var tag : ref.getExpandedTags()) {
+		for (var tag : expandTags(ref.getTags())) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
 				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
