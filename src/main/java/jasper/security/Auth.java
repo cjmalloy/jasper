@@ -871,17 +871,17 @@ public class Auth {
 		if (origin == null) {
 			origin = props.getOrigin();
 			var originHeader = getOriginHeader();
-			if (props.isAllowLocalOriginHeader() && originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
+			if (originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
 				origin = originHeader;
 			}
 		}
 		return origin;
 	}
 
-	public static String getOriginHeader() {
+	private static String getOriginHeader() {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
+			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
 			if (isBlank(originHeader)) return null;
 			originHeader = originHeader.toLowerCase();
 			if ("default".equals(originHeader)) return "";
