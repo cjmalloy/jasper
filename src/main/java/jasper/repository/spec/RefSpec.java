@@ -13,6 +13,7 @@ import java.util.List;
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.none;
+import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
 
@@ -275,8 +276,8 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasAnyQualifiedTag(List<QualifiedTag> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<Ref>where(null);
+		if (tags == null || tags.isEmpty()) return unrestricted();
+		var spec = Specification.<Ref>unrestricted();
 		for (var t : tags) {
 			spec = spec.or(t.refSpec());
 		}
@@ -284,8 +285,8 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasAllQualifiedTags(List<QualifiedTag> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<Ref>where(null);
+		if (tags == null || tags.isEmpty()) return unrestricted();
+		var spec = Specification.<Ref>unrestricted();
 		for (var t : tags) {
 			spec = spec.and(t.refSpec());
 		}
@@ -299,7 +300,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isPublishedAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.greaterThan(
 						root.get(Ref_.published),
@@ -307,7 +308,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isPublishedBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.lessThan(
 						root.get(Ref_.published),
@@ -315,7 +316,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isCreatedAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.greaterThan(
 						root.get(Ref_.created),
@@ -323,7 +324,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isCreatedBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.lessThan(
 						root.get(Ref_.created),
@@ -331,7 +332,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isResponseAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
@@ -340,7 +341,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isResponseBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),

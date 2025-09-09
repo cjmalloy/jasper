@@ -84,28 +84,28 @@ public class QualifiedTag {
 	}
 
 	public Specification<Ref> refSpec() {
-		var spec = Specification.<Ref>where(null);
+		var spec = Specification.<Ref>unrestricted();
 		if (isNotBlank(tag)) spec = spec.and(hasTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public Specification<Ref> downwardRefSpec() {
-		var spec = Specification.<Ref>where(null);
+		var spec = Specification.<Ref>unrestricted();
 		if (isNotBlank(tag)) spec = spec.and(hasDownwardTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public <T extends Tag> Specification<T> spec() {
-		var spec = Specification.<T>where(null);
+		var spec = Specification.<T>unrestricted();
 		if (isNotBlank(tag)) spec = spec.and(isTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
 	}
 
 	public <T extends Tag> Specification<T> downwardSpec() {
-		var spec = Specification.<T>where(null);
+		var spec = Specification.<T>unrestricted();
 		if (isNotBlank(tag)) spec = spec.and(isDownwardTag(tag));
 		spec = spec.and(isOrigin(origin));
 		return not ? Specification.not(spec) : spec;
