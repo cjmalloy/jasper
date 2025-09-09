@@ -47,6 +47,13 @@ public interface Tag extends Cursor {
 		return tag;
 	}
 
+	static String sign(String tag) {
+		if (isBlank(tag)) return "";
+		if (tag.startsWith("_")) return "_";
+		if (tag.startsWith("+")) return "+";
+		return "";
+	}
+
 	static boolean isPublicTag(String tag) {
 		if (isBlank(tag)) return false;
 		return !tag.startsWith("_") && !tag.startsWith("+");
@@ -87,17 +94,24 @@ public interface Tag extends Cursor {
 	}
 
 	static boolean matchesTag(String prefix, String tag) {
-		return isBlank(prefix) ||
-			prefix.equals(tag) ||
-			tag.startsWith(prefix + "/");
+		if (isBlank(tag) || isBlank(prefix)) return false;
+		return prefix.equals(tag)
+			|| tag.startsWith(prefix + "/");
+	}
+
+	static boolean matchesPublic(String prefix, String tag) {
+		if (isBlank(tag) || isBlank(prefix)) return false;
+		return publicTag(prefix).equals(publicTag(tag))
+			|| publicTag(tag).startsWith(publicTag(prefix) + "/");
 	}
 
 	static boolean matchesTemplate(String prefix, String tag) {
-		return isBlank(prefix) ||
-			prefix.equals(tag) ||
-			prefix.equals(publicTag(tag)) ||
-			tag.startsWith(prefix + "/") ||
-			publicTag(tag).startsWith(prefix + "/");
+		if (isBlank(tag)) return false;
+		return isBlank(prefix)
+			|| prefix.equals(tag)
+			|| prefix.equals(publicTag(tag))
+			|| tag.startsWith(prefix + "/")
+			|| publicTag(tag).startsWith(prefix + "/");
 	}
 
 	/**
@@ -124,5 +138,13 @@ public interface Tag extends Cursor {
 		if (upper.startsWith("_")) return matchesTag(publicTag(upper), publicTag(lower));
 		// Protected tag
 		return matchesTag(publicTag(upper), lower);
+	}
+
+	static String prefix(String prefix, String tag) {
+		if (isBlank(prefix)) return tag;
+		if (isBlank(tag)) return prefix;
+		var sign = sign(tag);
+		if (isBlank(sign)) sign = sign(prefix);
+		return sign + publicTag(prefix) + "/" + publicTag(tag);
 	}
 }

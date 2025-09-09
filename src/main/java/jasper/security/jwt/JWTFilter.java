@@ -7,6 +7,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
+import jasper.domain.proj.HasOrigin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -72,18 +73,14 @@ public class JWTFilter extends GenericFilterBean {
 
 	private String resolveOrigin(HttpServletRequest request) {
 		var origin = props.getOrigin();
-		if (props.isAllowLocalOriginHeader()) {
-			var headerOrigin = request.getHeader(LOCAL_ORIGIN_HEADER);
-			if (isNotBlank(headerOrigin)) {
-				headerOrigin = headerOrigin.toLowerCase();
-				logger.trace("Origin set by header ({})", headerOrigin);
-				if ("default".equalsIgnoreCase(headerOrigin)) return props.getLocalOrigin();
-				if (isSubOrigin(props.getLocalOrigin(), headerOrigin)) return headerOrigin;
-			} else {
-				logger.trace("Origin header not allowed to be blank");
-			}
+		var originHeader = request.getHeader(LOCAL_ORIGIN_HEADER);
+		if (isNotBlank(originHeader)) {
+			originHeader = originHeader.toLowerCase();
+			logger.trace("Origin set by header ({})", originHeader);
+			if ("default".equals(originHeader)) return origin;
+			if (originHeader.matches(HasOrigin.REGEX_NOT_BLANK) && isSubOrigin(props.getLocalOrigin(), originHeader)) return originHeader;
 		} else {
-			logger.trace("Origin header not allowed");
+			logger.trace("Origin header not allowed to be blank");
 		}
 		logger.trace("Default origin used ({})", origin);
 		return origin;
