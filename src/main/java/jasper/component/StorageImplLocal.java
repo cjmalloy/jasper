@@ -131,7 +131,6 @@ public class StorageImplLocal implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void overwrite(String origin, String namespace, String id, byte[] file) throws IOException {
-		if (!exists(origin, namespace, id)) throw new NotFoundException("Cache " + id);
 		var path = path(origin, namespace, id);
 		Files.write(path, file, StandardOpenOption.TRUNCATE_EXISTING);
 	}

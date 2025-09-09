@@ -277,11 +277,7 @@ public class FileCache {
 	public void push(String url, String origin, byte[] data) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
-		if (storage.exists(origin, CACHE, id)) {
-			storage.overwrite(origin, CACHE, id, data);
-		} else {
-			storage.storeAt(origin, CACHE, id, data);
-		}
+		storage.overwrite(origin, CACHE, id, data);
 	}
 
 	@Timed(value = "jasper.cache")
