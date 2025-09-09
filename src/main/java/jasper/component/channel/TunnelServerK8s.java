@@ -23,8 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Profile("kubernetes")
 @Component
-public class TunnelServer {
-	private static final Logger logger = LoggerFactory.getLogger(TunnelServer.class);
+public class TunnelServerK8s {
+	private static final Logger logger = LoggerFactory.getLogger(TunnelServerK8s.class);
 
 	@Autowired
 	Props props;
