@@ -98,10 +98,7 @@ public class SecurityConfiguration {
 		logger.info("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
 		logger.info("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
 		logger.info("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
-		logger.info("USER HEADERS:             {}", props.isAllowUserTagHeader() ? "ENABLED" : "-");
 		logger.info("ROLE HEADERS:             {}", props.isAllowUserRoleHeader() ? "ENABLED" : "-");
-		logger.info("ROLE HEADERS:             {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
-		logger.info("ORIGIN HEADERS:           {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
 	}
 
 	private boolean profile(String profile) {

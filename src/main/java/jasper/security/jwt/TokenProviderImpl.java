@@ -34,9 +34,10 @@ import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.matchesPublic;
+import static jasper.domain.proj.Tag.prefix;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
-import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
@@ -145,23 +146,23 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	String getUsername(Claims claims, String origin) {
-		if (props.isAllowLocalOriginHeader() && isNotBlank(getOriginHeader())) {
-			origin = getOriginHeader();
-			logger.debug("{} Origin set by header", origin);
+		var userTagHeader = getHeader(USER_TAG_HEADER);
+		if (isBlank(userTagHeader) || !userTagHeader.matches(User.REGEX)) {
+			userTagHeader = "";
 		}
-		var principal = "";
-		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
-			principal = getHeader(USER_TAG_HEADER);
-			logger.debug("{} User tag set by header: {}", principal);
-		} else {
-			var security = configs.security(origin);
-			principal = claims.get(security.getUsernameClaim(), String.class);
-			logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal, origin);
-			if (security.isExternalId()) {
-				var user = configs.getUserByExternalId(origin, principal);
-				if (user.isPresent()) {
-					logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
+		userTagHeader = userTagHeader.toLowerCase();
+		logger.debug("{} User tag set by header: {}", userTagHeader);
+		var security = configs.security(origin);
+		var principal = claims.get(security.getUsernameClaim(), String.class);
+		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal, origin);
+		if (security.isExternalId()) {
+			var user = configs.getUserByExternalId(origin, principal);
+			if (user.isPresent()) {
+				logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
+				if (isBlank(userTagHeader)) {
 					return user.get() + origin;
+				} else if (matchesPublic(principal, userTagHeader)) {
+					return userTagHeader + origin;
 				}
 			}
 		}
@@ -169,7 +170,6 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		if (principal != null && principal.contains("@")) {
 			var emailDomain = principal.substring(principal.indexOf("@") + 1);
 			principal = principal.substring(0, principal.indexOf("@"));
-			var security = configs.security(origin);
 			if (security.isEmailDomainInUsername() && !emailDomain.equals(security.getRootEmailDomain())) {
 				principal = emailDomain + "/" + principal;
 			}
@@ -192,11 +192,14 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 				// Default to private user if +user is not exactly specified
 				principal = "_user";
 			}
-		} else if (!principal.startsWith("+user/") && !principal.startsWith("_user/")) {
+		} else if (!matchesPublic("user", principal)) {
 			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-			principal = (isPrivate ? "_user/" : "+user/") + principal;
+			principal = prefix(isPrivate ? "_user" : "+user", principal);
 		}
-		logger.debug("{} Username: {}", origin, principal + origin);
+		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader))) {
+			principal = userTagHeader;
+		}
+		logger.debug("{} Username: {}", origin, principal);
 		return principal + origin;
 	}
 
