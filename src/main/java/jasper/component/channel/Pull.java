@@ -191,14 +191,14 @@ public class Pull {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {
-					logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
+					logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 					stomp.stop();
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
 				}), websocketExecutor);
 			} catch (Exception e) {
-				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
+				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();
 				tunnelClient.releaseProxy(remote);
 				if (e instanceof DeploymentException) return null;
