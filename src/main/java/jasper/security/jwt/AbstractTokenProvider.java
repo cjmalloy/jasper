@@ -18,8 +18,6 @@ import java.util.stream.Collectors;
 import static jasper.domain.User.ROLES;
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.getHeader;
-import static jasper.security.AuthoritiesConstants.ADMIN;
-import static jasper.security.AuthoritiesConstants.MOD;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractTokenProvider implements TokenProvider {
@@ -82,13 +80,5 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
-	}
-
-	boolean isPartialMod(String origin) {
-		var roles = getPartialAuthorities(origin);
-		for (var role : roles) {
-			if (role.getAuthority().equals(ADMIN) || role.getAuthority().equals(MOD)) return true;
-		}
-		return false;
 	}
 }

@@ -12,6 +12,7 @@ import static jasper.domain.proj.Tag.matchesPublic;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class TokenProviderImplDefault extends AbstractTokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImplDefault.class);
@@ -33,12 +34,12 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 			userTagHeader = "";
 		}
 		userTagHeader = userTagHeader.toLowerCase();
-		if (!isBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || isPartialMod(origin))) {
+		if (isNotBlank(userTagHeader) && (props.isAllowUserTagHeader() || matchesPublic(principal, userTagHeader))) {
 			principal = userTagHeader;
-			logger.debug("User tag set by header: {} ({})", principal, origin);
+			logger.debug("{} User tag set by header: {}", origin, principal);
 		}
 		var user = configs.getUser(principal);
-		logger.debug("Default Auth {} ({})", principal, origin);
+		logger.debug("{} Default Auth {}", origin, principal);
 		return new PreAuthenticatedAuthenticationToken(principal + origin, user, getAuthorities(user, origin));
 	}
 }

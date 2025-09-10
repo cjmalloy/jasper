@@ -108,7 +108,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
                     try {
                         jwtParsers.put(origin, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
                     } catch (URISyntaxException e) {
-						logger.error("Cannot parse JWKS URI {}", security.getJwksUri());
+						logger.error("{} Cannot parse JWKS URI {}", origin, security.getJwksUri());
                         throw new RuntimeException(e);
                     }
                     break;
@@ -122,12 +122,12 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, UserDto user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
 		if (user != null && user.getRole() != null) {
-			logger.debug("User Roles: {}", user.getRole());
+			logger.debug("{} User Roles: {}", origin, user.getRole());
 			if (User.ROLES.contains(user.getRole().trim())) {
 				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
 			}
 		} else {
-			logger.debug("No User");
+			logger.debug("{} No User", origin);
 		}
 		return auth;
 	}
@@ -154,14 +154,17 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		}
 		var security = configs.security(origin);
 		var principal = claims.get(security.getUsernameClaim(), String.class);
-		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal, origin);
-		if (security.isExternalId()) {
+		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal);
+		if (props.isAllowUserTagHeader() && isNotBlank(userTagHeader)) {
+			principal = getHeader(USER_TAG_HEADER);
+			logger.debug("{} User tag set by header: {}", origin, principal);
+		} else if (security.isExternalId()) {
 			var user = configs.getUserByExternalId(origin, principal);
 			if (user.isPresent()) {
 				logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
 				if (isBlank(userTagHeader)) {
 					return user.get() + origin;
-				} else if (matchesPublic(principal, userTagHeader) || isPartialMod(origin)) {
+				} else if (matchesPublic(principal, userTagHeader)) {
 					logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 					return userTagHeader + origin;
 				}
@@ -197,7 +200,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 			principal = prefix(isPrivate ? "_user" : "+user", principal);
 		}
-		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader) || isPartialMod(origin))) {
+		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader))) {
 			logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 			principal = userTagHeader;
 		}
@@ -210,13 +213,13 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		if (!hasText(authToken)) return false;
 		var security = configs.security(origin);
 		if (isBlank(security.getMode())) {
-			logger.error("No client for origin {} in security settings", formatOrigin(origin));
+			logger.error("{} No client for origin {} in security settings", origin, formatOrigin(origin));
 			return false;
 		}
 		try {
 			var parser = getParser(origin);
 			if (parser == null) {
-				logger.error("No client for origin {} in security settings", formatOrigin(origin));
+				logger.error("{} No client for origin {} in security settings", origin, formatOrigin(origin));
 				return false;
 			}
 			var claims = parser.parseSignedClaims(authToken).getPayload();
@@ -250,7 +253,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			logger.trace(INVALID_JWT_TOKEN, e);
 
 		} catch (IllegalArgumentException e) {
-			logger.error("Token validation error {}", getMessage(e));
+			logger.error("{} Token validation error {}", origin, getMessage(e));
 		}
         return false;
 	}

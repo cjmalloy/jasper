@@ -69,6 +69,7 @@ public class Props {
 	private int clearCacheCooldownSec = 2;
 	private int pushCooldownSec = 1;
 	private int pullWebsocketCooldownSec = 10;
+	private boolean allowUserTagHeader = false;
 	private boolean allowUserRoleHeader = false;
 	private boolean allowAuthHeaders = false;
 	/**
