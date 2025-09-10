@@ -42,7 +42,7 @@ public class FeedScraper implements Scheduler.CronRunner {
 	public void run(Ref ref) {
 		logger.info("{} Scraping {} feed: {}.", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		try {
-			rssParser.scrape(ref, false);
+			rssParser.scrape(ref);
 		} catch (ParsingFeedException e) {
 			if (e.getLineNumber() == 1) {
 				// Temporary error page, retry later

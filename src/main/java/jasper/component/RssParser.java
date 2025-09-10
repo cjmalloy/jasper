@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -62,7 +63,7 @@ public class RssParser {
 	RefRepository refRepository;
 
 	@Timed("jasper.feed")
-	public void scrape(Ref feed, boolean force) throws IOException, FeedException {
+	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
 		var requestConfig = RequestConfig.custom()
@@ -84,9 +85,12 @@ public class RssParser {
 			}
 			Instant lastScrape = null;
 			var cron = getCron(feed);
-			if (!force && cron != null && cron.getInterval() != null) {
+			if (cron != null && cron.getInterval() != null) {
 				lastScrape = Instant.now().minus(cron.getInterval());
-				request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+				if (lastScrape.isAfter(feed.getModified()) &&
+					lastScrape.isAfter(Instant.now().minus(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS))) {
+					request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+				}
 			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request)) {
@@ -99,7 +103,7 @@ public class RssParser {
 					return;
 				}
 				try (var stream = response.getEntity().getContent()) {
-					if (!force && !config.isDisableEtag()) {
+					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
