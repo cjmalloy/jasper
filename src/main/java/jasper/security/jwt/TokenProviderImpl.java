@@ -161,7 +161,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 				logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
 				if (isBlank(userTagHeader)) {
 					return user.get() + origin;
-				} else if (matchesPublic(principal, userTagHeader)) {
+				} else if (matchesPublic(principal, userTagHeader) || isPartialMod(origin)) {
 					logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 					return userTagHeader + origin;
 				}
@@ -197,7 +197,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
 			principal = prefix(isPrivate ? "_user" : "+user", principal);
 		}
-		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader))) {
+		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader) || isPartialMod(origin))) {
 			logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 			principal = userTagHeader;
 		}

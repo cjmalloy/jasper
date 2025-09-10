@@ -3,7 +3,6 @@ package jasper.security.jwt;
 import io.jsonwebtoken.Claims;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.domain.User;
 import jasper.errors.UserTagInUseException;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -16,8 +15,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static jasper.domain.User.ROLES;
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.getHeader;
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public abstract class AbstractTokenProvider implements TokenProvider {
@@ -55,8 +57,8 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
 		var auth = getPartialAuthorities(origin);
 		if (user != null && user.getRole() != null) {
-			logger.debug("User Roles: {}", user.getRole());
-			if (User.ROLES.contains(user.getRole().trim())) {
+			logger.debug("{} User Roles: {}", origin, user.getRole());
+			if (ROLES.contains(user.getRole().trim())) {
 				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
 			}
 		} else {
@@ -67,9 +69,12 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(String origin) {
 		var roles = props.getDefaultRole() + ',' + configs.security(origin).getDefaultRole();
-		if (props.isAllowUserRoleHeader() && isNotBlank(getHeader(USER_ROLE_HEADER))) {
-			logger.debug("Header Roles: {}", getHeader(USER_ROLE_HEADER));
-			roles += ", " + getHeader(USER_ROLE_HEADER);
+		var roleHeader = getHeader(USER_ROLE_HEADER);
+		if (props.isAllowUserRoleHeader() && isNotBlank(roleHeader)) {
+			logger.debug("{} Header Roles: {}", origin, roleHeader);
+			if (ROLES.contains(roleHeader.trim())) {
+				roles += ", " + roleHeader.trim();
+			}
 		}
 		return Arrays
 			.stream(roles.split(","))
@@ -77,5 +82,13 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 			.map(String::trim)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
+	}
+
+	boolean isPartialMod(String origin) {
+		var roles = getPartialAuthorities(origin);
+		for (var role : roles) {
+			if (role.getAuthority().equals(ADMIN) || role.getAuthority().equals(MOD)) return true;
+		}
+		return false;
 	}
 }

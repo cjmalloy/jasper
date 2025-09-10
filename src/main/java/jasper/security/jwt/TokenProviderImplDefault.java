@@ -33,7 +33,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 			userTagHeader = "";
 		}
 		userTagHeader = userTagHeader.toLowerCase();
-		if (!isBlank(userTagHeader) && matchesPublic(principal, userTagHeader)) {
+		if (!isBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || isPartialMod(origin))) {
 			principal = userTagHeader;
 			logger.debug("User tag set by header: {} ({})", principal, origin);
 		}
