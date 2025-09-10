@@ -173,7 +173,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			if (request instanceof ServletServerHttpRequest servletRequest) {
 				var httpServletRequest = servletRequest.getServletRequest();
 				var token = httpServletRequest.getHeader(AUTHORIZATION_HEADER);
-				if (isNotBlank(token)) {
+				if (isNotBlank(token) && token.startsWith("Bearer ")) {
 					attributes.put("jwt", token.substring("Bearer ".length()));
 				}
 				attributes.put("origin", resolveOrigin(httpServletRequest));
