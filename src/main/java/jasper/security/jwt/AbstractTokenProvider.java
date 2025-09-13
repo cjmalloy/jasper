@@ -10,10 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static jasper.domain.User.ROLES;
 import static jasper.security.Auth.USER_ROLE_HEADER;
@@ -66,19 +65,18 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 	}
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(String origin) {
-		var roles = props.getDefaultRole() + ',' + configs.security(origin).getDefaultRole();
+		var auth = new ArrayList<SimpleGrantedAuthority>();
+		auth.add(new SimpleGrantedAuthority(props.getDefaultRole()));
+		auth.add(new SimpleGrantedAuthority(configs.security(origin).getDefaultRole()));
 		var roleHeader = getHeader(USER_ROLE_HEADER);
 		if (props.isAllowUserRoleHeader() && isNotBlank(roleHeader)) {
 			logger.debug("{} Header Roles: {}", origin, roleHeader);
-			if (ROLES.contains(roleHeader.trim())) {
-				roles += ", " + roleHeader.trim();
+			for (var role : roleHeader.trim().trim().split(",")) {
+				if (ROLES.contains(role.trim())) {
+					auth.add(new SimpleGrantedAuthority(role.trim()));
+				}
 			}
 		}
-		return Arrays
-			.stream(roles.split(","))
-			.filter(r -> !r.isBlank())
-			.map(String::trim)
-			.map(SimpleGrantedAuthority::new)
-			.collect(Collectors.toList());
+		return auth;
 	}
 }
