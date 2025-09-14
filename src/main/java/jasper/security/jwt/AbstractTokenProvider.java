@@ -3,6 +3,7 @@ package jasper.security.jwt;
 import io.jsonwebtoken.Claims;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
+import jasper.domain.User;
 import jasper.errors.UserTagInUseException;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -31,7 +32,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		this.configs = configs;
 	}
 
-	UserDto getUser(String userTag, Claims claims, String origin) {
+	User getUser(String userTag, Claims claims, String origin) {
 		var user = configs.getUser(userTag + origin);
 		var security = configs.security(origin);
 		if (security.isExternalId()) {
@@ -51,7 +52,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		return user;
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(UserDto user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(User user, String origin) {
 		var auth = getPartialAuthorities(origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("{} User Roles: {}", origin, user.getRole());

@@ -97,7 +97,7 @@ public class AuthMultiTenantUnitTest {
 		return mock;
 	}
 
-	ConfigCache getConfigs(UserDto ...users) {
+	ConfigCache getConfigs(User ...users) {
 		var configCache = mock(ConfigCache.class);
 		when(configCache.getUser(anyString()))
 			.thenReturn(null);

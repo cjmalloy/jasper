@@ -20,7 +20,6 @@ import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
-import jasper.service.dto.UserDto;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,9 +149,8 @@ public class ConfigCache {
 	}
 
 	@Cacheable("user-cache")
-	public UserDto getUser(String tag) {
+	public User getUser(String tag) {
 		return userRepository.findOneByQualifiedTag(tag)
-			.map(dtoMapper::domainToDto)
 			.orElse(null);
 	}
 
@@ -161,7 +159,7 @@ public class ConfigCache {
 		return userRepository.findOneByOriginAndExternalId(origin, externalId);
 	}
 
-	public UserDto createUser(String tag, String origin, String externalId) {
+	public User createUser(String tag, String origin, String externalId) {
 		var user = new User();
 		user.setTag(tag);
 		user.setOrigin(origin);
@@ -169,7 +167,7 @@ public class ConfigCache {
 			.ids(List.of(externalId))
 			.build());
 		ingestUser.create(user);
-		return dtoMapper.domainToDto(user);
+		return user;
 	}
 
 	public void setExternalId(String tag, String origin, String externalId) {

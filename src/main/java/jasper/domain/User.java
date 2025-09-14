@@ -162,4 +162,18 @@ public class User implements Tag {
 			t.startsWith("+user/") ||
 			t.startsWith("_user/");
 	}
+
+	@JsonIgnore
+	public boolean hasExternalId() {
+		if (external == null) return false;
+		if (external.getIds() == null) return false;
+		return !external.getIds().isEmpty();
+	}
+
+	@JsonIgnore
+	public boolean hasExternalId(String id) {
+		if (external == null) return false;
+		if (external.getIds() == null) return false;
+		return external.getIds().contains(id);
+	}
 }
