@@ -43,7 +43,7 @@ public class IngestExtIT {
 		var ext = new Ext();
 		ext.setTag("test");
 
-		ingest.create(ext, false);
+		ingest.create(ext);
 
 		assertThat(extRepository.existsByQualifiedTag("test"))
 			.isTrue();
@@ -57,7 +57,7 @@ public class IngestExtIT {
 		var ext = new Ext();
 		ext.setTag("test");
 
-		assertThatThrownBy(() -> ingest.create(ext, false))
+		assertThatThrownBy(() -> ingest.create(ext))
 			.isInstanceOf(AlreadyExistsException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("test"))
@@ -92,7 +92,7 @@ public class IngestExtIT {
 		ext.setName("Second");
 		ext.setModified(existing.getModified());
 
-		ingest.update(ext, false);
+		ingest.update(ext);
 
 		assertThat(extRepository.existsByQualifiedTag("test"))
 			.isTrue();
@@ -109,12 +109,12 @@ public class IngestExtIT {
 			var ext1 = new Ext();
 			ext1.setTag("test");
 			ext1.setName("First");
-			ingest.create(ext1, false);
+			ingest.create(ext1);
 			var ext2 = new Ext();
 			ext2.setTag("other");
 			ext2.setName("Second");
 
-			assertThatThrownBy(() -> ingest.create(ext2, false))
+			assertThatThrownBy(() -> ingest.create(ext2))
 				.isInstanceOf(DuplicateModifiedDateException.class);
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
@@ -138,18 +138,18 @@ public class IngestExtIT {
 			var ext1 = new Ext();
 			ext1.setTag("test");
 			ext1.setName("First");
-			ingest.create(ext1, false);
+			ingest.create(ext1);
 			setField(ingest, "ensureUniqueModifiedClock", fixedClock);
 			var ext2 = new Ext();
 			ext2.setTag("other");
 			ext2.setName("Second");
-			ingest.create(ext2, false);
+			ingest.create(ext2);
 			var update = new Ext();
 			update.setTag("test");
 			update.setName("Modified");
 			update.setModified(ext1.getModified());
 
-			assertThatThrownBy(() -> ingest.update(update, false))
+			assertThatThrownBy(() -> ingest.update(update))
 				.isInstanceOf(DuplicateModifiedDateException.class);
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
@@ -172,7 +172,7 @@ public class IngestExtIT {
 		var ext = new Ext();
 		ext.setTag("test");
 		ext.setName("First");
-		ingest.create(ext, false);
+		ingest.create(ext);
 		var update1 = new Ext();
 		update1.setTag("test");
 		update1.setName("M1");
@@ -182,9 +182,9 @@ public class IngestExtIT {
 		update2.setName("M2");
 		update2.setModified(ext.getModified());
 
-		ingest.update(update1, false);
+		ingest.update(update1);
 		Thread.sleep(1);
-		assertThatThrownBy(() -> ingest.update(update2, false))
+		assertThatThrownBy(() -> ingest.update(update2))
 			.isInstanceOf(ModifiedException.class);
 	}
 
@@ -193,7 +193,7 @@ public class IngestExtIT {
 		var ext = new Ext();
 		ext.setTag("test");
 		ext.setName("First");
-		ingest.create(ext, false);
+		ingest.create(ext);
 		var update1 = new Ext();
 		update1.setTag("test");
 		update1.setName("M1");
@@ -208,14 +208,14 @@ public class IngestExtIT {
 
 		var thread1 = new Thread(() -> {
 			try {
-				ingest.update(update1, false);
+				ingest.update(update1);
 			} catch (ModifiedException t) {
 				firstException.set(true);
 			}
 		});
 		var thread2 = new Thread(() -> {
 			try {
-				ingest.update(update2, false);
+				ingest.update(update2);
 			} catch (ModifiedException t) {
 				secondException.set(true);
 			}

@@ -160,7 +160,8 @@ public class IngestUser {
 						user.getModified(),
 						user.getKey(),
 						user.getPubKey(),
-						user.getAuthorizedKeys());
+						user.getAuthorizedKeys(),
+						user.getExternal());
 					if (updated == 0) {
 						throw new ModifiedException("User");
 					}

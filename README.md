@@ -3,7 +3,7 @@ Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/test.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-junit/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.4-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.5-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -275,8 +275,6 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
       "height": {"type": "int32", "nullable": true}
     }
   },
-  "generateMetadata": false,
-  "userUrl": false,
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
@@ -291,10 +289,6 @@ data according to the Plugin schema.
 **Config:** Arbitrary JSON.  
 **Defaults:** Default plugin data if creating a new Ref with empty plugin data.  
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
-**Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
-this plugin in all Ref metadata.  
-**User Url:** Flag to only allow this plugin on a User Url, which is a specially constructed URL
-of the form `tag:/{tag}?user={user}`. This has the effect of restricting the plugin to one Ref per user.
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
@@ -481,8 +475,7 @@ It supports the following configuration options:
 | `JASPER_BACKFILL_BATCH_SIZE`                   | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `1000`                                                                                                                                                                                                        |
 | `JASPER_CLEAR_CACHE_COOLDOWN_SEC`              | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
 | `JASPER_PUSH_COOLDOWN_SEC`                     | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
-| `JASPER_LOCAL_ORIGIN`                          | The origin of this server, unless overridden in a header or auth token.                                                        | `false`                                                                                                                                                                                                       |
-| `JASPER_ALLOW_LOCAL_ORIGIN_HEADER`             | Allow overriding the local origin via the `Local-Origin` header. Only set this if you set in reverse proxy.                    | `false`                                                                                                                                                                                                       |
+| `JASPER_LOCAL_ORIGIN`                          | The origin of this server. The local origin may be set to a sub origin via the `Local-Origin` header.                          | `false`                                                                                                                                                                                                       |
 | `JASPER_ALLOW_USER_TAG_HEADER`                 | Allow pre-authentication of a user via the `User-Tag` header.                                                                  | `false`                                                                                                                                                                                                       |
 | `JASPER_ALLOW_USER_ROLE_HEADER`                | Allows escalating user role via `User-Role` header.                                                                            | `false`                                                                                                                                                                                                       |
 | `JASPER_ALLOW_AUTH_HEADERS`                    | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers. | `false`                                                                                                                                                                                                       |
@@ -509,7 +502,7 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SERVER_MAX_REPL_ENTITY_BATCH` | Override the server maximum batch size for replicate controller.                                                               |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_SSH_ORIGINS`           | Override the server origins with SSH access.                                                                                   |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_MAX_PUSH_ENTITY_BATCH` | Override the server maximum batch size for push replicate.                                                                     |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SERVER_MAX_PUSH_ENTITY_BATCH` | Override the server maximum batch size for pull replicate.                                                                     |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MAX_PULL_ENTITY_BATCH` | Override the server maximum batch size for pull replicate.                                                                     |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_SCRIPT_SELECTORS`      | Override the server tags and origins that can run scripts. No wildcard origins.                                                |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_SCRIPT_WHITELIST`      | Override the server list of whitelisted script SHA-256 hashes.                                                                 |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_HOST_WHITELIST`        | Override the server list of whitelisted hosts.                                                                                 |                                                                                                                                                                                                               |
@@ -628,6 +621,7 @@ For convenience, the user URL is used if a blank URL is passed to the tagging re
 This allows you to quickly ensure settings are initialized and fetch / edit Ref plugins and tags to read settings.
 If a tag are passed, for example `plugin/kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/plugin/kanban`.
 If a blank URL and a blank tag are passed, the default is the generic user settings Ref: `tag:/+user/chris`.
+User plugins, which follow the template `plugin/user`, may **only** be added to user URL Refs.
 
 ### Special Tags
 Some public tags have special significance:
@@ -678,8 +672,11 @@ Jasper uses metadata generation pre-compute graph connections without including 
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
- * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+ * List of plugin responses: A list of responses with that plugin.
+ * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
+While the metadata is not transferred during replication, a simplified version is sent over the client API, with
+counts for each response type, and user plugin responses for the current user.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
@@ -764,10 +761,6 @@ const whatPlugin = {
     `,
   },
 };
-const whatPluginSignature = {
-  tag: '+plugin/delta/what',
-  generateMetadata: true,
-};
 ```
 
 ### Cron scripts
@@ -832,7 +825,14 @@ scraper:
     "scrapeThumbnail": { "type": "boolean" },
     "scrapeAudio": { "type": "boolean" },
     "scrapeVideo": { "type": "boolean" },
-    "scrapeEmbed": { "type": "boolean" }
+    "defaultThumbnail": {
+      "optionalProperties": {
+        "url": { "type": "string" },
+        "color": { "type": "string" },
+        "emoji": { "type": "string" },
+        "radius": { "type": "int32" }
+      }
+    }
   }
 }
 ```
@@ -846,8 +846,8 @@ scraper:
 **Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.  
 **Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.  
 **Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.  
-**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media.  
-**Scrape Embed:** Add a `plugin/embed` tag to the Ref to load oEmbed.  
+**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media or `plugin/embed` tag to the Ref to load oEmbed.  
+**Default Thumbnail:** Default thumbnail if none found in entry.  
 
 The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
 `plugin/feed` it will be skipped.
@@ -858,13 +858,15 @@ The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a
 {
   "optionalProperties": {
     "local": { "type": "string" },
-    "remote": { "type": "string" }
+    "remote": { "type": "string" },
+    "proxy": { "type": "string" }
   }
 }
 ```
 
 **Local:** Local alias for the remote origin.  
 **Remote:** Remote origin to query, or blank for the default.  
+**Proxy:** Alternate URL to replicate from.  
 
 ## Replicating Remote Origin
 The `+plugin/origin/pull` tag can be used to replicate remote origins. Since this plugin
@@ -872,17 +874,17 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pullInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPull": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "generateMetadata": { "type": "boolean" },
+    "websocket": { "type": "boolean" },
+    "cachePrefetch": { "type": "boolean" },
+    "cacheProxy": { "type": "boolean" },
+    "cacheProxyPrefetch": { "type": "boolean" },
     "validatePlugins": { "type": "boolean" },
+    "stripInvalidPlugins": { "type": "boolean" },
     "validateTemplates": { "type": "boolean" },
+    "stripInvalidTemplates": { "type": "boolean" },
     "addTags": { "elements": { "type": "string" } },
     "removeTags": { "elements": { "type": "string" } }
   }
@@ -890,15 +892,16 @@ fields set.
 ```
 
 **Query:** Restrict results using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to replicate from.  
-**Last Pull:** The time this origin was last replicated.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Generate Metadata:** Flag to enable, disable metadata generation.  
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size to pull each request.  
+**Websocket:** Listen to websocket cursor updates to pull.  
+**Cache Prefetch:** Attempt to pull cached files while pulling Refs.  
+**Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
+**Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
+**Strip Invalid Plugins:** If plugin validation is enabled, strip invalid plugins instead of skipping invalid Refs.  
 **Validate Templates:** Flag to enable, disable template validation.  
-**Validation Origin:** Origin to get plugin and templates for validation.  
+**Strip Invalid Template:** If template validation is enabled, strip invalid templates instead of skipping invalid Exts.
 **Add Tags:** Tags to apply to any Refs replicated from this origin.  
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
 
@@ -908,36 +911,20 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pushInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPush": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "writeOnly": { "type": "boolean" },
-    "lastModifiedRefWritten": { "elements": { "type": "string" } },
-    "lastModifiedExtWritten": { "elements": { "type": "string" } },
-    "lastModifiedUserWritten": { "elements": { "type": "string" } },
-    "lastModifiedPluginWritten": { "elements": { "type": "string" } },
-    "lastModifiedTemplateWritten": { "elements": { "type": "string" } }
+    "pushOnChange": { "type": "boolean" },
+    "cache": { "type": "boolean" }
   }
 }
 ```
 
 **Query:** Restrict push using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to push to.  
-**Last Push:** The time this origin was last pushed to.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Write Only:** Do not query remote for last modified cursor, just use saved cursor.  
-**Last Modified Ref Written:** Modified date of last Ref pushed.    
-**Last Modified Ext Written:** Modified date of last Ext pushed.    
-**Last Modified User Written:** Modified date of last User pushed.    
-**Last Modified Plugin Written:** Modified date of last Plugin pushed.    
-**Last Modified Template Written:** Modified date of last Template pushed.    
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size of entities to push.  
+**Push On Change:** Push entities immediately after modification.
+**Cache:** Also push cached files.  
 
 ## Random Number Generator
 

@@ -91,7 +91,7 @@ public class BackupController {
 			b = backupService.getBackup(origin, id);
 		} else {
 			if (!backupService.unlock(p)) throw new NotFoundException(id);
-			b = backupService.getBackupPreauth(id);
+			b = backupService.getBackupPreauth(origin, id);
 		}
 		if (b == null) throw new NotFoundException("Storage unavailable!");
 		return ResponseEntity.ok()

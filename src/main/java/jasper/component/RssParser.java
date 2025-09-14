@@ -13,7 +13,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.Audio;
-import jasper.plugin.Embed;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
@@ -30,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -63,7 +63,7 @@ public class RssParser {
 	RefRepository refRepository;
 
 	@Timed("jasper.feed")
-	public void scrape(Ref feed, boolean force) throws IOException, FeedException {
+	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
 		var requestConfig = RequestConfig.custom()
@@ -85,9 +85,12 @@ public class RssParser {
 			}
 			Instant lastScrape = null;
 			var cron = getCron(feed);
-			if (!force && cron != null && cron.getInterval() != null) {
+			if (cron != null && cron.getInterval() != null) {
 				lastScrape = Instant.now().minus(cron.getInterval());
-				request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+				if (lastScrape.isAfter(feed.getModified()) &&
+					lastScrape.isAfter(Instant.now().minus(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS))) {
+					request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+				}
 			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request)) {
@@ -100,16 +103,16 @@ public class RssParser {
 					return;
 				}
 				try (var stream = response.getEntity().getContent()) {
-					if (!force && !config.isDisableEtag()) {
+					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
 							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
 							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed);
 						}
 					}
 					var input = new SyndFeedInput();
@@ -119,7 +122,7 @@ public class RssParser {
 						cacheLater(image, feed.getOrigin());
 						if (!feed.hasTag("plugin/thumbnail")) {
 							feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
-							ingest.update(feed, false);
+							ingest.update(feed.getOrigin(), feed);
 						}
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
@@ -130,9 +133,9 @@ public class RssParser {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
 									feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
-								ingest.update(feed, false);
+								ingest.update(feed.getOrigin(), feed);
 							}
-							ingest.create(ref, false);
+							ingest.create(feed.getOrigin(), ref);
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
@@ -148,6 +151,10 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();
 		var link = entry.getLink();
+		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
+			// Atom ID, RSS GUID
+			link = entry.getUri();
+		}
 		if (config.isStripQuery() && link.contains("?")) {
 			link = link.substring(0, link.indexOf("?"));
 		}
@@ -218,12 +225,8 @@ public class RssParser {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
-			}
-		}
-		if (config.isScrapeEmbed()) {
-			parseEmbed(entry, ref);
-			if (ref.hasPlugin("plugin/embed")) {
-				cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
+			} else {
+				parseEmbed(entry, ref);
 			}
 		}
 		return ref;
@@ -316,14 +319,7 @@ public class RssParser {
 			.findFirst();
 		if (youtubeEmbed.isPresent()) {
 			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
-			return;
 		}
-
-		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
-		if (media == null) return;
-		if (media.getMetadata() == null) return;
-		if (media.getMetadata().getEmbed() == null) return;
-		ref.setPlugin("plugin/embed", media.getMetadata().getEmbed());
 	}
 
 	private void cacheLater(String url, String origin) {

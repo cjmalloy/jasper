@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 import static jasper.component.Replicator.deletorTag;
-import static jasper.domain.Ref.getHierarchicalTags;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasTags.formatTag;
 import static jasper.domain.proj.Tag.localTag;
@@ -78,7 +77,7 @@ public class Messages {
 		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
 		if (update.getTags() != null) {
 			for (var tag : update.getTags()) {
-				for (var path : getHierarchicalTags(List.of(tag))) {
+				for (var path : ref.getExpandedTags()) {
 					sendAndRetry(() -> tagTxChannel.send(createMessage(tag, tagHeaders(ref.getOrigin(), path))));
 				}
 			}

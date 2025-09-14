@@ -122,7 +122,9 @@ public class Replicator {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
 				if (fileCache.isPresent()) {
 					if (cache.getBody() != null) {
-						fileCache.get().push(url, localOrigin, cache.getBody().getInputStream());
+						try (var is = cache.getBody().getInputStream()) {
+							fileCache.get().push(url, localOrigin, is);
+						}
 					} else {
 						fileCache.get().push(url, localOrigin, "".getBytes());
 						logger.warn("{} Empty response pulling cache ({}) {}",
@@ -244,20 +246,21 @@ public class Replicator {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
 					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
+						"query", pull.getQuery(),
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
-						if (pull.isCache() && ref.getUrl().startsWith("cache:") && (fileCache.isEmpty() || !fileCache.get().cacheExists(ref.getUrl(), localOrigin)) ||
+						if (pull.isCachePrefetch() && ref.getUrl().startsWith("cache:") && (fileCache.isEmpty() || !fileCache.get().cacheExists(ref.getUrl(), localOrigin)) ||
 							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && (fileCache.isEmpty() || !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin))) {
 							ref.addTag("_plugin/delta/cache");
 						}
 						logger.trace("{} Ingesting pulled ref {}: {}",
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
-							ingestRef.push(ref, rootOrigin, pull.isValidatePlugins());
+							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins());
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
@@ -297,7 +300,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ext {}: {}",
 							remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
 						try {
-							ingestExt.push(ext, rootOrigin, pull.isValidateTemplates());
+							ingestExt.push(rootOrigin, ext, pull.isValidateTemplates(), pull.isStripInvalidTemplates());
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling Ext skipped (double pull detected) {}: {}",
@@ -433,8 +436,7 @@ public class Replicator {
 						for (var ref : refList) {
 							if (ref.getUrl().startsWith("cache:")) {
 								if (fileCache.isPresent()) {
-									try {
-										var is = fileCache.get().fetch(ref.getUrl(), localOrigin);
+									try (var is = fileCache.get().fetch(ref.getUrl(), localOrigin)) {
 										if (is != null) {
 											client.push(baseUri, ref.getUrl(), remoteOrigin, is.readAllBytes());
 										} else {

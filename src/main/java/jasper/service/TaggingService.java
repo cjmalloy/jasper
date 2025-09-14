@@ -3,7 +3,6 @@ package jasper.service;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
 import jasper.component.Tagger;
-import jasper.domain.Ref;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
@@ -50,11 +48,11 @@ public class TaggingService {
 		var ref = maybeRef.get();
 		if (ref.hasTag(tag)) throw new DuplicateTagException(tag);
 		ref.addTag(tag);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
+	@PreAuthorize("@auth.canUntag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant delete(String tag, String url, String origin) {
 		if (tag.equals("locked")) {
@@ -63,17 +61,16 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		ref.removePrefixTags();
 		if (!ref.hasTag(tag)) return ref.getModified();
 		if (ref.hasTag("locked") && ref.hasPlugin(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removeTag(tag);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
+	@PreAuthorize("@auth.canPatchTags(#tags, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant tag(List<String> tags, String url, String origin) {
 		if (tags.contains("-locked")) {
@@ -82,7 +79,6 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		ref.removePrefixTags();
 		if (ref.hasTag("locked")) {
 			for (var t : tags) {
 				if (t.startsWith("-") && ref.hasPlugin(t.substring(1))) {
@@ -91,58 +87,40 @@ public class TaggingService {
 			}
 		}
 		ref.addTags(tags);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public RefDto getResponse(String tag, String url) {
-		return mapper.domainToDto(getRef(url, tag));
+	public RefDto getResponse(String url) {
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
+		return mapper.domainToDto(ref);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
-		var ref = getRef(url, tag);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		if (isNotBlank(tag) && !ref.hasTag(tag)) {
 			ref.addTag(tag);
-			ingest.update(ref, false);
+			ingest.update(auth.getOrigin(), ref);
 		}
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
-		var ref = getRef(url, tag);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
-		ingest.update(ref, true);
+		ingest.update(auth.getOrigin(), ref);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canPatchTags(#tags)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
-		var ref = getRef(url, null);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		for (var tag : tags) ref.addTag(tag);
-		ingest.update(ref, true);
-	}
-
-	private Ref getRef(String url, String tag) {
-		if (isNotBlank(url)) return getResponseRef(url);
-		if (isNotBlank(tag)) return getTagRef(tag);
-		return getUserRef();
-	}
-
-	private Ref getUserRef() {
-		return getResponseRef(null);
-	}
-
-	private Ref getTagRef(String tag) {
-		return getResponseRef("tag:/" + tag);
-	}
-
-	private Ref getResponseRef(String url) {
-		if (auth.getUserTag() == null || isBlank(auth.getUserTag().tag)) throw new NotFoundException("User URL");
-		return tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
+		ingest.update(auth.getOrigin(), ref);
 	}
 }

@@ -63,7 +63,7 @@ public class SmtpService {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));
 			ref.addTag("internal");
 		}
-		refService.create(ref, false);
+		refService.create(ref);
 	}
 
 	private Ref smtpToDomain(SmtpWebhookDto msg) {

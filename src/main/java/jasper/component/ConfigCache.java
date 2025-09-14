@@ -7,6 +7,7 @@ import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
+import jasper.domain.External;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.domain.User;
@@ -19,7 +20,6 @@ import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
-import jasper.service.dto.UserDto;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,7 +118,8 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"user-cache",
 		"user-dto-cache",
-		"user-dto-page-cache"
+		"user-dto-page-cache",
+		"external-user-cache"
 	}, allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
@@ -127,7 +128,6 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"plugin-cache",
 		"plugin-config-cache",
-		"plugin-metadata-cache",
 		"plugin-dto-cache",
 		"plugin-dto-page-cache",
 	}, allEntries = true)
@@ -149,10 +149,29 @@ public class ConfigCache {
 	}
 
 	@Cacheable("user-cache")
-	public UserDto getUser(String tag) {
+	public User getUser(String tag) {
 		return userRepository.findOneByQualifiedTag(tag)
-			.map(dtoMapper::domainToDto)
 			.orElse(null);
+	}
+
+	@Cacheable(value = "external-user-cache", unless = "#result == null")
+	public Optional<String> getUserByExternalId(String origin, String externalId) {
+		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	}
+
+	public User createUser(String tag, String origin, String externalId) {
+		var user = new User();
+		user.setTag(tag);
+		user.setOrigin(origin);
+		user.setExternal(External.builder()
+			.ids(List.of(externalId))
+			.build());
+		ingestUser.create(user);
+		return user;
+	}
+
+	public void setExternalId(String tag, String origin, String externalId) {
+		userRepository.setExternalId(tag, origin, externalId);
 	}
 
 	@Cacheable(value = "user-cache", key = "'+user'")
@@ -218,11 +237,6 @@ public class ConfigCache {
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
 	public Optional<Plugin> getPlugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
-	}
-
-	@Cacheable("plugin-metadata-cache")
-	public List<String> getMetadataPlugins(String origin) {
-		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
 	}
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")

@@ -39,12 +39,34 @@ public class HttpClientFactory {
 	public void logStats() {
 		for (var entry : managers.entrySet()) {
 			var manager = entry.getValue();
-			logger.info("HTTP Connection Pool: {} ({}) with {}/{} connections (total/per-route)",
+			var stats = manager.getTotalStats();
+			logger.info("HTTP Connection Pool: {} ({} {}): Leased={}, Available={}, Pending={}, Max={}",
 				formatOrigin(entry.getKey().tenantId),
 				entry.getKey().serial() ? "serial" : "parallel",
-				manager.getTotalStats().getLeased(),
-				manager.getDefaultMaxPerRoute());
+				manager.getDefaultMaxPerRoute(),
+				stats.getLeased(),
+				stats.getAvailable(),
+				stats.getPending(),
+				stats.getMax());
+			manager.getRoutes().forEach(route -> {
+				var routeStats = manager.getStats(route);
+				if (routeStats.getLeased() > 0) {
+					logger.debug("{}  Route {}: Leased={}, Available={}",
+						formatOrigin(entry.getKey().tenantId),
+						route,
+						routeStats.getLeased(),
+						routeStats.getAvailable());
+				}
+			});
 		}
+	}
+
+	@Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
+	public void evictIdleConnections() {
+		managers.values().forEach(manager -> {
+			manager.closeExpiredConnections();
+			manager.closeIdleConnections(30, TimeUnit.SECONDS);
+		});
 	}
 
 	public CloseableHttpClient getSerialClient() {
@@ -78,7 +100,7 @@ public class HttpClientFactory {
 				.setConnectionManagerShared(true)
 				.setDefaultRequestConfig(RequestConfig.custom()
 					.setConnectTimeout(5 * 60 * 1000)
-					.setConnectionRequestTimeout(5 * 1000)
+					.setConnectionRequestTimeout(30 * 1000)
 					.setSocketTimeout(5 * 60 * 1000)
 					.build())
 				.disableCookieManagement()

@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.RollbackException;
 import jasper.config.Props;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -27,6 +28,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+
+import static jasper.component.Meta.expandTags;
 
 @Component
 public class Ingest {
@@ -60,82 +63,67 @@ public class Ingest {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void create(Ref ref, boolean force) {
-		ref.addHierarchicalTags();
+	public void create(String rootOrigin, Ref ref) {
 		ref.setCreated(Instant.now());
-		validate.ref(ref.getOrigin(), ref, force);
-		rng.update(ref, null, ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		validate.ref(rootOrigin, ref);
+		rng.update(rootOrigin, ref, null);
+		meta.ref(rootOrigin, ref);
 		ensureCreateUniqueModified(ref);
-		meta.sources(ref, null, ref.getOrigin());
+		meta.sources(rootOrigin, ref, null);
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void update(Ref ref, boolean force) {
+	public void update(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		ref.addHierarchicalTags();
-		validate.ref(ref.getOrigin(), ref, force);
-		rng.update(ref, maybeExisting.get(), ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		validate.ref(rootOrigin, ref);
+		rng.update(rootOrigin, ref, maybeExisting.get());
+		meta.ref(rootOrigin, ref);
 		ensureUpdateUniqueModified(ref);
-		meta.sources(ref, maybeExisting.get(), ref.getOrigin());
+		meta.sources(rootOrigin, ref, maybeExisting.get());
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void silent(Ref ref) {
-		ref.addHierarchicalTags();
+	public void silent(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		meta.ref(ref, ref.getOrigin());
+		meta.ref(rootOrigin, ref);
 		ensureSilentUniqueModified(ref);
-		meta.sources(ref, maybeExisting.orElse(null), ref.getOrigin());
+		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
-	public void push(Ref ref, String rootOrigin, boolean validation) {
+	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
-		ref.addHierarchicalTags();
-		if (validation) validate.ref(ref.getOrigin(), ref, rootOrigin, true);
+		if (validation) validate.ref(rootOrigin, ref);
 		Ref maybeExisting = null;
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
-			rng.update(ref, maybeExisting, rootOrigin);
-			meta.ref(ref, rootOrigin);
+			rng.update(rootOrigin, ref, maybeExisting);
+			meta.ref(rootOrigin, ref);
+		} else {
+			ref.setMetadata(Metadata
+				.builder()
+				.modified(null)
+				.regen(true)
+				.expandedTags(expandTags(ref.getTags()))
+				.build());
 		}
-		try {
-			refRepository.save(ref);
-		} catch (DataIntegrityViolationException | PersistenceException e) {
-			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-			if (e instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			if (e.getCause() instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			throw e;
-		} catch (TransactionSystemException e) {
-			if (e.getCause() instanceof RollbackException r) {
-				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
-			}
-			throw e;
-		}
-		if (generateMetadata) meta.sources(ref, maybeExisting, rootOrigin);
+		pushUniqueModified(ref);
+		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);
 	}
 
 	@Transactional
 	@Timed(value = "jasper.ref", histogram = true)
-	public void delete(String url, String origin) {
+	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
-		meta.sources(null, maybeExisting.get(), origin);
+		meta.sources(rootOrigin, null, maybeExisting.get());
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
@@ -243,6 +231,42 @@ public class Ingest {
 				}
 				throw e;
 			}
+		}
+	}
+
+	void pushUniqueModified(Ref ref) {
+		try {
+			var updated = refRepository.pushAsyncMetadata(
+				ref.getUrl(),
+				ref.getOrigin(),
+				ref.getTitle(),
+				ref.getComment(),
+				ref.getTags(),
+				ref.getSources(),
+				ref.getAlternateUrls(),
+				ref.getPlugins(),
+				ref.getMetadata(),
+				ref.getPublished(),
+				ref.getModified());
+			if (updated == 0) {
+				refRepository.save(ref);
+			}
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 	}
 

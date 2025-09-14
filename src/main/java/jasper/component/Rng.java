@@ -25,7 +25,7 @@ public class Rng {
 	RefRepository refRepository;
 
 	@Timed(value = "jasper.rng.update", histogram = true)
-	public void update(Ref ref, Ref existing, String rootOrigin) {
+	public void update(String rootOrigin, Ref ref, Ref existing) {
 		if (!ref.hasTag("plugin/rng")) return;
 		if (existing != null) {
 			var remotes = refRepository.findAll(RefFilter.builder()

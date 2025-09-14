@@ -56,10 +56,9 @@ public class ExtController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	Instant createExt(
-		@RequestBody @Valid Ext ext,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ext ext
 	) {
-		return extService.create(ext, force);
+		return extService.create(ext);
 	}
 
 	@ApiResponses({
@@ -138,10 +137,9 @@ public class ExtController {
 	})
 	@PutMapping
 	Instant updateExt(
-		@RequestBody @Valid Ext ext,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ext ext
 	) {
-		return extService.update(ext, force);
+		return extService.update(ext);
 	}
 
 	@ApiResponses({

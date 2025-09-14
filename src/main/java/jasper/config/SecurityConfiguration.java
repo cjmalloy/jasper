@@ -100,8 +100,6 @@ public class SecurityConfiguration {
 		logger.info("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
 		logger.info("USER HEADERS:             {}", props.isAllowUserTagHeader() ? "ENABLED" : "-");
 		logger.info("ROLE HEADERS:             {}", props.isAllowUserRoleHeader() ? "ENABLED" : "-");
-		logger.info("ROLE HEADERS:             {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
-		logger.info("ORIGIN HEADERS:           {}", props.isAllowLocalOriginHeader() ? "ENABLED" : "-");
 	}
 
 	private boolean profile(String profile) {
@@ -121,7 +119,7 @@ public class SecurityConfiguration {
 					.policyDirectives(props.getSecurity().getContentSecurityPolicy()))
 				.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 				.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-				.permissionsPolicy(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()"))
+				.permissionsPolicyHeader(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()"))
 			)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.with(securityConfigurerAdapter(), Customizer.withDefaults())

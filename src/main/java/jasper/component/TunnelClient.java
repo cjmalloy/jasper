@@ -324,8 +324,10 @@ public class TunnelClient {
 
 	private String linuxUsername(String qualifiedTag) {
 		return reverseOrigin(qualifiedTag)
-			.replaceAll("[_+]", "")
-			.replaceAll("/", "_");
+			.replace("_", "")
+			.replace("+", "")
+			.replace(".", "-")
+			.replace("/", "_");
 	}
 
 	private static abstract class GetBanner implements UserInteraction {

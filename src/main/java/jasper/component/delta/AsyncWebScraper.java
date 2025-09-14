@@ -47,7 +47,7 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 	@Override
 	public void run(Ref ref) throws Exception {
 		logger.info("{} Scraping {}", ref.getOrigin(), ref.getUrl());
-		var tags = ref.getTags();
+		var tags = ref.getExpandedTags();
 		tagger.tag(ref.getUrl(), ref.getOrigin(), "-_plugin/delta/scrape");
 		var web = scraper.web(ref.getUrl(), ref.getOrigin());
 		// Fetch Ref again in case scrape modified it
@@ -61,9 +61,8 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 		if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/plugins", t))) ref.setPlugins(web.getPlugins());
 		if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/tags", t))) ref.setTags(web.getTags());
 		if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/published", t))) ref.setPublished(web.getPublished());
-		ref.removePrefixTags();
 		ref.removeTag("_plugin/delta/scrape");
-		ingest.update(ref, false);
+		ingest.update(ref.getOrigin(), ref);
 	}
 
 	private Ref fetch(String url, String origin) {

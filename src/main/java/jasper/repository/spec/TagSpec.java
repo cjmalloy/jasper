@@ -7,6 +7,7 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
+import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class TagSpec {
 
@@ -107,8 +108,8 @@ public class TagSpec {
 	}
 
 	public static <T extends Tag> Specification<T> isAnyQualifiedTag(List<QualifiedTag> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<T>where(null);
+		if (tags == null || tags.isEmpty()) return unrestricted();
+		var spec = Specification.<T>unrestricted();
 		for (var t : tags) {
 			spec = spec.or(t.spec());
 		}
@@ -117,7 +118,7 @@ public class TagSpec {
 
 	public static <T extends Tag> Specification<T> isAllQualifiedTag(List<QualifiedTag> tags) {
 		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<T>where(null);
+		var spec = Specification.<T>unrestricted();
 		for (var t : tags) {
 			spec = spec.and(t.spec());
 		}

@@ -1,4 +1,4 @@
-FROM oven/bun:1.2.10-slim AS bun
+FROM oven/bun:1.2.21-slim AS bun
 
 FROM maven:3.9.9-amazoncorretto-21-debian AS builder
 WORKDIR /app
@@ -8,8 +8,8 @@ RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -D
 COPY src ./src
 RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
-# java -Djarmode=layertools -jar target/jasper-1.3.0-SNAPSHOT.jar list
-RUN java -Djarmode=layertools -jar target/*.jar extract
+# java -Djarmode=tools -jar target/*.jar list-layers
+RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination layers
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
@@ -46,7 +46,7 @@ CMD mvn -gs settings.xml gatling:test; \
 		mkdir -p /report && \
 		cp -r target/gatling/simplejaspersimulation-*/* /report/
 
-FROM azul/zulu-openjdk-debian:21.0.7-21.42-jre AS deploy
+FROM azul/zulu-openjdk-debian:21.0.8-21.44-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
@@ -72,12 +72,12 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
 WORKDIR /app
-COPY --from=builder /app/dependencies/ ./
+COPY --from=builder /app/layers/dependencies/ ./
 RUN true
-COPY --from=builder /app/spring-boot-loader/ ./
+COPY --from=builder /app/layers/spring-boot-loader/ ./
 RUN true
-COPY --from=builder /app/snapshot-dependencies/ ./
+COPY --from=builder /app/layers/snapshot-dependencies/ ./
 RUN true
-COPY --from=builder /app/application/ ./
+COPY --from=builder /app/layers/application/ ./
 COPY docker/entrypoint.sh .
 ENTRYPOINT ["sh", "entrypoint.sh"]

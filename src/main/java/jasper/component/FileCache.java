@@ -25,10 +25,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
 import static jasper.util.Logging.getMessage;
+import static org.apache.commons.io.IOUtils.closeQuietly;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -99,10 +101,10 @@ public class FileCache {
 	public String fetchString(String url, String origin) {
 		var is = fetch(url, origin);
 		if (is == null) return null;
-		var cache = cache(url, origin);
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		try {
+		try (is) {
+			var cache = cache(url, origin);
+			if (cache == null) return null;
+			if (bannedOrBroken(cache)) return null;
 			return new String(is.readAllBytes());
 		} catch (IOException e) {
 			return null;
@@ -130,6 +132,7 @@ public class FileCache {
 				return null;
 			}
 		}
+		if (hasMatchingTag(stat(url, origin), "+plugin/error")) return null;
 		String mimeType;
 		String id;
 		try (var res = fetch.doScrape(url, origin)) {
@@ -142,11 +145,13 @@ public class FileCache {
 				return null;
 			}
 			mimeType = res.getMimeType();
-			if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
-				id = existingCache.getId();
-				storage.storeAt(origin, CACHE, id, res.getInputStream());
-			} else {
-				id = storage.store(origin, CACHE, res.getInputStream());
+			try (var is = res.getInputStream()) {
+				if (existingCache != null && isNotBlank(existingCache.getId()) && !storage.exists(origin, CACHE, existingCache.getId())) {
+					id = existingCache.getId();
+					storage.storeAt(origin, CACHE, id, is);
+				} else {
+					id = storage.store(origin, CACHE, is);
+				}
 			}
 			var cache = Cache.builder()
 				.id(id)
@@ -158,6 +163,7 @@ public class FileCache {
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
+			logger.error("{} Error Fetching {}", origin, url, e);
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
 				"Error Fetching: " + getMessage(e));
@@ -186,7 +192,7 @@ public class FileCache {
 		if (url.startsWith("cache:")) {
 			id = url.substring("cache:".length());
 		}
-		fetch(url, origin);
+		closeQuietly(fetch(url, origin));
 		var fullSize = cache(url, origin);
 		if (fullSize == null) {
 			if (configs.getRemote(origin) == null) return null;
@@ -207,7 +213,9 @@ public class FileCache {
 		if (storage.exists(origin, CACHE, thumbnailId)) {
 			return fetch(thumbnailUrl, origin);
 		} else {
-			var data = images.thumbnail(fetch(url, origin));
+			var is = fetch(url, origin);
+			if (is == null) return null;
+			var data = images.thumbnail(is);
 			if (data == null) {
 				// Returning null means the full size image is already small enough to be a thumbnail
 				// Set this as a thumbnail to disable future attempts

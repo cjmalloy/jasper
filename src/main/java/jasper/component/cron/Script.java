@@ -44,7 +44,7 @@ public class Script implements Scheduler.CronRunner {
 	public void run(Ref ref) throws Exception {
 		var found = false;
 		logger.debug("{} Searching scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
-		var tags = ref.getTags().stream()
+		var tags = ref.getExpandedTags().stream()
 			.filter(t -> matchesTag("plugin/script", publicTag(t)))
 			.sorted()
 			.toList()

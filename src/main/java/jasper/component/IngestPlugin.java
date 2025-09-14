@@ -160,8 +160,6 @@ public class IngestPlugin {
 						plugin.getConfig(),
 						plugin.getSchema(),
 						plugin.getDefaults(),
-						plugin.isGenerateMetadata(),
-						plugin.isUserUrl(),
 						plugin.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Plugin");
