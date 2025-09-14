@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -82,7 +83,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private int nesting;
 
-	@Formula("COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
+	@Formula("COALESCE(metadata->>'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
 	@Setter(AccessLevel.NONE)
 	private String metadataModified;
 
@@ -90,7 +91,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
-	@Formula("metadata -> 'obsolete'")
+	@Formula("metadata->'obsolete'")
 	@Setter(AccessLevel.NONE)
 	private Boolean obsolete;
 
@@ -102,21 +103,21 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String sourceCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'responses'), 0)")
+	@Formula("COALESCE(jsonb_array_length(metadata->'responses'), 0)")
 	@Setter(AccessLevel.NONE)
 	private String responseCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/comment'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/comment')::int, 0)")
 	@Setter(AccessLevel.NONE)
 	private String commentCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
 	private String voteCount;
 
-	@Formula("COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)")
+	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
 	private String voteScore;
 
-	@Formula("floor((3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) - COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0)) * pow(CASE WHEN 3 + COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/up'), 0) > COALESCE(jsonb_array_length(metadata -> 'plugins' -> 'plugin/vote/down'), 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
+	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
 	private String voteScoreDecay;
 
 	@Column
@@ -134,24 +135,25 @@ public class Ref implements HasTags {
 	private String textsearchEn;
 
 	public boolean hasPluginResponse(String tag) {
-		// TODO: group plugin responses by origin
 		if (metadata == null) return false;
 		if (metadata.getPlugins() == null) return false;
 		return metadata.getPlugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> !metadata.getPlugins().get(t).isEmpty());
+			.anyMatch(t -> metadata.getPlugins().get(t) > 0);
 	}
 
 	public void setOrigin(String value) {
 		origin = value == null ? "" : value;
 	}
 
-	public void addHierarchicalTags() {
-		addTags(getHierarchicalTags(this.tags));
-	}
-
-	public void removePrefixTags() {
-		removePrefixTags(tags);
+	@JsonIgnore
+	public List<String> getExpandedTags() {
+		if (metadata != null &&
+			metadata.getExpandedTags() != null &&
+			!metadata.getExpandedTags().isEmpty()) {
+			return metadata.getExpandedTags();
+		}
+		return expandTags(tags);
 	}
 
 	@JsonIgnore
@@ -167,7 +169,7 @@ public class Ref implements HasTags {
 		if (plugins != null) {
 			var remove = new ArrayList<String>();
 			plugins.fieldNames().forEachRemaining(p -> {
-				if (matchesTag(p, tag) && !hasTag(p)) remove.add(p);
+				if (matchesTag(tag, p)) remove.add(p);
 			});
 			for (var p : remove) setPlugin(p, null);
 		}
@@ -178,6 +180,18 @@ public class Ref implements HasTags {
 	public Ref removeTags(List<String> toRemove) {
 		if (tags == null || toRemove == null) return this;
 		for (var r : toRemove) removeTag(r);
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref clearPlugins() {
+		if (plugins != null) {
+			var remove = new ArrayList<String>();
+			plugins.fieldNames().forEachRemaining(p -> {
+				if (!hasTag(p)) remove.add(p);
+			});
+			for (var p : remove) setPlugin(p, null);
+		}
 		return this;
 	}
 
@@ -228,34 +242,6 @@ public class Ref implements HasTags {
 		return Objects.hash(url, origin);
 	}
 
-	public static List<String> getHierarchicalTags(List<String> tags) {
-		if (tags == null) return new ArrayList<>();
-		var result = new ArrayList<>(tags);
-		for (var i = result.size() - 1; i >= 0; i--) {
-			var t = result.get(i);
-			while (t.contains("/")) {
-				t = t.substring(0, t.lastIndexOf("/"));
-				if (!result.contains(t)) {
-					result.add(t);
-				}
-			}
-		}
-		return result;
-	}
-
-	public static void removePrefixTags(List<String> tags) {
-		if (tags == null) return;
-		for (int i = tags.size() - 1; i >= 0; i--) {
-			var check = tags.get(i) + "/";
-			for (int j = 0; j < tags.size(); j++) {
-				if (tags.get(j).startsWith(check)) {
-					tags.remove(i);
-					break;
-				}
-			}
-		}
-	}
-
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
 		if (jsonNode == null) {
@@ -290,12 +276,12 @@ public class Ref implements HasTags {
 	}
 
 	@JsonIgnore
-	public int getPluginResponses(String tag) {
+	public long getPluginResponses(String tag) {
 		if (metadata == null) return 0;
 		if (metadata.getPlugins() == null) return 0;
 		if (!metadata.getPlugins().containsKey(tag)) return 0;
 		if (metadata.getPlugins().get(tag) == null) return 0;
-		return metadata.getPlugins().get(tag).size();
+		return metadata.getPlugins().get(tag);
 	}
 
 	@JsonIgnore

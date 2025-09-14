@@ -38,12 +38,6 @@ public abstract class ComponentDtoMapper {
 
 	public abstract TemplateDto domainToDto(Template ref);
 
-	@AfterMapping
-	protected void filterTags(@MappingTarget RefDto ref) {
-		if (ref.getTags() == null) return;
-		Ref.removePrefixTags(ref.getTags());
-	}
-
 	public int countMetadata(List<String> responses) {
 		if (responses == null) return 0;
 		return responses.size();
@@ -67,7 +61,6 @@ public abstract class ComponentDtoMapper {
 			}
 		}
 		ref.setTags(filtered);
-		Ref.removePrefixTags(ref.getTags());
 	}
 
 	@AfterMapping

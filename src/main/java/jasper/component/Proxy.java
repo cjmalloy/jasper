@@ -12,6 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Optional;
 
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.util.Logging.getMessage;
@@ -50,6 +51,7 @@ public class Proxy {
 		if (cache && fileCache.isPresent()) {
 			return fileCache.get().fetchString(url, origin);
 		}
+		if (hasMatchingTag(stat(url, origin), "+plugin/error")) return null;
 		try (var res = fetch.doScrape(url, origin)) {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (Exception e) {
@@ -67,7 +69,8 @@ public class Proxy {
 		if (fileCache.isPresent()) {
 			return fileCache.get().fetch(url, origin);
 		}
-		if (bannedOrBroken(getCache(stat(url, origin)))) return null;
+		var ref = stat(url, origin);
+		if (hasMatchingTag(ref, "+plugin/error") || bannedOrBroken(getCache(ref))) return null;
 		try {
 			return fetch.doScrape(url, origin).getInputStream();
 		} catch (Exception e) {
@@ -83,8 +86,9 @@ public class Proxy {
 		if (fileCache.isPresent()) {
 			return fileCache.get().fetchThumbnail(url, origin);
 		}
-		var fullSize = getCache(stat(url, origin));
-		if (bannedOrBroken(fullSize)) return null;
+		var ref = stat(url, origin);
+		var fullSize = getCache(ref);
+		if (hasMatchingTag(ref, "+plugin/error") || bannedOrBroken(fullSize)) return null;
 		if (fullSize != null && fullSize.isThumbnail()) {
 			return fetch(url, origin);
 		}

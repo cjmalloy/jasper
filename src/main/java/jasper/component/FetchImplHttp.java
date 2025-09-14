@@ -7,18 +7,19 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Pull.getPull;
+import static org.apache.http.util.EntityUtils.consumeQuietly;
 
 @Profile("proxy")
 @Component
@@ -55,6 +56,7 @@ public class FetchImplHttp implements Fetch {
 	}
 
 	private CloseableHttpResponse doWebScrape(String url) throws IOException {
+		logger.debug("Starting request to {}", url);
 		HttpUriRequest request = new HttpGet(url);
 		if (!hostCheck.validHost(request.getURI())) {
 			logger.info("Invalid host {}", request.getURI().getHost());
@@ -65,8 +67,18 @@ public class FetchImplHttp implements Fetch {
 		var res = http.execute(request);
 		if (res == null) return null;
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
-			return doWebScrape(res.getFirstHeader("Location").getElements()[0].getValue());
+			try {
+				var location = res.getFirstHeader("Location").getElements()[0].getValue();
+				logger.debug("Forwarding request to {} -> {}", url, location);
+				return doWebScrape(location);
+			} catch (Exception e) {
+				logger.error("Error forwarding request from {}", url, e);
+				return null;
+			} finally {
+				res.close();
+			}
 		}
+		logger.debug("Request completed {}", url);
 		return res;
 	}
 
@@ -75,17 +87,27 @@ public class FetchImplHttp implements Fetch {
 		return new FileRequest() {
 			@Override
 			public String getMimeType() {
-				return res.getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
+				var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+				return header == null ? null : header.getValue();
 			}
 
 			@Override
 			public InputStream getInputStream() throws IOException {
-				return res.getEntity().getContent();
+				return new FilterInputStream(res.getEntity().getContent()) {
+					@Override
+					public void close() throws IOException {
+						try {
+							super.close();
+						} finally {
+							res.close();
+						}
+					}
+				};
 			}
 
 			@Override
 			public void close() throws IOException {
-				EntityUtils.consumeQuietly(res.getEntity());
+				consumeQuietly(res.getEntity());
 				res.close();
 			}
 		};

@@ -9,10 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -24,8 +21,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
+import static jasper.component.vm.RunProcess.runProcess;
 import static java.lang.System.getProperty;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
@@ -79,16 +76,7 @@ if process.returncode != 0:
 			// Create virtual environment if it doesn't exist
 			if (!exists(requirementsFile)) {
 				var venvProcess = new ProcessBuilder(python, "-m", "venv", venv.toString()).start();
-				var finished = venvProcess.waitFor(60, TimeUnit.SECONDS);
-				if (!finished) {
-					venvProcess.destroy();
-					throw new RuntimeException("Virtual environment creation timed out");
-				}
-				var logs = getErrors(venvProcess.getErrorStream());
-				if (venvProcess.exitValue() != 0) {
-					logs = getErrors(venvProcess.getInputStream()) + logs;
-					throw new ScriptException("Virtual environment creation failed with exit code: " + venvProcess.exitValue(), logs);
-				}
+				runProcess(venvProcess, 60_000);
 				createDirectories(venv);
 				writeString(requirementsFile, requirements);
 			}
@@ -103,16 +91,7 @@ if process.returncode != 0:
 				// Install requirements using pip
 				var pip = venv.resolve("bin/pip").toString();
 				var pipProcess = new ProcessBuilder(pip, "install", "--upgrade", "-r", requirementsFile.toString()).start();
-				var finished = pipProcess.waitFor(300, TimeUnit.SECONDS);
-				if (!finished) {
-					pipProcess.destroy();
-					throw new RuntimeException("Requirements installation timed out");
-				}
-				var logs = getErrors(pipProcess.getErrorStream());
-				if (pipProcess.exitValue() != 0) {
-					logs = getErrors(pipProcess.getInputStream()) + logs;
-					throw new ScriptException("Requirements installation failed with exit code: " + pipProcess.exitValue(), logs);
-				}
+				runProcess(pipProcess, 300_000);
 			}
 		}
 		var scriptProcess = new ProcessBuilder(python, "-c", pythonVmWrapperScript, ""+timeoutMs, api, props.getCacheApi()).start();
@@ -124,35 +103,6 @@ if process.returncode != 0:
 		} catch (IOException e) {
 			logger.warn("Script terminated before receiving input.");
 		}
-		var finished = scriptProcess.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
-		if (!finished) {
-			scriptProcess.destroy();
-			throw new RuntimeException("Script execution timed out");
-		}
-		var logs = getErrors(scriptProcess.getErrorStream());
-		if (scriptProcess.exitValue() != 0) {
-			logs = getErrors(scriptProcess.getInputStream()) + logs;
-			throw new ScriptException("Script execution failed with exit code: " + scriptProcess.exitValue(), logs);
-		}
-		var output = new StringBuilder();
-		try (var reader = new BufferedReader(new InputStreamReader(scriptProcess.getInputStream()))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				output.append(line).append("\n");
-			}
-		}
-		return output.toString();
-	}
-
-	private String getErrors(InputStream is) throws IOException {
-		var logs = new StringBuilder();
-		try (var reader = new BufferedReader(new InputStreamReader(is))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				logger.debug(line);
-				logs.append(line).append("\n");
-			}
-		}
-		return logs.toString();
+		return runProcess(scriptProcess, timeoutMs);
 	}
 }

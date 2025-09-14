@@ -4,10 +4,12 @@ import io.micrometer.core.annotation.Timed;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
+import jakarta.persistence.RollbackException;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
@@ -53,33 +56,29 @@ public class IngestExt {
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void create(Ext ext, boolean force) {
+	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
 			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
-		validate.ext(ext.getOrigin(), ext, force);
+		validate.ext(ext.getOrigin(), ext);
 		ensureCreateUniqueModified(ext);
 		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void update(Ext ext, boolean force) {
+	public void update(Ext ext) {
 		if (!extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
-		validate.ext(ext.getOrigin(), ext, force);
+		validate.ext(ext.getOrigin(), ext);
 		ensureUpdateUniqueModified(ext);
 		messages.updateExt(ext);
 	}
 
 	@Timed(value = "jasper.ext", histogram = true)
-	public void push(Ext ext, String rootOrigin, boolean validation) {
-		if (validation) validate.ext(ext.getOrigin(), ext, rootOrigin, true);
-		try {
-			extRepository.save(ext);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
-		}
+	public void push(String rootOrigin, Ext ext, boolean validation, boolean stripInvalidTemplates) {
+		if (validation) validate.ext(rootOrigin, ext, stripInvalidTemplates);
+		pushUniqueModified(ext);
 		if (isDeletorTag(ext.getTag())) {
 			delete(deletedTag(ext.getQualifiedTag()));
 		} else {
@@ -164,6 +163,28 @@ public class IngestExt {
 				}
 				throw e;
 			}
+		}
+	}
+
+	private void pushUniqueModified(Ext ext) {
+		try {
+			extRepository.save(ext);
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 	}
 

@@ -57,7 +57,10 @@ public class MetricsConfig {
 			);
 		} catch (ScopeNotActiveException e) {
 			return Tags.of(
-				"scope", "system"
+				"scope", "system",
+				"userTag", "",
+				"roles", "",
+				"origin", ""
 			);
 		}
 	}

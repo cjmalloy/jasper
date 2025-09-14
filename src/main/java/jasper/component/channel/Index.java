@@ -46,8 +46,12 @@ public class Index {
 			try {
 				refRepository.buildTags();
 			} catch (Exception ignored) {}
+			try {
+				refRepository.buildExpandedTags();
+			} catch (Exception ignored) {}
 		} else {
 			refRepository.dropTags();
+			refRepository.dropExpandedTags();
 		}
 		if (index.isSources()) {
 			try {

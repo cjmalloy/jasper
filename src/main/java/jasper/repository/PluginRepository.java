@@ -25,8 +25,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			config = :config,
 			schema = :schema,
 			defaults = :defaults,
-			generateMetadata = :generateMetadata,
-			userUrl = :userUrl,
 			modified = :modified
 		WHERE
 			tag = :tag AND
@@ -40,8 +38,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		JsonNode config,
 		ObjectNode schema,
 		JsonNode defaults,
-		boolean generateMetadata,
-		boolean userUrl,
 		Instant modified);
 
 	@Query("""
@@ -66,12 +62,4 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
 			AND p.tag = :tag""")
 	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
-
-	@Query("""
-		SELECT p.tag
-		FROM Plugin AS p
-		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
-			AND p.generateMetadata = true""")
-	List<String> findAllByGenerateMetadataByOrigin(String origin);
 }

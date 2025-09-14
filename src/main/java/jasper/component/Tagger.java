@@ -4,6 +4,7 @@ import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidPluginException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class Tagger {
 			var ref = from(url, origin, tags);
 			if (internal) ref.addTag("internal");
 			try {
-				ingest.create(ref, false);
+				ingest.create(origin, ref);
 			} catch (AlreadyExistsException e) {
 				return tag(retry, internal, url, origin, tags);
 			}
@@ -61,10 +62,11 @@ public class Tagger {
 		} else {
 			var ref = maybeRef.get();
 			if (ref.hasTag(tags)) return ref;
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(ref, false);
+				ingest.update(origin, ref);
+			} catch (InvalidPluginException e) {
+				ingest.silent(origin, ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				if (retry) return tag(true, internal, url, origin, tags);
@@ -80,10 +82,9 @@ public class Tagger {
 		if (maybeRef.isEmpty()) return null;
 		var ref = maybeRef.get();
 		if (!ref.hasTag(tags)) return ref;
-		ref.removePrefixTags();
 		ref.removeTags(asList(tags));
 		try {
-			ingest.update(ref, false);
+			ingest.update(origin, ref);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			return remove(url, origin, tags);
@@ -119,15 +120,14 @@ public class Tagger {
 			} else {
 				ref.setModified(cursor.minusMillis(1));
 			}
-			ingest.silent(ref);
+			ingest.silent(origin, ref);
 			return ref;
 		} else {
 			var ref = maybeRef.get();
 			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
-			ingest.silent(ref);
+			ingest.silent(origin, ref);
 			return ref;
 		}
 	}
@@ -140,7 +140,7 @@ public class Tagger {
 			ref.setTitle(title);
 			ref.addTag("internal");
 			try {
-				ingest.create(ref, false);
+				ingest.create(origin, ref);
 			} catch (AlreadyExistsException e) {
 				return plugin(retry, url, origin, title, tag, plugin, tags);
 			}
@@ -149,10 +149,9 @@ public class Tagger {
 			var ref = maybeRef.get();
 			// TODO: check if plugin already matches exactly and skip
 			ref.setPlugin(tag, plugin);
-			ref.removePrefixTags();
 			ref.addTags(asList(tags));
 			try {
-				ingest.update(ref, false);
+				ingest.update(origin, ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				if (retry) return plugin(retry, url, origin, title, tag, plugin, tags);
@@ -195,7 +194,7 @@ public class Tagger {
 			tags.addAll(parent.getTags().stream().filter(t -> capturesDownwards("_user", t)).map(Tag::publicTag).toList());
 		}
 		ref.setTags(tags);
-		ingest.create(ref, false);
+		ingest.create(origin, ref);
 	}
 
 	@Async
@@ -243,26 +242,11 @@ public class Tagger {
 				ref.setOrigin(origin);
 				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
 				ref.setTags(new ArrayList<>(List.of("internal", user)));
-				ingest.create(ref, false);
+				ingest.create(origin, ref);
 				return ref;
 			});
 	}
 
-	@Async
-	@Timed(value = "jasper.tagger", histogram = true)
-	public void response(String url, String origin, String ...tags) {
-		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
-		var ref = getResponseRef("_user", origin, url);
-		if (ref.hasTag(tags)) return;
-		for (var tag : tags) ref.addTag(tag);
-		try {
-			ingest.update(ref, true);
-		} catch (ModifiedException e) {
-			// TODO: infinite retrys?
-			response(url, origin, tags);
-		}
-	}
 
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)

@@ -44,27 +44,26 @@ public interface Config {
 		/**
 		 * Whitelist origins to be allowed web access.
 		 */
+		@Builder.Default
 		private List<String> webOrigins = List.of("");
 		@Builder.Default
 		private int maxReplEntityBatch = 500;
 		/**
 		 * Whitelist origins to be allowed to open SSH tunnels.
 		 */
+		@Builder.Default
 		private List<String> sshOrigins = List.of("");
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
-		/**
-		 * Whitelist origins to be allowed to monitor and pull using +plugin/origin/pull.
-		 * Requires +plugin/origin/pull in the script selectors.
-		 */
-		private List<String> pullWebsocketOrigins = List.of("");
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
 		 * Whitelist selectors to run scripts on. No origin wildcards.
 		 */
+		@Builder.Default
 		private List<String> scriptSelectors = List.of("");
 		@JsonIgnore
+		@Builder.Default
 		private List<QualifiedTag> _scriptSelectors = null;
 		@JsonIgnore
 		public boolean script(String plugin) {
@@ -87,14 +86,17 @@ public interface Config {
 		/**
 		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
 		 */
+		@Builder.Default
 		private List<String> scriptWhitelist = null;
 		/**
 		 * Whitelist domains to be allowed to fetch from.
 		 */
+		@Builder.Default
 		private List<String> hostWhitelist = null;
 		/**
 		 * Blacklist domains to be allowed to fetch from. Takes precedence over domain whitelist.
 		 */
+		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 
 		public ServerConfig wrap(Props props) {
@@ -120,7 +122,6 @@ public interface Config {
 			return ServerConfig.builder()
 				.webOrigins(List.of(origin))
 				.sshOrigins(List.of(origin))
-				.pullWebsocketOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
 	}
@@ -143,6 +144,7 @@ public interface Config {
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
 		private String usernameClaim = "sub";
+		private boolean externalId = false;
 		private boolean emailDomainInUsername = false;
 		private String rootEmailDomain = "";
 		private String verifiedEmailClaim = "verified_email";

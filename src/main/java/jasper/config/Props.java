@@ -69,7 +69,6 @@ public class Props {
 	private int clearCacheCooldownSec = 2;
 	private int pushCooldownSec = 1;
 	private int pullWebsocketCooldownSec = 10;
-	private boolean allowLocalOriginHeader = false;
 	private boolean allowUserTagHeader = false;
 	private boolean allowUserRoleHeader = false;
 	private boolean allowAuthHeaders = false;
@@ -190,7 +189,7 @@ public class Props {
 	@Getter
 	@Setter
 	public static class Security {
-		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
+		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 	}
 
 	@Getter

@@ -68,10 +68,9 @@ public class RefController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	Instant createRef(
-		@RequestBody @Valid Ref ref,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ref ref
 	) {
-		return refService.create(ref, force);
+		return refService.create(ref);
 	}
 
 	@ApiResponses({
@@ -250,10 +249,9 @@ public class RefController {
 	})
 	@PutMapping
 	Instant updateRef(
-		@RequestBody @Valid Ref ref,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ref ref
 	) {
-		return refService.update(ref, force);
+		return refService.update(ref);
 	}
 
 	@ApiResponses({

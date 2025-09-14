@@ -163,7 +163,7 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
-	protected Optional<UserDto> user;
+	protected Optional<User> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -401,21 +401,42 @@ public class Auth {
 	}
 
 	/**
-	 * Does the user have permission to use all tags when tagging Refs?
+	 * Does the user have permission to remove a tag when tagging Refs?
 	 */
-	public boolean canAddTags(List<String> tags) {
+	public boolean canDeleteTag(String tag) {
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		return tags.stream().allMatch(this::canAddTag);
+		if (!isPrivateTag(tag)) return true;
+		var qt = qt(tag + getOrigin());
+		if (isUser(qt)) return true;
+		return captures(getTagReadAccess(), qt);
+	}
+
+	/**
+	 * Does the user have permission to use all tags when tagging Refs?
+	 */
+	public boolean canPatchTags(List<String> tags) {
+		// Min Role
+		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
+		if (hasRole(MOD)) return true;
+		return tags.stream().allMatch(t -> {
+			if (t.startsWith("-")) {
+				return this.canDeleteTag(t.substring(1));
+			} else {
+				return this.canAddTag(t);
+			}
+		});
 	}
 
 	/**
 	 * Can the user add these tags to an existing ref?
 	 */
-	public boolean canTagAll(List<String> tags, String url, String origin) {
+	public boolean canPatchTags(List<String> tags, String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
@@ -425,16 +446,12 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		for (var tag : tags) {
 			if (tag.startsWith("-")) {
-				if (!canReadTag(tag.substring(1) + origin)) return false;
+				if (!canUntag(tag.substring(1), url, origin)) return false;
 			} else {
 				if (!canTag(tag, url, origin)) return false;
 			}
 		}
 		return true;
-	}
-
-	public List<String> tagPatch(List<String> patch) {
-		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
 	}
 
 	/**
@@ -458,6 +475,28 @@ public class Auth {
 			canReadRef(url, origin)) return true;
 		// You can add the tag, and you can edit the ref
 		return canAddTag(tag) && canWriteRef(url, origin);
+	}
+
+	/**
+	 * Can the user remove this tag to an existing ref?
+	 */
+	public boolean canUntag(String tag, String url, String origin) {
+		// Only writing to the local origin ever permitted
+		if (!local(origin)) return false;
+		// Min Role
+		if (!minRole()) return false;
+		// Editor has special access to remove public tags to Refs they can read
+		if (hasRole(EDITOR) &&
+			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
+			// Except for public, an Editor cannot make a private Ref public or vice-versa
+			!matchesTag("public", tag) &&
+			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
+			!matchesTag("locked", tag) &&
+			canReadRef(url, origin)) return true;
+		// You can delete the tag, and you can edit the ref
+		return canDeleteTag(tag) && canWriteRef(url, origin);
 	}
 
 	/**
@@ -658,7 +697,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
-		var role = ofNullable(configs.getUser(tag)).map(UserDto::getRole).orElse(null);
+		var role = ofNullable(configs.getUser(tag)).map(User::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role
@@ -682,11 +721,18 @@ public class Auth {
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getTagReadAccess(), maybeExisting.map(UserDto::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(UserDto::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(UserDto::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(UserDto::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
 		return true;
+	}
+
+	public UserDto filterUser(UserDto user) {
+		if (hasRole(MOD)) return user;
+		if (canWriteUserTag(user.getQualifiedTag())) return user;
+		user.setExternal(null);
+		return user;
 	}
 
 	public List<String> filterTags(List<String> tags) {
@@ -808,11 +854,11 @@ public class Auth {
 		return userTag;
 	}
 
-	protected Optional<UserDto> getUser() {
+	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
 			user = auth.map(a -> a.getDetails() instanceof UserDto
-				? (UserDto) a.getDetails()
+				? (User) a.getDetails()
 				: null);
 			if (isLoggedIn() && user.isEmpty()) {
 				user = ofNullable(configs.getUser(getUserTag().toString()));
@@ -825,17 +871,17 @@ public class Auth {
 		if (origin == null) {
 			origin = props.getOrigin();
 			var originHeader = getOriginHeader();
-			if (props.isAllowLocalOriginHeader() && originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
+			if (originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
 				origin = originHeader;
 			}
 		}
 		return origin;
 	}
 
-	public static String getOriginHeader() {
+	private static String getOriginHeader() {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
+			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
 			if (isBlank(originHeader)) return null;
 			originHeader = originHeader.toLowerCase();
 			if ("default".equals(originHeader)) return "";
@@ -863,7 +909,7 @@ public class Auth {
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getReadAccess)
+						.map(User::getReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -885,7 +931,7 @@ public class Auth {
 			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
 			if (isLoggedIn()) {
 				writeAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getWriteAccess)
+						.map(User::getWriteAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -907,7 +953,7 @@ public class Auth {
 			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagReadAccess)
+						.map(User::getTagReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -929,7 +975,7 @@ public class Auth {
 			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagWriteAccess)
+						.map(User::getTagWriteAccess)
 						.orElse(List.of())));
 			}
 		}

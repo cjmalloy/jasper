@@ -63,8 +63,8 @@ public class Scheduler {
 		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
 			watch.addWatch(origin, "+plugin/cron", this::schedule);
 		}
-		for (var origin : configs.root().scriptOrigins("+plugin/run")) {
-			watch.addWatch(origin, "+plugin/run", this::run);
+		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
+			watch.addWatch(origin, "+plugin/user/run", this::run);
 		}
 	}
 
@@ -110,12 +110,12 @@ public class Scheduler {
 			.orElse(null);
 		if (url == null) {
 			logger.error("{} Error in run tag: No source", origin);
-			tagger.remove(target.getUrl(), origin, "+plugin/run");
+			tagger.remove(target.getUrl(), origin, "+plugin/user/run");
 			return;
 		}
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
-			if (!configs.root().script("+plugin/run", origin)) throw new RuntimeException();
+			if (!configs.root().script("+plugin/user/run", origin)) throw new RuntimeException();
 			if (ref == null) {
 				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
 				throw new RuntimeException();
@@ -124,7 +124,7 @@ public class Scheduler {
 				logger.info("{} Cancelled running due to error {}: {}", origin, ref.getTitle(), url);
 				throw new RuntimeException();
 			}
-			if (!hasMatchingTag(target, "+plugin/run")) {
+			if (!hasMatchingTag(target, "+plugin/user/run")) {
 				// Was cancelled
 				throw new RuntimeException();
 			}
@@ -136,13 +136,13 @@ public class Scheduler {
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
-						if (!hasMatchingTag(target, "+plugin/run/silent")) logger.warn("{} Run Tag: {} {}", origin, k, url);
+						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 							ran.add(v);
-							tagger.removeAllResponses(url, origin, "+plugin/run");
+							tagger.removeAllResponses(url, origin, "+plugin/user/run");
 						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k, e);
+							logger.error("{} Error in run tag {} ", origin, k);
 							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 						} finally {
 							refs.remove(k);
@@ -158,7 +158,7 @@ public class Scheduler {
 				}
 				return null;
 			});
-			tagger.removeAllResponses(url, origin, "+plugin/run");
+			tagger.removeAllResponses(url, origin, "+plugin/user/run");
 		}
 	}
 
@@ -187,7 +187,7 @@ public class Scheduler {
 			}
 			return;
 		}
-		if (ref.hasPluginResponse("+plugin/run")) {
+		if (ref.hasPluginResponse("+plugin/user/run")) {
 			// Skip scheduled run since we are running manually
 			return;
 		}
@@ -201,7 +201,7 @@ public class Scheduler {
 				v.run(ref);
 				ran.add(v);
 			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k, e);
+				logger.error("{} Error in cron tag {} ", origin, k);
 				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 			}
 		});

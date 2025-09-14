@@ -3,6 +3,7 @@ package jasper.component.channel;
 import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
+import jasper.component.Replicator;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.domain.proj.HasTags;
@@ -48,6 +49,7 @@ import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
+import static jasper.util.Logging.getMessage;
 
 @Component
 public class Pull {
@@ -69,11 +71,16 @@ public class Pull {
 	Watch watch;
 
 	@Autowired
+	Replicator replicator;
+
+	@Autowired
 	@Qualifier("websocketExecutor")
 	private Executor websocketExecutor;
 
 	@Autowired
 	private Tagger tagger;
+
+	private final ConcurrentHashMap<String, Boolean> isPulling = new ConcurrentHashMap<>();
 
 	record MonitorInfo(String url, String origin, WebSocketStompClient client, String proxy, AtomicBoolean connected) {}
 	private Map<String, MonitorInfo> pulls = new ConcurrentHashMap<>();
@@ -85,7 +92,7 @@ public class Pull {
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().getPullWebsocketOrigins()) {
+		for (var origin : configs.root().scriptOrigins("+plugin/origin/pull")) {
 			// TODO: redo on template change
 			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
 		}
@@ -184,14 +191,14 @@ public class Pull {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {
-					logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
+					logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 					stomp.stop();
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
 				}), websocketExecutor);
 			} catch (Exception e) {
-				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause().getMessage());
+				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();
 				tunnelClient.releaseProxy(remote);
 				if (e instanceof DeploymentException) return null;
@@ -203,14 +210,27 @@ public class Pull {
 	}
 
 	private void handleCursorUpdate(String origin, String local, Instant cursor) {
-		if (!configs.root().getPullWebsocketOrigins().contains(origin)) return;
+		if (!configs.root().script("+plugin/origin/pull", origin)) return;
 		pulls.compute(local, (k, info) -> {
 			if (info == null) return null;
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
-				if (remote.getPluginResponses("+plugin/run") == 0) {
-					tagger.response(remote.getUrl(), remote.getOrigin(), "+plugin/run/silent");
+				if (remote.getPluginResponses("+plugin/user/run") == 0 && isPulling.putIfAbsent(local, true) == null) {
+					taskScheduler.schedule(() -> {
+						var config = getOrigin(remote);
+						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+						logger.debug("{} Pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+						try {
+							replicator.pull(remote);
+							logger.debug("{} Finished pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+						} catch (Exception e) {
+							logger.error("{} Error pulling origin from monitor ({}) {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
+							tagger.attachError(remote.getUrl(), origin, "Error pulling", getMessage(e));
+						} finally {
+							isPulling.remove(local);
+						}
+					}, Instant.now());
 				}
 				return info;
 			}

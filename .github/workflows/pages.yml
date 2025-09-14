@@ -22,11 +22,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/configure-pages@v5
 
       # Create site directory
       - name: Create site directory
+        # language=bash
         run: |
           mkdir -p _build _site
           cp README.md _build/
@@ -42,6 +43,7 @@ jobs:
 
       # Download and merge any test reports
       - name: Process Reports
+        # language=bash
         run: |
           mkdir -p "_site/reports"
           gh auth login --with-token <<< "${{ github.token }}"
@@ -142,7 +144,7 @@ jobs:
           EOF
 
       # Upload combined site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
 
   deploy:
     needs: build

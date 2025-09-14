@@ -9,12 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.util.concurrent.TimeUnit;
+
+import static jasper.component.vm.RunProcess.runProcess;
 
 @Component
 public class JavaScript {
@@ -28,7 +26,6 @@ public class JavaScript {
 
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
-		process.argv.splice(1, 1); // Workaround https://github.com/oven-sh/bun/issues/12209
 		const fs = require('fs');
 		const vm = require('node:vm');
 		const stdin = fs.readFileSync(0, 'utf-8');
@@ -61,7 +58,7 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, "bun-arg-placeholder", ""+timeoutMs, api).start();
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
@@ -70,36 +67,6 @@ public class JavaScript {
 		} catch (IOException e) {
 			logger.warn("Script terminated before receiving input.");
 		}
-		var finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
-		if (!finished) {
-			process.destroy();
-			throw new RuntimeException("Script execution timed out");
-		}
-		var logs = getErrors(process.getErrorStream());
-		var exitCode = process.exitValue();
-		if (exitCode != 0) {
-			logs = getErrors(process.getInputStream()) + logs;
-			throw new ScriptException("Script execution failed with exit code: " + exitCode, logs);
-		}
-		try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-			var output = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				output.append(line).append("\n");
-			}
-			return output.toString();
-		}
-	}
-
-	private String getErrors(InputStream is) throws IOException {
-		var logs = new StringBuilder();
-		try (var reader = new BufferedReader(new InputStreamReader(is))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				logger.debug(line);
-				logs.append(line).append("\n");
-			}
-		}
-		return logs.toString();
+		return runProcess(process, timeoutMs);
 	}
 }

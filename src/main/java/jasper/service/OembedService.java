@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.component.OembedProviders;
+import jasper.errors.NotFoundException;
 import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ public class OembedService {
 		try {
 			return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
 		} catch (Exception e) {
-			return null;
+			throw new NotFoundException(e.getMessage());
 		}
 	}
 
