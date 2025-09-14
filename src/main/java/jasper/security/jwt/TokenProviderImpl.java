@@ -85,7 +85,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	public Authentication getAuthentication(String token, String origin) {
 		var claims = getParser(origin).parseSignedClaims(token).getPayload();
 		var principal = getUsername(claims, origin);
-		UserDto user;
+		User user;
 		try {
 			user = getUser(localTag(principal), claims, origin);
 		} catch (UserTagInUseException e) {
@@ -119,7 +119,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return jwtParsers.get(origin);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, UserDto user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("{} User Roles: {}", origin, user.getRole());
