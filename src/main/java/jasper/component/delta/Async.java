@@ -12,8 +12,10 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
@@ -24,7 +26,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Future;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -47,6 +49,10 @@ public class Async {
 	private static final Logger logger = LoggerFactory.getLogger(Async.class);
 
 	@Autowired
+	@Qualifier("taskExecutor")
+	AsyncTaskExecutor taskExecutor;
+
+	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
@@ -55,7 +61,7 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, Future<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
@@ -107,7 +113,7 @@ public class Async {
 						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
 						return existing;
 					}
-					return taskScheduler.schedule(() -> {
+					return taskExecutor.submit(() -> {
 						try {
 							v.run(fetch(ud));
 						} catch (NotFoundException e) {
@@ -115,7 +121,7 @@ public class Async {
 						} catch (Exception e) {
 							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
 						}
-					}, Instant.now());
+					});
 				});
 			});
 		} catch (Exception e) {
