@@ -33,7 +33,6 @@ import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -71,6 +70,7 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static java.net.URLDecoder.decode;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -367,20 +367,27 @@ public class Auth {
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var tag = topic.substring(topic.indexOf('/') + 1);
-			var decodedTag = URLDecoder.decode(tag, StandardCharsets.UTF_8);
+			var decodedTag = decode(tag, StandardCharsets.UTF_8);
             return canReadTag(decodedTag + origin);
 		} else if (destination.startsWith("/topic/ref/")) {
 			var topic = destination.substring("/topic/ref/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var url = topic.substring(topic.indexOf('/') + 1);
-			var decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+			var decodedUrl = decode(url, StandardCharsets.UTF_8);
 			return canReadRef(decodedUrl, origin);
 		} else if (destination.startsWith("/topic/response/")) {
 			var topic = destination.substring("/topic/response/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			return subOrigin(origin);
+		} else if (destination.startsWith("/topic/ext/")) {
+			var topic = destination.substring("/topic/ext/".length());
+			var origin = topic.substring(0, topic.indexOf('/'));
+			if (origin.equals("default")) origin = "";
+			var tag = topic.substring(topic.indexOf('/') + 1);
+			var decodedTag = decode(tag, StandardCharsets.UTF_8);
+			return canReadTag(decodedTag + origin);
 		}
 		return false;
 	}

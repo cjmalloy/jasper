@@ -2,6 +2,7 @@ package jasper.component.channel;
 
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.proj.HasOrigin;
+import jasper.service.dto.ExtDto;
 import jasper.service.dto.RefDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -64,6 +65,16 @@ public class Stomp {
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
 			stomp.convertAndSend("/topic/response/" + formatOrigin(o) + "/" + e(message.getHeaders().get("response")), message.getPayload());
+		}
+	}
+
+	@Order(0)
+	@ServiceActivator(inputChannel = "extRxChannel")
+	public void handleExtUpdate(Message<ExtDto> message) {
+		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
+		var origins = originHierarchy(origin);
+		for (var o : origins) {
+			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), message.getPayload());
 		}
 	}
 
