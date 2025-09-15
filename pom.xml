@@ -44,7 +44,7 @@
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
-		<xmlunit.version>2.10.3</xmlunit.version>
+		<xmlunit.version>2.10.4</xmlunit.version>
 	</properties>
 
 	<dependencies>
