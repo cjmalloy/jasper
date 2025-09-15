@@ -52,7 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.READ_ACCESS_HEADER;
 import static jasper.security.Auth.TAG_READ_ACCESS_HEADER;
@@ -159,9 +159,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			logger.debug("STOMP Local Origin Header: {}", originHeader);
 			if (isNotBlank(originHeader)) {
 				originHeader = originHeader.toLowerCase();
-				if ("default".equals(originHeader)) return props.getOrigin();
-				if (originHeader.matches(HasOrigin.REGEX)) {
-					return subOrigin(props.getLocalOrigin(), originHeader.toLowerCase());
+				if ("default".equals(originHeader)) return props.getLocalOrigin();
+				if (originHeader.matches(HasOrigin.REGEX) && isSubOrigin(props.getLocalOrigin(), originHeader)) {
+					return originHeader;
 				}
 			}
 			return props.getOrigin();
