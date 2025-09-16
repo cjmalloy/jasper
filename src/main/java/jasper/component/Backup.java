@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
+import jasper.component.Storage.Zipped;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -30,17 +32,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StreamUtils;
 
-import javax.persistence.EntityManager;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
-import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.component.FileCache.CACHE;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
 @Component
@@ -50,50 +52,64 @@ public class Backup {
 
 	@Autowired
 	Props props;
+
 	@Autowired
 	RefRepository refRepository;
+
 	@Autowired
 	ExtRepository extRepository;
+
 	@Autowired
 	UserRepository userRepository;
+
 	@Autowired
 	PluginRepository pluginRepository;
+
 	@Autowired
 	TemplateRepository templateRepository;
+
 	@Autowired
 	ObjectMapper objectMapper;
+
 	@Autowired
 	EntityManager entityManager;
+
 	@Autowired
 	PlatformTransactionManager transactionManager;
-	@Autowired(required = false)
-	Storage storage;
+
+	@Autowired
+	Optional<Storage> storage;
+
+	public record BackupStream(InputStream inputStream, long size) {}
 
 	@Async
 	@Transactional(readOnly = true)
 	@Counted(value = "jasper.backup")
 	public void createBackup(String origin, String id, BackupOptionsDto options) throws IOException {
-		if (storage == null) {
+		if (storage.isEmpty()) {
 			logger.error("{} Backup create failed: No storage present.", origin);
 			return;
 		}
 		var start = Instant.now();
 		logger.info("{} Creating Backup", origin);
-		try (var zipped = storage.zipAt(origin, BACKUPS, id + ".zip")) {
+		try (var zipped = storage.get().zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("/ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("/ext.json"));
+				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("ext.json"));
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("/user.json"));
+				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("user.json"));
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("/plugin.json"));
+				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("plugin.json"));
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("/template.json"));
+				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("template.json"));
+			}
+			if (options.isCache()) {
+				backupCache(origin, options.getNewerThan(), zipped);
 			}
 		}
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
@@ -140,56 +156,70 @@ public class Backup {
 		}
 	}
 
+	void backupCache(String origin, Instant newerThan, Zipped backup) {
+		try {
+			storage.get().backup(origin, CACHE, backup, newerThan);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Timed(value = "jasper.backup", histogram = true)
-	public byte[] get(String origin, String id) {
-		if (storage == null) {
+	public BackupStream get(String origin, String id) {
+		if (storage.isEmpty()) {
 			logger.error("Backup get failed: No storage present.");
 			return null;
 		}
-		return storage.get(origin, BACKUPS, id + ".zip");
+		return new BackupStream(
+			storage.get().stream(origin, BACKUPS, id + ".zip"),
+			storage.get().size(origin, BACKUPS, id + ".zip")
+		);
 	}
 
 	public boolean exists(String origin, String id) {
-		if (storage == null) {
+		if (storage.isEmpty()) {
 			logger.error("Backup exist check failed: No storage present.");
 			return false;
 		}
-		return storage.exists(origin, BACKUPS, id + ".zip");
+		return storage.get().exists(origin, BACKUPS, id + ".zip");
 	}
 
-	public List<String> listBackups(String origin) {
-		if (storage == null) {
+	public List<Storage.StorageRef> listBackups(String origin) {
+		if (storage.isEmpty()) {
 			logger.error("Backup list failed: No storage present.");
 			return null;
 		}
-		return storage.listStorage(origin, BACKUPS).stream()
-			.filter(n -> n.endsWith(".zip")).toList();
+		return storage.get().listStorage(origin, BACKUPS).stream()
+			.filter(n -> n.id().endsWith(".zip")).toList();
 	}
 
 	@Async
 	@Counted(value = "jasper.backup")
 	public void restore(String origin, String id, BackupOptionsDto options) {
-		if (storage == null) {
+		if (storage.isEmpty()) {
 			logger.error("{} Backup restore failed: No storage present.", origin);
 			return;
 		}
 		var start = Instant.now();
 		logger.info("{} Restoring Backup", origin);
-		try (var zipped = storage.streamZip(origin, BACKUPS, id + ".zip")) {
+		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.in("/ref.json"), Ref.class);
+				restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.in("/ext.json"), Ext.class);
+				restoreRepo(extRepository, origin, zipped.in("ext.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.in("/user.json"), User.class);
+				restoreRepo(userRepository, origin, zipped.in("user.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.in("/plugin.json"), Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped.in("plugin.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.in("/template.json"), Template.class);
+				restoreRepo(templateRepository, origin, zipped.in("template.json"), Template.class);
+			}
+			if (options == null || options.isCache()) {
+				restoreCache(origin, zipped);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -235,13 +265,21 @@ public class Backup {
 		}
     }
 
+	private void restoreCache(String origin, Zipped backup) {
+		try {
+			storage.get().restore(origin, CACHE, backup);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Timed(value = "jasper.backup", histogram = true)
 	public void store(String origin, String id, InputStream zipFile) throws IOException {
-		if (storage == null) {
+		if (storage.isEmpty()) {
 			logger.error("Backup store failed: No storage present.");
 			return;
 		}
-		storage.storeAt(origin, BACKUPS, id+ ".zip", zipFile);
+		storage.get().storeAt(origin, BACKUPS, id+ ".zip", zipFile);
 	}
 
 	/**
@@ -250,25 +288,25 @@ public class Backup {
 	 */
 	@Async
 	@Counted(value = "jasper.backup")
-	public void backfill(String origin) {
+	public void regen(String origin) {
 		var start = Instant.now();
-		logger.info("{} Starting Backfill", formatOrigin(origin));
+		logger.info("{} Starting Backfill", origin);
 		refRepository.dropMetadata(origin);
-		logger.info("{} Cleared old metadata", formatOrigin(origin));
+		logger.info("{} Cleared old metadata", origin);
 		int count = 0;
 		while (props.getBackfillBatchSize() == refRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
 			count += props.getBackfillBatchSize();
-			logger.info("{} Generating metadata... {} done", formatOrigin(origin), count);
+			logger.info("{} Generating metadata... {} done", origin, count);
 		}
-		logger.info("{} Finished Backfill in {}", formatOrigin(origin), Duration.between(start, Instant.now()));
+		logger.info("{} Finished Backfill in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	@Timed(value = "jasper.backup", histogram = true)
 	public void delete(String origin, String id) throws IOException {
-		if (storage == null) {
+		if (storage.isEmpty()) {
 			logger.error("Backup delete failed: No storage present.");
 			return;
 		}
-		storage.delete(origin, BACKUPS, id + ".zip");
+		storage.get().delete(origin, BACKUPS, id + ".zip");
 	}
 }

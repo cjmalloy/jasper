@@ -1,12 +1,11 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
-import jasper.config.Props;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
-import org.javatuples.Pair;
+import jasper.repository.spec.OriginSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,10 +16,17 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.repository.spec.OriginSpec.isUnderOrigin;
+import static jasper.repository.spec.RefSpec.hasInternalResponse;
+import static jasper.repository.spec.RefSpec.hasResponse;
+import static jasper.repository.spec.RefSpec.hasSource;
+import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
+import static java.time.Instant.now;
+import static java.util.stream.Collectors.toMap;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
@@ -29,32 +35,36 @@ public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
-	ConfigCache configs;
+	Messages messages;
+
+	private record PluginResponses(String tag, long count) { }
+	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
-	public void ref(Ref ref, List<String> metadataPlugins) {
+	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
-		// Creating or updating (not deleting)
-		if (metadataPlugins == null) {
-			metadataPlugins = configs.getMetadataPlugins(ref.getOrigin());
-		}
 		ref.setMetadata(Metadata
 			.builder()
-			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), "internal"))
-			.plugins(metadataPlugins
+			.expandedTags(expandTags(ref.getTags()))
+			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
+			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
+			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
-				.map(tag -> new Pair<>(
+				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponsesWithTag(ref.getUrl(), ref.getOrigin(), tag)))
-				.filter(p -> !p.getValue1().isEmpty())
-				.collect(Collectors.toMap(Pair::getValue0, Pair::getValue1)))
+					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
+				.filter(p -> !p.responses.isEmpty())
+				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
+			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
+				.stream()
+				.map(tag -> new PluginResponses(
+					tag,
+					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
+				.filter(p -> p.count() > 0)
+				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()
 		);
 
@@ -62,24 +72,50 @@ public class Meta {
 		ref.getMetadata().setObsolete(false);
 	}
 
-	@Timed(value = "jasper.meta", histogram = true)
-	public void sources(Ref ref, Ref existing, List<String> metadataPlugins) {
-		if (metadataPlugins == null) {
-			var origin = ref != null ? ref.getOrigin() : existing.getOrigin();
-			metadataPlugins = configs.getMetadataPlugins(origin);
+	public static List<String> expandTags(List<String> tags) {
+		if (tags == null) return new ArrayList<>();
+		var result = new ArrayList<>(tags);
+		for (var i = result.size() - 1; i >= 0; i--) {
+			var t = result.get(i);
+			while (t.contains("/")) {
+				t = t.substring(0, t.lastIndexOf("/"));
+				if (!result.contains(t)) {
+					result.add(t);
+				}
+			}
 		}
+		return result;
+	}
+
+	@Timed(value = "jasper.meta", histogram = true)
+	public void regen(String rootOrigin, Ref ref) {
+		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
+		ref(rootOrigin, ref);
+		ref.getMetadata().setModified(originalDate);
+		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
+		if (ref.getMetadata().isObsolete()) return;
+		refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
+		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
+			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
+		for (var source : cleanupSources) {
+			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
+				ref(rootOrigin, source);
+			} else {
+				removeSource(rootOrigin, source, ref);
+			}
+		}
+	}
+
+	@Timed(value = "jasper.meta", histogram = true)
+	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref != null) {
 			// Creating or updating (not deleting)
-			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), ref.getModified());
+			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
 
 			// Update sources
-			var internal = ref.getTags() != null && ref.getTags().contains("internal");
-			List<String> plugins = metadataPlugins.stream()
-				.filter(tag -> ref.getTags() != null && ref.getTags().contains(tag))
-				.toList();
-			// TODO: Need to consider the origin of the source when deciding to generate metadata
-			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()));
+			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
+				if (source.getUrl().equals(ref.getUrl())) continue;
 				var metadata = source.getMetadata();
 				if (metadata == null) {
 					logger.debug("Ref missing metadata: {}", ref.getUrl());
@@ -90,28 +126,38 @@ public class Meta {
 						.plugins(new HashMap<>())
 						.build();
 				}
-				metadata.remove(ref.getUrl());
-				if (internal) {
+				if (ref.hasTag("internal")) {
 					metadata.addInternalResponse(ref.getUrl());
 				} else {
 					metadata.addResponse(ref.getUrl());
 				}
-				metadata.addPlugins(plugins, ref.getUrl());
+				if (existing != null) {
+					metadata.removePlugins(existing.getExpandedTags().stream()
+							.filter(tag -> matchesTemplate("plugin", tag))
+							.toList(),
+						ref.getUrl());
+				}
+				metadata.addPlugins(ref.getExpandedTags().stream()
+					.filter(tag -> matchesTemplate("plugin", tag))
+					.toList(),
+					ref.getUrl());
 				source.setMetadata(metadata);
 				try {
 					refRepository.save(source);
+					messages.updateMetadata(source);
 				} catch (DataAccessException e) {
 					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 				}
 			}
 		} else {
 			// Deleting
-			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
+			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (!maybeLatest.isEmpty()) {
 				var latest = maybeLatest.getContent().get(0);
 				if (latest.getMetadata() != null) {
 					latest.getMetadata().setObsolete(false);
 					refRepository.save(latest);
+					messages.updateMetadata(latest);
 				}
 			}
 		}
@@ -123,23 +169,29 @@ public class Meta {
 				: existing.getSources().stream()
 					.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 					.toList();
-			// TODO: Need to consider the origin of the source when deciding to generate metadata
-			List<Ref> removed = refRepository.findAll(isUrls(removedSources));
+			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
-				var metadata = source.getMetadata();
-				if (metadata == null) {
-					logger.warn("Ref missing metadata: {}", existing.getUrl());
-					continue;
-				}
-				// TODO: Only do this part async, as we don't know if there is a duplicate response in another origin
-				metadata.remove(existing.getUrl());
-				source.setMetadata(metadata);
-				try {
-					refRepository.save(source);
-				} catch (DataAccessException e) {
-					logger.error("Error updating source metadata for {} {}", existing.getOrigin(), existing.getUrl(), e);
-				}
+				if (source.getUrl().equals(existing.getUrl())) continue;
+				removeSource(rootOrigin, source, existing);
+				messages.updateMetadata(source);
 			}
+		}
+	}
+
+	private void removeSource(String rootOrigin, Ref source, Ref existing) {
+		var metadata = source.getMetadata();
+		if (metadata == null) return;
+		metadata.remove(existing.getUrl());
+		metadata.removePlugins(existing.getExpandedTags().stream()
+				.filter(tag -> matchesTemplate("plugin", tag))
+				.toList(),
+			existing.getUrl());
+		source.setMetadata(metadata);
+		try {
+			refRepository.save(source);
+		} catch (DataAccessException e) {
+			logger.error("{} Error updating source metadata for {} {}",
+				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
 	}
 }

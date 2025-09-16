@@ -8,12 +8,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
 
 	@Modifying
@@ -44,6 +46,9 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		WHERE t.origin = :origin""")
 	Instant getCursor(String origin);
 
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from template")
+	List<String> origins();
+
 	@Modifying(clearAutomatically = true)
 	@Query("""
 		DELETE FROM Template template
@@ -54,23 +59,30 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
-		ORDER BY t.levels ASC""")
-	List<Template> findAllByOrigin(String origin);
-
-	@Query("""
-		FROM Template AS t
-		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
 				OR locate(concat(t.tag, '/'), :tag) = 1
-				OR (:tag LIKE '\\_%' AND locate(concat(t.tag, '/'), :tag) = 2)
+				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
 		ORDER BY t.levels ASC""")
 	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
+
+	@Query("""
+		FROM Template AS t
+		WHERE t.origin = :origin
+			AND t.defaults IS NOT NULL
+			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND (t.tag = ''
+				OR t.tag = :tag
+				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
+				OR locate(concat(t.tag, '/'), :tag) = 1
+				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
+				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
+		ORDER BY t.levels ASC""")
+	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
 	@Query("""
 		FROM Template AS t

@@ -8,12 +8,20 @@ updates:
 - package-ecosystem: docker
   directory: /
   schedule:
-    interval: weekly
+    interval: daily
+    timezone: America/Halifax
 - package-ecosystem: maven
   directory: /
   schedule:
-    interval: weekly
+    interval: daily
+    timezone: America/Halifax
+  groups:
+    spring-boot:
+      patterns:
+        - "*spring-boot*"
+        - "*spring-cloud*"
 - package-ecosystem: github-actions
   directory: /
   schedule:
-    interval: weekly
+    interval: daily
+    timezone: America/Halifax

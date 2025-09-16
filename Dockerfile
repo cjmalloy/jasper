@@ -1,4 +1,6 @@
-FROM maven:3.9.7-eclipse-temurin-21 AS builder
+FROM oven/bun:1.2.22-slim AS bun
+
+FROM maven:3.9.9-amazoncorretto-21-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
@@ -6,34 +8,79 @@ RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -D
 COPY src ./src
 RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
-# java -Djarmode=layertools -jar target/docker-spring-boot-0.0.1.jar list
-RUN java -Djarmode=layertools -jar target/*.jar extract
+# java -Djarmode=tools -jar target/*.jar list-layers
+RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination layers
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
-COPY --from=oven/bun:1.1.17-alpine /usr/local/bin/bun /usr/local/bin/bun
-ENV JASPER_NODE=/usr/local/bin/bun
-CMD mvn -gs settings.xml test; \
-		mkdir -p /tests && \
-		cp target/surefire-reports/* /tests/
-
-FROM azul/zulu-openjdk-debian:21.0.3-21.34-jre AS deploy
-WORKDIR /app
-COPY --from=builder /app/dependencies/ ./
-RUN true
-COPY --from=builder /app/spring-boot-loader/ ./
-RUN true
-COPY --from=builder /app/snapshot-dependencies/ ./
-RUN true
-COPY --from=builder /app/application/ ./
-COPY docker/entrypoint.sh .
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
-COPY --from=oven/bun:1.1.18-slim /usr/local/bin/bun /usr/local/bin/
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
+    && which bun \
+    && which bunx \
+    && bun --version
+ENV JASPER_NODE=/usr/local/bin/bun
+RUN rm /etc/apt/sources.list.d/corretto.list
+RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
+    && which python3 \
+    && python3 --version
+ENV JASPER_PYTHON=/usr/bin/python3
+RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
+    && which jq \
+    && jq --version \
+    && uuidgen jq \
+    && uuidgen --version \
+    && which bash \
+    && bash --version
+ARG JASPER_SHELL=/usr/bin/bash
+CMD mvn -gs settings.xml test surefire-report:report; \
+		mkdir -p /tests && \
+		cp target/surefire-reports/* /tests/ && \
+		mkdir -p /reports && \
+		cp -r target/reports/* /reports/ && \
+		cp target/reports/surefire.html /reports/index.html
+
+FROM test AS gatling
+COPY gatling/pom.xml ./gatling/
+COPY gatling/src ./gatling/src/
+WORKDIR /app/gatling
+CMD mvn -gs ../settings.xml gatling:test; \
+		mkdir -p /report && \
+		cp -r target/gatling/simplejaspersimulation-*/* /report/
+
+FROM azul/zulu-openjdk-debian:21.0.8-21.44-jre AS deploy
+RUN apt-get update && apt-get install curl -y
+ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
+ENV BUN_INSTALL_BIN=/usr/local/bin
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version
 ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
+RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
+    && which python3 \
+    && python3 --version
+ARG JASPER_PYTHON=/usr/bin/python3
+ENV JASPER_PYTHON=${JASPER_PYTHON}
+RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
+    && which jq \
+    && jq --version \
+    && uuidgen jq \
+    && uuidgen --version \
+    && which bash \
+    && bash --version
+ARG JASPER_SHELL=/usr/bin/bash
+ENV JASPER_SHELL=${JASPER_SHELL}
+WORKDIR /app
+COPY --from=builder /app/layers/dependencies/ ./
+RUN true
+COPY --from=builder /app/layers/spring-boot-loader/ ./
+RUN true
+COPY --from=builder /app/layers/snapshot-dependencies/ ./
+RUN true
+COPY --from=builder /app/layers/application/ ./
+COPY docker/entrypoint.sh .
 ENTRYPOINT ["sh", "entrypoint.sh"]

@@ -2,34 +2,49 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PostConstruct;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
+import jasper.domain.External;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
+import jasper.domain.User;
+import jasper.errors.AlreadyExistsException;
+import jasper.plugin.config.Index;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
-import jasper.service.dto.UserDto;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.PostConstruct;
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static jasper.domain.proj.HasOrigin.fromParts;
+import static jasper.domain.proj.HasOrigin.parentOrigin;
+import static jasper.domain.proj.HasOrigin.parts;
+import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.plugin.Origin.getOrigin;
+import static jasper.repository.spec.QualifiedTag.concat;
+import static jasper.util.Crypto.keyPair;
+import static jasper.util.Crypto.writeRsaPrivatePem;
+import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class ConfigCache {
@@ -51,7 +66,10 @@ public class ConfigCache {
 	TemplateRepository templateRepository;
 
 	@Autowired
-	IngestTemplate ingest;
+	IngestTemplate ingestTemplate;
+
+	@Autowired
+	IngestUser ingestUser;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -63,9 +81,31 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty() &&
-			(isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", "").isEmpty())) {
-			ingest.create(config(""));
+		if (templateRepository.findByTemplateAndOrigin(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
+			try {
+				ingestTemplate.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
+			} catch (AlreadyExistsException e) {
+				// Race to init
+			}
+		}
+		if (templateRepository.findByTemplateAndOrigin("_config/index", "").isEmpty()) {
+			try {
+				ingestTemplate.create(index("DB Indices"));
+			} catch (AlreadyExistsException e) {
+				// Race to init
+			}
+		}
+		if (userRepository.findOneByQualifiedTag("+user").isEmpty()) {
+			try {
+				var user = new User();
+				user.setTag("+user");
+				var kp = keyPair();
+				user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
+				user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), KeyUtils.getFingerPrint(kp.getPublic())).getBytes());
+				ingestUser.create(user);
+			} catch (Exception e) {
+				// Could not generate host keys
+			}
 		}
 	}
 
@@ -78,7 +118,8 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"user-cache",
 		"user-dto-cache",
-		"user-dto-page-cache"
+		"user-dto-page-cache",
+		"external-user-cache"
 	}, allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
@@ -87,12 +128,11 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"plugin-cache",
 		"plugin-config-cache",
-		"plugin-metadata-cache",
 		"plugin-dto-cache",
 		"plugin-dto-page-cache",
 	}, allEntries = true)
 	public void clearPluginCache() {
-		logger.info("Cleared plugin cache.");
+		logger.debug("Cleared plugin cache.");
 	}
 
 	@CacheEvict(value = {
@@ -100,23 +140,47 @@ public class ConfigCache {
 		"template-config-cache",
 		"template-cache-wrapped",
 		"template-schemas-cache",
+		"template-defaults-cache",
 		"template-dto-cache",
 		"template-dto-page-cache",
 	}, allEntries = true)
 	public void clearTemplateCache() {
-		logger.info("Cleared template cache.");
+		logger.debug("Cleared template cache.");
 	}
 
 	@Cacheable("user-cache")
-	@Transactional(readOnly = true)
-	public UserDto getUser(String tag) {
+	public User getUser(String tag) {
 		return userRepository.findOneByQualifiedTag(tag)
-			.map(dtoMapper::domainToDto)
+			.orElse(null);
+	}
+
+	@Cacheable(value = "external-user-cache", unless = "#result == null")
+	public Optional<String> getUserByExternalId(String origin, String externalId) {
+		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	}
+
+	public User createUser(String tag, String origin, String externalId) {
+		var user = new User();
+		user.setTag(tag);
+		user.setOrigin(origin);
+		user.setExternal(External.builder()
+			.ids(List.of(externalId))
+			.build());
+		ingestUser.create(user);
+		return user;
+	}
+
+	public void setExternalId(String tag, String origin, String externalId) {
+		userRepository.setExternalId(tag, origin, externalId);
+	}
+
+	@Cacheable(value = "user-cache", key = "'+user'")
+	public User user() {
+		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")
-	@Transactional(readOnly = true)
 	public <T> T getConfig(String url, String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
 		return refRepository.findOneByUrlAndOrigin(url, origin)
@@ -125,7 +189,6 @@ public class ConfigCache {
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin")
-	@Transactional(readOnly = true)
 	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
 		return refRepository.findAll(
@@ -136,69 +199,84 @@ public class ConfigCache {
 			.toList();
 	}
 
+	@Cacheable(value = "config-cache", key = "'+plugin/origin' + #local")
+	public RefDto getRemote(String local) {
+		configCacheTags.add("+plugin/origin");
+		String origin = "";
+		while (isNotBlank(local)) {
+			var finalLocal = local;
+			var remote = refRepository.findAll(
+					RefFilter.builder()
+						.origin(origin)
+						.query("+plugin/origin").build().spec())
+				.stream()
+				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))
+				.findFirst()
+				.map(dtoMapper::domainToDto)
+				.orElse(null);
+			if (remote != null) return remote;
+			var p = parts(local);
+			origin = fromParts(origin, p[0]);
+			p[0] = "";
+			local = fromParts(p);
+		}
+		return null;
+	}
+
 	public boolean isConfigTag(String tag) {
 		return configCacheTags.contains(tag);
 	}
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
-	@Transactional(readOnly = true)
-	public <T> T getPluginConfig(String tag, String origin, Class<T> toValueType) {
+	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
-			.or(() -> Optional.of(objectMapper.createObjectNode()))
-			.map(n -> objectMapper.convertValue(n, toValueType))
-			.get();
+			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
-	@Transactional(readOnly = true)
 	public Optional<Plugin> getPlugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
 	}
 
-	@Cacheable("plugin-metadata-cache")
-	@Transactional(readOnly = true)
-	public List<String> getMetadataPlugins(String origin) {
-		return pluginRepository.findAllByGenerateMetadataByOrigin(origin);
-	}
-
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
-	@Transactional(readOnly = true)
-	public <T> T getTemplateConfig(String template, String origin, Class<T> toValueType) {
+	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
-			.or(() -> Optional.of(objectMapper.createObjectNode()))
-			.map(n -> objectMapper.convertValue(n, toValueType))
-			.get();
+			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")
-	@Transactional(readOnly = true)
 	public Optional<Template> getTemplate(String template, String origin) {
 		return templateRepository.findByTemplateAndOrigin(template, origin);
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/server'")
-	@Transactional(readOnly = true)
 	public ServerConfig root() {
-		if (isBlank(props.getLocalOrigin()) || templateRepository.findByTemplateAndOrigin("_config/server", props.getLocalOrigin()).isEmpty()) {
-			return getTemplateConfig("_config/server", "",  ServerConfig.class)
-				.wrap(props);
-		}
-		return getTemplateConfig("_config/server", props.getLocalOrigin(),  ServerConfig.class)
+		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(), ServerConfig.class)
+			.or(() -> getTemplateConfig("_config/server", props.getLocalOrigin(), ServerConfig.class))
+			.orElse(ServerConfig.builderFor(props.getOrigin()).build())
 			.wrap(props);
+	}
+
+	@Cacheable(value = "template-cache", key = "'_config/index'")
+	public Index index() {
+		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(), Index.class)
+			.or(() -> getTemplateConfig("_config/index", props.getLocalOrigin(), Index.class))
+			.orElse(Index.builder().build());
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
-	@Transactional(readOnly = true)
 	public SecurityConfig security(String origin) {
-		// TODO: crawl origin hierarchy until found
-		return getTemplateConfig("_config/security", origin, SecurityConfig.class)
-			.wrap(props);
+		do {
+			var security = getTemplateConfig("_config/security", origin, SecurityConfig.class);
+			if (security.isPresent()) return security.get().wrap(props);
+			origin = parentOrigin(origin);
+		} while (isNotBlank(origin));
+		return new SecurityConfig().wrap(props);
 	}
 
 	@Cacheable("template-schemas-cache")
-	@Transactional(readOnly = true)
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
@@ -206,12 +284,30 @@ public class ConfigCache {
 			.toList();
 	}
 
-	private Template config(String origin) {
-		var config = ServerConfig.builderFor(origin).build();
+	@Cacheable("template-defaults-cache")
+	public List<TemplateDto> getDefaults(String tag, String origin) {
+		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
+			.stream()
+			.map(dtoMapper::domainToDto)
+			.toList();
+	}
+
+	private Template config(String name) {
+		var config = ServerConfig.builderFor(subOrigin(props.getLocalOrigin(), props.getWorkerOrigin())).build();
 		var template = new Template();
-		template.setOrigin(origin);
-		template.setTag("_config/server");
-		template.setName("Server Config");
+		template.setOrigin(props.getLocalOrigin());
+		template.setTag(concat("_config/server", props.getWorkerOrigin()));
+		template.setName(name);
+		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
+		return template;
+	}
+
+	private Template index(String name) {
+		var config = Index.builder().build();
+		var template = new Template();
+		template.setOrigin("");
+		template.setTag("_config/index");
+		template.setName(name);
 		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
 		return template;
 	}

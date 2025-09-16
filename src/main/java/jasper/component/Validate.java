@@ -34,7 +34,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
-import static jasper.domain.proj.Tag.urlForUser;
+import static jasper.component.Meta.expandTags;
+import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.urlForTag;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
@@ -59,7 +61,12 @@ public class Validate {
 	ConfigCache configs;
 
 	@Timed("jasper.validate")
-	public void ref(Ref ref, boolean force) {
+	public void ref(String rootOrigin, Ref ref) {
+		ref(rootOrigin, ref, false);
+	}
+
+	@Timed("jasper.validate")
+	public void ref(String rootOrigin, Ref ref, boolean stripOnError) {
 		var root = configs.root();
 		try {
 			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
@@ -68,38 +75,29 @@ public class Validate {
 			ref.removeTags(root.getModSeals());
 			ref.removeTags(root.getEditorSeals());
 		}
-		ref(ref, ref.getOrigin(), force);
+		tags(rootOrigin, ref);
+		plugins(rootOrigin, ref, stripOnError);
+		responses(rootOrigin, ref, true);
+		sources(rootOrigin, ref, true);
+		responses(rootOrigin, ref, false);
+		sources(rootOrigin, ref, false);
 	}
 
 	@Timed("jasper.validate")
-	public void ref(Ref ref, String validationOrigin, boolean force) {
-		tags(ref);
-		plugins(ref, validationOrigin, force);
-		sources(ref, true);
-		responses(ref, true);
-		sources(ref, false);
-		responses(ref, false);
+	public void ext(String rootOrigin, Ext ext) {
+		ext(rootOrigin, ext,false);
 	}
 
 	@Timed("jasper.validate")
-	public void ext(Ext ext) {
-		ext(ext,false);
-	}
-
-	@Timed("jasper.validate")
-	public void ext(Ext ext, boolean stripOnError) {
-		ext(ext, ext.getOrigin(), stripOnError);
-	}
-
-	@Timed("jasper.validate")
-	public void ext(Ext ext, String origin, boolean stripOnError) {
-		var templates = configs.getSchemas(ext.getTag(), origin);
+	public void ext(String rootOrigin, Ext ext, boolean stripOnError) {
+		var templates = configs.getSchemas(ext.getTag(), rootOrigin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
-		var mergedDefaults = templates
+		var defaults = configs.getDefaults(ext.getTag(), rootOrigin);
+		var mergedDefaults = defaults
 			.stream()
 			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
@@ -116,30 +114,30 @@ public class Validate {
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
-				template(schema, ext.getTag(), mergedDefaults);
+				template(rootOrigin, schema, ext.getTag(), mergedDefaults);
 			} catch (Exception e) {
-				logger.error("Defaults for {} Template do not pass validation", ext.getTag());
+				logger.error("{} Defaults for {} Template do not pass validation", rootOrigin, ext.getTag());
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			template(schema, ext.getTag(), ext.getConfig());
+			template(rootOrigin, schema, ext.getTag(), ext.getConfig());
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			template(schema, ext.getTag(), mergedDefaults);
+			template(rootOrigin, schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
 		}
 	}
 
 	@Timed("jasper.validate")
-	public void plugin(Plugin plugin) {
+	public void plugin(String rootOrigin, Plugin plugin) {
 
 	}
 
 	@Timed("jasper.validate")
-	public void template(Template template) {
+	public void template(String rootOrigin, Template template) {
 		try {
 			switch (template.getTag()) {
 				case "_config/server":
@@ -154,7 +152,7 @@ public class Validate {
 		}
 	}
 
-	public JsonNode templateDefaults(String qualifiedTag) {
+	public ObjectNode templateDefaults(String qualifiedTag) {
 		var qt = qt(qualifiedTag);
 		var templates = configs.getSchemas(qt.tag, qt.origin);
 		return templates
@@ -163,7 +161,7 @@ public class Validate {
 			.reduce(null, this::merge);
 	}
 
-	private void template(Schema schema, String tag, JsonNode template) {
+	private void template(String rootOrigin, Schema schema, String tag, JsonNode template) {
 		if (template == null || template.isNull()) {
 			// Allow null to stand in for empty config
 			if (schema.getOptionalProperties() != null) {
@@ -175,7 +173,7 @@ public class Validate {
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(template));
 			for (var error : errors) {
-				logger.debug("Error validating template {}: {}", tag, error);
+				logger.debug("{} Error validating template {}: {}", rootOrigin, tag, error);
 			}
 			if (!errors.isEmpty()) {
 				throw new InvalidTemplateException(tag + ": " + errors);
@@ -185,32 +183,32 @@ public class Validate {
 		}
 	}
 
-	private void tags(Ref ref) {
+	private void tags(String rootOrigin, Ref ref) {
 		if (ref.getTags() == null) return;
 		if (!ref.getTags().stream().allMatch(new HashSet<>()::add)) {
 			throw new DuplicateTagException();
 		}
 	}
 
-	private void plugins(Ref ref, String origin, boolean stripOnError) {
+	private void plugins(String rootOrigin, Ref ref, boolean stripOnError) {
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (ref.getTags() == null || !ref.getTags().contains(field)) {
+				if (!ref.hasTag(field)) {
+					logger.debug("{} Plugin missing tag: {}", rootOrigin, field);
 					if (!stripOnError) throw new InvalidPluginException(field);
 					strip.add(field);
 				}
 			});
 			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
-		if (ref.getTags() == null) return;
-		for (var tag : ref.getTags()) {
-			plugin(ref, tag, origin, stripOnError);
+		for (var tag : expandTags(ref.getTags())) {
+			plugin(rootOrigin, ref, tag, stripOnError);
 		}
 	}
 
-	private <T extends JsonNode> T merge(T a, T b) {
+	private ObjectNode merge(ObjectNode a, ObjectNode b) {
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return b.deepCopy();
@@ -221,14 +219,13 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugin = configs.getPlugin(tag, origin);
-		plugin.ifPresent(p -> {
-			if (p.isUserUrl()) userUrl(ref, p);
-		});
+	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
+		userUrl(ref, tag);
+		var plugin = configs.getPlugin(tag, rootOrigin);
 		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
+				logger.debug("{} Plugin data not allowed: {}", rootOrigin, tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
@@ -242,37 +239,41 @@ public class Validate {
 		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
-				plugin(schema, tag, defaults);
+				plugin(rootOrigin, schema, tag, defaults);
 			} catch (Exception e) {
-				logger.error("Defaults for {} Plugin do not pass validation", tag);
+				logger.error("{} Defaults for {} Plugin do not pass validation", rootOrigin, tag);
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			plugin(schema, tag, ref.getPlugin(tag));
+			plugin(rootOrigin, schema, tag, ref.getPlugin(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
 			ref.setPlugin(tag, defaults);
 		}
 	}
 
-	private void userUrl(Ref ref, Plugin plugin) {
+	private void userUrl(Ref ref, String plugin) {
+		if (!matchesTemplate("plugin/user", plugin)) return;
 		if (ref.getSources() == null || ref.getSources().size() != 1) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+			throw new InvalidPluginUserUrlException(plugin);
 		}
 		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
-		if (userTag.isEmpty() || !ref.getUrl().startsWith(urlForUser(ref.getSources().get(0), userTag.get()))) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+		if (userTag.isEmpty()) {
+			throw new InvalidPluginUserUrlException(plugin);
+		}
+		var target = ref.getSources().getFirst();
+		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
+			throw new InvalidPluginUserUrlException(plugin);
 		}
 	}
 
-	public ObjectNode pluginDefaults(Ref ref) {
+	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
 		var result = objectMapper.getNodeFactory().objectNode();
-		if (ref.getTags() == null) return result;
-		for (var tag : ref.getTags()) {
-			var plugin = configs.getPlugin(tag, ref.getOrigin());
+		for (var tag : expandTags(ref.getTags())) {
+			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
 				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
 			});
@@ -281,7 +282,7 @@ public class Validate {
 		return result;
 	}
 
-	private void plugin(Schema schema, String tag, JsonNode plugin) {
+	private void plugin(String rootOrigin, Schema schema, String tag, JsonNode plugin) {
 		if (plugin == null || plugin.isNull()) {
 			// Allow null to stand in for empty objects or arrays
 			if (schema.getOptionalProperties() != null) {
@@ -295,7 +296,7 @@ public class Validate {
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(plugin));
 			for (var error : errors) {
-				logger.debug("Error validating plugin {}: {}", tag, error);
+				logger.debug("{} Error validating plugin {}: {}", rootOrigin, tag, error);
 			}
 			if (!errors.isEmpty()) {
 				throw new InvalidPluginException(tag + ": " + errors);
@@ -305,24 +306,29 @@ public class Validate {
 		}
 	}
 
-	private void sources(Ref ref, boolean fix) {
+	private void sources(String rootOrigin, Ref ref, boolean fix) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getOrigin(), ref.getPublished());
+			if (sourceUrl.equals(ref.getUrl())) continue;
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
 			for (var source : sources) {
-				if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
 				if (source.getPublished().isAfter(ref.getPublished())) {
+					if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
 			}
 		}
 	}
 
-	private void responses(Ref ref, boolean fix) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getOrigin(), ref.getPublished());
+	private void responses(String rootOrigin, Ref ref, boolean fix) {
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
 		for (var response : responses) {
-			if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
 			if (response.getPublished().isBefore(ref.getPublished())) {
+				if (response.hasTag("plugin/user")) {
+					response.setPublished(ref.getPublished());
+					continue;
+				}
+				if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
 				ref.setPublished(response.getPublished().minusMillis(1));
 			}
 		}

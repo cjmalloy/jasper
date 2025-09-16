@@ -5,8 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.component.OembedProviders;
-import jasper.config.Props;
-import jasper.repository.RefRepository;
+import jasper.errors.NotFoundException;
 import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +19,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Service
 public class OembedService {
 	private static final Logger logger = LoggerFactory.getLogger(OembedService.class);
-
-	@Autowired
-	RefRepository refRepository;
 
 	@Autowired
 	OembedClient oembedClient;
@@ -37,9 +35,6 @@ public class OembedService {
 	Auth auth;
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	ObjectMapper objectMapper;
 
 	@Cacheable(value = "oembed-cache", key = "#params.get('theme') + '-' + #params.get('maxwidth') + '-' + #params.get('maxheight') + '-' + #params.get('url')")
@@ -47,13 +42,14 @@ public class OembedService {
 	@PreAuthorize("@auth.hasRole('VIEWER')")
 	@Timed(value = "jasper.service", extraTags = {"service", "oembed"}, histogram = true)
 	public JsonNode get(Map<String, String> params) {
+		if (isBlank(params.get("url"))) return null;
 		var config = oembedProviders.getProvider(auth.getOrigin(), params.get("url"));
 		if (config == null) return null;
 		params.put("format", "json");
 		try {
 			return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
 		} catch (Exception e) {
-			return null;
+			throw new NotFoundException(e.getMessage());
 		}
 	}
 

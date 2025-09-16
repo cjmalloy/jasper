@@ -1,5 +1,7 @@
 package jasper.config;
 
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.server.WebServerFactory;
@@ -9,23 +11,24 @@ import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerF
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 
 import static java.net.URLDecoder.decode;
+import static org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO;
 
 /**
  * Configuration of web application with Servlet 3.0 APIs.
  */
 @Configuration
+@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
 public class WebConfigurer implements ServletContextInitializer, WebServerFactoryCustomizer<WebServerFactory> {
 
     private final Logger log = LoggerFactory.getLogger(WebConfigurer.class);

@@ -9,4 +9,4 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableJpaRepositories({ "jasper.repository" })
 @EnableJpaAuditing(auditorAwareRef = "springSecurityAuditorAware")
 @EnableTransactionManagement
-public class DatabaseConfiguration {}
+public class DatabaseConfiguration { }

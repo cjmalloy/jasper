@@ -1,8 +1,9 @@
 # Jasper
 Knowledge Management Server
 
-[![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml/badge.svg)](https://github.com/cjmalloy/jasper/actions/workflows/docker-image.yml)
-[![SwaggerHub](https://img.shields.io/badge/SwaggerHub-1.2.28-brightgreen)](https://app.swaggerhub.com/apis/cjmalloy/Jasper)
+[![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/test.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-junit/)
+[![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.5-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -21,8 +22,8 @@ or embed existing dashboard panels directly to create your central business inte
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
 
 ### Centralized Business Intelligence
-Dumping all department-level data into a central data lake to perform analytics on is a hugely complicated
-task with no proven benefit. Instead, empower departments to run their own analytics and formalize the
+Dumping all department-level data into a central data lake to perform analytics on is a massive undertaking
+with dubious potential benefit. Instead, empower departments to run their own analytics and formalize the
 reporting format to allow centralized aggregation.
 
 Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
@@ -39,9 +40,9 @@ in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/m
 ### Build your own client
 Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
 developers can create a bespoke interface without needing to make any server side changes. Create custom
-plugins and templates and ensure data integrity with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
+plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
-[OpenApi docs](https://app.swaggerhub.com/apis/cjmalloy/Jasper) to generate API stubs.
+[OpenApi docs](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml) to generate API stubs.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
@@ -54,9 +55,9 @@ the model.
 4. Plugin
 5. Template
 
-The main entity is the Ref, it represents a reference to external content. The main field in a Ref
-is the URL field which can be a link to a web page, or a reference to arbitrary resources predicated
-on the URL scheme. Web content will of course use the http or https scheme. To reference a book,
+The main entity is the Ref, it represents a reference to an external resource. The main field in a Ref
+is the URL field which can be a link to a web page, or a reference to any arbitrary resources predicated
+by the URL scheme. Web content will of course use the http or https scheme. To reference a book,
 one could use the [ISBN](https://en.wikipedia.org/wiki/ISBN) scheme (i.e. `isbn:978-3-16-148410-0`).
 For comments, [Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `comment` scheme followed by an arbitrary ID, usually a UUID
 (i.e. `comment:75b36465-4236-4d64-8c78-027d87f3c072`). For hosting internal wikis, 
@@ -64,10 +65,10 @@ For comments, [Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `comment
 [Wiki Page Name](https://en.wikipedia.org/wiki/Wikipedia:Page_name) (i.e. `wiki:John_Cena`).
 
 Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper's data model is defined in layers:
-1. Identity Layer
-2. Indexing Layer
-3. Application Layer
-4. Plugin Layer
+1. **Identity Layer** - Structure and Persistence of entities
+2. **Indexing Layer** - Defining optional fields used to query, sort, filter, and transport
+3. **Validation Layer** - plugins and templates are validated
+4. **Modding Layer** - custom plugins, templates, and clients
 
 ## Tagging
 Jasper support hierarchical tagging of Refs. Tags are not entities, they are strings with
@@ -114,10 +115,10 @@ but would not match `['science', 'math']`
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
-## Extending
+## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
-This method of extensions means that only client changes are required. The same Jasper server,
+This method of modding means that only client changes are required. The same Jasper server,
 without any code modifications, can be used. The client can define and support its own Plugins
 and Templates. This allows for much more flexible development, as writing client code (in particular
 web clients) is much easier than writing server code. A developer with only front-end expertise 
@@ -274,8 +275,6 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
       "height": {"type": "int32", "nullable": true}
     }
   },
-  "generateMetadata": false,
-  "userUrl": false,
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
@@ -290,10 +289,6 @@ data according to the Plugin schema.
 **Config:** Arbitrary JSON.  
 **Defaults:** Default plugin data if creating a new Ref with empty plugin data.  
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
-**Generate Metadata:** Flag to indicate Refs should generate a separate inverse source lookup for
-this plugin in all Ref metadata.  
-**User Url:** Flag to only allow this plugin on a User Url, which is a specially constructed URL
-of the form `tag:/{tag}?user={user}`. This has the effect of restricting the plugin to one Ref per user.
 **Modified:** Last modified date of this Plugin.  
 
 ### Template
@@ -348,14 +343,90 @@ replication.
 
 ### Indexing Layer
 The indexing layer of the Jasper model adds tags to Refs. A system operating at this layer should support
-tag queries.
+tag queries, sorting and filtering.
 
-### Application Layer
-The application layer of the Jasper model includes all entity fields. Plugins and templates are validated
+### Validation Layer
+The validation layer of the Jasper model includes all entity fields. Plugins and Templates are validated
 according to their schema.
 
-### Plugin Layer
-The plugin layer of the Jasper model is entirely client side. No server changes are required in order to
+#### Plugin and Template Inheritance
+Plugins and Templates behave differently in how they inherit the fields of the parent Ext.
+Plugins stack and templates merge.
+For example, the Plugin `plugin/test` like:
+```json
+{
+  "tag": "plugin/test",
+  "schema": {
+    "properties": {
+      "test": { "type":  "string" }
+    }
+  }
+}
+```
+And the Plugin `plugin/test/this` like:
+```json
+{
+  "tag": "plugin/test/this",
+  "schema": {
+    "properties": {
+      "more": { "type":  "string" }
+    }
+  }
+}
+```
+If we use both of these plugins in the same Ref, both plugins would have their
+data stacked, like:
+```json
+{
+  "url": "test:1",
+  "plugins": {
+    "plugin/test": {
+      "test": "data"
+    },
+    "plugin/test/this": {
+      "more": "tests"
+    }
+  }
+}
+```
+A template would merge all fields, overwriting at every stage, into a final result.
+For example, the Template `a` like:
+```json
+{
+  "tag": "a",
+  "schema": {
+    "properties": {
+      "test": { "type":  "string" }
+    }
+  }
+}
+```
+And the Template `a/b` like:
+```json
+{
+  "tag": "a/b",
+  "schema": {
+    "properties": {
+      "more": { "type":  "string" }
+    }
+  }
+}
+```
+If we use both of these plugins in the same Ext, both plugins would have their
+data merged, like:
+```json
+{
+  "tag": "a/b/c",
+  "config": {
+    "test": "data",
+    "more": "tests"
+  }
+}
+```
+If a child Template defines an overlapping field in the schema, it will override the parent type.
+
+### Modding Layer
+The modding layer of the Jasper model is entirely client side. No server changes are required in order to
 support new plugins or templates.
 
 ## Cursor Replication
@@ -389,53 +460,70 @@ Jasper is available in the following distributions:
 
 It supports the following configuration options:
 
-| Environment Variable                      | Description                                                                                                                    | Default Value (in prod)                                                                                                                                                                                       |
-|-------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SERVER_PORT`                             | Port to listen for HTTP connections.                                                                                           | `8081`                                                                                                                                                                                                        |
-| `SPRING_PROFILES_ACTIVE`                  | Set the comma separated list of runtime profiles.                                                                              | `default`                                                                                                                                                                                                     |
-| `SPRING_DATASOURCE_URL`                   | PostgreSQL database connection string.                                                                                         | `jdbc:postgresql://localhost:5432/jasper`                                                                                                                                                                     |
-| `SPRING_DATASOURCE_USERNAME`              | PostgreSQL database username.                                                                                                  | `jasper`                                                                                                                                                                                                      |
-| `SPRING_DATASOURCE_PASSWORD`              | PostgreSQL database password.                                                                                                  |                                                                                                                                                                                                               |
-| `JASPER_DEBUG`                            |                                                                                                                                | `false`                                                                                                                                                                                                       |
-| `JASPER_INGEST_MAX_RETRY`                 | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                      | `5`                                                                                                                                                                                                           |
-| `JASPER_MAX_ETAG_PAGE_SIZE`               | Max number of results in a page before calculating an Etag is no longer attempted.                                             | `300`                                                                                                                                                                                                         |
-| `JASPER_BACKUP_BUFFER_SIZE`               | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                       | `1000000`                                                                                                                                                                                                     |
-| `JASPER_RESTORE_BATCH_SIZE`               | Number of entities to restore in each transaction.                                                                             | `500`                                                                                                                                                                                                         |
-| `JASPER_BACKFILL_BATCH_SIZE`              | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `1000`                                                                                                                                                                                                        |
-| `JASPER_PULL_DELAY_MIN`                   | Initial delay before replicating remote origins.                                                                               | `5`                                                                                                                                                                                                           |
-| `JASPER_PULL_INTERVAL_MIN`                | Interval between replicating remote origins.                                                                                   | `1`                                                                                                                                                                                                           |
-| `JASPER_SCRAPE_DELAY_MIN`                 | Initial delay before scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                  | `5`                                                                                                                                                                                                           |
-| `JASPER_SCRAPE_INTERVAL_MIN`              | Interval between scraping feeds. Used by either the feed-schedule or feed-burst profiles.                                      | `1`                                                                                                                                                                                                           |
-| `JASPER_CLEAR_CACHE_COOLDOWN_SEC`         | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
-| `JASPER_PUSH_COOLDOWN_SEC`                | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
-| `JASPER_LOCAL_ORIGIN`                     | The origin of this server, unless overridden in a header or auth token.                                                        | `false`                                                                                                                                                                                                       |
-| `JASPER_ALLOW_LOCAL_ORIGIN_HEADER`        | Allow overriding the local origin via the `Local-Origin` header.                                                               | `false`                                                                                                                                                                                                       |
-| `JASPER_ALLOW_USER_TAG_HEADER`            | Allow pre-authentication of a user via the `User-Tag` header.                                                                  | `false`                                                                                                                                                                                                       |
-| `JASPER_ALLOW_USER_ROLE_HEADER`           | Allows escalating user role via `User-Role` header.                                                                            | `false`                                                                                                                                                                                                       |
-| `JASPER_ALLOW_AUTH_HEADERS`               | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers. | `false`                                                                                                                                                                                                       |
-| `JASPER_MIN_ROLE`                         | Minimum role required to access the server.                                                                                    | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
-| `JASPER_MIN_WRITE_ROLE`                   | Minimum role required to write to the server.                                                                                  | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
-| `JASPER_DEFAULT_ROLE`                     | Default role given to all users.                                                                                               | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
-| `JASPER_DEFAULT_READ_ACCESS`              | Additional read access qualified tags to apply to all users.                                                                   |                                                                                                                                                                                                               |
-| `JASPER_DEFAULT_WRITE_ACCESS`             | Additional write access qualified tags to apply to all users.                                                                  |                                                                                                                                                                                                               |
-| `JASPER_DEFAULT_TAG_READ_ACCESS`          | Additional tag read access qualified tags to apply to all users.                                                               |                                                                                                                                                                                                               |
-| `JASPER_DEFAULT_TAG_WRITE_ACCESS`         | Additional tag write access qualified tags to apply to all users.                                                              |                                                                                                                                                                                                               |
-| `JASPER_STORAGE`                          | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
-| `JASPER_NODE`                             | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
-| `JASPER_CACHE_API`                        | HTTP address of an instance where storage is enabled.                                                                          |                                                                                                                                                                                                               |
-| `JASPER_SSH_CONFIG_NAMESPACE`             | K8s namespace to write authorized_keys config map file to.                                                                     |                                                                                                                                                                                                               |
-| `JASPER_SSH_CONFIG_MAP_NAME`              | K8s config map name to write authorized_keys file to.                                                                          |                                                                                                                                                                                                               |
-| `JASPER_SECURITY_CONTENT_SECURITY_POLICY` | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
-| `JASPER_OVERRIDE_SECURITY_MODE`           | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_CLIENT_ID`      | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`  | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_SECRET`         | Override the security secret for all origins.                                                                                  |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_JWKS_URI`       | Override the security jwksUri for all origins.                                                                                 |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_USERNAME_CLAIM` | Override the security usernameClaim for all origins.                                                                           |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_DEFAULT_USER`   | Override the security defaultUser for all origins.                                                                             |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_TOKEN_ENDPOINT` | Override the security tokenEndpoint for all origins.                                                                           |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`  | Override the security scimEndpoint for all origins.                                                                            |                                                                                                                                                                                                               |
-| `JASPER_HEAP`                             | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
+| Environment Variable                           | Description                                                                                                                    | Default Value (in prod)                                                                                                                                                                                       |
+|------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SERVER_PORT`                                  | Port to listen for HTTP connections.                                                                                           | `8081`                                                                                                                                                                                                        |
+| `SPRING_PROFILES_ACTIVE`                       | Set the comma separated list of runtime profiles.                                                                              | `default`                                                                                                                                                                                                     |
+| `SPRING_DATASOURCE_URL`                        | PostgreSQL database connection string.                                                                                         | `jdbc:postgresql://localhost:5432/jasper`                                                                                                                                                                     |
+| `SPRING_DATASOURCE_USERNAME`                   | PostgreSQL database username.                                                                                                  | `jasper`                                                                                                                                                                                                      |
+| `SPRING_DATASOURCE_PASSWORD`                   | PostgreSQL database password.                                                                                                  |                                                                                                                                                                                                               |
+| `JASPER_DEBUG`                                 |                                                                                                                                | `false`                                                                                                                                                                                                       |
+| `JASPER_INGEST_MAX_RETRY`                      | Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.                                      | `5`                                                                                                                                                                                                           |
+| `JASPER_MAX_ETAG_PAGE_SIZE`                    | Max number of results in a page before calculating an Etag is no longer attempted.                                             | `300`                                                                                                                                                                                                         |
+| `JASPER_BACKUP_BUFFER_SIZE`                    | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                       | `1000000`                                                                                                                                                                                                     |
+| `JASPER_RESTORE_BATCH_SIZE`                    | Number of entities to restore in each transaction.                                                                             | `500`                                                                                                                                                                                                         |
+| `JASPER_BACKFILL_BATCH_SIZE`                   | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `1000`                                                                                                                                                                                                        |
+| `JASPER_CLEAR_CACHE_COOLDOWN_SEC`              | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
+| `JASPER_PUSH_COOLDOWN_SEC`                     | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
+| `JASPER_LOCAL_ORIGIN`                          | The origin of this server. The local origin may be set to a sub origin via the `Local-Origin` header.                          | `false`                                                                                                                                                                                                       |
+| `JASPER_ALLOW_USER_TAG_HEADER`                 | Allow pre-authentication of a user via the `User-Tag` header.                                                                  | `false`                                                                                                                                                                                                       |
+| `JASPER_ALLOW_USER_ROLE_HEADER`                | Allows escalating user role via `User-Role` header.                                                                            | `false`                                                                                                                                                                                                       |
+| `JASPER_ALLOW_AUTH_HEADERS`                    | Allow adding additional user permissions via `Read-Access`, `Write-Access`, `Tag-Read-Access`, and `Tag-Write-Access` headers. | `false`                                                                                                                                                                                                       |
+| `JASPER_MAX_ROLE`                              | Highest role allowed to access the server. Users with a higher role will have their role reduced to this.                      | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
+| `JASPER_MIN_ROLE`                              | Minimum role required to access the server.                                                                                    | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
+| `JASPER_MIN_WRITE_ROLE`                        | Minimum role required to write to the server.                                                                                  | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
+| `JASPER_DEFAULT_ROLE`                          | Default role given to all users.                                                                                               | `ROLE_ANONYMOUS`                                                                                                                                                                                              |
+| `JASPER_DEFAULT_READ_ACCESS`                   | Additional read access qualified tags to apply to all users.                                                                   |                                                                                                                                                                                                               |
+| `JASPER_DEFAULT_WRITE_ACCESS`                  | Additional write access qualified tags to apply to all users.                                                                  |                                                                                                                                                                                                               |
+| `JASPER_DEFAULT_TAG_READ_ACCESS`               | Additional tag read access qualified tags to apply to all users.                                                               |                                                                                                                                                                                                               |
+| `JASPER_DEFAULT_TAG_WRITE_ACCESS`              | Additional tag write access qualified tags to apply to all users.                                                              |                                                                                                                                                                                                               |
+| `JASPER_STORAGE`                               | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
+| `JASPER_NODE`                                  | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
+| `JASPER_CACHE_API`                             | HTTP address of an instance where storage is enabled.                                                                          |                                                                                                                                                                                                               |
+| `JASPER_SSH_CONFIG_NAMESPACE`                  | K8s namespace to write authorized_keys config map file to.                                                                     |                                                                                                                                                                                                               |
+| `JASPER_SSH_CONFIG_MAP_NAME`                   | K8s config map name to write `authorized_keys` file to.                                                                        | `ssh-authorized-keys`                                                                                                                                                                                         |
+| `JASPER_SSH_SECRET_NAME`                       | K8s secret name to write the `host_key` file to.                                                                               | `ssh-host-key`                                                                                                                                                                                                |
+| `JASPER_SECURITY_CONTENT_SECURITY_POLICY`      | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
+| `JASPER_OVERRIDE_SERVER_EMAIL_HOST`            | Override the server email host.                                                                                                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MAX_SOURCES`           | Override the server max sources.                                                                                               |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MOD_SEALS`             | Override the server mod seals.                                                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_EDITOR_SEALS`          | Override the server editor seals.                                                                                              |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_WEB_ORIGINS`           | Override the server origins with web access.                                                                                   |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MAX_REPL_ENTITY_BATCH` | Override the server maximum batch size for replicate controller.                                                               |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_SSH_ORIGINS`           | Override the server origins with SSH access.                                                                                   |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MAX_PUSH_ENTITY_BATCH` | Override the server maximum batch size for push replicate.                                                                     |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_MAX_PULL_ENTITY_BATCH` | Override the server maximum batch size for pull replicate.                                                                     |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_SCRIPT_SELECTORS`      | Override the server tags and origins that can run scripts. No wildcard origins.                                                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_SCRIPT_WHITELIST`      | Override the server list of whitelisted script SHA-256 hashes.                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_HOST_WHITELIST`        | Override the server list of whitelisted hosts.                                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_HOST_BLACKLIST`        | Override the server list of blacklisted hosts.                                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_MODE`                | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_CLIENT_ID`           | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`       | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_SECRET`              | Override the security secret for all origins.                                                                                  |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_JWKS_URI`            | Override the security jwksUri for all origins.                                                                                 |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_USERNAME_CLAIM`      | Override the security usernameClaim for all origins.                                                                           |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_DEFAULT_USER`        | Override the security defaultUser for all origins.                                                                             |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_TOKEN_ENDPOINT`      | Override the security tokenEndpoint for all origins.                                                                           |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`       | Override the security scimEndpoint for all origins.                                                                            |                                                                                                                                                                                                               |
+| `JASPER_HEAP`                                  | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
+
+### Multi-tenant
+When run with the default settings, the local origin is set to `""`. This means all origins are visible.
+If you change the local origin to something else, like `@other`, you can only see sub-origins, like `@other.one`.
+You can change the local origin with a HTTP header to use the server in multi-tenant mode. If you login though a
+reverse-proxy or gateway that sets the local origin back to `""` you will still be able to see all origins.
+You can also run workers in their own origin as a sandbox.
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
@@ -511,6 +599,30 @@ The tag permissions are stored in the User entities:
    * Can write ref with tag
    * Can edit tag Ext
 
+### Special URL Schemas
+
+### Cache
+URLs that have the `cache:` scheme represent items stored in a file cache.
+Most URLs with a resource in a file cache have a standard `https:` scheme,
+as they are just a cache of a resource that exists elsewhere.
+When a file is pushed into the cache (such as a generated thumbnail), it is
+generated a random `cache:<uuid>` URL.
+
+#### Tag URLs
+URLs that point to a tag, such as `tag:/history` ignore regular tagging access rules.
+Instead, you can access this Ref if you can access the tag it points to.
+
+#### User URLs
+URLs that point to a user tag, such as `tag:/+user/chris` are always owned by the user.
+These specials URLs can also be used to store per-plugin config data,
+such as `tag:/+user/chris?url=tag:/plugin/kanban`.
+Visibility of plugin setting can be set on a per-user, per-plugin basis.
+For convenience, the user URL is used if a blank URL is passed to the tagging response controller.
+This allows you to quickly ensure settings are initialized and fetch / edit Ref plugins and tags to read settings.
+If a tag are passed, for example `plugin/kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/plugin/kanban`.
+If a blank URL and a blank tag are passed, the default is the generic user settings Ref: `tag:/+user/chris`.
+User plugins, which follow the template `plugin/user`, may **only** be added to user URL Refs.
+
 ### Special Tags
 Some public tags have special significance:
  * `public`: everyone can read
@@ -536,7 +648,7 @@ Note: The claim names may be changed with the `JASPER_USERNAME_CLAIM`
 and `JASPER_AUTHORITIES_CLAIM` properties.
 
 ## Backup / Restore
-Jasper has a built-in backup system for mod use. Non mods should instead replicate to a separate jasper instance.
+Jasper has a built-in backup system for mods and/or admins. Regular users should instead replicate to a separate jasper instance.
 In order to use the backup system, the `storage` profile must be active.
 
 ## Validation
@@ -547,22 +659,31 @@ When ingesting entities, Jasper performs the following validation:
  * If a Ref has plugins present, any plugin data must conform to the plugin's schema
  * If an Ext matches a template prefix, any config must conform to all matching templates merged schemas
 
+Plugin and Template schemas are in JTD, which only validates the shape of the data. In addition
+to total bytes of the entity, these are the only server side data validations performed. No security related
+validations should be required on Ref or Ext data, so client side validation should be sufficient in most cases.
+Error checking should be the first part of any script parsing user input as part of a workflow.
+We always want to err on the side of accepting well-shaped data rather than rejecting it, as server validation
+errors rejecting valid user input are infuriating and very common. Error correction can happen as a follow-up step
+if the client validation was somehow circumvented.
+
 ## Metadata
-Jasper uses async metadata generation to allow efficient lookups while only requiring a simple
-data model.  
+Jasper uses metadata generation pre-compute graph connections without including it in the transmitted data model.
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
- * List of plugin responses: If a plugin has enabled metadata generation, this will include a list of responses with that plugin.
+ * List of plugin responses: A list of responses with that plugin.
+ * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
+While the metadata is not transferred during replication, a simplified version is sent over the client API, with
+counts for each response type, and user plugin responses for the current user.
 
 ## Server Scripting
-
-When the `scripts` profile is active, any Refs with a `plugin/delta` tag will run the attached script when modified.
+When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
+`plugin/script` tag.
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
-include the API endpoint as `JASPER_API` and a storage-enabled API endpoint as `JASPER_CACHE_API` if not supported by
-the first API. Return a non-zero error code to fail the script and attach an error log.
+include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json
@@ -575,60 +696,39 @@ The script should by writing UTF-8 JSON to stdout of the form:
 }
 ```
 
-These entities will either be created or updated, as necessary. You can use this to mark the input Ref as completed
-by either:
-1. Removing the `plugin/delta` tag
-2. Adding the `+plugin/delta` signature tag
-3. Adding a `+plugin/delta` Plugin response
+These entities will either be created or updated, as necessary.
 
 Adding the `+plugin/error` tag will prevent any further processing. Remove the `+plugin/error` tag to retry.
 You can also attach any error logs for the user to see by replying to the delta with the `+plugin/log` tag. Logs should
 be tagged `internal` to prevent clutter, and should match the visibility of the parent delta (`public` or not) with the
 same owner so the user can clear the logs as desired.
 
+### Delta Scripts
+Any Refs with a `plugin/delta` tag will run the attached script when modified.
+
+You can use this to mark the input Ref as completed by either:
+1. Removing the `plugin/delta` tag
+2. Adding a `+plugin/delta` Plugin response
+
 Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
 
-### Remove the `plugin/delta` tag:
+#### Remove the `plugin/delta` tag:
+Use this approach when a script could be run multiple times to create multiple outputs.
 ```javascript
 const whatPlugin = {
   tag: 'plugin/delta/what',
   config: {
     timeoutMs: 30_000,
-    javascript: `
-      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
-      const louderRef = {
-        url: 'yousaid:' + ref.url,
-        sources: [ref.url],
-        comment: ref.comment.toUpperCase(),
-        tags: ['+plugin/delta/what']
-      };
-      ref.tags = ref.tags.filter(t => t !== 'plugin/delta/what' && !t.startsWith('plugin/delta/what/'));
-      console.log(JSON.stringify({
-        ref: [ref, louderRef],
-      }));
-    `,
-  },
-};
-const whatPluginSignature = {
-  tag: '+plugin/delta/what',
-  generateMetadata: true,
-};
-```
-
-### Add the `+plugin/delta` tag:
-```javascript
-const whatPlugin = {
-  tag: 'plugin/delta/what',
-  config: {
-    timeoutMs: 30_000,
-    javascript: `
+    language: 'javascript',
+    // language=JavaScript
+    script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
       const louderRef = {
         url: 'yousaid:' + ref.url,
         sources: [ref.url],
         comment: ref.comment.toUpperCase(),
       };
-      ref.tags.push('+plugin/delta/what');
+      louderRef.tags = ref.tags = ref.tags.filter(t => t !== 'plugin/delta/what' && !t.startsWith('plugin/delta/what/'));
       console.log(JSON.stringify({
         ref: [ref, louderRef],
       }));
@@ -637,7 +737,7 @@ const whatPlugin = {
 };
 ```
 
-### Add the `+plugin/delta` Plugin response:
+#### Add the `+plugin/delta` Plugin response:
 This is the recommended approach as it does need to modify existing Refs and
 is less likely for a bug to cause an infinite loop.
 ```javascript
@@ -645,7 +745,9 @@ const whatPlugin = {
   tag: 'plugin/delta/what',
   config: {
     timeoutMs: 30_000,
-    javascript: `
+    language: 'javascript',
+    // language=JavaScript
+    script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
       const louderRef = {
         url: 'yousaid:' + ref.url,
@@ -659,41 +761,96 @@ const whatPlugin = {
     `,
   },
 };
-const whatPluginSignature = {
-  tag: '+plugin/delta/what',
-  generateMetadata: true,
+```
+
+### Cron scripts
+Any Refs with a `plugin/script` tag will run the attached script when the `+plugin/cron` tag is also present.
+The `+plugin/cron` tag contains plugin data with a default interval of 15 minutes:
+```json
+{
+  "interval": "PT15M"
+}
+```
+
+When the `+plugin/cron` tag is present the script will be run repeatedly at the interval specified. Removing the
+`+plugin/cron` tag will disable the script.
+
+You can use this to mark the input Ref as completed by either:
+1. Removing the `plugin/delta` tag
+2. Adding a `+plugin/delta` Plugin response
+
+#### Example
+Here is a script that outputs the current time:
+```javascript
+const timePlugin = {
+  tag: 'plugin/script/time',
+  config: {
+    timeoutMs: 30_000,
+    language: 'javascript',
+    // language=JavaScript
+    script: `
+      const uuid = require('uuid');
+      const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      const timeRef = {
+        url: 'comment:' + uuid.v4(),
+        sources: [ref.url],
+        comment: '' + new Date(),
+        tags: ['public', 'time']
+      };
+      console.log(JSON.stringify({
+        ref: [timeRef],
+      }));
+    `,
+  },
 };
 ```
 
 ## RSS / Atom Scraping
-The `+plugin/feed` can be used to scrape RSS / Atom feeds.
+TODO: make this a mod `plugin/script/feed` and remove it from the server
+The `plugin/feed` can be used to scrape RSS / Atom feeds. The `+plugin/cron` tag is used to set
+the scraping interval. If no `+plugin/cron` is added the feed is considered disabled.
 Although plugin fields are determined dynamically, the following fields are checked by the
 scraper:
 ```json
 {
-  "properties": {
-    "scrapeInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "addTags": { "elements": { "type": "string" } },
-    "lastScrape": { "type": "string" },
+    "disableEtag": { "type": "boolean" },
+    "etag": { "type": "string" },
+    "stripQuery": { "type": "boolean" },
+    "scrapeWebpage": { "type": "boolean" },
     "scrapeDescription": { "type": "boolean" },
-    "removeDescriptionIndent": { "type": "boolean" }
+    "scrapeContents": { "type": "boolean" },
+    "scrapeAuthors": { "type": "boolean" },
+    "scrapeThumbnail": { "type": "boolean" },
+    "scrapeAudio": { "type": "boolean" },
+    "scrapeVideo": { "type": "boolean" },
+    "defaultThumbnail": {
+      "optionalProperties": {
+        "url": { "type": "string" },
+        "color": { "type": "string" },
+        "emoji": { "type": "string" },
+        "radius": { "type": "int32" }
+      }
+    }
   }
 }
 ```
 
-**Add Tags:** Tags to apply to any Refs created by this feed.
-**Modified:** Last modified date of this Feed.  
-**Last Scrape:** The time this feed was last scraped.  
-**Scrape Interval:** The time interval to scrape this feed. Use ISO 8601 duration format.
-**Scrape Description:** Boolean to enable / disable attempting to find a description field in the
-feed to use for the Ref comment field.  
-**Remove Description Indent:** Remove any indents from the description. This is needed when the
-description is HTML, as indents will trigger a block quote in markdown.
+**Add Tags:** Tags to apply to any Refs created by this feed.  
+**Disable Etag:** Don't use etag headers to skip unchanged feeds.  
+**Strip Query:** Remove query (HTTP search field) from any scraped links.  
+**Scrape Webpage:** Scrape the web-page directly instead.  
+**Scrape Description:** Use description field in the feed for the Ref comment field.    
+**Scrape Contents:** Use contents field in the feed for the Ref comment field.  
+**Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.  
+**Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.  
+**Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.  
+**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media or `plugin/embed` tag to the Ref to load oEmbed.  
+**Default Thumbnail:** Default thumbnail if none found in entry.  
 
-The `+plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
-`+plugin/feed` it will be skipped.
+The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
+`plugin/feed` it will be skipped.
 
 ## Remote Origin
 The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a local alias. These may be either pulled from or pushed to.
@@ -701,13 +858,15 @@ The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a
 {
   "optionalProperties": {
     "local": { "type": "string" },
-    "remote": { "type": "string" }
+    "remote": { "type": "string" },
+    "proxy": { "type": "string" }
   }
 }
 ```
 
 **Local:** Local alias for the remote origin.  
 **Remote:** Remote origin to query, or blank for the default.  
+**Proxy:** Alternate URL to replicate from.  
 
 ## Replicating Remote Origin
 The `+plugin/origin/pull` tag can be used to replicate remote origins. Since this plugin
@@ -715,18 +874,17 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pullInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPull": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "generateMetadata": { "type": "boolean" },
+    "websocket": { "type": "boolean" },
+    "cachePrefetch": { "type": "boolean" },
+    "cacheProxy": { "type": "boolean" },
+    "cacheProxyPrefetch": { "type": "boolean" },
     "validatePlugins": { "type": "boolean" },
+    "stripInvalidPlugins": { "type": "boolean" },
     "validateTemplates": { "type": "boolean" },
-    "validationOrigin": { "type": "string" },
+    "stripInvalidTemplates": { "type": "boolean" },
     "addTags": { "elements": { "type": "string" } },
     "removeTags": { "elements": { "type": "string" } }
   }
@@ -734,15 +892,16 @@ fields set.
 ```
 
 **Query:** Restrict results using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to replicate from.  
-**Last Pull:** The time this origin was last replicated.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Generate Metadata:** Flag to enable, disable metadata generation.  
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size to pull each request.  
+**Websocket:** Listen to websocket cursor updates to pull.  
+**Cache Prefetch:** Attempt to pull cached files while pulling Refs.  
+**Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
+**Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
+**Strip Invalid Plugins:** If plugin validation is enabled, strip invalid plugins instead of skipping invalid Refs.  
 **Validate Templates:** Flag to enable, disable template validation.  
-**Validation Origin:** Origin to get plugin and templates for validation.  
+**Strip Invalid Template:** If template validation is enabled, strip invalid templates instead of skipping invalid Exts.
 **Add Tags:** Tags to apply to any Refs replicated from this origin.  
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
 
@@ -752,36 +911,20 @@ extends `+plugin/origin`, we already have the `local` and `remote`
 fields set.
 ```json
 {
-  "properties": {
-    "pushInterval": { "type": "string" }
-  },
   "optionalProperties": {
     "query": { "type": "string" },
-    "proxy": { "type": "string" },
-    "lastPush": { "type": "string" },
     "batchSize": { "type": "int32" },
-    "writeOnly": { "type": "boolean" },
-    "lastModifiedRefWritten": { "elements": { "type": "string" } },
-    "lastModifiedExtWritten": { "elements": { "type": "string" } },
-    "lastModifiedUserWritten": { "elements": { "type": "string" } },
-    "lastModifiedPluginWritten": { "elements": { "type": "string" } },
-    "lastModifiedTemplateWritten": { "elements": { "type": "string" } }
+    "pushOnChange": { "type": "boolean" },
+    "cache": { "type": "boolean" }
   }
 }
 ```
 
 **Query:** Restrict push using a query. Can not use qualified tags as replication only works on a single origin at
-a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.  
-**Proxy:** Alternate URL to push to.  
-**Last Push:** The time this origin was last pushed to.  
-**Pull Interval:** The time interval to replicate this origin. Use ISO 8601 duration format.  
-**Batch Size:** The max number of entities of each type to pull each interval.  
-**Write Only:** Do not query remote for last modified cursor, just use saved cursor.  
-**Last Modified Ref Written:** Modified date of last Ref pushed.    
-**Last Modified Ext Written:** Modified date of last Ext pushed.    
-**Last Modified User Written:** Modified date of last User pushed.    
-**Last Modified Plugin Written:** Modified date of last Plugin pushed.    
-**Last Modified Template Written:** Modified date of last Template pushed.    
+a time. If you want to combine multiple origins into one, create multiple `+plugin/origin` Refs.
+**Batch Size:** The max page size of entities to push.  
+**Push On Change:** Push entities immediately after modification.
+**Cache:** Also push cached files.  
 
 ## Random Number Generator
 
@@ -801,5 +944,19 @@ When playing on mutually replicating servers, each server is trusted to generate
 * [v1.1](./docs/release-notes/jasper-1.1.md)
 * [v1.0](./docs/release-notes/jasper-1.0.md)
 
-# Developing
-Run a dev database with `docker compose up db -d`.
+## Developing
+Run a dev server with `docker compose up`.  
+Run a supporting dev database and cache with `docker compose up db redis -d`.
+
+### Build
+
+Run `docker build -t jasper .` to build the project.
+
+### Running unit tests
+
+Run `docker build --target=test -t jasper-tests .` to build the tests.  
+Run `docker run -it jasper-tests` to execute the unit tests.
+
+### Running end-to-end tests
+
+See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).

@@ -57,15 +57,16 @@ class TokenProviderImplTest {
 	}
 
 	Claims getClaims(String sub) {
-		var claims = new DefaultClaims();
-		claims.setSubject(sub);
-		return claims;
+		return new DefaultClaims(Map.of(
+			"sub", sub
+		));
 	}
 
 	Claims getClaims(String sub, String auth) {
-		var claims = new DefaultClaims(Map.of("auth", auth));
-		claims.setSubject(sub);
-		return claims;
+		return new DefaultClaims(Map.of(
+			"auth", auth,
+			"sub", sub
+		));
 	}
 
 	Props getProps(String localOrigin) {
@@ -164,15 +165,15 @@ class TokenProviderImplTest {
     }
 
     private String createTokenWithDifferentSignature() {
-        Key otherKey = Keys.hmacShaKeyFor(
+        var otherKey = Keys.hmacShaKeyFor(
             Decoders.BASE64.decode("Xfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8")
         );
 
         return Jwts
-            .builder()
-            .setSubject("anonymous")
+			.builder()
+			.subject("anonymous")
             .signWith(otherKey, SignatureAlgorithm.HS512)
-            .setExpiration(new Date(new Date().getTime() + ONE_MINUTE))
+            .expiration(new Date(new Date().getTime() + ONE_MINUTE))
             .compact();
     }
 

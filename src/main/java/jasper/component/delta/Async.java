@@ -1,12 +1,13 @@
 package jasper.component.delta;
 
 import jasper.component.ConfigCache;
-import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.domain.proj.HasTags;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.QualifiedTag;
 import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,13 +22,15 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import static jasper.domain.proj.HasTags.hasPluginResponse;
+import static jasper.util.Logging.getMessage;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -44,9 +47,6 @@ public class Async {
 	private static final Logger logger = LoggerFactory.getLogger(Async.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
@@ -55,22 +55,27 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, AsyncRunner> tags = new HashMap<>();
+	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
 
-	@EventListener(ApplicationReadyEvent.class)
-	public void init() {
-		taskScheduler.schedule(() -> {
-			for (String origin : configs.root().getAsyncOrigins()) {
-				backfill(origin);
-			}
-		}, Instant.now().plusMillis(1000L));
-	}
+	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
 	/**
 	 * Register a runner for a tag.
 	 */
 	public void addAsyncTag(String plugin, AsyncRunner r) {
+		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
+	}
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void init() {
+		if (tags.isEmpty()) return;
+		taskScheduler.schedule(() -> configs.root().getScriptSelectors()
+				.stream()
+				.map(QualifiedTag::tagOriginSelector)
+				.map(s -> s.origin)
+				.forEach(this::backfill),
+			Instant.now().plusMillis(1000L));
 	}
 
 	/**
@@ -79,73 +84,85 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		var query = tags
-			.entrySet()
-			.stream()
-			.map(e -> e.getKey() + (isBlank(e.getValue().signature()) ? "" : ":!" + e.getValue().signature()))
-			.collect(Collectors.joining("|"));
-		return "!+plugin/error:(" + query + ")";
+		return "!+plugin/error" +
+			":(" + String.join("|", tags.keySet()) + ")" +
+			":(" + String.join("|", configs.root().getScriptSelectors()) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
-		var root = configs.root();
-		if (root.getAsyncOrigins() == null) return;
 		var ud = message.getPayload();
-		if (ud.getTags() == null) return;
-		if (hasMatchingTag(ud, "+plugin/error")) return;
-		if (!root.getAsyncOrigins().contains(origin(ud.getOrigin()))) return;
-		tags.forEach((k, v) -> {
-			if (!hasMatchingTag(ud, k)) return;
-			if (isNotBlank(v.signature())) {
-				if (hasMatchingTag(ud, v.signature())) return;
-				var ref = refRepository.findOneByUrlAndOrigin(ud.getUrl(), ud.getOrigin())
-					.orElse(null);
-				// TODO: Only check plugin responses in the same origin
-				if (ref != null && ref.hasPluginResponse(v.signature())) return;
-			}
-			logger.debug("Async Tag ({}): {} {}", k, ud.getUrl(), ud.getOrigin());
-			try {
-				v.run(fetch(ud));
-			} catch (NotFoundException e) {
-				logger.debug("Plugin not installed {} ", e.getMessage());
-			} catch (Exception e) {
-				logger.error("Error in async tag {} ", k, e);
-			}
-		});
+		try {
+			if (tags.isEmpty()) throw new RuntimeException();
+			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
+			if (ud.getTags() == null) throw new RuntimeException();
+			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
+			tags.forEach((k, v) -> {
+				if (!hasMatchingTag(ud, k)) return;
+				if (!configs.root().script(k, ud.getOrigin())) return;
+				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
+				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
+				refs.compute(getKey(ud), (u, existing) -> {
+					if (existing != null && !existing.isDone()) {
+						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
+						return existing;
+					}
+					return taskScheduler.schedule(() -> {
+						try {
+							v.run(fetch(ud));
+						} catch (NotFoundException e) {
+							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
+						} catch (Exception e) {
+							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
+						}
+					}, Instant.now());
+				});
+			});
+		} catch (Exception e) {
+			refs.computeIfPresent(getKey(ud), (k, existing) -> {
+				if (existing.isDone()) return null;
+				logger.info("{} Cancelled run {}: {}", ud.getOrigin(), ud.getTitle(), ud.getUrl());
+				existing.cancel(true);
+				return null;
+			});
+		}
 	}
 
 	private Ref fetch(RefDto ud) {
-		return this.refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
+		return refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
 			.orElseThrow(() -> new NotFoundException("Async"));
 	}
 
 	private void backfill(String origin) {
-		if (isBlank(trackingQuery())) return;
-		Map<String, Instant> lastModified = new HashMap<>();
+		Instant lastModified = null;
 		while (true) {
 			var maybeRef = refRepository.findAll(RefFilter.builder()
 				.origin(origin)
 				.query(trackingQuery())
-				.modifiedAfter(lastModified.getOrDefault(origin, Instant.now().minus(1, ChronoUnit.DAYS)))
+				.modifiedAfter(lastModified != null ? lastModified : Instant.now().minus(1, ChronoUnit.DAYS))
 				.build().spec(), PageRequest.of(0, 1, by(Ref_.MODIFIED)));
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().getFirst();
-			lastModified.put(origin, ref.getModified());
+			lastModified = ref.getModified();
 			tags.forEach((k, v) -> {
 				if (!v.backfill()) return;
+				if (!configs.root().script(k, origin)) return;
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
 				try {
 					v.run(ref);
 				} catch (NotFoundException e) {
-					logger.debug("Plugin not installed {} ", e.getMessage());
+					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
 				} catch (Exception e) {
-					logger.error("Error in async tag {} ", k, e);
+					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 				}
 			});
 		}
+	}
+
+	private String getKey(HasTags ref) {
+		return ref.getOrigin() + ":" + ref.getUrl();
 	}
 
 	public interface AsyncRunner {

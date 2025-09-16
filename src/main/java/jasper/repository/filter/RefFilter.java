@@ -1,6 +1,7 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
+import jasper.repository.spec.QualifiedTag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -10,11 +11,14 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.RefSpec.*;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.data.jpa.domain.Specification.not;
 
 @Builder
 @Getter
@@ -23,20 +27,27 @@ public class RefFilter implements Query {
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
+	private Integer nesting;
 	private String url;
-	private boolean obsolete;
+	private Boolean obsolete;
 	private String scheme;
 	private String query;
+	private String noDescendents;
 	private String search;
 	private String endsTitle;
 	private boolean rankedOrder;
 	private String sources;
+	private String noSources;
 	private String responses;
+	private String noResponses;
 	private boolean untagged;
 	private boolean uncited;
 	private boolean unsourced;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
+	private String user;
+	private List<String> userResponse;
+	private List<String> noUserResponse;
 	private Instant modifiedBefore;
 	private Instant modifiedAfter;
 	private Instant publishedBefore;
@@ -46,13 +57,26 @@ public class RefFilter implements Query {
 	private Instant responseBefore;
 	private Instant responseAfter;
 
+	public Specification<Ref> spec(QualifiedTag user) {
+		if (user != null) this.user = user.tag;
+		return spec();
+	}
+
 	public Specification<Ref> spec() {
+		if ("!@*".equals(query)) return none();
 		var result = Specification.<Ref>where(null);
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
-			result = result.and(isNotObsolete());
-		} else if (!obsolete) {
-			result = result.and(isNotObsolete());
+		}
+		if (obsolete != null) {
+			if (!obsolete) {
+				result = result.and(isNotObsolete());
+			} else {
+				result = result.and(not(isNotObsolete()));
+			}
+		}
+		if (nesting != null) {
+			result = result.and(isNesting(nesting));
 		}
 		if (isNotBlank(url)) {
 			result = result.and(isUrl(url));
@@ -63,6 +87,9 @@ public class RefFilter implements Query {
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
+		if (isNotBlank(noDescendents)) {
+			result = result.and(hasNoChildTag(noDescendents));
+		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
 		}
@@ -70,35 +97,48 @@ public class RefFilter implements Query {
 			result = result.and(endsWithTitle(endsTitle));
 		}
 		if (isNotBlank(sources)) {
-			// TODO: query across origins
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
+		if (isNotBlank(noSources)) {
+			result = result.and(not(hasResponse(noSources))
+				.and(not(hasInternalResponse(noSources))));
+		}
 		if (isNotBlank(responses)) {
-			// TODO: query across origins
 			result = result.and(hasSource(responses));
+		}
+		if (isNotBlank(noResponses)) {
+			result = result.and(not(hasSource(noResponses)));
 		}
 		if (untagged) {
 			result = result.and(hasNoTags());
 		}
 		if (uncited) {
-			// TODO: query across origins
 			result = result.and(hasNoResponses());
 		}
 		if (unsourced) {
-			// TODO: query across origins
 			result = result.and(hasNoSources());
 		}
 		if (pluginResponse != null) {
-			// TODO: query across origins
 			for (var r : pluginResponse) {
 				result = result.and(hasPluginResponses(r));
 			}
 		}
 		if (noPluginResponse != null) {
-			// TODO: query across origins
 			for (var nr : noPluginResponse) {
 				result = result.and(hasNoPluginResponses(nr));
+			}
+		}
+		if (isNotBlank(user)) {
+			if (userResponse != null) {
+				for (var r : userResponse) {
+					result = result.and(hasPluginResponses(user, r));
+				}
+			}
+			if (noUserResponse != null) {
+				for (var nr : noUserResponse) {
+					result = result.and(hasNoPluginResponses(user, nr));
+				}
 			}
 		}
 		if (modifiedBefore != null) {

@@ -8,12 +8,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
 
 	@Modifying
@@ -23,8 +25,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			config = :config,
 			schema = :schema,
 			defaults = :defaults,
-			generateMetadata = :generateMetadata,
-			userUrl = :userUrl,
 			modified = :modified
 		WHERE
 			tag = :tag AND
@@ -38,8 +38,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		JsonNode config,
 		ObjectNode schema,
 		JsonNode defaults,
-		boolean generateMetadata,
-		boolean userUrl,
 		Instant modified);
 
 	@Query("""
@@ -47,6 +45,9 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 		FROM Plugin p
 		WHERE p.origin = :origin""")
 	Instant getCursor(String origin);
+
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from plugin")
+	List<String> origins();
 
 	@Modifying(clearAutomatically = true)
 	@Query("""
@@ -61,20 +62,4 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
 			AND p.tag = :tag""")
 	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
-
-	// TODO: Cache this, it rarely changes
-	@Query("""
-		FROM Plugin AS p
-		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false""")
-	List<Plugin> findAllByOrigin(String origin);
-
-	// TODO: Cache this, it rarely changes
-	@Query("""
-		SELECT p.tag
-		FROM Plugin AS p
-		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
-			AND p.generateMetadata = true""")
-	List<String> findAllByGenerateMetadataByOrigin(String origin);
 }

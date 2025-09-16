@@ -1,7 +1,6 @@
 package jasper.component;
 
 import jasper.client.TokenClient;
-import jasper.config.Props;
 import jasper.security.Auth;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,9 +12,6 @@ import java.net.URISyntaxException;
 @Component
 @RequestScope
 public class AccessToken {
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	Auth auth;

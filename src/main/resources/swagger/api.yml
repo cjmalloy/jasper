@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.2.28
+  version: 1.3.5
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
 servers:
-  - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.28
+  - description: Public Server
+    url: https://jasperkm.info/
 paths:
   /api/v1/ref:
     get:
@@ -45,12 +45,6 @@ paths:
       tags:
         - Ref
       operationId: updateRef
-      parameters:
-        - name: force
-          in: query
-          required: false
-          schema:
-            type: boolean
       requestBody:
         content:
           application/json:
@@ -72,12 +66,6 @@ paths:
       tags:
         - Ref
       operationId: createRef
-      parameters:
-        - name: force
-          in: query
-          required: false
-          schema:
-            type: boolean
       requestBody:
         content:
           application/json:
@@ -95,28 +83,6 @@ paths:
           $ref: '#/components/responses/ForeignWrite'
         '409':
           $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Ref
-      operationId: deleteRef
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
     patch:
       tags:
         - Ref
@@ -152,6 +118,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ref
+      operationId: deleteRef
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/ref/page:
     get:
       tags:
@@ -190,6 +178,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: noDescendents
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
         - name: url
           in: query
           required: false
@@ -205,7 +198,17 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: noSources
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
         - name: responses
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: noResponses
           in: query
           required: false
           schema:
@@ -283,6 +286,24 @@ paths:
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: userResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noUserResponse
           in: query
           required: false
           schema:
@@ -408,6 +429,24 @@ paths:
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: userResponse
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noUserResponse
           in: query
           required: false
           schema:
@@ -564,6 +603,130 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /api/v1/tags/response:
+    get:
+      tags:
+        - Tagging
+      operationId: getResponse
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Tagging
+      operationId: createResponse
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Tagging
+      operationId: deleteResponse
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Tagging
+      operationId: patchResponse
+      parameters:
+        - name: tags
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/tagPatch'
+        - name: url
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/proxy:
     get:
       tags:
@@ -652,6 +815,12 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/url'
+        - name: thumbnail
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Mime type scraped
@@ -661,160 +830,13 @@ paths:
                 type: string
         '500':
           description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/proxy/refresh:
-    get:
-      tags:
-        - Proxy
-      operationId: refresh
-      description: Immediately re-scrape a webpage and replace it in the cache.
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
-        '500':
-          description: Error fetching
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/tags/response:
-    post:
-      tags:
-        - Tagging
-      operationId: createResponse
-      parameters:
-        - name: tag
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/tag'
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '201':
-          description: Created
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Tagging
-      operationId: deleteResponse
-      parameters:
-        - name: tag
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/tag'
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-    patch:
-      tags:
-        - Tagging
-      operationId: patchResponse
-      parameters:
-        - name: tags
-          in: query
-          required: true
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/tagPatch'
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-  /api/v1/scrape/feed:
-    post:
-      tags:
-        - Scrape
-      operationId: scrapeFeed
-      description: Immediately scrape a feed. Ref must have `+plugin/feed`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error scraping
           content:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/web:
     get:
+      deprecated: true
       tags:
         - Scrape
       operationId: scrapeWebpage
@@ -840,6 +862,7 @@ paths:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/scrape/rss:
     get:
+      deprecated: true
       tags:
         - Scrape
       operationId: rss
@@ -864,71 +887,22 @@ paths:
             '*/*':
               schema:
                 $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/push:
-    post:
-      tags:
-        - Origin
-      operationId: push
-      description: Immediately push to a remote origin. Ref must have `+plugin/origin/push`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pushing
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
-  /api/v1/origin/pull:
-    post:
-      tags:
-        - Origin
-      operationId: pull
-      description: Immediately pull from a remote origin. Ref must have `+plugin/origin/pull`
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          description: Error pulling
-          content:
-            '*/*':
-              schema:
-                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
   /api/v1/origin:
+    get:
+      tags:
+        - Origin
+      operationId: listOrigins
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/origin'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     delete:
       tags:
         - Origin
@@ -982,12 +956,6 @@ paths:
       tags:
         - Ext
       operationId: updateExt
-      parameters:
-        - name: force
-          in: query
-          required: false
-          schema:
-            type: boolean
       requestBody:
         content:
           application/json:
@@ -1009,12 +977,6 @@ paths:
       tags:
         - Ext
       operationId: createExt
-      parameters:
-        - name: force
-          in: query
-          required: false
-          schema:
-            type: boolean
       requestBody:
         content:
           application/json:
@@ -1030,23 +992,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
-    delete:
-      tags:
-        - Ext
-      operationId: deleteExt
-      parameters:
-        - name: tag
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/qtag'
-      responses:
-        '204':
-          description: No Content
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
     patch:
       tags:
         - Ext
@@ -1077,6 +1022,23 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - Ext
+      operationId: deleteExt
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/ext/page:
     get:
       tags:
@@ -1114,6 +1076,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1286,6 +1253,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Plugin
+      operationId: patchPlugin
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       tags:
         - Plugin
@@ -1340,6 +1337,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1436,6 +1438,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - Template
+      operationId: patchTemplate
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       tags:
         - Template
@@ -1490,6 +1522,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1591,6 +1628,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+    patch:
+      tags:
+        - User
+      operationId: patchUser
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Modified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       tags:
         - User
@@ -1645,6 +1712,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: deleted
           in: query
           required: false
@@ -1730,8 +1802,7 @@ paths:
               schema:
                 type: array
                 items:
-                  type: string
-                  format: uuid
+                  $ref: '#/components/schemas/BackupDto'
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
@@ -1898,11 +1969,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/backup/backfill:
+  /api/v1/backup/regen:
     post:
       tags:
         - Backup
-      operationId: backfill
+      operationId: regen
       parameters:
         - name: origin
           in: query
@@ -2540,6 +2611,21 @@ components:
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 127
+    Page:
+      type: object
+      properties:
+        number:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     Ref:
       required:
         - published
@@ -2607,33 +2693,12 @@ components:
     PageRef:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Ref'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Ext:
       required:
         - tag
@@ -2653,33 +2718,12 @@ components:
     PageExt:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Ext'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Plugin:
       required:
         - tag
@@ -2705,33 +2749,12 @@ components:
     PagePlugin:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Plugin'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     Template:
       type: object
       properties:
@@ -2753,33 +2776,12 @@ components:
     PageTemplate:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/Template'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
-        first:
-          type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        page:
+          $ref: '#/components/schemas/Page'
     User:
       required:
         - tag
@@ -2826,11 +2828,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/User'
-        number:
-          type: integer
-          format: int32
-        sort:
-          $ref: '#/components/schemas/Sort'
         first:
           type: boolean
         last:
@@ -2839,15 +2836,6 @@ components:
           type: integer
           format: int32
         empty:
-          type: boolean
-    Sort:
-      type: object
-      properties:
-        empty:
-          type: boolean
-        sorted:
-          type: boolean
-        unsorted:
           type: boolean
     BackupOptions:
       type: object
@@ -2866,6 +2854,14 @@ components:
           type: boolean
         user:
           type: boolean
+    BackupDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        size:
+          type: number
     Addresses:
       type: object
       properties:

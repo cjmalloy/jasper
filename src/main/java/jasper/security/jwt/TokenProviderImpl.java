@@ -5,7 +5,6 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
@@ -13,6 +12,7 @@ import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
+import jasper.errors.UserTagInUseException;
 import jasper.management.SecurityMetersService;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -34,14 +33,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.matchesPublic;
+import static jasper.domain.proj.Tag.prefix;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.getHeader;
-import static jasper.security.Auth.getOriginHeader;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.PRIVATE;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.springframework.util.StringUtils.hasText;
 
 public class TokenProviderImpl extends AbstractTokenProvider implements TokenProvider {
 	private final Logger logger = LoggerFactory.getLogger(TokenProviderImpl.class);
@@ -68,20 +71,28 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var validity = new Date(now + 1000L * validityInSeconds);
 		return Jwts
 			.builder()
-			.setSubject(authentication.getName())
-			.setAudience(security.getClientId())
+			.subject(authentication.getName())
+				.audience()
+				.add(security.getClientId())
+			.and()
 			.claim(security.getAuthoritiesClaim(), authorities)
 			.claim(security.getVerifiedEmailClaim(), true)
-			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), SignatureAlgorithm.HS512)
-			.setExpiration(validity)
+			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), Jwts.SIG.HS512)
+			.expiration(validity)
 			.compact();
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = getParser(origin).parseClaimsJws(token).getBody();
+		var claims = getParser(origin).parseSignedClaims(token).getPayload();
 		var principal = getUsername(claims, origin);
-		var user = getUser(principal);
-		logger.debug("Token Auth {} {}", principal, origin);
+		User user;
+		try {
+			user = getUser(localTag(principal), claims, origin);
+		} catch (UserTagInUseException e) {
+			principal = localTag(principal) + "." + (int) Math.floor(Math.random() * 1000) + origin;
+			user = getUser(localTag(principal), claims, origin);
+		}
+		logger.debug("{} Token Auth {}", origin, principal);
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
@@ -91,13 +102,13 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			switch (security.getMode()) {
 				case "jwt":
 					var key = Keys.hmacShaKeyFor(security.getSecretBytes());
-					jwtParsers.put(origin, Jwts.parserBuilder().setSigningKey(key).build());
+					jwtParsers.put(origin, Jwts.parser().verifyWith(key).build());
 					break;
 				case "jwks":
                     try {
-                        jwtParsers.put(origin, Jwts.parserBuilder().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
+                        jwtParsers.put(origin, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
                     } catch (URISyntaxException e) {
-						logger.error("Cannot parse JWKS URI {}", security.getJwksUri());
+						logger.error("{} Cannot parse JWKS URI {}", origin, security.getJwksUri());
                         throw new RuntimeException(e);
                     }
                     break;
@@ -108,15 +119,15 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return jwtParsers.get(origin);
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, UserDto user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
 		if (user != null && user.getRole() != null) {
-			logger.debug("User Roles: {}", user.getRole());
+			logger.debug("{} User Roles: {}", origin, user.getRole());
 			if (User.ROLES.contains(user.getRole().trim())) {
 				auth.add(new SimpleGrantedAuthority(user.getRole().trim()));
 			}
 		} else {
-			logger.debug("No User");
+			logger.debug("{} No User", origin);
 		}
 		return auth;
 	}
@@ -135,24 +146,34 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	String getUsername(Claims claims, String origin) {
-		if (props.isAllowLocalOriginHeader() && isNotBlank(getOriginHeader())) {
-			origin = getOriginHeader();
-			logger.debug("Origin set by header {}", origin);
-		}
-		var principal = "";
-		if (props.isAllowUserTagHeader() && !isBlank(getHeader(USER_TAG_HEADER))) {
-			principal = getHeader(USER_TAG_HEADER);
-			logger.debug("User tag set by header: {} ({})", principal, origin);
+		var userTagHeader = getHeader(USER_TAG_HEADER);
+		if (isBlank(userTagHeader) || !userTagHeader.matches(User.REGEX)) {
+			userTagHeader = "";
 		} else {
-			var security = configs.security(origin);
-			principal = claims.get(security.getUsernameClaim(), String.class);
-			logger.debug("User tag set by JWT claim {}: {} ({})", security.getUsernameClaim(), principal, origin);
+			userTagHeader = userTagHeader.toLowerCase();
 		}
-		logger.debug("Principal: {}", principal);
-		if (principal.contains("@")) {
+		var security = configs.security(origin);
+		var principal = claims.get(security.getUsernameClaim(), String.class);
+		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal);
+		if (props.isAllowUserTagHeader() && isNotBlank(userTagHeader)) {
+			principal = getHeader(USER_TAG_HEADER);
+			logger.debug("{} User tag set by header: {}", origin, principal);
+		} else if (security.isExternalId()) {
+			var user = configs.getUserByExternalId(origin, principal);
+			if (user.isPresent()) {
+				logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
+				if (isBlank(userTagHeader)) {
+					return user.get() + origin;
+				} else if (matchesPublic(principal, userTagHeader)) {
+					logger.debug("{} User tag set by header: {}", origin, userTagHeader);
+					return userTagHeader + origin;
+				}
+			}
+		}
+		logger.debug("{} Principal: {}", origin, principal);
+		if (principal != null && principal.contains("@")) {
 			var emailDomain = principal.substring(principal.indexOf("@") + 1);
 			principal = principal.substring(0, principal.indexOf("@"));
-			var security = configs.security(origin);
 			if (security.isEmailDomainInUsername() && !emailDomain.equals(security.getRootEmailDomain())) {
 				principal = emailDomain + "/" + principal;
 			}
@@ -162,11 +183,11 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			!principal.matches(Tag.QTAG_REGEX) ||
 			principal.equals("+user") ||
 			principal.equals("_user")) {
-			logger.debug("Invalid principal {}.", principal);
+			logger.debug("{} Invalid principal {}.", origin, principal);
 			if (authorities.stream().noneMatch(a ->
 				Arrays.stream(ROOT_ROLES_ALLOWED).anyMatch(r -> a.getAuthority().equals(r)))) {
 				// Invalid username and can't fall back to root user
-				logger.debug("Root role not allowed.");
+				logger.debug("{} Root role not allowed.", origin);
 				return null;
 			}
 			// The root user has access to every other user.
@@ -175,25 +196,41 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 				// Default to private user if +user is not exactly specified
 				principal = "_user";
 			}
-		} else if (!principal.startsWith("+user/") && !principal.startsWith("_user/")) {
+		} else if (!matchesPublic("+user", principal)) {
 			var isPrivate = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch(a -> a.equals(PRIVATE));
-			principal = (isPrivate ? "_user/" : "+user/") + principal;
+			principal = prefix(isPrivate ? "_user" : "+user", principal);
 		}
-		logger.debug("Username: {}", principal + origin);
+		if (isNotBlank(userTagHeader) && (matchesPublic(principal, userTagHeader) || matchesPublic(security.getDefaultUser(), userTagHeader))) {
+			logger.debug("{} User tag set by header: {}", origin, userTagHeader);
+			principal = userTagHeader;
+		}
+		logger.debug("{} Username: {}", origin, principal);
 		return principal + origin;
 	}
 
 	@Override
 	public boolean validateToken(String authToken, String origin) {
+		if (!hasText(authToken)) return false;
 		var security = configs.security(origin);
 		if (isBlank(security.getMode())) {
-			logger.error("No client for origin {} in security settings", formatOrigin(origin));
+			logger.error("{} No client for origin {} in security settings", origin, formatOrigin(origin));
 			return false;
 		}
-		if (!StringUtils.hasText(authToken)) return false;
 		try {
-			var claims = getParser(origin).parseClaimsJws(authToken).getBody();
-			if (!security.getClientId().equals(claims.getAudience())) {
+			var parser = getParser(origin);
+			if (parser == null) {
+				logger.error("{} No client for origin {} in security settings", origin, formatOrigin(origin));
+				return false;
+			}
+			var claims = parser.parseSignedClaims(authToken).getPayload();
+			if (isBlank(security.getClientId()) &&
+				claims.getAudience() != null &&
+				(!claims.getAudience().contains("") || !claims.getAudience().isEmpty())) {
+				securityMetersService.trackTokenInvalidAudience();
+				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
+			} else if (isNotBlank(security.getClientId()) &&
+				(claims.getAudience() == null || !claims.getAudience().contains(security.getClientId()) || claims.getAudience().size() != 1)) {
+				// TODO: add method to whitelist extra audiences
 				securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else if (isNotBlank(security.getVerifiedEmailClaim()) && claims.getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(false)) {
@@ -214,8 +251,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		} catch (SignatureException e) {
 			securityMetersService.trackTokenInvalidSignature();
 			logger.trace(INVALID_JWT_TOKEN, e);
+
 		} catch (IllegalArgumentException e) {
-			logger.error("Token validation error {}", e.getMessage());
+			logger.error("{} Token validation error {}", origin, getMessage(e));
 		}
         return false;
 	}

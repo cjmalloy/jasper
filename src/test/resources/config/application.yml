@@ -11,9 +11,16 @@
 # ===================================================================
 logging:
   level:
-    jasper: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    jasper: WARN
+#    org.hibernate.SQL: DEBUG
+#    org.hibernate.orm.jdbc.bind: TRACE
+#    org.hibernate.stat: DEBUG
+#    org.hibernate.SQL_SLOW: INFO
+#    org.hibernate.cache: DEBUG
+#    org.springframework.orm.jpa: DEBUG
+#    org.springframework.transaction: DEBUG
+#    org.hibernate.orm.jdbc.batch: INFO
+#    org.hibernate.engine.jdbc.spi: INFO
 
 spring:
   profiles:
@@ -40,7 +47,6 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        physical-strategy: org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
         implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
     properties:
       hibernate.id.new_generator_mappings: true
@@ -83,12 +89,10 @@ server:
   address: localhost
 
 jasper:
-  pull-delay-min: 0
-  pull-interval-min: 1
-  scrape-delay-min: 5
-  scrape-interval-min: 1
   default-role: ROLE_USER
   node: ~/.bun/bin/bun
+  python: /usr/bin/python3
+  shell: /usr/bin/bash
   cache-api: ''
   override:
     security:

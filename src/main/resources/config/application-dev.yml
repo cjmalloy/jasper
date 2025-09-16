@@ -13,6 +13,7 @@
 logging:
   level:
     ROOT: INFO
+    jasper.component.cron.Backfill: TRACE
 
 spring:
   devtools:
@@ -68,16 +69,15 @@ server:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
+  max-role: ROLE_ADMIN
   push-cooldown-sec: 1
-  pull-delay-min: 0
-  pull-interval-min: 1
-  scrape-delay-min: 5
-  scrape-interval-min: 5
 #  local-origin: '@test'
+#  default-role: ROLE_ADMIN
   allow-user-role-header: true
   allow-user-tag-header: true
-  allow-local-origin-header: true
   allow-auth-headers: true
+  security:
+    content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'self' http://localhost:4200 https://localhost:4200"
   override:
     security:
       mode: 'jwt'

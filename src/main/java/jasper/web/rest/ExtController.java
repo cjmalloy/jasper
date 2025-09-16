@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import jasper.component.HttpCache;
 import jasper.domain.Ext;
 import jasper.domain.proj.Tag;
@@ -23,20 +25,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
@@ -66,10 +56,9 @@ public class ExtController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	Instant createExt(
-		@RequestBody @Valid Ext ext,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ext ext
 	) {
-		return extService.create(ext, force);
+		return extService.create(ext);
 	}
 
 	@ApiResponses({
@@ -79,11 +68,10 @@ public class ExtController {
 	})
 	@GetMapping
 	HttpEntity<ExtDto> getExt(
-		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
 		try {
-			return httpCache.ifNotModified(request, extService.get(tag));
+			return httpCache.ifNotModified(extService.get(tag));
 		} catch (NotFoundException e) {
 			// Catch to avoid error logging
 			return ResponseEntity.notFound().build();
@@ -96,17 +84,20 @@ public class ExtController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<ExtDto>> getExtPage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return httpCache.ifNotModifiedPage(request, extService.page(
+		return httpCache.ifNotModifiedPage(extService.page(
 			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
+				.level(level)
 				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
@@ -121,6 +112,8 @@ public class ExtController {
 	@GetMapping("count")
 	long countExts(
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
@@ -129,6 +122,8 @@ public class ExtController {
 		return extService.count(
 			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
+				.level(level)
 				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
@@ -142,10 +137,9 @@ public class ExtController {
 	})
 	@PutMapping
 	Instant updateExt(
-		@RequestBody @Valid Ext ext,
-		@RequestParam(defaultValue = "false") boolean force
+		@RequestBody @Valid Ext ext
 	) {
-		return extService.update(ext, force);
+		return extService.update(ext);
 	}
 
 	@ApiResponses({

@@ -41,7 +41,7 @@ public class ValidateRefIT {
 		ref.setTags(Arrays.asList("+user/tester"));
 		refRepository.save(ref);
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -62,7 +62,7 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref("", ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -78,7 +78,7 @@ public class ValidateRefIT {
 				"age": { "type": "uint32" }
 			}
 		}"""));
-		plugin.setDefaults(mapper.readTree("""
+		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"invalid": "defaults"
 		}"""));
@@ -88,7 +88,7 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref("", ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -117,7 +117,7 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -138,7 +138,7 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "plugin/test")));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -159,7 +159,7 @@ public class ValidateRefIT {
 			"plugin/test": "test"
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -180,7 +180,7 @@ public class ValidateRefIT {
 			"plugin/test": true
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -201,7 +201,7 @@ public class ValidateRefIT {
 			"plugin/test": 100
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -222,7 +222,7 @@ public class ValidateRefIT {
 			"plugin/test": ["test", "works"]
 		}"""));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 
 	@Test
@@ -253,8 +253,7 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref("", ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -276,7 +275,7 @@ public class ValidateRefIT {
 			}
 		}"""));
 
-		assertThatThrownBy(() -> validate.ref(ref, false))
+		assertThatThrownBy(() -> validate.ref("", ref, false))
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
@@ -285,7 +284,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		var mapper = new ObjectMapper();
-		plugin.setDefaults(mapper.readTree("""
+		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
@@ -303,6 +302,6 @@ public class ValidateRefIT {
 		ref.setTitle("First");
 		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
-		validate.ref(ref, false);
+		validate.ref("", ref, false);
 	}
 }

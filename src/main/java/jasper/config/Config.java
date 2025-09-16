@@ -1,6 +1,8 @@
 package jasper.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,7 +14,10 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.List;
 
+import static jasper.repository.spec.QualifiedTag.tagOriginList;
+import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public interface Config {
@@ -39,45 +44,60 @@ public interface Config {
 		/**
 		 * Whitelist origins to be allowed web access.
 		 */
+		@Builder.Default
 		private List<String> webOrigins = List.of("");
+		@Builder.Default
+		private int maxReplEntityBatch = 500;
 		/**
 		 * Whitelist origins to be allowed to open SSH tunnels.
 		 */
-		private List<String> sshOrigins = List.of("");
-		/**
-		 * Whitelist origins to be allowed to push using +plugin/origin/push.
-		 */
-		private List<String> pushOrigins = List.of("");
 		@Builder.Default
-		private int pushBatchSize = 20;
+		private List<String> sshOrigins = List.of("");
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
-		/**
-		 * Whitelist origins to be allowed to pull using +plugin/origin/pull.
-		 */
-		private List<String> pullOrigins = List.of("");
-		@Builder.Default
-		private int pullBatchSize = 20;
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
-		 * Whitelist origins to run async tasks on.
+		 * Whitelist selectors to run scripts on. No origin wildcards.
 		 */
-		private List<String> asyncOrigins = List.of("");
-		/**
-		 * Whitelist origins to be allowed to scrape using +plugin/feed.
-		 */
-		private List<String> scrapeOrigins = List.of("");
 		@Builder.Default
-		private int scrapeBatchSize = 100;
+		private List<String> scriptSelectors = List.of("");
+		@JsonIgnore
+		@Builder.Default
+		private List<QualifiedTag> _scriptSelectors = null;
+		@JsonIgnore
+		public boolean script(String plugin) {
+			if (scriptSelectors == null) return false;
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)));
+		}
+		@JsonIgnore
+		public boolean script(String plugin, String origin) {
+			if (scriptSelectors == null) return false;
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
+		}
+		@JsonIgnore
+		public List<String> scriptOrigins(String plugin) {
+			if (scriptSelectors == null) return List.of();
+			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
+			return _scriptSelectors.stream().filter(s -> s.captures(tagOriginSelector(plugin + s.origin))).map(s -> s.origin).toList();
+		}
 		/**
-		 * Whitelist domains to be allowed to scrape.
+		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
 		 */
-		private List<String> scrapeHostWhitelist = null;
+		@Builder.Default
+		private List<String> scriptWhitelist = null;
 		/**
-		 * Blacklist domains to be allowed to scrape. Takes precedence over domain whitelist.
+		 * Whitelist domains to be allowed to fetch from.
 		 */
-		private List<String> scrapeHostBlacklist = List.of("*.local");
+		@Builder.Default
+		private List<String> hostWhitelist = null;
+		/**
+		 * Blacklist domains to be allowed to fetch from. Takes precedence over domain whitelist.
+		 */
+		@Builder.Default
+		private List<String> hostBlacklist = List.of("*.local");
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -87,18 +107,14 @@ public interface Config {
 			if (isNotEmpty(server.getModSeals())) wrapped = wrapped.withModSeals(server.getModSeals());
 			if (isNotEmpty(server.getEditorSeals())) wrapped = wrapped.withEditorSeals(server.getEditorSeals());
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
+			if (server.getMaxReplEntityBatch() != null) wrapped = wrapped.withMaxReplEntityBatch(server.getMaxReplEntityBatch());
 			if (isNotEmpty(server.getSshOrigins())) wrapped = wrapped.withSshOrigins(server.getSshOrigins());
-			if (isNotEmpty(server.getPushOrigins())) wrapped = wrapped.withPushOrigins(server.getPushOrigins());
-			if (server.getPushBatchSize() != null) wrapped = wrapped.withPushBatchSize(server.getPushBatchSize());
 			if (server.getMaxPushEntityBatch() != null) wrapped = wrapped.withMaxPushEntityBatch(server.getMaxPushEntityBatch());
-			if (isNotEmpty(server.getPullOrigins())) wrapped = wrapped.withPullOrigins(server.getPullOrigins());
-			if (server.getPullBatchSize() != null) wrapped = wrapped.withPullBatchSize(server.getPullBatchSize());
 			if (server.getMaxPullEntityBatch() != null) wrapped = wrapped.withMaxPullEntityBatch(server.getMaxPullEntityBatch());
-			if (isNotEmpty(server.getAsyncOrigins())) wrapped = wrapped.withAsyncOrigins(server.getAsyncOrigins());
-			if (isNotEmpty(server.getScrapeOrigins())) wrapped = wrapped.withScrapeOrigins(server.getScrapeOrigins());
-			if (server.getScrapeBatchSize() != null) wrapped = wrapped.withScrapeBatchSize(server.getScrapeBatchSize());
-			if (isNotEmpty(server.getScrapeHostWhitelist())) wrapped = wrapped.withScrapeHostWhitelist(server.getScrapeHostWhitelist());
-			if (isNotEmpty(server.getScrapeHostBlacklist())) wrapped = wrapped.withScrapeHostBlacklist(server.getScrapeHostBlacklist());
+			if (isNotEmpty(server.getScriptSelectors())) wrapped = wrapped.withScriptSelectors(server.getScriptSelectors());
+			if (isNotEmpty(server.getScriptWhitelist())) wrapped = wrapped.withScriptWhitelist(server.getScriptWhitelist());
+			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
+			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			return wrapped;
 		}
 
@@ -106,10 +122,7 @@ public interface Config {
 			return ServerConfig.builder()
 				.webOrigins(List.of(origin))
 				.sshOrigins(List.of(origin))
-				.pushOrigins(List.of(origin))
-				.pullOrigins(List.of(origin))
-				.asyncOrigins(List.of(origin))
-				.scrapeOrigins(List.of(origin));
+				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
 	}
 
@@ -131,6 +144,7 @@ public interface Config {
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
 		private String usernameClaim = "sub";
+		private boolean externalId = false;
 		private boolean emailDomainInUsername = false;
 		private String rootEmailDomain = "";
 		private String verifiedEmailClaim = "verified_email";

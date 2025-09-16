@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
 
@@ -64,13 +65,12 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant create(Ref ref, boolean force) {
+	public Instant create(Ref ref) {
 		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
+			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.create(ref, force);
+		ingest.create(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -81,7 +81,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
 		}
-		ingest.push(ref, null);
+		ingest.push(auth.getOrigin(), ref, true, false);
 	}
 
 	@Transactional(readOnly = true)
@@ -108,7 +108,7 @@ public class RefService {
 		return refRepository
 			.findAll(
 				auth.refReadSpec()
-					.and(filter.spec()),
+					.and(filter.spec(auth.getUserTag())),
 				pageable)
 			.map(mapper::domainToDto);
 	}
@@ -120,28 +120,27 @@ public class RefService {
 		return refRepository
 			.count(
 				auth.refReadSpec()
-					.and(filter.spec()));
+					.and(filter.spec(auth.getUserTag())));
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant update(Ref ref, boolean force) {
+	public Instant update(Ref ref) {
 		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			if (!force) throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-			ref.getSources().subList(root.getMaxSources(), ref.getSources().size()).clear();
+			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		// Hidden tags cannot be removed
-		var hiddenTags = auth.hiddenTags(existing.getTags());
+		var hiddenTags = auth.hiddenTags(existing.getExpandedTags());
 		ref.addTags(hiddenTags);
 		ref.addPlugins(hiddenTags, existing.getPlugins());
 		// Unwritable tags may only be removed, plugin data may not be modified
-		var unwritableTags = auth.unwritableTags(ref.getTags());
+		var unwritableTags = auth.unwritableTags(expandTags(ref.getTags()));
 		ref.addPlugins(unwritableTags, existing.getPlugins());
-		ingest.update(ref, force);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
@@ -157,7 +156,7 @@ public class RefService {
 			ref.setUrl(url);
 			ref.setOrigin(origin);
 		}
-		ref.setPlugins(validate.pluginDefaults(ref));
+		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
@@ -168,10 +167,10 @@ public class RefService {
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(updated, false);
+				return create(updated);
 			} else {
 				updated.setModified(cursor);
-				return update(updated, false);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
@@ -183,7 +182,7 @@ public class RefService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void delete(String url, String origin) {
 		try {
-			ingest.delete(url, origin);
+			ingest.delete(auth.getOrigin(), url, origin);
 		} catch (EmptyResultDataAccessException e) {
 			// Delete is idempotent
 		}

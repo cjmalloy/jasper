@@ -1,7 +1,9 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.component.Storage;
 import jasper.domain.Ext;
+import jasper.domain.External;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -20,6 +22,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Filtering mapper. Removes fields hidden to the user.
+ */
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
 
@@ -36,21 +41,23 @@ public abstract class DtoMapper {
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
-	public abstract RefReplDto domainToReplDto(Ref ref);
+	public abstract RefReplDto dtoToRepl(RefDto ref);
 
 	public abstract ExtDto domainToDto(Ext ext);
 
 	public abstract UserDto domainToDto(User user);
+	public abstract ExternalDto domainToDto(External external);
 
 	public abstract PluginDto domainToDto(Plugin plugin);
 
 	public abstract TemplateDto domainToDto(Template plugin);
 
+	public abstract BackupDto domainToDto(Storage.StorageRef plugin);
+
 	@AfterMapping
 	protected void filterTags(@MappingTarget HasTags ref) {
 		if (ref.getTags() == null) return;
 		ref.setTags(new ArrayList<>(auth.filterTags(ref.getTags())));
-		Ref.removePrefixTags(ref.getTags());
 	}
 
 	@AfterMapping
@@ -91,10 +98,10 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
-		if (source.getPlugins() == null) return;
+		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
 		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
-		target.setUserUrls(source.getPlugins().entrySet().stream()
+		target.setUserUrls(source.getUserUrls().entrySet().stream()
 			// TODO: how is null getting in here
 			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
 			.map(Map.Entry::getKey)

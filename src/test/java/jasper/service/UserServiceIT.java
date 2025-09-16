@@ -1,5 +1,6 @@
 package jasper.service;
 
+import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.domain.User;
 import jasper.domain.User_;
@@ -16,7 +17,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import javax.validation.ConstraintViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -549,6 +549,93 @@ public class UserServiceIT {
 			.isEqualTo("+user/tester");
 		assertThat(page.getContent().get(0).getName())
 			.isEqualTo("Secret");
+	}
+
+	User user(String tag) {
+		var u = new User();
+		u.setTag(tag);
+		userRepository.save(u);
+		return u;
+	}
+
+	@Test
+	void testGetPageRefWithQuery() {
+		user("+user/public");
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("+user/custom")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQuery() {
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQueryRoot() {
+		user("+user");
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageWithNotQueryRef() {
+		user("+user/test");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!+user/test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageWithNotQueryFoundRef() {
+		user("+user/public");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!+user/test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
 	}
 
 	@Test

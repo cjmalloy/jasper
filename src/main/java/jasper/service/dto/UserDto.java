@@ -9,9 +9,11 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+
 @Getter
 @Setter
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(NON_EMPTY)
 public class UserDto implements Tag, Serializable {
 	private String tag;
 	private String origin;
@@ -23,4 +25,6 @@ public class UserDto implements Tag, Serializable {
 	private List<String> tagWriteAccess;
 	private Instant modified;
 	private byte[] pubKey;
+	private String authorizedKeys;
+	private ExternalDto external;
 }

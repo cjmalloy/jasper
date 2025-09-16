@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
+import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
@@ -24,14 +25,13 @@ public class Rng {
 	RefRepository refRepository;
 
 	@Timed(value = "jasper.rng.update", histogram = true)
-	public void update(Ref ref, Ref existing) {
-		if (ref.getTags() == null || !ref.getTags().contains("plugin/rng")) return;
+	public void update(String rootOrigin, Ref ref, Ref existing) {
+		if (!ref.hasTag("plugin/rng")) return;
 		if (existing != null) {
 			var remotes = refRepository.findAll(RefFilter.builder()
 				.url(ref.getUrl())
-				.obsolete(true)
 				.modifiedAfter(existing.getModified())
-				.build().spec(), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
+				.build().spec().and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (remotes.isEmpty() || remotes.getContent().get(0).getOrigin().equals(ref.getOrigin())) {
 				ref.removeTag("plugin/rng");
 				for (var t : existing.getTags()) {
@@ -44,7 +44,6 @@ public class Rng {
 		} else {
 			if (refRepository.count(RefFilter.builder()
 				.url(ref.getUrl())
-				.obsolete(true)
 				.build().spec()) == 0) {
 				return;
 			}

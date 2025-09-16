@@ -1,10 +1,11 @@
 package jasper.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
+import jasper.config.WebSocketConfig;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.domain.proj.HasOrigin;
@@ -23,7 +24,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -31,8 +33,6 @@ import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.annotation.PostConstruct;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,10 +43,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.domain.proj.Tag.tagUrl;
+import static jasper.domain.proj.Tag.urlToTag;
+import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.qtList;
@@ -62,10 +70,12 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.ROLE_PREFIX;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static java.net.URLDecoder.decode;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.where;
+import static org.springframework.security.core.authority.AuthorityUtils.authorityListToSet;
 
 /**
  * This single class is where all authorization decisions are made.
@@ -153,7 +163,7 @@ public class Auth {
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
-	protected Optional<UserDto> user;
+	protected Optional<User> user;
 	protected List<QualifiedTag> readAccess;
 	protected List<QualifiedTag> writeAccess;
 	protected List<QualifiedTag> tagReadAccess;
@@ -189,7 +199,7 @@ public class Auth {
 		logger.debug("AUTH{} User: {} {} (hasUser: {})",
 			getOrigin(), getPrincipal(), getAuthoritySet(), getUser().isPresent());
 		if (logger.isTraceEnabled()) {
-			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(configs.security(getOrigin())));
+			logger.trace("Auth Config: {} {}", dump(configs.root()), dump(security()));
 		}
 	}
 
@@ -218,7 +228,7 @@ public class Auth {
 	 * Is this origin a sub-origin.
 	 */
 	public boolean subOrigin(String origin) {
-		return isSubOrigin(getOrigin(), origin);
+		return isSubOrigin(getOrigin(), tagOrigin(origin));
 	}
 
 	/**
@@ -261,6 +271,10 @@ public class Auth {
 		if (hasRole(MOD)) return true;
 		// Min Role
 		if (!minRole()) return false;
+		// User URL
+		if (userUrl(ref.getUrl())) return isLoggedIn() && userUrl(ref.getUrl(), getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(ref.getUrl())) return canReadTag(urlToTag(ref.getUrl()) + ref.getOrigin());
 		// No tags, only mods can read
 		if (ref.getTags() == null) return false;
 		// Add the ref's origin to its tag list
@@ -277,6 +291,12 @@ public class Auth {
 	public boolean canReadRef(String url, String origin) {
 		// Only origin and sub origins can be read
 		if (!subOrigin(origin)) return false;
+		// Mods can read anything
+		if (hasRole(MOD)) return true;
+		// User URL
+		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
@@ -309,15 +329,18 @@ public class Auth {
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
+		// User URL
+		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		// Tag URLs
+		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
-			if (url.startsWith("tag:/")) return hasRole(MOD) || url.startsWith("tag:/" + getUserTag().tag + "?");
 			// If we're creating, simply having the role USER is enough
 			return hasRole(USER);
 		}
 		var existing = maybeExisting.get();
 		// First write check of an existing Ref must be for the locked tag
-		if (existing.getTags() != null && existing.getTags().contains("locked")) return false;
+		if (existing.hasTag("locked")) return false;
 		// Mods can write anything in their origin
 		if (hasRole(MOD)) return true;
 		if (existing.getTags() == null) return false;
@@ -344,20 +367,27 @@ public class Auth {
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var tag = topic.substring(topic.indexOf('/') + 1);
-			var decodedTag = URLDecoder.decode(tag, StandardCharsets.UTF_8);
+			var decodedTag = decode(tag, StandardCharsets.UTF_8);
             return canReadTag(decodedTag + origin);
 		} else if (destination.startsWith("/topic/ref/")) {
 			var topic = destination.substring("/topic/ref/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			var url = topic.substring(topic.indexOf('/') + 1);
-			var decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+			var decodedUrl = decode(url, StandardCharsets.UTF_8);
 			return canReadRef(decodedUrl, origin);
 		} else if (destination.startsWith("/topic/response/")) {
 			var topic = destination.substring("/topic/response/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
 			if (origin.equals("default")) origin = "";
 			return subOrigin(origin);
+		} else if (destination.startsWith("/topic/ext/")) {
+			var topic = destination.substring("/topic/ext/".length());
+			var origin = topic.substring(0, topic.indexOf('/'));
+			if (origin.equals("default")) origin = "";
+			var tag = topic.substring(topic.indexOf('/') + 1);
+			var decodedTag = decode(tag, StandardCharsets.UTF_8);
+			return canReadTag(decodedTag + origin);
 		}
 		return false;
 	}
@@ -378,21 +408,42 @@ public class Auth {
 	}
 
 	/**
-	 * Does the user have permission to use all tags when tagging Refs?
+	 * Does the user have permission to remove a tag when tagging Refs?
 	 */
-	public boolean canAddTags(List<String> tags) {
+	public boolean canDeleteTag(String tag) {
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		return tags.stream().allMatch(this::canAddTag);
+		if (!isPrivateTag(tag)) return true;
+		var qt = qt(tag + getOrigin());
+		if (isUser(qt)) return true;
+		return captures(getTagReadAccess(), qt);
+	}
+
+	/**
+	 * Does the user have permission to use all tags when tagging Refs?
+	 */
+	public boolean canPatchTags(List<String> tags) {
+		// Min Role
+		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
+		if (hasRole(MOD)) return true;
+		return tags.stream().allMatch(t -> {
+			if (t.startsWith("-")) {
+				return this.canDeleteTag(t.substring(1));
+			} else {
+				return this.canAddTag(t);
+			}
+		});
 	}
 
 	/**
 	 * Can the user add these tags to an existing ref?
 	 */
-	public boolean canTagAll(List<String> tags, String url, String origin) {
+	public boolean canPatchTags(List<String> tags, String url, String origin) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
@@ -401,13 +452,13 @@ public class Auth {
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
 		for (var tag : tags) {
-			if (!canTag(tag, url, origin)) return false;
+			if (tag.startsWith("-")) {
+				if (!canUntag(tag.substring(1), url, origin)) return false;
+			} else {
+				if (!canTag(tag, url, origin)) return false;
+			}
 		}
 		return true;
-	}
-
-	public List<String> tagPatch(List<String> patch) {
-		return patch.stream().map(p -> p.startsWith("-") ? p.substring(1) : p).toList();
 	}
 
 	/**
@@ -422,13 +473,37 @@ public class Auth {
 		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
 			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
 			// Except for public, an Editor cannot make a private Ref public or vice-versa
-			!tag.equals("public") &&
+			!matchesTag("public", tag) &&
 			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
-			!tag.equals("locked") &&
+			!matchesTag("locked", tag) &&
 			canReadRef(url, origin)) return true;
 		// You can add the tag, and you can edit the ref
 		return canAddTag(tag) && canWriteRef(url, origin);
+	}
+
+	/**
+	 * Can the user remove this tag to an existing ref?
+	 */
+	public boolean canUntag(String tag, String url, String origin) {
+		// Only writing to the local origin ever permitted
+		if (!local(origin)) return false;
+		// Min Role
+		if (!minRole()) return false;
+		// Editor has special access to remove public tags to Refs they can read
+		if (hasRole(EDITOR) &&
+			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
+			// Except for public, an Editor cannot make a private Ref public or vice-versa
+			!matchesTag("public", tag) &&
+			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
+			!matchesTag("locked", tag) &&
+			canReadRef(url, origin)) return true;
+		// You can delete the tag, and you can edit the ref
+		return canDeleteTag(tag) && canWriteRef(url, origin);
 	}
 
 	/**
@@ -512,7 +587,7 @@ public class Auth {
 	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
-		return isLoggedIn() && getUserTag().matches(qt);
+		return isLoggedIn() && getUserTag().matchesDownwards(qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -545,7 +620,18 @@ public class Auth {
 	}
 
 	/**
-	 * Has the minimum role.
+	 * Has the maximum role or lower.
+	 */
+	private boolean maxRole(String role) {
+		if (props.getMaxRole().equals(role)) return true;
+		return roleHierarchy.getReachableGrantedAuthorities(List.of(new SimpleGrantedAuthority(role)))
+			.stream()
+			.map(GrantedAuthority::getAuthority)
+			.noneMatch(r -> props.getMaxRole().equals(r));
+	}
+
+	/**
+	 * Has the minimum role or higher.
 	 */
 	public boolean minRole() {
 		// Don't call hasRole() from here or you get an infinite loop
@@ -618,7 +704,7 @@ public class Auth {
 		// Only writing to the local origin ever permitted
 		if (!local(qt(tag).origin)) return false;
 		if (!canWriteTag(tag)) return false;
-		var role = ofNullable(configs.getUser(tag)).map(UserDto::getRole).orElse(null);
+		var role = ofNullable(configs.getUser(tag)).map(User::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role
@@ -642,11 +728,18 @@ public class Auth {
 		// No public tags in write access
 		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getTagReadAccess(), maybeExisting.map(UserDto::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(UserDto::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(UserDto::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(UserDto::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
+		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
+		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
 		return true;
+	}
+
+	public UserDto filterUser(UserDto user) {
+		if (hasRole(MOD)) return user;
+		if (canWriteUserTag(user.getQualifiedTag())) return user;
+		user.setExternal(null);
+		return user;
 	}
 
 	public List<String> filterTags(List<String> tags) {
@@ -678,7 +771,7 @@ public class Auth {
 			? isOrigin(getSubOrigins())
 			: selector("public" + getSubOrigins()).refSpec());
 		if (isLoggedIn()) {
-			spec = spec.or(getUserTag().refSpec());
+			spec = spec.or(getUserTag().downwardRefSpec());
 		}
 		return spec.or(hasAnyQualifiedTag(getReadAccess()));
 	}
@@ -687,7 +780,7 @@ public class Auth {
 		var spec = Specification.<T>where(isOrigin(getSubOrigins()));
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
-			spec = spec.or(getUserTag().spec());
+			spec = spec.or(getUserTag().downwardSpec());
 		}
 		return spec.or(isAnyQualifiedTag(getTagReadAccess()));
 	}
@@ -718,7 +811,7 @@ public class Auth {
 		if (selectors.isEmpty()) return false;
 		if (target == null) return false;
 		for (var selector : selectors) {
-			if (selector.captures(target)) return true;
+			if (selector.capturesDownwards(target)) return true;
 		}
 		return false;
 	}
@@ -728,7 +821,7 @@ public class Auth {
 		if (target == null) return false;
 		if (target.isEmpty()) return false;
 		for (var t : target) {
-			if (selector.captures(t)) return true;
+			if (selector.capturesDownwards(t)) return true;
 		}
 		return false;
 	}
@@ -768,11 +861,11 @@ public class Auth {
 		return userTag;
 	}
 
-	protected Optional<UserDto> getUser() {
+	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
 			user = auth.map(a -> a.getDetails() instanceof UserDto
-				? (UserDto) a.getDetails()
+				? (User) a.getDetails()
 				: null);
 			if (isLoggedIn() && user.isEmpty()) {
 				user = ofNullable(configs.getUser(getUserTag().toString()));
@@ -783,18 +876,19 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			origin = props.getLocalOrigin();
-			if (props.isAllowLocalOriginHeader() && getOriginHeader() != null) {
-				origin = getOriginHeader();
+			origin = props.getOrigin();
+			var originHeader = getOriginHeader();
+			if (originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
+				origin = originHeader;
 			}
 		}
 		return origin;
 	}
 
-	public static String getOriginHeader() {
+	private static String getOriginHeader() {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER));
 			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
+			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
 			if (isBlank(originHeader)) return null;
 			originHeader = originHeader.toLowerCase();
 			if ("default".equals(originHeader)) return "";
@@ -822,7 +916,7 @@ public class Auth {
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getReadAccess)
+						.map(User::getReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -844,7 +938,7 @@ public class Auth {
 			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
 			if (isLoggedIn()) {
 				writeAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getWriteAccess)
+						.map(User::getWriteAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -866,7 +960,7 @@ public class Auth {
 			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
 			if (isLoggedIn()) {
 				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagReadAccess)
+						.map(User::getTagReadAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -888,7 +982,7 @@ public class Auth {
 			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
 			if (isLoggedIn()) {
 				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
-						.map(UserDto::getTagWriteAccess)
+						.map(User::getTagWriteAccess)
 						.orElse(List.of())));
 			}
 		}
@@ -913,9 +1007,9 @@ public class Auth {
 	}
 
 	private boolean hasAnyAuthorityName(String prefix, String... roles) {
-		Set<String> roleSet = getAuthoritySet();
-		for (String role : roles) {
-			String defaultedRole = getRoleWithPrefix(prefix, role);
+		var roleSet = getAuthoritySet();
+		for (var role : roles) {
+			var defaultedRole = getRoleWithPrefix(prefix, role);
 			if (roleSet.contains(defaultedRole)) {
 				return true;
 			}
@@ -936,7 +1030,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = new DefaultClaims();
+				claims = claims().build();
 			}
 		}
 		return claims;
@@ -947,10 +1041,11 @@ public class Auth {
 			if (getAuthentication() == null) {
 				roles = new HashSet<>();
 			} else {
-				var userAuthorities = new ArrayList<>(getAuthentication().getAuthorities());
-				roles = AuthorityUtils.authorityListToSet(roleHierarchy != null
-					? roleHierarchy.getReachableGrantedAuthorities(userAuthorities)
-					: userAuthorities);
+				var userAuthorities = getAuthentication().getAuthorities();
+				roles = authorityListToSet(roleHierarchy.getReachableGrantedAuthorities(userAuthorities))
+					.stream()
+					.filter(this::maxRole)
+					.collect(Collectors.toSet());
 			}
 		}
 		return roles;
@@ -974,6 +1069,9 @@ public class Auth {
 	public static String getHeader(String headerName) {
 		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a) {
 			return a.getRequest().getHeader(headerName);
+		}
+		if (RequestContextHolder.getRequestAttributes() instanceof WebSocketConfig.WebSocketRequestAttributes a) {
+			return a.getHeader(headerName);
 		}
 		return null;
 	}

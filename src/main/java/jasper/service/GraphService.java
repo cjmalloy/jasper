@@ -1,13 +1,10 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.Ingest;
 import jasper.domain.Ref_;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefNodeDto;
 import org.slf4j.Logger;
@@ -30,21 +27,12 @@ public class GraphService {
 	RefRepository refRepository;
 
 	@Autowired
-	Ingest ingest;
-
-	@Autowired
-	Auth auth;
-
-	@Autowired
 	DtoMapper mapper;
-
-	@Autowired
-	ObjectMapper objectMapper;
 
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "graph"}, histogram = true)
 	public RefNodeDto get(String url) {
-		var page = refRepository.findAll(RefFilter.builder().url(url).obsolete(true).build().spec(),
+		var page = refRepository.findAll(RefFilter.builder().url(url).build().spec(),
 			PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 		if (page.isEmpty()) throw new NotFoundException("Ref " + url);
 		return mapper.domainToNodeDto(page.getContent().get(0));

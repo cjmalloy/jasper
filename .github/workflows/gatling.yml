@@ -1,0 +1,84 @@
+name: Load Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gatling:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run load tests
+        run:  docker compose --profile lt -f 'gatling/docker-compose.yaml' up --build --exit-code-from gatling
+      - name: Upload PR Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-reports-pr-${{ github.event.pull_request.number }}
+          path: report
+          retention-days: 7
+      - name: Upload Reports
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
+          path: report
+          retention-days: 90
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v8
+        with:
+          # language=JavaScript
+          script: |
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 Load test results available at: ${url}`
+            });
+
+  clean:
+    needs: gatling
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup old artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          # language=JavaScript
+          script: |
+            const maxVersions = 5;
+            const response = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const artifacts = response.data.artifacts
+              .filter(artifact => artifact.name.startsWith('gatling-reports-' + '${{ github.ref_name }}'));
+            if (artifacts.length > maxVersions) {
+              // Sort by created_at descending
+              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // Delete all but the latest maxVersions
+              for (const artifact of artifacts.slice(maxVersions)) {
+                console.log('Deleting artifact:', artifact.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+              }
+            }

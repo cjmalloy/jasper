@@ -39,7 +39,7 @@ public class ValidateExtIT {
 		ext.setTag("+user/tester");
 		ext.setName("First");
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -59,7 +59,7 @@ public class ValidateExtIT {
 		ext.setTag("+user/tester");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext))
+		assertThatThrownBy(() -> validate.ext("", ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -79,13 +79,13 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("+user/tester");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
 		}"""));
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -105,7 +105,7 @@ public class ValidateExtIT {
 		ext.setTag("+user/tester");
 		ext.setName("First");
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -119,7 +119,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -144,7 +144,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext))
+		assertThatThrownBy(() -> validate.ext("", ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -180,7 +180,7 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("+slug/more/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100,
@@ -189,7 +189,7 @@ public class ValidateExtIT {
 			"lng": 456
 		}"""));
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -209,7 +209,7 @@ public class ValidateExtIT {
 				"age": { "type": "uint32" }
 			}
 		}"""));
-		template1.setDefaults(mapper.readTree("""
+		template1.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
@@ -225,7 +225,7 @@ public class ValidateExtIT {
 				"lng": { "type": "uint32" }
 			}
 		}"""));
-		template2.setDefaults(mapper.readTree("""
+		template2.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"location": "Paris",
 			"lat": 123,
@@ -236,7 +236,7 @@ public class ValidateExtIT {
 		ext.setTag("+slug/more/custom");
 		ext.setName("First");
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -260,13 +260,13 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("_slug/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
 		}"""));
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 
 	@Test
@@ -291,7 +291,7 @@ public class ValidateExtIT {
 		ext.setTag("_slug/custom");
 		ext.setName("First");
 
-		assertThatThrownBy(() -> validate.ext(ext))
+		assertThatThrownBy(() -> validate.ext("", ext))
 			.isInstanceOf(InvalidTemplateException.class);
 	}
 
@@ -316,12 +316,12 @@ public class ValidateExtIT {
 		var ext = new Ext();
 		ext.setTag("_slug/custom");
 		ext.setName("First");
-		ext.setConfig(mapper.readTree("""
+		ext.setConfig((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
 			"age": 100
 		}"""));
 
-		validate.ext(ext);
+		validate.ext("", ext);
 	}
 }

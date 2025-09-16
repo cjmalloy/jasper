@@ -22,15 +22,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import java.time.Instant;
 
-import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
 
 @Service
 public class ExtService {
@@ -46,9 +45,6 @@ public class ExtService {
 	IngestExt ingest;
 
 	@Autowired
-	EntityManager em;
-
-	@Autowired
 	Auth auth;
 
 	@Autowired
@@ -59,15 +55,15 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant create(Ext ext, boolean force) {
-		ingest.create(ext, force);
+	public Instant create(Ext ext) {
+		ingest.create(ext);
 		return ext.getModified();
 	}
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void push(Ext ext) {
-		ingest.push(ext);
+		ingest.push(auth.getOrigin(), ext, true, false);
 	}
 
 	@Transactional(readOnly = true)
@@ -87,7 +83,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.minRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
@@ -99,7 +95,7 @@ public class ExtService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter)")
+	@PreAuthorize("@auth.minRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public long count(TagFilter filter) {
 		return extRepository
@@ -110,8 +106,8 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant update(Ext ext, boolean force) {
-		ingest.update(ext, force);
+	public Instant update(Ext ext) {
+		ingest.update(ext);
 		return ext.getModified();
 	}
 
@@ -123,20 +119,17 @@ public class ExtService {
 		if (ext == null) {
 			created = true;
 			ext = new Ext();
-			var qt = selector(qualifiedTag);
-			ext.setTag(qt.tag);
-			ext.setOrigin(qt.origin);
+			ext.setTag(localTag(qualifiedTag));
+			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
 			var patched = patch.apply(objectMapper.convertValue(ext, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ext.class);
-			// @PreAuthorize annotations are not triggered for calls within the same class
-			if (!auth.canWriteTag(updated.getQualifiedTag())) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(updated, false);
+				return create(updated);
 			} else {
 				updated.setModified(cursor);
-				return update(updated, false);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
@@ -144,7 +137,7 @@ public class ExtService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canWriteTag(#qualifiedTag) or @auth.subOrigin(#origin) and @auth.hasRole('MOD')")
+	@PreAuthorize("@auth.canWriteTag(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {

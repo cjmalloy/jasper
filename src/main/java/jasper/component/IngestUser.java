@@ -1,12 +1,15 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.RollbackException;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
@@ -17,17 +20,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+
 
 @Component
 public class IngestUser {
@@ -46,9 +48,6 @@ public class IngestUser {
 	Messages messages;
 
 	@Autowired
-	ObjectMapper objectMapper;
-
-	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
@@ -57,9 +56,9 @@ public class IngestUser {
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
-			if (userRepository.existsByQualifiedTag(deletedTag(user.getTag()) + user.getOrigin())) throw new AlreadyExistsException();
+			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(user.getTag()) + user.getOrigin());
+			delete(deletorTag(user.getQualifiedTag()));
 		}
 		ensureCreateUniqueModified(user);
 		messages.updateUser(user);
@@ -67,7 +66,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
-		if (!userRepository.existsByQualifiedTag(user.getTag() + user.getOrigin())) throw new NotFoundException("User");
+		if (!userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new NotFoundException("User");
 		ensureUpdateUniqueModified(user);
 		messages.updateUser(user);
 	}
@@ -76,11 +75,25 @@ public class IngestUser {
 	public void push(User user) {
 		try {
 			userRepository.save(user);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("users_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("users_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 		if (isDeletorTag(user.getTag())) {
-			delete(deletedTag(user.getTag()) + user.getOrigin());
+			delete(deletedTag(user.getQualifiedTag()));
 		}
 		messages.updateUser(user);
 	}
@@ -106,6 +119,13 @@ public class IngestUser {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e instanceof ConstraintViolationException c) {
+					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("users_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
@@ -133,13 +153,15 @@ public class IngestUser {
 						user.getOrigin(),
 						user.getName(),
 						user.getRole(),
-						user.getReadAccess() == null ? null : objectMapper.convertValue(user.getReadAccess(), ArrayNode.class),
-						user.getWriteAccess() == null ? null : objectMapper.convertValue(user.getWriteAccess(), ArrayNode.class),
-						user.getTagReadAccess() == null ? null : objectMapper.convertValue(user.getTagReadAccess(), ArrayNode.class),
-						user.getTagWriteAccess() == null ? null : objectMapper.convertValue(user.getTagWriteAccess(), ArrayNode.class),
+						user.getReadAccess(),
+						user.getWriteAccess(),
+						user.getTagReadAccess(),
+						user.getTagWriteAccess(),
 						user.getModified(),
 						user.getKey(),
-						user.getPubKey());
+						user.getPubKey(),
+						user.getAuthorizedKeys(),
+						user.getExternal());
 					if (updated == 0) {
 						throw new ModifiedException("User");
 					}
@@ -147,6 +169,12 @@ public class IngestUser {
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof ConstraintViolationException c) {
+					if ("users_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();

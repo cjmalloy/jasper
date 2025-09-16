@@ -1,10 +1,14 @@
 package jasper.web.rest;
 
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import jasper.component.HttpCache;
 import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
@@ -19,19 +23,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
@@ -74,10 +67,9 @@ public class PluginController {
 	})
 	@GetMapping
 	HttpEntity<PluginDto> getPlugin(
-		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Plugin.QTAG_REGEX) String tag
 	) {
-		return httpCache.ifNotModified(request, pluginService.get(tag));
+		return httpCache.ifNotModified(pluginService.get(tag));
 	}
 
 	@ApiResponses({
@@ -87,21 +79,24 @@ public class PluginController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<PluginDto>> getPluginPage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return httpCache.ifNotModifiedPage(request, pluginService.page(
+		return httpCache.ifNotModifiedPage(pluginService.page(
 			TagFilter.builder()
+				.query(query)
+				.nesting(nesting)
+				.level(level)
+				.deleted(deleted)
+				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
-				.search(search)
-				.query(query)
-				.deleted(deleted)
 				.build(),
 			pageable));
 	}
@@ -117,6 +112,33 @@ public class PluginController {
 		@RequestBody @Valid Plugin plugin
 	) {
 		return pluginService.update(plugin);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/json-patch+json")
+	Instant patchPlugin(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonPatch patch
+	) {
+		return pluginService.patch(tag, cursor, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	Instant mergePlugin(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonMergePatch patch
+	) {
+		return pluginService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({

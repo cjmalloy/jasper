@@ -1,6 +1,5 @@
 package jasper.repository;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
@@ -19,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
 	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
@@ -47,11 +47,40 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		String origin,
 		String title,
 		String comment,
-		ArrayNode tags,
-		ArrayNode sources,
-		ArrayNode alternateUrls,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
 		ObjectNode plugins,
 		Metadata metadata,
+		Instant published,
+		Instant modified);
+
+	@Transactional
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			title = :title,
+			comment = :comment,
+			tags = :tags,
+			sources = :sources,
+			alternateUrls = :alternateUrls,
+			plugins = :plugins,
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')),  :partialMetadata),
+			published = :published,
+			modified = :modified
+		WHERE
+			url = :url AND
+			origin = :origin""")
+	int pushAsyncMetadata(
+		String url,
+		String origin,
+		String title,
+		String comment,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
+		ObjectNode plugins,
+		Metadata partialMetadata,
 		Instant published,
 		Instant modified);
 
@@ -60,6 +89,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM Ref r
 		WHERE r.origin = :origin""")
 	Instant getCursor(String origin);
+
+	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")
+	List<String> origins();
 
 	@Modifying(clearAutomatically = true)
 	@Query("""
@@ -76,91 +108,81 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
+		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
 		FROM ref
-		WHERE ref.published <= :published
+		WHERE ref.url != :url
+			AND ref.published <= :published
 			AND jsonb_exists(ref.sources, :url)
 			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag)
+		WHERE ref.url != :url
+			AND jsonb_exists(ref.sources, :url)
+			AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
 		SELECT url FROM ref
-		WHERE jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(ref.tags, :tag) = false
+		WHERE ref.url != :url
+			AND jsonb_exists(ref.sources, :url)
+			AND NOT jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
-	@Query("""
-		SELECT COUNT(ref) > 0 FROM Ref ref
-		WHERE ref.url = :url
-			AND ref.modified > :modified
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	boolean existsByUrlAndModifiedGreaterThan(String url, String origin, Instant modified);
+	@Query(nativeQuery = true, value = """
+		SELECT DISTINCT t.tag
+		FROM ref r
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url)
+			AND t.tag ~ '^[_+]?plugin(/|$)'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+	""")
+	List<String> findAllPluginTagsInResponses(String url, String origin);
+
+	@Query(nativeQuery = true, value = """
+		SELECT DISTINCT t.tag
+		FROM ref r
+			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url)
+			AND t.tag ~ '^[_+]?plugin/user(/|$)'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+	""")
+	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 
 	// TODO: Sync cache
 	@Modifying
 	@Transactional
 	@Query(nativeQuery = true, value = """
 		UPDATE ref ref
-		SET metadata = COALESCE(jsonb_set(metadata, '{obsolete}', CAST('true' as jsonb), true), CAST('{"obsolete":true}' as jsonb))
+		SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{obsolete}', CAST('true' as jsonb), true)
 		WHERE ref.url = :url
-			AND ref.modified < :olderThan
-			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	int setObsolete(String url, String origin, Instant olderThan);
+			AND ref.origin != :origin
+			AND ref.modified <= :olderThan
+			AND (:rootOrigin = '' OR ref.origin = :rootOrigin OR ref.origin LIKE concat(:rootOrigin, '.%'))""")
+	int setObsolete(String url, String origin, String rootOrigin, Instant olderThan);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/feed')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/feed', 'lastScrape')
-				OR cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) + cast(ref.plugins->'+plugin/feed'->>'scrapeInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/feed'->>'lastScrape' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsScrapeByOrigin(String origin);
-
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin/pull')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/pull', 'lastPull')
-				OR cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) + cast(ref.plugins->'+plugin/origin/pull'->>'pullInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/origin/pull'->>'lastPull' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsPullByOrigin(String origin);
-
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete,  0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay,
-		COALESCE(metadata ->> 'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) as metadataModified
-		FROM ref
-		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin/push')
-			AND NOT jsonb_exists(ref.tags, '+plugin/error')
-			AND (NOT jsonb_exists(ref.plugins->'+plugin/origin/push', 'lastPush')
-				OR cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) + cast(ref.plugins->'+plugin/origin/push'->>'pushInterval' AS interval) < CURRENT_TIMESTAMP AT TIME ZONE 'ZULU')
-		ORDER BY cast(ref.plugins->'+plugin/origin/push'->>'lastPush' AS timestamp) ASC
-		LIMIT 1""")
-	Optional<Ref> oldestNeedsPushByOrigin(String origin);
+		SELECT EXISTS (
+			SELECT 1 FROM ref
+			WHERE url = :url
+			  AND modified > :newerThan
+			  AND (:rootOrigin = '' OR origin = :rootOrigin OR origin LIKE concat(:rootOrigin, '.%'))
+		)""")
+	boolean newerExists(String url, String rootOrigin, Instant newerThan);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
-	@Query("""
-		UPDATE Ref ref
-		SET ref.metadata = NULL
+	@Query(nativeQuery = true, value = """
+		UPDATE ref ref
+		SET metadata = jsonb_set(metadata, '{regen}', CAST('true' as jsonb), true)
 		WHERE ref.metadata IS NOT NULL
-		AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+			AND NOT ref.metadata->>'regen' = 'true'
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -168,18 +190,18 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		WITH rows as (
 			SELECT url, origin from ref
-			WHERE metadata IS NULL
+			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
 			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
 			LIMIT :batchSize
 		)
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
-			'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.tags, 'internal') = false),
-			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.tags, 'internal') = true),
+			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->expandedTags, 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->expandedTags, 'internal') = true),
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
-				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.tags, p.tag) = true)
+				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
 			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
 			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
 		))
@@ -187,10 +209,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	int backfillMetadata(String origin, int batchSize);
 
 	@Query(nativeQuery = true, value = """
+		SELECT *, 0 AS nesting, '' as scheme, false as obsolete, 0 AS tagCount, 0 AS commentCount, 0 AS responseCount, 0 AS sourceCount, 0 AS voteCount, 0 AS voteScore, 0 AS voteScoreDecay, '' as metadataModified
+		FROM ref
+		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR metadata->>'regen' = 'true')
+			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+		ORDER BY modified DESC
+		LIMIT 1""")
+	Optional<Ref> getRefBackfill(String origin);
+
+	@Query(nativeQuery = true, value = """
 		SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
 		FROM ref
 		WHERE ref.origin = :origin
-			AND jsonb_exists(ref.tags, '+plugin/origin')
+			AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), '+plugin/origin')
 			AND (plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
 				OR plugins->'+plugin/origin'->>'local' = :remote
 		LIMIT 1""")
@@ -202,4 +233,88 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND ref.plugins->'_plugin/cache'->>'ban' != 'true'
 			AND ref.plugins->'_plugin/cache'->>'noStore' != 'true'""")
 	boolean cacheExists(String id);
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_tags_index""")
+	void dropTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_tags_index ON ref USING GIN(tags)""")
+	void buildTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_expanded_tags_index""")
+	void dropExpandedTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))""")
+	void buildExpandedTags();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_sources_index""")
+	void dropSources();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_sources_index ON ref USING GIN(sources)""")
+	void buildSources();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_alternate_urls_index""")
+	void dropAlts();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)""")
+	void buildAlts();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_fulltext_index""")
+	void dropFulltext();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)""")
+	void buildFulltext();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_published_index""")
+	void dropPublished();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_published_index ON ref (published)""")
+	void buildPublished();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		DROP INDEX IF EXISTS ref_modified_index""")
+	void dropModified();
+
+	@Transactional
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		CREATE INDEX ref_modified_index ON ref (modified)""")
+	void buildModified();
 }

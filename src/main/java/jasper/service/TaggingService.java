@@ -2,11 +2,13 @@ package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
 import jasper.component.Ingest;
-import jasper.domain.Ref;
+import jasper.component.Tagger;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
+import jasper.service.dto.DtoMapper;
+import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +17,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
-import static jasper.domain.proj.Tag.urlForUser;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
 public class TaggingService {
@@ -31,7 +32,13 @@ public class TaggingService {
 	Ingest ingest;
 
 	@Autowired
+	Tagger tagger;
+
+	@Autowired
 	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -39,13 +46,13 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		if (ref.getTags() != null && ref.getTags().contains(tag)) throw new DuplicateTagException(tag);
+		if (ref.hasTag(tag)) throw new DuplicateTagException(tag);
 		ref.addTag(tag);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
+	@PreAuthorize("@auth.canUntag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant delete(String tag, String url, String origin) {
 		if (tag.equals("locked")) {
@@ -54,16 +61,16 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		if (ref.getTags() == null || !ref.getTags().contains(tag)) return ref.getModified();
-		if (ref.getTags().contains("locked") && ref.hasPlugin(tag)) {
+		if (!ref.hasTag(tag)) return ref.getModified();
+		if (ref.hasTag("locked") && ref.hasPlugin(tag)) {
 			throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
 		}
 		ref.removeTag(tag);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.canTagAll(@auth.tagPatch(#tags), #url, #origin)")
+	@PreAuthorize("@auth.canPatchTags(#tags, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant tag(List<String> tags, String url, String origin) {
 		if (tags.contains("-locked")) {
@@ -72,7 +79,7 @@ public class TaggingService {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
-		if (ref.getTags() != null && ref.getTags().contains("locked")) {
+		if (ref.hasTag("locked")) {
 			for (var t : tags) {
 				if (t.startsWith("-") && ref.hasPlugin(t.substring(1))) {
 					throw new AccessDeniedException("Cannot untag locked Ref with plugin data");
@@ -80,53 +87,40 @@ public class TaggingService {
 			}
 		}
 		ref.addTags(tags);
-		ingest.update(ref, false);
+		ingest.update(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER')")
+	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
+	public RefDto getResponse(String url) {
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
+		return mapper.domainToDto(ref);
+	}
+
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void createResponse(String tag, String url) {
-		var ref = getResponseRef(url);
-		if (!ref.getTags().contains(tag)) {
-			ref.getTags().add(tag);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
+		if (isNotBlank(tag) && !ref.hasTag(tag)) {
+			ref.addTag(tag);
+			ingest.update(auth.getOrigin(), ref);
 		}
-		ingest.update(ref, false);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTag(#tag)")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canAddTag(#tag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void deleteResponse(String tag, String url) {
-		var ref = getResponseRef(url);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
-		ingest.update(ref, true);
+		ingest.update(auth.getOrigin(), ref);
 	}
 
-	@PreAuthorize("@auth.hasRole('USER') and @auth.canAddTags(@auth.tagPatch(#tags))")
+	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canPatchTags(#tags)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public void respond(List<String> tags, String url) {
-		var ref = getResponseRef(url);
+		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		for (var tag : tags) ref.addTag(tag);
-		ingest.update(ref, true);
-	}
-
-	private Ref getResponseRef(String url) {
-		var userUrl = urlForUser(url, auth.getUserTag().tag);
-		return refRepository.findOneByUrlAndOrigin(userUrl, auth.getOrigin()).map(ref -> {
-				if (ref.getSources() == null || !ref.getSources().contains(url)) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags() == null || ref.getTags().contains("plugin/deleted")) {
-					ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
-				}
-				return ref;
-			})
-			.orElseGet(() -> {
-				var ref = new Ref();
-				ref.setUrl(userUrl);
-				ref.setOrigin(auth.getOrigin());
-				ref.setSources(new ArrayList<>(List.of(url)));
-				ref.setTags(new ArrayList<>(List.of("internal", auth.getUserTag().tag)));
-				ingest.create(ref, false);
-				return ref;
-			});
+		ingest.update(auth.getOrigin(), ref);
 	}
 }

@@ -1,8 +1,6 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -10,6 +8,9 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
+import jasper.service.dto.PluginDto;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,15 +19,14 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.MessageHeaders;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
 import static jasper.component.Replicator.deletorTag;
-import static jasper.domain.Ref.getHierarchicalTags;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
-import static jasper.domain.proj.HasOrigin.originHierarchy;
 import static jasper.domain.proj.HasTags.formatTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
@@ -39,6 +39,9 @@ public class Messages {
 	@Qualifier("taskScheduler")
 	@Autowired
 	TaskExecutor taskExecutor;
+
+	@Autowired
+	MessageChannel cursorTxChannel;
 
 	@Autowired
 	MessageChannel refTxChannel;
@@ -67,96 +70,124 @@ public class Messages {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Async
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);
 		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
 		if (update.getTags() != null) {
 			for (var tag : update.getTags()) {
-				for (var path : getHierarchicalTags(List.of(tag))) {
+				for (var path : ref.getExpandedTags()) {
 					sendAndRetry(() -> tagTxChannel.send(createMessage(tag, tagHeaders(ref.getOrigin(), path))));
 				}
 			}
 		}
 		if (ref.getSources() != null) {
 			for (var source : ref.getSources()) {
+				if (source.equals(ref.getUrl())) continue;
 				sendAndRetry(() -> responseTxChannel.send(createMessage(ref.getUrl(), responseHeaders(ref.getOrigin(), source))));
 			}
 		}
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(ref.getModified(), originHeaders(ref.getOrigin()))));
 	}
 
+	@Async
+	public void updateSilentRef(Ref ref) {
+		// TODO: Debounce
+		var update = mapper.domainToDto(ref);
+		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
+	}
+
+	@Async
+	public void updateMetadata(Ref ref) {
+		// TODO: Debounce
+		var update = mapper.domainToDto(ref);
+		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
+	}
+
+	@Async
+	public void deleteRef(Ref ref) {
+		updateRef(deleteNotice(ref));
+	}
+
+	@Async
 	public void updateExt(Ext ext) {
 		var update = mapper.domainToDto(ext);
-		var origins = originHierarchy(ext.getOrigin());
-		for (var o : origins) {
-			sendAndRetry(() -> extTxChannel.send(createMessage(update, tagHeaders(o, ext.getTag()))));
-		}
+		sendAndRetry(() -> extTxChannel.send(createMessage(update, tagHeaders(ext.getOrigin(), ext.getTag()))));
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(ext.getModified(), originHeaders(ext.getOrigin()))));
 	}
 
+	@Async
 	public void updateUser(User user) {
 		var update = mapper.domainToDto(user);
-		var origins = originHierarchy(user.getOrigin());
-		for (var o : origins) {
-			sendAndRetry(() -> userTxChannel.send(createMessage(update, tagHeaders(o, user.getTag()))));
-		}
+		sendAndRetry(() -> userTxChannel.send(createMessage(update, tagHeaders(user.getOrigin(), user.getTag()))));
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(user.getModified(), originHeaders(user.getOrigin()))));
 	}
 
+	@Async
 	public void deleteUser(String qualifiedTag) {
-		String tag = localTag(qualifiedTag);
-		String origin = tagOrigin(qualifiedTag);
-		var origins = originHierarchy(origin);
-		for (var o : origins) {
-			sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(o, tag))));
-		}
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag))));
 	}
 
+	@Async
 	public void updatePlugin(Plugin plugin) {
 		var update = mapper.domainToDto(plugin);
-		var origins = originHierarchy(plugin.getOrigin());
-		for (var o : origins) {
-			sendAndRetry(() -> pluginTxChannel.send(createMessage(update, tagHeaders(o, plugin.getTag()))));
-		}
+		sendAndRetry(() -> pluginTxChannel.send(createMessage(update, tagHeaders(plugin.getOrigin(), plugin.getTag()))));
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(plugin.getModified(), originHeaders(plugin.getOrigin()))));
 	}
 
+	@Async
 	public void deletePlugin(String qualifiedTag) {
-		String tag = localTag(qualifiedTag);
-		String origin = tagOrigin(qualifiedTag);
-		var origins = originHierarchy(origin);
-		for (var o : origins) {
-			sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(o, tag))));
-		}
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag))));
 	}
 
+	@Async
 	public void updateTemplate(Template template) {
 		var update = mapper.domainToDto(template);
-		var origins = originHierarchy(template.getOrigin());
-		for (var o : origins) {
-			sendAndRetry(() -> templateTxChannel.send(createMessage(update, tagHeaders(o, template.getTag()))));
-		}
+		sendAndRetry(() -> templateTxChannel.send(createMessage(update, tagHeaders(template.getOrigin(), template.getTag()))));
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(template.getModified(), originHeaders(template.getOrigin()))));
 	}
 
+	@Async
 	public void deleteTemplate(String qualifiedTag) {
-		String tag = localTag(qualifiedTag);
-		String origin = tagOrigin(qualifiedTag);
-		var origins = originHierarchy(origin);
-		for (var o : origins) {
-			sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin), tagHeaders(o, tag))));
-		}
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag))));
 	}
 
-	private ObjectNode deleteNotice(String tag, String origin) {
-		var notice = objectMapper.createObjectNode();
-		notice.set("tag", TextNode.valueOf(deletorTag(tag)));
-		notice.set("origin", TextNode.valueOf(origin));
-		return notice;
+	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
+		return objectMapper.convertValue(Map.of(
+			"tag", deletorTag(tag),
+			"origin", origin
+		), type);
+	}
+
+	private Ref deleteNotice(Ref ref) {
+		return objectMapper.convertValue(Map.of(
+			"url", ref.getUrl(),
+			"origin", ref.getOrigin(),
+			"tags", List.of("internal", "plugin/delete")
+		), Ref.class);
 	}
 
 	private void sendAndRetry(Runnable fn) {
+		sendAndRetry(fn, 5);
+	}
+
+	private void sendAndRetry(Runnable fn, int tries) {
 		try {
 			fn.run();
 		} catch (MessageDeliveryException e) {
-			// TODO: give up after 3 tries
-			taskExecutor.execute(() -> sendAndRetry(fn));
+			if (tries > 0) {
+				logger.debug("Retrying message delivery", e);
+				taskExecutor.execute(() -> sendAndRetry(fn, tries - 1));
+			} else {
+				logger.error("Message delivery failed", e);
+			}
 		}
 	}
 

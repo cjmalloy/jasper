@@ -7,7 +7,9 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
+import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
+import jasper.service.dto.DtoMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +35,7 @@ public class BackupService {
 		.user(true)
 		.plugin(false)
 		.template(false)
+		.cache(true)
 		.build();
 
 	@Autowired
@@ -46,6 +49,9 @@ public class BackupService {
 
 	@Autowired
 	Auth auth;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
@@ -67,13 +73,15 @@ public class BackupService {
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public List<String> listBackups(String origin) {
-		return backup.listBackups(origin);
+	public List<BackupDto> listBackups(String origin) {
+		return backup.listBackups(origin).stream()
+			.map(mapper::domainToDto)
+			.toList();
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public byte[] getBackup(String origin, String id) {
+	public Backup.BackupStream getBackup(String origin, String id) {
 		return backup.get(origin, id);
 	}
 
@@ -89,12 +97,12 @@ public class BackupService {
 			ref.addTag("_plugin/system");
 			ref.setTitle("Backup Key");
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.create(ref, false);
+			ingest.create(auth.getOrigin(), ref);
 			return ref.getComment();
 		}
 		if (isBlank(ref.getComment()) || !ref.getComment().equals(key)) {
 			ref.setComment(UUID.randomUUID().toString());
-			ingest.update(ref, false);
+			ingest.update(auth.getOrigin(), ref);
 		}
 		return ref.getComment();
 	}
@@ -103,8 +111,8 @@ public class BackupService {
 	public void clearBackupKey() {
 		var list = refRepository.findAll(isUrl("system:backup-key"));
 		for (var ref : list) {
-			if (ref.getCreated().isAfter(Instant.now().minus(15, ChronoUnit.SECONDS))) {
-				ingest.delete("system:backup-key", ref.getOrigin());
+			if (ref.getCreated().isBefore(Instant.now().minus(15, ChronoUnit.MINUTES))) {
+				ingest.delete(auth.getOrigin(), "system:backup-key", ref.getOrigin());
 			}
 		}
 	}
@@ -116,8 +124,9 @@ public class BackupService {
 		return key.equals(ref.getComment());
 	}
 
-	public byte[] getBackupPreauth(String id) {
-		return backup.get(auth.getOrigin(), id);
+	@PreAuthorize("@auth.subOrigin(#origin)")
+	public Backup.BackupStream getBackupPreauth(String origin, String id) {
+		return backup.get(origin, id);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
@@ -129,8 +138,8 @@ public class BackupService {
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
-	public void backfill(String origin) {
-		backup.backfill(origin);
+	public void regen(String origin) {
+		backup.regen(origin);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")

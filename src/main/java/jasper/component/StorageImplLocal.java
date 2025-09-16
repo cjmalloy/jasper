@@ -5,7 +5,6 @@ import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.NotFoundException;
-import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,19 +17,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static jasper.domain.proj.HasOrigin.formatOrigin;
 
 @Profile("storage")
 @Component
@@ -39,9 +38,6 @@ public class StorageImplLocal implements Storage {
 
 	@Autowired
 	Props props;
-
-	@Autowired
-	RefRepository refRepository;
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
@@ -62,22 +58,48 @@ public class StorageImplLocal implements Storage {
 		try {
 			return new FileInputStream(path(origin, namespace, id).toFile());
 		} catch (IOException e) {
-			throw new NotFoundException("Storage file (" + namespace + ") " + id);
+			throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
 		}
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public long stream(String origin, String namespace, String id, OutputStream os) {
 		try {
-			return StreamUtils.copy(new FileInputStream(path(origin, namespace, id).toFile()), os);
+			return Files.copy(path(origin, namespace, id), os);
 		} catch (IOException e) {
-			throw new NotFoundException("Storage file (" + namespace + ") " + id);
+			throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
 		}
 	}
 
 	@Override
 	public Zipped streamZip(String origin, String namespace, String id) throws IOException {
 		return new ZippedLocal(origin, namespace, id, false);
+	}
+
+	@Timed(value = "jasper.storage", histogram = true)
+	public void visitTenants(PathVisitor v) {
+		var dir = tenants();
+		if (!dir.toFile().exists()) return;
+		try (var list = Files.list(dir)) {
+			list.forEach(t -> {
+				if (!t.toFile().isDirectory()) return;
+				var tenant = t.getFileName().toString();
+				v.visit(tenantOrigin(tenant));
+			});
+		} catch (IOException e) {
+			logger.warn("Error reading tenant dir", e);
+		}
+	}
+
+	@Override
+	public List<String> listTenants() {
+		try (var list = Files.list(tenants())) {
+			return list
+				.map(f -> f.getFileName().toString())
+				.collect(Collectors.toList());
+		} catch (IOException e) {
+			return Collections.emptyList();
+		}
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
@@ -92,32 +114,13 @@ public class StorageImplLocal implements Storage {
 	}
 
 	@Override
-	public List<String> listStorage(String origin, String namespace) {
+	public List<StorageRef> listStorage(String origin, String namespace) {
 		try (var list = Files.list(dir(origin, namespace))) {
 			return list
-				.map(f -> f.getFileName().toString())
+				.map(f -> new StorageRef(f.getFileName().toString(), f.toFile().length()))
 				.collect(Collectors.toList());
 		} catch (IOException e) {
 			return Collections.emptyList();
-		}
-	}
-
-	@Timed(value = "jasper.storage", histogram = true)
-	public void visitTenants(PathVisitor v) {
-		var dir = tenats();
-		if (!dir.toFile().exists()) return;
-		try (var list = Files.list(dir)) {
-			list.forEach(t -> {
-				if (!t.toFile().isDirectory()) return;
-				var origin = t.getFileName().toString();
-				if (origin.equals("default")) {
-					v.visit("");
-				} else if (!origin.startsWith("@")) {
-					v.visit(origin);
-				}
-			});
-		} catch (IOException e) {
-			logger.warn("Error reading tenant dir", e);
 		}
 	}
 
@@ -135,14 +138,14 @@ public class StorageImplLocal implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public String store(String origin, String namespace, byte[] file) throws IOException {
-		var id = "cache_" + UUID.randomUUID();
+		var id = UUID.randomUUID().toString();
 		storeAt(origin, namespace, id, file);
 		return id;
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public String store(String origin, String namespace, InputStream is) throws IOException {
-		var id = "cache_" + UUID.randomUUID();
+		var id = UUID.randomUUID().toString();
 		var path = path(origin, namespace, id);
 		Files.createDirectories(path.getParent());
 		StreamUtils.copy(is, new FileOutputStream(path.toFile()));
@@ -177,22 +180,54 @@ public class StorageImplLocal implements Storage {
 		Files.delete(path(origin, namespace, id));
 	}
 
-	Path tenats() {
+	@Override
+	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
+		if (!dir(origin, namespace).toFile().exists()) return;
+		Files.createDirectories(backup.get(namespace));
+		try (var w = Files.walk(dir(origin, namespace))) {
+			w.forEach(f -> {
+				if (Files.isRegularFile(f) && (modifiedAfter == null || f.toFile().lastModified() > modifiedAfter.toEpochMilli())) {
+					try {
+						Files.copy(f, backup.get(namespace, f.getFileName().toString()));
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				}
+			});
+		}
+	}
+
+	@Override
+	public void restore(String origin, String namespace, Zipped backup) throws IOException {
+		if (!Files.exists(backup.get(namespace))) return;
+		Files.createDirectories(dir(origin, namespace));
+		try (var w = Files.walk(backup.get(namespace))) {
+			w.forEach(f -> {
+				if (Files.isRegularFile(f)) {
+					try {
+						Files.copy(f, path(origin, namespace, f.getFileName().toString()));
+					} catch (FileAlreadyExistsException e) {
+						// TODO: overwrite option?
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				}
+			});
+		}
+	}
+
+	Path tenants() {
 		return Paths.get(props.getStorage());
 	}
 
 	Path dir(String origin, String namespace) {
 		sanitize(origin, namespace);
-		return Paths.get(props.getStorage(), formatOrigin(origin), namespace);
+		return Paths.get(props.getStorage(), originTenant(origin), namespace);
 	}
 
 	Path path(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return Paths.get(props.getStorage(), formatOrigin(origin), namespace, id);
-	}
-
-	public interface PathVisitor {
-		void visit(String filename);
+		return Paths.get(props.getStorage(), originTenant(origin), namespace, id);
 	}
 
 	private class ZippedLocal implements Zipped {
@@ -208,6 +243,11 @@ public class StorageImplLocal implements Storage {
 			this.id = id;
 			this.create = create;
 			zipfs = FileSystems.newFileSystem(path(origin, namespace, create ? "_" + id : id), Map.of("create", create ? "true" : "false"));
+		}
+
+		@Override
+		public Path get(String first, String... more) {
+			return zipfs.getPath(first, more);
 		}
 
 		@Override

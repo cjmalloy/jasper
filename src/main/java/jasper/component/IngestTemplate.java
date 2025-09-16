@@ -1,10 +1,15 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.RollbackException;
 import jasper.config.Props;
 import jasper.domain.Template;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
@@ -15,11 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -55,33 +58,47 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
-			if (templateRepository.existsByQualifiedTag(deletedTag(template.getTag()) + template.getOrigin())) throw new AlreadyExistsException();
+			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(template.getTag()) + template.getOrigin());
+			delete(deletorTag(template.getQualifiedTag()));
 		}
-		validate.template(template);
+		validate.template(template.getOrigin(), template);
 		ensureCreateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (!templateRepository.existsByQualifiedTag(template.getTag() + template.getOrigin())) throw new NotFoundException("Template");
-		validate.template(template);
+		if (!templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
+		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
 	}
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void push(Template template) {
-		validate.template(template);
+		validate.template(template.getOrigin(), template);
 		try {
 			templateRepository.save(template);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("template_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("template_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 		if (isDeletorTag(template.getTag())) {
-			delete(deletedTag(template.getTag()) + template.getOrigin());
+			delete(deletedTag(template.getQualifiedTag()));
 		}
 		messages.updateTemplate(template);
 	}
@@ -107,6 +124,13 @@ public class IngestTemplate {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e instanceof ConstraintViolationException c) {
+					if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("template_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("template_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("template_modified_origin_key".equals(c.getConstraintName())) {
@@ -144,6 +168,12 @@ public class IngestTemplate {
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof ConstraintViolationException c) {
+					if ("template_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("template_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();

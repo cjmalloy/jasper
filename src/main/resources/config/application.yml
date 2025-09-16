@@ -24,6 +24,12 @@ springdoc:
 feign:
   circuitbreaker:
     enabled: true
+    group:
+      default:
+        failureRateThreshold: 50  # Open circuit after 50% failures
+        waitDurationInOpenState: 20000  # Wait 20s before trying again
+        ringBufferSizeInHalfOpenState: 10  # Sample size when half-open
+        ringBufferSizeInClosedState: 100  # Sample size when closed
   # client:
   #   config:
   #     default:
@@ -40,7 +46,6 @@ management:
             'env',
             'health',
             'info',
-            'jhimetrics',
             'loggers',
             'prometheus',
             'threaddump',
@@ -57,8 +62,6 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db
-    jhimetrics:
-      enabled: true
   info:
     git:
       mode: full
@@ -67,12 +70,12 @@ management:
   health:
     mail:
       enabled: false # When using the MailService, configure an SMTP server and set this to true
-  metrics:
-    export:
-      # Prometheus is the default metrics backend
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
         step: 60
+  metrics:
     enable:
       http: true
       jvm: true
@@ -86,11 +89,6 @@ management:
         all: 0, 0.5, 0.75, 0.95, 0.99, 1.0
     tags:
       application: ${spring.application.name}
-    web:
-      server:
-        request:
-          autotime:
-            enabled: true
 
 spring:
   application:
@@ -115,6 +113,7 @@ spring:
   jpa:
     open-in-view: false
     properties:
+      jakarta.persistence.validation.mode: auto
       hibernate.jdbc.time_zone: UTC
       hibernate.id.new_generator_mappings: true
       hibernate.connection.provider_disables_autocommit: true
@@ -132,7 +131,6 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        physical-strategy: org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
         implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
   liquibase:
     change-log: classpath:config/liquibase/master.xml
@@ -150,6 +148,8 @@ spring:
     allow-bean-definition-overriding: true
     allow-circular-references: true
   mvc:
+    async:
+      request-timeout: 60s
     pathmatch:
       matching-strategy: ant_path_matcher
   task:
@@ -162,7 +162,10 @@ spring:
     scheduling:
       thread-name-prefix: jasper-scheduling-
       pool:
-        size: 2
+        size: 50
+  threads:
+    virtual:
+      enabled: false
   output:
     ansi:
       console-available: true
@@ -191,13 +194,11 @@ info:
 # ===================================================================
 jasper:
   push-cooldown-sec: 1
-  pull-delay-min: 20
-  pull-interval-min: 1
-  scrape-delay-min: 20
-  scrape-interval-min: 1
   local-origin: ''
   storage: /var/lib/jasper
   node: /usr/local/bin/node
+  python: /usr/bin/python
+  shell: /usr/bin/bash
   cache-api: ''
   # By default CORS is disabled. Uncomment to enable.
   # cors:
@@ -207,8 +208,6 @@ jasper:
   #   exposed-headers: "Authorization,Link,X-Total-Count"
   #   allow-credentials: true
   #   max-age: 1800
-  mail:
-    from: jasper@localhost
   api-docs:
     default-include-pattern: ${server.servlet.context-path:}/api/**
     management-include-pattern: ${server.servlet.context-path:}/management/**
@@ -226,4 +225,9 @@ jasper:
       - description: SwaggerHub API Auto Mocking
         url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
-    content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
+    content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
+
+logging:
+  level:
+    org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.engine.jdbc.spi: OFF

@@ -6,6 +6,7 @@ import com.mdimension.jchronic.Chronic;
 import com.mdimension.jchronic.Options;
 import com.mdimension.jchronic.tags.Pointer;
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
 import jasper.component.dto.JsonLd;
 import jasper.domain.Ref;
 import jasper.plugin.Scrape;
@@ -29,6 +30,7 @@ import java.util.regex.Pattern;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.HasTags.hasMedia;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -55,6 +57,9 @@ public class Scraper {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	EntityManager em;
+
 	@Timed(value = "jasper.scrape", histogram = true)
 	public Scrape getConfig(String url, String origin) {
 		var providers = configs.getAllConfigs(origin, "+plugin/scrape", Scrape.class);
@@ -73,8 +78,9 @@ public class Scraper {
 		var data = proxy.fetchString(url);
 		if (!data.trim().startsWith("<")) return null;
 		var doc = Jsoup.parse(data, url);
+		// TODO: support application/feed+json
 		return doc.getElementsByTag("link").stream()
-			.filter(t -> t.attr("type").equals("application/rss+xml"))
+			.filter(t -> t.attr("type").equals("application/rss+xml") || t.attr("type").equals("application/atom+xml"))
 			.filter(t -> t.hasAttr("href"))
 			.map(t -> t.absUrl("href"))
 			.findFirst().orElse(null);
@@ -85,8 +91,10 @@ public class Scraper {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
 		var data = proxy.fetchString(url, origin, refRepository.existsByUrlAndOrigin(url, origin));
-		if (!data.trim().startsWith("<")) return from(url, origin);
+		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
+		// Update ref but don't persist changes
+		em.detach(result);
 		var doc = Jsoup.parse(data, url);
 		result.setTitle(doc.title());
 		fixImages(doc, config);
@@ -211,7 +219,7 @@ public class Scraper {
 			}
 			if (isBlank(date)) continue;
 			try {
-				result.setPublished(Instant.parse(date));
+				result.setPublished(parseDate(date));
 				return;
 			} catch (DateTimeParseException ignored) {}
 		}
@@ -287,15 +295,15 @@ public class Scraper {
 		}
 		var metaPublished = doc.select("meta[property=article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(Instant.parse(metaPublished.attr("content")));
+			result.setPublished(parseDate(metaPublished.attr("content")));
 		}
 		metaPublished = doc.select("meta[property=og:article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(Instant.parse(metaPublished.attr("content")));
+			result.setPublished(parseDate(metaPublished.attr("content")));
 		}
 		var metaReleased = doc.select("meta[property=og:book:release_date]").first();
 		if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
-			result.setPublished(Instant.parse(metaReleased.attr("content")));
+			result.setPublished(parseDate(metaReleased.attr("content")));
 		}
 	}
 
@@ -319,7 +327,7 @@ public class Scraper {
 					objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
 				for (var c : configs) parseLd(result, c);
 			} catch (Exception e) {
-				logger.warn("Invalid LD+JSON. {}", e.getMessage());
+				logger.warn("Invalid LD+JSON. {}", getMessage(e));
 				logger.debug(json);
 			}
 		}
@@ -345,7 +353,7 @@ public class Scraper {
 	}
 
 	private void addWeakThumbnail(Ref ref, String url) {
-		if (!ref.getTags().contains("plugin/thumbnail")) addThumbnailUrl(ref, url);
+		if (!ref.hasTag("plugin/thumbnail")) addThumbnailUrl(ref, url);
 	}
 
 	private void addThumbnailUrl(Ref ref, String url) {
@@ -365,7 +373,7 @@ public class Scraper {
 		if (isNotBlank(ld.getThumbnailUrl())) addWeakThumbnail(result, ld.getThumbnailUrl());
 		if ("NewsArticle".equals(ld.getType())) {
 			if (isNotBlank(ld.getDatePublished())) {
-				result.setPublished(Instant.parse(ld.getDatePublished()));
+				result.setPublished(parseDate(ld.getDatePublished()));
 			}
 		}
 		if ("AudioObject".equals(ld.getType())) {
@@ -461,7 +469,7 @@ public class Scraper {
 	}
 
 	private void addPluginUrl(Ref ref, String tag, String url) {
-		cacheLater(url, ref.getOrigin());
+		if (!"plugin/embed".equals(tag)) cacheLater(url, ref.getOrigin());
 		ref.setPlugin(tag, Map.of("url", url));
 	}
 
@@ -477,6 +485,15 @@ public class Scraper {
 		// TODO: Add plugin to override like oembeds
 //		return url.replaceAll("%20", "+");
 		return url.replaceAll(" ", "%20");
+	}
+
+	private Instant parseDate(String date) {
+		try {
+			return Instant.parse(date);
+		} catch (Exception e) {
+			// TODO: support other date formats
+			return null;
+		}
 	}
 
 }

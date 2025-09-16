@@ -10,6 +10,8 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+
 /**
  * DTO for sending a Ref update to a subscribed client.
  * <p>
@@ -18,7 +20,7 @@ import java.util.List;
  */
 @Getter
 @Setter
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonInclude(NON_EMPTY)
 public class RefUpdateDto implements HasTags, Serializable {
 	private String url;
 	private String origin;

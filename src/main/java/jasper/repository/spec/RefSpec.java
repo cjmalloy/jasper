@@ -1,15 +1,19 @@
 package jasper.repository.spec;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import org.springframework.data.jpa.domain.Specification;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.isPublicTag;
+import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.none;
+import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
 
@@ -18,7 +22,8 @@ public class RefSpec {
 			var searchQuery = cb.function("websearch_to_tsquery", Object.class, cb.literal(search));
 			if (rankedOrder) {
 				query.orderBy(cb.desc(cb.function("ts_rank_cd", Object.class,
-					root.get(Ref_.textsearchEn), searchQuery)));
+					root.get(Ref_.textsearchEn),
+					searchQuery)));
 			}
 			return cb.isTrue(
 				cb.function("ts_match_vq", Boolean.class,
@@ -72,13 +77,15 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> endsWithTitle(String text) {
-		var textLower = text.toLowerCase();
 		return (root, query, cb) ->
-				cb.like(cb.literal(textLower), cb.concat("%", cb.lower(root.get(Ref_.title))));
+			cb.like(
+				cb.literal(text.toLowerCase()),
+				cb.concat("%", cb.lower(root.get(Ref_.title))));
 	}
 
 	public static Specification<Ref> hasSource(String url) {
-		return (root, query, cb) -> cb.isTrue(
+		return (root, query, cb) -> cb.and(
+			cb.notEqual(root.get(Ref_.url), url),
 			cb.function("jsonb_exists", Boolean.class,
 				root.get(Ref_.sources),
 				cb.literal(url)));
@@ -94,7 +101,7 @@ public class RefSpec {
 	public static Specification<Ref> hasResponse(String url) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				cb.function("jsonb_object_field", List.class,
+				cb.function("jsonb_object_field", Object.class,
 					root.get(Ref_.metadata),
 					cb.literal("responses")),
 				cb.literal(url)));
@@ -103,7 +110,7 @@ public class RefSpec {
 	public static Specification<Ref> hasInternalResponse(String url) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				cb.function("jsonb_object_field", List.class,
+				cb.function("jsonb_object_field", Object.class,
 					root.get(Ref_.metadata),
 					cb.literal("internalResponses")),
 				cb.literal(url)));
@@ -132,12 +139,12 @@ public class RefSpec {
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
 				cb.isNull(
-					cb.function("jsonb_object_field", List.class,
+					cb.function("jsonb_object_field", Object.class,
 						root.get(Ref_.metadata),
 						cb.literal("responses"))),
 				cb.equal(
 					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", List.class,
+						cb.function("jsonb_object_field", Object.class,
 							root.get(Ref_.metadata),
 							cb.literal("responses"))),
 					cb.literal(0)));
@@ -148,49 +155,129 @@ public class RefSpec {
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
 				cb.isNull(
-					cb.function("jsonb_object_field", List.class,
+					cb.function("jsonb_object_field", Object.class,
 						root.get(Ref_.metadata),
 						cb.literal("plugins"))),
-				cb.isNull(
-					cb.function("jsonb_object_field", List.class,
-						cb.function("jsonb_object_field", List.class,
+				cb.isFalse(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
 							root.get(Ref_.metadata),
 							cb.literal("plugins")),
-						cb.literal(plugin))),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", List.class,
-							cb.function("jsonb_object_field", List.class,
-								root.get(Ref_.metadata),
-								cb.literal("plugins")),
-							cb.literal(plugin))),
-					cb.literal(0)));
+						cb.literal(plugin))));
 	}
 
 	public static Specification<Ref> hasPluginResponses(String plugin) {
 		return (root, query, cb) ->
 			cb.and(
 				cb.isNotNull(root.get(Ref_.metadata)),
-				cb.gt(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", List.class,
-							cb.function("jsonb_object_field", List.class,
+				cb.function("jsonb_exists", Boolean.class,
+					cb.function("jsonb_object_field", Object.class,
+						root.get(Ref_.metadata),
+						cb.literal("plugins")),
+					cb.literal(plugin)));
+	}
+
+	public static Specification<Ref> hasNoPluginResponses(String user, String plugin) {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						root.get(Ref_.metadata),
+						cb.literal("userUrls"))),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("userUrls")),
+						cb.literal(plugin))),
+				cb.isFalse(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
 								root.get(Ref_.metadata),
-								cb.literal("plugins")),
-							cb.literal(plugin))),
-					cb.literal(0)));
+								cb.literal("userUrls")),
+							cb.literal(plugin)),
+						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+	}
+
+	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
+		return (root, query, cb) ->
+			cb.and(
+				cb.isNotNull(root.get(Ref_.metadata)),
+				cb.isTrue(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal("userUrls")),
+							cb.literal(plugin)),
+						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+	}
+
+	private static Expression<Object> getTagsExpression(Root<Ref> root, CriteriaBuilder cb) {
+		return cb.function("COALESCE", Object.class,
+			cb.function("jsonb_object_field", Object.class,
+				root.get(Ref_.metadata),
+				cb.literal("expandedTags")),
+			root.get(Ref_.tags),
+			cb.literal("[]")
+		);
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> cb.isTrue(
 			cb.function("jsonb_exists", Boolean.class,
-				root.get(Ref_.tags),
+				getTagsExpression(root, cb),
 				cb.literal(tag)));
 	}
 
+	public static Specification<Ref> hasNoChildTag(String tag) {
+		return (root, query, cb) -> cb.isFalse(
+			cb.like(
+				cb.function("jsonb_extract_path_text", String.class,
+					root.get(Ref_.tags),
+					cb.literal("{}")),
+				"%\"" + tag + "/%"));
+	}
+
+	public static Specification<Ref> hasDownwardTag(String tag) {
+		if (isPublicTag(tag)) {
+			return (root, query, cb) -> cb.isTrue(
+				cb.function("jsonb_exists", Boolean.class,
+					getTagsExpression(root, cb),
+					cb.literal(tag)));
+		} else if (tag.startsWith("_")) {
+			return (root, query, cb) -> cb.isTrue(
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						getTagsExpression(root, cb),
+						cb.literal(tag)),
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						getTagsExpression(root, cb),
+						cb.literal("+" + publicTag(tag))),
+					cb.function("jsonb_exists", Boolean.class,
+						getTagsExpression(root, cb),
+						cb.literal(publicTag(tag))))
+				));
+		} else {
+			// Protected tag
+			return (root, query, cb) -> cb.isTrue(
+				cb.or(
+					cb.function("jsonb_exists", Boolean.class,
+						getTagsExpression(root, cb),
+						cb.literal(tag)),
+					cb.function("jsonb_exists", Boolean.class,
+						getTagsExpression(root, cb),
+						cb.literal(publicTag(tag)))
+				));
+		}
+	}
+
 	public static Specification<Ref> hasAnyQualifiedTag(List<QualifiedTag> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<Ref>where(null);
+		if (tags == null || tags.isEmpty()) return unrestricted();
+		var spec = Specification.<Ref>unrestricted();
 		for (var t : tags) {
 			spec = spec.or(t.refSpec());
 		}
@@ -198,8 +285,8 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasAllQualifiedTags(List<QualifiedTag> tags) {
-		if (tags == null || tags.isEmpty()) return null;
-		var spec = Specification.<Ref>where(null);
+		if (tags == null || tags.isEmpty()) return unrestricted();
+		var spec = Specification.<Ref>unrestricted();
 		for (var t : tags) {
 			spec = spec.and(t.refSpec());
 		}
@@ -213,7 +300,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isPublishedAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.greaterThan(
 						root.get(Ref_.published),
@@ -221,7 +308,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isPublishedBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.lessThan(
 						root.get(Ref_.published),
@@ -229,7 +316,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isCreatedAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.greaterThan(
 						root.get(Ref_.created),
@@ -237,7 +324,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isCreatedBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 				cb.lessThan(
 						root.get(Ref_.created),
@@ -245,7 +332,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isResponseAfter(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
@@ -254,7 +341,7 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> isResponseBefore(Instant i) {
-		if (i == null) return null;
+		if (i == null) return unrestricted();
 		return (root, query, cb) ->
 			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),

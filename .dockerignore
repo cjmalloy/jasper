@@ -1,3 +1,4 @@
+# Development artifacts
 target/
 .github/
 .mvn/
@@ -5,3 +6,22 @@ docs/
 .idea/
 storage/
 repl/
+Dockerfile
+.DS_Store
+
+# Documentation
+_includes/
+docs/
+*.md
+LICENSE
+
+# Git and config files not needed for build
+.git/
+.gitignore
+.editorconfig
+
+# Scripts and local dev files
+docker-compose.yaml
+Dockerfile
+.dockerignore
+_config.yml

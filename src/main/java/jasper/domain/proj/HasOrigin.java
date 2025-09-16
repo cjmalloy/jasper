@@ -1,10 +1,13 @@
 package jasper.domain.proj;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.tagOrigin;
+import static java.util.Arrays.stream;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface HasOrigin {
@@ -33,6 +36,28 @@ public interface HasOrigin {
 		if (isBlank(origin)) return local;
 		if (origin.startsWith("@")) origin = origin.substring(1);
 		return local + '.' + origin;
+	}
+
+	static String[] parts(String origin) {
+		if (isBlank(origin)) return new String[]{ "" };
+		return origin.substring(1).split("\\.");
+	}
+
+	static String parentOrigin(String origin) {
+		if (isBlank(origin)) return "";
+		if (!origin.contains(".")) return "";
+		return origin.substring(0, origin.lastIndexOf("."));
+	}
+
+	static String fromParts(String ...parts) {
+		if (parts == null) return "";
+		if (parts.length == 0) return "";
+		if (parts.length == 1 && isBlank(parts[0])) return "";
+		return "@" + String.join(".",
+			stream(parts)
+			.map(p -> p.replaceAll("[@]", ""))
+			.filter(StringUtils::isNotBlank)
+			.toList());
 	}
 
 	static boolean isSubOrigin(String local, String origin) {

@@ -6,28 +6,22 @@ import com.rometools.modules.mediarss.MediaModule;
 import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
-import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
-import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.plugin.Audio;
-import jasper.plugin.Embed;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
-import jasper.security.Auth;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -44,16 +38,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
-import static jasper.domain.proj.HasOrigin.origin;
-import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.plugin.Cron.getCron;
+import static jasper.plugin.Feed.getFeed;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
-
-	@Autowired
-	Auth auth;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -70,89 +62,83 @@ public class RssParser {
 	@Autowired
 	RefRepository refRepository;
 
-	@Autowired
-	ConfigCache configs;
-
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
-		var root = configs.root();
-		if (!root.getScrapeOrigins().contains(origin(feed.getOrigin())) && !auth.hasRole(ADMIN)) {
-			logger.debug("Scrape origins: {}", root.getScrapeOrigins());
-			throw new OperationForbiddenOnOriginException(feed.getOrigin());
-		}
-		var config = feed.getPlugin("+plugin/feed", Feed.class);
-		var lastScrape = config.getLastScrape();
-		config.setLastScrape(Instant.now());
-		feed.setPlugin("+plugin/feed", config);
-		ingest.update(feed, false);
-
+		var config = getFeed(feed);
 		int timeout = 30 * 1000; // 30 seconds
-		RequestConfig requestConfig = RequestConfig
-			.custom()
+		var requestConfig = RequestConfig.custom()
 			.setConnectTimeout(timeout)
 			.setConnectionRequestTimeout(timeout)
 			.setSocketTimeout(timeout).build();
-		var builder = HttpClients.custom().setDefaultRequestConfig(requestConfig);
-		try (CloseableHttpClient client = builder.build()) {
-			HttpUriRequest request = new HttpGet(feed.getUrl());
+		var builder = HttpClients.custom()
+			.setDefaultRequestConfig(requestConfig)
+			.disableCookieManagement();
+		try (var client = builder.build()) {
+			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
-				logger.info("Invalid host {}", request.getURI().getHost());
+				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
 				return;
 			}
 
 			if (!config.isDisableEtag() && config.getEtag() != null) {
 				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
 			}
-			if (lastScrape != null) {
-				request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+			Instant lastScrape = null;
+			var cron = getCron(feed);
+			if (cron != null && cron.getInterval() != null) {
+				lastScrape = Instant.now().minus(cron.getInterval());
+				if (lastScrape.isAfter(feed.getModified()) &&
+					lastScrape.isAfter(Instant.now().minus(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS))) {
+					request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
+				}
 			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
 			try (CloseableHttpResponse response = client.execute(request)) {
 				if (response.getStatusLine().getStatusCode() == 304) {
-					logger.info("Feed {} not modified since {}",
-						feed.getTitle(), lastScrape);
+					if (lastScrape == null) {
+						logger.info("{} Feed {} not modified", feed.getOrigin(), feed.getTitle());
+					} else {
+						logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
+					}
 					return;
 				}
-				try (InputStream stream = response.getEntity().getContent()) {
+				try (var stream = response.getEntity().getContent()) {
 					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && !config.getEtag().equals(etag.getValue())) {
+						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
-							feed.setPlugin("+plugin/feed", config);
-							ingest.update(feed, false);
+							feed.setPlugin("plugin/feed", config);
+							ingest.update(feed.getOrigin(), feed);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
-							feed.setPlugin("+plugin/feed", config);
-							ingest.update(feed, false);
+							feed.setPlugin("plugin/feed", config);
+							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					SyndFeedInput input = new SyndFeedInput();
-					SyndFeed syndFeed = input.build(new XmlReader(stream));
-					Thumbnail feedImage = null;
+					var input = new SyndFeedInput();
+					var syndFeed = input.build(new XmlReader(stream));
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
-						feedImage = Thumbnail.builder().url(image).build();
-						if (!feed.getTags().contains("plugin/thumbnail")) {
-							feed.setPlugin("plugin/thumbnail", feedImage);
-							ingest.update(feed, false);
+						if (!feed.hasTag("plugin/thumbnail")) {
+							feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
+							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					for (var entry : syndFeed.getEntries()) {
-						Ref ref;
+					for (var entry : syndFeed.getEntries().reversed()) {
 						try {
-							ref = parseEntry(feed, config, entry, feedImage);
+							var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
-								logger.warn("RSS entry in feed {} which was published before feed publish date. {} {}",
-									feed.getTitle(), ref.getTitle(), ref.getUrl());
+								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
+									feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
-								ingest.update(feed, false);
+								ingest.update(feed.getOrigin(), feed);
 							}
-							ingest.create(ref, false);
+							ingest.create(feed.getOrigin(), ref);
 						} catch (AlreadyExistsException e) {
-							logger.debug("Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getTitle(), entry.getTitle(), entry.getLink());
+							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
 							logger.error("Error processing entry", e);
 						}
@@ -165,6 +151,10 @@ public class RssParser {
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();
 		var link = entry.getLink();
+		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
+			// Atom ID, RSS GUID
+			link = entry.getUri();
+		}
 		if (config.isStripQuery() && link.contains("?")) {
 			link = link.substring(0, link.indexOf("?"));
 		}
@@ -172,7 +162,7 @@ public class RssParser {
 			throw new AlreadyExistsException();
 		}
 		if (config.isScrapeWebpage()) {
-			feed.addTag("_plugin/delta/web.scrape");
+			ref.addTag("_plugin/delta/scrape/ref");
 		}
 		ref.setUrl(link);
 		ref.setTitle(entry.getTitle());
@@ -217,7 +207,7 @@ public class RssParser {
 		if (config.isScrapeThumbnail()) {
 			parseThumbnail(entry, ref);
 			if (!ref.hasPlugin("plugin/thumbnail")) {
-				if (defaultThumbnail != null) {
+				if (defaultThumbnail != null && !defaultThumbnail.isBlank()) {
 					ref.setPlugin("plugin/thumbnail", defaultThumbnail);
 				}
 			}
@@ -235,12 +225,8 @@ public class RssParser {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
-			}
-		}
-		if (config.isScrapeEmbed()) {
-			parseEmbed(entry, ref);
-			if (ref.hasPlugin("plugin/embed")) {
-				cacheLater(ref.getPlugin("plugin/embed", Embed.class).getUrl(), feed.getOrigin());
+			} else {
+				parseEmbed(entry, ref);
 			}
 		}
 		return ref;
@@ -333,17 +319,11 @@ public class RssParser {
 			.findFirst();
 		if (youtubeEmbed.isPresent()) {
 			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
-			return;
 		}
-
-		var media = (MediaEntryModuleImpl) entry.getModule(MediaModule.URI);
-		if (media == null) return;
-		if (media.getMetadata() == null) return;
-		if (media.getMetadata().getEmbed() == null) return;
-		ref.setPlugin("plugin/embed", media.getMetadata().getEmbed());
 	}
 
 	private void cacheLater(String url, String origin) {
+		if (isBlank(url)) return;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");

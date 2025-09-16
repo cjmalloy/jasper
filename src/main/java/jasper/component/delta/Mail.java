@@ -1,6 +1,6 @@
 package jasper.component.delta;
 
-import io.vavr.Tuple;
+import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.domain.proj.RefUrl;
@@ -16,14 +16,12 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static jasper.domain.Ref.removePrefixTags;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.util.Arrays.stream;
@@ -50,6 +48,8 @@ public class Mail implements Async.AsyncRunner {
 	@Autowired
 	ConfigCache configs;
 
+	record QT(String tag, String origin) {}
+
 	@PostConstruct
 	void init() {
 		async.addAsyncTag("plugin/email", this);
@@ -62,9 +62,7 @@ public class Mail implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		var ts = new ArrayList<>(ref.getTags());
-		removePrefixTags(ts);
-		var mb = ts.stream()
+		var mb = ref.getExpandedTags().stream()
 			.filter(t -> t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/"))
 			.toArray(String[]::new);
 		String[] emails = new String[]{};
@@ -77,8 +75,8 @@ public class Mail implements Async.AsyncRunner {
 			outboxUserTags = stream(mb)
 				.filter(t -> t.startsWith("plugin/outbox/"))
 				.map(t -> t.substring("plugin/outbox/".length()))
-				.map(t -> Tuple.of(t.substring(0, t.indexOf("/")), t.substring(t.indexOf("/") + 1)))
-				.map(to -> to._2 + (isNotBlank(to._1) ? ("@" + to._1) : ""))
+				.map(t -> new QT(t.substring(t.indexOf("/") + 1), t.substring(0, t.indexOf("/"))))
+				.map(to -> to.tag + (isNotBlank(to.origin) ? ("@" + to.origin) : ""))
 				.toArray(String[]::new);
 			var query = String.join("|", concat(stream(inboxUserTags), stream(outboxUserTags)).toArray(String[]::new));
 			emails = extRepository.findAll(new TagQuery(query).spec())
@@ -88,7 +86,7 @@ public class Mail implements Async.AsyncRunner {
 				.filter(StringUtils::isNotBlank)
 				.toArray(String[]::new);
 		}
-		if (!ref.getTags().contains("+user") && !ref.getTags().contains("_user") && emails.length == 0) {
+		if (!ref.hasTag("+user") && !ref.hasTag("_user") && emails.length == 0) {
 			// Mail from webhook with no recipient
 			return;
 		}
@@ -113,7 +111,7 @@ public class Mail implements Async.AsyncRunner {
 				return null;
 			}
 		}).map(URI::getHost).orElse(Stream.of(ref.getOrigin(), configs.root().getEmailHost()).filter(StringUtils::isNotBlank).collect(Collectors.joining(".")));
-		message.setFrom(ts.stream()
+		message.setFrom(ref.getExpandedTags().stream()
 			.filter(t -> t.startsWith("+user/") || t.startsWith("+user") || t.startsWith("_user/") || t.startsWith("_user"))
 			.findFirst()
 			.map(t -> t + "@" + host)

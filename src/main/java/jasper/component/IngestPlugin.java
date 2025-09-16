@@ -1,10 +1,15 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.RollbackException;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
@@ -15,11 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -55,33 +58,47 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
-			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getTag()) + plugin.getOrigin())) throw new AlreadyExistsException();
+			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
-			delete(deletorTag(plugin.getTag()) + plugin.getOrigin());
+			delete(deletorTag(plugin.getQualifiedTag()));
 		}
-		validate.plugin(plugin);
+		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
-		if (!pluginRepository.existsByQualifiedTag(plugin.getTag() + plugin.getOrigin())) throw new NotFoundException("Plugin");
-		validate.plugin(plugin);
+		if (!pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
+		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void push(Plugin plugin) {
-		validate.plugin(plugin);
+		validate.plugin(plugin.getOrigin(), plugin);
 		try {
 			pluginRepository.save(plugin);
-		} catch (DataIntegrityViolationException e) {
-			throw new DuplicateModifiedDateException();
+		} catch (DataIntegrityViolationException | PersistenceException e) {
+			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+			if (e instanceof ConstraintViolationException c) {
+				if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("plugin_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			if (e.getCause() instanceof ConstraintViolationException c) {
+				if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("plugin_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
+			}
+			throw e;
+		} catch (TransactionSystemException e) {
+			if (e.getCause() instanceof RollbackException r) {
+				if (r.getCause() instanceof jakarta.validation.ConstraintViolationException) throw new InvalidPushException();
+			}
+			throw e;
 		}
 		if (isDeletorTag(plugin.getTag())) {
-			delete(deletedTag(plugin.getTag()) + plugin.getOrigin());
+			delete(deletedTag(plugin.getQualifiedTag()));
 		}
 		messages.updatePlugin(plugin);
 	}
@@ -107,6 +124,13 @@ public class IngestPlugin {
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
+				if (e instanceof ConstraintViolationException c) {
+					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
@@ -136,8 +160,6 @@ public class IngestPlugin {
 						plugin.getConfig(),
 						plugin.getSchema(),
 						plugin.getDefaults(),
-						plugin.isGenerateMetadata(),
-						plugin.isUserUrl(),
 						plugin.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Plugin");
@@ -146,6 +168,12 @@ public class IngestPlugin {
 				});
 				break;
 			} catch (DataIntegrityViolationException | PersistenceException e) {
+				if (e instanceof ConstraintViolationException c) {
+					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
+						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+						continue;
+					}
+				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
