@@ -48,7 +48,7 @@ public class SmtpService {
 	@Autowired
 	ConfigCache configs;
 
-	@PreAuthorize("@auth.hasRole('USER')")
+	@PreAuthorize("@auth.hasRole('USER') and @auth.local(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "smtp"}, histogram = true)
 	public void create(SmtpWebhookDto email, String origin) {
 		var ref = smtpToDomain(email);

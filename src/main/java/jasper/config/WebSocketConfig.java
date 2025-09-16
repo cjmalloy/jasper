@@ -52,7 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.READ_ACCESS_HEADER;
 import static jasper.security.Auth.TAG_READ_ACCESS_HEADER;
@@ -159,9 +159,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			logger.debug("STOMP Local Origin Header: {}", originHeader);
 			if (isNotBlank(originHeader)) {
 				originHeader = originHeader.toLowerCase();
-				if ("default".equals(originHeader)) return props.getOrigin();
-				if (originHeader.matches(HasOrigin.REGEX)) {
-					return subOrigin(props.getLocalOrigin(), originHeader.toLowerCase());
+				if ("default".equals(originHeader)) return props.getLocalOrigin();
+				if (originHeader.matches(HasOrigin.REGEX) && isSubOrigin(props.getLocalOrigin(), originHeader)) {
+					return originHeader;
 				}
 			}
 			return props.getOrigin();
@@ -227,30 +227,30 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				var wsAttributes = (WebSocketRequestAttributes) accessor.getSessionAttributes().get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
 				if (accessor.getUser() instanceof Authentication authentication) {
-					logger.debug("STOMP User Set");
 					auth.clear(authentication);
+					logger.debug("{} STOMP User Set {}", auth.getOrigin(), auth.getUserTag());
 					@SuppressWarnings("unchecked")
 					var headers = (Map<String, ArrayList<String>>) message.getHeaders().get("nativeHeaders", Map.class);
 					if (headers != null && headers.get("jwt") != null && headers.get("jwt").size() > 0) {
 						var token = headers.get("jwt").get(0);
 						var origin = auth.getOrigin();
 						if  (tokenProvider.validateToken(token, origin)) {
-							logger.debug("STOMP SUBSCRIBE Credentials Header");
 							auth.clear(tokenProvider.getAuthentication(token, origin));
+							logger.debug("{} STOMP SUBSCRIBE Credentials Header {}", auth.getOrigin(), auth.getUserTag());
 						}
 					}
 				} else {
-					logger.debug("STOMP Default auth");
 					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
+					logger.debug("{} STOMP Default auth {}", auth.getOrigin(), auth.getUserTag());
 				}
 				if (!configs.root().getWebOrigins().contains(auth.getOrigin())) {
 					logger.error("{} No web access for origin", auth.getOrigin());
 					return null;
 				}
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
-				logger.warn("{} can't subscribe to {}", auth.getUserTag(), accessor.getDestination());
+				logger.warn("{} {} can't subscribe to {}", auth.getOrigin(), auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
-				logger.error("Cannot authorize websocket subscription.", e);
+				logger.error("{} Cannot authorize websocket subscription.", auth.getOrigin(), e);
 			} finally {
 				RequestContextHolder.resetRequestAttributes();
 			}

@@ -1,4 +1,4 @@
-FROM oven/bun:1.2.21-slim AS bun
+FROM oven/bun:1.2.22-slim AS bun
 
 FROM maven:3.9.9-amazoncorretto-21-debian AS builder
 WORKDIR /app
@@ -42,7 +42,10 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp target/reports/surefire.html /reports/index.html
 
 FROM test AS gatling
-CMD mvn -gs settings.xml gatling:test; \
+COPY gatling/pom.xml ./gatling/
+COPY gatling/src ./gatling/src/
+WORKDIR /app/gatling
+CMD mvn -gs ../settings.xml gatling:test; \
 		mkdir -p /report && \
 		cp -r target/gatling/simplejaspersimulation-*/* /report/
 
