@@ -11,14 +11,14 @@ The load testing has been separated into its own module to isolate Gatling depen
 To run the load tests:
 
 ```bash
-cd load-testing
+cd gatling
 mvn gatling:test
 ```
 
 Or to run from the root directory:
 
 ```bash
-mvn -f load-testing/pom.xml gatling:test
+mvn -f gatling/pom.xml gatling:test
 ```
 
 ## Docker

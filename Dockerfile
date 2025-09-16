@@ -42,9 +42,9 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp target/reports/surefire.html /reports/index.html
 
 FROM test AS gatling
-COPY load-testing/pom.xml ./load-testing/
-COPY load-testing/src ./load-testing/src/
-WORKDIR /app/load-testing
+COPY gatling/pom.xml ./gatling/
+COPY gatling/src ./gatling/src/
+WORKDIR /app/gatling
 CMD mvn -gs ../settings.xml gatling:test; \
 		mkdir -p /report && \
 		cp -r target/gatling/simplejaspersimulation-*/* /report/
