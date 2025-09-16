@@ -4,12 +4,14 @@ FROM maven:3.9.9-amazoncorretto-21-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
-RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r target
-COPY src ./src
+COPY jasper-app/pom.xml jasper-app/
+COPY jasper-load-test/pom.xml jasper-load-test/
+RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r jasper-app/target || true
+COPY jasper-app/src ./jasper-app/src
 RUN mvn -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
-# java -Djarmode=tools -jar target/*.jar list-layers
-RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination layers
+# java -Djarmode=tools -jar jasper-app/target/*.jar list-layers
+RUN java -Djarmode=tools -jar jasper-app/target/*.jar extract --layers --launcher --destination layers
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
@@ -34,17 +36,18 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test surefire-report:report; \
+CMD mvn -gs settings.xml -f jasper-app/pom.xml test surefire-report:report; \
 		mkdir -p /tests && \
-		cp target/surefire-reports/* /tests/ && \
+		cp jasper-app/target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
-		cp -r target/reports/* /reports/ && \
-		cp target/reports/surefire.html /reports/index.html
+		cp -r jasper-app/target/reports/* /reports/ && \
+		cp jasper-app/target/reports/surefire.html /reports/index.html
 
 FROM test AS gatling
-CMD mvn -gs settings.xml gatling:test; \
+COPY jasper-load-test/src ./jasper-load-test/src
+CMD mvn -gs settings.xml -f jasper-load-test/pom.xml gatling:test; \
 		mkdir -p /report && \
-		cp -r target/gatling/simplejaspersimulation-*/* /report/
+		cp -r jasper-load-test/target/gatling/simplejaspersimulation-*/* /report/
 
 FROM azul/zulu-openjdk-debian:21.0.8-21.44-jre AS deploy
 RUN apt-get update && apt-get install curl -y
