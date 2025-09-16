@@ -112,7 +112,7 @@ public class BackupService {
 		var list = refRepository.findAll(isUrl("system:backup-key"));
 		for (var ref : list) {
 			if (ref.getCreated().isBefore(Instant.now().minus(15, ChronoUnit.MINUTES))) {
-				ingest.delete(auth.getOrigin(), "system:backup-key", ref.getOrigin());
+				ingest.delete(ref.getOrigin(), "system:backup-key", ref.getOrigin());
 			}
 		}
 	}
