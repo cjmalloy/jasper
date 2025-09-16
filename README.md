@@ -3,8 +3,34 @@ Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/test.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-junit/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.5-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.5-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/jasper-app/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
+
+## Project Structure
+
+This project is organized as a multi-module Maven project:
+
+- **jasper-app/** - Main Spring Boot application containing the Jasper server
+- **jasper-load-test/** - Load testing module using Gatling for performance testing
+
+### Building the Project
+
+To build the entire project:
+```bash
+mvn clean install
+```
+
+To build only the main application:
+```bash
+cd jasper-app
+mvn clean install
+```
+
+To run load tests:
+```bash
+cd jasper-load-test
+mvn gatling:test
+```
 
 ## Quickstart
 To start the server, client and database with a single admin user, run
