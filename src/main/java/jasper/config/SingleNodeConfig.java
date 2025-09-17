@@ -18,7 +18,7 @@ public class SingleNodeConfig {
 
     @Qualifier("integrationExecutor")
     @Autowired
-    TaskExecutor taskExecutor;
+    Executor taskExecutor;
 
     @Autowired
     MessageChannel cursorTxChannel;
