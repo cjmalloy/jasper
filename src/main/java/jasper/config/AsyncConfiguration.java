@@ -170,7 +170,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 
 	@Override
 	public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
-		taskRegistrar.setTaskScheduler(getSchedulerExecutor() );
+		taskRegistrar.setTaskScheduler(getSchedulerExecutor());
 	}
 
 	@Override
