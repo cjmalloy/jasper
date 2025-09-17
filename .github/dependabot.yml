@@ -26,7 +26,7 @@ updates:
     interval: daily
     timezone: America/Halifax
   groups:
-    spring-boot:
+    gatling:
       patterns:
         - "*gatling*"
 - package-ecosystem: github-actions
