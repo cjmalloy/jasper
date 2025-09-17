@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.channel.Watch;
 import jasper.domain.Ref;
@@ -10,7 +11,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -31,13 +30,11 @@ import static jasper.util.Logging.getMessage;
 public class Scheduler {
 	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
 
-	@Qualifier("cronScheduler")
 	@Autowired
 	TaskScheduler taskScheduler;
 
 	@Autowired
-	@Qualifier("scriptsExecutor")
-	Executor scriptsExecutor;
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	RefRepository refRepository;
@@ -142,7 +139,6 @@ public class Scheduler {
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
-						// Use scripts executor for script execution
 						CompletableFuture.runAsync(() -> {
 							logger.warn("{} Run Tag: {} {}", origin, k, url);
 							try {
@@ -155,7 +151,7 @@ public class Scheduler {
 							} finally {
 								refs.remove(k);
 							}
-						}, scriptsExecutor);
+						}, scriptExecutorFactory.get(k, origin));
 					}, Instant.now());
 				});
 			});
@@ -215,7 +211,7 @@ public class Scheduler {
 					logger.error("{} Error in cron tag {} ", origin, k);
 					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 				}
-			}, scriptsExecutor);
+			}, scriptExecutorFactory.get(k, origin));
 		});
 	}
 

@@ -1,6 +1,7 @@
 package jasper.component.delta;
 
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
@@ -12,7 +13,6 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
@@ -26,8 +26,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
@@ -53,8 +51,7 @@ public class Async {
 	TaskScheduler taskScheduler;
 
 	@Autowired
-	@Qualifier("scriptsExecutor")
-	Executor scriptsExecutor;
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	RefRepository refRepository;
@@ -62,7 +59,7 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
@@ -99,6 +96,7 @@ public class Async {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var ud = message.getPayload();
+		var origin = ud.getOrigin();
 		try {
 			if (tags.isEmpty()) throw new RuntimeException();
 			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
@@ -106,32 +104,29 @@ public class Async {
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
 			tags.forEach((k, v) -> {
 				if (!hasMatchingTag(ud, k)) return;
-				if (!configs.root().script(k, ud.getOrigin())) return;
+				if (!configs.root().script(k, origin)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
+				logger.debug("{} Async Tag ({}): {} {}", origin, k, ud.getUrl(), origin);
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
-						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
+						logger.debug("{} Async tag trying to run before finishing {} ", origin, k);
 						return existing;
 					}
-					// Use scripts executor for script execution
-					return taskScheduler.schedule(() -> {
-						CompletableFuture.runAsync(() -> {
-							try {
-								v.run(fetch(ud));
-							} catch (NotFoundException e) {
-								logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
-							} catch (Exception e) {
-								logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
-							}
-						}, scriptsExecutor);
-					}, Instant.now());
+					return CompletableFuture.runAsync(() -> {
+						try {
+							v.run(fetch(ud));
+						} catch (NotFoundException e) {
+							logger.debug("{} Plugin not installed {} ", origin, getMessage(e));
+						} catch (Exception e) {
+							logger.error("{} Error in async tag {} ", origin, k, e);
+						}
+					}, scriptExecutorFactory.get(k, origin));
 				});
 			});
 		} catch (Exception e) {
 			refs.computeIfPresent(getKey(ud), (k, existing) -> {
 				if (existing.isDone()) return null;
-				logger.info("{} Cancelled run {}: {}", ud.getOrigin(), ud.getTitle(), ud.getUrl());
+				logger.info("{} Cancelled run {}: {}", origin, ud.getTitle(), ud.getUrl());
 				existing.cancel(true);
 				return null;
 			});
@@ -160,7 +155,6 @@ public class Async {
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
-				// Execute backfill scripts using the scripts executor
 				CompletableFuture.runAsync(() -> {
 					try {
 						v.run(ref);
@@ -169,7 +163,7 @@ public class Async {
 					} catch (Exception e) {
 						logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 					}
-				}, scriptsExecutor);
+				}, scriptExecutorFactory.get(k, origin));
 			});
 		}
 	}
