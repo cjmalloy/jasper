@@ -24,11 +24,9 @@ import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.handler.AbstractMessageHandler;
-import org.springframework.integration.util.CallerBlocksPolicy;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -145,20 +143,6 @@ public class RedisConfig {
 	@Bean
 	public MessageChannel templateRedisChannel() {
 		return new DirectChannel();
-	}
-
-	@Bean("integration")
-	public TaskExecutor taskExecutor() {
-		var executor = new ThreadPoolTaskExecutor();
-		executor.setThreadNamePrefix("int-");
-		executor.setCorePoolSize(4);
-		executor.setMaxPoolSize(10);
-		executor.setQueueCapacity(4);
-		executor.setWaitForTasksToCompleteOnShutdown(true);
-		executor.setAwaitTerminationSeconds(60);
-		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
-		executor.initialize();
-		return executor;
 	}
 
 	@Bean

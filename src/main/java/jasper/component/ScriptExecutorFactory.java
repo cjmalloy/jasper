@@ -34,86 +34,33 @@ public class ScriptExecutorFactory {
      * This allows for isolation between different script types (delta, cron, etc.)
      * and better resource management.
      *
-     * @param scriptType The type of script (e.g., "delta", "cron", "python", "javascript")
+     * @param namespace The type of script (e.g., "delta", "cron")
      * @param origin The origin/tenant (optional, for multi-tenant isolation)
      * @return A thread pool executor for the specified script type
      */
-    public Executor getExecutorForScript(String scriptType, String origin) {
-        String key = origin != null ? scriptType + ":" + origin : scriptType;
-        
+    public Executor get(String namespace, String origin) {
+        String key = origin != null ? namespace + ":" + origin : namespace;
+
         return executors.computeIfAbsent(key, k -> {
             logger.info("Creating dynamic script executor for {}", k);
-            
             ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-            
-            // Configure pool based on script type
-            switch (scriptType.toLowerCase()) {
-                case "delta":
-                    // Delta scripts need more resources as they can be CPU intensive
-                    executor.setCorePoolSize(2);
-                    executor.setMaxPoolSize(8);
-                    executor.setQueueCapacity(20);
-                    break;
-                case "cron":
-                    // Cron scripts are typically less frequent but may be long-running
-                    executor.setCorePoolSize(1);
-                    executor.setMaxPoolSize(4);
-                    executor.setQueueCapacity(10);
-                    break;
-                case "python":
-                    // Python scripts may need more memory and processing time
-                    executor.setCorePoolSize(1);
-                    executor.setMaxPoolSize(6);
-                    executor.setQueueCapacity(15);
-                    break;
-                case "javascript":
-                    // JavaScript scripts are typically lighter weight
-                    executor.setCorePoolSize(2);
-                    executor.setMaxPoolSize(10);
-                    executor.setQueueCapacity(25);
-                    break;
-                default:
-                    // Default configuration for unknown script types
-                    executor.setCorePoolSize(1);
-                    executor.setMaxPoolSize(4);
-                    executor.setQueueCapacity(10);
-            }
-            
+			executor.setCorePoolSize(2);
+			executor.setMaxPoolSize(10);
+			executor.setQueueCapacity(25);
             executor.setThreadNamePrefix("script-" + k.replace(":", "-") + "-");
             executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
             executor.setWaitForTasksToCompleteOnShutdown(true);
             executor.setAwaitTerminationSeconds(60);
             executor.initialize();
-            
+
             // Add metrics for the new executor
-            ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), 
+            ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(),
                 "script_executor",
-                Tag.of("type", scriptType),
+                Tag.of("type", namespace),
                 Tag.of("origin", origin != null ? origin : "default"));
-            
+
             return executor;
         });
-    }
-
-    /**
-     * Creates or returns an executor specifically for delta scripts.
-     */
-    public Executor getDeltaExecutor(String origin) {
-        return getExecutorForScript("delta", origin);
-    }
-
-    /**
-     * Creates or returns an executor specifically for cron scripts.
-     */
-    public Executor getCronExecutor(String origin) {
-        return getExecutorForScript("cron", origin);
-    }
-
-    /**
-     * Creates or returns an executor for a specific script language.
-     */
-    public Executor getLanguageExecutor(String language, String origin) {
-        return getExecutorForScript(language, origin);
     }
 
     /**
@@ -121,7 +68,7 @@ public class ScriptExecutorFactory {
      */
     public Map<String, ExecutorStats> getExecutorStats() {
         Map<String, ExecutorStats> stats = new ConcurrentHashMap<>();
-        
+
         executors.forEach((key, executor) -> {
             ThreadPoolExecutor pool = executor.getThreadPoolExecutor();
             stats.put(key, new ExecutorStats(
@@ -134,7 +81,7 @@ public class ScriptExecutorFactory {
                 pool.getTaskCount()
             ));
         });
-        
+
         return stats;
     }
 
@@ -144,7 +91,7 @@ public class ScriptExecutorFactory {
     @PreDestroy
     public void cleanup() {
         logger.info("Shutting down {} dynamic script executors", executors.size());
-        
+
         executors.values().forEach(executor -> {
             try {
                 executor.shutdown();
@@ -152,7 +99,7 @@ public class ScriptExecutorFactory {
                 logger.warn("Error shutting down script executor", e);
             }
         });
-        
+
         executors.clear();
     }
 

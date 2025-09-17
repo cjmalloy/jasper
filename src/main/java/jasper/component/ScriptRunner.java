@@ -12,7 +12,6 @@ import jasper.domain.Ref;
 import jasper.errors.ScriptException;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
-import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +20,6 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 import static jasper.util.Logging.getMessage;
 import static java.security.MessageDigest.getInstance;
@@ -62,12 +59,6 @@ public class ScriptRunner {
 	@Qualifier("yamlMapper")
 	ObjectMapper yamlMapper;
 
-	@Autowired
-	ScriptExecutorFactory scriptExecutorFactory;
-
-	@Autowired
-	Auth auth;
-
 	@Timed("jasper.scripts")
 	public void validateScript(String script) throws UntrustedScriptException {
 		if (isEmpty(configs.root().getScriptWhitelist())) return;
@@ -85,17 +76,6 @@ public class ScriptRunner {
 	public void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
 		if (isBlank(config.getScript())) return;
 		validateScript(config.getScript());
-		
-		// Get appropriate executor for the script language and origin
-		String language = config.getLanguage().toLowerCase();
-		String origin = ref.getOrigin();
-		Executor executor = scriptExecutorFactory.getLanguageExecutor(language, origin);
-		
-		// Run the script asynchronously on the appropriate executor
-		CompletableFuture.runAsync(() -> executeScript(ref, scriptTag, config), executor);
-	}
-
-	private void executeScript(Ref ref, String scriptTag, Script config) {
 		String input;
 		try {
 			switch (config.getFormat().toLowerCase()) {
