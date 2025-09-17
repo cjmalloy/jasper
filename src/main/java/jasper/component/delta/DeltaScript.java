@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -12,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
 
 import static jasper.domain.proj.Tag.matchesTag;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -32,6 +35,9 @@ public class DeltaScript implements Async.AsyncRunner {
 
 	@Autowired
 	Tagger tagger;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@PostConstruct
 	void init() {
@@ -61,10 +67,21 @@ public class DeltaScript implements Async.AsyncRunner {
 			if (config.isPresent() && isNotBlank(config.get().getScript())) {
 				try {
 					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-					scriptRunner.runScripts(ref, scriptTag, config.get());
-				} catch (UntrustedScriptException e) {
-					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
-					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+					
+					// Use the delta-specific executor for better resource management
+					var deltaExecutor = scriptExecutorFactory.getDeltaExecutor(ref.getOrigin());
+					CompletableFuture.runAsync(() -> {
+						try {
+							scriptRunner.runScripts(ref, scriptTag, config.get());
+						} catch (UntrustedScriptException e) {
+							logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+							tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+						}
+					}, deltaExecutor);
+					
+				} catch (Exception e) {
+					logger.error("{} Error executing delta script {}", ref.getOrigin(), scriptTag, e);
+					tagger.attachError(ref.getOrigin(), ref, "Error executing delta script " + scriptTag, e.getMessage());
 				}
 				found = true;
 			}

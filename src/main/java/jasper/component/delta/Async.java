@@ -12,8 +12,10 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
@@ -48,6 +51,10 @@ public class Async {
 
 	@Autowired
 	TaskScheduler taskScheduler;
+
+	@Autowired
+	@Qualifier("scriptsExecutor")
+	TaskExecutor scriptsExecutor;
 
 	@Autowired
 	RefRepository refRepository;
@@ -107,14 +114,17 @@ public class Async {
 						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
 						return existing;
 					}
+					// Use scripts executor for script execution
 					return taskScheduler.schedule(() -> {
-						try {
-							v.run(fetch(ud));
-						} catch (NotFoundException e) {
-							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
-						} catch (Exception e) {
-							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
-						}
+						CompletableFuture.runAsync(() -> {
+							try {
+								v.run(fetch(ud));
+							} catch (NotFoundException e) {
+								logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
+							} catch (Exception e) {
+								logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
+							}
+						}, scriptsExecutor);
 					}, Instant.now());
 				});
 			});
@@ -150,13 +160,16 @@ public class Async {
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
-				try {
-					v.run(ref);
-				} catch (NotFoundException e) {
-					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
-				} catch (Exception e) {
-					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
-				}
+				// Execute backfill scripts using the scripts executor
+				CompletableFuture.runAsync(() -> {
+					try {
+						v.run(ref);
+					} catch (NotFoundException e) {
+						logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
+					} catch (Exception e) {
+						logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
+					}
+				}, scriptsExecutor);
 			});
 		}
 	}
