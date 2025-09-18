@@ -18,7 +18,7 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
-		<spring-boot.version>3.5.5</spring-boot.version>
+		<spring-boot.version>3.5.6</spring-boot.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
 		<lombok.version>1.18.40</lombok.version>
 		<testcontainers.version>1.21.3</testcontainers.version>
