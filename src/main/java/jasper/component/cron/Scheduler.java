@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.channel.Watch;
 import jasper.domain.Ref;
@@ -10,7 +11,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
@@ -29,9 +30,11 @@ import static jasper.util.Logging.getMessage;
 public class Scheduler {
 	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
 
-	@Qualifier("cronScheduler")
 	@Autowired
 	TaskScheduler taskScheduler;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	RefRepository refRepository;
@@ -136,17 +139,19 @@ public class Scheduler {
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
-						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						try {
-							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-							ran.add(v);
-							tagger.removeAllResponses(url, origin, "+plugin/user/run");
-						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-						} finally {
-							refs.remove(k);
-						}
+						CompletableFuture.runAsync(() -> {
+							logger.warn("{} Run Tag: {} {}", origin, k, url);
+							try {
+								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+								ran.add(v);
+								tagger.removeAllResponses(url, origin, "+plugin/user/run");
+							} catch (Exception e) {
+								logger.error("{} Error in run tag {} ", origin, k);
+								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+							} finally {
+								refs.remove(k);
+							}
+						}, scriptExecutorFactory.get(k, origin));
 					}, Instant.now());
 				});
 			});
@@ -197,13 +202,16 @@ public class Scheduler {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			try {
-				v.run(ref);
-				ran.add(v);
-			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k);
-				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-			}
+			// Use scripts executor for script execution
+			CompletableFuture.runAsync(() -> {
+				try {
+					v.run(ref);
+					ran.add(v);
+				} catch (Exception e) {
+					logger.error("{} Error in cron tag {} ", origin, k);
+					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+				}
+			}, scriptExecutorFactory.get(k, origin));
 		});
 	}
 
