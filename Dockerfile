@@ -1,12 +1,14 @@
 FROM oven/bun:1.2.22-slim AS bun
 
-FROM maven:3.9.9-amazoncorretto-21-debian AS builder
+FROM amazoncorretto:25.0.0-al2023-headless AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
-RUN mvn -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r target
+COPY .mvn/ ./.mvn
+COPY mvnw .
+RUN ./mvnw -gs settings.xml -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && rm -r target
 COPY src ./src
-RUN mvn -gs settings.xml -B package -Dmaven.test.skip
+RUN ./mvnw -gs settings.xml -B package -Dmaven.test.skip
 # Check layers with
 # java -Djarmode=tools -jar target/*.jar list-layers
 RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination layers

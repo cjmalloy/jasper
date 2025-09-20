@@ -1,7 +1,6 @@
 # Development artifacts
 target/
 .github/
-.mvn/
 docs/
 .idea/
 storage/
