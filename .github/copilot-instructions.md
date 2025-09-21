@@ -88,10 +88,12 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Troubleshooting:**
 - If build fails with "release version 25 not supported": Install and configure Java 25
+- If annotation processing fails with Java 25: This is a known limitation - annotation processors (Lombok, JPA metamodel) may not fully support Java 25 yet. Use Java 21 for local development builds
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
 - If Maven hangs: Check network connectivity for dependency downloads
+- If SSL certificate errors with Java 25: Copy cacerts from working Java 21 installation
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
@@ -137,7 +139,7 @@ jasper/
 
 **Important Dependencies:**
 - Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
-- Java 25 (required)
+- Java 25 (required for production builds; note: annotation processing limitations may require Java 21 for development)
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
 - Liquibase (database migrations)
