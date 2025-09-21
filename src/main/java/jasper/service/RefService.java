@@ -36,7 +36,9 @@ import java.util.LinkedHashSet;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
+import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Service
 public class RefService {
@@ -152,7 +154,8 @@ public class RefService {
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
 			created = true;
-			ref = new Ref();
+			var current = refRepository.findAll(isUrl(url).and(isNotObsolete()), ofSize(1));
+			ref = current.isEmpty() ? new Ref() : current.getContent().getFirst();
 			ref.setUrl(url);
 			ref.setOrigin(origin);
 		}
