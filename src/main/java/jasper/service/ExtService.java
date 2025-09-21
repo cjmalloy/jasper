@@ -7,7 +7,6 @@ import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestExt;
-import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
@@ -34,9 +33,6 @@ import static jasper.domain.proj.Tag.tagOrigin;
 @Service
 public class ExtService {
 	private static final Logger logger = LoggerFactory.getLogger(ExtService.class);
-
-	@Autowired
-	Props props;
 
 	@Autowired
 	ExtRepository extRepository;
