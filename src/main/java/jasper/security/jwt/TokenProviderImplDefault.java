@@ -36,7 +36,7 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 		userTagHeader = userTagHeader.toLowerCase();
 		if (isNotBlank(userTagHeader) && (props.isAllowUserTagHeader() || matchesPublic(configs.security(origin).getDefaultUser(), userTagHeader))) {
 			principal = userTagHeader + origin;
-			logger.debug("{} User tag set by header: {}", origin, principal);
+			logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 		}
 		var user = configs.getUser(principal);
 		logger.debug("{} Default Auth {}", origin, principal);

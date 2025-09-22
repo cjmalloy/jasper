@@ -177,6 +177,7 @@ public class Auth {
 	}
 
 	public void clear(Authentication authentication) {
+		logger.debug("CLEAR AUTHENTICATION {}", authentication.getPrincipal());
 		this.authentication = authentication;
 		roles = null;
 		claims = null;
