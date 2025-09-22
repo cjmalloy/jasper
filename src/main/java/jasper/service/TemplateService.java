@@ -96,7 +96,7 @@ public class TemplateService {
 		return template.getModified();
 	}
 
-	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag) or @auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
