@@ -149,8 +149,8 @@ public class ConfigCache {
 	}
 
 	@Cacheable("user-cache")
-	public User getUser(String tag) {
-		return userRepository.findOneByQualifiedTag(tag)
+	public User getUser(String qualifiedTag) {
+		return userRepository.findOneByQualifiedTag(qualifiedTag)
 			.orElse(null);
 	}
 
