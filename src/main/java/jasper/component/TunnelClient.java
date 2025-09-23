@@ -101,8 +101,7 @@ public class TunnelClient {
 			} catch (URISyntaxException e) {
 				throw new InvalidTunnelException("Error parsing tunnel URI", e);
 			}
-			var tunnel = getTunnel(remote);
-			if (tunnel == null) {
+			if (!hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 				request.go(url);
 			} else {
 				var users = authors(remote);
@@ -113,6 +112,7 @@ public class TunnelClient {
 				if (user.isEmpty() || user.get().getKey() == null) {
 					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 				}
+				var tunnel = getTunnel(remote);
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 				var port = tunnel.getSshPort();
@@ -207,9 +207,9 @@ public class TunnelClient {
 		} catch (URISyntaxException e) {
 			throw new InvalidTunnelException("Error parsing tunnel URI", e);
 		}
-		var tunnel = getTunnel(remote);
-		if (tunnel != null) {
+		if (hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 			var users = authors(remote);
+			var tunnel = getTunnel(remote);
 			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
 			var port = tunnel.getSshPort();
@@ -225,9 +225,9 @@ public class TunnelClient {
 		} catch (URISyntaxException e) {
 			throw new InvalidTunnelException("Error parsing tunnel URI", e);
 		}
-		var tunnel = getTunnel(remote);
-		if (tunnel != null) {
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 			var users = authors(remote);
+			var tunnel = getTunnel(remote);
 			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
 			var port = tunnel.getSshPort();
