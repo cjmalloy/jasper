@@ -95,10 +95,11 @@ public class ConfigCache {
 				// Race to init
 			}
 		}
-		if (userRepository.findOneByQualifiedTag("+user").isEmpty()) {
+		if (userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin()).isEmpty()) {
 			try {
 				var user = new User();
 				user.setTag("+user");
+				user.setOrigin(props.getLocalOrigin());
 				var kp = keyPair();
 				user.setKey(writeRsaPrivatePem(kp.getPrivate()).getBytes());
 				user.setPubKey(writeSshRsa(((RSAPublicKey) kp.getPublic()), KeyUtils.getFingerPrint(kp.getPublic())).getBytes());
