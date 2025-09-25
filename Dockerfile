@@ -1,11 +1,7 @@
 FROM oven/bun:1.2.22-slim AS bun
 
-FROM azul/zulu-openjdk-debian:25.0.0-25.28 AS builder
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-# Install Maven 3.9.9 manually to ensure compatibility
-RUN curl -fsSL https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz | tar xz -C /opt && \
-    ln -s /opt/apache-maven-3.9.9 /opt/maven
-ENV PATH=/opt/maven/bin:$PATH
+# Build stage: Use Java 21 for compilation (stable tooling)
+FROM maven:3.9.9-amazoncorretto-21-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
@@ -54,6 +50,7 @@ CMD mvn -gs ../settings.xml gatling:test; \
 		mkdir -p /report && \
 		cp -r target/gatling/simplejaspersimulation-*/* /report/
 
+# Runtime stage: Use Java 25 for execution (latest features)
 FROM azul/zulu-openjdk-debian:25.0.0-25.28-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0

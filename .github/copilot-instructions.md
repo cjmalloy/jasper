@@ -6,14 +6,28 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-- Install Java 25: `sudo apt update && sudo apt install -y openjdk-25-jdk openjdk-25-jre`
-- Set Java environment: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`
-- Update Java alternatives: `sudo update-alternatives --config java` (select option 0 for Java 25)
-- Update javac alternatives: `sudo update-alternatives --config javac` (select option 0 for Java 25)
+# Java Version Strategy
+
+The Jasper application uses a **hybrid Java version strategy**:
+
+- **Build/Compilation**: Java 21 (LTS with excellent tooling support)
+- **Runtime**: Java 25 (latest features, performance, and security improvements)
+
+This approach provides:
+- ✅ Stable build process with mature tooling
+- ✅ Latest runtime features and security updates  
+- ✅ Forward compatibility (Java 21 bytecode runs on Java 25)
+- ✅ Gradual migration path to full Java 25 adoption
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
-- Clean build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
-- Full build with tests: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Skip tests build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+**For local development (when Java 25 is available):**
+- Install Java 25: `sudo apt update && sudo apt install -y openjdk-25-jdk openjdk-25-jre` 
+- Set Java environment: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`
+
+**For local development (current compatibility):**
+- Install Java 21: `sudo apt update && sudo apt install -y openjdk-21-jdk openjdk-21-jre`
+- Set Java environment: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+- Update Java alternatives: `sudo update-alternatives --config java` (select option 0 for Java 21)
+- Update javac alternatives: `sudo update-alternatives --config javac` (select option 0 for Java 21)
 
 ## Running the Application
 
@@ -25,7 +39,9 @@ ALWAYS run the bootstrapping steps first.
 
 **Local Development:**
 - Start supporting services: `docker compose up db redis -d`
-- Run application: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
+- Clean build: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 - Application starts on port 8081 (takes ~22 seconds to start)
 - Health check: `curl http://localhost:8081/management/health`
 
@@ -42,8 +58,7 @@ ALWAYS run the bootstrapping steps first.
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
-- Run load tests: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && mvn gatling:test` -- takes 27 seconds. NEVER CANCEL. Set timeout to 60+ seconds.
-- From root: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && mvn -f gatling/pom.xml gatling:test`
+- Run application: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
 - Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling`
 
 **GitHub Actions Integration:**
@@ -56,12 +71,16 @@ ALWAYS run the bootstrapping steps first.
 ALWAYS manually validate any new code by running through complete end-to-end scenarios after making changes.
 
 **Required Validation Steps:**
-1. Build the application: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package -DskipTests`
+- Run load tests: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn gatling:test` -- takes 27 seconds. NEVER CANCEL. Set timeout to 60+ seconds.
+- From root: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn -f gatling/pom.xml gatling:test`
 2. Start supporting services: `docker compose up db redis -d`
-3. Run the application locally: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
+1. Build the application: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean package -DskipTests`
+2. Start supporting services: `docker compose up db redis -d`
+3. Run the application locally: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
 4. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
 5. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-6. Run tests with dependencies: Install Bun and Python, then `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw test`
+6. Run tests with dependencies: Install Bun and Python, then `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw test`
+7. Clean up: `docker compose down`
 7. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
@@ -81,13 +100,13 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Development Workflow:**
 1. Make code changes
-2. Run quick build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean compile`
-3. Run specific test class: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw test -Dtest=YourTestClass`
+2. Run quick build: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean compile`
+3. Run specific test class: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw test -Dtest=YourTestClass`
 4. Run application for manual testing
-5. Run full test suite before committing: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package`
+5. Run full test suite before committing: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean package`
 
 **Troubleshooting:**
-- If build fails with "release version 25 not supported": Install and configure Java 25
+- If build fails with "release version 21 not supported": Install and configure Java 21
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
@@ -137,7 +156,7 @@ jasper/
 
 **Important Dependencies:**
 - Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
-- Java 25 (required)
+- Java 21 (build) / Java 25 (runtime) - see Java Version Strategy above
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
 - Liquibase (database migrations)
