@@ -1,6 +1,11 @@
 FROM oven/bun:1.2.22-slim AS bun
 
-FROM maven:3.9.9-amazoncorretto-21-debian AS builder
+FROM azul/zulu-openjdk-debian:25.0.0-25.28 AS builder
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install Maven 3.9.9 manually to ensure compatibility
+RUN curl -fsSL https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz | tar xz -C /opt && \
+    ln -s /opt/apache-maven-3.9.9 /opt/maven
+ENV PATH=/opt/maven/bin:$PATH
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
