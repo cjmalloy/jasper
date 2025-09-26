@@ -217,11 +217,12 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.check(status().is(200))
 	).pause(Duration.ofMillis(800));
 
-	ChainBuilder getTagStats = exec(
-		http("Get Tag Statistics")
-			.get("/api/v1/tags")
-			.queryParam("query", "research OR technical")
-			.check(status().in(200, 405)) // Accept both success and method not allowed
+	ChainBuilder browseTaggedContent = exec(
+		http("Browse Tagged Content")
+			.get("/api/v1/ref/page")
+			.queryParam("query", "+tag:research")
+			.queryParam("size", "20")
+			.check(status().is(200))
 	).pause(Duration.ofMillis(600));
 
 	// ====================== Content Enrichment ======================
@@ -261,7 +262,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		.pause(Duration.ofSeconds(3))
 		.exec(getGraphData)
 		.pause(Duration.ofSeconds(1))
-		.exec(getTagStats);
+		.exec(browseTaggedContent);
 
 	// Administrator: Manages system configuration
 	ScenarioBuilder administrator = scenario("Administrator")
