@@ -38,12 +38,12 @@ public class StressTestSimulation extends Simulation {
 					"title": "Stress Test Reference #{randomInt(1,100000)} - #{randomString(50)}",
 					"comment": "#{randomString(200)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. #{randomString(300)}",
 					"tags": [
-						"stress-test", 
+						"stresstest", 
 						"performance", 
-						"load-#{randomInt(1,1000)}", 
-						"batch-#{randomInt(1,100)}",
-						"category-#{randomInt(1,50)}",
-						"priority-#{randomInt(1,10)}"
+						"load.#{randomInt(1,1000)}", 
+						"batch.#{randomInt(1,100)}",
+						"category.#{randomInt(1,50)}",
+						"priority.#{randomInt(1,10)}"
 					],
 					"sources": [
 						"https://source1.example.com/#{randomInt(1,1000)}",
@@ -53,7 +53,7 @@ public class StressTestSimulation extends Simulation {
 					"plugins": {
 						"+plugin/stress": {},
 						"+plugin/performance": {},
-						"+plugin/test-#{randomInt(1,20)}": {}
+						"+plugin/test.#{randomInt(1,20)}": {}
 					}
 				}"""))
 			.check(status().in(201, 409, 400))
@@ -72,7 +72,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder complexSearchQuery = exec(
 		http("Complex Search Query")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "(+tag:stress-test AND +tag:performance) OR (+tag:load-#{randomInt(1,100)} AND NOT +tag:excluded)")
+			.queryParam("query", "(+tag:stresstest AND +tag:performance) OR (+tag:load.#{randomInt(1,100)} AND NOT +tag:excluded)")
 			.queryParam("search", "stress test performance load #{randomString(10)}")
 			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
 			.queryParam("size", "50")
@@ -97,7 +97,7 @@ public class StressTestSimulation extends Simulation {
 				
 				return String.format("""
 					{
-						"tag": "+ext/large-test-%d",
+						"tag": "+ext/large.test.%d",
 						"name": "Large Test Extension %d",
 						"config": %s
 					}""", 
@@ -232,7 +232,7 @@ public class StressTestSimulation extends Simulation {
 			.queryParam("url", "https://stress-test.example.com/shared-#{randomInt(1,10)}")
 			.body(StringBody("""
 				{
-					"tags": ["updated-#{randomInt(1,1000)}", "concurrent-#{now()}", "stress-update"],
+					"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{now()}", "stressupdate"],
 					"comment": "Updated during stress test at #{now()}"
 				}"""))
 			.check(status().in(200, 404, 409))

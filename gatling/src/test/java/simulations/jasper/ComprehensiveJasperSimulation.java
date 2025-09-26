@@ -37,7 +37,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"url": "https://example.com/article-#{randomInt(1,1000)}",
 					"title": "Knowledge Article #{randomInt(1,1000)}",
 					"comment": "Important reference for our research",
-					"tags": ["research", "article", "knowledge-base"],
+					"tags": ["research", "article", "knowledgebase"],
 					"sources": ["https://source.example.com"]
 				}"""))
 			.check(status().in(201, 403)) // Accept both success and auth failure
@@ -114,7 +114,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.post("/api/v1/ext")
 			.body(StringBody("""
 				{
-					"tag": "+plugin/test-#{randomInt(1,50)}",
+					"tag": "+plugin/test.#{randomInt(1,50)}",
 					"name": "Test Plugin #{randomInt(1,50)}",
 					"config": {
 						"description": "A test plugin for load testing",
@@ -139,7 +139,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.post("/api/v1/plugin")
 			.body(StringBody("""
 				{
-					"tag": "+plugin/custom-#{randomInt(1,30)}",
+					"tag": "+plugin/custom.#{randomInt(1,30)}",
 					"name": "Custom Plugin #{randomInt(1,30)}",
 					"config": {
 						"type": "viewer",
@@ -164,7 +164,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.post("/api/v1/template")
 			.body(StringBody("""
 				{
-					"tag": "_template/article-#{randomInt(1,20)}",
+					"tag": "_template/article.#{randomInt(1,20)}",
 					"name": "Article Template #{randomInt(1,20)}",
 					"config": {
 						"fields": {

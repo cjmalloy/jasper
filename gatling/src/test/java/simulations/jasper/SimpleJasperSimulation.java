@@ -43,7 +43,7 @@ public class SimpleJasperSimulation extends Simulation {
 					"url": "https://example.com/test-#{randomInt(1,1000)}",
 					"title": "Test Article #{randomInt(1,1000)}",
 					"comment": "This is a test reference for smoke testing",
-					"tags": ["test", "smoke-test", "example"]
+					"tags": ["test", "smoketest", "example"]
 				}"""))
 			.check(status().is(201))
 			.check(header("Location").saveAs("createdRefLocation"))
@@ -67,7 +67,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder countRefs = exec(
 		http("Count References")
 			.get("/api/v1/ref/count")
-			.queryParam("query", "+tag:smoke-test")
+			.queryParam("query", "+tag:smoketest")
 			.check(status().is(200))
 	).pause(Duration.ofMillis(500));
 
@@ -85,7 +85,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.post("/api/v1/ext")
 			.body(StringBody("""
 				{
-					"tag": "+ext/smoke-test-#{randomInt(1,100)}",
+					"tag": "+ext/smoketest.#{randomInt(1,100)}",
 					"name": "Smoke Test Extension #{randomInt(1,100)}",
 					"config": {
 						"type": "test",

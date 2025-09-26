@@ -106,7 +106,7 @@ public class UserJourneySimulation extends Simulation {
 						"url": "comment:#{randomUuid()}",
 						"title": "Research Notes: #{topic}",
 						"comment": "Key insights and takeaways from #{topic} research session",
-						"tags": ["note", "#{category}", "research-summary"],
+						"tags": ["note", "#{category}", "research.summary"],
 						"sources": ["https://#{source}/#{topic}-research-#{randomInt(1,1000)}"]
 					}"""))
 				.check(status().is(201))
@@ -169,7 +169,7 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("url", "https://example.com/article-#{randomInt(1,50)}")
 				.body(StringBody("""
 					{
-						"tags": ["organized", "daily-review", "#{randomString(8)}"]
+						"tags": ["organized", "daily.review", "#{randomString(8)}"]
 					}"""))
 				.check(status().in(200, 404))
 		);
@@ -208,7 +208,7 @@ public class UserJourneySimulation extends Simulation {
 				.post("/api/v1/plugin")
 				.body(StringBody("""
 					{
-						"tag": "+plugin/#{topic}-enhancer-#{randomInt(1,100)}",
+						"tag": "+plugin/#{topic}.enhancer.#{randomInt(1,100)}",
 						"name": "#{topic} Content Enhancer",
 						"config": {
 							"type": "enhancer",
@@ -283,7 +283,7 @@ public class UserJourneySimulation extends Simulation {
 						"url": "comment:collaboration-#{randomUuid()}",
 						"title": "Team Discussion Point",
 						"comment": "Adding my thoughts on this topic for team review",
-						"tags": ["collaboration", "team-input", "discussion"],
+						"tags": ["collaboration", "team.input", "discussion"],
 						"sources": ["https://example.com/shared-doc-#{randomInt(1,20)}"]
 					}"""))
 				.check(status().is(201))
