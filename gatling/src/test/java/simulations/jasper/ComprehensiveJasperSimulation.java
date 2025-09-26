@@ -48,7 +48,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.post("/api/v1/ref")
 			.body(StringBody("""
 				{
-					"url": "isbn:978-#{randomInt(1000000000,9999999999)}",
+					"url": "isbn:978-#{randomInt(100000000,999999999)}#{randomInt(0,9)}",
 					"title": "Technical Book #{randomInt(1,100)}",
 					"comment": "Reference book on software engineering",
 					"tags": ["book", "technical", "software"],
