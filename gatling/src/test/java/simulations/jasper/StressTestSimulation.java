@@ -35,8 +35,8 @@ public class StressTestSimulation extends Simulation {
 			.body(StringBody("""
 				{
 					"url": "https://stress-test.example.com/#{randomInt(1,100000)}",
-					"title": "Stress Test Reference #{randomInt(1,100000)} - #{randomString(50)}",
-					"comment": "#{randomString(200)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. #{randomString(300)}",
+					"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
+					"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
 					"tags": [
 						"stresstest", 
 						"performance", 
@@ -68,7 +68,7 @@ public class StressTestSimulation extends Simulation {
 		http("Complex Search Query")
 			.get("/api/v1/ref/page")
 			.queryParam("query", "(+tag:stresstest AND +tag:performance) OR (+tag:load.#{randomInt(1,100)} AND NOT +tag:excluded)")
-			.queryParam("search", "stress test performance load #{randomString(10)}")
+			.queryParam("search", "stress test performance load content#{randomInt(1,100)}")
 			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
 			.queryParam("size", "50")
 			.check(status().is(200))
@@ -84,8 +84,8 @@ public class StressTestSimulation extends Simulation {
 				for (int i = 0; i < 100; i++) {
 					if (i > 0) largeConfig.append(",");
 					largeConfig.append("{\"id\":").append(i)
-						.append(",\"name\":\"").append(session.getString("randomString-20"))
-						.append("\",\"description\":\"").append(session.getString("randomString-100"))
+						.append(",\"name\":\"item").append(i).append("_").append(System.currentTimeMillis() % 10000)
+						.append("\",\"description\":\"desc").append(i).append("_").append(System.currentTimeMillis() % 100000)
 						.append("\",\"value\":").append(Math.random() * 1000).append("}");
 				}
 				largeConfig.append("]}");
@@ -117,9 +117,9 @@ public class StressTestSimulation extends Simulation {
 			.post("/api/v1/ref")
 			.body(StringBody("""
 				{
-					"url": "invalid-url-#{randomString(10)}",
+					"url": "invalid-url-test#{randomInt(1,1000)}",
 					"title": "",
-					"tags": ["#{randomString(300)}"]
+					"tags": ["invalidtag#{randomInt(100000,999999)}"]
 				}"""))
 			.check(status().in(400, 422))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(300));

@@ -85,7 +85,7 @@ public class UserJourneySimulation extends Simulation {
 				.body(StringBody("""
 					{
 						"url": "https://#{source}/#{topic}-research-#{randomInt(1,1000)}",
-						"title": "#{topic} Research - #{randomString(10)}",
+						"title": "#{topic} Research - Study#{randomInt(1000,9999)}",
 						"comment": "Research findings on #{topic} from #{source}",
 						"tags": ["research", "#{category}", "#{type}"]
 					}"""))
@@ -165,7 +165,7 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("url", "https://example.com/article-#{randomInt(1,50)}")
 				.body(StringBody("""
 					{
-						"tags": ["organized", "daily.review", "#{randomString(8)}"]
+						"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
 					}"""))
 				.check(status().in(200, 404))
 		);
@@ -299,7 +299,7 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("urls", java.util.Arrays.asList(
 					"https://example.com/shared-doc-1",
 					"https://example.com/shared-doc-2",
-					"comment:collaboration-#{randomString(8)}"
+					"comment:collaboration-session#{randomInt(1000,9999)}"
 				))
 				.check(status().is(200))
 		)
