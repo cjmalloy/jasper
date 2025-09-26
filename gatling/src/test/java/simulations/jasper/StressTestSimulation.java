@@ -49,12 +49,7 @@ public class StressTestSimulation extends Simulation {
 						"https://source1.example.com/#{randomInt(1,1000)}",
 						"https://source2.example.com/#{randomInt(1,1000)}",
 						"https://source3.example.com/#{randomInt(1,1000)}"
-					],
-					"plugins": {
-						"+plugin/stress": {},
-						"+plugin/performance": {},
-						"+plugin/test.#{randomInt(1,20)}": {}
-					}
+					]
 				}"""))
 			.check(status().in(201, 409, 400))
 	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
