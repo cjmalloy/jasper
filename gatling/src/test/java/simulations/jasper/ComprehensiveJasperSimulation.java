@@ -84,7 +84,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder searchByTag = exec(
 		http("Search by Tag")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "+tag:research")
+			.queryParam("query", "research")
 			.queryParam("size", "10")
 			.check(status().is(200))
 	).pause(Duration.ofMillis(800));

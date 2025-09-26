@@ -227,7 +227,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Browse Topic Extensions - #{category}")
 				.get("/api/v1/ext/page")
-				.queryParam("query", "+tag:#{category}")
+				.queryParam("query", "#{category}")
 				.queryParam("size", "15")
 				.check(status().is(200))
 		)
