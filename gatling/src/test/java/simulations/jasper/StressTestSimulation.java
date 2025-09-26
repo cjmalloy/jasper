@@ -1,0 +1,355 @@
+package simulations.jasper;
+
+import io.gatling.javaapi.core.*;
+import io.gatling.javaapi.http.*;
+import static io.gatling.javaapi.core.CoreDsl.*;
+import static io.gatling.javaapi.http.HttpDsl.*;
+
+import java.time.Duration;
+
+/**
+ * Stress Test and Edge Cases for Jasper
+ * 
+ * This simulation tests system limits and edge cases:
+ * - High-volume concurrent operations
+ * - Large payloads and complex queries  
+ * - Error conditions and recovery
+ * - Replication and backup scenarios
+ * - System administration operations
+ */
+public class StressTestSimulation extends Simulation {
+
+	HttpProtocolBuilder httpProtocol = http
+		.baseUrl("http://localhost:8081")
+		.acceptHeader("application/json")
+		.contentTypeHeader("application/json")
+		.userAgentHeader("Gatling Stress Test")
+		.disableFollowRedirect()
+		.check(status().not(500)); // Allow other error codes for stress testing
+
+	// ====================== High Volume Operations ======================
+	
+	ChainBuilder rapidRefCreation = exec(
+		http("Rapid Ref Creation")
+			.post("/api/v1/ref")
+			.body(StringBody("""
+				{
+					"url": "https://stress-test.example.com/#{randomInt(1,100000)}",
+					"title": "Stress Test Reference #{randomInt(1,100000)} - #{randomString(50)}",
+					"comment": "#{randomString(200)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. #{randomString(300)}",
+					"tags": [
+						"stress-test", 
+						"performance", 
+						"load-#{randomInt(1,1000)}", 
+						"batch-#{randomInt(1,100)}",
+						"category-#{randomInt(1,50)}",
+						"priority-#{randomInt(1,10)}"
+					],
+					"sources": [
+						"https://source1.example.com/#{randomInt(1,1000)}",
+						"https://source2.example.com/#{randomInt(1,1000)}",
+						"https://source3.example.com/#{randomInt(1,1000)}"
+					],
+					"plugins": ["+plugin/stress", "+plugin/performance", "+plugin/test-#{randomInt(1,20)}"]
+				}"""))
+			.check(status().in(201, 409, 400))
+	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
+
+	ChainBuilder largePageQuery = exec(
+		http("Large Page Query")
+			.get("/api/v1/ref/page")
+			.queryParam("size", "100")
+			.queryParam("query", "stress-test OR performance OR load-#{randomInt(1,100)}")
+			.queryParam("sort", "modified,desc")
+			.check(status().is(200))
+			.check(responseTimeInMillis().lt(5000))
+	).pause(Duration.ofMillis(100), Duration.ofMillis(500));
+
+	ChainBuilder complexSearchQuery = exec(
+		http("Complex Search Query")
+			.get("/api/v1/ref/page")
+			.queryParam("query", "(+tag:stress-test AND +tag:performance) OR (+tag:load-#{randomInt(1,100)} AND NOT +tag:excluded)")
+			.queryParam("search", "stress test performance load #{randomString(10)}")
+			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
+			.queryParam("size", "50")
+			.check(status().is(200))
+	).pause(Duration.ofMillis(200), Duration.ofMillis(800));
+
+	// ====================== Large Payload Operations ======================
+	
+	ChainBuilder createLargeExt = exec(
+		http("Create Large Extension")
+			.post("/api/v1/ext")
+			.body(StringBody(session -> {
+				StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
+				for (int i = 0; i < 100; i++) {
+					if (i > 0) largeConfig.append(",");
+					largeConfig.append("{\"id\":").append(i)
+						.append(",\"name\":\"").append(session.getString("randomString-20"))
+						.append("\",\"description\":\"").append(session.getString("randomString-100"))
+						.append("\",\"value\":").append(Math.random() * 1000).append("}");
+				}
+				largeConfig.append("]}");
+				
+				return String.format("""
+					{
+						"tag": "+ext/large-test-%d",
+						"name": "Large Test Extension %d",
+						"config": %s
+					}""", 
+					session.getInt("randomInt-10000"), 
+					session.getInt("randomInt-1000"), 
+					largeConfig.toString());
+			}))
+			.check(status().in(201, 400))
+	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+
+	// ====================== Error Condition Testing ======================
+	
+	ChainBuilder testNotFoundErrors = exec(
+		http("Test Not Found - Random URL")
+			.get("/api/v1/ref")
+			.queryParam("url", "https://nonexistent-#{randomInt(1,100000)}.example.com/#{randomUuid()}")
+			.check(status().is(404))
+	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+
+	ChainBuilder testInvalidData = exec(
+		http("Test Invalid Data")
+			.post("/api/v1/ref")
+			.body(StringBody("""
+				{
+					"url": "invalid-url-#{randomString(10)}",
+					"title": "",
+					"tags": ["#{randomString(300)}"]
+				}"""))
+			.check(status().in(400, 422))
+	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+
+	ChainBuilder testMalformedJson = exec(
+		http("Test Malformed JSON")
+			.post("/api/v1/ref")
+			.body(StringBody("""
+				{
+					"url": "https://test.com/malformed",
+					"title": "Test"
+					"invalid": "json",
+				}"""))
+			.check(status().is(400))
+	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+
+	// ====================== Replication Testing ======================
+	
+	ChainBuilder testReplicationEndpoints = exec(
+		http("Test Replication - Get Refs")
+			.get("/pub/api/v1/repl/ref")
+			.queryParam("size", "100")
+			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
+			.check(status().is(200))
+	).pause(Duration.ofMillis(200), Duration.ofMillis(500))
+	.exec(
+		http("Test Replication - Get Cursor")
+			.get("/pub/api/v1/repl/ref/cursor")
+			.check(status().is(200))
+	).pause(Duration.ofMillis(100), Duration.ofMillis(300))
+	.exec(
+		http("Test Replication - Get Extensions")
+			.get("/pub/api/v1/repl/ext")
+			.queryParam("size", "50")
+			.check(status().is(200))
+	);
+
+	// ====================== Backup Operations ======================
+	
+	ChainBuilder testBackupOperations = exec(
+		http("Create Backup")
+			.post("/api/v1/backup")
+			.body(StringBody("""
+				{
+					"includeRefs": true,
+					"includeExts": true,
+					"includeUsers": false,
+					"maxItems": 1000
+				}"""))
+			.check(status().in(201, 403))
+	).pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
+	.exec(
+		http("List Backups")
+			.get("/api/v1/backup")
+			.check(status().in(200, 403))
+	);
+
+	// ====================== System Administration ======================
+	
+	ChainBuilder testAdminOperations = exec(
+		http("Get User Info")
+			.get("/api/v1/user/whoami")
+			.check(status().in(200, 403, 404))
+	).pause(Duration.ofMillis(200), Duration.ofMillis(500))
+	.exec(
+		http("Browse All Users")
+			.get("/api/v1/user/page")
+			.queryParam("size", "50")
+			.check(status().in(200, 403))
+	).pause(Duration.ofMillis(300), Duration.ofMillis(700))
+	.exec(
+		http("Check System Tags")
+			.get("/api/v1/tags")
+			.queryParam("size", "100")
+			.check(status().is(200))
+	);
+
+	// ====================== Content Enrichment Stress ======================
+	
+	ChainBuilder stressProxyOperations = exec(
+		http("Stress Proxy Operation")
+			.get("/api/v1/proxy")
+			.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
+			.check(status().in(200, 404, 408, 503))
+			.check(responseTimeInMillis().lt(10000))
+	).pause(Duration.ofMillis(500), Duration.ofMillis(2000));
+
+	ChainBuilder stressScrapeOperations = exec(
+		http("Stress Web Scraping")
+			.post("/api/v1/scrape/web")
+			.body(StringBody("""
+				{
+					"url": "https://httpbin.org/html",
+					"selector": "body",
+					"timeout": 5000
+				}"""))
+			.check(status().in(200, 400, 403, 408))
+	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
+
+	// ====================== Concurrent Update Stress ======================
+	
+	ChainBuilder concurrentUpdates = exec(
+		http("Concurrent Update Attempt")
+			.patch("/api/v1/ref")
+			.queryParam("url", "https://stress-test.example.com/shared-#{randomInt(1,10)}")
+			.body(StringBody("""
+				{
+					"tags": ["updated-#{randomInt(1,1000)}", "concurrent-#{now()}", "stress-update"],
+					"comment": "Updated during stress test at #{now()}"
+				}"""))
+			.check(status().in(200, 404, 409))
+	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
+
+	// ====================== Graph Operations Stress ======================
+	
+	ChainBuilder stressGraphOperations = exec(
+		http("Stress Graph Query")
+			.get("/api/v1/graph/list")
+			.queryParam("urls", session -> 
+				java.util.stream.IntStream.range(1, 21)
+					.mapToObj(i -> "https://stress-test.example.com/" + i)
+					.collect(java.util.stream.Collectors.toList())
+			)
+			.check(status().is(200))
+			.check(responseTimeInMillis().lt(8000))
+	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+
+	// ====================== Scenarios ======================
+
+	ScenarioBuilder volumeStress = scenario("High Volume Operations")
+		.repeat(20).on(
+			exec(rapidRefCreation)
+				.pace(Duration.ofMillis(100))
+		)
+		.exec(largePageQuery)
+		.exec(complexSearchQuery);
+
+	ScenarioBuilder errorHandlingTest = scenario("Error Handling Tests")
+		.repeat(10).on(
+			randomSwitch().on(
+				percent(40.0).then(exec(testNotFoundErrors)),
+				percent(30.0).then(exec(testInvalidData)),
+				percent(30.0).then(exec(testMalformedJson))
+			)
+		);
+
+	ScenarioBuilder systemLimitsTest = scenario("System Limits Test")
+		.exec(createLargeExt)
+		.pause(Duration.ofSeconds(1), Duration.ofSeconds(3))
+		.exec(stressGraphOperations)
+		.pause(Duration.ofSeconds(1), Duration.ofSeconds(2))
+		.repeat(5).on(
+			exec(concurrentUpdates).pace(Duration.ofMillis(200))
+		);
+
+	ScenarioBuilder replicationStress = scenario("Replication Stress")
+		.repeat(15).on(
+			exec(testReplicationEndpoints)
+				.pace(Duration.ofSeconds(1))
+		);
+
+	ScenarioBuilder adminStress = scenario("Administration Stress")
+		.exec(testBackupOperations)
+		.pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
+		.repeat(8).on(
+			exec(testAdminOperations)
+				.pace(Duration.ofMillis(500))
+		);
+
+	ScenarioBuilder contentEnrichmentStress = scenario("Content Enrichment Stress")
+		.repeat(10).on(
+			randomSwitch().on(
+				percent(60.0).then(exec(stressProxyOperations)),
+				percent(40.0).then(exec(stressScrapeOperations))
+			)
+		);
+
+	{
+		setUp(
+			// High volume concurrent operations
+			volumeStress.injectOpen(
+				nothingFor(Duration.ofSeconds(2)),
+				rampUsers(50).during(Duration.ofSeconds(30)),
+				constantUsersPerSec(20).during(Duration.ofMinutes(2))
+			),
+			// Error condition testing
+			errorHandlingTest.injectOpen(
+				nothingFor(Duration.ofSeconds(5)),
+				rampUsers(20).during(Duration.ofSeconds(20)),
+				constantUsersPerSec(10).during(Duration.ofMinutes(1))
+			),
+			// System limits testing
+			systemLimitsTest.injectOpen(
+				nothingFor(Duration.ofSeconds(10)),
+				rampUsers(15).during(Duration.ofSeconds(25)),
+				constantUsersPerSec(5).during(Duration.ofMinutes(2))
+			),
+			// Replication stress
+			replicationStress.injectOpen(
+				nothingFor(Duration.ofSeconds(8)),
+				rampUsers(10).during(Duration.ofSeconds(15)),
+				constantUsersPerSec(4).during(Duration.ofMinutes(1))
+			),
+			// Administration operations
+			adminStress.injectOpen(
+				nothingFor(Duration.ofSeconds(12)),
+				rampUsers(5).during(Duration.ofSeconds(20)),
+				constantUsersPerSec(2).during(Duration.ofMinutes(1))
+			),
+			// Content enrichment stress
+			contentEnrichmentStress.injectOpen(
+				nothingFor(Duration.ofSeconds(15)),
+				rampUsers(8).during(Duration.ofSeconds(30)),
+				constantUsersPerSec(3).during(Duration.ofMinutes(2))
+			)
+		).protocols(httpProtocol)
+		.maxDuration(Duration.ofMinutes(4))
+		.throttle(
+			reachRps(50).in(Duration.ofSeconds(30)),
+			holdFor(Duration.ofMinutes(2)),
+			jumpToRps(30),
+			holdFor(Duration.ofMinutes(1))
+		)
+		.assertions(
+			global().responseTime().max().lt(15000),
+			global().responseTime().mean().lt(3000),
+			global().successfulRequests().percent().gt(70.0), // Lower success rate expected for stress testing
+			details("High Volume Operations").failedRequests().percent().lt(40.0),
+			details("Error Handling Tests").responseTime().percentile3().lt(5000)
+		);
+	}
+}
