@@ -52,7 +52,9 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"title": "Technical Book #{randomInt(1,100)}",
 					"comment": "Reference book on software engineering",
 					"tags": ["book", "technical", "software"],
-					"plugins": ["+plugin/book"]
+					"plugins": {
+						"+plugin/book": {}
+					}
 				}"""))
 			.check(status().in(201, 403)) // Accept both success and auth failure
 	).pause(Duration.ofMillis(500));

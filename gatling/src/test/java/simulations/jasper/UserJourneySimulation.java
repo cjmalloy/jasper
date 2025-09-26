@@ -88,7 +88,10 @@ public class UserJourneySimulation extends Simulation {
 						"title": "#{topic} Research - #{randomString(10)}",
 						"comment": "Research findings on #{topic} from #{source}",
 						"tags": ["research", "#{category}", "#{type}"],
-						"plugins": ["+plugin/bookmark", "+plugin/research"]
+						"plugins": {
+							"+plugin/bookmark": {},
+							"+plugin/research": {}
+						}
 					}"""))
 				.check(status().is(201))
 				.check(header("Location").saveAs("newRefLocation"))
