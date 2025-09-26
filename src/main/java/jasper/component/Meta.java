@@ -67,9 +67,6 @@ public class Meta {
 				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()
 		);
-
-		// Set Not Obsolete
-		ref.getMetadata().setObsolete(false);
 	}
 
 	public static List<String> expandTags(List<String> tags) {

@@ -177,6 +177,7 @@ public class Auth {
 	}
 
 	public void clear(Authentication authentication) {
+		logger.debug("CLEAR AUTHENTICATION {}", authentication.getPrincipal());
 		this.authentication = authentication;
 		roles = null;
 		claims = null;
@@ -700,11 +701,11 @@ public class Auth {
 	 * Can this user be updated?
 	 * Check if the user can write this tag, and that their role is not smaller.
 	 */
-	public boolean canWriteUserTag(String tag) {
+	public boolean canWriteUserTag(String qualifiedTag) {
 		// Only writing to the local origin ever permitted
-		if (!local(qt(tag).origin)) return false;
-		if (!canWriteTag(tag)) return false;
-		var role = ofNullable(configs.getUser(tag)).map(User::getRole).orElse(null);
+		if (!local(qt(qualifiedTag).origin)) return false;
+		if (!canWriteTag(qualifiedTag)) return false;
+		var role = ofNullable(configs.getUser(qualifiedTag)).map(User::getRole).orElse(null);
 		// Only Mods and above can unban
 		if (BANNED.equals(role)) return hasRole(MOD);
 		// Cannot edit user with higher role

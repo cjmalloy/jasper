@@ -122,7 +122,7 @@ public class TemplateService {
 	}
 
 	@Transactional
-	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
+	@PreAuthorize("@auth.canEditConfig(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void delete(String qualifiedTag) {
 		try {
