@@ -35,7 +35,10 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -106,6 +109,17 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
+	// Map to store per-origin semaphores for replication operations
+	private final Map<String, Semaphore> originReplicationSemaphores = new ConcurrentHashMap<>();
+
+	private Semaphore getOriginReplicationSemaphore(String origin) {
+		return originReplicationSemaphores.computeIfAbsent(origin, k -> {
+			var maxConcurrent = configs.root().getMaxConcurrentReplicationPerOrigin();
+			logger.debug("Creating replication semaphore for origin {} with {} permits", origin, maxConcurrent);
+			return new Semaphore(maxConcurrent);
+		});
+	}
+
 	private record Log(String title, String message) {}
 
 	@Timed(value = "jasper.repl", histogram = true)
@@ -165,14 +179,25 @@ public class Replicator {
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		var pull = getPull(remote);
-		var config = getOrigin(remote);
-		var rootOrigin = remote.getOrigin();
-		if (isBlank(config.getLocal())) throw new PullLocalException(remote.getOrigin());
-		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
-		var remoteOrigin = origin(config.getRemote());
-		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
-		var logs = new ArrayList<Log>();
+		
+		var semaphore = getOriginReplicationSemaphore(remote.getOrigin());
+		
+		// Try to acquire permit for replication operation
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} Replication pull rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachError(remote.getOrigin(), remote, "Replication pull rate limit exceeded", "Too many concurrent replication operations");
+			return;
+		}
+		
+		try {
+			var pull = getPull(remote);
+			var config = getOrigin(remote);
+			var rootOrigin = remote.getOrigin();
+			if (isBlank(config.getLocal())) throw new PullLocalException(remote.getOrigin());
+			var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+			var remoteOrigin = origin(config.getRemote());
+			var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
+			var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
@@ -373,18 +398,32 @@ public class Replicator {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
+	} finally {
+		semaphore.release();
 	}
+}
 
 	@Timed(value = "jasper.repl", histogram = true)
 	public void push(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		var push = getPush(remote);
-		// TODO: only push what user can see
-		var config = getOrigin(remote);
-		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
-		var remoteOrigin = origin(config.getRemote());
-		var logs = new ArrayList<Log>();
+		
+		var semaphore = getOriginReplicationSemaphore(remote.getOrigin());
+		
+		// Try to acquire permit for replication operation
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} Replication push rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachError(remote.getOrigin(), remote, "Replication push rate limit exceeded", "Too many concurrent replication operations");
+			return;
+		}
+		
+		try {
+			var push = getPush(remote);
+			// TODO: only push what user can see
+			var config = getOrigin(remote);
+			var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+			var remoteOrigin = origin(config.getRemote());
+			var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
@@ -511,7 +550,10 @@ public class Replicator {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
+	} finally {
+		semaphore.release();
 	}
+}
 
 	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
 		var logs = new ArrayList<Log>();

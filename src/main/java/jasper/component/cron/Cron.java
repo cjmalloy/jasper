@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
@@ -53,6 +54,17 @@ public class Cron {
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
+
+	// Map to store per-origin semaphores for cron script execution
+	private final Map<String, Semaphore> originCronScriptSemaphores = new ConcurrentHashMap<>();
+
+	private Semaphore getOriginCronScriptSemaphore(String origin) {
+		return originCronScriptSemaphores.computeIfAbsent(origin, k -> {
+			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
+			logger.debug("Creating cron script execution semaphore for origin {} with {} permits", origin, maxConcurrent);
+			return new Semaphore(maxConcurrent);
+		});
+	}
 
 	/**
 	 * Register a runner for a tag.
@@ -141,6 +153,15 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
+						var semaphore = getOriginCronScriptSemaphore(origin);
+						
+						// Try to acquire permit for manual script execution
+						if (!semaphore.tryAcquire()) {
+							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
+							return;
+						}
+						
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 							ran.add(v);
@@ -149,6 +170,7 @@ public class Cron {
 							logger.error("{} Error in run tag {} ", origin, k);
 							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 						} finally {
+							semaphore.release();
 							refs.remove(k);
 						}
 					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
@@ -199,26 +221,40 @@ public class Cron {
 			// Skip scheduled run since we are running manually
 			return;
 		}
-		var ran = new HashSet<CronRunner>();
-		tags.forEach((k, v) -> {
-			if (ran.contains(v)) return;
-			if (!hasMatchingTag(ref, k)) return;
-			if (!configs.root().script(k, origin)) return;
-			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			runAsync(() -> {
-				try {
-					v.run(ref);
-					ran.add(v);
-				} catch (Exception e) {
-					logger.error("{} Error in cron tag {} ", origin, k);
-					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-				}
-			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-				logger.warn("{} Rate limited {} ", origin, k);
-				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-				return null;
+		
+		var semaphore = getOriginCronScriptSemaphore(origin);
+		
+		// Try to acquire permit for cron script execution
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+			tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
+			return;
+		}
+		
+		try {
+			var ran = new HashSet<CronRunner>();
+			tags.forEach((k, v) -> {
+				if (ran.contains(v)) return;
+				if (!hasMatchingTag(ref, k)) return;
+				if (!configs.root().script(k, origin)) return;
+				logger.debug("{} Cron Tag: {} {}", origin, k, url);
+				runAsync(() -> {
+					try {
+						v.run(ref);
+						ran.add(v);
+					} catch (Exception e) {
+						logger.error("{} Error in cron tag {} ", origin, k);
+						tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+					}
+				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+					logger.warn("{} Rate limited {} ", origin, k);
+					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+					return null;
+				});
 			});
-		});
+		} finally {
+			semaphore.release();
+		}
 	}
 
 	public interface CronRunner {

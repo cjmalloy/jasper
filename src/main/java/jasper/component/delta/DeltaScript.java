@@ -13,6 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+
 import static jasper.domain.proj.Tag.matchesTag;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -33,6 +37,17 @@ public class DeltaScript implements Async.AsyncRunner {
 	@Autowired
 	Tagger tagger;
 
+	// Map to store per-origin semaphores for script execution
+	private final Map<String, Semaphore> originScriptSemaphores = new ConcurrentHashMap<>();
+
+	private Semaphore getOriginScriptSemaphore(String origin) {
+		return originScriptSemaphores.computeIfAbsent(origin, k -> {
+			var maxConcurrent = configs.root().getMaxConcurrentScriptsPerOrigin();
+			logger.debug("Creating script execution semaphore for origin {} with {} permits", origin, maxConcurrent);
+			return new Semaphore(maxConcurrent);
+		});
+	}
+
 	@PostConstruct
 	void init() {
 		async.addAsyncTag("plugin/delta", this);
@@ -49,27 +64,41 @@ public class DeltaScript implements Async.AsyncRunner {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
 		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
-		logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
-		var found = false;
-		var tags = ref.getExpandedTags().stream()
-			.filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t))
-			.sorted()
-			.toList()
-			.reversed();
-		for (var scriptTag : tags) {
-			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
-			if (config.isPresent() && isNotBlank(config.get().getScript())) {
-				try {
-					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-					scriptRunner.runScripts(ref, scriptTag, config.get());
-				} catch (UntrustedScriptException e) {
-					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
-					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
-				}
-				found = true;
-			}
+		
+		var semaphore = getOriginScriptSemaphore(ref.getOrigin());
+		
+		// Try to acquire permit for script execution
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} Script execution rate limit exceeded for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			tagger.attachError(ref.getOrigin(), ref, "Script execution rate limit exceeded", "Too many concurrent scripts running");
+			return;
 		}
-		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find delta script", String.join(", ", ref.getTags()));
+		
+		try {
+			logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			var found = false;
+			var tags = ref.getExpandedTags().stream()
+				.filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t))
+				.sorted()
+				.toList()
+				.reversed();
+			for (var scriptTag : tags) {
+				var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
+				if (config.isPresent() && isNotBlank(config.get().getScript())) {
+					try {
+						logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
+						scriptRunner.runScripts(ref, scriptTag, config.get());
+					} catch (UntrustedScriptException e) {
+						logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+						tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+					}
+					found = true;
+				}
+			}
+			if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find delta script", String.join(", ", ref.getTags()));
+		} finally {
+			semaphore.release();
+		}
 	}
 
 }

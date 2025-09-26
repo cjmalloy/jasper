@@ -37,6 +37,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
@@ -62,17 +64,41 @@ public class RssParser {
 	@Autowired
 	RefRepository refRepository;
 
+	// Map to store per-origin semaphores for RSS scraping
+	private final Map<String, Semaphore> originRssSemaphores = new ConcurrentHashMap<>();
+
+	private Semaphore getOriginRssSemaphore(String origin) {
+		return originRssSemaphores.computeIfAbsent(origin, k -> {
+			var maxConcurrent = configs.root().getMaxConcurrentRssScrapePerOrigin();
+			logger.debug("Creating RSS scrape semaphore for origin {} with {} permits", origin, maxConcurrent);
+			return new Semaphore(maxConcurrent);
+		});
+	}
+
+	@Autowired
+	ConfigCache configs;
+
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
-		var config = getFeed(feed);
-		int timeout = 30 * 1000; // 30 seconds
-		var requestConfig = RequestConfig.custom()
-			.setConnectTimeout(timeout)
-			.setConnectionRequestTimeout(timeout)
-			.setSocketTimeout(timeout).build();
-		var builder = HttpClients.custom()
-			.setDefaultRequestConfig(requestConfig)
-			.disableCookieManagement();
+		var semaphore = getOriginRssSemaphore(feed.getOrigin());
+		
+		// Try to acquire permit for RSS scraping
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} RSS scrape rate limit exceeded for {}: {}", feed.getOrigin(), feed.getTitle(), feed.getUrl());
+			// Don't throw error for RSS scraping, just log and skip
+			return;
+		}
+		
+		try {
+			var config = getFeed(feed);
+			int timeout = 30 * 1000; // 30 seconds
+			var requestConfig = RequestConfig.custom()
+				.setConnectTimeout(timeout)
+				.setConnectionRequestTimeout(timeout)
+				.setSocketTimeout(timeout).build();
+			var builder = HttpClients.custom()
+				.setDefaultRequestConfig(requestConfig)
+				.disableCookieManagement();
 		try (var client = builder.build()) {
 			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
@@ -146,7 +172,10 @@ public class RssParser {
 				}
 			}
 		}
+	} finally {
+		semaphore.release();
 	}
+}
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();
