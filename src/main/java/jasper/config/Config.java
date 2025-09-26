@@ -98,6 +98,31 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
+		/**
+		 * Maximum concurrent HTTP requests per origin. Default 100.
+		 */
+		@Builder.Default
+		private int maxConcurrentRequestsPerOrigin = 100;
+		/**
+		 * Maximum concurrent script executions per origin. Default 10.
+		 */
+		@Builder.Default
+		private int maxConcurrentScriptsPerOrigin = 10;
+		/**
+		 * Maximum concurrent cron script executions per origin. Default 5.
+		 */
+		@Builder.Default
+		private int maxConcurrentCronScriptsPerOrigin = 5;
+		/**
+		 * Maximum concurrent replication push/pull operations per origin. Default 3.
+		 */
+		@Builder.Default
+		private int maxConcurrentReplicationPerOrigin = 3;
+		/**
+		 * Maximum concurrent RSS scrape operations per origin. Default 5.
+		 */
+		@Builder.Default
+		private int maxConcurrentRssScrapePerOrigin = 5;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -115,6 +140,11 @@ public interface Config {
 			if (isNotEmpty(server.getScriptWhitelist())) wrapped = wrapped.withScriptWhitelist(server.getScriptWhitelist());
 			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
+			if (server.getMaxConcurrentRequestsPerOrigin() != null) wrapped = wrapped.withMaxConcurrentRequestsPerOrigin(server.getMaxConcurrentRequestsPerOrigin());
+			if (server.getMaxConcurrentScriptsPerOrigin() != null) wrapped = wrapped.withMaxConcurrentScriptsPerOrigin(server.getMaxConcurrentScriptsPerOrigin());
+			if (server.getMaxConcurrentCronScriptsPerOrigin() != null) wrapped = wrapped.withMaxConcurrentCronScriptsPerOrigin(server.getMaxConcurrentCronScriptsPerOrigin());
+			if (server.getMaxConcurrentReplicationPerOrigin() != null) wrapped = wrapped.withMaxConcurrentReplicationPerOrigin(server.getMaxConcurrentReplicationPerOrigin());
+			if (server.getMaxConcurrentRssScrapePerOrigin() != null) wrapped = wrapped.withMaxConcurrentRssScrapePerOrigin(server.getMaxConcurrentRssScrapePerOrigin());
 			return wrapped;
 		}
 
