@@ -358,7 +358,7 @@ For example, the Plugin `plugin/test` like:
   "tag": "plugin/test",
   "schema": {
     "properties": {
-      "test": { "type":  "string" }
+      "test": { "type": "string" }
     }
   }
 }
@@ -369,7 +369,7 @@ And the Plugin `plugin/test/this` like:
   "tag": "plugin/test/this",
   "schema": {
     "properties": {
-      "more": { "type":  "string" }
+      "more": { "type": "string" }
     }
   }
 }
@@ -396,7 +396,7 @@ For example, the Template `a` like:
   "tag": "a",
   "schema": {
     "properties": {
-      "test": { "type":  "string" }
+      "test": { "type": "string" }
     }
   }
 }
@@ -407,7 +407,7 @@ And the Template `a/b` like:
   "tag": "a/b",
   "schema": {
     "properties": {
-      "more": { "type":  "string" }
+      "more": { "type": "string" }
     }
   }
 }

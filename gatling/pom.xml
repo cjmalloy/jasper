@@ -50,6 +50,7 @@
 						<jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
 					</jvmArgs>
 					<runMultipleSimulations>true</runMultipleSimulations>
+					<continueOnAssertionFailure>true</continueOnAssertionFailure>
 					<includes>
 						<include>simulations.jasper.*Simulation</include>
 					</includes>

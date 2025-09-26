@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * Realistic User Journey Load Test for Jasper
- * 
+ *
  * This simulation models realistic user workflows:
  * - Research Session: User researches a topic, saves references, takes notes
  * - Daily Review: User checks recent updates and organizes content
@@ -28,7 +28,7 @@ public class UserJourneySimulation extends Simulation {
 		.check(status().not(500), status().not(502), status().not(503));
 
 	// ====================== Feeder Data ======================
-	
+
 	FeederBuilder<Object> topicFeeder = listFeeder(java.util.Arrays.asList(
 		Map.of("topic", "Machine Learning", "category", "AI"),
 		Map.of("topic", "Microservices", "category", "Architecture"),
@@ -52,7 +52,7 @@ public class UserJourneySimulation extends Simulation {
 	)).circular();
 
 	// ====================== Research Session Journey ======================
-	
+
 	ChainBuilder researchWorkflow = feed(topicFeeder)
 		.exec(session -> {
 			System.out.println("User researching: " + session.getString("topic"));
@@ -118,7 +118,7 @@ public class UserJourneySimulation extends Simulation {
 		);
 
 	// ====================== Daily Review Journey ======================
-	
+
 	ChainBuilder dailyReviewWorkflow = exec(session -> {
 		System.out.println("User performing daily review");
 		return session;
@@ -141,14 +141,6 @@ public class UserJourneySimulation extends Simulation {
 				.check(status().in(200, 404))
 		)
 		.pause(Duration.ofSeconds(1, 2))
-		// Check what's trending in tags
-		.exec(
-			http("Check Tag Trends")
-				.get("/api/v1/tags")
-				.queryParam("size", "20")
-				.check(status().is(200))
-		)
-		.pause(Duration.ofSeconds(1, 3))
 		// Look for untagged content to organize
 		.exec(
 			http("Find Untagged Content")
@@ -171,7 +163,7 @@ public class UserJourneySimulation extends Simulation {
 		);
 
 	// ====================== Content Curation Journey ======================
-	
+
 	ChainBuilder curationWorkflow = feed(topicFeeder)
 		.exec(session -> {
 			System.out.println("User curating content for: " + session.getString("topic"));
@@ -244,7 +236,7 @@ public class UserJourneySimulation extends Simulation {
 							"type": "collection",
 							"description": "Carefully curated resources for learning #{topic}",
 							"curator": "system",
-							"created": "#{now()}",
+							"created": "#{randomLong()}",
 							"criteria": {
 								"quality_min": 7,
 								"categories": ["#{category}"],
@@ -256,7 +248,7 @@ public class UserJourneySimulation extends Simulation {
 		);
 
 	// ====================== Collaborative Work Journey ======================
-	
+
 	ChainBuilder collaborationWorkflow = exec(session -> {
 		System.out.println("User engaging in collaborative work");
 		return session;

@@ -19,13 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Run load tests
-        run:  docker compose --profile lt -f 'gatling/docker-compose.yaml' up --build --exit-code-from gatling
+        run: (cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v4
         with:
           name: gatling-reports-pr-${{ github.event.pull_request.number }}
-          path: report
+          path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()

@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * Comprehensive Jasper Knowledge Management Load Test
- * 
+ *
  * This simulation represents real-world usage patterns:
  * - Knowledge workers adding and organizing references
  * - Users browsing and searching content
@@ -28,7 +28,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		.userAgentHeader("Gatling Load Test - Comprehensive");
 
 	// ====================== Reference Operations ======================
-	
+
 	ChainBuilder createWebReference = exec(
 		http("Create Web Reference")
 			.post("/api/v1/ref")
@@ -71,7 +71,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Browse and Search Operations ======================
-	
+
 	ChainBuilder browseRecentRefs = exec(
 		http("Browse Recent References")
 			.get("/api/v1/ref/page")
@@ -105,7 +105,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(400));
 
 	// ====================== Extension Operations ======================
-	
+
 	ChainBuilder createPlugin = exec(
 		http("Create Plugin Extension")
 			.post("/api/v1/ext")
@@ -130,7 +130,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(700));
 
 	// ====================== Plugin Management ======================
-	
+
 	ChainBuilder createPluginConfig = exec(
 		http("Create Plugin Configuration")
 			.post("/api/v1/plugin")
@@ -155,7 +155,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Template Operations ======================
-	
+
 	ChainBuilder createTemplate = exec(
 		http("Create Template")
 			.post("/api/v1/template")
@@ -193,7 +193,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(500));
 
 	// ====================== User Management ======================
-	
+
 	ChainBuilder createUser = exec(
 		http("Create User")
 			.post("/api/v1/user")
@@ -216,7 +216,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Graph and Analytics ======================
-	
+
 	ChainBuilder getGraphData = exec(
 		http("Get Graph Data")
 			.get("/api/v1/graph/list")
@@ -236,7 +236,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(600));
 
 	// ====================== Content Enrichment ======================
-	
+
 	ChainBuilder proxyContent = exec(
 		http("Proxy External Content")
 			.get("/api/v1/proxy")

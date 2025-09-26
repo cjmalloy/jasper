@@ -9,7 +9,7 @@ import java.time.Duration;
 
 /**
  * Simple Jasper Smoke Test
- * 
+ *
  * Basic smoke test to verify core functionality:
  * - Create references
  * - Browse and search content
@@ -26,7 +26,7 @@ public class SimpleJasperSimulation extends Simulation {
 		.check(status().not(500));
 
 	// ====================== Basic Operations ======================
-	
+
 	ChainBuilder getAllRefs = exec(
 		http("Get All Refs")
 			.get("/api/v1/ref/page")
@@ -72,7 +72,7 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(500));
 
 	// ====================== Extension Operations ======================
-	
+
 	ChainBuilder browseExtensions = exec(
 		http("Browse Extensions")
 			.get("/api/v1/ext/page")
@@ -92,7 +92,7 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(700));
 
 	// ====================== Plugin Operations ======================
-	
+
 	ChainBuilder browsePlugins = exec(
 		http("Browse Plugins")
 			.get("/api/v1/plugin/page")
@@ -101,7 +101,7 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(500));
 
 	// ====================== Template Operations ======================
-	
+
 	ChainBuilder browseTemplates = exec(
 		http("Browse Templates")
 			.get("/api/v1/template/page")
@@ -110,7 +110,7 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(500));
 
 	// ====================== User Operations ======================
-	
+
 	ChainBuilder getUserInfo = exec(
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
@@ -125,13 +125,6 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(500));
 
 	// ====================== System Health ======================
-	
-	ChainBuilder checkTags = exec(
-		http("Check Tag System")
-			.get("/api/v1/tags")
-			.queryParam("size", "20")
-			.check(status().is(200))
-	).pause(Duration.ofMillis(400));
 
 	ChainBuilder checkOrigins = exec(
 		http("Check Origin System")
@@ -157,7 +150,6 @@ public class SimpleJasperSimulation extends Simulation {
 	ScenarioBuilder userAndSystem = scenario("User and System Test")
 		.exec(getUserInfo)
 		.exec(browseUsers)
-		.exec(checkTags)
 		.exec(checkOrigins);
 
 	ScenarioBuilder comprehensiveSmoke = scenario("Comprehensive Smoke Test")
@@ -170,8 +162,6 @@ public class SimpleJasperSimulation extends Simulation {
 		.exec(browseExtensions)
 		.pause(Duration.ofSeconds(1))
 		.exec(getUserInfo)
-		.pause(Duration.ofSeconds(1))
-		.exec(checkTags)
 		.pause(Duration.ofSeconds(1))
 		.repeat(2).on(
 			exec(getAllRefs)

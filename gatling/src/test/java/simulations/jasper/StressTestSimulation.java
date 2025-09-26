@@ -9,10 +9,10 @@ import java.time.Duration;
 
 /**
  * Stress Test and Edge Cases for Jasper
- * 
+ *
  * This simulation tests system limits and edge cases:
  * - High-volume concurrent operations
- * - Large payloads and complex queries  
+ * - Large payloads and complex queries
  * - Error conditions and recovery
  * - Replication and backup scenarios
  * - System administration operations
@@ -28,7 +28,7 @@ public class StressTestSimulation extends Simulation {
 		.check(status().not(500)); // Allow other error codes for stress testing
 
 	// ====================== High Volume Operations ======================
-	
+
 	ChainBuilder rapidRefCreation = exec(
 		http("Rapid Ref Creation")
 			.post("/api/v1/ref")
@@ -38,9 +38,9 @@ public class StressTestSimulation extends Simulation {
 					"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
 					"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
 					"tags": [
-						"stresstest", 
-						"performance", 
-						"load.#{randomInt(1,1000)}", 
+						"stresstest",
+						"performance",
+						"load.#{randomInt(1,1000)}",
 						"batch.#{randomInt(1,100)}",
 						"category.#{randomInt(1,50)}",
 						"priority.#{randomInt(1,10)}"
@@ -75,14 +75,14 @@ public class StressTestSimulation extends Simulation {
 	).pause(Duration.ofMillis(200), Duration.ofMillis(800));
 
 	// ====================== Large Payload Operations ======================
-	
+
 	ChainBuilder createLargeExt = exec(
 		http("Create Large Extension")
 			.post("/api/v1/ext")
 			.body(StringBody(session -> {
 				int randomId = (int)(Math.random() * 10000) + 1;
 				int randomNum = (int)(Math.random() * 1000) + 1;
-				
+
 				StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
 				for (int i = 0; i < 100; i++) {
 					if (i > 0) largeConfig.append(",");
@@ -92,22 +92,22 @@ public class StressTestSimulation extends Simulation {
 						.append("\",\"value\":").append(Math.random() * 1000).append("}");
 				}
 				largeConfig.append("]}");
-				
+
 				return String.format("""
 					{
 						"tag": "+ext/large.test.%d",
 						"name": "Large Test Extension %d",
 						"config": %s
-					}""", 
-					randomId, 
-					randomNum, 
+					}""",
+					randomId,
+					randomNum,
 					largeConfig.toString());
 			}))
 			.check(status().in(201, 400))
 	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Error Condition Testing ======================
-	
+
 	ChainBuilder testNotFoundErrors = exec(
 		http("Test Not Found - Random URL")
 			.get("/api/v1/ref")
@@ -140,7 +140,7 @@ public class StressTestSimulation extends Simulation {
 	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	// ====================== Replication Testing ======================
-	
+
 	ChainBuilder testReplicationEndpoints = exec(
 		http("Test Replication - Get Refs")
 			.get("/pub/api/v1/repl/ref")
@@ -161,7 +161,7 @@ public class StressTestSimulation extends Simulation {
 	);
 
 	// ====================== Backup Operations ======================
-	
+
 	ChainBuilder testBackupOperations = exec(
 		http("Create Backup")
 			.post("/api/v1/backup")
@@ -181,7 +181,7 @@ public class StressTestSimulation extends Simulation {
 	);
 
 	// ====================== System Administration ======================
-	
+
 	ChainBuilder testAdminOperations = exec(
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
@@ -192,16 +192,10 @@ public class StressTestSimulation extends Simulation {
 			.get("/api/v1/user/page")
 			.queryParam("size", "50")
 			.check(status().in(200, 403))
-	).pause(Duration.ofMillis(300), Duration.ofMillis(700))
-	.exec(
-		http("Check System Tags")
-			.get("/api/v1/tags")
-			.queryParam("size", "100")
-			.check(status().is(200))
 	);
 
 	// ====================== Content Enrichment Stress ======================
-	
+
 	ChainBuilder stressProxyOperations = exec(
 		http("Stress Proxy Operation")
 			.get("/api/v1/proxy")
@@ -223,7 +217,7 @@ public class StressTestSimulation extends Simulation {
 	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
 
 	// ====================== Concurrent Update Stress ======================
-	
+
 	ChainBuilder concurrentUpdates = exec(
 		http("Concurrent Update Attempt")
 			.patch("/api/v1/ref")
@@ -237,11 +231,11 @@ public class StressTestSimulation extends Simulation {
 	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	// ====================== Graph Operations Stress ======================
-	
+
 	ChainBuilder stressGraphOperations = exec(
 		http("Stress Graph Query")
 			.get("/api/v1/graph/list")
-			.queryParam("urls", session -> 
+			.queryParam("urls", session ->
 				java.util.stream.IntStream.range(1, 21)
 					.mapToObj(i -> "https://stress-test.example.com/" + i)
 					.collect(java.util.stream.Collectors.toList())

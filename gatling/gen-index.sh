@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Generate index page for all Gatling reports
-REPORT_DIR="/report"
+REPORT_DIR="./report"
 INDEX_FILE="$REPORT_DIR/index.html"
 
 # Create report directory if it doesn't exist
@@ -16,84 +16,112 @@ cat > "$INDEX_FILE" << 'EOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jasper Load Test Reports</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 40px; 
-            background-color: #f5f5f5;
+				:root {
+					/* Light mode variables */
+					--heading-color: #2c3e50;
+					--border-color: #eee;
+					--report-bg: #f8f9fa;
+					--link-color: #3498db;
+					--latest-bg: #e8f5e9;
+					--latest-border: #4caf50;
+					--text-color: #000;
+					--fg-color: #fff;
+					--bg-color: #eee;
+				}
+				@media (prefers-color-scheme: dark) {
+					:root {
+						color-scheme: dark;
+						/* Dark mode variables */
+						--heading-color: #89a7c3;
+						--border-color: #333;
+						--report-bg: #2a2a2a;
+						--link-color: #36A;
+						--latest-bg: #1b3320;
+						--latest-border: #2d6a31;
+						--text-color: #fff;
+						--fg-color: #222;
+						--bg-color: #111;
+					}
+				}
+        body {
+					font-family: system-ui, -apple-system, sans-serif;
+					margin: 40px;
+					line-height: 1.6;
+					color: var(--text-color);
+					background: var(--bg-color);
         }
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+					max-width: 1200px;
+					margin: 0 auto;
+					background: var(--fg-color);
+					padding: 30px;
+					border-radius: 8px;
+					box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1 { 
-            color: #2c3e50; 
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
+        h1 {
+					color: var(--heading-color);
+					border-bottom: 3px solid var(--border-color);
+					padding-bottom: 10px;
         }
-        h2 { 
-            color: #34495e; 
-            margin-top: 30px;
+        h2 {
+					color: var(--heading-color);
+					margin-top: 30px;
         }
         .simulation-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
+					display: grid;
+					grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+					gap: 20px;
+					margin: 20px 0;
         }
         .simulation-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            background: #fafafa;
-            transition: box-shadow 0.3s ease;
+					border: 1px solid var(--border-color);
+					border-radius: 8px;
+					padding: 20px;
+					background: var(--report-bg);
+					transition: box-shadow 0.3s ease;
         }
         .simulation-card:hover {
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+					box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .simulation-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 10px;
+					font-size: 1.2em;
+					font-weight: bold;
+					color: var(--heading-color);
+					margin-bottom: 10px;
         }
         .simulation-description {
-            color: #7f8c8d;
-            margin-bottom: 15px;
-            line-height: 1.4;
+					margin-bottom: 15px;
+					line-height: 1.4;
         }
         .report-link {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #3498db;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s ease;
+					display: inline-block;
+					padding: 10px 20px;
+					background: rgba(0,0,0,0.1);
+					color: var(--heading-color);
+					text-decoration: none;
+					border-radius: 5px;
+					transition: background 0.3s ease;
         }
         .report-link:hover {
-            background: #2980b9;
+					background: var(--link-color);
         }
         .unavailable {
-            color: #e74c3c;
-            font-style: italic;
+					color: #e74c3c;
+					font-style: italic;
         }
         .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            text-align: center;
-            color: #7f8c8d;
+					margin-top: 40px;
+					padding-top: 20px;
+					border-top: 1px solid var(--border-color);
+					text-align: center;
+					color: var(--heading-color);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🚀 Jasper Knowledge Management Server - Load Test Reports</h1>
-        
+
         <h2>📊 Test Scenarios</h2>
         <div class="simulation-grid">
 EOF
@@ -101,7 +129,7 @@ EOF
 # Define simulation information
 declare -A simulations=(
     ["SimpleJasperSimulation"]="Smoke Test|Quick validation of core functionality (45s, >75% success)"
-    ["ComprehensiveJasperSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"  
+    ["ComprehensiveJasperSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"
     ["UserJourneySimulation"]="User Journey Test|Real user journey patterns with research and collaboration (5min, >75% success)"
     ["StressTestSimulation"]="Stress Test|System limits and edge cases testing (4min, >70% success)"
 )
@@ -109,21 +137,14 @@ declare -A simulations=(
 # Check for reports and generate cards
 for simulation in SimpleJasperSimulation ComprehensiveJasperSimulation UserJourneySimulation StressTestSimulation; do
     IFS='|' read -r title description <<< "${simulations[$simulation]}"
-    
     # Find the most recent report directory for this simulation
-    report_dir=$(find /app/gatling/target/gatling -name "${simulation,,}*" -type d 2>/dev/null | head -1)
-    
+    report_dir=$(find $REPORT_DIR -name "${simulation,,}*" -type d 2>/dev/null | head -1)
     cat >> "$INDEX_FILE" << EOF
             <div class="simulation-card">
                 <div class="simulation-title">$title</div>
                 <div class="simulation-description">$description</div>
 EOF
-
     if [ -n "$report_dir" ] && [ -f "$report_dir/index.html" ]; then
-        # Copy report to main report directory
-        sim_report_dir="$REPORT_DIR/$(basename $report_dir)"
-        cp -r "$report_dir" "$sim_report_dir"
-        
         cat >> "$INDEX_FILE" << EOF
                 <a href="$(basename $report_dir)/index.html" class="report-link">📈 View Report</a>
 EOF
@@ -132,7 +153,6 @@ EOF
                 <span class="unavailable">❌ Report not available</span>
 EOF
     fi
-    
     cat >> "$INDEX_FILE" << EOF
             </div>
 EOF

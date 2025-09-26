@@ -41,14 +41,6 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp -r target/reports/* /reports/ && \
 		cp target/reports/surefire.html /reports/index.html
 
-FROM test AS gatling
-COPY gatling/pom.xml ./gatling/
-COPY gatling/src ./gatling/src/
-WORKDIR /app/gatling
-CMD mvn -gs ../settings.xml gatling:test; \
-		mkdir -p /report && \
-		cp -r target/gatling/simplejaspersimulation-*/* /report/
-
 FROM azul/zulu-openjdk-debian:25.0.0-25.28-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
