@@ -67,7 +67,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder countRefs = exec(
 		http("Count References")
 			.get("/api/v1/ref/count")
-			.queryParam("query", "+tag:smoketest")
+			.queryParam("query", "smoketest")
 			.check(status().is(200))
 	).pause(Duration.ofMillis(500));
 
@@ -86,11 +86,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.body(StringBody("""
 				{
 					"tag": "+ext/smoketest.#{randomInt(1,100)}",
-					"name": "Smoke Test Extension #{randomInt(1,100)}",
-					"config": {
-						"type": "test",
-						"description": "Extension created during smoke test"
-					}
+					"name": "Smoke Test Extension #{randomInt(1,100)}"
 				}"""))
 			.check(status().in(201, 403)) // Accept both success and auth failure
 	).pause(Duration.ofMillis(700));
