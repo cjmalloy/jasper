@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
@@ -49,6 +50,17 @@ public class Scheduler {
 	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
+
+	// Map to store per-origin semaphores for cron script execution
+	private final Map<String, Semaphore> originCronScriptSemaphores = new ConcurrentHashMap<>();
+
+	private Semaphore getOriginCronScriptSemaphore(String origin) {
+		return originCronScriptSemaphores.computeIfAbsent(origin, k -> {
+			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
+			logger.debug("Creating cron script execution semaphore for origin {} with {} permits", origin, maxConcurrent);
+			return new Semaphore(maxConcurrent);
+		});
+	}
 
 	/**
 	 * Register a runner for a tag.
@@ -137,6 +149,15 @@ public class Scheduler {
 					if (existing != null && !existing.isDone()) return existing;
 					return taskScheduler.schedule(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
+						var semaphore = getOriginCronScriptSemaphore(origin);
+						
+						// Try to acquire permit for manual script execution
+						if (!semaphore.tryAcquire()) {
+							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
+							return;
+						}
+						
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 							ran.add(v);
@@ -145,6 +166,7 @@ public class Scheduler {
 							logger.error("{} Error in run tag {} ", origin, k);
 							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 						} finally {
+							semaphore.release();
 							refs.remove(k);
 						}
 					}, Instant.now());
@@ -191,20 +213,34 @@ public class Scheduler {
 			// Skip scheduled run since we are running manually
 			return;
 		}
-		var ran = new HashSet<CronRunner>();
-		tags.forEach((k, v) -> {
-			if (ran.contains(v)) return;
-			if (!hasMatchingTag(ref, k)) return;
-			if (!configs.root().script(k, origin)) return;
-			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			try {
-				v.run(ref);
-				ran.add(v);
-			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k);
-				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-			}
-		});
+		
+		var semaphore = getOriginCronScriptSemaphore(origin);
+		
+		// Try to acquire permit for cron script execution
+		if (!semaphore.tryAcquire()) {
+			logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+			tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
+			return;
+		}
+		
+		try {
+			var ran = new HashSet<CronRunner>();
+			tags.forEach((k, v) -> {
+				if (ran.contains(v)) return;
+				if (!hasMatchingTag(ref, k)) return;
+				if (!configs.root().script(k, origin)) return;
+				logger.debug("{} Cron Tag: {} {}", origin, k, url);
+				try {
+					v.run(ref);
+					ran.add(v);
+				} catch (Exception e) {
+					logger.error("{} Error in cron tag {} ", origin, k);
+					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+				}
+			});
+		} finally {
+			semaphore.release();
+		}
 	}
 
 	public interface CronRunner {
