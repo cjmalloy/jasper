@@ -183,16 +183,23 @@ public class UserJourneySimulation extends Simulation {
 				.post("/api/v1/template")
 				.body(StringBody("""
 					{
-						"tag": "_template/#{topic}-#{randomInt(1,100)}",
+						"tag": "_template/#{topic}.#{randomInt(1,100)}",
 						"name": "#{topic} Resource Template",
 						"config": {
 							"description": "Template for organizing #{topic} resources",
-							"fields": {
-								"difficulty": {"type": "enum", "values": ["beginner", "intermediate", "advanced"]},
-								"resource_type": {"type": "enum", "values": ["tutorial", "reference", "example", "tool"]},
-								"quality_rating": {"type": "number", "min": 1, "max": 10}
-							},
-							"defaultTags": ["#{category}", "curated"]
+							"category": "#{category}"
+						},
+						"defaults": {
+							"difficulty": "beginner",
+							"resource_type": "tutorial",
+							"quality_rating": 5
+						},
+						"schema": {
+							"optionalProperties": {
+								"difficulty": {"enum": ["beginner", "intermediate", "advanced"]},
+								"resource_type": {"enum": ["tutorial", "reference", "example", "tool"]},
+								"quality_rating": {"type": "float64"}
+							}
 						}
 					}"""))
 				.check(status().is(201))
@@ -303,15 +310,25 @@ public class UserJourneySimulation extends Simulation {
 				.post("/api/v1/template")
 				.body(StringBody("""
 					{
-						"tag": "_template/team-standard-#{randomInt(1,20)}",
+						"tag": "_template/team.standard.#{randomInt(1,20)}",
 						"name": "Team Standard Template",
 						"config": {
 							"description": "Standardized template for team collaboration",
 							"shared": true,
-							"fields": {
-								"assignee": {"type": "string", "required": true},
-								"priority": {"type": "enum", "values": ["low", "medium", "high", "urgent"]},
-								"status": {"type": "enum", "values": ["draft", "review", "approved", "archived"]}
+							"team": "development"
+						},
+						"defaults": {
+							"assignee": "",
+							"priority": "medium",
+							"status": "draft"
+						},
+						"schema": {
+							"properties": {
+								"assignee": {"type": "string"}
+							},
+							"optionalProperties": {
+								"priority": {"enum": ["low", "medium", "high", "urgent"]},
+								"status": {"enum": ["draft", "review", "approved", "archived"]}
 							}
 						}
 					}"""))

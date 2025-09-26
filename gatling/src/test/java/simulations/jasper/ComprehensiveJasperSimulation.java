@@ -164,10 +164,21 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"tag": "_template/article.#{randomInt(1,20)}",
 					"name": "Article Template #{randomInt(1,20)}",
 					"config": {
-						"fields": {
-							"title": {"type": "string", "required": true},
+						"description": "Template for organizing article references",
+						"category": "content"
+					},
+					"defaults": {
+						"title": "",
+						"summary": "",
+						"category": "tech"
+					},
+					"schema": {
+						"properties": {
+							"title": {"type": "string"}
+						},
+						"optionalProperties": {
 							"summary": {"type": "string"},
-							"category": {"type": "enum", "values": ["tech", "business", "research"]}
+							"category": {"enum": ["tech", "business", "research"]}
 						}
 					}
 				}"""))
