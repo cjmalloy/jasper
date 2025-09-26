@@ -227,8 +227,8 @@ public class StressTestSimulation extends Simulation {
 			.queryParam("url", "https://stress-test.example.com/shared-#{randomInt(1,10)}")
 			.body(StringBody("""
 				{
-					"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{now()}", "stressupdate"],
-					"comment": "Updated during stress test at #{now()}"
+					"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
+					"comment": "Updated during stress test at #{randomLong()}"
 				}"""))
 			.check(status().in(200, 404, 409))
 	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
