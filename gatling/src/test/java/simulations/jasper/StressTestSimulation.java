@@ -80,6 +80,9 @@ public class StressTestSimulation extends Simulation {
 		http("Create Large Extension")
 			.post("/api/v1/ext")
 			.body(StringBody(session -> {
+				int randomId = (int)(Math.random() * 10000) + 1;
+				int randomNum = (int)(Math.random() * 1000) + 1;
+				
 				StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
 				for (int i = 0; i < 100; i++) {
 					if (i > 0) largeConfig.append(",");
@@ -96,8 +99,8 @@ public class StressTestSimulation extends Simulation {
 						"name": "Large Test Extension %d",
 						"config": %s
 					}""", 
-					session.getInt("randomInt-10000"), 
-					session.getInt("randomInt-1000"), 
+					randomId, 
+					randomNum, 
 					largeConfig.toString());
 			}))
 			.check(status().in(201, 400))
