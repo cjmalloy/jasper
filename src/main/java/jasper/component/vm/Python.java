@@ -70,7 +70,7 @@ if process.returncode != 0:
 		var python = props.getPython();
 		if (isNotBlank(requirements)) {
 			var requirementsHash = encodeHexString(getInstance("SHA-256").digest(requirements.getBytes(StandardCharsets.UTF_8)));
-			var tmpDir = Objects.toString(getProperty("java.io.tmpdir"),  "/tmp");
+			var tmpDir = Objects.toString(getProperty("java.io.tmpdir"), "/tmp");
 			var venv = Paths.get(tmpDir).resolve(requirementsHash).toAbsolutePath();
 			var requirementsFile = Paths.get(venv + "/requirements.txt");
 			// Create virtual environment if it doesn't exist

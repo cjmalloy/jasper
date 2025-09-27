@@ -253,7 +253,7 @@ public class RssParser {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("image/jpg".equals(e.getType()) || "image/png".equals(e.getType())) {
-					ref.setPlugin("plugin/thumbnail",  Thumbnail.builder().url(e.getUrl()).build());
+					ref.setPlugin("plugin/thumbnail", Thumbnail.builder().url(e.getUrl()).build());
 					return;
 				}
 			}
@@ -292,7 +292,7 @@ public class RssParser {
 			for (var e : entry.getEnclosures()) {
 				if (e.getType() == null) continue;
 				if (e.getType().startsWith("audio/")) {
-					ref.setPlugin("plugin/audio",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/audio", Map.of("url", e.getUrl()));
 					return;
 				}
 			}
@@ -303,7 +303,7 @@ public class RssParser {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("video/mp4".equals(e.getType())) {
-					ref.setPlugin("plugin/video",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/video", Map.of("url", e.getUrl()));
 					return;
 				}
 			}

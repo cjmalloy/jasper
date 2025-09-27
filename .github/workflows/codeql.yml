@@ -62,7 +62,7 @@ jobs:
         java-version: 21
 
     - name: Maven Build
-      run:  ./mvnw -B package -Dmaven.test.skip
+      run: ./mvnw -B package -Dmaven.test.skip
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3

@@ -65,7 +65,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')),  :partialMetadata),
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
 			published = :published,
 			modified = :modified
 		WHERE
