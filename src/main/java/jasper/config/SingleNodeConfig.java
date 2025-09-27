@@ -69,20 +69,6 @@ public class SingleNodeConfig {
 	@Autowired
 	MessageChannel templateRxChannel;
 
-	@Bean("integration")
-	public TaskExecutor taskExecutor() {
-		var executor = new ThreadPoolTaskExecutor();
-		executor.setThreadNamePrefix("int-");
-		executor.setCorePoolSize(4);
-		executor.setMaxPoolSize(32);
-		executor.setQueueCapacity(0);
-		executor.setWaitForTasksToCompleteOnShutdown(true);
-		executor.setAwaitTerminationSeconds(60);
-		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-		executor.initialize();
-		return executor;
-	}
-
 	@Bean
 	public IntegrationFlow directCursorFlow() {
 		return IntegrationFlow
