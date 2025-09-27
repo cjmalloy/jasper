@@ -67,7 +67,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder complexSearchQuery = exec(
 		http("Complex Search Query")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "(+tag:stresstest AND +tag:performance) OR (+tag:load.#{randomInt(1,100)} AND NOT +tag:excluded)")
+			.queryParam("query", "(stresstest:performance)|load.#{randomInt(1,100)}:!excluded")
 			.queryParam("search", "stress test performance load content#{randomInt(1,100)}")
 			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
 			.queryParam("size", "50")

@@ -230,7 +230,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder browseTaggedContent = exec(
 		http("Browse Tagged Content")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "+tag:research")
+			.queryParam("query", "research")
 			.queryParam("size", "20")
 			.check(status().is(200))
 	).pause(Duration.ofMillis(600));

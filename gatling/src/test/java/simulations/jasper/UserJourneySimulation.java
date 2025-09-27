@@ -72,7 +72,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Browse by Category - #{category}")
 				.get("/api/v1/ref/page")
-				.queryParam("query", "+tag:#{category}")
+				.queryParam("query", "#{category}")
 				.queryParam("size", "15")
 				.check(status().is(200))
 		)
@@ -112,7 +112,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Find Related Templates - #{category}")
 				.get("/api/v1/template/page")
-				.queryParam("query", "+tag:#{category}")
+				.queryParam("query", "#{category}")
 				.queryParam("size", "10")
 				.check(status().is(200))
 		);
@@ -264,7 +264,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Browse Shared Content")
 				.get("/api/v1/ref/page")
-				.queryParam("query", "+tag:shared")
+				.queryParam("query", "shared")
 				.queryParam("size", "20")
 				.check(status().is(200))
 		)

@@ -59,7 +59,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder searchRefs = exec(
 		http("Search References")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "+tag:test")
+			.queryParam("query", "test")
 			.queryParam("size", "5")
 			.check(status().is(200))
 	).pause(Duration.ofMillis(800));
