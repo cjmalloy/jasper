@@ -16,10 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -231,5 +236,247 @@ public class IngestIT {
 		assertThat(firstException.get())
 			.isNotEqualTo(secondException.get());
 	}
+	@Test
+	void testSetObsoleteOnCreate() throws InterruptedException {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setOrigin("@origin1");
+		ref1.setTitle("First");
+		ingest.create("", ref1);
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@origin1")).get().extracting(r -> r.getMetadata().isObsolete()).isNotEqualTo(true);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var ref2 = new Ref();
+		ref2.setUrl(URL);
+		ref2.setOrigin("@origin2");
+		ref2.setTitle("Second");
+		ingest.create("", ref2);
+
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
+		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var ref3 = new Ref();
+		ref3.setUrl(URL);
+		ref3.setOrigin("@origin3");
+		ref3.setTitle("Third");
+		ingest.create("", ref3);
+
+		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched3 = refRepository.findOneByUrlAndOrigin(URL, "@origin3").get();
+		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
+		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
+		assertThat(fetched3.getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testSetObsoleteOnUpdate() throws InterruptedException {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setOrigin("@origin1");
+		ref1.setTitle("First");
+		ingest.create("", ref1);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var ref2 = new Ref();
+		ref2.setUrl(URL);
+		ref2.setOrigin("@origin2");
+		ref2.setTitle("Second");
+		ingest.create("", ref2);
+
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
+		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setOrigin("@origin1");
+		update.setTitle("First Updated");
+		update.setModified(fetched1.getModified());
+		ingest.update("", update);
+
+		var fetched1Updated = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		assertThat(fetched1Updated.getMetadata().isObsolete()).isFalse();
+		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testSetObsoleteOnDelete() throws InterruptedException {
+		var ref1 = new Ref();
+		ref1.setUrl(URL);
+		ref1.setOrigin("@origin1");
+		ref1.setTitle("First");
+		ingest.create("", ref1);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var ref2 = new Ref();
+		ref2.setUrl(URL);
+		ref2.setOrigin("@origin2");
+		ref2.setTitle("Second");
+		ingest.create("", ref2);
+
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
+		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
+
+		ingest.delete("", URL, "@origin2");
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "@origin2")).isFalse();
+		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		assertThat(fetched1.getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testConcurrentUpdate_shouldResultInOneCurrentRef() {
+		var refOriginA = new Ref();
+		refOriginA.setUrl(URL);
+		refOriginA.setOrigin("@a");
+		refOriginA.setTitle("First");
+		var refOriginB = new Ref();
+		refOriginB.setUrl(URL);
+		refOriginB.setOrigin("@b");
+		refOriginB.setTitle("Second");
+		refRepository.saveAll(List.of(refOriginA, refOriginB));
+
+		// Simulate clock skew
+		Instant timeA = Instant.now();
+		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
+
+		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		latestA.setComment("...move A...");
+		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
+		try {
+			ingest.update("", latestA);
+		} finally {
+			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
+		}
+
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		latestB.setComment("...move B...");
+		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
+		try {
+			ingest.update("", latestB);
+		} finally {
+			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
+		}
+
+		List<Ref> allVersions = refRepository.findAll(isUrl(refOriginA.getUrl()));
+		long activeRefs = allVersions.stream().filter(r -> r.getMetadata() == null || !r.getMetadata().isObsolete()).count();
+		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
+	}
+
+	@Test
+	void testConcurrentUpdatePush_shouldResultInOneCurrentRef() {
+		var refOriginA = new Ref();
+		refOriginA.setUrl(URL);
+		refOriginA.setOrigin("@a");
+		refOriginA.setTitle("First");
+		var refOriginB = new Ref();
+		refOriginB.setUrl(URL);
+		refOriginB.setOrigin("@b");
+		refOriginB.setTitle("Second");
+		refRepository.saveAll(List.of(refOriginA, refOriginB));
+
+		// Simulate clock skew
+		Instant timeA = Instant.now();
+		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
+
+		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		latestA.setComment("...move A...");
+		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
+		try {
+			ingest.update("", latestA);
+		} finally {
+			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
+		}
+
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		latestB.setComment("...move B...");
+		latestB.setModified(timeB);
+		ingest.push("", latestB, false, false);
+
+		List<Ref> allVersions = refRepository.findAll(isUrl(refOriginA.getUrl()));
+		long activeRefs = allVersions.stream().filter(r -> r.getMetadata() == null || !r.getMetadata().isObsolete()).count();
+		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
+	}
+
+	@Test
+	void testConcurrentPushUpdate_shouldResultInOneCurrentRef() {
+		var refOriginA = new Ref();
+		refOriginA.setUrl(URL);
+		refOriginA.setOrigin("@a");
+		refOriginA.setTitle("First");
+		var refOriginB = new Ref();
+		refOriginB.setUrl(URL);
+		refOriginB.setOrigin("@b");
+		refOriginB.setTitle("Second");
+		refRepository.saveAll(List.of(refOriginA, refOriginB));
+
+		// Simulate clock skew
+		Instant timeA = Instant.now();
+		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
+
+		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		latestA.setComment("...move A...");
+		latestA.setModified(timeA);
+		ingest.push("", latestA, false, false);
+
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		latestB.setComment("...move B...");
+		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
+		try {
+			ingest.update("", latestB);
+		} finally {
+			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
+		}
+
+		List<Ref> allVersions = refRepository.findAll(isUrl(refOriginA.getUrl()));
+		long activeRefs = allVersions.stream().filter(r -> r.getMetadata() == null || !r.getMetadata().isObsolete()).count();
+		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
+	}
+
+	@Test
+	void testConcurrentPush_shouldResultInOneCurrentRef() {
+		var refOriginA = new Ref();
+		refOriginA.setUrl(URL);
+		refOriginA.setOrigin("@a");
+		refOriginA.setTitle("First");
+		var refOriginB = new Ref();
+		refOriginB.setUrl(URL);
+		refOriginB.setOrigin("@b");
+		refOriginB.setTitle("Second");
+		refRepository.saveAll(List.of(refOriginA, refOriginB));
+
+		// Simulate clock skew
+		Instant timeA = Instant.now();
+		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
+
+		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		latestA.setComment("...move A...");
+		latestA.setModified(timeA);
+		ingest.push("", latestA, false, false);
+
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		latestB.setComment("...move B...");
+		latestB.setModified(timeB);
+		ingest.push("", latestB, false, false);
+
+		List<Ref> allVersions = refRepository.findAll(isUrl(refOriginA.getUrl()));
+		long activeRefs = allVersions.stream().filter(r -> r.getMetadata() == null || !r.getMetadata().isObsolete()).count();
+		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
+	}
+
 
 }

@@ -91,7 +91,7 @@ public class Meta {
 		ref.getMetadata().setModified(originalDate);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
 			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
 		for (var source : cleanupSources) {
@@ -107,7 +107,7 @@ public class Meta {
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref != null) {
 			// Creating or updating (not deleting)
-			refRepository.setObsolete(ref.getUrl(), ref.getOrigin(), rootOrigin, ref.getModified());
+			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 
 			// Update sources
 			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
