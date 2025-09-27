@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -39,7 +40,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 
 	@Override
 	@Bean("taskExecutor")
-	public Executor getAsyncExecutor() {
+	public AsyncTaskExecutor getAsyncExecutor() {
 		logger.debug("Creating Async Task Executor");
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		executor.setCorePoolSize(taskExecutionProperties.getPool().getCoreSize());

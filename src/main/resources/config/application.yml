@@ -165,7 +165,7 @@ spring:
         size: 50
   threads:
     virtual:
-      enabled: false
+      enabled: true
   output:
     ansi:
       console-available: true
