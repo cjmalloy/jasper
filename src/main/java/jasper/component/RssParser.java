@@ -32,13 +32,14 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.time.Year;
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
@@ -64,14 +65,20 @@ public class RssParser {
 	@Autowired
 	RefRepository refRepository;
 
-	// Map to store per-origin semaphores for RSS scraping
-	private final Map<String, Semaphore> originRssSemaphores = new ConcurrentHashMap<>();
+	// Map to store per-origin bulkheads for RSS scraping
+	private final Map<String, Bulkhead> originRssBulkheads = new ConcurrentHashMap<>();
 
-	private Semaphore getOriginRssSemaphore(String origin) {
-		return originRssSemaphores.computeIfAbsent(origin, k -> {
+	private Bulkhead getOriginRssBulkhead(String origin) {
+		return originRssBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentRssScrapePerOrigin();
-			logger.debug("Creating RSS scrape semaphore for origin {} with {} permits", origin, maxConcurrent);
-			return new Semaphore(maxConcurrent);
+			logger.debug("Creating RSS scrape bulkhead for origin {} with {} permits", origin, maxConcurrent);
+			
+			var bulkheadConfig = BulkheadConfig.custom()
+				.maxConcurrentCalls(maxConcurrent)
+				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
+				.build();
+			
+			return Bulkhead.of("rss-" + origin, bulkheadConfig);
 		});
 	}
 
@@ -80,102 +87,103 @@ public class RssParser {
 
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
-		var semaphore = getOriginRssSemaphore(feed.getOrigin());
-		
-		// Try to acquire permit for RSS scraping
-		if (!semaphore.tryAcquire()) {
-			logger.warn("{} RSS scrape rate limit exceeded for {}: {}", feed.getOrigin(), feed.getTitle(), feed.getUrl());
-			// Don't throw error for RSS scraping, just log and skip
-			return;
-		}
+		var bulkhead = getOriginRssBulkhead(feed.getOrigin());
 		
 		try {
-			var config = getFeed(feed);
-			int timeout = 30 * 1000; // 30 seconds
-			var requestConfig = RequestConfig.custom()
-				.setConnectTimeout(timeout)
-				.setConnectionRequestTimeout(timeout)
-				.setSocketTimeout(timeout).build();
-			var builder = HttpClients.custom()
-				.setDefaultRequestConfig(requestConfig)
-				.disableCookieManagement();
-		try (var client = builder.build()) {
-			var request = new HttpGet(feed.getUrl());
-			if (!hostCheck.validHost(request.getURI())) {
-				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
-				return;
-			}
+			bulkhead.executeSupplier(() -> {
+				try {
+					var config = getFeed(feed);
+					int timeout = 30 * 1000; // 30 seconds
+					var requestConfig = RequestConfig.custom()
+						.setConnectTimeout(timeout)
+						.setConnectionRequestTimeout(timeout)
+						.setSocketTimeout(timeout).build();
+					var builder = HttpClients.custom()
+						.setDefaultRequestConfig(requestConfig)
+						.disableCookieManagement();
+					try (var client = builder.build()) {
+						var request = new HttpGet(feed.getUrl());
+						if (!hostCheck.validHost(request.getURI())) {
+							logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
+							return null;
+						}
 
-			if (!config.isDisableEtag() && config.getEtag() != null) {
-				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
-			}
-			Instant lastScrape = null;
-			var cron = getCron(feed);
-			if (cron != null && cron.getInterval() != null) {
-				lastScrape = Instant.now().minus(cron.getInterval());
-				if (lastScrape.isAfter(feed.getModified()) &&
-					lastScrape.isAfter(Instant.now().minus(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS))) {
-					request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
-				}
-			}
-			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
-			try (CloseableHttpResponse response = client.execute(request)) {
-				if (response.getStatusLine().getStatusCode() == 304) {
-					if (lastScrape == null) {
-						logger.info("{} Feed {} not modified", feed.getOrigin(), feed.getTitle());
-					} else {
-						logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
-					}
-					return;
-				}
-				try (var stream = response.getEntity().getContent()) {
-					if (!config.isDisableEtag()) {
-						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
-							config.setEtag(etag.getValue());
-							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed.getOrigin(), feed);
-						} else if (etag == null && config.getEtag() != null) {
-							config.setEtag(null);
-							feed.setPlugin("plugin/feed", config);
-							ingest.update(feed.getOrigin(), feed);
+						if (!config.isDisableEtag() && config.getEtag() != null) {
+							request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
 						}
-					}
-					var input = new SyndFeedInput();
-					var syndFeed = input.build(new XmlReader(stream));
-					if (syndFeed.getImage() != null) {
-						var image = syndFeed.getImage().getUrl();
-						cacheLater(image, feed.getOrigin());
-						if (!feed.hasTag("plugin/thumbnail")) {
-							feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
-							ingest.update(feed.getOrigin(), feed);
-						}
-					}
-					for (var entry : syndFeed.getEntries().reversed()) {
-						try {
-							var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
-							ref.setOrigin(feed.getOrigin());
-							if (ref.getPublished().isBefore(feed.getPublished())) {
-								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
-									feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
-								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
-								ingest.update(feed.getOrigin(), feed);
+						Instant lastScrape = null;
+						var cron = getCron(feed);
+						if (cron != null && cron.getInterval() != null) {
+							lastScrape = Instant.now().minus(cron.getInterval());
+							if (lastScrape.isAfter(feed.getModified()) &&
+								lastScrape.isAfter(Instant.now().minus(ManagementFactory.getRuntimeMXBean().getUptime(), ChronoUnit.MILLIS))) {
+								request.setHeader(HttpHeaders.IF_MODIFIED_SINCE, DateTimeFormatter.RFC_1123_DATE_TIME.format(lastScrape.atZone(ZoneId.of("GMT"))));
 							}
-							ingest.create(feed.getOrigin(), ref);
-						} catch (AlreadyExistsException e) {
-							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
-						} catch (Exception e) {
-							logger.error("Error processing entry", e);
+						}
+						request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
+						try (CloseableHttpResponse response = client.execute(request)) {
+							if (response.getStatusLine().getStatusCode() == 304) {
+								if (lastScrape == null) {
+									logger.info("{} Feed {} not modified", feed.getOrigin(), feed.getTitle());
+								} else {
+									logger.info("{} Feed {} not modified since {}", feed.getOrigin(), feed.getTitle(), lastScrape);
+								}
+								return null;
+							}
+							try (var stream = response.getEntity().getContent()) {
+								if (!config.isDisableEtag()) {
+									var etag = response.getFirstHeader(HttpHeaders.ETAG);
+									if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
+										config.setEtag(etag.getValue());
+										feed.setPlugin("plugin/feed", config);
+										ingest.update(feed.getOrigin(), feed);
+									} else if (etag == null && config.getEtag() != null) {
+										config.setEtag(null);
+										feed.setPlugin("plugin/feed", config);
+										ingest.update(feed.getOrigin(), feed);
+									}
+								}
+								var input = new SyndFeedInput();
+								var syndFeed = input.build(new XmlReader(stream));
+								if (syndFeed.getImage() != null) {
+									var image = syndFeed.getImage().getUrl();
+									cacheLater(image, feed.getOrigin());
+									if (!feed.hasTag("plugin/thumbnail")) {
+										feed.setPlugin("plugin/thumbnail", Thumbnail.builder().url(image).build());
+										ingest.update(feed.getOrigin(), feed);
+									}
+								}
+								for (var entry : syndFeed.getEntries().reversed()) {
+									try {
+										var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
+										ref.setOrigin(feed.getOrigin());
+										if (ref.getPublished().isBefore(feed.getPublished())) {
+											logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
+												feed.getOrigin(), feed.getTitle(), ref.getTitle(), ref.getUrl());
+											feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
+											ingest.update(feed.getOrigin(), feed);
+										}
+										ingest.create(feed.getOrigin(), ref);
+									} catch (AlreadyExistsException e) {
+										logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+											feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+									} catch (Exception e) {
+										logger.error("Error processing entry", e);
+									}
+								}
+							}
 						}
 					}
+					return null;
+				} catch (Exception e) {
+					throw new RuntimeException(e);
 				}
-			}
+			});
+		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+			logger.warn("{} RSS scrape rate limit exceeded for {}: {}", feed.getOrigin(), feed.getTitle(), feed.getUrl());
+			// Don't throw error for RSS scraping, just log and skip
 		}
-	} finally {
-		semaphore.release();
 	}
-}
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
 		var ref = new Ref();

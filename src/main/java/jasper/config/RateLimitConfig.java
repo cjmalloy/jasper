@@ -1,5 +1,7 @@
 package jasper.config;
 
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
@@ -13,8 +15,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -30,14 +32,21 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	@Autowired
 	Props props;
 
-	// Map to store per-origin semaphores
-	private final ConcurrentHashMap<String, Semaphore> originSemaphores = new ConcurrentHashMap<>();
+	// Map to store per-origin rate limiters
+	private final ConcurrentHashMap<String, RateLimiter> originRateLimiters = new ConcurrentHashMap<>();
 
-	private Semaphore getOriginSemaphore(String origin) {
-		return originSemaphores.computeIfAbsent(origin, k -> {
+	private RateLimiter getOriginRateLimiter(String origin) {
+		return originRateLimiters.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentRequestsPerOrigin();
-			logger.debug("Creating rate limit semaphore for origin {} with {} permits", origin, maxConcurrent);
-			return new Semaphore(maxConcurrent);
+			logger.debug("Creating rate limiter for origin {} with {} permits per second", origin, maxConcurrent);
+			
+			var rateLimiterConfig = RateLimiterConfig.custom()
+				.limitForPeriod(maxConcurrent)
+				.limitRefreshPeriod(Duration.ofSeconds(1))
+				.timeoutDuration(Duration.ofMillis(0)) // Don't wait, fail fast
+				.build();
+			
+			return RateLimiter.of("http-" + origin, rateLimiterConfig);
 		});
 	}
 
@@ -60,26 +69,23 @@ public class RateLimitConfig implements WebMvcConfigurer {
 			@Override
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 				var origin = resolveOrigin(request);
-				var semaphore = getOriginSemaphore(origin);
+				var rateLimiter = getOriginRateLimiter(origin);
 				
-				if (!semaphore.tryAcquire()) {
+				if (!rateLimiter.acquirePermission()) {
 					logger.warn("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
 					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
+					response.setHeader("X-RateLimit-Retry-After", "1");
 					return false;
 				}
 				
-				// Store origin and semaphore in request attributes for cleanup
+				// Store origin for logging purposes
 				request.setAttribute("rate-limit-origin", origin);
-				request.setAttribute("rate-limit-semaphore", semaphore);
 				return true;
 			}
 
 			@Override
 			public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
-				var semaphore = (Semaphore) request.getAttribute("rate-limit-semaphore");
-				if (semaphore != null) {
-					semaphore.release();
-				}
+				// No cleanup needed with RateLimiter - it handles timing automatically
 			}
 		};
 	}
