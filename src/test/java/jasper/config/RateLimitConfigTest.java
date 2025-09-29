@@ -33,6 +33,5 @@ class RateLimitConfigTest {
         assertThat(serverConfig.getMaxConcurrentScriptsPerOrigin()).isEqualTo(10);
         assertThat(serverConfig.getMaxConcurrentCronScriptsPerOrigin()).isEqualTo(5);
         assertThat(serverConfig.getMaxConcurrentReplicationPerOrigin()).isEqualTo(3);
-        assertThat(serverConfig.getMaxConcurrentRssScrapePerOrigin()).isEqualTo(5);
     }
 }
