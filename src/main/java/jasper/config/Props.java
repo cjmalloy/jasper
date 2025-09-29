@@ -153,7 +153,6 @@ public class Props {
 		private Integer maxConcurrentScriptsPerOrigin;
 		private Integer maxConcurrentCronScriptsPerOrigin;
 		private Integer maxConcurrentReplicationPerOrigin;
-		private Integer maxConcurrentRssScrapePerOrigin;
 	}
 
 	@Getter
