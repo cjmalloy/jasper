@@ -1,5 +1,7 @@
 package jasper.component.cron;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -21,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.Semaphore;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
@@ -55,14 +56,20 @@ public class Cron {
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
-	// Map to store per-origin semaphores for cron script execution
-	private final Map<String, Semaphore> originCronScriptSemaphores = new ConcurrentHashMap<>();
+	// Map to store per-origin bulkheads for cron script execution
+	private final Map<String, Bulkhead> originCronScriptBulkheads = new ConcurrentHashMap<>();
 
-	private Semaphore getOriginCronScriptSemaphore(String origin) {
-		return originCronScriptSemaphores.computeIfAbsent(origin, k -> {
+	private Bulkhead getOriginCronScriptBulkhead(String origin) {
+		return originCronScriptBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
-			logger.debug("Creating cron script execution semaphore for origin {} with {} permits", origin, maxConcurrent);
-			return new Semaphore(maxConcurrent);
+			logger.debug("Creating cron script execution bulkhead for origin {} with {} permits", origin, maxConcurrent);
+			
+			var bulkheadConfig = BulkheadConfig.custom()
+				.maxConcurrentCalls(maxConcurrent)
+				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
+				.build();
+			
+			return Bulkhead.of("cron-" + origin, bulkheadConfig);
 		});
 	}
 
@@ -153,24 +160,25 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						var semaphore = getOriginCronScriptSemaphore(origin);
-						
-						// Try to acquire permit for manual script execution
-						if (!semaphore.tryAcquire()) {
-							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
-							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
-							return;
-						}
+						var bulkhead = getOriginCronScriptBulkhead(origin);
 						
 						try {
-							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-							ran.add(v);
-							tagger.removeAllResponses(url, origin, "+plugin/user/run");
-						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+							bulkhead.executeSupplier(() -> {
+								try {
+									v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+									ran.add(v);
+									tagger.removeAllResponses(url, origin, "+plugin/user/run");
+									return null;
+								} catch (Exception e) {
+									logger.error("{} Error in run tag {} ", origin, k);
+									tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+									throw new RuntimeException(e);
+								}
+							});
+						} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
 						} finally {
-							semaphore.release();
 							refs.remove(k);
 						}
 					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
@@ -222,38 +230,35 @@ public class Cron {
 			return;
 		}
 		
-		var semaphore = getOriginCronScriptSemaphore(origin);
-		
-		// Try to acquire permit for cron script execution
-		if (!semaphore.tryAcquire()) {
-			logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
-			tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
-			return;
-		}
+		var bulkhead = getOriginCronScriptBulkhead(origin);
 		
 		try {
-			var ran = new HashSet<CronRunner>();
-			tags.forEach((k, v) -> {
-				if (ran.contains(v)) return;
-				if (!hasMatchingTag(ref, k)) return;
-				if (!configs.root().script(k, origin)) return;
-				logger.debug("{} Cron Tag: {} {}", origin, k, url);
-				runAsync(() -> {
-					try {
-						v.run(ref);
-						ran.add(v);
-					} catch (Exception e) {
-						logger.error("{} Error in cron tag {} ", origin, k);
-						tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-					}
-				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-					logger.warn("{} Rate limited {} ", origin, k);
-					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-					return null;
+			bulkhead.executeSupplier(() -> {
+				var ran = new HashSet<CronRunner>();
+				tags.forEach((k, v) -> {
+					if (ran.contains(v)) return;
+					if (!hasMatchingTag(ref, k)) return;
+					if (!configs.root().script(k, origin)) return;
+					logger.debug("{} Cron Tag: {} {}", origin, k, url);
+					runAsync(() -> {
+						try {
+							v.run(ref);
+							ran.add(v);
+						} catch (Exception e) {
+							logger.error("{} Error in cron tag {} ", origin, k);
+							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+						}
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
+				return null;
 			});
-		} finally {
-			semaphore.release();
+		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+			logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+			tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
 		}
 	}
 
