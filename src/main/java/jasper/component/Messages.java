@@ -14,8 +14,6 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.MessageHeaders;
@@ -24,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import static jasper.component.Replicator.deletorTag;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -36,9 +35,8 @@ import static org.springframework.messaging.support.MessageBuilder.createMessage
 public class Messages {
 	private final Logger logger = LoggerFactory.getLogger(Messages.class);
 
-	@Qualifier("taskScheduler")
 	@Autowired
-	TaskExecutor taskExecutor;
+	ExecutorService taskExecutor;
 
 	@Autowired
 	MessageChannel cursorTxChannel;

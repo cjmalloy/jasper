@@ -45,13 +45,13 @@ public class TunnelClient {
 	private static final Logger logger = LoggerFactory.getLogger(TunnelClient.class);
 
 	@Autowired
+	TaskScheduler taskScheduler;
+
+	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
 	Tagger tagger;
-
-	@Autowired
-	TaskScheduler taskScheduler;
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();

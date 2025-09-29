@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.Map;
 import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,25 +123,5 @@ class ScriptExecutorFactoryTest {
 
 		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
 		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-delta-");
-	}
-
-	@Test
-	void shouldProvideExecutorStats() {
-		// Create some executors
-		factory.get("delta", "origin1");
-		factory.get("cron", "origin1");
-		factory.get("python", "origin2");
-
-		Map<String, ScriptExecutorFactory.ExecutorStats> stats = factory.getExecutorStats();
-
-		assertThat(stats).hasSize(3);
-		assertThat(stats).containsKeys("delta:origin1", "cron:origin1", "python:origin2");
-
-		ScriptExecutorFactory.ExecutorStats deltaStats = stats.get("delta:origin1");
-		assertThat(deltaStats.corePoolSize()).isEqualTo(2);
-		assertThat(deltaStats.maxPoolSize()).isEqualTo(10);
-		assertThat(deltaStats.activeCount()).isEqualTo(0);
-		assertThat(deltaStats.poolSize()).isEqualTo(0);
-		assertThat(deltaStats.queueSize()).isEqualTo(0);
 	}
 }

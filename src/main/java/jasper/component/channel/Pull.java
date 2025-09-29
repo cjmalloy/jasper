@@ -12,7 +12,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConverter;
@@ -37,9 +36,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -50,6 +48,7 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
 public class Pull {
@@ -57,6 +56,9 @@ public class Pull {
 
 	@Autowired
 	TaskScheduler taskScheduler;
+
+	@Autowired
+	ExecutorService websocketExecutor;
 
 	@Autowired
 	ConfigCache configs;
@@ -74,11 +76,7 @@ public class Pull {
 	Replicator replicator;
 
 	@Autowired
-	@Qualifier("websocketExecutor")
-	private Executor websocketExecutor;
-
-	@Autowired
-	private Tagger tagger;
+	Tagger tagger;
 
 	private final ConcurrentHashMap<String, Boolean> isPulling = new ConcurrentHashMap<>();
 
@@ -187,7 +185,7 @@ public class Pull {
 			};
 			try {
 				var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler);
-				CompletableFuture.runAsync(() -> future.thenAcceptAsync(session -> {
+				runAsync(() -> future.thenAcceptAsync(session -> {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {

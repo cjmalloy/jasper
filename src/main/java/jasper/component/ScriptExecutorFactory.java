@@ -1,83 +1,57 @@
 package jasper.component;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/**
- * Factory for creating and managing dynamic thread pools for script execution.
- * Allows creating separate pools per script type or tenant for better isolation
- * and resource management.
- */
+import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.monitor;
+
 @Component
 public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
 
-	private final Map<String, ThreadPoolTaskExecutor> executors = new ConcurrentHashMap<>();
+	@Autowired
+	MeterRegistry meterRegistry;
 
-	/**
-	 * Creates or returns an existing thread pool executor for the given script type.
-	 * This allows for isolation between different script types (delta, cron, etc.)
-	 * and better resource management.
-	 *
-	 * @param namespace The type of script (e.g., "delta", "cron")
-	 * @param origin The origin/tenant (optional, for multi-tenant isolation)
-	 * @return A thread pool executor for the specified script type
-	 */
-	public Executor get(String namespace, String origin) {
-		String key = origin != null ? namespace + ":" + origin : namespace;
+	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 
-		return executors.computeIfAbsent(key, k -> {
-			logger.info("Creating dynamic script executor for {}", k);
-			ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+	public ExecutorService get(String tag, String origin) {
+		return executors.computeIfAbsent(tag + origin, k -> {
+			logger.info("{} Creating dynamic script executor for {}", origin, k);
+			var executor = new ThreadPoolTaskExecutor();
 			executor.setCorePoolSize(2);
-			executor.setMaxPoolSize(10);
-			executor.setQueueCapacity(25);
-			executor.setThreadNamePrefix("script-" + k.replace(":", "-") + "-");
-			executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+			executor.setMaxPoolSize(4);
+			executor.setQueueCapacity(1000);
+			executor.setThreadNamePrefix("script-" + k + "-");
+			executor.setRejectedExecutionHandler((Runnable r, ThreadPoolExecutor e) -> {
+				throw new RejectedExecutionException("Script " + k +
+						" task " + r.toString() +
+						" rejected from " + e.toString() +
+						" queue size " + 1000);
+			});
 			executor.setWaitForTasksToCompleteOnShutdown(true);
 			executor.setAwaitTerminationSeconds(60);
 			executor.initialize();
-			return executor;
+			return monitor(meterRegistry, executor.getThreadPoolExecutor(), "scriptExecutor", "script", Tags.of(
+					"tag", tag,
+					"origin", origin));
 		});
 	}
 
-	/**
-	 * Gets statistics for all managed executors.
-	 */
-	public Map<String, ExecutorStats> getExecutorStats() {
-		Map<String, ExecutorStats> stats = new ConcurrentHashMap<>();
-
-		executors.forEach((key, executor) -> {
-			ThreadPoolExecutor pool = executor.getThreadPoolExecutor();
-			stats.put(key, new ExecutorStats(
-				pool.getCorePoolSize(),
-				pool.getMaximumPoolSize(),
-				pool.getActiveCount(),
-				pool.getPoolSize(),
-				pool.getQueue().size(),
-				pool.getCompletedTaskCount(),
-				pool.getTaskCount()
-			));
-		});
-
-		return stats;
-	}
-
-	/**
-	 * Cleanup all dynamic executors on shutdown.
-	 */
 	@PreDestroy
 	public void cleanup() {
-		logger.info("Shutting down {} dynamic script executors", executors.size());
-
+		logger.info("Shutting down {} dynamic script executors and their metrics", executors.size());
 		executors.values().forEach(executor -> {
 			try {
 				executor.shutdown();
@@ -85,20 +59,6 @@ public class ScriptExecutorFactory {
 				logger.warn("Error shutting down script executor", e);
 			}
 		});
-
 		executors.clear();
 	}
-
-	/**
-	 * Statistics for a thread pool executor.
-	 */
-	public record ExecutorStats(
-		int corePoolSize,
-		int maxPoolSize,
-		int activeCount,
-		int poolSize,
-		int queueSize,
-		long completedTaskCount,
-		long taskCount
-	) {}
 }

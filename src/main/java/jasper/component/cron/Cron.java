@@ -25,10 +25,11 @@ import java.util.concurrent.ScheduledFuture;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
-public class Scheduler {
-	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
+public class Cron {
+	private static final Logger logger = LoggerFactory.getLogger(Cron.class);
 
 	@Autowired
 	TaskScheduler taskScheduler;
@@ -49,7 +50,7 @@ public class Scheduler {
 	Watch watch;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
@@ -138,21 +139,23 @@ public class Scheduler {
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return taskScheduler.schedule(() -> {
-						CompletableFuture.runAsync(() -> {
-							logger.warn("{} Run Tag: {} {}", origin, k, url);
-							try {
-								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-								ran.add(v);
-								tagger.removeAllResponses(url, origin, "+plugin/user/run");
-							} catch (Exception e) {
-								logger.error("{} Error in run tag {} ", origin, k);
-								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-							} finally {
-								refs.remove(k);
-							}
-						}, scriptExecutorFactory.get(k, origin));
-					}, Instant.now());
+					return runAsync(() -> {
+						logger.warn("{} Run Tag: {} {}", origin, k, url);
+						try {
+							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+							ran.add(v);
+							tagger.removeAllResponses(url, origin, "+plugin/user/run");
+						} catch (Exception e) {
+							logger.error("{} Error in run tag {} ", origin, k);
+							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+						} finally {
+							refs.remove(k);
+						}
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
 			});
 		} catch (Exception e) {
@@ -202,8 +205,7 @@ public class Scheduler {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			// Use scripts executor for script execution
-			CompletableFuture.runAsync(() -> {
+			runAsync(() -> {
 				try {
 					v.run(ref);
 					ran.add(v);
@@ -211,7 +213,11 @@ public class Scheduler {
 					logger.error("{} Error in cron tag {} ", origin, k);
 					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 				}
-			}, scriptExecutorFactory.get(k, origin));
+			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+				logger.warn("{} Rate limited {} ", origin, k);
+				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+				return null;
+			});
 		});
 	}
 

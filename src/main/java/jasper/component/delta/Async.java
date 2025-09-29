@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
@@ -31,6 +32,7 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.HasTags.hasPluginResponse;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
@@ -59,8 +61,10 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
+	@Autowired
+	Tagger tagger;
 
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
 	/**
@@ -112,7 +116,7 @@ public class Async {
 						logger.debug("{} Async tag trying to run before finishing {} ", origin, k);
 						return existing;
 					}
-					return CompletableFuture.runAsync(() -> {
+					return runAsync(() -> {
 						try {
 							v.run(fetch(ud));
 						} catch (NotFoundException e) {
@@ -120,7 +124,11 @@ public class Async {
 						} catch (Exception e) {
 							logger.error("{} Error in async tag {} ", origin, k, e);
 						}
-					}, scriptExecutorFactory.get(k, origin));
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachError(ud.getUrl(), origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
 			});
 		} catch (Exception e) {
@@ -155,7 +163,7 @@ public class Async {
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
-				CompletableFuture.runAsync(() -> {
+				runAsync(() -> {
 					try {
 						v.run(ref);
 					} catch (NotFoundException e) {
@@ -163,7 +171,11 @@ public class Async {
 					} catch (Exception e) {
 						logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
 					}
-				}, scriptExecutorFactory.get(k, origin));
+				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+					logger.warn("{} Rate limited {} ", origin, k);
+					tagger.attachError(ref.getUrl(), origin, "Rate Limit Hit " + k);
+					return null;
+				});
 			});
 		}
 	}
