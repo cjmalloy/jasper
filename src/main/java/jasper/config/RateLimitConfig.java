@@ -5,6 +5,7 @@ import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
+import jasper.security.Auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +19,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 @Profile("limit")
 @Configuration
 public class RateLimitConfig implements WebMvcConfigurer {
@@ -30,7 +28,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	ConfigCache configs;
 
 	@Autowired
-	Props props;
+	Auth auth;
 
 	// Map to store per-origin rate limiters
 	private final ConcurrentHashMap<String, RateLimiter> originRateLimiters = new ConcurrentHashMap<>();
@@ -50,25 +48,12 @@ public class RateLimitConfig implements WebMvcConfigurer {
 		});
 	}
 
-	private String resolveOrigin(HttpServletRequest request) {
-		var originHeader = request.getHeader(LOCAL_ORIGIN_HEADER);
-		if (isNotBlank(originHeader)) {
-			originHeader = originHeader.toLowerCase();
-			if ("default".equals(originHeader)) return props.getLocalOrigin();
-			// Use originHeader if it's valid
-			if (originHeader.matches("^@?[a-zA-Z0-9._-]*$")) {
-				return originHeader.startsWith("@") ? originHeader : "@" + originHeader;
-			}
-		}
-		return props.getOrigin();
-	}
-
 	@Bean
 	public HandlerInterceptor rateLimitInterceptor() {
 		return new HandlerInterceptor() {
 			@Override
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-				var origin = resolveOrigin(request);
+				var origin = auth.getOrigin();
 				var rateLimiter = getOriginRateLimiter(origin);
 				
 				if (!rateLimiter.acquirePermission()) {
