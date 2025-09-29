@@ -116,7 +116,7 @@ public class Replicator {
 	private Bulkhead getOriginReplicationBulkhead(String origin) {
 		return originReplicationBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentReplicationPerOrigin();
-			logger.debug("Creating replication bulkhead for origin {} with {} permits", origin, maxConcurrent);
+			logger.debug("{} Creating replication bulkhead with {} permits", origin, maxConcurrent);
 			
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
