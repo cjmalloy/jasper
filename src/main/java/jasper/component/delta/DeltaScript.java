@@ -44,7 +44,7 @@ public class DeltaScript implements Async.AsyncRunner {
 	private Bulkhead getOriginScriptBulkhead(String origin) {
 		return originScriptBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentScriptsPerOrigin();
-			logger.debug("Creating script execution bulkhead for origin {} with {} permits", origin, maxConcurrent);
+			logger.debug("{} Creating script execution bulkhead with {} permits", origin, maxConcurrent);
 			
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)

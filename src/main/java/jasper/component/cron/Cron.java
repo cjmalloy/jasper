@@ -62,7 +62,7 @@ public class Cron {
 	private Bulkhead getOriginCronScriptBulkhead(String origin) {
 		return originCronScriptBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
-			logger.debug("Creating cron script execution bulkhead for origin {} with {} permits", origin, maxConcurrent);
+			logger.debug("{} Creating cron script execution bulkhead with {} permits", origin, maxConcurrent);
 			
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
