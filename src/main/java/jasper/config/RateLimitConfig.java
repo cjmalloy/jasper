@@ -18,6 +18,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Profile("limit")
 @Configuration
@@ -59,7 +60,9 @@ public class RateLimitConfig implements WebMvcConfigurer {
 				if (!rateLimiter.acquirePermission()) {
 					logger.warn("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
 					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
-					response.setHeader("X-RateLimit-Retry-After", "1");
+					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+					var retryAfter = String.format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5));
+					response.setHeader("X-RateLimit-Retry-After", retryAfter);
 					return false;
 				}
 				
