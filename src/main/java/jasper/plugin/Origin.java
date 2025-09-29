@@ -19,7 +19,9 @@ public class Origin implements Serializable {
 	private String remote = "";
 	private String proxy;
 
+	private static final Origin DEFAULTS = new Origin();
 	public static Origin getOrigin(HasTags ref) {
-		return getPlugin(ref, "+plugin/origin", Origin.class);
+		var origin = ref == null ? null : getPlugin(ref, "+plugin/origin", Origin.class);
+		return origin == null ? DEFAULTS : origin;
 	}
 }
