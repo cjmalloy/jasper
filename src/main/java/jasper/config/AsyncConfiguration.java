@@ -1,8 +1,5 @@
 package jasper.config;
 
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
@@ -12,6 +9,7 @@ import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.integration.util.CallerBlocksPolicy;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -37,9 +35,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	@Autowired
 	TaskSchedulingProperties taskSchedulingProperties;
 
-	@Autowired
-	MeterRegistry meterRegistry;
-
+	@Profile("!redis")
 	@Bean("integration")
 	public ThreadPoolTaskExecutor taskExecutor() {
 		var executor = new ThreadPoolTaskExecutor();
@@ -51,16 +47,14 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		executor.setAwaitTerminationSeconds(60);
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 		executor.initialize();
-		// Add metrics
-		ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), "integration",
-			Tag.of("type", "integration"));
 		return executor;
 	}
 
-	@Bean("integration-redis")
+	@Profile("redis")
+	@Bean("integration")
 	public TaskExecutor taskExecutorRedis() {
 		var executor = new ThreadPoolTaskExecutor();
-		executor.setThreadNamePrefix("redis-");
+		executor.setThreadNamePrefix("int-");
 		executor.setCorePoolSize(4);
 		executor.setMaxPoolSize(10);
 		executor.setQueueCapacity(4);
@@ -68,9 +62,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		executor.setAwaitTerminationSeconds(60);
 		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
 		executor.initialize();
-		// Add metrics
-		ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), "integration",
-			Tag.of("type", "integration"));
 		return executor;
 	}
 
@@ -78,7 +69,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	 * Scripts executor - for delta and cron script execution.
 	 * Dynamically sized to handle script execution load.
 	 */
-	@Bean(name = "scriptsExecutor")
+	@Bean("scriptsExecutor")
 	public Executor getScriptsExecutor() {
 		logger.debug("Creating Scripts Thread Pool Executor");
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -90,11 +81,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		executor.setWaitForTasksToCompleteOnShutdown(true);
 		executor.setAwaitTerminationSeconds(60);
 		executor.initialize();
-
-		// Add metrics
-		ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), "scripts",
-			Tag.of("type", "script"));
-
 		return executor;
 	}
 
@@ -102,7 +88,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	 * WebSocket executor - for WebSocket message processing.
 	 * Fixed size pool for WebSocket connections.
 	 */
-	@Bean(name = "websocketExecutor")
+	@Bean("websocketExecutor")
 	public Executor getWebsocketExecutor() {
 		logger.debug("Creating WebSocket Thread Pool Executor");
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -114,11 +100,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		executor.setWaitForTasksToCompleteOnShutdown(true);
 		executor.setAwaitTerminationSeconds(60);
 		executor.initialize();
-
-		// Add metrics
-		ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), "websocket",
-			Tag.of("type", "websocket"));
-
 		return executor;
 	}
 
@@ -126,7 +107,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	 * General async executor - for general purpose async operations.
 	 * This is the default executor for @Async methods.
 	 */
-	@Bean(name = "asyncExecutor")
+	@Bean("taskExecutor")
 	@Override
 	public Executor getAsyncExecutor() {
 		logger.debug("Creating General Async Thread Pool Executor");
@@ -139,11 +120,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		executor.setWaitForTasksToCompleteOnShutdown(true);
 		executor.setAwaitTerminationSeconds(60);
 		executor.initialize();
-
-		// Add metrics
-		ExecutorServiceMetrics.monitor(meterRegistry, executor.getThreadPoolExecutor(), "async",
-			Tag.of("type", "async"));
-
 		return executor;
 	}
 
@@ -151,7 +127,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	 * Scheduler executor - for scheduled tasks and cron jobs.
 	 * Single-threaded scheduler with queue for sequential task execution.
 	 */
-	@Bean(name = "taskScheduler")
+	@Bean("taskScheduler")
 	public ThreadPoolTaskScheduler getSchedulerExecutor() {
 		logger.debug("Creating Scheduler Thread Pool");
 		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
@@ -160,11 +136,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 		scheduler.setWaitForTasksToCompleteOnShutdown(true);
 		scheduler.setAwaitTerminationSeconds(60);
 		scheduler.initialize();
-
-		// Add metrics for scheduled thread pool
-		ExecutorServiceMetrics.monitor(meterRegistry, scheduler.getScheduledThreadPoolExecutor(), "scheduler",
-			Tag.of("type", "scheduler"));
-
 		return scheduler;
 	}
 

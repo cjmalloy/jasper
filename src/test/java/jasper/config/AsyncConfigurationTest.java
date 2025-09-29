@@ -1,7 +1,5 @@
 package jasper.config;
 
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
@@ -19,15 +17,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AsyncConfigurationTest {
 
     AsyncConfiguration asyncConfiguration;
-    MeterRegistry meterRegistry;
     TaskExecutionProperties taskExecutionProperties;
     TaskSchedulingProperties taskSchedulingProperties;
 
     @BeforeEach
     void setup() {
-        meterRegistry = new SimpleMeterRegistry();
         asyncConfiguration = new AsyncConfiguration();
-        asyncConfiguration.meterRegistry = meterRegistry;
         taskExecutionProperties = new TaskExecutionProperties();
         taskExecutionProperties.setThreadNamePrefix("async-");
         taskExecutionProperties.getPool().setMaxSize(32);
@@ -90,22 +85,5 @@ class AsyncConfigurationTest {
         // Note: getPoolSize() returns the configured pool size, not the current pool size
         // The scheduler needs to be started for getPoolSize() to return the correct value
         // Since we're testing configuration, we test the thread name prefix instead
-    }
-
-    @Test
-    void shouldRegisterMetricsForAllExecutors() {
-        // Create all executors to register metrics
-        asyncConfiguration.getScriptsExecutor();
-        asyncConfiguration.getWebsocketExecutor();
-        asyncConfiguration.getAsyncExecutor();
-        asyncConfiguration.getSchedulerExecutor();
-
-        // Verify that metrics are registered (simple check for meter existence)
-        assertThat(meterRegistry.getMeters()).isNotEmpty();
-
-        // Should have some executor-related metrics registered
-        boolean hasExecutorMetrics = meterRegistry.getMeters().stream()
-                .anyMatch(meter -> meter.getId().getName().startsWith("executor."));
-        assertThat(hasExecutorMetrics).isTrue();
     }
 }

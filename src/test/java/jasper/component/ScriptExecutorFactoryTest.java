@@ -1,11 +1,8 @@
 package jasper.component;
 
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -18,13 +15,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScriptExecutorFactoryTest {
 
 	private ScriptExecutorFactory factory;
-	private MeterRegistry meterRegistry;
 
 	@BeforeEach
 	void setup() {
-		meterRegistry = new SimpleMeterRegistry();
 		factory = new ScriptExecutorFactory();
-		ReflectionTestUtils.setField(factory, "meterRegistry", meterRegistry);
 	}
 
 	@Test
@@ -150,19 +144,5 @@ class ScriptExecutorFactoryTest {
 		assertThat(deltaStats.activeCount()).isEqualTo(0);
 		assertThat(deltaStats.poolSize()).isEqualTo(0);
 		assertThat(deltaStats.queueSize()).isEqualTo(0);
-	}
-
-	@Test
-	void shouldRegisterMetricsForDynamicExecutors() {
-		factory.get("delta", "testOrigin");
-		factory.get("cron", "testOrigin");
-
-		// Should have executor metrics registered
-		assertThat(meterRegistry.getMeters()).isNotEmpty();
-
-		// Should have some executor-related metrics registered
-		boolean hasExecutorMetrics = meterRegistry.getMeters().stream()
-			.anyMatch(meter -> meter.getId().getName().startsWith("executor."));
-		assertThat(hasExecutorMetrics).isTrue();
 	}
 }
