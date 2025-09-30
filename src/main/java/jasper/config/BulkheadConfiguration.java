@@ -45,6 +45,14 @@ public class BulkheadConfiguration {
 			.build());
 	}
 
+	@Bean
+	public Bulkhead fetchBulkhead() {
+		return Bulkhead.of("global-fetch", BulkheadConfig.custom()
+			.maxConcurrentCalls(configs.root().getMaxConcurrentFetch())
+			.maxWaitDuration(ofSeconds(30))
+			.build());
+	}
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<Template> templateMessage) {
 		var template = templateMessage.getPayload();
@@ -53,6 +61,7 @@ public class BulkheadConfiguration {
 			updateBulkheadConfig(httpBulkhead(), configs.root().getMaxConcurrentRequests());
 			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts());
 			updateBulkheadConfig(replBulkhead(), configs.root().getMaxConcurrentReplication());
+			updateBulkheadConfig(fetchBulkhead(), configs.root().getMaxConcurrentFetch());
 		}
 	}
 
