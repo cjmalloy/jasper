@@ -42,7 +42,8 @@ ALWAYS run the bootstrapping steps first.
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
-- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling`
+- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling` -- takes 15 minutes. NEVER CANCEL. Set timeout to 180+ seconds.
+- Override the docker CMD to run a single test suite
 
 **GitHub Actions Integration:**
 - Build workflow: `.github/workflows/test.yml` runs full Docker build and test suite
