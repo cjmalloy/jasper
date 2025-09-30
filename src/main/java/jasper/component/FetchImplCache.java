@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ public class FetchImplCache implements Fetch {
 	@Autowired
 	Replicator replicator;
 
+	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) {
 		var remote = configs.getRemote(origin);
 		if (remote == null || hasMatchingTag(remote, "+plugin/error")) return null;

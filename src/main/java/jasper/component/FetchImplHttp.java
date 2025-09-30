@@ -1,7 +1,6 @@
 package jasper.component;
 
-import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadFullException;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jasper.errors.NotFoundException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.security.HostCheck;
@@ -40,9 +39,7 @@ public class FetchImplHttp implements Fetch {
 	@Autowired
 	Replicator replicator;
 
-	@Autowired
-	Bulkhead fetchBulkhead;
-
+	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) throws IOException {
 		var remote = configs.getRemote(origin);
 		var pull = getPull(remote);
@@ -55,15 +52,7 @@ public class FetchImplHttp implements Fetch {
 			return replicator.fetch(url, remote);
 		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
-			try {
-				return fetchBulkhead.executeCheckedSupplier(() -> wrap(doWebScrape(url)));
-			} catch (BulkheadFullException e) {
-				logger.warn("{} Fetch bulkhead full for {}", origin, url);
-				return null;
-			} catch (Throwable e) {
-				if (e instanceof IOException i) throw i;
-				throw (RuntimeException) e;
-			}
+			return wrap(doWebScrape(url));
 		}
 		throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
 	}
