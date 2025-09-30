@@ -64,17 +64,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	}
 
 	private Bulkhead createGlobalBulkhead() {
-		var maxConcurrent = configs.root().getMaxConcurrentRequests();
-		// Check environment variable override
-		var env = System.getenv("JASPER_MAX_CONCURRENT_REQUESTS");
-		if (env != null && !env.isEmpty()) {
-			try {
-				maxConcurrent = Integer.parseInt(env);
-			} catch (NumberFormatException e) {
-				logger.warn("Invalid JASPER_MAX_CONCURRENT_REQUESTS value: {}", env);
-			}
-		}
-
+		var maxConcurrent = getMaxConcurrentRequests();
 		logger.info("Creating global HTTP request bulkhead with {} permits", maxConcurrent);
 
 		var bulkheadConfig = BulkheadConfig.custom()
@@ -85,15 +75,38 @@ public class RateLimitConfig implements WebMvcConfigurer {
 		return Bulkhead.of("http-global", bulkheadConfig);
 	}
 
+	private int getMaxConcurrentRequests() {
+		var maxConcurrent = configs.root().getMaxConcurrentRequests();
+		// Check environment variable override
+		var env = System.getenv("JASPER_MAX_CONCURRENT_REQUESTS");
+		if (env != null && !env.isEmpty()) {
+			try {
+				maxConcurrent = Integer.parseInt(env);
+			} catch (NumberFormatException e) {
+				logger.warn("Invalid JASPER_MAX_CONCURRENT_REQUESTS value: {}", env);
+			}
+		}
+		return maxConcurrent;
+	}
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		// Check if this is a server config update
 		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			logger.info("Server config updated, recreating global bulkhead");
-			synchronized (this) {
-				globalBulkhead = createGlobalBulkhead();
-			}
+			logger.info("Server config updated, updating global bulkhead configuration");
+			var bulkhead = getGlobalBulkhead();
+			
+			// Update configuration dynamically using changeConfig
+			var newMaxConcurrent = getMaxConcurrentRequests();
+			var newConfig = BulkheadConfig.custom()
+				.maxConcurrentCalls(newMaxConcurrent)
+				.maxWaitDuration(Duration.ofMillis(0))
+				.build();
+			
+			bulkhead.changeConfig(newConfig);
+			logger.info("Updated global bulkhead to {} permits", newMaxConcurrent);
+			
 			// Clear origin rate limiters to pick up new config
 			originRateLimiters.clear();
 		}
