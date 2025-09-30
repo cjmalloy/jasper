@@ -166,8 +166,8 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Review Specific Item")
 				.get("/api/v1/ref")
-				.queryParam("url", "https://example.com/article-#{randomInt(1,100)}")
-				.check(status().in(200, 404))
+				.queryParam("url", "#{researchUrl}")
+				.check(status().is(200))
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Look for untagged content to organize
@@ -180,32 +180,29 @@ public class UserJourneySimulation extends Simulation {
 		)
 		.pause(Duration.ofSeconds(2, 4))
 		// Fetch a ref to update (to get its cursor/modified timestamp)
-		.exec(session -> session.set("updateUrl", "https://example.com/article-" + (1 + new java.util.Random().nextInt(50))))
 		.exec(
 			http("Fetch Ref for Update")
 				.get("/api/v1/ref")
-				.queryParam("url", "#{updateUrl}")
-				.check(status().in(200, 404))
+				.queryParam("url", "#{researchUrl}")
+				.check(status().is(200))
 				.check(
-					jsonPath("$.modified").optional().saveAs("refModified")
+					jsonPath("$.modified").saveAs("refModified")
 				)
 		)
 		.pause(Duration.ofMillis(500))
-		// Update a reference with additional tags (using merge-patch) - only if ref exists
-		.doIf(session -> session.contains("refModified")).then(
-			exec(
-				http("Update Reference Tags")
-					.patch("/api/v1/ref")
-					.queryParam("url", "#{updateUrl}")
-					.queryParam("cursor", "#{refModified}")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
-					.header("Content-Type", "application/merge-patch+json")
-					.body(StringBody("""
-						{
-							"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
-						}"""))
-					.check(status().is(200))
-			)
+		// Update a reference with additional tags (using merge-patch)
+		.exec(
+			http("Update Reference Tags")
+				.patch("/api/v1/ref")
+				.queryParam("url", "#{researchUrl}")
+				.queryParam("cursor", "#{refModified}")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("Content-Type", "application/merge-patch+json")
+				.body(StringBody("""
+					{
+						"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
+					}"""))
+				.check(status().is(200))
 		);
 
 	// ====================== Content Curation Journey ======================
@@ -306,7 +303,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Check User Profile")
 				.get("/api/v1/user/whoami")
-				.check(status().in(200, 404))
+				.check(status().is(200))
 		)
 		.pause(Duration.ofSeconds(1))
 		// Look for shared content

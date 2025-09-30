@@ -187,12 +187,12 @@ public class StressTestSimulation extends Simulation {
 					"includeUsers": false,
 					"maxItems": 1000
 				}"""))
-			.check(status().in(201, 403))
+			.check(status().is(201))
 	).pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
 	.exec(
 		http("List Backups")
 			.get("/api/v1/backup")
-			.check(status().in(200, 403))
+			.check(status().is(200))
 	);
 
 	// ====================== System Administration ======================
@@ -200,13 +200,13 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder testAdminOperations = exec(
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
-			.check(status().in(200, 403, 404))
+			.check(status().is(200))
 	).pause(Duration.ofMillis(200), Duration.ofMillis(500))
 	.exec(
 		http("Browse All Users")
 			.get("/api/v1/user/page")
 			.queryParam("size", "50")
-			.check(status().in(200, 403))
+			.check(status().is(200))
 	);
 
 	// ====================== Content Enrichment Stress ======================
@@ -229,35 +229,48 @@ public class StressTestSimulation extends Simulation {
 					"selector": "body",
 					"timeout": 5000
 				}"""))
-			.check(status().in(200, 400, 403, 408))
+			.check(status().in(200, 400, 408))
 	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
 
 	// ====================== Concurrent Update Stress ======================
 
 	ChainBuilder concurrentUpdates = 
 		exec(session -> session.set("stressUpdateUrl", "https://stress-test.example.com/shared-" + (1 + new java.util.Random().nextInt(10))))
+		// First create the ref if it doesn't exist
+		.exec(
+			http("Create Shared Ref for Concurrent Update")
+				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"url": "#{stressUpdateUrl}",
+						"title": "Shared Stress Test Reference",
+						"comment": "Ref for testing concurrent updates",
+						"tags": ["stresstest", "shared", "concurrent"]
+					}"""))
+				.check(status().in(201, 409)) // 201 if new, 409 if already exists
+		)
+		.pause(Duration.ofMillis(100))
 		.exec(
 			http("Fetch Ref for Concurrent Update")
 				.get("/api/v1/ref")
 				.queryParam("url", "#{stressUpdateUrl}")
-				.check(status().in(200, 404))
-				.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
+				.check(status().is(200))
+				.check(jsonPath("$.modified").saveAs("stressRefModified"))
 		)
-		.doIf(session -> session.contains("stressRefModified")).then(
-			exec(
-				http("Concurrent Update Attempt")
-					.patch("/api/v1/ref")
-					.queryParam("url", "#{stressUpdateUrl}")
-					.queryParam("cursor", "#{stressRefModified}")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
-					.header("Content-Type", "application/merge-patch+json")
-					.body(StringBody("""
-						{
-							"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
-							"comment": "Updated during stress test at #{randomLong()}"
-						}"""))
-					.check(status().in(200, 409))
-			)
+		.exec(
+			http("Concurrent Update Attempt")
+				.patch("/api/v1/ref")
+				.queryParam("url", "#{stressUpdateUrl}")
+				.queryParam("cursor", "#{stressRefModified}")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("Content-Type", "application/merge-patch+json")
+				.body(StringBody("""
+					{
+						"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
+						"comment": "Updated during stress test at #{randomLong()}"
+					}"""))
+				.check(status().in(200, 409))
 		).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	// ====================== Graph Operations Stress ======================

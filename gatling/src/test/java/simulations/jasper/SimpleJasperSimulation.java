@@ -45,32 +45,35 @@ public class SimpleJasperSimulation extends Simulation {
 			.check(jsonPath("$.content").exists())
 	).pause(Duration.ofSeconds(1));
 
-	ChainBuilder createWebReference = exec(
-		http("Create Web Reference")
-			.post("/api/v1/ref")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"url": "https://example.com/test-#{randomInt(1,1000)}",
-					"title": "Test Article #{randomInt(1,1000)}",
-					"comment": "This is a test reference for smoke testing",
-					"tags": ["test", "smoketest", "example"]
-				}"""))
-			.check(status().is(201))
-			.check(jsonPath("$").saveAs("createdRefTimestamp"))
-	).pause(Duration.ofMillis(500))
-	.exec(
-		http("Verify Created Reference")
-			.get("/api/v1/ref")
-			.queryParam("url", "https://example.com/test-#{randomInt(1,1000)}")
-			.check(status().in(200, 404)) // May not find exact URL due to randomization
-	).pause(Duration.ofMillis(500));
+	ChainBuilder createWebReference = 
+		exec(session -> session.set("testUrl", "https://example.com/test-" + (1 + new java.util.Random().nextInt(1000))))
+		.exec(
+			http("Create Web Reference")
+				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"url": "#{testUrl}",
+						"title": "Test Article #{randomInt(1,1000)}",
+						"comment": "This is a test reference for smoke testing",
+						"tags": ["test", "smoketest", "example"]
+					}"""))
+				.check(status().is(201))
+				.check(jsonPath("$").saveAs("createdRefTimestamp"))
+		)
+		.pause(Duration.ofMillis(500))
+		.exec(
+			http("Verify Created Reference")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{testUrl}")
+				.check(status().is(200))
+		).pause(Duration.ofMillis(500));
 
 	ChainBuilder getSpecificRef = exec(
 		http("Get Specific Reference")
 			.get("/api/v1/ref")
-			.queryParam("url", "https://example.com/test-#{randomInt(1,100)}")
-			.check(status().in(200, 404))
+			.queryParam("url", "#{testUrl}")
+			.check(status().is(200))
 	).pause(Duration.ofMillis(500));
 
 	ChainBuilder searchRefs = exec(
@@ -132,7 +135,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder getUserInfo = exec(
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
-			.check(status().in(200, 404))
+			.check(status().is(200))
 	).pause(Duration.ofMillis(400));
 
 	ChainBuilder browseUsers = exec(
