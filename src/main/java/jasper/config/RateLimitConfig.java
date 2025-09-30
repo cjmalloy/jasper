@@ -1,14 +1,13 @@
 package jasper.config;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
+import jasper.domain.Template;
 import jasper.security.Auth;
-import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +33,10 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	@Autowired
 	Auth auth;
 
+	@Autowired
+	Bulkhead globalHttpBulkhead;
+
 	private final ConcurrentHashMap<String, RateLimiter> originRateLimiters = new ConcurrentHashMap<>();
-	private volatile Bulkhead globalBulkhead;
 
 	private RateLimiter getOriginRateLimiter(String origin) {
 		return originRateLimiters.computeIfAbsent(origin, k -> {
@@ -52,61 +53,12 @@ public class RateLimitConfig implements WebMvcConfigurer {
 		});
 	}
 
-	private Bulkhead getGlobalBulkhead() {
-		if (globalBulkhead == null) {
-			synchronized (this) {
-				if (globalBulkhead == null) {
-					globalBulkhead = createGlobalBulkhead();
-				}
-			}
-		}
-		return globalBulkhead;
-	}
-
-	private Bulkhead createGlobalBulkhead() {
-		var maxConcurrent = getMaxConcurrentRequests();
-		logger.info("Creating global HTTP request bulkhead with {} permits", maxConcurrent);
-
-		var bulkheadConfig = BulkheadConfig.custom()
-			.maxConcurrentCalls(maxConcurrent)
-			.maxWaitDuration(Duration.ofMillis(0)) // Don't wait, fail fast
-			.build();
-
-		return Bulkhead.of("http-global", bulkheadConfig);
-	}
-
-	private int getMaxConcurrentRequests() {
-		var maxConcurrent = configs.root().getMaxConcurrentRequests();
-		// Check environment variable override
-		var env = System.getenv("JASPER_MAX_CONCURRENT_REQUESTS");
-		if (env != null && !env.isEmpty()) {
-			try {
-				maxConcurrent = Integer.parseInt(env);
-			} catch (NumberFormatException e) {
-				logger.warn("Invalid JASPER_MAX_CONCURRENT_REQUESTS value: {}", env);
-			}
-		}
-		return maxConcurrent;
-	}
-
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		// Check if this is a server config update
 		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			logger.info("Server config updated, updating global bulkhead configuration");
-			var bulkhead = getGlobalBulkhead();
-			
-			// Update configuration dynamically using changeConfig
-			var newMaxConcurrent = getMaxConcurrentRequests();
-			var newConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(newMaxConcurrent)
-				.maxWaitDuration(Duration.ofMillis(0))
-				.build();
-			
-			bulkhead.changeConfig(newConfig);
-			logger.info("Updated global bulkhead to {} permits", newMaxConcurrent);
-			
+			logger.debug("Server config updated, clearing per-origin rate limiters");
 			// Clear origin rate limiters to pick up new config
 			originRateLimiters.clear();
 		}
@@ -120,7 +72,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 				var origin = auth.getOrigin();
 
 				// Try global bulkhead first
-				var bulkhead = getGlobalBulkhead();
+				var bulkhead = globalHttpBulkhead;
 				if (!bulkhead.tryAcquirePermission()) {
 					logger.warn("Global HTTP rate limit exceeded for request: {}", request.getRequestURI());
 					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503

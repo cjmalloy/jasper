@@ -1,7 +1,6 @@
 package jasper.component.delta;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadConfig;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptRunner;
@@ -13,12 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import static jasper.domain.proj.Tag.matchesTag;
-import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("scripts")
@@ -38,71 +34,13 @@ public class DeltaScript implements Async.AsyncRunner {
 	@Autowired
 	Tagger tagger;
 
-	private volatile Bulkhead globalScriptBulkhead;
-
-	private Bulkhead getGlobalScriptBulkhead() {
-		if (globalScriptBulkhead == null) {
-			synchronized (this) {
-				if (globalScriptBulkhead == null) {
-					globalScriptBulkhead = createGlobalScriptBulkhead();
-				}
-			}
-		}
-		return globalScriptBulkhead;
-	}
-
-	private Bulkhead createGlobalScriptBulkhead() {
-		var maxConcurrent = getMaxConcurrentScripts();
-		logger.info("Creating global script execution bulkhead with {} permits", maxConcurrent);
-		
-		var bulkheadConfig = BulkheadConfig.custom()
-			.maxConcurrentCalls(maxConcurrent)
-			.maxWaitDuration(ofSeconds(60))
-			.build();
-		
-		return Bulkhead.of("global-script-execution", bulkheadConfig);
-	}
-
-	private int getMaxConcurrentScripts() {
-		var maxConcurrent = configs.root().getMaxConcurrentScripts();
-		// Check environment variable override
-		var env = System.getenv("JASPER_MAX_CONCURRENT_SCRIPTS");
-		if (env != null && !env.isEmpty()) {
-			try {
-				maxConcurrent = Integer.parseInt(env);
-			} catch (NumberFormatException e) {
-				logger.warn("Invalid JASPER_MAX_CONCURRENT_SCRIPTS value: {}", env);
-			}
-		}
-		return maxConcurrent;
-	}
-
-	public void updateBulkheadConfig() {
-		if (globalScriptBulkhead != null) {
-			var newMaxConcurrent = getMaxConcurrentScripts();
-			var newConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(newMaxConcurrent)
-				.maxWaitDuration(ofSeconds(60))
-				.build();
-			
-			globalScriptBulkhead.changeConfig(newConfig);
-			logger.info("Updated global script bulkhead to {} permits", newMaxConcurrent);
-		}
-	}
+	@Autowired
+	Bulkhead globalScriptBulkhead;
 
 	@PostConstruct
 	void init() {
 		async.addAsyncTag("plugin/delta", this);
 		async.addAsyncTag("_plugin/delta", this);
-	}
-
-	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<jasper.service.dto.TemplateDto> message) {
-		var template = message.getPayload();
-		// Check if this is a server config update
-		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			updateBulkheadConfig();
-		}
 	}
 
 	@Override
@@ -115,7 +53,7 @@ public class DeltaScript implements Async.AsyncRunner {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
 		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
-		getGlobalScriptBulkhead().executeSupplier(() -> {
+		globalScriptBulkhead.executeSupplier(() -> {
 			try {
 				logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 				var found = false;

@@ -1,7 +1,6 @@
 package jasper.component.cron;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadConfig;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -13,8 +12,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +26,6 @@ import java.util.concurrent.ScheduledFuture;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
-import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
@@ -54,70 +50,13 @@ public class Cron {
 	@Autowired
 	Watch watch;
 
+	@Autowired
+	Bulkhead globalCronScriptBulkhead;
+
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
-
-	private volatile Bulkhead globalCronScriptBulkhead;
-
-	private Bulkhead getGlobalCronScriptBulkhead() {
-		if (globalCronScriptBulkhead == null) {
-			synchronized (this) {
-				if (globalCronScriptBulkhead == null) {
-					globalCronScriptBulkhead = createGlobalCronScriptBulkhead();
-				}
-			}
-		}
-		return globalCronScriptBulkhead;
-	}
-
-	private Bulkhead createGlobalCronScriptBulkhead() {
-		var maxConcurrent = getMaxConcurrentCronScripts();
-		logger.info("Creating global cron script execution bulkhead with {} permits", maxConcurrent);
-		
-		var bulkheadConfig = BulkheadConfig.custom()
-			.maxConcurrentCalls(maxConcurrent)
-			.maxWaitDuration(ofSeconds(60))
-			.build();
-		
-		return Bulkhead.of("global-cron-execution", bulkheadConfig);
-	}
-
-	private int getMaxConcurrentCronScripts() {
-		var maxConcurrent = configs.root().getMaxConcurrentScripts();
-		// Check environment variable override
-		var env = System.getenv("JASPER_MAX_CONCURRENT_CRON_SCRIPTS");
-		if (env != null && !env.isEmpty()) {
-			try {
-				maxConcurrent = Integer.parseInt(env);
-			} catch (NumberFormatException e) {
-				logger.warn("Invalid JASPER_MAX_CONCURRENT_CRON_SCRIPTS value: {}", env);
-			}
-		}
-		return maxConcurrent;
-	}
-
-	public void updateBulkheadConfig() {
-		if (globalCronScriptBulkhead != null) {
-			var newMaxConcurrent = getMaxConcurrentCronScripts();
-			var newConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(newMaxConcurrent)
-				.maxWaitDuration(ofSeconds(60))
-				.build();
-			
-			globalCronScriptBulkhead.changeConfig(newConfig);
-			logger.info("Updated global cron script bulkhead to {} permits", newMaxConcurrent);
-		}
-	}
-
-	/**
-	 * Register a runner for a tag.
-	 */
-	public void addCronTag(String plugin, CronRunner r) {
-		if (!configs.root().script(plugin)) return;
-		tags.put(plugin, r);
-	}
 
 	@PostConstruct
 	public void init() {
@@ -129,13 +68,12 @@ public class Cron {
 		}
 	}
 
-	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<jasper.service.dto.TemplateDto> message) {
-		var template = message.getPayload();
-		// Check if this is a server config update
-		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			updateBulkheadConfig();
-		}
+	/**
+	 * Register a runner for a tag.
+	 */
+	public void addCronTag(String plugin, CronRunner r) {
+		if (!configs.root().script(plugin)) return;
+		tags.put(plugin, r);
 	}
 
 	private void schedule(HasTags ref) {
@@ -207,7 +145,7 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						getGlobalCronScriptBulkhead().executeSupplier(() -> {
+						globalCronScriptBulkhead.executeSupplier(() -> {
 							try {
 								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 								ran.add(v);
@@ -276,7 +214,7 @@ public class Cron {
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			runAsync(() -> {
-				getGlobalCronScriptBulkhead().executeSupplier(() -> {
+				globalCronScriptBulkhead.executeSupplier(() -> {
 					try {
 						v.run(ref);
 						ran.add(v);
