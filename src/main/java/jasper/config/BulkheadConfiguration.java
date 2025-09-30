@@ -2,6 +2,7 @@ package jasper.config;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.component.ConfigCache;
 import jasper.domain.Template;
 import org.slf4j.Logger;
@@ -21,9 +22,12 @@ public class BulkheadConfiguration {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	BulkheadRegistry registry;
+
 	@Bean
 	public Bulkhead httpBulkhead() {
-		return Bulkhead.of("http-global", BulkheadConfig.custom()
+		return registry.bulkhead("http", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentRequests())
 			.maxWaitDuration(ofSeconds(0))
 			.build());
@@ -31,7 +35,7 @@ public class BulkheadConfiguration {
 
 	@Bean
 	public Bulkhead scriptBulkhead() {
-		return Bulkhead.of("global-script-execution", BulkheadConfig.custom()
+		return registry.bulkhead("script", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentScripts())
 			.maxWaitDuration(ofSeconds(60))
 			.build());
@@ -39,7 +43,7 @@ public class BulkheadConfiguration {
 
 	@Bean
 	public Bulkhead replBulkhead() {
-		return Bulkhead.of("global-replication", BulkheadConfig.custom()
+		return registry.bulkhead("repl", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentReplication())
 			.maxWaitDuration(ofSeconds(30))
 			.build());
@@ -47,7 +51,7 @@ public class BulkheadConfiguration {
 
 	@Bean
 	public Bulkhead fetchBulkhead() {
-		return Bulkhead.of("global-fetch", BulkheadConfig.custom()
+		return registry.bulkhead("fetch", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentFetch())
 			.maxWaitDuration(ofSeconds(30))
 			.build());
