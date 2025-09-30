@@ -179,25 +179,25 @@ public class UserJourneySimulation extends Simulation {
 		// Create a ref to review if researchUrl not already set
 		.doIf(session -> !session.contains("researchUrl")).then(
 			feed(topicFeeder)
-			.exec(session -> {
-				String url = "https://dailyreview.example.com/item-" + System.currentTimeMillis();
-				return session.set("researchUrl", url);
-			})
-			.exec(
-				http("Create Review Item")
-					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
-					.body(StringBody("""
+				.exec(session -> {
+					String url = "https://dailyreview.example.com/item-" + System.currentTimeMillis();
+					return session.set("researchUrl", url);
+				})
+				.exec(
+					http("Create Review Item")
+						.post("/api/v1/ref")
+						.header("X-XSRF-TOKEN", "#{csrfToken}")
+						.body(StringBody("""
 						{
 							"url": "#{researchUrl}",
 							"title": "Daily Review Item #{randomInt(1,1000)}",
 							"comment": "Item for daily review",
 							"tags": ["review", "#{topic}"]
 						}"""))
-					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			)
-			.pause(Duration.ofMillis(200))
+						.check(status().in(201, 409))
+						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+				)
+				.pause(Duration.ofMillis(200))
 		)
 		// Review specific items
 		.exec(
@@ -502,13 +502,13 @@ public class UserJourneySimulation extends Simulation {
 				constantUsersPerSec(12).during(Duration.ofMinutes(4))
 			)
 		).protocols(httpProtocol)
-		.maxDuration(Duration.ofMinutes(5))
-		.assertions(
-			global().responseTime().max().lt(8000),
-			global().responseTime().mean().lt(2000),
-			global().successfulRequests().percent().gt(75.0),
-			details("Research Session").responseTime().percentile3().lt(4000),
-			details("Daily Review").responseTime().percentile3().lt(3000)
-		);
+			.maxDuration(Duration.ofMinutes(5))
+			.assertions(
+				global().responseTime().max().lt(8000),
+				global().responseTime().mean().lt(2000),
+				global().successfulRequests().percent().gt(75.0),
+				details("Research Session").responseTime().percentile3().lt(4000),
+				details("Daily Review").responseTime().percentile3().lt(3000)
+			);
 	}
 }
