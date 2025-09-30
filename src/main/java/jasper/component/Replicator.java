@@ -2,6 +2,9 @@ package jasper.component;
 
 import feign.FeignException;
 import feign.RetryableException;
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
@@ -32,8 +35,6 @@ import org.springframework.stereotype.Component;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.io.InputStream;
-import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadConfig;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,12 +118,12 @@ public class Replicator {
 		return originReplicationBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentReplicationPerOrigin();
 			logger.debug("{} Creating replication bulkhead with {} permits", origin, maxConcurrent);
-			
+
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
 				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
 				.build();
-			
+
 			return Bulkhead.of("replication-" + origin, bulkheadConfig);
 		});
 	}
@@ -186,9 +187,9 @@ public class Replicator {
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		
+
 		var bulkhead = getOriginReplicationBulkhead(remote.getOrigin());
-		
+
 		try {
 			bulkhead.executeSupplier(() -> {
 				var pull = getPull(remote);
@@ -401,7 +402,7 @@ public class Replicator {
 				});
 				return null;
 			});
-		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+		} catch (BulkheadFullException e) {
 			logger.warn("{} Replication pull rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getOrigin(), remote, "Replication pull rate limit exceeded", "Too many concurrent replication operations");
 		}
@@ -411,9 +412,9 @@ public class Replicator {
 	public void push(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		
+
 		var bulkhead = getOriginReplicationBulkhead(remote.getOrigin());
-		
+
 		try {
 			bulkhead.executeSupplier(() -> {
 				var push = getPush(remote);
@@ -550,7 +551,7 @@ public class Replicator {
 				});
 				return null;
 			});
-		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+		} catch (BulkheadFullException e) {
 			logger.warn("{} Replication push rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
 			tagger.attachError(remote.getOrigin(), remote, "Replication push rate limit exceeded", "Too many concurrent replication operations");
 		}

@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptRunner;
@@ -45,12 +46,12 @@ public class DeltaScript implements Async.AsyncRunner {
 		return originScriptBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentScriptsPerOrigin();
 			logger.debug("{} Creating script execution bulkhead with {} permits", origin, maxConcurrent);
-			
+
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
 				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
 				.build();
-			
+
 			return Bulkhead.of("script-" + origin, bulkheadConfig);
 		});
 	}
@@ -71,9 +72,9 @@ public class DeltaScript implements Async.AsyncRunner {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
 		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
-		
+
 		var bulkhead = getOriginScriptBulkhead(ref.getOrigin());
-		
+
 		// Try to execute within bulkhead limits
 		try {
 			bulkhead.executeSupplier(() -> {
@@ -104,7 +105,7 @@ public class DeltaScript implements Async.AsyncRunner {
 					throw new RuntimeException(e);
 				}
 			});
-		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+		} catch (BulkheadFullException e) {
 			logger.warn("{} Script execution rate limit exceeded for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			tagger.attachError(ref.getOrigin(), ref, "Script execution rate limit exceeded", "Too many concurrent scripts running");
 		}

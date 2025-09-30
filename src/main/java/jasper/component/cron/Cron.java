@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -63,12 +64,12 @@ public class Cron {
 		return originCronScriptBulkheads.computeIfAbsent(origin, k -> {
 			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
 			logger.debug("{} Creating cron script execution bulkhead with {} permits", origin, maxConcurrent);
-			
+
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
 				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
 				.build();
-			
+
 			return Bulkhead.of("cron-" + origin, bulkheadConfig);
 		});
 	}
@@ -161,7 +162,7 @@ public class Cron {
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						var bulkhead = getOriginCronScriptBulkhead(origin);
-						
+
 						try {
 							bulkhead.executeSupplier(() -> {
 								try {
@@ -175,7 +176,7 @@ public class Cron {
 									throw new RuntimeException(e);
 								}
 							});
-						} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
+						} catch (BulkheadFullException e) {
 							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
 							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
 						} finally {
@@ -229,18 +230,18 @@ public class Cron {
 			// Skip scheduled run since we are running manually
 			return;
 		}
-		
+
 		var bulkhead = getOriginCronScriptBulkhead(origin);
-		
-		try {
-			bulkhead.executeSupplier(() -> {
-				var ran = new HashSet<CronRunner>();
-				tags.forEach((k, v) -> {
-					if (ran.contains(v)) return;
-					if (!hasMatchingTag(ref, k)) return;
-					if (!configs.root().script(k, origin)) return;
-					logger.debug("{} Cron Tag: {} {}", origin, k, url);
-					runAsync(() -> {
+
+		var ran = new HashSet<CronRunner>();
+		tags.forEach((k, v) -> {
+			if (ran.contains(v)) return;
+			if (!hasMatchingTag(ref, k)) return;
+			if (!configs.root().script(k, origin)) return;
+			logger.debug("{} Cron Tag: {} {}", origin, k, url);
+			runAsync(() -> {
+				try {
+					bulkhead.executeSupplier(() -> {
 						try {
 							v.run(ref);
 							ran.add(v);
@@ -248,18 +249,18 @@ public class Cron {
 							logger.error("{} Error in cron tag {} ", origin, k);
 							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
 						}
-					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-						logger.warn("{} Rate limited {} ", origin, k);
-						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
 						return null;
 					});
-				});
+				} catch (BulkheadFullException e) {
+					logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
+					tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
+				}
+			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+				logger.warn("{} Rate limited {} ", origin, k);
+				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
 				return null;
 			});
-		} catch (io.github.resilience4j.bulkhead.BulkheadFullException e) {
-			logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
-			tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
-		}
+		});
 	}
 
 	public interface CronRunner {
