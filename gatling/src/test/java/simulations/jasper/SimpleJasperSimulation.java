@@ -32,6 +32,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/ref/page")
 			.queryParam("size", "1")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
 	);
 
@@ -42,6 +43,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/ref/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(jsonPath("$.content").exists())
 	).pause(Duration.ofSeconds(1));
 
@@ -59,6 +61,7 @@ public class SimpleJasperSimulation extends Simulation {
 						"tags": ["test", "smoketest", "example"]
 					}"""))
 				.check(status().is(201))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$").saveAs("createdRefTimestamp"))
 		)
 		.pause(Duration.ofMillis(500))
@@ -67,6 +70,7 @@ public class SimpleJasperSimulation extends Simulation {
 				.get("/api/v1/ref")
 				.queryParam("url", "#{testUrl}")
 				.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		).pause(Duration.ofMillis(500));
 
 	ChainBuilder getSpecificRef = exec(
@@ -74,6 +78,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/ref")
 			.queryParam("url", "#{testUrl}")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	ChainBuilder searchRefs = exec(
@@ -82,6 +87,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.queryParam("query", "test")
 			.queryParam("size", "5")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(800));
 
 	ChainBuilder countRefs = exec(
@@ -89,6 +95,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/ref/count")
 			.queryParam("query", "smoketest")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== Extension Operations ======================
@@ -98,6 +105,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/ext/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(600));
 
 	ChainBuilder createTestExtension = exec(
@@ -109,7 +117,8 @@ public class SimpleJasperSimulation extends Simulation {
 					"tag": "+ext/smoketest.#{randomInt(1,100)}",
 					"name": "Smoke Test Extension #{randomInt(1,100)}"
 				}"""))
-			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
+			.check(status().in(201, 409))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(700));
 
 	// ====================== Plugin Operations ======================
@@ -119,6 +128,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/plugin/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== Template Operations ======================
@@ -128,6 +138,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/template/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== User Operations ======================
@@ -136,6 +147,7 @@ public class SimpleJasperSimulation extends Simulation {
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(400));
 
 	ChainBuilder browseUsers = exec(
@@ -143,6 +155,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.get("/api/v1/user/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== System Health ======================
@@ -151,6 +164,7 @@ public class SimpleJasperSimulation extends Simulation {
 		http("Check Origin System")
 			.get("/api/v1/origin")
 			.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Scenarios ======================
