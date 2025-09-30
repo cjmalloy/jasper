@@ -27,11 +27,22 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		.contentTypeHeader("application/json")
 		.userAgentHeader("Gatling Load Test - Comprehensive");
 
+	// ====================== CSRF Token Setup ======================
+
+	ChainBuilder fetchCsrfToken = exec(
+		http("Fetch CSRF Token")
+			.get("/api/v1/ref/page")
+			.queryParam("size", "1")
+			.check(status().is(200))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
+	);
+
 	// ====================== Reference Operations ======================
 
 	ChainBuilder createWebReference = exec(
 		http("Create Web Reference")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "https://example.com/article-#{randomInt(1,1000)}",
@@ -46,6 +57,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createBookReference = exec(
 		http("Create Book Reference")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "isbn:978-#{randomInt(100000000,999999999)}#{randomInt(0,9)}",
@@ -59,6 +71,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createComment = exec(
 		http("Create Comment Reference")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "comment:#{randomUuid()}",
@@ -109,6 +122,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createPlugin = exec(
 		http("Create Plugin Extension")
 			.post("/api/v1/ext")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"tag": "+plugin/test.#{randomInt(1,50)}",
@@ -134,6 +148,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createPluginConfig = exec(
 		http("Create Plugin Configuration")
 			.post("/api/v1/plugin")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"tag": "+plugin/custom.#{randomInt(1,30)}",
@@ -159,6 +174,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createTemplate = exec(
 		http("Create Template")
 			.post("/api/v1/template")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"tag": "_template/article.#{randomInt(1,20)}",
@@ -197,6 +213,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder createUser = exec(
 		http("Create User")
 			.post("/api/v1/user")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"tag": "+user/testuser#{randomInt(1,100)}",
@@ -248,6 +265,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Knowledge Worker: Creates and organizes content
 	ScenarioBuilder knowledgeWorker = scenario("Knowledge Worker")
+		.exec(fetchCsrfToken)
 		.exec(createWebReference)
 		.pause(Duration.ofSeconds(2))
 		.exec(createBookReference)
@@ -262,6 +280,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Content Browser: Searches and views existing content
 	ScenarioBuilder contentBrowser = scenario("Content Browser")
+		.exec(fetchCsrfToken)
 		.exec(browseRecentRefs)
 		.pause(Duration.ofSeconds(1))
 		.exec(searchByKeyword)
@@ -276,6 +295,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Administrator: Manages system configuration
 	ScenarioBuilder administrator = scenario("Administrator")
+		.exec(fetchCsrfToken)
 		.exec(createPluginConfig)
 		.pause(Duration.ofSeconds(2))
 		.exec(getPluginConfig)
@@ -290,6 +310,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Heavy Reader: Intensive content consumption
 	ScenarioBuilder heavyReader = scenario("Heavy Reader")
+		.exec(fetchCsrfToken)
 		.repeat(3).on(
 			exec(browseRecentRefs)
 				.pause(Duration.ofMillis(500))
@@ -302,6 +323,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Power User: Mixed operations including content enrichment
 	ScenarioBuilder powerUser = scenario("Power User")
+		.exec(fetchCsrfToken)
 		.exec(createPlugin)
 		.pause(Duration.ofSeconds(1))
 		.exec(createWebReference)

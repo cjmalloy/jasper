@@ -25,6 +25,16 @@ public class SimpleJasperSimulation extends Simulation {
 		.userAgentHeader("Gatling Smoke Test")
 		.check(status().not(500));
 
+	// ====================== CSRF Token Setup ======================
+
+	ChainBuilder fetchCsrfToken = exec(
+		http("Fetch CSRF Token")
+			.get("/api/v1/ref/page")
+			.queryParam("size", "1")
+			.check(status().is(200))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
+	);
+
 	// ====================== Basic Operations ======================
 
 	ChainBuilder getAllRefs = exec(
@@ -38,6 +48,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder createWebReference = exec(
 		http("Create Web Reference")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "https://example.com/test-#{randomInt(1,1000)}",
@@ -89,6 +100,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder createTestExtension = exec(
 		http("Create Test Extension")
 			.post("/api/v1/ext")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"tag": "+ext/smoketest.#{randomInt(1,100)}",
@@ -141,6 +153,7 @@ public class SimpleJasperSimulation extends Simulation {
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder basicFunctionality = scenario("Basic Functionality Test")
+		.exec(fetchCsrfToken)
 		.exec(getAllRefs)
 		.exec(createWebReference)
 		.exec(getSpecificRef)
@@ -148,17 +161,20 @@ public class SimpleJasperSimulation extends Simulation {
 		.exec(countRefs);
 
 	ScenarioBuilder systemComponents = scenario("System Components Test")
+		.exec(fetchCsrfToken)
 		.exec(browseExtensions)
 		.exec(createTestExtension)
 		.exec(browsePlugins)
 		.exec(browseTemplates);
 
 	ScenarioBuilder userAndSystem = scenario("User and System Test")
+		.exec(fetchCsrfToken)
 		.exec(getUserInfo)
 		.exec(browseUsers)
 		.exec(checkOrigins);
 
 	ScenarioBuilder comprehensiveSmoke = scenario("Comprehensive Smoke Test")
+		.exec(fetchCsrfToken)
 		.exec(getAllRefs)
 		.pause(Duration.ofSeconds(1))
 		.exec(createWebReference)

@@ -51,6 +51,16 @@ public class UserJourneySimulation extends Simulation {
 		Map.of("source", "youtube.com", "type", "video")
 	)).circular();
 
+	// ====================== CSRF Token Setup ======================
+
+	ChainBuilder fetchCsrfToken = exec(
+		http("Fetch CSRF Token")
+			.get("/api/v1/ref/page")
+			.queryParam("size", "1")
+			.check(status().is(200))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
+	);
+
 	// ====================== Research Session Journey ======================
 
 	ChainBuilder researchWorkflow = feed(topicFeeder)
@@ -86,6 +96,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Save Research Reference - #{topic}")
 				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"url": "#{researchUrl}",
@@ -114,6 +125,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Add Research Note - #{topic}")
 				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"url": "#{commentUrl}",
@@ -172,6 +184,7 @@ public class UserJourneySimulation extends Simulation {
 			http("Update Reference Tags")
 				.patch("/api/v1/ref")
 				.queryParam("url", "https://example.com/article-#{randomInt(1,50)}")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.header("Content-Type", "application/merge-patch+json")
 				.body(StringBody("""
 					{
@@ -191,6 +204,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Create Topic Template - #{topic}")
 				.post("/api/v1/template")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"tag": "_template/#{topic}.#{randomInt(1,100)}",
@@ -219,6 +233,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Create Enhancement Plugin - #{topic}")
 				.post("/api/v1/plugin")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"tag": "+plugin/#{topic}.enhancer.#{randomInt(1,100)}",
@@ -246,6 +261,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Create Curated Collection - #{topic}")
 				.post("/api/v1/ext")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"tag": "+collection/#{topic}-#{randomInt(1,50)}",
@@ -295,6 +311,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Add Collaborative Comment")
 				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"url": "#{collabCommentUrl}",
@@ -322,6 +339,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Create Shared Template")
 				.post("/api/v1/template")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"tag": "_template/team.standard.#{randomInt(1,20)}",
@@ -352,6 +370,7 @@ public class UserJourneySimulation extends Simulation {
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder researchSession = scenario("Research Session")
+		.exec(fetchCsrfToken)
 		.exec(researchWorkflow)
 		.pause(Duration.ofSeconds(5, 10))
 		.repeat(2).on(
@@ -359,19 +378,23 @@ public class UserJourneySimulation extends Simulation {
 		);
 
 	ScenarioBuilder dailyReview = scenario("Daily Review")
+		.exec(fetchCsrfToken)
 		.exec(dailyReviewWorkflow)
 		.pause(Duration.ofSeconds(3, 8));
 
 	ScenarioBuilder contentCuration = scenario("Content Curation")
+		.exec(fetchCsrfToken)
 		.exec(curationWorkflow)
 		.pause(Duration.ofSeconds(8, 15));
 
 	ScenarioBuilder collaborativeWork = scenario("Collaborative Work")
+		.exec(fetchCsrfToken)
 		.exec(collaborationWorkflow)
 		.pause(Duration.ofSeconds(5, 12));
 
 	// Mixed realistic user behavior
 	ScenarioBuilder realisticUser = scenario("Realistic User Behavior")
+		.exec(fetchCsrfToken)
 		.randomSwitch().on(
 			percent(40.0).then(exec(dailyReviewWorkflow)),
 			percent(30.0).then(exec(researchWorkflow)),
