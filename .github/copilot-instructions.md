@@ -44,7 +44,7 @@ ALWAYS run the bootstrapping steps first.
 - Navigate to gatling directory: `cd gatling`
 - Run load tests: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn gatling:test` -- takes 27 seconds. NEVER CANCEL. Set timeout to 60+ seconds.
 - From root: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn -f gatling/pom.xml gatling:test`
-- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling`
+- Docker load tests: Navigate to gatling directory and run `docker compose --profile lt up --build`. You do not need to start the server separately - it's all in the docker compose file.
 
 **GitHub Actions Integration:**
 - Build workflow: `.github/workflows/test.yml` runs full Docker build and test suite
