@@ -231,15 +231,10 @@ public class StressTestSimulation extends Simulation {
 
 	ChainBuilder stressScrapeOperations = exec(
 		http("Stress Web Scraping")
-			.post("/api/v1/scrape/web")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"url": "https://httpbin.org/html",
-					"selector": "body",
-					"timeout": 5000
-				}"""))
-			.check(status().in(200, 400, 408))
+			.get("/api/v1/scrape/web")
+			.queryParam("url", "https://httpbin.org/html")
+			.check(status().is(200))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
 
 	// ====================== Concurrent Update Stress ======================

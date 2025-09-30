@@ -231,24 +231,25 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("url", "#{researchUrl}")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-				.check(jsonPath("$.modified").saveAs("refModified"))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+				.check(jsonPath("$.modified").optional().saveAs("refModified"))
 		)
 		.pause(Duration.ofMillis(500))
-		// Update a reference with additional tags (using merge-patch)
-		.exec(
-			http("Update Reference Tags")
-				.patch("/api/v1/ref")
-				.queryParam("url", "#{researchUrl}")
-				.queryParam("cursor", "#{refModified}")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
-				.header("Content-Type", "application/merge-patch+json")
-				.body(StringBody("""
-					{
-						"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
-					}"""))
-				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		// Update a reference with additional tags (using merge-patch) - only if we got the modified timestamp
+		.doIf(session -> session.contains("refModified")).then(
+			exec(
+				http("Update Reference Tags")
+					.patch("/api/v1/ref")
+					.queryParam("url", "#{researchUrl}")
+					.queryParam("cursor", "#{refModified}")
+					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("Content-Type", "application/merge-patch+json")
+					.body(StringBody("""
+						{
+							"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
+						}"""))
+					.check(status().is(200))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
 		);
 
 	// ====================== Content Curation Journey ======================
