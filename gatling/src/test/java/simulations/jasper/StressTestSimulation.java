@@ -27,11 +27,22 @@ public class StressTestSimulation extends Simulation {
 		.disableFollowRedirect()
 		.check(status().not(500)); // Allow other error codes for stress testing
 
+	// ====================== CSRF Token Setup ======================
+
+	ChainBuilder fetchCsrfToken = exec(
+		http("Fetch CSRF Token")
+			.get("/api/v1/ref/page")
+			.queryParam("size", "1")
+			.check(status().is(200))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
+	);
+
 	// ====================== High Volume Operations ======================
 
 	ChainBuilder rapidRefCreation = exec(
 		http("Rapid Ref Creation")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "https://stress-test.example.com/#{randomInt(1,100000)}",
@@ -79,6 +90,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder createLargeExt = exec(
 		http("Create Large Extension")
 			.post("/api/v1/ext")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody(session -> {
 				int randomId = (int)(Math.random() * 10000) + 1;
 				int randomNum = (int)(Math.random() * 1000) + 1;
@@ -118,6 +130,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder testInvalidData = exec(
 		http("Test Invalid Data")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "invalid-url-test#{randomInt(1,1000)}",
@@ -130,6 +143,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder testMalformedJson = exec(
 		http("Test Malformed JSON")
 			.post("/api/v1/ref")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "https://test.com/malformed",
@@ -165,6 +179,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder testBackupOperations = exec(
 		http("Create Backup")
 			.post("/api/v1/backup")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"includeRefs": true,
@@ -207,6 +222,7 @@ public class StressTestSimulation extends Simulation {
 	ChainBuilder stressScrapeOperations = exec(
 		http("Stress Web Scraping")
 			.post("/api/v1/scrape/web")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
 					"url": "https://httpbin.org/html",
@@ -218,17 +234,31 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== Concurrent Update Stress ======================
 
-	ChainBuilder concurrentUpdates = exec(
-		http("Concurrent Update Attempt")
-			.patch("/api/v1/ref")
-			.queryParam("url", "https://stress-test.example.com/shared-#{randomInt(1,10)}")
-			.body(StringBody("""
-				{
-					"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
-					"comment": "Updated during stress test at #{randomLong()}"
-				}"""))
-			.check(status().in(200, 404, 409))
-	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
+	ChainBuilder concurrentUpdates = 
+		exec(session -> session.set("stressUpdateUrl", "https://stress-test.example.com/shared-" + (1 + new java.util.Random().nextInt(10))))
+		.exec(
+			http("Fetch Ref for Concurrent Update")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{stressUpdateUrl}")
+				.check(status().in(200, 404))
+				.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
+		)
+		.doIf(session -> session.contains("stressRefModified")).then(
+			exec(
+				http("Concurrent Update Attempt")
+					.patch("/api/v1/ref")
+					.queryParam("url", "#{stressUpdateUrl}")
+					.queryParam("cursor", "#{stressRefModified}")
+					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("Content-Type", "application/merge-patch+json")
+					.body(StringBody("""
+						{
+							"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
+							"comment": "Updated during stress test at #{randomLong()}"
+						}"""))
+					.check(status().in(200, 409))
+			)
+		).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	// ====================== Graph Operations Stress ======================
 
@@ -247,6 +277,7 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder volumeStress = scenario("High Volume Operations")
+		.exec(fetchCsrfToken)
 		.repeat(20).on(
 			exec(rapidRefCreation)
 				.pace(Duration.ofMillis(100))
@@ -255,6 +286,7 @@ public class StressTestSimulation extends Simulation {
 		.exec(complexSearchQuery);
 
 	ScenarioBuilder errorHandlingTest = scenario("Error Handling Tests")
+		.exec(fetchCsrfToken)
 		.repeat(10).on(
 			randomSwitch().on(
 				percent(40.0).then(exec(testNotFoundErrors)),
@@ -264,6 +296,7 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder systemLimitsTest = scenario("System Limits Test")
+		.exec(fetchCsrfToken)
 		.exec(createLargeExt)
 		.pause(Duration.ofSeconds(1), Duration.ofSeconds(3))
 		.exec(stressGraphOperations)
@@ -273,12 +306,14 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder replicationStress = scenario("Replication Stress")
+		.exec(fetchCsrfToken)
 		.repeat(15).on(
 			exec(testReplicationEndpoints)
 				.pace(Duration.ofSeconds(1))
 		);
 
 	ScenarioBuilder adminStress = scenario("Administration Stress")
+		.exec(fetchCsrfToken)
 		.exec(testBackupOperations)
 		.pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
 		.repeat(8).on(
@@ -287,6 +322,7 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder contentEnrichmentStress = scenario("Content Enrichment Stress")
+		.exec(fetchCsrfToken)
 		.repeat(10).on(
 			randomSwitch().on(
 				percent(60.0).then(exec(stressProxyOperations)),

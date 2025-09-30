@@ -179,18 +179,33 @@ public class UserJourneySimulation extends Simulation {
 				.check(status().is(200))
 		)
 		.pause(Duration.ofSeconds(2, 4))
-		// Update a reference with additional tags (using merge-patch)
+		// Fetch a ref to update (to get its cursor/modified timestamp)
+		.exec(session -> session.set("updateUrl", "https://example.com/article-" + (1 + new java.util.Random().nextInt(50))))
 		.exec(
-			http("Update Reference Tags")
-				.patch("/api/v1/ref")
-				.queryParam("url", "https://example.com/article-#{randomInt(1,50)}")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
-				.header("Content-Type", "application/merge-patch+json")
-				.body(StringBody("""
-					{
-						"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
-					}"""))
+			http("Fetch Ref for Update")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{updateUrl}")
 				.check(status().in(200, 404))
+				.check(
+					jsonPath("$.modified").optional().saveAs("refModified")
+				)
+		)
+		.pause(Duration.ofMillis(500))
+		// Update a reference with additional tags (using merge-patch) - only if ref exists
+		.doIf(session -> session.contains("refModified")).then(
+			exec(
+				http("Update Reference Tags")
+					.patch("/api/v1/ref")
+					.queryParam("url", "#{updateUrl}")
+					.queryParam("cursor", "#{refModified}")
+					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("Content-Type", "application/merge-patch+json")
+					.body(StringBody("""
+						{
+							"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
+						}"""))
+					.check(status().is(200))
+			)
 		);
 
 	// ====================== Content Curation Journey ======================
