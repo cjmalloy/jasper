@@ -56,21 +56,13 @@ public class FetchImplHttp implements Fetch {
 		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
 			try {
-				return fetchBulkhead.executeSupplier(() -> {
-					try {
-						return wrap(doWebScrape(url));
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-				});
+				return fetchBulkhead.executeCheckedSupplier(() -> wrap(doWebScrape(url)));
 			} catch (BulkheadFullException e) {
 				logger.warn("{} Fetch bulkhead full for {}", origin, url);
 				return null;
-			} catch (RuntimeException e) {
-				if (e.getCause() instanceof IOException) {
-					throw (IOException) e.getCause();
-				}
-				throw e;
+			} catch (Throwable e) {
+				if (e instanceof IOException i) throw i;
+				throw (RuntimeException) e;
 			}
 		}
 		throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
