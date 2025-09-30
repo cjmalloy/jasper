@@ -40,13 +40,21 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== High Volume Operations ======================
 
-	ChainBuilder rapidRefCreation = exec(
+	ChainBuilder rapidRefCreation = 
+		exec(session -> {
+			// Add timestamp to URL for uniqueness to avoid duplicate key violations
+			String url = "https://stress-test.example.com/" + 
+				System.currentTimeMillis() + "-" + 
+				(1 + new java.util.Random().nextInt(100000));
+			return session.set("rapidRefUrl", url);
+		})
+		.exec(
 		http("Rapid Ref Creation")
 			.post("/api/v1/ref")
 			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
-					"url": "https://stress-test.example.com/#{randomInt(1,100000)}",
+					"url": "#{rapidRefUrl}",
 					"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
 					"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
 					"tags": [
@@ -62,7 +70,7 @@ public class StressTestSimulation extends Simulation {
 						"https://source2.example.com/#{randomInt(1,1000)}",
 						"https://source3.example.com/#{randomInt(1,1000)}"
 					]
-				}"""))
+				}""")))
 			.check(status().in(201, 409, 400))
 	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
