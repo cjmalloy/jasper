@@ -60,15 +60,12 @@ public class RssParser {
 	RefRepository refRepository;
 
 	@Autowired
-	ConfigCache configs;
-
-	@Autowired
 	HttpClientFactory httpClientFactory;
 
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = getFeed(feed);
-		
+
 		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
