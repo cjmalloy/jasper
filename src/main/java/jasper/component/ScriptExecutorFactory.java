@@ -29,7 +29,6 @@ public class ScriptExecutorFactory {
 	ConfigCache configs;
 
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
-
 	public ExecutorService get(String tag, String origin) {
 		return executors.computeIfAbsent(tag + origin, k -> {
 			int maxPoolSize = configs.security(origin).scriptLimit(tag, origin);
