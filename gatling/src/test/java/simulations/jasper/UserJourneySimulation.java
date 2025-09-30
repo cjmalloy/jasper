@@ -397,13 +397,17 @@ public class UserJourneySimulation extends Simulation {
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a shared template
+		.exec(session -> {
+			String templateTag = "_template/team.standard." + System.currentTimeMillis() + "-" + session.userId();
+			return session.set("teamTemplateTag", templateTag);
+		})
 		.exec(
 			http("Create Shared Template")
 				.post("/api/v1/template")
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
-						"tag": "_template/team.standard.#{randomInt(1,20)}",
+						"tag": "#{teamTemplateTag}",
 						"name": "Team Standard Template",
 						"config": {
 							"description": "Standardized template for team collaboration",
