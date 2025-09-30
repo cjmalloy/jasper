@@ -118,6 +118,11 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentReplicationPerOrigin = 3;
+		/**
+		 * Global maximum concurrent HTTP requests (across all origins). Default 500.
+		 */
+		@Builder.Default
+		private int maxConcurrentRequests = 500;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -139,6 +144,7 @@ public interface Config {
 			if (server.getMaxConcurrentScriptsPerOrigin() != null) wrapped = wrapped.withMaxConcurrentScriptsPerOrigin(server.getMaxConcurrentScriptsPerOrigin());
 			if (server.getMaxConcurrentCronScriptsPerOrigin() != null) wrapped = wrapped.withMaxConcurrentCronScriptsPerOrigin(server.getMaxConcurrentCronScriptsPerOrigin());
 			if (server.getMaxConcurrentReplicationPerOrigin() != null) wrapped = wrapped.withMaxConcurrentReplicationPerOrigin(server.getMaxConcurrentReplicationPerOrigin());
+			if (server.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(server.getMaxConcurrentRequests());
 			return wrapped;
 		}
 
@@ -206,6 +212,11 @@ public interface Config {
 		private List<String> defaultWriteAccess;
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
+		/**
+		 * Per-origin script execution limits. Map of script selector patterns (tag+origin) to max concurrent value.
+		 * Example: {"+plugin/delta@myorg": 15, "_plugin/delta@*": 5}
+		 */
+		private java.util.Map<String, Integer> scriptLimits;
 
 		public byte[] getSecretBytes() {
 			if (isNotBlank(secret)) return secret.getBytes();
