@@ -30,6 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -110,18 +112,65 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
-	private Bulkhead globalReplicationBulkhead;
+	private volatile Bulkhead globalReplicationBulkhead;
+
 	private Bulkhead getGlobalReplicationBulkhead() {
 		if (globalReplicationBulkhead == null) {
-			var maxConcurrent = configs.root().getMaxConcurrentReplication();
-			logger.info("Creating global replication bulkhead with {} permits", maxConcurrent);
-			var bulkheadConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(ofSeconds(30))
-				.build();
-			globalReplicationBulkhead = Bulkhead.of("global-replication", bulkheadConfig);
+			synchronized (this) {
+				if (globalReplicationBulkhead == null) {
+					globalReplicationBulkhead = createGlobalReplicationBulkhead();
+				}
+			}
 		}
 		return globalReplicationBulkhead;
+	}
+
+	private Bulkhead createGlobalReplicationBulkhead() {
+		var maxConcurrent = getMaxConcurrentReplication();
+		logger.info("Creating global replication bulkhead with {} permits", maxConcurrent);
+		
+		var bulkheadConfig = BulkheadConfig.custom()
+			.maxConcurrentCalls(maxConcurrent)
+			.maxWaitDuration(ofSeconds(30))
+			.build();
+		
+		return Bulkhead.of("global-replication", bulkheadConfig);
+	}
+
+	private int getMaxConcurrentReplication() {
+		var maxConcurrent = configs.root().getMaxConcurrentReplication();
+		// Check environment variable override
+		var env = System.getenv("JASPER_MAX_CONCURRENT_REPLICATION");
+		if (env != null && !env.isEmpty()) {
+			try {
+				maxConcurrent = Integer.parseInt(env);
+			} catch (NumberFormatException e) {
+				logger.warn("Invalid JASPER_MAX_CONCURRENT_REPLICATION value: {}", env);
+			}
+		}
+		return maxConcurrent;
+	}
+
+	public void updateBulkheadConfig() {
+		if (globalReplicationBulkhead != null) {
+			var newMaxConcurrent = getMaxConcurrentReplication();
+			var newConfig = BulkheadConfig.custom()
+				.maxConcurrentCalls(newMaxConcurrent)
+				.maxWaitDuration(ofSeconds(30))
+				.build();
+			
+			globalReplicationBulkhead.changeConfig(newConfig);
+			logger.info("Updated global replication bulkhead to {} permits", newMaxConcurrent);
+		}
+	}
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<jasper.service.dto.TemplateDto> message) {
+		var template = message.getPayload();
+		// Check if this is a server config update
+		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
+			updateBulkheadConfig();
+		}
 	}
 
 	private record Log(String title, String message) {}

@@ -13,6 +13,8 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -57,18 +59,56 @@ public class Cron {
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
-	private Bulkhead globalCronScriptBulkhead;
+	private volatile Bulkhead globalCronScriptBulkhead;
+
 	private Bulkhead getGlobalCronScriptBulkhead() {
 		if (globalCronScriptBulkhead == null) {
-			var maxConcurrent = configs.root().getMaxConcurrentScripts();
-			logger.info("Creating global cron script execution bulkhead with {} permits", maxConcurrent);
-			var bulkheadConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(ofSeconds(60))
-				.build();
-			globalCronScriptBulkhead = Bulkhead.of("global-cron-execution", bulkheadConfig);
+			synchronized (this) {
+				if (globalCronScriptBulkhead == null) {
+					globalCronScriptBulkhead = createGlobalCronScriptBulkhead();
+				}
+			}
 		}
 		return globalCronScriptBulkhead;
+	}
+
+	private Bulkhead createGlobalCronScriptBulkhead() {
+		var maxConcurrent = getMaxConcurrentCronScripts();
+		logger.info("Creating global cron script execution bulkhead with {} permits", maxConcurrent);
+		
+		var bulkheadConfig = BulkheadConfig.custom()
+			.maxConcurrentCalls(maxConcurrent)
+			.maxWaitDuration(ofSeconds(60))
+			.build();
+		
+		return Bulkhead.of("global-cron-execution", bulkheadConfig);
+	}
+
+	private int getMaxConcurrentCronScripts() {
+		var maxConcurrent = configs.root().getMaxConcurrentScripts();
+		// Check environment variable override
+		var env = System.getenv("JASPER_MAX_CONCURRENT_CRON_SCRIPTS");
+		if (env != null && !env.isEmpty()) {
+			try {
+				maxConcurrent = Integer.parseInt(env);
+			} catch (NumberFormatException e) {
+				logger.warn("Invalid JASPER_MAX_CONCURRENT_CRON_SCRIPTS value: {}", env);
+			}
+		}
+		return maxConcurrent;
+	}
+
+	public void updateBulkheadConfig() {
+		if (globalCronScriptBulkhead != null) {
+			var newMaxConcurrent = getMaxConcurrentCronScripts();
+			var newConfig = BulkheadConfig.custom()
+				.maxConcurrentCalls(newMaxConcurrent)
+				.maxWaitDuration(ofSeconds(60))
+				.build();
+			
+			globalCronScriptBulkhead.changeConfig(newConfig);
+			logger.info("Updated global cron script bulkhead to {} permits", newMaxConcurrent);
+		}
 	}
 
 	/**
@@ -86,6 +126,15 @@ public class Cron {
 		}
 		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
 			watch.addWatch(origin, "+plugin/user/run", this::run);
+		}
+	}
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<jasper.service.dto.TemplateDto> message) {
+		var template = message.getPayload();
+		// Check if this is a server config update
+		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
+			updateBulkheadConfig();
 		}
 	}
 
