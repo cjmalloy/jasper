@@ -3,7 +3,6 @@ package jasper.component;
 import feign.FeignException;
 import feign.RetryableException;
 import io.github.resilience4j.bulkhead.Bulkhead;
-import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
@@ -30,8 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -110,68 +107,10 @@ public class Replicator {
 	@Autowired
 	Optional<FileCache> fileCache;
 
+	@Autowired
+	Bulkhead globalReplicationBulkhead;
+
 	boolean fileCacheMissingError = false;
-
-	private volatile Bulkhead globalReplicationBulkhead;
-
-	private Bulkhead getGlobalReplicationBulkhead() {
-		if (globalReplicationBulkhead == null) {
-			synchronized (this) {
-				if (globalReplicationBulkhead == null) {
-					globalReplicationBulkhead = createGlobalReplicationBulkhead();
-				}
-			}
-		}
-		return globalReplicationBulkhead;
-	}
-
-	private Bulkhead createGlobalReplicationBulkhead() {
-		var maxConcurrent = getMaxConcurrentReplication();
-		logger.info("Creating global replication bulkhead with {} permits", maxConcurrent);
-		
-		var bulkheadConfig = BulkheadConfig.custom()
-			.maxConcurrentCalls(maxConcurrent)
-			.maxWaitDuration(ofSeconds(30))
-			.build();
-		
-		return Bulkhead.of("global-replication", bulkheadConfig);
-	}
-
-	private int getMaxConcurrentReplication() {
-		var maxConcurrent = configs.root().getMaxConcurrentReplication();
-		// Check environment variable override
-		var env = System.getenv("JASPER_MAX_CONCURRENT_REPLICATION");
-		if (env != null && !env.isEmpty()) {
-			try {
-				maxConcurrent = Integer.parseInt(env);
-			} catch (NumberFormatException e) {
-				logger.warn("Invalid JASPER_MAX_CONCURRENT_REPLICATION value: {}", env);
-			}
-		}
-		return maxConcurrent;
-	}
-
-	public void updateBulkheadConfig() {
-		if (globalReplicationBulkhead != null) {
-			var newMaxConcurrent = getMaxConcurrentReplication();
-			var newConfig = BulkheadConfig.custom()
-				.maxConcurrentCalls(newMaxConcurrent)
-				.maxWaitDuration(ofSeconds(30))
-				.build();
-			
-			globalReplicationBulkhead.changeConfig(newConfig);
-			logger.info("Updated global replication bulkhead to {} permits", newMaxConcurrent);
-		}
-	}
-
-	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<jasper.service.dto.TemplateDto> message) {
-		var template = message.getPayload();
-		// Check if this is a server config update
-		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			updateBulkheadConfig();
-		}
-	}
 
 	private record Log(String title, String message) {}
 
@@ -233,7 +172,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		try {
-			getGlobalReplicationBulkhead().executeSupplier(() -> {
+			globalReplicationBulkhead.executeSupplier(() -> {
 				var pull = getPull(remote);
 				var config = getOrigin(remote);
 				var rootOrigin = remote.getOrigin();
@@ -455,7 +394,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		try {
-			getGlobalReplicationBulkhead().executeSupplier(() -> {
+			globalReplicationBulkhead.executeSupplier(() -> {
 				var push = getPush(remote);
 				// TODO: only push what user can see
 				var config = getOrigin(remote);
