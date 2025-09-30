@@ -193,8 +193,8 @@ public class StressTestSimulation extends Simulation {
 					"includeUsers": false,
 					"maxItems": 1000
 				}"""))
-			.check(status().is(201))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			.check(status().is(200))  // BackupController returns 200, not 201 (missing @ResponseStatus annotation)
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
 	.exec(
 		http("List Backups")
@@ -245,21 +245,27 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Concurrent Update Stress ======================
 
 	ChainBuilder concurrentUpdates = 
-		exec(session -> session.set("stressUpdateUrl", "https://stress-test.example.com/shared-" + (1 + new java.util.Random().nextInt(10))))
-		// First create the ref if it doesn't exist
+		exec(session -> {
+			// Use timestamp + random to make URLs unique per virtual user to avoid duplicate key violations
+			String url = "https://stress-test.example.com/shared-" + 
+				System.currentTimeMillis() + "-" + 
+				(1 + new java.util.Random().nextInt(10000));
+			return session.set("stressUpdateUrl", url);
+		})
+		// Create the ref for this specific virtual user
 		.exec(
-			http("Create Shared Ref for Concurrent Update")
+			http("Create Ref for Concurrent Update")
 				.post("/api/v1/ref")
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"url": "#{stressUpdateUrl}",
-						"title": "Shared Stress Test Reference",
+						"title": "Stress Test Reference",
 						"comment": "Ref for testing concurrent updates",
-						"tags": ["stresstest", "shared", "concurrent"]
+						"tags": ["stresstest", "concurrent"]
 					}"""))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 if new, 409 if already exists
+				.check(status().is(201))  // Should always be 201 since URLs are unique
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofMillis(100))
 		.exec(
