@@ -40,7 +40,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"tags": ["research", "article", "knowledgebase"],
 					"sources": ["https://source.example.com"]
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(500));
 
 	ChainBuilder createBookReference = exec(
@@ -53,7 +53,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"comment": "Reference book on software engineering",
 					"tags": ["book", "technical", "software"]
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(500));
 
 	ChainBuilder createComment = exec(
@@ -67,7 +67,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					"tags": ["comment", "discussion"],
 					"sources": ["https://example.com/article-#{randomInt(1,100)}"]
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Browse and Search Operations ======================
@@ -119,7 +119,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"enabled": true
 					}
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(600));
 
 	ChainBuilder browseExtensions = exec(
@@ -144,7 +144,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"selector": "custom-selector"
 					}
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(500));
 
 	ChainBuilder getPluginConfig = exec(
@@ -182,7 +182,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						}
 					}
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(600));
 
 	ChainBuilder browseTemplates = exec(
@@ -206,7 +206,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"active": true
 					}
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(400));
 
 	ChainBuilder getUserInfo = exec(
@@ -241,7 +241,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		http("Proxy External Content")
 			.get("/api/v1/proxy")
 			.queryParam("url", "https://example.com/content-#{randomInt(1,50)}")
-			.check(status().in(200, 404, 403))
+			.check(status().in(200, 404))
 	).pause(Duration.ofMillis(1000));
 
 	// ====================== Scenarios ======================

@@ -79,31 +79,48 @@ public class UserJourneySimulation extends Simulation {
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a new reference with research findings
 		.feed(sourceFeeder)
+		.exec(session -> {
+			String url = "https://" + session.getString("source") + "/" + session.getString("topic") + "-research-" + System.currentTimeMillis();
+			return session.set("researchUrl", url);
+		})
 		.exec(
 			http("Save Research Reference - #{topic}")
 				.post("/api/v1/ref")
 				.body(StringBody("""
 					{
-						"url": "https://#{source}/#{topic}-research-#{randomInt(1,1000)}",
+						"url": "#{researchUrl}",
 						"title": "#{topic} Research - Study#{randomInt(1000,9999)}",
 						"comment": "Research findings on #{topic} from #{source}",
 						"tags": ["research", "#{category}", "#{type}"]
 					}"""))
 				.check(status().is(201))
-				.check(header("Location").saveAs("newRefLocation"))
+				.check(jsonPath("$").saveAs("createdTimestamp"))
 		)
-		.pause(Duration.ofSeconds(1, 2))
+		.pause(Duration.ofMillis(500))
+		// Verify the created reference
+		.exec(
+			http("Verify Created Research Reference")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{researchUrl}")
+				.check(status().is(200))
+				.check(jsonPath("$.url").isEL("#{researchUrl}"))
+		)
+		.pause(Duration.ofMillis(500))
 		// Add a comment/note about the research
+		.exec(session -> {
+			String commentUrl = "comment:" + java.util.UUID.randomUUID().toString();
+			return session.set("commentUrl", commentUrl);
+		})
 		.exec(
 			http("Add Research Note - #{topic}")
 				.post("/api/v1/ref")
 				.body(StringBody("""
 					{
-						"url": "comment:#{randomUuid()}",
+						"url": "#{commentUrl}",
 						"title": "Research Notes: #{topic}",
 						"comment": "Key insights and takeaways from #{topic} research session",
 						"tags": ["note", "#{category}", "research.summary"],
-						"sources": ["https://#{source}/#{topic}-research-#{randomInt(1,1000)}"]
+						"sources": ["#{researchUrl}"]
 					}"""))
 				.check(status().is(201))
 		)
@@ -150,11 +167,12 @@ public class UserJourneySimulation extends Simulation {
 				.check(status().is(200))
 		)
 		.pause(Duration.ofSeconds(2, 4))
-		// Update a reference with additional tags
+		// Update a reference with additional tags (using merge-patch)
 		.exec(
 			http("Update Reference Tags")
 				.patch("/api/v1/ref")
 				.queryParam("url", "https://example.com/article-#{randomInt(1,50)}")
+				.header("Content-Type", "application/merge-patch+json")
 				.body(StringBody("""
 					{
 						"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
@@ -194,7 +212,7 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().is(201))
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Create a plugin for enhanced functionality
@@ -212,7 +230,7 @@ public class UserJourneySimulation extends Simulation {
 							"features": ["auto-tagging", "difficulty-detection", "related-content"]
 						}
 					}"""))
-				.check(status().is(201))
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Check existing extensions for the topic
@@ -244,7 +262,7 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().is(201))
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		);
 
 	// ====================== Collaborative Work Journey ======================
@@ -270,12 +288,16 @@ public class UserJourneySimulation extends Simulation {
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Add a collaborative comment
+		.exec(session -> {
+			String commentUrl = "comment:collaboration-" + java.util.UUID.randomUUID().toString();
+			return session.set("collabCommentUrl", commentUrl);
+		})
 		.exec(
 			http("Add Collaborative Comment")
 				.post("/api/v1/ref")
 				.body(StringBody("""
 					{
-						"url": "comment:collaboration-#{randomUuid()}",
+						"url": "#{collabCommentUrl}",
 						"title": "Team Discussion Point",
 						"comment": "Adding my thoughts on this topic for team review",
 						"tags": ["collaboration", "team.input", "discussion"],
@@ -324,7 +346,7 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().is(201))
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		);
 
 	// ====================== Scenarios ======================

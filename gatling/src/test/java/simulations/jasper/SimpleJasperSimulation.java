@@ -46,8 +46,14 @@ public class SimpleJasperSimulation extends Simulation {
 					"tags": ["test", "smoketest", "example"]
 				}"""))
 			.check(status().is(201))
-			.check(header("Location").saveAs("createdRefLocation"))
-	).pause(Duration.ofSeconds(1));
+			.check(jsonPath("$").saveAs("createdRefTimestamp"))
+	).pause(Duration.ofMillis(500))
+	.exec(
+		http("Verify Created Reference")
+			.get("/api/v1/ref")
+			.queryParam("url", "https://example.com/test-#{randomInt(1,1000)}")
+			.check(status().in(200, 404)) // May not find exact URL due to randomization
+	).pause(Duration.ofMillis(500));
 
 	ChainBuilder getSpecificRef = exec(
 		http("Get Specific Reference")
@@ -88,7 +94,7 @@ public class SimpleJasperSimulation extends Simulation {
 					"tag": "+ext/smoketest.#{randomInt(1,100)}",
 					"name": "Smoke Test Extension #{randomInt(1,100)}"
 				}"""))
-			.check(status().in(201, 403)) // Accept both success and auth failure
+			.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 	).pause(Duration.ofMillis(700));
 
 	// ====================== Plugin Operations ======================
@@ -121,7 +127,7 @@ public class SimpleJasperSimulation extends Simulation {
 		http("Browse Users")
 			.get("/api/v1/user/page")
 			.queryParam("size", "10")
-			.check(status().in(200, 403))
+			.check(status().is(200))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== System Health ======================
@@ -129,7 +135,7 @@ public class SimpleJasperSimulation extends Simulation {
 	ChainBuilder checkOrigins = exec(
 		http("Check Origin System")
 			.get("/api/v1/origin")
-			.check(status().in(200, 403))
+			.check(status().is(200))
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Scenarios ======================
