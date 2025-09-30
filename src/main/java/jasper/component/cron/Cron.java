@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.channel.Watch;
 import jasper.domain.Ref;
@@ -10,7 +11,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -18,20 +18,24 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
-public class Scheduler {
-	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
+public class Cron {
+	private static final Logger logger = LoggerFactory.getLogger(Cron.class);
 
-	@Qualifier("cronScheduler")
 	@Autowired
 	TaskScheduler taskScheduler;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	RefRepository refRepository;
@@ -46,7 +50,7 @@ public class Scheduler {
 	Watch watch;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
@@ -135,7 +139,7 @@ public class Scheduler {
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return taskScheduler.schedule(() -> {
+					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						try {
 							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
@@ -147,7 +151,11 @@ public class Scheduler {
 						} finally {
 							refs.remove(k);
 						}
-					}, Instant.now());
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
 			});
 		} catch (Exception e) {
@@ -197,13 +205,19 @@ public class Scheduler {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			try {
-				v.run(ref);
-				ran.add(v);
-			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k);
-				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-			}
+			runAsync(() -> {
+				try {
+					v.run(ref);
+					ran.add(v);
+				} catch (Exception e) {
+					logger.error("{} Error in cron tag {} ", origin, k);
+					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+				}
+			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+				logger.warn("{} Rate limited {} ", origin, k);
+				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+				return null;
+			});
 		});
 	}
 

@@ -17,14 +17,14 @@ import static jasper.domain.proj.Tag.publicTag;
 
 @Profile("scripts")
 @Component
-public class Script implements Scheduler.CronRunner {
+public class Script implements Cron.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
 	@Autowired
 	ConfigCache configs;
 
 	@Autowired
-	Scheduler cron;
+	Cron cron;
 
 	@Autowired
 	ScriptRunner scriptRunner;

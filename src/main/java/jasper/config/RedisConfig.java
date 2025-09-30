@@ -16,7 +16,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -24,15 +23,14 @@ import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.ExecutorChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.handler.AbstractMessageHandler;
-import org.springframework.integration.util.CallerBlocksPolicy;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.concurrent.ExecutorService;
 
 import static jasper.component.Messages.originHeaders;
 import static jasper.component.Messages.refHeaders;
@@ -49,9 +47,8 @@ import static org.springframework.data.redis.listener.PatternTopic.of;
 public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
 
-	@Qualifier("integration")
 	@Autowired
-	TaskExecutor taskExecutor;
+	ExecutorService integrationExecutor;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -147,20 +144,6 @@ public class RedisConfig {
 		return new DirectChannel();
 	}
 
-	@Bean("integration")
-	public TaskExecutor taskExecutor() {
-		var executor = new ThreadPoolTaskExecutor();
-		executor.setThreadNamePrefix("int-");
-		executor.setCorePoolSize(4);
-		executor.setMaxPoolSize(10);
-		executor.setQueueCapacity(4);
-		executor.setWaitForTasksToCompleteOnShutdown(true);
-		executor.setAwaitTerminationSeconds(60);
-		executor.setRejectedExecutionHandler(new CallerBlocksPolicy(60_000));
-		executor.initialize();
-		return executor;
-	}
-
 	@Bean
 	public IntegrationFlow redisPublishCursorFlow() {
 		return IntegrationFlow
@@ -183,7 +166,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeCursorFlow() {
 		return IntegrationFlow
 			.from(cursorRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(cursorRxChannel)
 			.get();
 	}
@@ -228,7 +211,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeRefFlow() {
 		return IntegrationFlow
 			.from(refRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(refRxChannel)
 			.get();
 	}
@@ -272,7 +255,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeTagFlow() {
 		return IntegrationFlow
 			.from(tagRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(tagRxChannel)
 			.get();
 	}
@@ -313,7 +296,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeResponseFlow() {
 		return IntegrationFlow
 			.from(responseRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(responseRxChannel)
 			.get();
 	}
@@ -359,7 +342,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeUserFlow() {
 		return IntegrationFlow
 			.from(userRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(userRxChannel)
 			.get();
 	}
@@ -409,7 +392,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeExtFlow() {
 		return IntegrationFlow
 			.from(extRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(extRxChannel)
 			.get();
 	}
@@ -459,7 +442,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribePluginFlow() {
 		return IntegrationFlow
 			.from(pluginRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(pluginRxChannel)
 			.get();
 	}
@@ -509,7 +492,7 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeTemplateFlow() {
 		return IntegrationFlow
 			.from(templateRedisChannel())
-			.channel(new ExecutorChannel(taskExecutor))
+			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(templateRxChannel)
 			.get();
 	}

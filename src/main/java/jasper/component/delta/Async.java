@@ -1,6 +1,8 @@
 package jasper.component.delta;
 
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
@@ -23,13 +25,14 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.HasTags.hasPluginResponse;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
@@ -50,13 +53,18 @@ public class Async {
 	TaskScheduler taskScheduler;
 
 	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
 	ConfigCache configs;
 
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	@Autowired
+	Tagger tagger;
 
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
 	/**
@@ -92,6 +100,7 @@ public class Async {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var ud = message.getPayload();
+		var origin = ud.getOrigin();
 		try {
 			if (tags.isEmpty()) throw new RuntimeException();
 			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
@@ -99,29 +108,33 @@ public class Async {
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
 			tags.forEach((k, v) -> {
 				if (!hasMatchingTag(ud, k)) return;
-				if (!configs.root().script(k, ud.getOrigin())) return;
+				if (!configs.root().script(k, origin)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", ud.getOrigin(), k, ud.getUrl(), ud.getOrigin());
+				logger.debug("{} Async Tag ({}): {} {}", origin, k, ud.getUrl(), origin);
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
-						logger.debug("{} Async tag trying to run before finishing {} ", ud.getOrigin(), k);
+						logger.debug("{} Async tag trying to run before finishing {} ", origin, k);
 						return existing;
 					}
-					return taskScheduler.schedule(() -> {
+					return runAsync(() -> {
 						try {
 							v.run(fetch(ud));
 						} catch (NotFoundException e) {
-							logger.debug("{} Plugin not installed {} ", ud.getOrigin(), getMessage(e));
+							logger.debug("{} Plugin not installed {} ", origin, getMessage(e));
 						} catch (Exception e) {
-							logger.error("{} Error in async tag {} ", ud.getOrigin(), k, e);
+							logger.error("{} Error in async tag {} ", origin, k, e);
 						}
-					}, Instant.now());
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachError(ud.getUrl(), origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
 			});
 		} catch (Exception e) {
 			refs.computeIfPresent(getKey(ud), (k, existing) -> {
 				if (existing.isDone()) return null;
-				logger.info("{} Cancelled run {}: {}", ud.getOrigin(), ud.getTitle(), ud.getUrl());
+				logger.info("{} Cancelled run {}: {}", origin, ud.getTitle(), ud.getUrl());
 				existing.cancel(true);
 				return null;
 			});
@@ -150,13 +163,19 @@ public class Async {
 				if (!hasMatchingTag(ref, k)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
-				try {
-					v.run(ref);
-				} catch (NotFoundException e) {
-					logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
-				} catch (Exception e) {
-					logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
-				}
+				runAsync(() -> {
+					try {
+						v.run(ref);
+					} catch (NotFoundException e) {
+						logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
+					} catch (Exception e) {
+						logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
+					}
+				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+					logger.warn("{} Rate limited {} ", origin, k);
+					tagger.attachError(ref.getUrl(), origin, "Rate Limit Hit " + k);
+					return null;
+				});
 			});
 		}
 	}

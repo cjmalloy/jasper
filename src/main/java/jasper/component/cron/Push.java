@@ -13,11 +13,11 @@ import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.plugin.Origin.getOrigin;
 
 @Component("cronPush")
-public class Push implements Scheduler.CronRunner  {
+public class Push implements Cron.CronRunner  {
 	private static final Logger logger = LoggerFactory.getLogger(Push.class);
 
 	@Autowired
-	Scheduler cron;
+	Cron cron;
 
 	@Autowired
 	Replicator replicator;

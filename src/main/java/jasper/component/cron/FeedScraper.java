@@ -21,11 +21,11 @@ import static jasper.util.Logging.getMessage;
 
 @Profile("scripts")
 @Component
-public class FeedScraper implements Scheduler.CronRunner {
+public class FeedScraper implements Cron.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(FeedScraper.class);
 
 	@Autowired
-	Scheduler cron;
+	Cron cron;
 
 	@Autowired
 	RssParser rssParser;
