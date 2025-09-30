@@ -40,7 +40,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	// ====================== Reference Operations ======================
 
 	ChainBuilder createWebReference = 
-		exec(session -> session.set("webRefUrl", "https://example.com/article-" + (1 + new java.util.Random().nextInt(1000))))
+		exec(session -> session.set("webRefUrl", "https://example.com/article-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
 		.exec(
 			http("Create Web Reference")
 				.post("/api/v1/ref")
@@ -137,12 +137,28 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.check(status().is(200))
 	).pause(Duration.ofMillis(800));
 
-	ChainBuilder getSpecificRef = exec(
-		http("Get Specific Reference")
-			.get("/api/v1/ref")
-			.queryParam("url", "#{webRefUrl}")
-			.check(status().is(200))
-	).pause(Duration.ofMillis(400));
+	ChainBuilder getSpecificRef = 
+		exec(session -> session.set("lookupRefUrl", "https://example.com/article-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
+		.exec(
+			http("Create Ref for Lookup")
+				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"url": "#{lookupRefUrl}",
+						"title": "Lookup Article #{randomInt(1,1000)}",
+						"comment": "Article for lookup test",
+						"tags": ["test", "lookup"]
+					}"""))
+				.check(status().in(201, 409))
+		)
+		.pause(Duration.ofMillis(100))
+		.exec(
+			http("Get Specific Reference")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{lookupRefUrl}")
+				.check(status().is(200))
+		).pause(Duration.ofMillis(400));
 
 	// ====================== Extension Operations ======================
 

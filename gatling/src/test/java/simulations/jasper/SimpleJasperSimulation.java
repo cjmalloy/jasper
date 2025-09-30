@@ -46,7 +46,7 @@ public class SimpleJasperSimulation extends Simulation {
 	).pause(Duration.ofSeconds(1));
 
 	ChainBuilder createWebReference = 
-		exec(session -> session.set("testUrl", "https://example.com/test-" + (1 + new java.util.Random().nextInt(1000))))
+		exec(session -> session.set("testUrl", "https://example.com/test-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
 		.exec(
 			http("Create Web Reference")
 				.post("/api/v1/ref")
