@@ -1,10 +1,10 @@
 package jasper.component;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,110 +18,72 @@ class ScriptExecutorFactoryTest {
 	@BeforeEach
 	void setup() {
 		factory = new ScriptExecutorFactory();
+		factory.meterRegistry = new SimpleMeterRegistry();
 	}
 
 	@Test
 	void shouldCreateDeltaExecutor() {
-		Executor executor = factory.get("delta", "testOrigin");
+		ExecutorService executor = factory.get("delta", "testOrigin");
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getCorePoolSize()).isEqualTo(2);
-		assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(10);
-		assertThat(taskExecutor.getQueueCapacity()).isEqualTo(25);
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-delta-testOrigin-");
 	}
 
 	@Test
 	void shouldCreateCronExecutor() {
-		Executor executor = factory.get("cron", "testOrigin");
+		ExecutorService executor = factory.get("cron", "testOrigin");
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getCorePoolSize()).isEqualTo(2);
-		assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(10);
-		assertThat(taskExecutor.getQueueCapacity()).isEqualTo(25);
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-cron-testOrigin-");
 	}
 
 	@Test
 	void shouldCreatePythonExecutor() {
-		Executor executor = factory.get("python", "testOrigin");
+		ExecutorService executor = factory.get("python", "testOrigin");
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getCorePoolSize()).isEqualTo(2);
-		assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(10);
-		assertThat(taskExecutor.getQueueCapacity()).isEqualTo(25);
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-python-testOrigin-");
 	}
 
 	@Test
 	void shouldCreateJavaScriptExecutor() {
-		Executor executor = factory.get("javascript", "testOrigin");
+		ExecutorService executor = factory.get("javascript", "testOrigin");
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getCorePoolSize()).isEqualTo(2);
-		assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(10);
-		assertThat(taskExecutor.getQueueCapacity()).isEqualTo(25);
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-javascript-testOrigin-");
 	}
 
 	@Test
 	void shouldCreateDefaultExecutorForUnknownType() {
-		Executor executor = factory.get("unknown", "testOrigin");
+		ExecutorService executor = factory.get("unknown", "testOrigin");
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getCorePoolSize()).isEqualTo(2);
-		assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(10);
-		assertThat(taskExecutor.getQueueCapacity()).isEqualTo(25);
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-unknown-testOrigin-");
 	}
 
 	@Test
 	void shouldReuseExecutorForSameTypeAndOrigin() {
-		Executor executor1 = factory.get("delta", "testOrigin");
-		Executor executor2 = factory.get("delta", "testOrigin");
+		ExecutorService executor1 = factory.get("delta", "testOrigin");
+		ExecutorService executor2 = factory.get("delta", "testOrigin");
 
 		assertThat(executor1).isSameAs(executor2);
 	}
 
 	@Test
 	void shouldCreateSeparateExecutorsForDifferentOrigins() {
-		Executor executor1 = factory.get("delta", "origin1");
-		Executor executor2 = factory.get("delta", "origin2");
+		ExecutorService executor1 = factory.get("delta", "origin1");
+		ExecutorService executor2 = factory.get("delta", "origin2");
 
 		assertThat(executor1).isNotSameAs(executor2);
 	}
 
 	@Test
 	void shouldCreateSeparateExecutorsForDifferentTypes() {
-		Executor deltaExecutor = factory.get("delta", "testOrigin");
-		Executor cronExecutor = factory.get("cron", "testOrigin");
+		ExecutorService deltaExecutor = factory.get("delta", "testOrigin");
+		ExecutorService cronExecutor = factory.get("cron", "testOrigin");
 
 		assertThat(deltaExecutor).isNotSameAs(cronExecutor);
 	}
 
 	@Test
 	void shouldHandleNullOrigin() {
-		Executor executor = factory.get("delta", null);
+		ExecutorService executor = factory.get("delta", null);
 
 		assertThat(executor).isNotNull();
-		assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
-
-		ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-		assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("script-delta-");
 	}
 }
