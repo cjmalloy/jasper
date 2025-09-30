@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import static jasper.domain.proj.Tag.matchesTag;
+import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("scripts")
@@ -35,20 +36,15 @@ public class DeltaScript implements Async.AsyncRunner {
 	@Autowired
 	Tagger tagger;
 
-	// Global bulkhead for all script execution as a resource limiter
-	// Per-origin quotas are now handled by per-origin thread pools in ScriptExecutorFactory
 	private Bulkhead globalScriptBulkhead;
-
 	private Bulkhead getGlobalScriptBulkhead() {
 		if (globalScriptBulkhead == null) {
-			var maxConcurrent = configs.root().getMaxConcurrentScriptsPerOrigin();
+			var maxConcurrent = configs.root().getMaxConcurrentScripts();
 			logger.info("Creating global script execution bulkhead with {} permits", maxConcurrent);
-
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(java.time.Duration.ofSeconds(60)) // Wait up to 60 seconds
+				.maxWaitDuration(ofSeconds(60))
 				.build();
-
 			globalScriptBulkhead = Bulkhead.of("global-script-execution", bulkheadConfig);
 		}
 		return globalScriptBulkhead;
@@ -70,11 +66,7 @@ public class DeltaScript implements Async.AsyncRunner {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
 		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
-
-		var bulkhead = getGlobalScriptBulkhead();
-
-		// Execute within global bulkhead limits - will wait if quota is met
-		bulkhead.executeSupplier(() -> {
+		getGlobalScriptBulkhead().executeSupplier(() -> {
 			try {
 				logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 				var found = false;

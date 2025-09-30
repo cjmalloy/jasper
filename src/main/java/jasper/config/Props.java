@@ -149,63 +149,9 @@ public class Props {
 		private List<String> scriptWhitelist;
 		private List<String> hostWhitelist;
 		private List<String> hostBlacklist;
-		private Integer maxConcurrentRequestsPerOrigin;
-		private Integer maxConcurrentScriptsPerOrigin;
-		private Integer maxConcurrentCronScriptsPerOrigin;
-		private Integer maxConcurrentReplicationPerOrigin;
 		private Integer maxConcurrentRequests;
-		
-		/**
-		 * Get the effective limit, checking environment variables first,
-		 * then falling back to the configured value.
-		 */
-		public Integer getMaxConcurrentScriptsWithEnv() {
-			var env = System.getenv("JASPER_MAX_CONCURRENT_SCRIPTS");
-			if (env != null && !env.isEmpty()) {
-				try {
-					return Integer.parseInt(env);
-				} catch (NumberFormatException e) {
-					// Fall through to configured value
-				}
-			}
-			return maxConcurrentScriptsPerOrigin;
-		}
-		
-		public Integer getMaxConcurrentCronScriptsWithEnv() {
-			var env = System.getenv("JASPER_MAX_CONCURRENT_CRON_SCRIPTS");
-			if (env != null && !env.isEmpty()) {
-				try {
-					return Integer.parseInt(env);
-				} catch (NumberFormatException e) {
-					// Fall through to configured value
-				}
-			}
-			return maxConcurrentCronScriptsPerOrigin;
-		}
-		
-		public Integer getMaxConcurrentReplicationWithEnv() {
-			var env = System.getenv("JASPER_MAX_CONCURRENT_REPLICATION");
-			if (env != null && !env.isEmpty()) {
-				try {
-					return Integer.parseInt(env);
-				} catch (NumberFormatException e) {
-					// Fall through to configured value
-				}
-			}
-			return maxConcurrentReplicationPerOrigin;
-		}
-		
-		public Integer getMaxConcurrentRequestsWithEnv() {
-			var env = System.getenv("JASPER_MAX_CONCURRENT_REQUESTS");
-			if (env != null && !env.isEmpty()) {
-				try {
-					return Integer.parseInt(env);
-				} catch (NumberFormatException e) {
-					// Fall through to configured value
-				}
-			}
-			return maxConcurrentRequests;
-		}
+		private Integer maxConcurrentScripts;
+		private Integer maxConcurrentReplication;
 	}
 
 	@Getter
@@ -221,6 +167,8 @@ public class Props {
 		private String defaultUser = "";
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
+		private Integer maxConcurrentRequests;
+		private Integer maxConcurrentScripts;
 	}
 
 

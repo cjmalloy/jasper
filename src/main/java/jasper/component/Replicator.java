@@ -38,9 +38,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -54,6 +52,7 @@ import static jasper.plugin.Push.getPush;
 import static jasper.util.Logging.getMessage;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -111,20 +110,15 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
-	// Global bulkhead for all replication operations as a resource limiter
-	// Replication operations don't have per-origin thread pools, so this provides system-wide protection
 	private Bulkhead globalReplicationBulkhead;
-
 	private Bulkhead getGlobalReplicationBulkhead() {
 		if (globalReplicationBulkhead == null) {
-			var maxConcurrent = configs.root().getMaxConcurrentReplicationPerOrigin();
+			var maxConcurrent = configs.root().getMaxConcurrentReplication();
 			logger.info("Creating global replication bulkhead with {} permits", maxConcurrent);
-
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(java.time.Duration.ofSeconds(30)) // Wait up to 30 seconds
+				.maxWaitDuration(ofSeconds(30))
 				.build();
-
 			globalReplicationBulkhead = Bulkhead.of("global-replication", bulkheadConfig);
 		}
 		return globalReplicationBulkhead;
@@ -189,11 +183,8 @@ public class Replicator {
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-
-		var bulkhead = getGlobalReplicationBulkhead();
-
 		try {
-			bulkhead.executeSupplier(() -> {
+			getGlobalReplicationBulkhead().executeSupplier(() -> {
 				var pull = getPull(remote);
 				var config = getOrigin(remote);
 				var rootOrigin = remote.getOrigin();
@@ -414,11 +405,8 @@ public class Replicator {
 	public void push(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-
-		var bulkhead = getGlobalReplicationBulkhead();
-
 		try {
-			bulkhead.executeSupplier(() -> {
+			getGlobalReplicationBulkhead().executeSupplier(() -> {
 				var push = getPush(remote);
 				// TODO: only push what user can see
 				var config = getOrigin(remote);

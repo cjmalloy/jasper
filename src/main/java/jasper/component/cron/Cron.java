@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
@@ -56,20 +57,15 @@ public class Cron {
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
-	// Global bulkhead for all cron script execution as a resource limiter
-	// Per-origin quotas are now handled by per-origin thread pools in ScriptExecutorFactory
 	private Bulkhead globalCronScriptBulkhead;
-
 	private Bulkhead getGlobalCronScriptBulkhead() {
 		if (globalCronScriptBulkhead == null) {
-			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
+			var maxConcurrent = configs.root().getMaxConcurrentScripts();
 			logger.info("Creating global cron script execution bulkhead with {} permits", maxConcurrent);
-
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(java.time.Duration.ofSeconds(60)) // Wait up to 60 seconds
+				.maxWaitDuration(ofSeconds(60))
 				.build();
-
 			globalCronScriptBulkhead = Bulkhead.of("global-cron-execution", bulkheadConfig);
 		}
 		return globalCronScriptBulkhead;
@@ -162,10 +158,7 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						var bulkhead = getGlobalCronScriptBulkhead();
-
-						// Execute within global bulkhead limits - will wait if quota is met
-						bulkhead.executeSupplier(() -> {
+						getGlobalCronScriptBulkhead().executeSupplier(() -> {
 							try {
 								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 								ran.add(v);
@@ -227,9 +220,6 @@ public class Cron {
 			// Skip scheduled run since we are running manually
 			return;
 		}
-
-		var bulkhead = getGlobalCronScriptBulkhead();
-
 		var ran = new HashSet<CronRunner>();
 		tags.forEach((k, v) -> {
 			if (ran.contains(v)) return;
@@ -237,8 +227,7 @@ public class Cron {
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			runAsync(() -> {
-				// Execute within global bulkhead limits - will wait if quota is met
-				bulkhead.executeSupplier(() -> {
+				getGlobalCronScriptBulkhead().executeSupplier(() -> {
 					try {
 						v.run(ref);
 						ran.add(v);
