@@ -81,7 +81,7 @@ public class StressTestSimulation extends Simulation {
 			.queryParam("query", "stress-test OR performance OR load-#{randomInt(1,100)}")
 			.queryParam("sort", "modified,desc")
 			.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(responseTimeInMillis().lt(5000))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(500));
 
