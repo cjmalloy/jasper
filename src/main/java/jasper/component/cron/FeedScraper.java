@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 import static jasper.util.Logging.getMessage;
 
@@ -56,6 +57,9 @@ public class FeedScraper implements Cron.CronRunner {
 		} catch (SSLException e) {
 			// Temporary error page, retry later
 			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error with feed SSL", getMessage(e));
+		} catch (SocketTimeoutException e) {
+			// Temporary network timeout, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Timeout loading feed", getMessage(e));
 		} catch (IOException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
 		} catch (Throwable e) {
