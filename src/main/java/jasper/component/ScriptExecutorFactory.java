@@ -27,8 +27,7 @@ public class ScriptExecutorFactory {
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 
 	public ExecutorService get(String tag, String origin) {
-		String key = tag + (origin != null ? origin : "");
-		return executors.computeIfAbsent(key, k -> {
+		return executors.computeIfAbsent(tag + origin, k -> {
 			logger.info("{} Creating dynamic script executor for {}", origin, k);
 			var executor = new ThreadPoolTaskExecutor();
 			executor.setCorePoolSize(2);
@@ -46,7 +45,7 @@ public class ScriptExecutorFactory {
 			executor.initialize();
 			return monitor(meterRegistry, executor.getThreadPoolExecutor(), "scriptExecutor", "script", Tags.of(
 					"tag", tag,
-					"origin", origin != null ? origin : ""));
+					"origin", origin));
 		});
 	}
 

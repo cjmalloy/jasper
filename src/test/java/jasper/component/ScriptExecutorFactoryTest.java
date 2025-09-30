@@ -79,11 +79,4 @@ class ScriptExecutorFactoryTest {
 
 		assertThat(deltaExecutor).isNotSameAs(cronExecutor);
 	}
-
-	@Test
-	void shouldHandleNullOrigin() {
-		ExecutorService executor = factory.get("delta", null);
-
-		assertThat(executor).isNotNull();
-	}
 }
