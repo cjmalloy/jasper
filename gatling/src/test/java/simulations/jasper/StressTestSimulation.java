@@ -70,8 +70,9 @@ public class StressTestSimulation extends Simulation {
 						"https://source2.example.com/#{randomInt(1,1000)}",
 						"https://source3.example.com/#{randomInt(1,1000)}"
 					]
-				}""")))
+				}"""))
 			.check(status().in(201, 409, 400))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	ChainBuilder largePageQuery = exec(
