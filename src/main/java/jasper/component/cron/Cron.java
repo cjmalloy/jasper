@@ -51,7 +51,7 @@ public class Cron {
 	Watch watch;
 
 	@Autowired
-	Bulkhead globalCronScriptBulkhead;
+	Bulkhead scriptBulkhead;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
@@ -145,7 +145,7 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						globalCronScriptBulkhead.executeSupplier(() -> {
+						scriptBulkhead.executeSupplier(() -> {
 							try {
 								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
 								ran.add(v);
@@ -214,7 +214,7 @@ public class Cron {
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			runAsync(() -> {
-				globalCronScriptBulkhead.executeSupplier(() -> {
+				scriptBulkhead.executeSupplier(() -> {
 					try {
 						v.run(ref);
 						ran.add(v);

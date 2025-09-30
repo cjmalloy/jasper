@@ -151,7 +151,6 @@ public class Props {
 		private List<String> hostBlacklist;
 		private Integer maxConcurrentRequests;
 		private Integer maxConcurrentScripts;
-		private Integer maxConcurrentCronScripts;
 		private Integer maxConcurrentReplication;
 	}
 

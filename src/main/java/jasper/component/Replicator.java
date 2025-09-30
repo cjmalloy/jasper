@@ -51,7 +51,6 @@ import static jasper.plugin.Push.getPush;
 import static jasper.util.Logging.getMessage;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
-import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -108,7 +107,7 @@ public class Replicator {
 	Optional<FileCache> fileCache;
 
 	@Autowired
-	Bulkhead globalReplicationBulkhead;
+	Bulkhead replBulkhead;
 
 	boolean fileCacheMissingError = false;
 
@@ -172,7 +171,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		try {
-			globalReplicationBulkhead.executeSupplier(() -> {
+			replBulkhead.executeSupplier(() -> {
 				var pull = getPull(remote);
 				var config = getOrigin(remote);
 				var rootOrigin = remote.getOrigin();
@@ -394,7 +393,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		try {
-			globalReplicationBulkhead.executeSupplier(() -> {
+			replBulkhead.executeSupplier(() -> {
 				var push = getPush(remote);
 				// TODO: only push what user can see
 				var config = getOrigin(remote);

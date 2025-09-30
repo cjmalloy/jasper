@@ -35,7 +35,7 @@ public class DeltaScript implements Async.AsyncRunner {
 	Tagger tagger;
 
 	@Autowired
-	Bulkhead globalScriptBulkhead;
+	Bulkhead scriptBulkhead;
 
 	@PostConstruct
 	void init() {
@@ -53,7 +53,7 @@ public class DeltaScript implements Async.AsyncRunner {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts
 		if (ref.hasTag("_plugin/delta/cache")) return; // TODO: Move to mod scripts
-		globalScriptBulkhead.executeSupplier(() -> {
+		scriptBulkhead.executeSupplier(() -> {
 			try {
 				logger.debug("{} Searching for delta response scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 				var found = false;
