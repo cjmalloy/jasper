@@ -152,6 +152,7 @@ public class Props {
 		private Integer maxConcurrentRequests;
 		private Integer maxConcurrentScripts;
 		private Integer maxConcurrentReplication;
+		private Integer maxConcurrentFetch;
 	}
 
 	@Getter

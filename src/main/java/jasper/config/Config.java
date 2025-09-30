@@ -119,6 +119,11 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentRequests = 500;
+		/**
+		 * Maximum concurrent fetch operations (scraping). Default 10.
+		 */
+		@Builder.Default
+		private int maxConcurrentFetch = 10;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -138,7 +143,8 @@ public interface Config {
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			if (server.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(server.getMaxConcurrentRequests());
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
-			if (server.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(server.getMaxConcurrentRequests());
+			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
+			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
 			return wrapped;
 		}
 
