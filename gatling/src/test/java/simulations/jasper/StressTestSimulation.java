@@ -268,21 +268,24 @@ public class StressTestSimulation extends Simulation {
 				.queryParam("url", "#{stressUpdateUrl}")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-				.check(jsonPath("$.modified").saveAs("stressRefModified"))
+				.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
 		)
-		.exec(
-			http("Concurrent Update Attempt")
-				.patch("/api/v1/ref")
-				.queryParam("url", "#{stressUpdateUrl}")
-				.queryParam("cursor", "#{stressRefModified}")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
-				.header("Content-Type", "application/merge-patch+json")
-				.body(StringBody("""
-					{
-						"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
-						"comment": "Updated during stress test at #{randomLong()}"
-					}"""))
-				.check(status().in(200, 409))
+		.doIf(session -> session.contains("stressRefModified")).then(
+			exec(
+				http("Concurrent Update Attempt")
+					.patch("/api/v1/ref")
+					.queryParam("url", "#{stressUpdateUrl}")
+					.queryParam("cursor", "#{stressRefModified}")
+					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("Content-Type", "application/merge-patch+json")
+					.body(StringBody("""
+						{
+							"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
+							"comment": "Updated during stress test at #{randomLong()}"
+						}"""))
+					.check(status().in(200, 409))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
 		).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	// ====================== Graph Operations Stress ======================
