@@ -65,7 +65,6 @@ public class UserJourneySimulation extends Simulation {
 			.get("/api/v1/ref/page")
 			.queryParam("size", "1")
 			.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	);
 
@@ -83,7 +82,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("search", "#{topic}")
 				.queryParam("size", "20")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$.content").saveAs("existingRefs"))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
@@ -174,7 +172,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("size", "30")
 				.queryParam("sort", "modified,desc")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$.content[*].url").findAll().saveAs("recentUrls"))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
@@ -198,7 +195,6 @@ public class UserJourneySimulation extends Simulation {
 							"tags": ["review", "#{topic}"]
 						}"""))
 					.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 			.pause(Duration.ofMillis(200))
@@ -210,7 +206,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("url", "#{researchUrl}")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Look for untagged content to organize
@@ -220,7 +215,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("untagged", "true")
 				.queryParam("size", "10")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(2, 4))
