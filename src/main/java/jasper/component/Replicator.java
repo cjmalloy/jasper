@@ -111,21 +111,23 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
-	// Map to store per-origin bulkheads for replication operations
-	private final Map<String, Bulkhead> originReplicationBulkheads = new ConcurrentHashMap<>();
+	// Global bulkhead for all replication operations as a resource limiter
+	// Replication operations don't have per-origin thread pools, so this provides system-wide protection
+	private Bulkhead globalReplicationBulkhead;
 
-	private Bulkhead getOriginReplicationBulkhead(String origin) {
-		return originReplicationBulkheads.computeIfAbsent(origin, k -> {
+	private Bulkhead getGlobalReplicationBulkhead() {
+		if (globalReplicationBulkhead == null) {
 			var maxConcurrent = configs.root().getMaxConcurrentReplicationPerOrigin();
-			logger.debug("{} Creating replication bulkhead with {} permits", origin, maxConcurrent);
+			logger.info("Creating global replication bulkhead with {} permits", maxConcurrent);
 
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
+				.maxWaitDuration(java.time.Duration.ofSeconds(30)) // Wait up to 30 seconds
 				.build();
 
-			return Bulkhead.of("replication-" + origin, bulkheadConfig);
-		});
+			globalReplicationBulkhead = Bulkhead.of("global-replication", bulkheadConfig);
+		}
+		return globalReplicationBulkhead;
 	}
 
 	private record Log(String title, String message) {}
@@ -188,7 +190,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 
-		var bulkhead = getOriginReplicationBulkhead(remote.getOrigin());
+		var bulkhead = getGlobalReplicationBulkhead();
 
 		try {
 			bulkhead.executeSupplier(() -> {
@@ -403,8 +405,8 @@ public class Replicator {
 				return null;
 			});
 		} catch (BulkheadFullException e) {
-			logger.warn("{} Replication pull rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
-			tagger.attachError(remote.getOrigin(), remote, "Replication pull rate limit exceeded", "Too many concurrent replication operations");
+			logger.warn("{} Replication pull delayed due to global rate limit for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachError(remote.getOrigin(), remote, "Replication pull timed out waiting for global rate limit", "System is under heavy replication load");
 		}
 	}
 
@@ -413,7 +415,7 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 
-		var bulkhead = getOriginReplicationBulkhead(remote.getOrigin());
+		var bulkhead = getGlobalReplicationBulkhead();
 
 		try {
 			bulkhead.executeSupplier(() -> {
@@ -552,8 +554,8 @@ public class Replicator {
 				return null;
 			});
 		} catch (BulkheadFullException e) {
-			logger.warn("{} Replication push rate limit exceeded for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
-			tagger.attachError(remote.getOrigin(), remote, "Replication push rate limit exceeded", "Too many concurrent replication operations");
+			logger.warn("{} Replication push delayed due to global rate limit for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			tagger.attachError(remote.getOrigin(), remote, "Replication push timed out waiting for global rate limit", "System is under heavy replication load");
 		}
 	}
 

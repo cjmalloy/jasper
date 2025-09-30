@@ -2,7 +2,6 @@ package jasper.component.cron;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
-import io.github.resilience4j.bulkhead.BulkheadFullException;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -57,21 +56,23 @@ public class Cron {
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
-	// Map to store per-origin bulkheads for cron script execution
-	private final Map<String, Bulkhead> originCronScriptBulkheads = new ConcurrentHashMap<>();
+	// Global bulkhead for all cron script execution as a resource limiter
+	// Per-origin quotas are now handled by per-origin thread pools in ScriptExecutorFactory
+	private Bulkhead globalCronScriptBulkhead;
 
-	private Bulkhead getOriginCronScriptBulkhead(String origin) {
-		return originCronScriptBulkheads.computeIfAbsent(origin, k -> {
+	private Bulkhead getGlobalCronScriptBulkhead() {
+		if (globalCronScriptBulkhead == null) {
 			var maxConcurrent = configs.root().getMaxConcurrentCronScriptsPerOrigin();
-			logger.debug("{} Creating cron script execution bulkhead with {} permits", origin, maxConcurrent);
+			logger.info("Creating global cron script execution bulkhead with {} permits", maxConcurrent);
 
 			var bulkheadConfig = BulkheadConfig.custom()
 				.maxConcurrentCalls(maxConcurrent)
-				.maxWaitDuration(java.time.Duration.ofMillis(0)) // Don't wait, fail fast
+				.maxWaitDuration(java.time.Duration.ofSeconds(60)) // Wait up to 60 seconds
 				.build();
 
-			return Bulkhead.of("cron-" + origin, bulkheadConfig);
-		});
+			globalCronScriptBulkhead = Bulkhead.of("global-cron-execution", bulkheadConfig);
+		}
+		return globalCronScriptBulkhead;
 	}
 
 	/**
@@ -161,27 +162,23 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						var bulkhead = getOriginCronScriptBulkhead(origin);
+						var bulkhead = getGlobalCronScriptBulkhead();
 
-						try {
-							bulkhead.executeSupplier(() -> {
-								try {
-									v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-									ran.add(v);
-									tagger.removeAllResponses(url, origin, "+plugin/user/run");
-									return null;
-								} catch (Exception e) {
-									logger.error("{} Error in run tag {} ", origin, k);
-									tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-									throw new RuntimeException(e);
-								}
-							});
-						} catch (BulkheadFullException e) {
-							logger.warn("{} Manual script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
-							tagger.attachError(url, origin, "Manual script execution rate limit exceeded", "Too many concurrent cron scripts running");
-						} finally {
-							refs.remove(k);
-						}
+						// Execute within global bulkhead limits - will wait if quota is met
+						bulkhead.executeSupplier(() -> {
+							try {
+								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+								ran.add(v);
+								tagger.removeAllResponses(url, origin, "+plugin/user/run");
+								return null;
+							} catch (Exception e) {
+								logger.error("{} Error in run tag {} ", origin, k);
+								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+								throw new RuntimeException(e);
+							} finally {
+								refs.remove(k);
+							}
+						});
 					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
 						logger.warn("{} Rate limited {} ", origin, k);
 						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
@@ -231,7 +228,7 @@ public class Cron {
 			return;
 		}
 
-		var bulkhead = getOriginCronScriptBulkhead(origin);
+		var bulkhead = getGlobalCronScriptBulkhead();
 
 		var ran = new HashSet<CronRunner>();
 		tags.forEach((k, v) -> {
@@ -240,21 +237,17 @@ public class Cron {
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			runAsync(() -> {
-				try {
-					bulkhead.executeSupplier(() -> {
-						try {
-							v.run(ref);
-							ran.add(v);
-						} catch (Exception e) {
-							logger.error("{} Error in cron tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-						}
-						return null;
-					});
-				} catch (BulkheadFullException e) {
-					logger.warn("{} Cron script execution rate limit exceeded for {}: {}", origin, ref.getTitle(), url);
-					tagger.attachError(url, origin, "Cron script execution rate limit exceeded", "Too many concurrent cron scripts running");
-				}
+				// Execute within global bulkhead limits - will wait if quota is met
+				bulkhead.executeSupplier(() -> {
+					try {
+						v.run(ref);
+						ran.add(v);
+					} catch (Exception e) {
+						logger.error("{} Error in cron tag {} ", origin, k);
+						tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+					}
+					return null;
+				});
 			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, k);
 				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
