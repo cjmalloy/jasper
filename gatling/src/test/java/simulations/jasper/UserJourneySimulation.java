@@ -73,7 +73,9 @@ public class UserJourneySimulation extends Simulation {
 	ChainBuilder researchWorkflow = feed(topicFeeder)
 		.exec(session -> {
 			System.out.println("User researching: " + session.getString("topic"));
-			return session;
+			// Normalize category to lowercase for use in tags
+			String category = session.getString("category").toLowerCase();
+			return session.set("categoryTag", category);
 		})
 		// Start by searching for existing knowledge
 		.exec(
@@ -90,7 +92,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Browse by Category - #{category}")
 				.get("/api/v1/ref/page")
-				.queryParam("query", "#{category}")
+				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "15")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -111,7 +113,7 @@ public class UserJourneySimulation extends Simulation {
 						"url": "#{researchUrl}",
 						"title": "#{topic} Research - Study#{randomInt(1000,9999)}",
 						"comment": "Research findings on #{topic} from #{source}",
-						"tags": ["research", "#{category}", "#{type}"]
+						"tags": ["research", "#{categoryTag}", "#{type}"]
 					}"""))
 				.check(status().is(201))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -142,7 +144,7 @@ public class UserJourneySimulation extends Simulation {
 						"url": "#{commentUrl}",
 						"title": "Research Notes: #{topic}",
 						"comment": "Key insights and takeaways from #{topic} research session",
-						"tags": ["note", "#{category}", "research.summary"],
+						"tags": ["note", "#{categoryTag}", "research.summary"],
 						"sources": ["#{researchUrl}"]
 					}"""))
 				.check(status().is(201))
@@ -153,7 +155,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Find Related Templates - #{category}")
 				.get("/api/v1/template/page")
-				.queryParam("query", "#{category}")
+				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "10")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -254,8 +256,11 @@ public class UserJourneySimulation extends Simulation {
 			// Convert topic to lowercase and replace spaces with dots for valid tag
 			String topic = session.getString("topic");
 			String topicTag = topic.toLowerCase().replaceAll("\\s+", ".");
+			String categoryTag = session.getString("category").toLowerCase();
 			int randomId = new java.util.Random().nextInt(100) + 1;
-			return session.set("topicTag", topicTag).set("templateTagValue", "_template/" + topicTag + "." + randomId);
+			return session.set("topicTag", topicTag)
+				.set("categoryTag", categoryTag)
+				.set("templateTagValue", "_template/" + topicTag + "." + randomId);
 		})
 		// Create a specialized template for the topic
 		.exec(
@@ -316,7 +321,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Browse Topic Extensions - #{category}")
 				.get("/api/v1/ext/page")
-				.queryParam("query", "#{category}")
+				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "15")
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
