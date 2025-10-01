@@ -96,6 +96,45 @@ Each simulation includes assertions and performance expectations:
 
 Create new simulation classes in `src/test/java/simulations/jasper/` that extend `Simulation` from Gatling.
 
+## Rate Limit Retry Handling
+
+The test suite includes automatic retry logic for rate-limited requests (HTTP 429 and 503 responses).
+
+### Usage
+
+The `RateLimitRetry` utility class provides automatic retry with exponential backoff:
+
+```java
+import static simulations.jasper.RateLimitRetry.withRateLimitRetry;
+
+ChainBuilder myRequest = withRateLimitRetry(
+    "My Request",
+    session -> http("My Request")
+        .get("/api/endpoint")
+        .check(status().in(200, 429, 503))
+);
+```
+
+### Features
+
+- **Automatic Detection**: Monitors for 429 (Too Many Requests) and 503 (Service Unavailable) responses
+- **Header Parsing**: Extracts and respects the `X-RateLimit-Retry-After` header
+- **Flexible Delay Formats**: Supports both integer seconds and ISO-8601 datetime formats
+- **Exponential Backoff**: Falls back to exponential backoff (1s, 2s, 4s...) when no header is present
+- **Configurable Retries**: Defaults to 2 retries, but can be customized
+
+### Example with Custom Retry Count
+
+```java
+ChainBuilder myRequest = withRateLimitRetry(
+    "My Request",
+    session -> http("My Request")
+        .get("/api/endpoint")
+        .check(status().in(200, 429, 503)),
+    3  // Maximum 3 retry attempts
+);
+```
+
 ## Real-World Scenarios Included
 
 The enhanced test suite includes:
