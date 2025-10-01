@@ -98,6 +98,36 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== Large Payload Operations ======================
 
+	ChainBuilder createLargeExtTemplate = exec(
+		http("Create Large Extension Template")
+			.post("/api/v1/template")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
+			.body(StringBody("""
+				{
+					"tag": "large.test",
+					"name": "Large Test Extension Template",
+					"schema": {
+						"properties": {
+							"type": {"type": "string"}
+						},
+						"optionalProperties": {
+							"data": {
+								"elements": {
+									"properties": {
+										"id": {"type": "uint32"},
+										"name": {"type": "string"},
+										"description": {"type": "string"},
+										"value": {"type": "float64"}
+									}
+								}
+							}
+						}
+					}
+				}"""))
+			.check(status().in(201, 409))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+	).pause(Duration.ofMillis(100));
+
 	ChainBuilder createLargeExt = exec(session -> {
 		// Build large config JSON
 		StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
@@ -114,7 +144,7 @@ public class StressTestSimulation extends Simulation {
 		
 		String body = String.format("""
 			{
-				"tag": "large.test.%d",
+				"tag": "large.test/%d",
 				"name": "Large Test Extension %d",
 				"config": %s
 			}""",
@@ -345,6 +375,7 @@ public class StressTestSimulation extends Simulation {
 
 	ScenarioBuilder systemLimitsTest = scenario("System Limits Test")
 		.exec(fetchCsrfToken)
+		.exec(createLargeExtTemplate)
 		.exec(createLargeExt)
 		.pause(Duration.ofSeconds(1), Duration.ofSeconds(3))
 		.exec(stressGraphOperations)
