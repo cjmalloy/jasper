@@ -329,12 +329,53 @@ public class UserJourneySimulation extends Simulation {
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 2))
-		// Create a curated collection
+		// Create a template for curated collections
 		.exec(session -> {
 			String topicTag = session.getString("topicTag");
 			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("collectionTag", "collection/" + topicTag + "." + randomId);
+			return session.set("collectionTag", "collection/" + topicTag + "." + randomId)
+				.set("collectionTemplateTag", "_template/collection/" + topicTag + "." + randomId);
 		})
+		.exec(
+			http("Create Collection Template - #{topic}")
+				.post("/api/v1/template")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"tag": "#{collectionTemplateTag}",
+						"name": "#{topic} Collection Template",
+						"config": {
+							"description": "Template for curated collections"
+						},
+						"defaults": {
+							"type": "collection",
+							"curator": "system",
+							"criteria": {
+								"quality_min": 7,
+								"verified": true
+							}
+						},
+						"schema": {
+							"optionalProperties": {
+								"type": {"type": "string"},
+								"description": {"type": "string"},
+								"curator": {"type": "string"},
+								"created": {"type": "string"},
+								"criteria": {
+									"optionalProperties": {
+										"quality_min": {"type": "float64"},
+										"categories": {"elements": {"type": "string"}},
+										"verified": {"type": "boolean"}
+									}
+								}
+							}
+						}
+					}"""))
+				.check(status().in(201, 409))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+		.pause(Duration.ofMillis(500))
+		// Create a curated collection
 		.exec(
 			http("Create Curated Collection - #{topic}")
 				.post("/api/v1/ext")
