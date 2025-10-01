@@ -42,9 +42,8 @@ ALWAYS run the bootstrapping steps first.
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
-- Run load tests: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn gatling:test` -- takes 27 seconds. NEVER CANCEL. Set timeout to 60+ seconds.
-- From root: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && mvn -f gatling/pom.xml gatling:test`
-- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling`
+- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling` -- takes 15 minutes. NEVER CANCEL. Set timeout to 180+ seconds.
+- Override the docker CMD to run a single test suite
 
 **GitHub Actions Integration:**
 - Build workflow: `.github/workflows/test.yml` runs full Docker build and test suite
@@ -56,13 +55,11 @@ ALWAYS run the bootstrapping steps first.
 ALWAYS manually validate any new code by running through complete end-to-end scenarios after making changes.
 
 **Required Validation Steps:**
-1. Build the application: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw clean package -DskipTests`
-2. Start supporting services: `docker compose up db redis -d`
-3. Run the application locally: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
-4. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
-5. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-6. Run tests with dependencies: Install Bun and Python, then `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw test`
-7. Clean up: `docker compose down`
+1. Start supporting services: `docker compose up -d`
+2. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
+3. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
+4. Run tests with dependencies: Install Bun and Python, then `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && ./mvnw test`
+5. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
 - RESTful API for knowledge management (Refs, Extensions, Users, Plugins, Templates)

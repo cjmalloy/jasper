@@ -1,4 +1,4 @@
-FROM maven:3.9.9-amazoncorretto-21-debian
+FROM maven:3.9.11-amazoncorretto-25-debian
 WORKDIR /gatling
 COPY pom.xml .
 COPY gen-index.sh .
