@@ -78,7 +78,7 @@ public class StressTestSimulation extends Simulation {
 		http("Large Page Query")
 			.get("/api/v1/ref/page")
 			.queryParam("size", "100")
-			.queryParam("query", "stress-test OR performance OR load-#{randomInt(1,100)}")
+			.queryParam("query", "stress-test|performance|load-#{randomInt(1,100)}")
 			.queryParam("sort", "modified,desc")
 			.check(status().is(200))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
