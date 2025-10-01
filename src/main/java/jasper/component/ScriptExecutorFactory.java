@@ -20,7 +20,7 @@ import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.mo
 @Component
 public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
-	private static final int DEFAULT_QUEUE_CAPACITY = 10000;
+	private static final int DEFAULT_QUEUE_CAPACITY = 100_000;
 
 	@Autowired
 	MeterRegistry meterRegistry;

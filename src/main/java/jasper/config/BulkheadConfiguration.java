@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 
+import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 
 @Configuration
@@ -45,7 +46,7 @@ public class BulkheadConfiguration {
 	public Bulkhead replBulkhead() {
 		return registry.bulkhead("repl", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentReplication())
-			.maxWaitDuration(ofSeconds(30))
+			.maxWaitDuration(ofMinutes(5))
 			.build());
 	}
 
@@ -53,7 +54,7 @@ public class BulkheadConfiguration {
 	public Bulkhead fetchBulkhead() {
 		return registry.bulkhead("fetch", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentFetch())
-			.maxWaitDuration(ofSeconds(30))
+			.maxWaitDuration(ofMinutes(5))
 			.build());
 	}
 

@@ -18,6 +18,7 @@ import java.util.Map;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static java.lang.Math.min;
+import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -105,12 +106,12 @@ public interface Config {
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 		/**
-		 * Maximum concurrent script executions per origin. Default 5.
+		 * Maximum concurrent script executions. Default 5.
 		 */
 		@Builder.Default
 		private int maxConcurrentScripts = 5;
 		/**
-		 * Maximum concurrent replication push/pull operations per origin. Default 3.
+		 * Maximum concurrent replication push/pull operations. Default 3.
 		 */
 		@Builder.Default
 		private int maxConcurrentReplication = 3;
@@ -213,16 +214,18 @@ public interface Config {
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum concurrent HTTP requests per origin. Default 100.
+		 * Maximum concurrent HTTP requests per origin. Default 100,000.
 		 */
-		private int maxConcurrentRequests = 100;
+		private int maxConcurrentRequests = 100_000;
 		/**
-		 * Maximum concurrent script executions per origin. Default 10.
+		 * Maximum concurrent script executions per origin. Default 100_000.
 		 */
-		private int maxConcurrentScripts = 10;
+		private int maxConcurrentScripts = 100_000;
 		/**
-		 * Per-origin script execution limits. Map of script selector patterns (tag+origin) to max concurrent value.
-		 * Example: {"+plugin/delta@myorg": 15, "_plugin/delta@*": 5}
+		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
+		 * No origin wildcards.
+		 * Example: {"@myorg", "+plugin/delta@myorg": 15, "_plugin/delta": 5}
+		 * If more than one matches, the smallest limit is chosen.
 		 */
 		private Map<String, Integer> scriptLimits = Map.of();
 		@JsonIgnore
@@ -238,7 +241,7 @@ public interface Config {
 			if (scriptLimitsParsed() == null) return maxConcurrentScripts;
 			return min(maxConcurrentScripts, scriptLimitsParsed().entrySet().stream()
 				.filter(e -> e.getKey().captures(tagOriginSelector(plugin + e.getKey().origin)))
-				.min((a, b) -> b.getValue() - a.getValue())
+				.min(comparingInt(Map.Entry::getValue))
 				.map(Map.Entry::getValue)
 				.orElse(maxConcurrentScripts));
 		}
