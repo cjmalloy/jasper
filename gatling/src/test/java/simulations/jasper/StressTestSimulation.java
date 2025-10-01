@@ -4,6 +4,7 @@ import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
+import static simulations.jasper.RateLimitRetry.withRateLimitRetry;
 
 import java.time.Duration;
 
@@ -47,52 +48,55 @@ public class StressTestSimulation extends Simulation {
 				(1 + new java.util.Random().nextInt(100000));
 			return session.set("rapidRefUrl", url);
 		})
-			.exec(
-				http("Rapid Ref Creation")
+			.exec(withRateLimitRetry(
+				"Rapid Ref Creation",
+				session -> http("Rapid Ref Creation")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 					.body(StringBody("""
 				{
-					"url": "#{rapidRefUrl}",
-					"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
-					"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
+					"url": """" + session.getString("rapidRefUrl") + """",
+					"title": "Stress Test Reference """ + new java.util.Random().nextInt(100000) + """ - Load""" + new java.util.Random().nextInt(90000) + 10000 + """",
+					"comment": "StressTest""" + new java.util.Random().nextInt(900000) + 100000 + """ - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content""" + new java.util.Random().nextInt(900000) + 100000 + """",
 					"tags": [
 						"stresstest",
 						"performance",
-						"load.#{randomInt(1,1000)}",
-						"batch.#{randomInt(1,100)}",
-						"category.#{randomInt(1,50)}",
-						"priority.#{randomInt(1,10)}"
+						"load.""" + new java.util.Random().nextInt(1000) + 1 + """",
+						"batch.""" + new java.util.Random().nextInt(100) + 1 + """",
+						"category.""" + new java.util.Random().nextInt(50) + 1 + """",
+						"priority.""" + new java.util.Random().nextInt(10) + 1 + """"
 					],
 					"sources": [
-						"https://source1.example.com/#{randomInt(1,1000)}",
-						"https://source2.example.com/#{randomInt(1,1000)}",
-						"https://source3.example.com/#{randomInt(1,1000)}"
+						"https://source1.example.com/""" + new java.util.Random().nextInt(1000) + 1 + """",
+						"https://source2.example.com/""" + new java.util.Random().nextInt(1000) + 1 + """",
+						"https://source3.example.com/""" + new java.util.Random().nextInt(1000) + 1 + """"
 					]
 				}"""))
-					.check(status().in(201, 409, 400))
+					.check(status().in(201, 409, 400, 429, 503))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			).pause(Duration.ofMillis(50), Duration.ofMillis(200));
+			)).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
-	ChainBuilder largePageQuery = exec(
-		http("Large Page Query")
+	ChainBuilder largePageQuery = withRateLimitRetry(
+		"Large Page Query",
+		session -> http("Large Page Query")
 			.get("/api/v1/ref/page")
 			.queryParam("size", "100")
-			.queryParam("query", "stress-test|performance|load-#{randomInt(1,100)}")
+			.queryParam("query", "stress-test|performance|load-" + (1 + new java.util.Random().nextInt(100)))
 			.queryParam("sort", "modified,desc")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(responseTimeInMillis().lt(5000))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(500));
 
-	ChainBuilder complexSearchQuery = exec(
-		http("Complex Search Query")
+	ChainBuilder complexSearchQuery = withRateLimitRetry(
+		"Complex Search Query",
+		session -> http("Complex Search Query")
 			.get("/api/v1/ref/page")
-			.queryParam("query", "(stresstest:performance)|load.#{randomInt(1,100)}:!excluded")
-			.queryParam("search", "stress test performance load content#{randomInt(1,100)}")
+			.queryParam("query", "(stresstest:performance)|load." + (1 + new java.util.Random().nextInt(100)) + ":!excluded")
+			.queryParam("search", "stress test performance load content" + (1 + new java.util.Random().nextInt(100)))
 			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
 			.queryParam("size", "50")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(200), Duration.ofMillis(800));
 
@@ -266,19 +270,21 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== Content Enrichment Stress ======================
 
-	ChainBuilder stressProxyOperations = exec(
-		http("Stress Proxy Operation")
+	ChainBuilder stressProxyOperations = withRateLimitRetry(
+		"Stress Proxy Operation",
+		session -> http("Stress Proxy Operation")
 			.get("/api/v1/proxy")
-			.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
-			.check(status().in(200, 404, 408, 503))
+			.queryParam("url", "https://httpbin.org/delay/" + (1 + new java.util.Random().nextInt(3)))
+			.check(status().in(200, 404, 408, 429, 503))
 			.check(responseTimeInMillis().lt(10000))
 	).pause(Duration.ofMillis(500), Duration.ofMillis(2000));
 
-	ChainBuilder stressScrapeOperations = exec(
-		http("Stress Web Scraping")
+	ChainBuilder stressScrapeOperations = withRateLimitRetry(
+		"Stress Web Scraping",
+		session -> http("Stress Web Scraping")
 			.get("/api/v1/scrape/web")
 			.queryParam("url", "https://httpbin.org/html")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
 
