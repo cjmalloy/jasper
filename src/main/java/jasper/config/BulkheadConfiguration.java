@@ -4,7 +4,7 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.component.ConfigCache;
-import jasper.domain.Template;
+import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,8 +58,8 @@ public class BulkheadConfiguration {
 	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<Template> templateMessage) {
-		var template = templateMessage.getPayload();
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		var template = message.getPayload();
 		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
 			logger.debug("Server config template updated, updating bulkhead configurations");
 			updateBulkheadConfig(httpBulkhead(), configs.root().getMaxConcurrentRequests());
