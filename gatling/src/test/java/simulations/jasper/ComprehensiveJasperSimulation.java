@@ -175,7 +175,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	ChainBuilder createPlugin = exec(session -> {
 			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("pluginExtTag", "+plugin/test." + randomId);
+			return session.set("testExtTag", "test.ext." + randomId);
 		})
 		.exec(
 			http("Create Plugin Extension")
@@ -183,10 +183,10 @@ public class ComprehensiveJasperSimulation extends Simulation {
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
-						"tag": "#{pluginExtTag}",
-						"name": "Test Plugin Extension",
+						"tag": "#{testExtTag}",
+						"name": "Test Extension",
 						"config": {
-							"description": "A test plugin extension for load testing",
+							"description": "A test extension for load testing",
 							"version": "1.0.0",
 							"enabled": true
 						}

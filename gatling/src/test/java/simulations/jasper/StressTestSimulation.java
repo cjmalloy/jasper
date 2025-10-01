@@ -114,7 +114,7 @@ public class StressTestSimulation extends Simulation {
 		
 		String body = String.format("""
 			{
-				"tag": "+ext/large.test.%d",
+				"tag": "large.test.%d",
 				"name": "Large Test Extension %d",
 				"config": %s
 			}""",
