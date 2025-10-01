@@ -6,14 +6,30 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-- Install Java 25: `sudo apt update && sudo apt install -y openjdk-25-jdk openjdk-25-jre`
-- Set Java environment: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`
-- Update Java alternatives: `sudo update-alternatives --config java` (select option 0 for Java 25)
-- Update javac alternatives: `sudo update-alternatives --config javac` (select option 0 for Java 25)
+**Important Note on Java 25:** Java 25 has SSL certificate validation issues in some environments (particularly CI/CD with MITM proxies). The Docker-based approach below handles this automatically.
+
+**Docker-Based Build (Recommended):**
+- Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
+- Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
+- Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
+- Check build logs efficiently: Pipe output through `tail -100` or `tee` to log file for analysis
+
+**Local Development (Alternative - requires proper Java 25 setup):**
+- Install Java 25: The project requires Java 25. On Ubuntu, install `msopenjdk-25` package.
+- Configure Java: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64` (or appropriate path for your Java 25 installation)
+- Update alternatives: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
+- **SSL Certificate Fix**: Java 25 may have certificate issues. If you encounter "PKIX path building failed" errors:
+  ```bash
+  # Import system CA certificates into Java keystore
+  sudo cp /etc/ssl/certs/adoptium/cacerts $JAVA_HOME/lib/security/cacerts
+  # Or use MAVEN_OPTS to disable SSL verification (not recommended for production):
+  export MAVEN_OPTS="-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true"
+  ```
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
-- Clean build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
-- Full build with tests: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Skip tests build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Clean build: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 
 ## Running the Application
 
@@ -36,9 +52,17 @@ ALWAYS run the bootstrapping steps first.
 ## Testing
 
 **Unit and Integration Tests:**
-- Run all tests: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- **Docker-based (Recommended)**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 3600+ seconds.
+- **Local**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
 - Note: Some tests require Bun and Python dependencies to pass completely
 - Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
+
+**Efficient Log Reading with Docker:**
+When building with Docker, use these techniques to efficiently read logs:
+- Tail output: `docker build -t jasper . 2>&1 | tail -100` -- shows last 100 lines
+- Save to file: `docker build -t jasper . 2>&1 | tee build.log` -- saves full log while showing output
+- Check specific stage: `docker build --target builder -t jasper-builder . 2>&1 | tail -50` -- faster feedback on build stage
+- Progress mode: `docker build --progress=plain -t jasper .` -- shows all build output without fancy formatting
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
@@ -78,23 +102,26 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Development Workflow:**
 1. Make code changes
-2. Run quick build: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean compile`
-3. Run specific test class: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw test -Dtest=YourTestClass`
-4. Run application for manual testing
-5. Run full test suite before committing: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw clean package`
+2. **Quick validation with Docker**: `docker build --target builder -t jasper-builder . 2>&1 | tail -30` -- validates compilation
+3. **Run specific test class** (local): `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw test -Dtest=YourTestClass`
+4. **Run application for manual testing**: See "Running the Application" section
+5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
 
 **Troubleshooting:**
-- If build fails with "release version 25 not supported": Install and configure Java 25
+- If Docker build fails with certificate errors on Java 25: The Dockerfile includes workarounds. If issues persist, check if running in a CI environment with MITM proxy.
+- If local build fails with "release version 25 not supported": Install Java 25 (`msopenjdk-25` on Ubuntu)
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
 - If Maven hangs: Check network connectivity for dependency downloads
+- **Java 25 SSL Issues**: If you see "PKIX path building failed" errors, this is a known issue with Java 25 EA builds. Use Docker build (recommended) or apply the SSL certificate fix documented in "Working Effectively" section.
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
-- Compilation alone: ~11 seconds
-- Full test suite: ~85 seconds  
+- Compilation alone: ~11 seconds (local) or ~2-5 minutes (Docker with dependencies)
+- Full test suite: ~85 seconds (local) or ~45 minutes (Docker full build)
 - Docker build (all stages): 45+ minutes
+- Docker build (builder stage only): 10-15 minutes
 - Gatling load tests: ~27 seconds
 - Application startup: ~22 seconds
 
