@@ -183,7 +183,9 @@ public class UserJourneySimulation extends Simulation {
 			feed(topicFeeder)
 				.exec(session -> {
 					String url = "https://dailyreview.example.com/item-" + System.currentTimeMillis();
-					return session.set("researchUrl", url);
+					String topicTag = session.getString("topic").toLowerCase().replaceAll("\\s+", ".");
+					return session.set("researchUrl", url)
+						.set("topicTag", topicTag);
 				})
 				.exec(
 					http("Create Review Item")
@@ -194,7 +196,7 @@ public class UserJourneySimulation extends Simulation {
 							"url": "#{researchUrl}",
 							"title": "Daily Review Item #{randomInt(1,1000)}",
 							"comment": "Item for daily review",
-							"tags": ["review", "#{topic}"]
+							"tags": ["review", "#{topicTag}"]
 						}"""))
 						.check(status().in(201, 409))
 						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -331,7 +333,7 @@ public class UserJourneySimulation extends Simulation {
 		.exec(session -> {
 			String topicTag = session.getString("topicTag");
 			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("collectionTag", "+collection/" + topicTag + "." + randomId);
+			return session.set("collectionTag", "collection/" + topicTag + "." + randomId);
 		})
 		.exec(
 			http("Create Curated Collection - #{topic}")
