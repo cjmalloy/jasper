@@ -173,23 +173,27 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// ====================== Extension Operations ======================
 
-	ChainBuilder createPlugin = exec(
-		http("Create Plugin Extension")
-			.post("/api/v1/ext")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"tag": "+plugin/test.#{randomInt(1,50)}",
-					"name": "Test Plugin #{randomInt(1,50)}",
-					"config": {
-						"description": "A test plugin for load testing",
-						"version": "1.0.0",
-						"enabled": true
-					}
-				}"""))
-			.check(status().in(201, 409))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
-	).pause(Duration.ofMillis(600));
+	ChainBuilder createPlugin = exec(session -> {
+			int randomId = new java.util.Random().nextInt(50) + 1;
+			return session.set("pluginExtTag", "+plugin/test." + randomId);
+		})
+		.exec(
+			http("Create Plugin Extension")
+				.post("/api/v1/ext")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"tag": "#{pluginExtTag}",
+						"name": "Test Plugin Extension",
+						"config": {
+							"description": "A test plugin extension for load testing",
+							"version": "1.0.0",
+							"enabled": true
+						}
+					}"""))
+				.check(status().in(201, 409))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
+		).pause(Duration.ofMillis(600));
 
 	ChainBuilder browseExtensions = exec(
 		http("Browse Extensions")

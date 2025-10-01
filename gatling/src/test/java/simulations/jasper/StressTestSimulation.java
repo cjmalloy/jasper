@@ -111,7 +111,6 @@ public class StressTestSimulation extends Simulation {
 		largeConfig.append("]}");
 
 		int randomId = (int)(Math.random() * 10000) + 1;
-		int randomNum = (int)(Math.random() * 1000) + 1;
 		
 		String body = String.format("""
 			{
@@ -120,7 +119,7 @@ public class StressTestSimulation extends Simulation {
 				"config": %s
 			}""",
 			randomId,
-			randomNum,
+			randomId,
 			largeConfig.toString());
 		
 		return session.set("largeExtBody", body);

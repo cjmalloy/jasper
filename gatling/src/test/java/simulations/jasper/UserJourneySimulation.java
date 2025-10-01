@@ -251,7 +251,11 @@ public class UserJourneySimulation extends Simulation {
 	ChainBuilder curationWorkflow = feed(topicFeeder)
 		.exec(session -> {
 			System.out.println("User curating content for: " + session.getString("topic"));
-			return session;
+			// Convert topic to lowercase and replace spaces with dots for valid tag
+			String topic = session.getString("topic");
+			String topicTag = topic.toLowerCase().replaceAll("\\s+", ".");
+			int randomId = new java.util.Random().nextInt(100) + 1;
+			return session.set("topicTag", topicTag).set("templateTagValue", "_template/" + topicTag + "." + randomId);
 		})
 		// Create a specialized template for the topic
 		.exec(
@@ -260,7 +264,7 @@ public class UserJourneySimulation extends Simulation {
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
-						"tag": "_template/#{topic}.#{randomInt(1,100)}",
+						"tag": "#{templateTagValue}",
 						"name": "#{topic} Resource Template",
 						"config": {
 							"description": "Template for organizing #{topic} resources",
@@ -284,13 +288,18 @@ public class UserJourneySimulation extends Simulation {
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Create a plugin for enhanced functionality
+		.exec(session -> {
+			String topicTag = session.getString("topicTag");
+			int randomId = new java.util.Random().nextInt(100) + 1;
+			return session.set("pluginTagValue", "+plugin/" + topicTag + ".enhancer." + randomId);
+		})
 		.exec(
 			http("Create Enhancement Plugin - #{topic}")
 				.post("/api/v1/plugin")
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
-						"tag": "+plugin/#{topic}.enhancer.#{randomInt(1,100)}",
+						"tag": "#{pluginTagValue}",
 						"name": "#{topic} Content Enhancer",
 						"config": {
 							"type": "enhancer",
@@ -314,13 +323,18 @@ public class UserJourneySimulation extends Simulation {
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Create a curated collection
+		.exec(session -> {
+			String topicTag = session.getString("topicTag");
+			int randomId = new java.util.Random().nextInt(50) + 1;
+			return session.set("collectionTag", "+collection/" + topicTag + "." + randomId);
+		})
 		.exec(
 			http("Create Curated Collection - #{topic}")
 				.post("/api/v1/ext")
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
-						"tag": "+collection/#{topic}-#{randomInt(1,50)}",
+						"tag": "#{collectionTag}",
 						"name": "#{topic} Curated Collection",
 						"config": {
 							"type": "collection",
@@ -387,10 +401,10 @@ public class UserJourneySimulation extends Simulation {
 		.exec(
 			http("Check Collaboration Graph")
 				.get("/api/v1/graph/list")
-				.queryParam("urls", java.util.Arrays.asList(
+				.multivaluedQueryParam("urls", java.util.Arrays.asList(
 					"https://example.com/shared-doc-1",
 					"https://example.com/shared-doc-2",
-					"comment:collaboration-session#{randomInt(1000,9999)}"
+					"comment:collaboration-session1000"
 				))
 				.check(status().is(200))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -398,7 +412,7 @@ public class UserJourneySimulation extends Simulation {
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a shared template
 		.exec(session -> {
-			String templateTag = "_template/team.standard." + System.currentTimeMillis() + "-" + session.userId();
+			String templateTag = "_template/team.standard." + System.currentTimeMillis();
 			return session.set("teamTemplateTag", templateTag);
 		})
 		.exec(
