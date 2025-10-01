@@ -173,9 +173,23 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// ====================== Extension Operations ======================
 
+	ChainBuilder createExtensionTemplate = exec(
+		http("Create Extension Template")
+			.post("/api/v1/template")
+			.header("X-XSRF-TOKEN", "#{csrfToken}")
+			.body(StringBody("""
+				{
+					"tag": "test.ext",
+					"name": "Test Extension Template",
+					"schema": {}
+				}"""))
+			.check(status().in(201, 409))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+	).pause(Duration.ofMillis(100));
+
 	ChainBuilder createPlugin = exec(session -> {
 			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("testExtTag", "test.ext." + randomId);
+			return session.set("testExtTag", "test.ext/" + randomId);
 		})
 		.exec(
 			http("Create Plugin Extension")
@@ -433,6 +447,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	// Power User: Mixed operations including content enrichment
 	ScenarioBuilder powerUser = scenario("Power User")
 		.exec(fetchCsrfToken)
+		.exec(createExtensionTemplate)
 		.exec(createPlugin)
 		.pause(Duration.ofSeconds(1))
 		.exec(createWebReference)
