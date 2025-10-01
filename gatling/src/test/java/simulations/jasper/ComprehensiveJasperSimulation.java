@@ -209,7 +209,13 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	// ====================== Plugin Management ======================
 
 	ChainBuilder createPluginConfig =
-		exec(session -> session.set("pluginTag", "+plugin/custom." + (1 + new java.util.Random().nextInt(30))))
+		exec(session -> {
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = 1 + new java.util.Random().nextInt(50000);
+			return session.set("pluginTag", "+plugin/custom." + userId + "." + timestamp + "." + randomId);
+		})
 			.exec(
 				http("Create Plugin Configuration")
 					.post("/api/v1/plugin")
@@ -247,7 +253,13 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	// ====================== Template Operations ======================
 
 	ChainBuilder createTemplate =
-		exec(session -> session.set("templateTag", "_template/article." + (1 + new java.util.Random().nextInt(20))))
+		exec(session -> {
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = 1 + new java.util.Random().nextInt(50000);
+			return session.set("templateTag", "_template/article." + userId + "." + timestamp + "." + randomId);
+		})
 			.exec(
 				http("Create Template")
 					.post("/api/v1/template")
