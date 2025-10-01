@@ -7,7 +7,6 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Realistic User Journey Load Test for Jasper
@@ -29,27 +28,9 @@ public class UserJourneySimulation extends Simulation {
 
 	// ====================== Feeder Data ======================
 
-	FeederBuilder<Object> topicFeeder = listFeeder(java.util.Arrays.asList(
-		Map.of("topic", "Machine Learning", "category", "AI"),
-		Map.of("topic", "Microservices", "category", "Architecture"),
-		Map.of("topic", "Data Science", "category", "Analytics"),
-		Map.of("topic", "Kubernetes", "category", "DevOps"),
-		Map.of("topic", "React Development", "category", "Frontend"),
-		Map.of("topic", "Database Design", "category", "Backend"),
-		Map.of("topic", "Security Best Practices", "category", "Security"),
-		Map.of("topic", "API Design", "category", "Architecture")
-	)).circular();
+	FeederBuilder<String> topicFeeder = csv("data/topics.csv").circular();
 
-	FeederBuilder<Object> sourceFeeder = listFeeder(java.util.Arrays.asList(
-		Map.of("source", "arxiv.org", "type", "paper"),
-		Map.of("source", "github.com", "type", "code"),
-		Map.of("source", "medium.com", "type", "article"),
-		Map.of("source", "stackoverflow.com", "type", "qa"),
-		Map.of("source", "docs.spring.io", "type", "documentation"),
-		Map.of("source", "kubernetes.io", "type", "official-docs"),
-		Map.of("source", "martinfowler.com", "type", "blog"),
-		Map.of("source", "youtube.com", "type", "video")
-	)).circular();
+	FeederBuilder<String> sourceFeeder = csv("data/sources.csv").circular();
 
 	// ====================== CSRF Token Setup ======================
 
