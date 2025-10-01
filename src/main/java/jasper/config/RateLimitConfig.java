@@ -23,6 +23,8 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static java.lang.String.format;
+
 @Configuration
 public class RateLimitConfig implements WebMvcConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(RateLimitConfig.class);
@@ -63,18 +65,17 @@ public class RateLimitConfig implements WebMvcConfigurer {
 					logger.warn("Global HTTP rate limit exceeded for request: {}", request.getRequestURI());
 					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					var retryAfter = String.format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5));
-					response.setHeader("X-RateLimit-Retry-After", retryAfter);
+					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;
 				}
 				if (!getOriginRateLimiter(origin).acquirePermission()) {
 					httpBulkhead.releasePermission();
 
 					logger.warn("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
-					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
+					response.setStatus(429);
+					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxConcurrentRequests());
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					var retryAfter = String.format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5));
-					response.setHeader("X-RateLimit-Retry-After", retryAfter);
+					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;
 				}
 				return true;
