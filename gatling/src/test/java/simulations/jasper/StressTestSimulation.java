@@ -111,7 +111,6 @@ public class StressTestSimulation extends Simulation {
 		largeConfig.append("]}");
 
 		int randomId = (int)(Math.random() * 10000) + 1;
-		int randomNum = (int)(Math.random() * 1000) + 1;
 		
 		String body = String.format("""
 			{
@@ -120,7 +119,7 @@ public class StressTestSimulation extends Simulation {
 				"config": %s
 			}""",
 			randomId,
-			randomNum,
+			randomId,
 			largeConfig.toString());
 		
 		return session.set("largeExtBody", body);
@@ -141,6 +140,7 @@ public class StressTestSimulation extends Simulation {
 			.get("/api/v1/ref")
 			.queryParam("url", "https://nonexistent-#{randomInt(1,100000)}.example.com/#{randomUuid()}")
 			.check(status().is(404))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testInvalidData = exec(
@@ -154,6 +154,7 @@ public class StressTestSimulation extends Simulation {
 					"tags": ["invalidtag#{randomInt(100000,999999)}"]
 				}"""))
 			.check(status().in(400, 422))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testMalformedJson = exec(
@@ -167,6 +168,7 @@ public class StressTestSimulation extends Simulation {
 					"invalid": "json",
 				}"""))
 			.check(status().is(400))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	// ====================== Replication Testing ======================
