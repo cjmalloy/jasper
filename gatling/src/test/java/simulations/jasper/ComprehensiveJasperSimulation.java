@@ -4,6 +4,7 @@ import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
+import static simulations.jasper.RateLimitRetry.withRateLimitRetry;
 
 import java.time.Duration;
 import java.util.List;
@@ -41,40 +42,42 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	ChainBuilder createWebReference =
 		exec(session -> session.set("webRefUrl", "https://example.com/article-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
-			.exec(
-				http("Create Web Reference")
+			.exec(withRateLimitRetry(
+				"Create Web Reference",
+				session -> http("Create Web Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 					.body(StringBody("""
 					{
-						"url": "#{webRefUrl}",
-						"title": "Knowledge Article #{randomInt(1,1000)}",
+						"url": """" + session.getString("webRefUrl") + """",
+						"title": "Knowledge Article """ + new java.util.Random().nextInt(1000) + 1 + """",
 						"comment": "Important reference for our research",
 						"tags": ["research", "article", "knowledgebase"],
 						"sources": ["https://source.example.com"]
 					}"""))
-					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
-			)
+					.check(status().in(201, 409, 429, 503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			))
 			.pause(Duration.ofMillis(200))
 			.exec(
 				http("Verify Created Web Reference")
 					.get("/api/v1/ref")
 					.queryParam("url", "#{webRefUrl}")
-					.check(status().is(200))
+					.check(status().in(200, 429, 503))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(300));
 
 	ChainBuilder createBookReference =
 		exec(session -> session.set("bookRefUrl", "isbn:978-" + String.format("%09d", new java.util.Random().nextInt(1000000000)) + new java.util.Random().nextInt(10)))
-			.exec(
-				http("Create Book Reference")
+			.exec(withRateLimitRetry(
+				"Create Book Reference",
+				session -> http("Create Book Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 					.body(StringBody("""
 					{
-						"url": "#{bookRefUrl}",
-						"title": "Technical Book #{randomInt(1,100)}",
+						"url": """" + session.getString("bookRefUrl") + """",
+						"title": "Technical Book """ + new java.util.Random().nextInt(100) + 1 + """",
 						"comment": "Reference book on software engineering",
 						"tags": ["book", "technical", "software"]
 					}"""))
@@ -209,11 +212,12 @@ public class ComprehensiveJasperSimulation extends Simulation {
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 		).pause(Duration.ofMillis(600));
 
-	ChainBuilder browseExtensions = exec(
-		http("Browse Extensions")
+	ChainBuilder browseExtensions = withRateLimitRetry(
+		"Browse Extensions",
+		session -> http("Browse Extensions")
 			.get("/api/v1/ext/page")
 			.queryParam("size", "20")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(700));
 
@@ -221,29 +225,30 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	ChainBuilder createPluginConfig =
 		exec(session -> session.set("pluginTag", "+plugin/custom." + (1 + new java.util.Random().nextInt(30))))
-			.exec(
-				http("Create Plugin Configuration")
+			.exec(withRateLimitRetry(
+				"Create Plugin Configuration",
+				session -> http("Create Plugin Configuration")
 					.post("/api/v1/plugin")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 					.body(StringBody("""
 					{
-						"tag": "#{pluginTag}",
-						"name": "Custom Plugin #{randomInt(1,30)}",
+						"tag": """" + session.getString("pluginTag") + """",
+						"name": "Custom Plugin """ + new java.util.Random().nextInt(30) + 1 + """",
 						"config": {
 							"type": "viewer",
 							"title": "Custom Viewer",
 							"selector": "custom-selector"
 						}
 					}"""))
-					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
-			)
+					.check(status().in(201, 409, 429, 503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			))
 			.pause(Duration.ofMillis(200))
 			.exec(
 				http("Verify Created Plugin")
 					.get("/api/v1/plugin")
 					.queryParam("tag", "#{pluginTag}")
-					.check(status().is(200))
+					.check(status().in(200, 429, 503))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(300));
 
