@@ -1,6 +1,19 @@
 FROM oven/bun:1.2.23-slim AS bun
 
-FROM maven:3.9.11-amazoncorretto-25-debian AS builder
+FROM maven:3.9.11-eclipse-temurin-25 AS builder
+
+# Workaround for Java 25 SSL certificate issues
+# Import all system CA certificates into Java keystore
+RUN apt-get update && apt-get install -y ca-certificates curl && \
+    update-ca-certificates && \
+    for cert in /etc/ssl/certs/*.pem; do \
+        [ -f "$cert" ] && keytool -import -trustcacerts -noprompt \
+            -alias "$(basename "$cert" .pem)" \
+            -file "$cert" \
+            -keystore "$JAVA_HOME/lib/security/cacerts" \
+            -storepass changeit 2>/dev/null || true; \
+    done
+
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
