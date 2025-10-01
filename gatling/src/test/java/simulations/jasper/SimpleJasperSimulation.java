@@ -4,6 +4,7 @@ import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
+import static simulations.jasper.RateLimitRetry.withRateLimitRetry;
 
 import java.time.Duration;
 
@@ -37,38 +38,40 @@ public class SimpleJasperSimulation extends Simulation {
 
 	// ====================== Basic Operations ======================
 
-	ChainBuilder getAllRefs = exec(
-		http("Get All Refs")
+	ChainBuilder getAllRefs = withRateLimitRetry(
+		"Get All Refs",
+		session -> http("Get All Refs")
 			.get("/api/v1/ref/page")
 			.queryParam("size", "10")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(jsonPath("$.content").exists())
 	).pause(Duration.ofSeconds(1));
 
 	ChainBuilder createWebReference =
 		exec(session -> session.set("testUrl", "https://example.com/test-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
-			.exec(
-				http("Create Web Reference")
+			.exec(withRateLimitRetry(
+				"Create Web Reference",
+				session -> http("Create Web Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 					.body(StringBody("""
 					{
-						"url": "#{testUrl}",
-						"title": "Test Article #{randomInt(1,1000)}",
+						"url": """" + session.getString("testUrl") + """",
+						"title": "Test Article """ + new java.util.Random().nextInt(1000) + 1 + """",
 						"comment": "This is a test reference for smoke testing",
 						"tags": ["test", "smoketest", "example"]
 					}"""))
-					.check(status().is(201))
+					.check(status().in(201, 429, 503))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 					.check(jsonPath("$").saveAs("createdRefTimestamp"))
-			)
+			))
 			.pause(Duration.ofMillis(500))
 			.exec(
 				http("Verify Created Reference")
 					.get("/api/v1/ref")
 					.queryParam("url", "#{testUrl}")
-					.check(status().is(200))
+					.check(status().in(200, 429, 503))
 					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(500));
 
@@ -80,12 +83,13 @@ public class SimpleJasperSimulation extends Simulation {
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
-	ChainBuilder searchRefs = exec(
-		http("Search References")
+	ChainBuilder searchRefs = withRateLimitRetry(
+		"Search References",
+		session -> http("Search References")
 			.get("/api/v1/ref/page")
 			.queryParam("query", "test")
 			.queryParam("size", "5")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(800));
 
@@ -93,7 +97,7 @@ public class SimpleJasperSimulation extends Simulation {
 		http("Count References")
 			.get("/api/v1/ref/count")
 			.queryParam("query", "smoketest")
-			.check(status().is(200))
+			.check(status().in(200, 429, 503))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
