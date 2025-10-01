@@ -429,6 +429,7 @@
 					<source>${java.version}</source>
 					<target>${java.version}</target>
 					<release>${java.version}</release>
+					<proc>full</proc>
 				</configuration>
 			</plugin>
 			<plugin>
