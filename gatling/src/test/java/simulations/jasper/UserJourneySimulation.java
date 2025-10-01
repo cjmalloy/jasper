@@ -4,6 +4,7 @@ import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
+import static simulations.jasper.RateLimitRetry.withRateLimitRetry;
 
 import java.time.Duration;
 import java.util.List;
@@ -78,25 +79,27 @@ public class UserJourneySimulation extends Simulation {
 			return session.set("categoryTag", category);
 		})
 		// Start by searching for existing knowledge
-		.exec(
-			http("Search Existing Knowledge - #{topic}")
+		.exec(withRateLimitRetry(
+			"Search Existing Knowledge",
+			session -> http("Search Existing Knowledge - " + session.getString("topic"))
 				.get("/api/v1/ref/page")
-				.queryParam("search", "#{topic}")
+				.queryParam("search", session.getString("topic"))
 				.queryParam("size", "20")
-				.check(status().is(200))
+				.check(status().in(200, 429, 503))
 				.check(jsonPath("$.content").saveAs("existingRefs"))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		)
+		))
 		.pause(Duration.ofSeconds(2, 5))
 		// Browse by category tag
-		.exec(
-			http("Browse by Category - #{category}")
+		.exec(withRateLimitRetry(
+			"Browse by Category",
+			session -> http("Browse by Category - " + session.getString("category"))
 				.get("/api/v1/ref/page")
-				.queryParam("query", "#{categoryTag}")
+				.queryParam("query", session.getString("categoryTag"))
 				.queryParam("size", "15")
-				.check(status().is(200))
+				.check(status().in(200, 429, 503))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		)
+		))
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a new reference with research findings
 		.feed(sourceFeeder)
@@ -104,18 +107,19 @@ public class UserJourneySimulation extends Simulation {
 			String url = "https://" + session.getString("source") + "/" + session.getString("topic") + "-research-" + System.currentTimeMillis();
 			return session.set("researchUrl", url);
 		})
-		.exec(
-			http("Save Research Reference - #{topic}")
+		.exec(withRateLimitRetry(
+			"Save Research Reference",
+			session -> http("Save Research Reference - " + session.getString("topic"))
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", session.getString("csrfToken"))
 				.body(StringBody("""
 					{
-						"url": "#{researchUrl}",
-						"title": "#{topic} Research - Study#{randomInt(1000,9999)}",
-						"comment": "Research findings on #{topic} from #{source}",
-						"tags": ["research", "#{categoryTag}", "#{type}"]
+						"url": """" + session.getString("researchUrl") + """",
+						"title": """" + session.getString("topic") + """ Research - Study""" + new java.util.Random().nextInt(9000) + 1000 + """",
+						"comment": "Research findings on """ + session.getString("topic") + """ from """ + session.getString("source") + """",
+						"tags": ["research", """" + session.getString("categoryTag") + """", """" + session.getString("type") + """"]
 					}"""))
-				.check(status().is(201))
+				.check(status().in(201, 429, 503))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$").saveAs("createdTimestamp"))
 		)
