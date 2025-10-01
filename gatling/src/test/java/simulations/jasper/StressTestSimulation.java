@@ -78,7 +78,7 @@ public class StressTestSimulation extends Simulation {
 		http("Large Page Query")
 			.get("/api/v1/ref/page")
 			.queryParam("size", "100")
-			.queryParam("query", "stress-test|performance|load-#{randomInt(1,100)}")
+			.queryParam("query", "stress-test|performance|load.#{randomInt(1,100)}")
 			.queryParam("sort", "modified,desc")
 			.check(status().is(200))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
@@ -141,7 +141,7 @@ public class StressTestSimulation extends Simulation {
 		largeConfig.append("]}");
 
 		int randomId = (int)(Math.random() * 10000) + 1;
-		
+
 		String body = String.format("""
 			{
 				"tag": "large.test/%d",
@@ -151,17 +151,17 @@ public class StressTestSimulation extends Simulation {
 			randomId,
 			randomId,
 			largeConfig.toString());
-		
+
 		return session.set("largeExtBody", body);
 	})
-	.exec(
-		http("Create Large Extension")
-			.post("/api/v1/ext")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("#{largeExtBody}"))
-			.check(status().in(201, 409))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+		.exec(
+			http("Create Large Extension")
+				.post("/api/v1/ext")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("#{largeExtBody}"))
+				.check(status().in(201, 409))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Error Condition Testing ======================
 
@@ -343,14 +343,14 @@ public class StressTestSimulation extends Simulation {
 			.collect(java.util.stream.Collectors.toList());
 		return session.set("graphUrls", urls);
 	})
-	.exec(
-		http("Stress Graph Query")
-			.get("/api/v1/graph/list")
-			.multivaluedQueryParam("urls", "#{graphUrls}")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			.check(responseTimeInMillis().lt(8000))
-	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+		.exec(
+			http("Stress Graph Query")
+				.get("/api/v1/graph/list")
+				.multivaluedQueryParam("urls", "#{graphUrls}")
+				.check(status().is(200))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+				.check(responseTimeInMillis().lt(8000))
+		).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Scenarios ======================
 
