@@ -174,8 +174,11 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	// ====================== Extension Operations ======================
 
 	ChainBuilder createPlugin = exec(session -> {
-			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("pluginExtTag", "+plugin/test." + randomId);
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = new java.util.Random().nextInt(50000) + 1;
+			return session.set("pluginExtTag", "+plugin/test." + userId + "." + timestamp + "." + randomId);
 		})
 		.exec(
 			http("Create Plugin Extension")

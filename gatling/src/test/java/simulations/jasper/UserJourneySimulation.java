@@ -182,7 +182,11 @@ public class UserJourneySimulation extends Simulation {
 		.doIf(session -> !session.contains("researchUrl")).then(
 			feed(topicFeeder)
 				.exec(session -> {
-					String url = "https://dailyreview.example.com/item-" + System.currentTimeMillis();
+					// Use userId + timestamp + UUID to ensure unique URLs across all virtual users
+					String userId = session.userId() + "";
+					long timestamp = System.currentTimeMillis();
+					String uuid = java.util.UUID.randomUUID().toString().substring(0, 8);
+					String url = "https://dailyreview.example.com/item-" + userId + "-" + timestamp + "-" + uuid;
 					return session.set("researchUrl", url);
 				})
 				.exec(
@@ -257,10 +261,13 @@ public class UserJourneySimulation extends Simulation {
 			String topic = session.getString("topic");
 			String topicTag = topic.toLowerCase().replaceAll("\\s+", ".");
 			String categoryTag = session.getString("category").toLowerCase();
-			int randomId = new java.util.Random().nextInt(100) + 1;
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = new java.util.Random().nextInt(100000) + 1;
 			return session.set("topicTag", topicTag)
 				.set("categoryTag", categoryTag)
-				.set("templateTagValue", "_template/" + topicTag + "." + randomId);
+				.set("templateTagValue", "_template/" + topicTag + "." + userId + "." + timestamp + "." + randomId);
 		})
 		// Create a specialized template for the topic
 		.exec(
@@ -295,8 +302,11 @@ public class UserJourneySimulation extends Simulation {
 		// Create a plugin for enhanced functionality
 		.exec(session -> {
 			String topicTag = session.getString("topicTag");
-			int randomId = new java.util.Random().nextInt(100) + 1;
-			return session.set("pluginTagValue", "+plugin/" + topicTag + ".enhancer." + randomId);
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = new java.util.Random().nextInt(100000) + 1;
+			return session.set("pluginTagValue", "+plugin/" + topicTag + ".enhancer." + userId + "." + timestamp + "." + randomId);
 		})
 		.exec(
 			http("Create Enhancement Plugin - #{topic}")
@@ -330,8 +340,11 @@ public class UserJourneySimulation extends Simulation {
 		// Create a curated collection
 		.exec(session -> {
 			String topicTag = session.getString("topicTag");
-			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("collectionTag", "+collection/" + topicTag + "." + randomId);
+			// Use userId + timestamp + random to ensure unique tags across all virtual users
+			String userId = session.userId() + "";
+			long timestamp = System.currentTimeMillis();
+			int randomId = new java.util.Random().nextInt(50000) + 1;
+			return session.set("collectionTag", "+collection/" + topicTag + "." + userId + "." + timestamp + "." + randomId);
 		})
 		.exec(
 			http("Create Curated Collection - #{topic}")

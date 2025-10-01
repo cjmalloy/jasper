@@ -110,15 +110,21 @@ public class StressTestSimulation extends Simulation {
 		}
 		largeConfig.append("]}");
 
-		int randomId = (int)(Math.random() * 10000) + 1;
+		// Use userId + timestamp + random to ensure unique tags across all virtual users
+		String userId = session.userId() + "";
+		long timestamp = System.currentTimeMillis();
+		int randomId = (int)(Math.random() * 100000) + 1;
 		
 		String body = String.format("""
 			{
-				"tag": "+ext/large.test.%d",
-				"name": "Large Test Extension %d",
+				"tag": "+ext/large.test.%s.%d.%d",
+				"name": "Large Test Extension %s-%d",
 				"config": %s
 			}""",
+			userId,
+			timestamp,
 			randomId,
+			userId,
 			randomId,
 			largeConfig.toString());
 		
