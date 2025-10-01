@@ -188,9 +188,9 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	).pause(Duration.ofMillis(100));
 
 	ChainBuilder createPlugin = exec(session -> {
-			int randomId = new java.util.Random().nextInt(50) + 1;
-			return session.set("testExtTag", "test.ext/" + randomId);
-		})
+		int randomId = new java.util.Random().nextInt(50) + 1;
+		return session.set("testExtTag", "test.ext/" + randomId);
+	})
 		.exec(
 			http("Create Plugin Extension")
 				.post("/api/v1/ext")
