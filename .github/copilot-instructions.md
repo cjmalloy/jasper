@@ -6,14 +6,14 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**Important Note on Java 25:** Java 25 has SSL certificate validation issues in some environments (particularly CI/CD with MITM proxies). The Docker-based approach below handles this automatically.
+**Important Note on Java 25:** The project requires Java 25. The Docker-based build is recommended for consistent, reproducible builds.
 
 **Docker-Based Build (Recommended):**
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
-- Check build logs efficiently: Pipe output through `tail -100` or `tee` to log file for analysis
+- **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
 
 **Local Development (Alternative - requires proper Java 25 setup):**
 - Install Java 25: The project requires Java 25. On Ubuntu, install `msopenjdk-25` package.
@@ -108,13 +108,11 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
 
 **Troubleshooting:**
-- If Docker build fails with certificate errors on Java 25: The Dockerfile includes workarounds. If issues persist, check if running in a CI environment with MITM proxy.
 - If local build fails with "release version 25 not supported": Install Java 25 (`msopenjdk-25` on Ubuntu)
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
 - If Maven hangs: Check network connectivity for dependency downloads
-- **Java 25 SSL Issues**: If you see "PKIX path building failed" errors, this is a known issue with Java 25 EA builds. Use Docker build (recommended) or apply the SSL certificate fix documented in "Working Effectively" section.
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
