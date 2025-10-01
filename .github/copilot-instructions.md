@@ -15,21 +15,14 @@ Bootstrap, build, and test the repository:
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
 
-**Local Development (Alternative - requires proper Java 25 setup):**
-- Install Java 25: The project requires Java 25. On Ubuntu, install `msopenjdk-25` package.
-- Configure Java: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64` (or appropriate path for your Java 25 installation)
-- Update alternatives: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
-- **SSL Certificate Fix**: Java 25 may have certificate issues. If you encounter "PKIX path building failed" errors:
-  ```bash
-  # Import system CA certificates into Java keystore
-  sudo cp /etc/ssl/certs/adoptium/cacerts $JAVA_HOME/lib/security/cacerts
-  # Or use MAVEN_OPTS to disable SSL verification (not recommended for production):
-  export MAVEN_OPTS="-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true"
-  ```
+**Local Development (Alternative - requires Java 25 setup):**
+- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
+- Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
+- Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
-- Clean build: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
-- Full build with tests: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Skip tests build: `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 
 ## Running the Application
 
@@ -41,7 +34,7 @@ ALWAYS run the bootstrapping steps first.
 
 **Local Development:**
 - Start supporting services: `docker compose up db redis -d`
-- Run application: `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
+- Run application: `SPRING_PROFILES_ACTIVE=dev SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper SPRING_DATASOURCE_USERNAME=jasper SPRING_DATASOURCE_PASSWORD=jasper ./mvnw spring-boot:run`
 - Application starts on port 8081 (takes ~22 seconds to start)
 - Health check: `curl http://localhost:8081/management/health`
 
@@ -82,7 +75,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 1. Start supporting services: `docker compose up -d`
 2. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
 3. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-4. Run tests with dependencies: Install Bun and Python, then `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 && ./mvnw test`
+4. Run tests with dependencies: Install Bun and Python, then `./mvnw test`
 5. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
@@ -103,12 +96,12 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 **Development Workflow:**
 1. Make code changes
 2. **Quick validation with Docker**: `docker build --target builder -t jasper-builder . 2>&1 | tail -30` -- validates compilation
-3. **Run specific test class** (local): `export JAVA_HOME=/usr/lib/jvm/msopenjdk-25-amd64 && ./mvnw test -Dtest=YourTestClass`
+3. **Run specific test class** (local): `./mvnw test -Dtest=YourTestClass`
 4. **Run application for manual testing**: See "Running the Application" section
 5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
 
 **Troubleshooting:**
-- If local build fails with "release version 25 not supported": Install Java 25 (`msopenjdk-25` on Ubuntu)
+- If local build fails with "release version 25 not supported": Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
