@@ -34,7 +34,6 @@ public class StressTestSimulation extends Simulation {
 			.get("/api/v1/ref/page")
 			.queryParam("size", "1")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
 	);
 
@@ -99,35 +98,40 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== Large Payload Operations ======================
 
-	ChainBuilder createLargeExt = exec(
+	ChainBuilder createLargeExt = exec(session -> {
+		// Build large config JSON
+		StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
+		for (int i = 0; i < 100; i++) {
+			if (i > 0) largeConfig.append(",");
+			largeConfig.append("{\"id\":").append(i)
+				.append(",\"name\":\"item").append(i).append("_").append(System.currentTimeMillis() % 10000)
+				.append("\",\"description\":\"desc").append(i).append("_").append(System.currentTimeMillis() % 100000)
+				.append("\",\"value\":").append(Math.random() * 1000).append("}");
+		}
+		largeConfig.append("]}");
+
+		int randomId = (int)(Math.random() * 10000) + 1;
+		int randomNum = (int)(Math.random() * 1000) + 1;
+		
+		String body = String.format("""
+			{
+				"tag": "+ext/large.test.%d",
+				"name": "Large Test Extension %d",
+				"config": %s
+			}""",
+			randomId,
+			randomNum,
+			largeConfig.toString());
+		
+		return session.set("largeExtBody", body);
+	})
+	.exec(
 		http("Create Large Extension")
 			.post("/api/v1/ext")
 			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody(session -> {
-				int randomId = (int)(Math.random() * 10000) + 1;
-				int randomNum = (int)(Math.random() * 1000) + 1;
-
-				StringBuilder largeConfig = new StringBuilder("{\"type\":\"large-test\",\"data\":[");
-				for (int i = 0; i < 100; i++) {
-					if (i > 0) largeConfig.append(",");
-					largeConfig.append("{\"id\":").append(i)
-						.append(",\"name\":\"item").append(i).append("_").append(System.currentTimeMillis() % 10000)
-						.append("\",\"description\":\"desc").append(i).append("_").append(System.currentTimeMillis() % 100000)
-						.append("\",\"value\":").append(Math.random() * 1000).append("}");
-				}
-				largeConfig.append("]}");
-
-				return String.format("""
-					{
-						"tag": "+ext/large.test.%d",
-						"name": "Large Test Extension %d",
-						"config": %s
-					}""",
-					randomId,
-					randomNum,
-					largeConfig.toString());
-			}))
-			.check(status().in(201, 400))
+			.body(StringBody("#{largeExtBody}"))
+			.check(status().in(201, 409))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Error Condition Testing ======================
@@ -300,14 +304,17 @@ public class StressTestSimulation extends Simulation {
 
 	// ====================== Graph Operations Stress ======================
 
-	ChainBuilder stressGraphOperations = exec(
+	ChainBuilder stressGraphOperations = exec(session -> {
+		// Build list of URLs for graph query
+		java.util.List<String> urls = java.util.stream.IntStream.range(1, 21)
+			.mapToObj(i -> "https://stress-test.example.com/" + (System.currentTimeMillis() + i))
+			.collect(java.util.stream.Collectors.toList());
+		return session.set("graphUrls", urls);
+	})
+	.exec(
 		http("Stress Graph Query")
 			.get("/api/v1/graph/list")
-			.queryParam("urls", session ->
-				java.util.stream.IntStream.range(1, 21)
-					.mapToObj(i -> "https://stress-test.example.com/" + i)
-					.collect(java.util.stream.Collectors.toList())
-			)
+			.multivaluedQueryParam("urls", "#{graphUrls}")
 			.check(status().is(200))
 			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(responseTimeInMillis().lt(8000))

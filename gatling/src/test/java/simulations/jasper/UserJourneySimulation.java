@@ -65,7 +65,7 @@ public class UserJourneySimulation extends Simulation {
 			.get("/api/v1/ref/page")
 			.queryParam("size", "1")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
 	);
 
 	// ====================== Research Session Journey ======================
