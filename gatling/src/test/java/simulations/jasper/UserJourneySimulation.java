@@ -334,16 +334,16 @@ public class UserJourneySimulation extends Simulation {
 			String topicTag = session.getString("topicTag");
 			int randomId = new java.util.Random().nextInt(50) + 1;
 			return session.set("collectionTag", "collection/" + topicTag + "." + randomId)
-				.set("collectionTemplateTag", "_template/collection/" + topicTag + "." + randomId);
+				.set("collectionTemplateTag", "collection");
 		})
 		.exec(
-			http("Create Collection Template - #{topic}")
+			http("Create Collection Template")
 				.post("/api/v1/template")
 				.header("X-XSRF-TOKEN", "#{csrfToken}")
 				.body(StringBody("""
 					{
 						"tag": "#{collectionTemplateTag}",
-						"name": "#{topic} Collection Template",
+						"name": "Collection Template",
 						"config": {
 							"description": "Template for curated collections"
 						},
