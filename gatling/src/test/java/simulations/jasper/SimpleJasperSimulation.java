@@ -113,7 +113,7 @@ public class SimpleJasperSimulation extends Simulation {
 			.header("X-XSRF-TOKEN", "#{csrfToken}")
 			.body(StringBody("""
 				{
-					"tag": "+ext/smoketest.#{randomInt(1,100)}",
+					"tag": "smoketest.#{randomInt(1,100)}",
 					"name": "Smoke Test Extension #{randomInt(1,100)}"
 				}"""))
 			.check(status().in(201, 409))
