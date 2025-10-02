@@ -59,7 +59,8 @@ When building with Docker, use these techniques to efficiently read logs:
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
-- Docker load tests: `docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling` -- takes 15 minutes. NEVER CANCEL. Set timeout to 180+ seconds.
+- Docker load tests: `docker compose --profile lt up --build --exit-code-from gatling` -- takes 15 minutes. NEVER CANCEL. Set timeout to 180+ seconds.
+- Docker supported tests: `docker compose up -d; ../mvnw gatling:test`
 - Override the docker CMD to run a single test suite
 
 **GitHub Actions Integration:**
