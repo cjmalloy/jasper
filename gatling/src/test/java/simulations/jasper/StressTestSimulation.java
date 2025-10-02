@@ -39,7 +39,7 @@ public class StressTestSimulation extends Simulation {
 			return session.set("rapidRefUrl", url);
 		})
 			.tryMax(3).on(
-				exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+				exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 					.exec(
 					http("Rapid Ref Creation")
 						.post("/api/v1/ref")
@@ -103,7 +103,7 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Large Payload Operations ======================
 
 	ChainBuilder createLargeExtTemplate = tryMax(3).on(
-			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+			exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 				.exec(
 			http("Create Large Extension Template")
 				.post("/api/v1/template")
@@ -164,7 +164,7 @@ public class StressTestSimulation extends Simulation {
 		return session.set("largeExtBody", body);
 	})
 		.tryMax(3).on(
-			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+			exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 				.exec(
 				http("Create Large Extension")
 					.post("/api/v1/ext")
@@ -192,7 +192,7 @@ public class StressTestSimulation extends Simulation {
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testInvalidData = tryMax(3).on(
-			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+			exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 				.exec(
 			http("Test Invalid Data")
 				.post("/api/v1/ref")
@@ -211,7 +211,7 @@ public class StressTestSimulation extends Simulation {
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testMalformedJson = tryMax(3).on(
-			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+			exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 				.exec(
 			http("Test Malformed JSON")
 				.post("/api/v1/ref")
@@ -267,7 +267,7 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Backup Operations ======================
 
 	ChainBuilder testBackupOperations = tryMax(3).on(
-			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+			exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 				.exec(
 			http("Create Backup")
 				.post("/api/v1/backup")
@@ -357,7 +357,7 @@ public class StressTestSimulation extends Simulation {
 		})
 			// Create the ref for this specific virtual user
 			.tryMax(3).on(
-				exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+				exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 					.exec(
 					http("Create Ref for Concurrent Update")
 						.post("/api/v1/ref")
@@ -388,7 +388,7 @@ public class StressTestSimulation extends Simulation {
 			).exitHereIfFailed()
 			.doIf(session -> session.contains("stressRefModified")).then(
 				tryMax(3).on(
-					exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+					exec(addCookie(Cookie.build("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/")))
 						.exec(
 						http("Concurrent Update Attempt")
 							.patch("/api/v1/ref")
