@@ -480,16 +480,20 @@ public class UserJourneySimulation extends Simulation {
 
 	ScenarioBuilder researchSession = scenario("Research Session")
 		.exec(fetchCsrfToken)
-		.exec(researchWorkflow)
-		.pause(Duration.ofSeconds(5, 10))
-		.repeat(2).on(
-			exec(researchWorkflow).pause(Duration.ofSeconds(10, 20))
+		.group("Research Session").on(
+			exec(researchWorkflow)
+			.pause(Duration.ofSeconds(5, 10))
+			.repeat(2).on(
+				exec(researchWorkflow).pause(Duration.ofSeconds(10, 20))
+			)
 		);
 
 	ScenarioBuilder dailyReview = scenario("Daily Review")
 		.exec(fetchCsrfToken)
-		.exec(dailyReviewWorkflow)
-		.pause(Duration.ofSeconds(3, 8));
+		.group("Daily Review").on(
+			exec(dailyReviewWorkflow)
+			.pause(Duration.ofSeconds(3, 8))
+		);
 
 	ScenarioBuilder contentCuration = scenario("Content Curation")
 		.exec(fetchCsrfToken)

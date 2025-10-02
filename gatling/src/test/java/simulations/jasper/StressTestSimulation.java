@@ -455,20 +455,24 @@ public class StressTestSimulation extends Simulation {
 
 	ScenarioBuilder volumeStress = scenario("High Volume Operations")
 		.exec(fetchCsrfToken)
-		.repeat(20).on(
-			exec(rapidRefCreation)
-				.pace(Duration.ofMillis(100))
-		)
-		.exec(largePageQuery)
-		.exec(complexSearchQuery);
+		.group("High Volume Operations").on(
+			repeat(20).on(
+				exec(rapidRefCreation)
+					.pace(Duration.ofMillis(100))
+			)
+			.exec(largePageQuery)
+			.exec(complexSearchQuery)
+		);
 
 	ScenarioBuilder errorHandlingTest = scenario("Error Handling Tests")
 		.exec(fetchCsrfToken)
-		.repeat(10).on(
-			randomSwitch().on(
-				percent(40.0).then(exec(testNotFoundErrors)),
-				percent(30.0).then(exec(testInvalidData)),
-				percent(30.0).then(exec(testMalformedJson))
+		.group("Error Handling Tests").on(
+			repeat(10).on(
+				randomSwitch().on(
+					percent(40.0).then(exec(testNotFoundErrors)),
+					percent(30.0).then(exec(testInvalidData)),
+					percent(30.0).then(exec(testMalformedJson))
+				)
 			)
 		);
 
