@@ -62,7 +62,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 				var origin = auth.getOrigin();
 				if (!httpBulkhead.tryAcquirePermission()) {
-					logger.warn("Global HTTP rate limit exceeded for request: {}", request.getRequestURI());
+					logger.debug("Global HTTP rate limit exceeded for request: {}", request.getRequestURI());
 					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
@@ -71,7 +71,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 				if (!getOriginRateLimiter(origin).acquirePermission()) {
 					httpBulkhead.releasePermission();
 
-					logger.warn("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
+					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
 					response.setStatus(429);
 					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxConcurrentRequests());
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
