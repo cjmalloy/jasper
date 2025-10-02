@@ -480,16 +480,20 @@ public class UserJourneySimulation extends Simulation {
 
 	ScenarioBuilder researchSession = scenario("Research Session")
 		.exec(fetchCsrfToken)
-		.exec(researchWorkflow)
-		.pause(Duration.ofSeconds(5, 10))
-		.repeat(2).on(
-			exec(researchWorkflow).pause(Duration.ofSeconds(10, 20))
+		.group("Research Session").on(
+			exec(researchWorkflow)
+			.pause(Duration.ofSeconds(5, 10))
+			.repeat(2).on(
+				exec(researchWorkflow).pause(Duration.ofSeconds(10, 20))
+			)
 		);
 
 	ScenarioBuilder dailyReview = scenario("Daily Review")
 		.exec(fetchCsrfToken)
-		.exec(dailyReviewWorkflow)
-		.pause(Duration.ofSeconds(3, 8));
+		.group("Daily Review").on(
+			exec(dailyReviewWorkflow)
+			.pause(Duration.ofSeconds(3, 8))
+		);
 
 	ScenarioBuilder contentCuration = scenario("Content Curation")
 		.exec(fetchCsrfToken)
@@ -550,7 +554,8 @@ public class UserJourneySimulation extends Simulation {
 				global().responseTime().max().lt(8000),
 				global().responseTime().mean().lt(2000),
 				global().successfulRequests().percent().gt(75.0),
-				forAll().responseTime().percentile3().lt(4000)
+				details("Research Session").responseTime().percentile3().lt(4000),
+				details("Daily Review").responseTime().percentile3().lt(3000)
 			);
 	}
 }
