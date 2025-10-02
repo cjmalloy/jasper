@@ -116,6 +116,11 @@ public interface Config {
 		@Builder.Default
 		private int maxConcurrentReplication = 3;
 		/**
+		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 */
+		@Builder.Default
+		private int maxRequests = 50;
+		/**
 		 * Global maximum concurrent HTTP requests (across all origins). Default 500.
 		 */
 		@Builder.Default

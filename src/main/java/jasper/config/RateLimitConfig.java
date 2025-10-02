@@ -56,24 +56,37 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	}
 
 	@Bean
+	RateLimiter httpRateLimiter() {
+		return RateLimiter.of("http", RateLimiterConfig.custom()
+				.limitForPeriod(configs.root().getMaxConcurrentRequests())
+				.limitRefreshPeriod(ofNanos(500))
+				.build());
+	}
+
+	@Bean
 	public HandlerInterceptor rateLimitInterceptor() {
 		return new HandlerInterceptor() {
 			@Override
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 				var origin = auth.getOrigin();
-				if (!httpBulkhead.tryAcquirePermission()) {
-					logger.debug("Global HTTP rate limit exceeded for request: {}", request.getRequestURI());
-					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
+				if (!getOriginRateLimiter(origin).acquirePermission()) {
+					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
+					response.setStatus(429);
+					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxRequests());
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;
 				}
-				if (!getOriginRateLimiter(origin).acquirePermission()) {
-					httpBulkhead.releasePermission();
-
-					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
+				if (!httpRateLimiter().acquirePermission()) {
+					logger.debug("HTTP rate limit exceeded for request: {}", request.getRequestURI());
 					response.setStatus(429);
-					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxRequests());
+					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+					return false;
+				}
+				if (!httpBulkhead.tryAcquirePermission()) {
+					logger.debug("HTTP concurrent limit exceeded for request: {}", request.getRequestURI());
+					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;
