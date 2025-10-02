@@ -58,6 +58,8 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	@Bean
 	public HandlerInterceptor rateLimitInterceptor() {
 		return new HandlerInterceptor() {
+			private static final String HTTP_BULKHEAD_PERMIT_ACQUIRED = "httpBulkheadPermitAcquired";
+
 			@Override
 			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 				var origin = auth.getOrigin();
@@ -68,8 +70,13 @@ public class RateLimitConfig implements WebMvcConfigurer {
 					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;
 				}
+				// Mark that we acquired the permit so we can release it later
+				request.setAttribute(HTTP_BULKHEAD_PERMIT_ACQUIRED, true);
+
 				if (!getOriginRateLimiter(origin).acquirePermission()) {
 					httpBulkhead.releasePermission();
+					// Mark that we released the permit early, so we don't release it again
+					request.setAttribute(HTTP_BULKHEAD_PERMIT_ACQUIRED, false);
 
 					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
 					response.setStatus(429);
@@ -83,7 +90,10 @@ public class RateLimitConfig implements WebMvcConfigurer {
 
 			@Override
 			public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-				httpBulkhead.releasePermission();
+				// Only release the permit if it was actually acquired in preHandle
+				if (Boolean.TRUE.equals(request.getAttribute(HTTP_BULKHEAD_PERMIT_ACQUIRED))) {
+					httpBulkhead.releasePermission();
+				}
 			}
 		};
 	}
