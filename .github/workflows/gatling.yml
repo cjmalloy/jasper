@@ -18,8 +18,21 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v5
-      - name: Run load tests
-        run: (cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Smoke Tests
+        if: always()
+        run: (GATLING_TEST=SmokeTest cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Comprehensive Tests
+        if: always()
+        run: (GATLING_TEST=Comprehensive cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run User Journey
+        if: always()
+        run: (GATLING_TEST=UserJourney cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Stress Tests
+        if: always()
+        run: (GATLING_TEST=StressTest cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Generate Report Index
+        if: always()
+        run: (cd gatling; ./gen-index.sh)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v4

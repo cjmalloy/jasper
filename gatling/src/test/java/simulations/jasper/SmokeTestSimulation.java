@@ -16,7 +16,7 @@ import java.time.Duration;
  * - Test core API endpoints
  * - Verify basic system health
  */
-public class SimpleJasperSimulation extends Simulation {
+public class SmokeTestSimulation extends Simulation {
 	private static final String STATIC_XSRF_TOKEN = "gatling-static-token-for-testing";
 
 	HttpProtocolBuilder httpProtocol = http

@@ -19,7 +19,7 @@ import java.util.Map;
  * - Template-based content organization
  * - User management operations
  */
-public class ComprehensiveJasperSimulation extends Simulation {
+public class ComprehensiveSimulation extends Simulation {
 	private static final String STATIC_XSRF_TOKEN = "gatling-static-token-for-testing";
 
 	HttpProtocolBuilder httpProtocol = http

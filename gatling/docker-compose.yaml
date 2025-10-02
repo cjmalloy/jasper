@@ -9,6 +9,8 @@ services:
         condition: service_healthy
       repl-web:
         condition: service_healthy
+    environment:
+      GATLING_TEST: "${GATLING_TEST:-SmokeTest}"
     volumes:
       - ./report:/gatling/report
   web:
