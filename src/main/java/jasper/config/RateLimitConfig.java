@@ -83,7 +83,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 
 			@Override
 			public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-				httpBulkhead.releasePermission();
+				httpBulkhead.onComplete();
 			}
 		};
 	}
