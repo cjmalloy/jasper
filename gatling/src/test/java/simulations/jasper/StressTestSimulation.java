@@ -558,8 +558,8 @@ public class StressTestSimulation extends Simulation {
 				global().responseTime().max().lt(15000),
 				global().responseTime().mean().lt(3000),
 				global().successfulRequests().percent().gt(70.0), // Lower success rate expected for stress testing
-				details("High Volume Operations").failedRequests().percent().lt(40.0),
-				details("Error Handling Tests").responseTime().percentile3().lt(5000)
+				forAll().failedRequests().percent().lt(40.0),
+				forAll().responseTime().percentile3().lt(5000)
 			);
 	}
 }

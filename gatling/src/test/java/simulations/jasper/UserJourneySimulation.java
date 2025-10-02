@@ -550,8 +550,7 @@ public class UserJourneySimulation extends Simulation {
 				global().responseTime().max().lt(8000),
 				global().responseTime().mean().lt(2000),
 				global().successfulRequests().percent().gt(75.0),
-				details("Research Session").responseTime().percentile3().lt(4000),
-				details("Daily Review").responseTime().percentile3().lt(3000)
+				forAll().responseTime().percentile3().lt(4000)
 			);
 	}
 }
