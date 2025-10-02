@@ -36,7 +36,9 @@
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.5.1</apache-httpclient.version>
 		<commons-io.version>2.20.0</commons-io.version>
+		<commons-fileupload.version>1.6.0</commons-fileupload.version>
 		<commons-collections4.version>4.5.0</commons-collections4.version>
+		<commons-lang3.version>3.19.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<jsoup.version>1.21.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
@@ -126,9 +128,19 @@
 			<version>${commons-collections4.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>${commons-lang3.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>${commons-fileupload.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.drewnoakes</groupId>
