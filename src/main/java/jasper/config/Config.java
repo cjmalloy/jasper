@@ -224,7 +224,7 @@ public interface Config {
 		/**
 		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
 		 * No origin wildcards.
-		 * Example: {"@myorg", "+plugin/delta@myorg": 15, "_plugin/delta": 5}
+		 * Example: {"@myorg": 20, "+plugin/delta@myorg": 15, "_plugin/delta": 5}
 		 * If more than one matches, the smallest limit is chosen.
 		 */
 		private Map<String, Integer> scriptLimits = Map.of();
