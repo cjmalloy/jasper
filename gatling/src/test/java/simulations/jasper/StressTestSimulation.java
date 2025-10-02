@@ -304,14 +304,7 @@ public class StressTestSimulation extends Simulation {
 							"tags": ["stresstest", "concurrent"]
 						}"""))
 					.check(status().in(429, 503, 201))
-			)
-			.pause(Duration.ofMillis(100))
-			.exec(
-				http("Fetch Ref for Concurrent Update")
-					.get("/api/v1/ref")
-					.queryParam("url", "#{stressUpdateUrl}")
-					.check(status().in(429, 503, 200))
-					.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
+					.check(jsonPath("$").optional().saveAs("stressRefModified"))
 			)
 			.doIf(session -> session.contains("stressRefModified")).then(
 				exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
