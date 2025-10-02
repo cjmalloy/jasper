@@ -40,6 +40,7 @@ System limits and edge case testing:
 - Error conditions and recovery scenarios
 - Replication and backup operations
 - System administration under load
+- **Retry Logic**: All requests automatically retry up to 3 times on 429 (Too Many Requests) and 503 (Service Unavailable) errors
 
 ## Running Load Tests
 

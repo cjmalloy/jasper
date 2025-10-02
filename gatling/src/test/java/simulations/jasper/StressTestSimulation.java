@@ -47,86 +47,106 @@ public class StressTestSimulation extends Simulation {
 				(1 + new java.util.Random().nextInt(100000));
 			return session.set("rapidRefUrl", url);
 		})
-			.exec(
-				http("Rapid Ref Creation")
-					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
-					.body(StringBody("""
-				{
-					"url": "#{rapidRefUrl}",
-					"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
-					"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
-					"tags": [
-						"stresstest",
-						"performance",
-						"load.#{randomInt(1,1000)}",
-						"batch.#{randomInt(1,100)}",
-						"category.#{randomInt(1,50)}",
-						"priority.#{randomInt(1,10)}"
-					],
-					"sources": [
-						"https://source1.example.com/#{randomInt(1,1000)}",
-						"https://source2.example.com/#{randomInt(1,1000)}",
-						"https://source3.example.com/#{randomInt(1,1000)}"
-					]
-				}"""))
-					.check(status().in(201, 409, 400))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			).pause(Duration.ofMillis(50), Duration.ofMillis(200));
+			.tryMax(3).on(
+				exec(
+					http("Rapid Ref Creation")
+						.post("/api/v1/ref")
+						.header("X-XSRF-TOKEN", "#{csrfToken}")
+						.body(StringBody("""
+					{
+						"url": "#{rapidRefUrl}",
+						"title": "Stress Test Reference #{randomInt(1,100000)} - Load#{randomInt(10000,99999)}",
+						"comment": "StressTest#{randomInt(100000,999999)} - This is a stress test reference with substantial content to test system limits and performance under high load conditions. Content#{randomInt(100000,999999)}",
+						"tags": [
+							"stresstest",
+							"performance",
+							"load.#{randomInt(1,1000)}",
+							"batch.#{randomInt(1,100)}",
+							"category.#{randomInt(1,50)}",
+							"priority.#{randomInt(1,10)}"
+						],
+						"sources": [
+							"https://source1.example.com/#{randomInt(1,1000)}",
+							"https://source2.example.com/#{randomInt(1,1000)}",
+							"https://source3.example.com/#{randomInt(1,1000)}"
+						]
+					}"""))
+						.check(status().in(201, 409, 400))
+						.check(status().not(429))
+						.check(status().not(503))
+						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+				)
+			).exitHereIfFailed()
+			.pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
-	ChainBuilder largePageQuery = exec(
-		http("Large Page Query")
-			.get("/api/v1/ref/page")
-			.queryParam("size", "100")
-			.queryParam("query", "stress-test|performance|load.#{randomInt(1,100)}")
-			.queryParam("sort", "modified,desc")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			.check(responseTimeInMillis().lt(5000))
-	).pause(Duration.ofMillis(100), Duration.ofMillis(500));
+	ChainBuilder largePageQuery = tryMax(3).on(
+		exec(
+			http("Large Page Query")
+				.get("/api/v1/ref/page")
+				.queryParam("size", "100")
+				.queryParam("query", "stress-test|performance|load.#{randomInt(1,100)}")
+				.queryParam("sort", "modified,desc")
+				.check(status().is(200))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+				.check(responseTimeInMillis().lt(5000))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(100), Duration.ofMillis(500));
 
-	ChainBuilder complexSearchQuery = exec(
-		http("Complex Search Query")
-			.get("/api/v1/ref/page")
-			.queryParam("query", "(stresstest:performance)|load.#{randomInt(1,100)}:!excluded")
-			.queryParam("search", "stress test performance load content#{randomInt(1,100)}")
-			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
-			.queryParam("size", "50")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(200), Duration.ofMillis(800));
+	ChainBuilder complexSearchQuery = tryMax(3).on(
+		exec(
+			http("Complex Search Query")
+				.get("/api/v1/ref/page")
+				.queryParam("query", "(stresstest:performance)|load.#{randomInt(1,100)}:!excluded")
+				.queryParam("search", "stress test performance load content#{randomInt(1,100)}")
+				.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
+				.queryParam("size", "50")
+				.check(status().is(200))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(200), Duration.ofMillis(800));
 
 	// ====================== Large Payload Operations ======================
 
-	ChainBuilder createLargeExtTemplate = exec(
-		http("Create Large Extension Template")
-			.post("/api/v1/template")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"tag": "large.test",
-					"name": "Large Test Extension Template",
-					"schema": {
-						"properties": {
-							"type": {"type": "string"}
-						},
-						"optionalProperties": {
-							"data": {
-								"elements": {
-									"properties": {
-										"id": {"type": "uint32"},
-										"name": {"type": "string"},
-										"description": {"type": "string"},
-										"value": {"type": "float64"}
+	ChainBuilder createLargeExtTemplate = tryMax(3).on(
+		exec(
+			http("Create Large Extension Template")
+				.post("/api/v1/template")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"tag": "large.test",
+						"name": "Large Test Extension Template",
+						"schema": {
+							"properties": {
+								"type": {"type": "string"}
+							},
+							"optionalProperties": {
+								"data": {
+									"elements": {
+										"properties": {
+											"id": {"type": "uint32"},
+											"name": {"type": "string"},
+											"description": {"type": "string"},
+											"value": {"type": "float64"}
+										}
 									}
 								}
 							}
 						}
-					}
-				}"""))
-			.check(status().in(201, 409))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(100));
+					}"""))
+				.check(status().in(201, 409))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(100));
 
 	ChainBuilder createLargeExt = exec(session -> {
 		// Build large config JSON
@@ -154,133 +174,195 @@ public class StressTestSimulation extends Simulation {
 
 		return session.set("largeExtBody", body);
 	})
-		.exec(
-			http("Create Large Extension")
-				.post("/api/v1/ext")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
-				.body(StringBody("#{largeExtBody}"))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+		.tryMax(3).on(
+			exec(
+				http("Create Large Extension")
+					.post("/api/v1/ext")
+					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.body(StringBody("#{largeExtBody}"))
+					.check(status().in(201, 409))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
+		).exitHereIfFailed()
+		.pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Error Condition Testing ======================
 
-	ChainBuilder testNotFoundErrors = exec(
-		http("Test Not Found - Random URL")
-			.get("/api/v1/ref")
-			.queryParam("url", "https://nonexistent-#{randomInt(1,100000)}.example.com/#{randomUuid()}")
-			.check(status().is(404))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+	ChainBuilder testNotFoundErrors = tryMax(3).on(
+		exec(
+			http("Test Not Found - Random URL")
+				.get("/api/v1/ref")
+				.queryParam("url", "https://nonexistent-#{randomInt(1,100000)}.example.com/#{randomUuid()}")
+				.check(status().is(404))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
-	ChainBuilder testInvalidData = exec(
-		http("Test Invalid Data")
-			.post("/api/v1/ref")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"url": "invalid-url-test#{randomInt(1,1000)}",
-					"title": "",
-					"tags": ["invalidtag#{randomInt(100000,999999)}"]
-				}"""))
-			.check(status().in(400, 422))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+	ChainBuilder testInvalidData = tryMax(3).on(
+		exec(
+			http("Test Invalid Data")
+				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"url": "invalid-url-test#{randomInt(1,1000)}",
+						"title": "",
+						"tags": ["invalidtag#{randomInt(100000,999999)}"]
+					}"""))
+				.check(status().in(400, 422))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
-	ChainBuilder testMalformedJson = exec(
-		http("Test Malformed JSON")
-			.post("/api/v1/ref")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"url": "https://test.com/malformed",
-					"title": "Test"
-					"invalid": "json",
-				}"""))
-			.check(status().is(400))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(100), Duration.ofMillis(300));
+	ChainBuilder testMalformedJson = tryMax(3).on(
+		exec(
+			http("Test Malformed JSON")
+				.post("/api/v1/ref")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"url": "https://test.com/malformed",
+						"title": "Test"
+						"invalid": "json",
+					}"""))
+				.check(status().is(400))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	// ====================== Replication Testing ======================
 
-	ChainBuilder testReplicationEndpoints = exec(
-		http("Test Replication - Get Refs")
-			.get("/pub/api/v1/repl/ref")
-			.queryParam("size", "100")
-			.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(200), Duration.ofMillis(500))
-		.exec(
-			http("Test Replication - Get Cursor")
-				.get("/pub/api/v1/repl/ref/cursor")
+	ChainBuilder testReplicationEndpoints = tryMax(3).on(
+		exec(
+			http("Test Replication - Get Refs")
+				.get("/pub/api/v1/repl/ref")
+				.queryParam("size", "100")
+				.queryParam("modifiedAfter", "2024-01-01T00:00:00Z")
 				.check(status().is(200))
+				.check(status().not(429))
+				.check(status().not(503))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		).pause(Duration.ofMillis(100), Duration.ofMillis(300))
-		.exec(
-			http("Test Replication - Get Extensions")
-				.get("/pub/api/v1/repl/ext")
-				.queryParam("size", "50")
-				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		);
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(200), Duration.ofMillis(500))
+		.tryMax(3).on(
+			exec(
+				http("Test Replication - Get Cursor")
+					.get("/pub/api/v1/repl/ref/cursor")
+					.check(status().is(200))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
+		).exitHereIfFailed()
+		.pause(Duration.ofMillis(100), Duration.ofMillis(300))
+		.tryMax(3).on(
+			exec(
+				http("Test Replication - Get Extensions")
+					.get("/pub/api/v1/repl/ext")
+					.queryParam("size", "50")
+					.check(status().is(200))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
+		).exitHereIfFailed();
 
 	// ====================== Backup Operations ======================
 
-	ChainBuilder testBackupOperations = exec(
-		http("Create Backup")
-			.post("/api/v1/backup")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
-				{
-					"includeRefs": true,
-					"includeExts": true,
-					"includeUsers": false,
-					"maxItems": 1000
-				}"""))
-			.check(status().is(200))  // BackupController returns 200, not 201 (missing @ResponseStatus annotation)
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
-		.exec(
-			http("List Backups")
-				.get("/api/v1/backup")
-				.check(status().is(200))
+	ChainBuilder testBackupOperations = tryMax(3).on(
+		exec(
+			http("Create Backup")
+				.post("/api/v1/backup")
+				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.body(StringBody("""
+					{
+						"includeRefs": true,
+						"includeExts": true,
+						"includeUsers": false,
+						"maxItems": 1000
+					}"""))
+				.check(status().is(200))  // BackupController returns 200, not 201 (missing @ResponseStatus annotation)
+				.check(status().not(429))
+				.check(status().not(503))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		);
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
+		.tryMax(3).on(
+			exec(
+				http("List Backups")
+					.get("/api/v1/backup")
+					.check(status().is(200))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
+		).exitHereIfFailed();
 
 	// ====================== System Administration ======================
 
-	ChainBuilder testAdminOperations = exec(
-		http("Get User Info")
-			.get("/api/v1/user/whoami")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(200), Duration.ofMillis(500))
-		.exec(
-			http("Browse All Users")
-				.get("/api/v1/user/page")
-				.queryParam("size", "50")
+	ChainBuilder testAdminOperations = tryMax(3).on(
+		exec(
+			http("Get User Info")
+				.get("/api/v1/user/whoami")
 				.check(status().is(200))
+				.check(status().not(429))
+				.check(status().not(503))
 				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-		);
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(200), Duration.ofMillis(500))
+		.tryMax(3).on(
+			exec(
+				http("Browse All Users")
+					.get("/api/v1/user/page")
+					.queryParam("size", "50")
+					.check(status().is(200))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+			)
+		).exitHereIfFailed();
 
 	// ====================== Content Enrichment Stress ======================
 
-	ChainBuilder stressProxyOperations = exec(
-		http("Stress Proxy Operation")
-			.get("/api/v1/proxy")
-			.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
-			.check(status().in(200, 404, 408, 503))
-			.check(responseTimeInMillis().lt(10000))
-	).pause(Duration.ofMillis(500), Duration.ofMillis(2000));
+	ChainBuilder stressProxyOperations = tryMax(3).on(
+		exec(
+			http("Stress Proxy Operation")
+				.get("/api/v1/proxy")
+				.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
+				.check(status().in(200))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(responseTimeInMillis().lt(10000))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(500), Duration.ofMillis(2000));
 
-	ChainBuilder stressScrapeOperations = exec(
-		http("Stress Web Scraping")
-			.get("/api/v1/scrape/web")
-			.queryParam("url", "https://httpbin.org/html")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
+	ChainBuilder stressScrapeOperations = tryMax(3).on(
+		exec(
+			http("Stress Web Scraping")
+				.get("/api/v1/scrape/web")
+				.queryParam("url", "https://httpbin.org/html")
+				.check(status().is(200))
+				.check(status().not(429))
+				.check(status().not(503))
+				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+		)
+	).exitHereIfFailed()
+		.pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
 
 	// ====================== Concurrent Update Stress ======================
 
@@ -293,45 +375,57 @@ public class StressTestSimulation extends Simulation {
 			return session.set("stressUpdateUrl", url);
 		})
 			// Create the ref for this specific virtual user
-			.exec(
-				http("Create Ref for Concurrent Update")
-					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
-					.body(StringBody("""
-					{
-						"url": "#{stressUpdateUrl}",
-						"title": "Stress Test Reference",
-						"comment": "Ref for testing concurrent updates",
-						"tags": ["stresstest", "concurrent"]
-					}"""))
-					.check(status().is(201))  // Should always be 201 since URLs are unique
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-			)
-			.pause(Duration.ofMillis(100))
-			.exec(
-				http("Fetch Ref for Concurrent Update")
-					.get("/api/v1/ref")
-					.queryParam("url", "#{stressUpdateUrl}")
-					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-					.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
-			)
-			.doIf(session -> session.contains("stressRefModified")).then(
+			.tryMax(3).on(
 				exec(
-					http("Concurrent Update Attempt")
-						.patch("/api/v1/ref")
-						.queryParam("url", "#{stressUpdateUrl}")
-						.queryParam("cursor", "#{stressRefModified}")
+					http("Create Ref for Concurrent Update")
+						.post("/api/v1/ref")
 						.header("X-XSRF-TOKEN", "#{csrfToken}")
-						.header("Content-Type", "application/merge-patch+json")
 						.body(StringBody("""
 						{
-							"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
-							"comment": "Updated during stress test at #{randomLong()}"
+							"url": "#{stressUpdateUrl}",
+							"title": "Stress Test Reference",
+							"comment": "Ref for testing concurrent updates",
+							"tags": ["stresstest", "concurrent"]
 						}"""))
-						.check(status().in(200, 409))
+						.check(status().is(201))  // Should always be 201 since URLs are unique
+						.check(status().not(429))
+						.check(status().not(503))
 						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				)
+			).exitHereIfFailed()
+			.pause(Duration.ofMillis(100))
+			.tryMax(3).on(
+				exec(
+					http("Fetch Ref for Concurrent Update")
+						.get("/api/v1/ref")
+						.queryParam("url", "#{stressUpdateUrl}")
+						.check(status().is(200))
+						.check(status().not(429))
+						.check(status().not(503))
+						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+						.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
+				)
+			).exitHereIfFailed()
+			.doIf(session -> session.contains("stressRefModified")).then(
+				tryMax(3).on(
+					exec(
+						http("Concurrent Update Attempt")
+							.patch("/api/v1/ref")
+							.queryParam("url", "#{stressUpdateUrl}")
+							.queryParam("cursor", "#{stressRefModified}")
+							.header("X-XSRF-TOKEN", "#{csrfToken}")
+							.header("Content-Type", "application/merge-patch+json")
+							.body(StringBody("""
+							{
+								"tags": ["updated.#{randomInt(1,1000)}", "concurrent.#{randomLong()}", "stressupdate"],
+								"comment": "Updated during stress test at #{randomLong()}"
+							}"""))
+							.check(status().in(200, 409))
+							.check(status().not(429))
+							.check(status().not(503))
+							.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+					)
+				).exitHereIfFailed()
 			).pause(Duration.ofMillis(50), Duration.ofMillis(200));
 
 	// ====================== Graph Operations Stress ======================
@@ -343,14 +437,19 @@ public class StressTestSimulation extends Simulation {
 			.collect(java.util.stream.Collectors.toList());
 		return session.set("graphUrls", urls);
 	})
-		.exec(
-			http("Stress Graph Query")
-				.get("/api/v1/graph/list")
-				.multivaluedQueryParam("urls", "#{graphUrls}")
-				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-				.check(responseTimeInMillis().lt(8000))
-		).pause(Duration.ofMillis(300), Duration.ofMillis(1000));
+		.tryMax(3).on(
+			exec(
+				http("Stress Graph Query")
+					.get("/api/v1/graph/list")
+					.multivaluedQueryParam("urls", "#{graphUrls}")
+					.check(status().is(200))
+					.check(status().not(429))
+					.check(status().not(503))
+					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
+					.check(responseTimeInMillis().lt(8000))
+			)
+		).exitHereIfFailed()
+		.pause(Duration.ofMillis(300), Duration.ofMillis(1000));
 
 	// ====================== Scenarios ======================
 
