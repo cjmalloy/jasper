@@ -250,7 +250,7 @@ public interface Config {
 			if (scriptLimitsParsed() == null) return maxConcurrentScripts;
 			return min(maxConcurrentScripts, scriptLimitsParsed().entrySet().stream()
 				.filter(e -> e.getKey().captures(tagOriginSelector(plugin + origin)))
-				.min((a, b) -> b.getValue() - a.getValue())
+				.min(comparingInt(Map.Entry::getValue))
 				.map(Map.Entry::getValue)
 				.orElse(maxConcurrentScripts));
 		}
