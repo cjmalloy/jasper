@@ -52,6 +52,7 @@ services:
       JASPER_LOCAL_ORIGIN: '@repl'
       JASPER_DEFAULT_ROLE: ROLE_ADMIN
       JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@repl'
+      JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: 250
       JASPER_HEAP: 256m
     depends_on:
       - repl-db
