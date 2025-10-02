@@ -168,7 +168,7 @@ public class Props {
 		private String defaultUser = "";
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
-		private Integer maxConcurrentRequests;
+		private Integer maxRequests;
 		private Integer maxConcurrentScripts;
 	}
 
