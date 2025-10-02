@@ -345,6 +345,7 @@ public class StressTestSimulation extends Simulation {
 				.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
 				.check(status().in(200, 404, 408, 503))
 				.check(status().not(429))
+				.check(status().not(503))
 				.check(responseTimeInMillis().lt(10000))
 		)
 	).exitHereIfFailed()
