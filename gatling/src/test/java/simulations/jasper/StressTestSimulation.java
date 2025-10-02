@@ -490,45 +490,45 @@ public class StressTestSimulation extends Simulation {
 			// High volume concurrent operations
 			volumeStress.injectOpen(
 				nothingFor(Duration.ofSeconds(2)),
-				rampUsers(150).during(Duration.ofSeconds(30)),
-				constantUsersPerSec(60).during(Duration.ofMinutes(2))
+				rampUsers(500).during(Duration.ofSeconds(30)),
+				constantUsersPerSec(200).during(Duration.ofMinutes(2))
 			),
 			// Error condition testing
 			errorHandlingTest.injectOpen(
 				nothingFor(Duration.ofSeconds(5)),
-				rampUsers(60).during(Duration.ofSeconds(20)),
-				constantUsersPerSec(30).during(Duration.ofMinutes(1))
+				rampUsers(200).during(Duration.ofSeconds(20)),
+				constantUsersPerSec(100).during(Duration.ofMinutes(1))
 			),
 			// System limits testing
 			systemLimitsTest.injectOpen(
 				nothingFor(Duration.ofSeconds(10)),
-				rampUsers(45).during(Duration.ofSeconds(25)),
-				constantUsersPerSec(15).during(Duration.ofMinutes(2))
+				rampUsers(150).during(Duration.ofSeconds(25)),
+				constantUsersPerSec(50).during(Duration.ofMinutes(2))
 			),
 			// Replication stress
 			replicationStress.injectOpen(
 				nothingFor(Duration.ofSeconds(8)),
-				rampUsers(20).during(Duration.ofSeconds(15)),
-				constantUsersPerSec(12).during(Duration.ofMinutes(1))
+				rampUsers(100).during(Duration.ofSeconds(15)),
+				constantUsersPerSec(40).during(Duration.ofMinutes(1))
 			),
 			// Administration operations
 			adminStress.injectOpen(
 				nothingFor(Duration.ofSeconds(12)),
-				rampUsers(15).during(Duration.ofSeconds(20)),
-				constantUsersPerSec(6).during(Duration.ofMinutes(1))
+				rampUsers(50).during(Duration.ofSeconds(20)),
+				constantUsersPerSec(20).during(Duration.ofMinutes(1))
 			),
 			// Content enrichment stress
 			contentEnrichmentStress.injectOpen(
 				nothingFor(Duration.ofSeconds(15)),
-				rampUsers(24).during(Duration.ofSeconds(30)),
-				constantUsersPerSec(12).during(Duration.ofMinutes(2))
+				rampUsers(80).during(Duration.ofSeconds(30)),
+				constantUsersPerSec(30).during(Duration.ofMinutes(2))
 			)
 		).protocols(httpProtocol)
 			.maxDuration(Duration.ofMinutes(4))
 			.throttle(
-				reachRps(150).in(Duration.ofSeconds(30)),
+				reachRps(500).in(Duration.ofSeconds(30)),
 				holdFor(Duration.ofMinutes(2)),
-				jumpToRps(120),
+				jumpToRps(300),
 				holdFor(Duration.ofMinutes(1))
 			)
 			.assertions(
