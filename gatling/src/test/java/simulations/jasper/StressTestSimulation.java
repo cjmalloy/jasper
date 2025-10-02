@@ -437,12 +437,6 @@ public class StressTestSimulation extends Simulation {
 			)
 		).protocols(httpProtocol)
 			.maxDuration(Duration.ofMinutes(4))
-			.throttle(
-				reachRps(150).in(Duration.ofSeconds(30)),
-				holdFor(Duration.ofMinutes(2)),
-				jumpToRps(120),
-				holdFor(Duration.ofMinutes(1))
-			)
 			.assertions(
 				global().responseTime().max().lt(15000),
 				global().responseTime().mean().lt(3000),
