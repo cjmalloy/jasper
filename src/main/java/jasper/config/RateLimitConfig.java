@@ -19,11 +19,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.String.format;
+import static java.time.Duration.ofNanos;
 
 @Configuration
 public class RateLimitConfig implements WebMvcConfigurer {
@@ -42,7 +42,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	private RateLimiter getOriginRateLimiter(String origin) {
 		return originRateLimiters.computeIfAbsent(origin, k -> RateLimiter.of("http-" + origin, RateLimiterConfig.custom()
 			.limitForPeriod(configs.security(origin).getMaxConcurrentRequests())
-			.limitRefreshPeriod(Duration.ofSeconds(1))
+			.limitRefreshPeriod(ofNanos(500))
 			.build()));
 	}
 
