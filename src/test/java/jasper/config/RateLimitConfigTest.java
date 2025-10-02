@@ -61,7 +61,7 @@ class RateLimitConfigTest {
 	}
 
 	@Test
-	void shouldAcquireAndReleasePermitForSuccessfulRequest() throws Exception {
+	void shouldAcquireAndCompletePermitForSuccessfulRequest() throws Exception {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -73,13 +73,13 @@ class RateLimitConfigTest {
 		assertThat(result).isTrue();
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
 
-		// afterCompletion should release the permit
+		// afterCompletion should complete the permit (calls onComplete())
 		rateLimitInterceptor.afterCompletion(request, response, null, null);
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(2);
 	}
 
 	@Test
-	void shouldNotReleasePermitWhenGlobalRateLimitHit() throws Exception {
+	void shouldRejectRequestWhenGlobalRateLimitHit() throws Exception {
 		MockHttpServletRequest request1 = new MockHttpServletRequest();
 		MockHttpServletResponse response1 = new MockHttpServletResponse();
 		MockHttpServletRequest request2 = new MockHttpServletRequest();
@@ -104,15 +104,10 @@ class RateLimitConfigTest {
 		boolean result = rateLimitInterceptor.preHandle(request3, response3, null);
 		assertThat(result).isFalse();
 		assertThat(response3.getStatus()).isEqualTo(503);
-		// Critical: permits should still be 0, not go negative
+		// Permits should still be 0 (no permit was acquired or released)
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(0);
 
-		// afterCompletion on the rejected request should NOT release a permit
-		rateLimitInterceptor.afterCompletion(request3, response3, null, null);
-		// Permits should still be 0 (not released since it was never acquired)
-		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(0);
-
-		// Now release the first two requests
+		// Complete the first two requests (afterCompletion is only called for successful preHandle)
 		rateLimitInterceptor.afterCompletion(request1, response1, null, null);
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
 
@@ -121,7 +116,7 @@ class RateLimitConfigTest {
 	}
 
 	@Test
-	void shouldNotReleasePermitTwiceWhenOriginRateLimitHit() throws Exception {
+	void shouldReleasePermitWhenOriginRateLimitHit() throws Exception {
 		// Setup origin rate limiter to reject immediately
 		var security = new Security();
 		security.setMaxConcurrentRequests(0); // Set to 0 to reject all requests
@@ -138,11 +133,6 @@ class RateLimitConfigTest {
 		assertThat(result).isFalse();
 		assertThat(response.getStatus()).isEqualTo(429); // Origin rate limit
 		// Permit should be released already in preHandle
-		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(2);
-
-		// afterCompletion should NOT release the permit again
-		rateLimitInterceptor.afterCompletion(request, response, null, null);
-		// Should still be 2, not 3 (which would be a bug)
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(2);
 	}
 
@@ -161,7 +151,7 @@ class RateLimitConfigTest {
 			assertThat(result).isTrue();
 			assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
 
-			// Release permit
+			// Complete permit
 			rateLimitInterceptor.afterCompletion(request, response, null, null);
 			assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(2);
 		}
@@ -186,12 +176,11 @@ class RateLimitConfigTest {
 		assertThat(result).isFalse();
 		assertThat(response3.getStatus()).isEqualTo(503);
 
-		// Simulate afterCompletion on all three requests
+		// Complete only the two successful requests (afterCompletion not called for request3)
 		rateLimitInterceptor.afterCompletion(request1, response1, null, null);
 		rateLimitInterceptor.afterCompletion(request2, response2, null, null);
-		rateLimitInterceptor.afterCompletion(request3, response3, null, null); // This one should not release
 
-		// Final state should be exactly 2 permits, not 3
+		// Final state should be exactly 2 permits
 		assertThat(httpBulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(2);
 	}
 }
