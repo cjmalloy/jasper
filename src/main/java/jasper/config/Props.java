@@ -149,6 +149,7 @@ public class Props {
 		private List<String> scriptWhitelist;
 		private List<String> hostWhitelist;
 		private List<String> hostBlacklist;
+		private Integer maxRequests;
 		private Integer maxConcurrentRequests;
 		private Integer maxConcurrentScripts;
 		private Integer maxConcurrentReplication;
