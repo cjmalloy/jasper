@@ -18,6 +18,7 @@ import java.time.Duration;
  * - System administration operations
  */
 public class StressTestSimulation extends Simulation {
+	private static final String STATIC_XSRF_TOKEN = "gatling-static-token-for-testing";
 
 	HttpProtocolBuilder httpProtocol = http
 		.baseUrl("http://localhost:8081")
@@ -26,16 +27,6 @@ public class StressTestSimulation extends Simulation {
 		.userAgentHeader("Gatling Stress Test")
 		.disableFollowRedirect()
 		.check(status().not(500)); // Allow other error codes for stress testing
-
-	// ====================== CSRF Token Setup ======================
-
-	ChainBuilder fetchCsrfToken = exec(
-		http("Fetch CSRF Token")
-			.get("/api/v1/ref/page")
-			.queryParam("size", "1")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
-	);
 
 	// ====================== High Volume Operations ======================
 
@@ -48,10 +39,11 @@ public class StressTestSimulation extends Simulation {
 			return session.set("rapidRefUrl", url);
 		})
 			.tryMax(3).on(
-				exec(
+				exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+					.exec(
 					http("Rapid Ref Creation")
 						.post("/api/v1/ref")
-						.header("X-XSRF-TOKEN", "#{csrfToken}")
+						.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 						.body(StringBody("""
 					{
 						"url": "#{rapidRefUrl}",
@@ -74,7 +66,6 @@ public class StressTestSimulation extends Simulation {
 						.check(status().in(201, 409, 400))
 						.check(status().not(429))
 						.check(status().not(503))
-						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				)
 			).exitHereIfFailed()
 			.pause(Duration.ofMillis(50), Duration.ofMillis(200));
@@ -89,7 +80,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(responseTimeInMillis().lt(5000))
 		)
 	).exitHereIfFailed()
@@ -106,7 +96,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(200), Duration.ofMillis(800));
@@ -114,10 +103,11 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Large Payload Operations ======================
 
 	ChainBuilder createLargeExtTemplate = tryMax(3).on(
-		exec(
+			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+				.exec(
 			http("Create Large Extension Template")
 				.post("/api/v1/template")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "large.test",
@@ -143,7 +133,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().in(201, 409))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(100));
@@ -175,15 +164,15 @@ public class StressTestSimulation extends Simulation {
 		return session.set("largeExtBody", body);
 	})
 		.tryMax(3).on(
-			exec(
+			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+				.exec(
 				http("Create Large Extension")
 					.post("/api/v1/ext")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("#{largeExtBody}"))
 					.check(status().in(201, 409))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		).exitHereIfFailed()
 		.pause(Duration.ofMillis(300), Duration.ofMillis(1000));
@@ -198,16 +187,16 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(404))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testInvalidData = tryMax(3).on(
-		exec(
+			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+				.exec(
 			http("Test Invalid Data")
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"url": "invalid-url-test#{randomInt(1,1000)}",
@@ -217,16 +206,16 @@ public class StressTestSimulation extends Simulation {
 				.check(status().in(400, 422))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
 
 	ChainBuilder testMalformedJson = tryMax(3).on(
-		exec(
+			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+				.exec(
 			http("Test Malformed JSON")
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"url": "https://test.com/malformed",
@@ -236,7 +225,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(400))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300));
@@ -252,7 +240,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(200), Duration.ofMillis(500))
@@ -263,7 +250,6 @@ public class StressTestSimulation extends Simulation {
 					.check(status().is(200))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		).exitHereIfFailed()
 		.pause(Duration.ofMillis(100), Duration.ofMillis(300))
@@ -275,17 +261,17 @@ public class StressTestSimulation extends Simulation {
 					.check(status().is(200))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		).exitHereIfFailed();
 
 	// ====================== Backup Operations ======================
 
 	ChainBuilder testBackupOperations = tryMax(3).on(
-		exec(
+			exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+				.exec(
 			http("Create Backup")
 				.post("/api/v1/backup")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"includeRefs": true,
@@ -296,7 +282,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))  // BackupController returns 200, not 201 (missing @ResponseStatus annotation)
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
@@ -307,7 +292,6 @@ public class StressTestSimulation extends Simulation {
 					.check(status().is(200))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		).exitHereIfFailed();
 
@@ -320,7 +304,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(200), Duration.ofMillis(500))
@@ -332,7 +315,6 @@ public class StressTestSimulation extends Simulation {
 					.check(status().is(200))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		).exitHereIfFailed();
 
@@ -359,7 +341,6 @@ public class StressTestSimulation extends Simulation {
 				.check(status().is(200))
 				.check(status().not(429))
 				.check(status().not(503))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 	).exitHereIfFailed()
 		.pause(Duration.ofMillis(1000), Duration.ofMillis(3000));
@@ -376,10 +357,11 @@ public class StressTestSimulation extends Simulation {
 		})
 			// Create the ref for this specific virtual user
 			.tryMax(3).on(
-				exec(
+				exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+					.exec(
 					http("Create Ref for Concurrent Update")
 						.post("/api/v1/ref")
-						.header("X-XSRF-TOKEN", "#{csrfToken}")
+						.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 						.body(StringBody("""
 						{
 							"url": "#{stressUpdateUrl}",
@@ -390,7 +372,6 @@ public class StressTestSimulation extends Simulation {
 						.check(status().is(201))  // Should always be 201 since URLs are unique
 						.check(status().not(429))
 						.check(status().not(503))
-						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				)
 			).exitHereIfFailed()
 			.pause(Duration.ofMillis(100))
@@ -402,18 +383,18 @@ public class StressTestSimulation extends Simulation {
 						.check(status().is(200))
 						.check(status().not(429))
 						.check(status().not(503))
-						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 						.check(jsonPath("$.modified").optional().saveAs("stressRefModified"))
 				)
 			).exitHereIfFailed()
 			.doIf(session -> session.contains("stressRefModified")).then(
 				tryMax(3).on(
-					exec(
+					exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost").withPath("/").withSecure(false)))
+						.exec(
 						http("Concurrent Update Attempt")
 							.patch("/api/v1/ref")
 							.queryParam("url", "#{stressUpdateUrl}")
 							.queryParam("cursor", "#{stressRefModified}")
-							.header("X-XSRF-TOKEN", "#{csrfToken}")
+							.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 							.header("Content-Type", "application/merge-patch+json")
 							.body(StringBody("""
 							{
@@ -423,7 +404,6 @@ public class StressTestSimulation extends Simulation {
 							.check(status().in(200, 409))
 							.check(status().not(429))
 							.check(status().not(503))
-							.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 					)
 				).exitHereIfFailed()
 			).pause(Duration.ofMillis(50), Duration.ofMillis(200));
@@ -445,7 +425,6 @@ public class StressTestSimulation extends Simulation {
 					.check(status().is(200))
 					.check(status().not(429))
 					.check(status().not(503))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 					.check(responseTimeInMillis().lt(8000))
 			)
 		).exitHereIfFailed()
@@ -454,7 +433,6 @@ public class StressTestSimulation extends Simulation {
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder volumeStress = scenario("High Volume Operations")
-		.exec(fetchCsrfToken)
 		.group("High Volume Operations").on(
 			repeat(20).on(
 				exec(rapidRefCreation)
@@ -465,7 +443,6 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder errorHandlingTest = scenario("Error Handling Tests")
-		.exec(fetchCsrfToken)
 		.group("Error Handling Tests").on(
 			repeat(10).on(
 				randomSwitch().on(
@@ -477,7 +454,6 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder systemLimitsTest = scenario("System Limits Test")
-		.exec(fetchCsrfToken)
 		.exec(createLargeExtTemplate)
 		.exec(createLargeExt)
 		.pause(Duration.ofSeconds(1), Duration.ofSeconds(3))
@@ -488,14 +464,12 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder replicationStress = scenario("Replication Stress")
-		.exec(fetchCsrfToken)
 		.repeat(15).on(
 			exec(testReplicationEndpoints)
 				.pace(Duration.ofSeconds(1))
 		);
 
 	ScenarioBuilder adminStress = scenario("Administration Stress")
-		.exec(fetchCsrfToken)
 		.exec(testBackupOperations)
 		.pause(Duration.ofSeconds(2), Duration.ofSeconds(5))
 		.repeat(8).on(
@@ -504,7 +478,6 @@ public class StressTestSimulation extends Simulation {
 		);
 
 	ScenarioBuilder contentEnrichmentStress = scenario("Content Enrichment Stress")
-		.exec(fetchCsrfToken)
 		.repeat(10).on(
 			randomSwitch().on(
 				percent(60.0).then(exec(stressProxyOperations)),
