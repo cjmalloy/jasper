@@ -25,7 +25,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: jasper
       SERVER_PORT: 80
       JASPER_DEFAULT_ROLE: ROLE_ADMIN
-      JASPER_HEAP: 256m
+      JASPER_HEAP: 512m
     depends_on:
       - db
   db:
