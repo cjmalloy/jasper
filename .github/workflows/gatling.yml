@@ -32,7 +32,7 @@ jobs:
         run: (GATLING_TEST=StressTest cd gatling; docker compose --profile lt up --build --exit-code-from gatling)
       - name: Generate Report Index
         if: always()
-        run: (cd gatling; ./gen-index.sh)
+        run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v4
