@@ -5,7 +5,6 @@ import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.component.ConfigCache;
 import jasper.security.Auth;
-import jasper.security.Security;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -53,8 +52,8 @@ class RateLimitConfigTest {
 
 		// Setup default mocks
 		when(auth.getOrigin()).thenReturn("");
-		var security = new Security();
-		security.setMaxConcurrentRequests(10);
+		var security = new Config.SecurityConfig();
+		security.setMaxRequests(10);
 		when(configs.security(anyString())).thenReturn(security);
 
 		rateLimitInterceptor = rateLimitConfig.rateLimitInterceptor();
@@ -118,8 +117,8 @@ class RateLimitConfigTest {
 	@Test
 	void shouldReleasePermitWhenOriginRateLimitHit() throws Exception {
 		// Setup origin rate limiter to reject immediately
-		var security = new Security();
-		security.setMaxConcurrentRequests(0); // Set to 0 to reject all requests
+		var security = new Config.SecurityConfig();
+		security.setMaxRequests(0); // Set to 0 to reject all requests
 		when(configs.security(anyString())).thenReturn(security);
 
 		MockHttpServletRequest request = new MockHttpServletRequest();
