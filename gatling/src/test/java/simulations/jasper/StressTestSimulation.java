@@ -342,7 +342,7 @@ public class StressTestSimulation extends Simulation {
 		exec(
 			http("Stress Proxy Operation")
 				.get("/api/v1/proxy")
-				.queryParam("url", "https://httpbin.org/delay/#{randomInt(1,3)}")
+				.queryParam("url", "https://cjmalloy.github.io/jasper/docs/entities.png?q=#{randomInt(1,1000)}")
 				.check(status().in(200))
 				.check(status().not(429))
 				.check(status().not(503))

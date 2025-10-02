@@ -359,7 +359,7 @@ public class ComprehensiveJasperSimulation extends Simulation {
 	ChainBuilder proxyContent =
 		// Create a ref for proxy if webRefUrl not set
 		doIf(session -> !session.contains("webRefUrl")).then(
-				exec(session -> session.set("webRefUrl", "https://placekittens.com/200/300"))
+				exec(session -> session.set("webRefUrl", "https://cjmalloy.github.io/jasper/docs/entities.png?q=#{randomInt(1,1000)}"))
 					.exec(
 						http("Create Ref for Proxy")
 							.post("/api/v1/ref")
