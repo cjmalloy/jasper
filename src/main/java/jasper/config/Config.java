@@ -214,9 +214,9 @@ public interface Config {
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum concurrent HTTP requests per origin. Default 100,000.
+		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
 		 */
-		private int maxConcurrentRequests = 100_000;
+		private int maxRequests = 50;
 		/**
 		 * Maximum concurrent script executions per origin. Default 100_000.
 		 */
@@ -275,7 +275,7 @@ public interface Config {
 			if (isNotBlank(security.getDefaultUser())) wrapped = wrapped.withDefaultUser(security.getDefaultUser());
 			if (isNotBlank(security.getTokenEndpoint())) wrapped = wrapped.withTokenEndpoint(security.getTokenEndpoint());
 			if (isNotBlank(security.getScimEndpoint())) wrapped = wrapped.withScimEndpoint(security.getScimEndpoint());
-			if (security.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(security.getMaxConcurrentRequests());
+			if (security.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxRequests(security.getMaxConcurrentRequests());
 			if (security.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(security.getMaxConcurrentScripts());
 			return wrapped;
 		}

@@ -41,7 +41,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	private final ConcurrentHashMap<String, RateLimiter> originRateLimiters = new ConcurrentHashMap<>();
 	private RateLimiter getOriginRateLimiter(String origin) {
 		return originRateLimiters.computeIfAbsent(origin, k -> RateLimiter.of("http-" + origin, RateLimiterConfig.custom()
-			.limitForPeriod(configs.security(origin).getMaxConcurrentRequests())
+			.limitForPeriod(configs.security(origin).getMaxRequests())
 			.limitRefreshPeriod(ofNanos(500))
 			.build()));
 	}
@@ -73,7 +73,7 @@ public class RateLimitConfig implements WebMvcConfigurer {
 
 					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
 					response.setStatus(429);
-					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxConcurrentRequests());
+					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxRequests());
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return false;

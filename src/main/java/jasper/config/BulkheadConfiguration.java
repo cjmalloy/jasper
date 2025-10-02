@@ -46,7 +46,7 @@ public class BulkheadConfiguration {
 	public Bulkhead replBulkhead() {
 		return registry.bulkhead("repl", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentReplication())
-			.maxWaitDuration(ofMinutes(5))
+			.maxWaitDuration(ofMinutes(15))
 			.build());
 	}
 
