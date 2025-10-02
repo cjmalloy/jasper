@@ -20,6 +20,7 @@ import java.util.Map;
  * - User management operations
  */
 public class ComprehensiveJasperSimulation extends Simulation {
+	private static final String STATIC_XSRF_TOKEN = "gatling-static-token-for-testing";
 
 	HttpProtocolBuilder httpProtocol = http
 		.baseUrl("http://localhost:8081")
@@ -27,24 +28,15 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		.contentTypeHeader("application/json")
 		.userAgentHeader("Gatling Load Test - Comprehensive");
 
-	// ====================== CSRF Token Setup ======================
-
-	ChainBuilder fetchCsrfToken = exec(
-		http("Fetch CSRF Token")
-			.get("/api/v1/ref/page")
-			.queryParam("size", "1")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
-	);
-
 	// ====================== Reference Operations ======================
 
 	ChainBuilder createWebReference =
 		exec(session -> session.set("webRefUrl", "https://example.com/article-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Web Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"url": "#{webRefUrl}",
@@ -54,7 +46,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"sources": ["https://source.example.com"]
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 			)
 			.pause(Duration.ofMillis(200))
 			.exec(
@@ -62,15 +53,15 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/ref")
 					.queryParam("url", "#{webRefUrl}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(300));
 
 	ChainBuilder createBookReference =
 		exec(session -> session.set("bookRefUrl", "isbn:978-" + String.format("%09d", new java.util.Random().nextInt(1000000000)) + new java.util.Random().nextInt(10)))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Book Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"url": "#{bookRefUrl}",
@@ -79,7 +70,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"tags": ["book", "technical", "software"]
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 			)
 			.pause(Duration.ofMillis(200))
 			.exec(
@@ -87,15 +77,15 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/ref")
 					.queryParam("url", "#{bookRefUrl}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(300));
 
 	ChainBuilder createComment =
 		exec(session -> session.set("commentUrl", "comment:" + java.util.UUID.randomUUID().toString()))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Comment Reference")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"url": "#{commentUrl}",
@@ -105,7 +95,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"sources": ["#{webRefUrl}"]
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 			)
 			.pause(Duration.ofMillis(200))
 			.exec(
@@ -113,7 +102,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/ref")
 					.queryParam("url", "#{commentUrl}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(100));
 
 	// ====================== Browse and Search Operations ======================
@@ -124,7 +112,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.queryParam("size", "20")
 			.queryParam("sort", "modified,desc")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			.check(jsonPath("$.content").exists())
 	).pause(Duration.ofSeconds(1));
 
@@ -134,7 +121,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.queryParam("query", "research")
 			.queryParam("size", "10")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(800));
 
 	ChainBuilder searchByKeyword = exec(
@@ -143,15 +129,15 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.queryParam("search", "technical software")
 			.queryParam("size", "15")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(800));
 
 	ChainBuilder getSpecificRef =
 		exec(session -> session.set("lookupRefUrl", "https://example.com/article-" + System.currentTimeMillis() + "-" + new java.util.Random().nextInt(10000)))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Ref for Lookup")
 					.post("/api/v1/ref")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"url": "#{lookupRefUrl}",
@@ -160,7 +146,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"tags": ["test", "lookup"]
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 			.pause(Duration.ofMillis(100))
 			.exec(
@@ -168,33 +153,33 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/ref")
 					.queryParam("url", "#{lookupRefUrl}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(400));
 
 	// ====================== Extension Operations ======================
 
-	ChainBuilder createExtensionTemplate = exec(
-		http("Create Extension Template")
-			.post("/api/v1/template")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
+	ChainBuilder createExtensionTemplate = exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+		.exec(
+			http("Create Extension Template")
+				.post("/api/v1/template")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
+				.body(StringBody("""
 				{
 					"tag": "test.ext",
 					"name": "Test Extension Template",
 					"schema": {}
 				}"""))
-			.check(status().in(201, 409))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
-	).pause(Duration.ofMillis(100));
+				.check(status().in(201, 409))
+		).pause(Duration.ofMillis(100));
 
 	ChainBuilder createPlugin = exec(session -> {
 		int randomId = new java.util.Random().nextInt(50) + 1;
 		return session.set("testExtTag", "test.ext/" + randomId);
 	})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Plugin Extension")
 				.post("/api/v1/ext")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{testExtTag}",
@@ -206,7 +191,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						}
 					}"""))
 				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 		).pause(Duration.ofMillis(600));
 
 	ChainBuilder browseExtensions = exec(
@@ -214,17 +198,17 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.get("/api/v1/ext/page")
 			.queryParam("size", "20")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(700));
 
 	// ====================== Plugin Management ======================
 
 	ChainBuilder createPluginConfig =
 		exec(session -> session.set("pluginTag", "+plugin/custom." + (1 + new java.util.Random().nextInt(30))))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Plugin Configuration")
 					.post("/api/v1/plugin")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"tag": "#{pluginTag}",
@@ -236,7 +220,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						}
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 			)
 			.pause(Duration.ofMillis(200))
 			.exec(
@@ -244,7 +227,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/plugin")
 					.queryParam("tag", "#{pluginTag}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(300));
 
 	ChainBuilder getPluginConfig = exec(
@@ -252,17 +234,17 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.get("/api/v1/plugin")
 			.queryParam("tag", "#{pluginTag}")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Template Operations ======================
 
 	ChainBuilder createTemplate =
 		exec(session -> session.set("templateTag", "_template/article." + (1 + new java.util.Random().nextInt(20))))
+			.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 			.exec(
 				http("Create Template")
 					.post("/api/v1/template")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.body(StringBody("""
 					{
 						"tag": "#{templateTag}",
@@ -287,7 +269,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						}
 					}"""))
 					.check(status().in(201, 409))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
 			)
 			.pause(Duration.ofMillis(200))
 			.exec(
@@ -295,7 +276,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/template")
 					.queryParam("tag", "#{templateTag}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(400));
 
 	ChainBuilder browseTemplates = exec(
@@ -303,16 +283,16 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.get("/api/v1/template/page")
 			.queryParam("size", "10")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(500));
 
 	// ====================== User Management ======================
 
-	ChainBuilder createUser = exec(
-		http("Create User")
-			.post("/api/v1/user")
-			.header("X-XSRF-TOKEN", "#{csrfToken}")
-			.body(StringBody("""
+	ChainBuilder createUser = exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+		.exec(
+			http("Create User")
+				.post("/api/v1/user")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
+				.body(StringBody("""
 				{
 					"tag": "+user/testuser#{randomInt(1,100)}",
 					"name": "Test User #{randomInt(1,100)}",
@@ -321,15 +301,13 @@ public class ComprehensiveJasperSimulation extends Simulation {
 						"active": true
 					}
 				}"""))
-			.check(status().in(201, 409))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
-	).pause(Duration.ofMillis(400));
+				.check(status().in(201, 409))
+		).pause(Duration.ofMillis(400));
 
 	ChainBuilder getUserInfo = exec(
 		http("Get User Info")
 			.get("/api/v1/user/whoami")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(300));
 
 	// ====================== Graph and Analytics ======================
@@ -342,7 +320,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 				"https://example.com/article-2"
 			))
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(800));
 
 	ChainBuilder browseTaggedContent = exec(
@@ -351,7 +328,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 			.queryParam("query", "research")
 			.queryParam("size", "20")
 			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 	).pause(Duration.ofMillis(600));
 
 	// ====================== Content Enrichment ======================
@@ -360,10 +336,11 @@ public class ComprehensiveJasperSimulation extends Simulation {
 		// Create a ref for proxy if webRefUrl not set
 		doIf(session -> !session.contains("webRefUrl")).then(
 				exec(session -> session.set("webRefUrl", "https://cjmalloy.github.io/jasper/docs/entities.png?q=#{randomInt(1,1000)}"))
+					.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 					.exec(
 						http("Create Ref for Proxy")
 							.post("/api/v1/ref")
-							.header("X-XSRF-TOKEN", "#{csrfToken}")
+							.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 							.body(StringBody("""
 						{
 							"url": "#{webRefUrl}",
@@ -372,7 +349,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 							"tags": ["proxy", "test"]
 						}"""))
 							.check(status().in(201, 409))
-							.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 					)
 					.pause(Duration.ofMillis(100))
 			)
@@ -381,14 +357,12 @@ public class ComprehensiveJasperSimulation extends Simulation {
 					.get("/api/v1/proxy")
 					.queryParam("url", "#{webRefUrl}")
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			).pause(Duration.ofMillis(1000));
 
 	// ====================== Scenarios ======================
 
 	// Knowledge Worker: Creates and organizes content
 	ScenarioBuilder knowledgeWorker = scenario("Knowledge Worker")
-		.exec(fetchCsrfToken)
 		.exec(createWebReference)
 		.pause(Duration.ofSeconds(2))
 		.exec(createBookReference)
@@ -403,7 +377,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Content Browser: Searches and views existing content
 	ScenarioBuilder contentBrowser = scenario("Content Browser")
-		.exec(fetchCsrfToken)
 		.exec(browseRecentRefs)
 		.pause(Duration.ofSeconds(1))
 		.exec(searchByKeyword)
@@ -418,7 +391,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Administrator: Manages system configuration
 	ScenarioBuilder administrator = scenario("Administrator")
-		.exec(fetchCsrfToken)
 		.exec(createPluginConfig)
 		.pause(Duration.ofSeconds(2))
 		.exec(getPluginConfig)
@@ -433,7 +405,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Heavy Reader: Intensive content consumption
 	ScenarioBuilder heavyReader = scenario("Heavy Reader")
-		.exec(fetchCsrfToken)
 		.repeat(3).on(
 			exec(browseRecentRefs)
 				.pause(Duration.ofMillis(500))
@@ -446,7 +417,6 @@ public class ComprehensiveJasperSimulation extends Simulation {
 
 	// Power User: Mixed operations including content enrichment
 	ScenarioBuilder powerUser = scenario("Power User")
-		.exec(fetchCsrfToken)
 		.exec(createExtensionTemplate)
 		.exec(createPlugin)
 		.pause(Duration.ofSeconds(1))

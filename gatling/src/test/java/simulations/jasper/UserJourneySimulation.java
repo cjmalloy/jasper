@@ -18,6 +18,7 @@ import java.util.List;
  * - Collaborative Work: Multiple users working on shared content
  */
 public class UserJourneySimulation extends Simulation {
+	private static final String STATIC_XSRF_TOKEN = "gatling-static-token-for-testing";
 
 	HttpProtocolBuilder httpProtocol = http
 		.baseUrl("http://localhost:8081")
@@ -31,23 +32,6 @@ public class UserJourneySimulation extends Simulation {
 	FeederBuilder<String> topicFeeder = csv("data/topics.csv").circular();
 
 	FeederBuilder<String> sourceFeeder = csv("data/sources.csv").circular();
-
-	// ====================== CSRF Token Setup ======================
-
-	// Extract CSRF token from cookies - called after any request to keep token fresh
-	ChainBuilder updateCsrfToken = exec(session -> {
-		// Token is automatically managed by Gatling's cookie store
-		// We just need to extract it when we see it in Set-Cookie headers
-		return session;
-	});
-
-	ChainBuilder fetchCsrfToken = exec(
-		http("Fetch CSRF Token")
-			.get("/api/v1/ref/page")
-			.queryParam("size", "1")
-			.check(status().is(200))
-			.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").saveAs("csrfToken"))
-	);
 
 	// ====================== Research Session Journey ======================
 
@@ -66,7 +50,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("size", "20")
 				.check(status().is(200))
 				.check(jsonPath("$.content").saveAs("existingRefs"))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(2, 5))
 		// Browse by category tag
@@ -76,7 +59,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "15")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a new reference with research findings
@@ -85,10 +67,11 @@ public class UserJourneySimulation extends Simulation {
 			String url = "https://" + session.getString("source") + "/" + session.getString("topic") + "-research-" + System.currentTimeMillis();
 			return session.set("researchUrl", url);
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Save Research Reference - #{topic}")
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"url": "#{researchUrl}",
@@ -97,7 +80,6 @@ public class UserJourneySimulation extends Simulation {
 						"tags": ["research", "#{categoryTag}", "#{type}"]
 					}"""))
 				.check(status().is(201))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$").saveAs("createdTimestamp"))
 		)
 		.pause(Duration.ofMillis(500))
@@ -107,7 +89,6 @@ public class UserJourneySimulation extends Simulation {
 				.get("/api/v1/ref")
 				.queryParam("url", "#{researchUrl}")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$.url").isEL("#{researchUrl}"))
 		)
 		.pause(Duration.ofMillis(500))
@@ -116,10 +97,11 @@ public class UserJourneySimulation extends Simulation {
 			String commentUrl = "comment:" + java.util.UUID.randomUUID().toString();
 			return session.set("commentUrl", commentUrl);
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Add Research Note - #{topic}")
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"url": "#{commentUrl}",
@@ -129,7 +111,6 @@ public class UserJourneySimulation extends Simulation {
 						"sources": ["#{researchUrl}"]
 					}"""))
 				.check(status().is(201))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Check if there are related templates
@@ -139,7 +120,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "10")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		);
 
 	// ====================== Daily Review Journey ======================
@@ -156,7 +136,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("sort", "modified,desc")
 				.check(status().is(200))
 				.check(jsonPath("$.content[*].url").findAll().saveAs("recentUrls"))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(2, 4))
 		// Create a ref to review if researchUrl not already set
@@ -168,10 +147,11 @@ public class UserJourneySimulation extends Simulation {
 					return session.set("researchUrl", url)
 						.set("topicTag", topicTag);
 				})
+				.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 				.exec(
 					http("Create Review Item")
 						.post("/api/v1/ref")
-						.header("X-XSRF-TOKEN", "#{csrfToken}")
+						.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 						.body(StringBody("""
 						{
 							"url": "#{researchUrl}",
@@ -180,7 +160,6 @@ public class UserJourneySimulation extends Simulation {
 							"tags": ["review", "#{topicTag}"]
 						}"""))
 						.check(status().in(201, 409))
-						.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				)
 				.pause(Duration.ofMillis(200))
 		)
@@ -190,7 +169,6 @@ public class UserJourneySimulation extends Simulation {
 				.get("/api/v1/ref")
 				.queryParam("url", "#{researchUrl}")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Look for untagged content to organize
@@ -200,7 +178,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("untagged", "true")
 				.queryParam("size", "10")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(2, 4))
 		// Fetch a ref to update (to get its cursor/modified timestamp)
@@ -209,25 +186,24 @@ public class UserJourneySimulation extends Simulation {
 				.get("/api/v1/ref")
 				.queryParam("url", "#{researchUrl}")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 				.check(jsonPath("$.modified").optional().saveAs("refModified"))
 		)
 		.pause(Duration.ofMillis(500))
 		// Update a reference with additional tags (using merge-patch) - only if we got the modified timestamp
 		.doIf(session -> session.contains("refModified")).then(
-			exec(
+		exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
+		.exec(
 				http("Update Reference Tags")
 					.patch("/api/v1/ref")
 					.queryParam("url", "#{researchUrl}")
 					.queryParam("cursor", "#{refModified}")
-					.header("X-XSRF-TOKEN", "#{csrfToken}")
+					.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 					.header("Content-Type", "application/merge-patch+json")
 					.body(StringBody("""
 						{
 							"tags": ["organized", "daily.review", "review#{randomInt(10000,99999)}"]
 						}"""))
 					.check(status().is(200))
-					.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 			)
 		);
 
@@ -246,10 +222,11 @@ public class UserJourneySimulation extends Simulation {
 				.set("templateTagValue", "_template/" + topicTag + "." + randomId);
 		})
 		// Create a specialized template for the topic
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Topic Template - #{topic}")
 				.post("/api/v1/template")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{templateTagValue}",
@@ -271,8 +248,7 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Create a plugin for enhanced functionality
@@ -281,10 +257,11 @@ public class UserJourneySimulation extends Simulation {
 			int randomId = new java.util.Random().nextInt(100) + 1;
 			return session.set("pluginTagValue", "+plugin/" + topicTag + ".enhancer." + randomId);
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Enhancement Plugin - #{topic}")
 				.post("/api/v1/plugin")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{pluginTagValue}",
@@ -296,8 +273,7 @@ public class UserJourneySimulation extends Simulation {
 							"features": ["auto-tagging", "difficulty-detection", "related-content"]
 						}
 					}"""))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Check existing extensions for the topic
@@ -307,7 +283,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("query", "#{categoryTag}")
 				.queryParam("size", "15")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Create a template for curated collections
@@ -317,10 +292,11 @@ public class UserJourneySimulation extends Simulation {
 			return session.set("collectionTag", "collection/" + topicTag + "." + randomId)
 				.set("collectionTemplateTag", "collection");
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Collection Template")
 				.post("/api/v1/template")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{collectionTemplateTag}",
@@ -353,14 +329,14 @@ public class UserJourneySimulation extends Simulation {
 						}
 					}"""))
 				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofMillis(500))
 		// Create a curated collection
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Curated Collection - #{topic}")
 				.post("/api/v1/ext")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{collectionTag}",
@@ -377,8 +353,7 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		);
 
 	// ====================== Collaborative Work Journey ======================
@@ -392,7 +367,6 @@ public class UserJourneySimulation extends Simulation {
 			http("Check User Profile")
 				.get("/api/v1/user/whoami")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1))
 		// Look for shared content
@@ -402,7 +376,6 @@ public class UserJourneySimulation extends Simulation {
 				.queryParam("query", "shared")
 				.queryParam("size", "20")
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Add a collaborative comment
@@ -410,10 +383,11 @@ public class UserJourneySimulation extends Simulation {
 			String commentUrl = "comment:collaboration-" + java.util.UUID.randomUUID().toString();
 			return session.set("collabCommentUrl", commentUrl);
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Add Collaborative Comment")
 				.post("/api/v1/ref")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"url": "#{collabCommentUrl}",
@@ -423,7 +397,6 @@ public class UserJourneySimulation extends Simulation {
 						"sources": ["https://example.com/shared-doc-#{randomInt(1,20)}"]
 					}"""))
 				.check(status().is(201))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 2))
 		// Check graph relationships for collaborative content
@@ -436,7 +409,6 @@ public class UserJourneySimulation extends Simulation {
 					"comment:collaboration-session1000"
 				))
 				.check(status().is(200))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken"))
 		)
 		.pause(Duration.ofSeconds(1, 3))
 		// Create a shared template
@@ -444,10 +416,11 @@ public class UserJourneySimulation extends Simulation {
 			String templateTag = "_template/team.standard." + System.currentTimeMillis();
 			return session.set("teamTemplateTag", templateTag);
 		})
+		.exec(addCookie(Cookie("XSRF-TOKEN", STATIC_XSRF_TOKEN).withDomain("localhost:8081").withPath("/").withSecure(false)))
 		.exec(
 			http("Create Shared Template")
 				.post("/api/v1/template")
-				.header("X-XSRF-TOKEN", "#{csrfToken}")
+				.header("X-XSRF-TOKEN", STATIC_XSRF_TOKEN)
 				.body(StringBody("""
 					{
 						"tag": "#{teamTemplateTag}",
@@ -472,14 +445,12 @@ public class UserJourneySimulation extends Simulation {
 							}
 						}
 					}"""))
-				.check(status().in(201, 409))
-				.check(headerRegex("Set-Cookie", "XSRF-TOKEN=([^;]+)").optional().saveAs("csrfToken")) // 201 Created or 409 Conflict if already exists
+				.check(status().in(201, 409)) // 201 Created or 409 Conflict if already exists
 		);
 
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder researchSession = scenario("Research Session")
-		.exec(fetchCsrfToken)
 		.group("Research Session").on(
 			exec(researchWorkflow)
 			.pause(Duration.ofSeconds(5, 10))
@@ -489,25 +460,21 @@ public class UserJourneySimulation extends Simulation {
 		);
 
 	ScenarioBuilder dailyReview = scenario("Daily Review")
-		.exec(fetchCsrfToken)
 		.group("Daily Review").on(
 			exec(dailyReviewWorkflow)
 			.pause(Duration.ofSeconds(3, 8))
 		);
 
 	ScenarioBuilder contentCuration = scenario("Content Curation")
-		.exec(fetchCsrfToken)
 		.exec(curationWorkflow)
 		.pause(Duration.ofSeconds(8, 15));
 
 	ScenarioBuilder collaborativeWork = scenario("Collaborative Work")
-		.exec(fetchCsrfToken)
 		.exec(collaborationWorkflow)
 		.pause(Duration.ofSeconds(5, 12));
 
 	// Mixed realistic user behavior
 	ScenarioBuilder realisticUser = scenario("Realistic User Behavior")
-		.exec(fetchCsrfToken)
 		.randomSwitch().on(
 			percent(40.0).then(exec(dailyReviewWorkflow)),
 			percent(30.0).then(exec(researchWorkflow)),
