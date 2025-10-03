@@ -2,7 +2,6 @@ package jasper.component;
 
 import feign.FeignException;
 import feign.RetryableException;
-import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
@@ -168,219 +167,214 @@ public class Replicator {
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
-		try {
-			var pull = getPull(remote);
-			var config = getOrigin(remote);
-			var rootOrigin = remote.getOrigin();
-			if (isBlank(config.getLocal())) throw new PullLocalException(remote.getOrigin());
-			var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
-			var remoteOrigin = origin(config.getRemote());
-			var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
-			var logs = new ArrayList<Log>();
-			tunnel.proxy(remote, baseUri -> {
-				try {
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
-						var pluginList = client.pluginPull(baseUri, params(
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var plugin : pluginList) {
-							plugin.setOrigin(localOrigin);
-							logger.trace("{} Ingesting pulled plugin {}: {}",
+		var pull = getPull(remote);
+		var config = getOrigin(remote);
+		var rootOrigin = remote.getOrigin();
+		if (isBlank(config.getLocal())) throw new PullLocalException(remote.getOrigin());
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+		var remoteOrigin = origin(config.getRemote());
+		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
+		var logs = new ArrayList<Log>();
+		tunnel.proxy(remote, baseUri -> {
+			try {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var pluginList = client.pluginPull(baseUri, params(
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var plugin : pluginList) {
+						plugin.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled plugin {}: {}",
+							remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
+						try {
+							ingestPlugin.push(plugin);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling plugin skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping plugin with duplicate modified date {}: {}",
 								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
-							try {
-								ingestPlugin.push(plugin);
-							} catch (AlreadyExistsException e) {
-								// Indicates a double pull
-								logger.warn("{} Pulling plugin skipped (double pull detected) {}: {}",
-									remote.getOrigin(), remote.getTitle(), remote.getUrl());
-								return null;
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Skipping plugin with duplicate modified date {}: {}",
-									remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of plugin with duplicate modified date %s: %s".formatted(
-										plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
-							} catch (InvalidPushException e) {
-								// Indicates a double pull
-								logger.error("{} Skipping plugin with invalid data {}: {}",
-									remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of plugin with invalid data %s: %s".formatted(
-										plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
-							}
+							logs.add(new Log(
+								"Skipping replication of plugin with duplicate modified date %s: %s".formatted(
+									plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
+						} catch (InvalidPushException e) {
+							// Indicates a double pull
+							logger.error("{} Skipping plugin with invalid data {}: {}",
+								remote.getOrigin(), plugin.getName(), plugin.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of plugin with invalid data %s: %s".formatted(
+									plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
 						}
-						return pluginList.size() == size ? pluginList.getLast().getModified() : null;
-					}));
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
-						var templateList = client.templatePull(baseUri, params(
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var template : templateList) {
-							template.setOrigin(localOrigin);
-							logger.trace("{} Ingesting pulled template {}: {}",
+					}
+					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var templateList = client.templatePull(baseUri, params(
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var template : templateList) {
+						template.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled template {}: {}",
+							remote.getOrigin(), template.getName(), template.getQualifiedTag());
+						try {
+							ingestTemplate.push(template);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling template skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping template with duplicate modified date {}: {}",
 								remote.getOrigin(), template.getName(), template.getQualifiedTag());
-							try {
-								ingestTemplate.push(template);
-							} catch (AlreadyExistsException e) {
-								// Indicates a double pull
-								logger.warn("{} Pulling template skipped (double pull detected) {}: {}",
-									remote.getOrigin(), remote.getTitle(), remote.getUrl());
-								return null;
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Skipping template with duplicate modified date {}: {}",
-									remote.getOrigin(), template.getName(), template.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of template with duplicate modified date %s: %s".formatted(
-										template.getName(), template.getTag()), ""+template.getModified()));
-							} catch (InvalidPushException e) {
-								// Should not be possible
-								logger.error("{} Skipping template with invalid data {}: {}",
-									remote.getOrigin(), template.getName(), template.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of template with invalid data %s: %s".formatted(
-										template.getName(), template.getTag()), ""+template.getModified()));
-							}
+							logs.add(new Log(
+								"Skipping replication of template with duplicate modified date %s: %s".formatted(
+									template.getName(), template.getTag()), ""+template.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Skipping template with invalid data {}: {}",
+								remote.getOrigin(), template.getName(), template.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of template with invalid data %s: %s".formatted(
+									template.getName(), template.getTag()), ""+template.getModified()));
 						}
-						return templateList.size() == size ? templateList.getLast().getModified() : null;
-					}));
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
-						logger.trace("{} Pulling batch {}", localOrigin, size);
-						var refList = client.refPull(baseUri, params(
-							"query", pull.getQuery(),
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var ref : refList) {
-							ref.setOrigin(localOrigin);
-							pull.migrate(ref, config);
-							if (pull.isCachePrefetch() && ref.getUrl().startsWith("cache:") && (fileCache.isEmpty() || !fileCache.get().cacheExists(ref.getUrl(), localOrigin)) ||
-								pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && (fileCache.isEmpty() || !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin))) {
-								ref.addTag("_plugin/delta/cache");
-							}
-							logger.trace("{} Ingesting pulled ref {}: {}",
-								remote.getOrigin(), ref.getTitle(), ref.getUrl());
-							try {
-								ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins());
-							} catch (AlreadyExistsException e) {
-								// Indicates a double pull
-								logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
-									remote.getOrigin(), remote.getTitle(), remote.getUrl());
-								return null;
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Pulling Ref skipped with duplicate modified date {} {}: {}",
-									remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
-								logs.add(new Log(
-									"Pulling Ref skipped with duplicate modified date (%s): %s".formatted(
-										remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
-							} catch (InvalidPushException e) {
-								// Should not be possible
-								logger.error("{} Pulling Ref skipped with invalid data {} {}: {}",
-									remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
-								logs.add(new Log(
-									"Pulling Ref skipped with invalid data (%s): %s".formatted(
-										remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
-							} catch (InvalidPluginException e) {
-								logger.warn("{} Failed Plugin Validation! Skipping replication of Ref ({}) {}: {}",
-									remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
-								logs.add(new Log(
-									"Failed Plugin Validation! Skipping replication of Ref (%s) %s: %s".formatted(
-										localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
-							}
+					}
+					return templateList.size() == size ? templateList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+					logger.trace("{} Pulling batch {}", localOrigin, size);
+					var refList = client.refPull(baseUri, params(
+						"query", pull.getQuery(),
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var ref : refList) {
+						ref.setOrigin(localOrigin);
+						pull.migrate(ref, config);
+						if (pull.isCachePrefetch() && ref.getUrl().startsWith("cache:") && (fileCache.isEmpty() || !fileCache.get().cacheExists(ref.getUrl(), localOrigin)) ||
+							pull.isCacheProxyPrefetch() && ref.hasPlugin("_plugin/cache") && (fileCache.isEmpty() || !fileCache.get().cacheExists("cache:" + getCache(ref).getId(), localOrigin))) {
+							ref.addTag("_plugin/delta/cache");
 						}
-						return refList.size() == size ? refList.getLast().getModified() : null;
-					}));
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
-						var extList = client.extPull(baseUri, params(
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var ext : extList) {
-							ext.setOrigin(localOrigin);
-							logger.trace("{} Ingesting pulled ext {}: {}",
+						logger.trace("{} Ingesting pulled ref {}: {}",
+							remote.getOrigin(), ref.getTitle(), ref.getUrl());
+						try {
+							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins());
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Pulling Ref skipped with duplicate modified date {} {}: {}",
+								remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Pulling Ref skipped with duplicate modified date (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Pulling Ref skipped with invalid data {} {}: {}",
+								remote.getOrigin(), ref.getModified(), remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Pulling Ref skipped with invalid data (%s): %s".formatted(
+									remote.getTitle(), remote.getUrl()), ""+ref.getModified()));
+						} catch (InvalidPluginException e) {
+							logger.warn("{} Failed Plugin Validation! Skipping replication of Ref ({}) {}: {}",
+								remote.getOrigin(), localOrigin, remote.getTitle(), remote.getUrl());
+							logs.add(new Log(
+								"Failed Plugin Validation! Skipping replication of Ref (%s) %s: %s".formatted(
+									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
+						}
+					}
+					return refList.size() == size ? refList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var extList = client.extPull(baseUri, params(
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var ext : extList) {
+						ext.setOrigin(localOrigin);
+						logger.trace("{} Ingesting pulled ext {}: {}",
+							remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
+						try {
+							ingestExt.push(rootOrigin, ext, pull.isValidateTemplates(), pull.isStripInvalidTemplates());
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling Ext skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping Ext with duplicate modified date {}: {}",
 								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
-							try {
-								ingestExt.push(rootOrigin, ext, pull.isValidateTemplates(), pull.isStripInvalidTemplates());
-							} catch (AlreadyExistsException e) {
-								// Indicates a double pull
-								logger.warn("{} Pulling Ext skipped (double pull detected) {}: {}",
-									remote.getOrigin(), remote.getTitle(), remote.getUrl());
-								return null;
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Skipping Ext with duplicate modified date {}: {}",
-									remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of template with duplicate modified date %s: %s".formatted(
-										ext.getName(), ext.getTag()), ""+ext.getModified()));
-							} catch (InvalidTemplateException e) {
-								logger.warn("{} Failed Template Validation! Skipping replication of ext {}: {}",
-									remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
-								tagger.attachLogs(remote.getOrigin(), remote,
-									"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
-										ext.getName(), ext.getQualifiedTag()), getMessage(e));
-							}
+							logs.add(new Log(
+								"Skipping replication of template with duplicate modified date %s: %s".formatted(
+									ext.getName(), ext.getTag()), ""+ext.getModified()));
+						} catch (InvalidTemplateException e) {
+							logger.warn("{} Failed Template Validation! Skipping replication of ext {}: {}",
+								remote.getOrigin(), ext.getName(), ext.getQualifiedTag());
+							tagger.attachLogs(remote.getOrigin(), remote,
+								"Failed Template Validation! Skipping replication of ext %s: %s".formatted(
+									ext.getName(), ext.getQualifiedTag()), getMessage(e));
 						}
-						return extList.size() == size ? extList.getLast().getModified() : null;
-					}));
-					logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
-						var userList = client.userPull(baseUri, params(
-							"size", size,
-							"origin", remoteOrigin,
-							"modifiedAfter", after));
-						for (var user : userList) {
-							user.setOrigin(localOrigin);
-							user.setKey(null);
-							pull.migrate(user, config);
-							logger.trace("{} Ingesting pulled user {}: {}",
+					}
+					return extList.size() == size ? extList.getLast().getModified() : null;
+				}));
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
+					var userList = client.userPull(baseUri, params(
+						"size", size,
+						"origin", remoteOrigin,
+						"modifiedAfter", after));
+					for (var user : userList) {
+						user.setOrigin(localOrigin);
+						user.setKey(null);
+						pull.migrate(user, config);
+						logger.trace("{} Ingesting pulled user {}: {}",
+							remote.getOrigin(), user.getName(), user.getQualifiedTag());
+						try {
+							ingestUser.push(user);
+						} catch (AlreadyExistsException e) {
+							// Indicates a double pull
+							logger.warn("{} Pulling User skipped (double pull detected) {}: {}",
+								remote.getOrigin(), remote.getTitle(), remote.getUrl());
+							return null;
+						} catch (DuplicateModifiedDateException e) {
+							// Should not be possible
+							logger.error("{} Skipping User with duplicate modified date {}: {}",
 								remote.getOrigin(), user.getName(), user.getQualifiedTag());
-							try {
-								ingestUser.push(user);
-							} catch (AlreadyExistsException e) {
-								// Indicates a double pull
-								logger.warn("{} Pulling User skipped (double pull detected) {}: {}",
-									remote.getOrigin(), remote.getTitle(), remote.getUrl());
-								return null;
-							} catch (DuplicateModifiedDateException e) {
-								// Should not be possible
-								logger.error("{} Skipping User with duplicate modified date {}: {}",
-									remote.getOrigin(), user.getName(), user.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of user with duplicate modified date %s: %s".formatted(
-										user.getName(), user.getTag()), ""+user.getModified()));
-							} catch (InvalidPushException e) {
-								// Should not be possible
-								logger.error("{} Skipping user with invalid data {}: {}",
-									remote.getOrigin(), user.getName(), user.getQualifiedTag());
-								logs.add(new Log(
-									"Skipping replication of user with invalid data %s: %s".formatted(
-										user.getName(), user.getTag()), ""+user.getModified()));
-							}
+							logs.add(new Log(
+								"Skipping replication of user with duplicate modified date %s: %s".formatted(
+									user.getName(), user.getTag()), ""+user.getModified()));
+						} catch (InvalidPushException e) {
+							// Should not be possible
+							logger.error("{} Skipping user with invalid data {}: {}",
+								remote.getOrigin(), user.getName(), user.getQualifiedTag());
+							logs.add(new Log(
+								"Skipping replication of user with invalid data %s: %s".formatted(
+									user.getName(), user.getTag()), ""+user.getModified()));
 						}
-						return userList.size() == size ? userList.getLast().getModified() : null;
-					}));
-				} catch (FeignException e) {
-					// Temporary connection issue, ignore
-					logger.warn("{} Error pulling {} from origin ({}) {}: {} {}",
-						remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
-				} catch (Exception e) {
-					logger.error("{} Fatal error pulling {} from origin {} {}: {} {}",
-						remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
-					tagger.attachError(remote.getOrigin(), remote,
-						"Fatal error pulling %s from origin (%s) %s: %s".formatted(
-							localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
-				} finally {
-					for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
-				}
-			});
-		} catch (BulkheadFullException e) {
-			logger.warn("{} Replication pull delayed due to global rate limit for {}: {}", remote.getOrigin(), remote.getTitle(), remote.getUrl());
-			tagger.attachError(remote.getOrigin(), remote, "Replication pull timed out waiting for global rate limit", "System is under heavy replication load");
-		}
+					}
+					return userList.size() == size ? userList.getLast().getModified() : null;
+				}));
+			} catch (FeignException e) {
+				// Temporary connection issue, ignore
+				logger.warn("{} Error pulling {} from origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
+			} catch (Exception e) {
+				logger.error("{} Fatal error pulling {} from origin {} {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
+				tagger.attachError(remote.getOrigin(), remote,
+					"Fatal error pulling %s from origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
+			} finally {
+				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
+			}
+		});
 	}
 
 	@Timed(value = "jasper.repl", histogram = true)

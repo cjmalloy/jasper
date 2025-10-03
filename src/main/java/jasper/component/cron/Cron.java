@@ -58,6 +58,14 @@ public class Cron {
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
+	/**
+	 * Register a runner for a tag.
+	 */
+	public void addCronTag(String plugin, CronRunner r) {
+		if (!configs.root().script(plugin)) return;
+		tags.put(plugin, r);
+	}
+
 	@PostConstruct
 	public void init() {
 		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
@@ -66,14 +74,6 @@ public class Cron {
 		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
 			watch.addWatch(origin, "+plugin/user/run", this::run);
 		}
-	}
-
-	/**
-	 * Register a runner for a tag.
-	 */
-	public void addCronTag(String plugin, CronRunner r) {
-		if (!configs.root().script(plugin)) return;
-		tags.put(plugin, r);
 	}
 
 	private void schedule(HasTags ref) {

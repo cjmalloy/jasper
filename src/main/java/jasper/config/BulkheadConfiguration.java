@@ -71,10 +71,9 @@ public class BulkheadConfiguration {
 	}
 
 	private void updateBulkheadConfig(Bulkhead bulkhead, int limit) {
-		var newConfig = BulkheadConfig.custom()
+		bulkhead.changeConfig(BulkheadConfig
+			.from(bulkhead.getBulkheadConfig())
 			.maxConcurrentCalls(limit)
-			.maxWaitDuration(bulkhead.getBulkheadConfig().getMaxWaitDuration())
-			.build();
-		bulkhead.changeConfig(newConfig);
+			.build());
 	}
 }
