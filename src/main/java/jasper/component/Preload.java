@@ -73,11 +73,11 @@ public class Preload {
 		var start = Instant.now();
 		logger.info("{} Preloading static files {}", origin, id);
 		try (var zipped = storage.get().streamZip(origin, PRELOAD, id)) {
-			backup.restoreRepo(refRepository, origin, zipped, "ref.*\\.json", Ref.class);
-			backup.restoreRepo(extRepository, origin, zipped, "ext.*\\.json", Ext.class);
-			backup.restoreRepo(userRepository, origin, zipped, "user.*\\.json", User.class);
-			backup.restoreRepo(pluginRepository, origin, zipped, "plugin.*\\.json", Plugin.class);
-			backup.restoreRepo(templateRepository, origin, zipped, "template.*\\.json", Template.class);
+			backup.restoreRepo(refRepository, origin, zipped, zipped.list("ref.*\\.json"), Ref.class);
+			backup.restoreRepo(extRepository, origin, zipped, zipped.list("ext.*\\.json"), Ext.class);
+			backup.restoreRepo(userRepository, origin, zipped, zipped.list("user.*\\.json"), User.class);
+			backup.restoreRepo(pluginRepository, origin, zipped, zipped.list("plugin.*\\.json"), Plugin.class);
+			backup.restoreRepo(templateRepository, origin, zipped, zipped.list("template.*\\.json"), Template.class);
 		} catch (Throwable e) {
 			logger.error("{} Error preloading {}", origin, id, e);
 		}
@@ -95,15 +95,15 @@ public class Preload {
 		try {
 			var filename = id.toLowerCase();
 			if (filename.matches("ref.*\\.json")) {
-				backup.restoreRepoFromFile(refRepository, origin, storage.get().stream(origin, PRELOAD, id), Ref.class);
+				backup.restoreRepo(refRepository, origin, storage.get().stream(origin, PRELOAD, id), Ref.class);
 			} else if (filename.matches("ext.*\\.json")) {
-				backup.restoreRepoFromFile(extRepository, origin, storage.get().stream(origin, PRELOAD, id), Ext.class);
+				backup.restoreRepo(extRepository, origin, storage.get().stream(origin, PRELOAD, id), Ext.class);
 			} else if (filename.matches("user.*\\.json")) {
-				backup.restoreRepoFromFile(userRepository, origin, storage.get().stream(origin, PRELOAD, id), User.class);
+				backup.restoreRepo(userRepository, origin, storage.get().stream(origin, PRELOAD, id), User.class);
 			} else if (filename.matches("plugin.*\\.json")) {
-				backup.restoreRepoFromFile(pluginRepository, origin, storage.get().stream(origin, PRELOAD, id), Plugin.class);
+				backup.restoreRepo(pluginRepository, origin, storage.get().stream(origin, PRELOAD, id), Plugin.class);
 			} else if (filename.matches("template.*\\.json")) {
-				backup.restoreRepoFromFile(templateRepository, origin, storage.get().stream(origin, PRELOAD, id), Template.class);
+				backup.restoreRepo(templateRepository, origin, storage.get().stream(origin, PRELOAD, id), Template.class);
 			}
 		} catch (Throwable e) {
 			logger.error("{} Error preloading JSON file {}", origin, id, e);

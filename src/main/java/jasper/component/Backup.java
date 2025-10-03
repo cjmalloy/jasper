@@ -204,19 +204,19 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped, "ref.*\\.json", Ref.class);
+				restoreRepo(refRepository, origin, zipped, zipped.list("ref.*\\.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped, "ext.*\\.json", Ext.class);
+				restoreRepo(extRepository, origin, zipped, zipped.list("ext.*\\.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped, "user.*\\.json", User.class);
+				restoreRepo(userRepository, origin, zipped, zipped.list("user.*\\.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped, "plugin.*\\.json", Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped, zipped.list("plugin.*\\.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped, "template.*\\.json", Template.class);
+				restoreRepo(templateRepository, origin, zipped, zipped.list("template.*\\.json"), Template.class);
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -227,22 +227,16 @@ public class Backup {
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
 
-	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Zipped zipped, String pattern, Class<T> type) {
-		try {
-			var files = zipped.list(pattern);
-			if (files.isEmpty()) {
-				logger.debug("{} No files matching pattern {} found in zip", origin, pattern);
-			}
-			for (var file : files) {
-				logger.info("{} Restoring {} from {}", origin, type.getSimpleName(), file);
-				restoreRepoFromFile(repo, origin, zipped.in(file), type);
-			}
-		} catch (IOException e) {
-			logger.error("{} Error listing files with pattern {}", origin, pattern, e);
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Zipped zipped, List<String> files, Class<T> type) {
+		for (var file : files) {
+			logger.info("{} Restoring {} from {}", origin, type.getSimpleName(), file);
+			var is = zipped.in(file);
+			if (is == null) continue; // Silently ignore missing files
+			restoreRepo(repo, origin, is, type);
 		}
-	}
+    }
 
-	<T extends Cursor> void restoreRepoFromFile(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
 		var done = new AtomicBoolean(false);
 		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
