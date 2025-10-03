@@ -55,8 +55,8 @@ public class RateLimitConfig {
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			logger.debug("Server config updated, clearing per-origin rate limiters");
-			originRateLimiters.clear();
+			originRateLimiters.forEach((origin, r) -> r.changeLimitForPeriod(configs.security(origin).getMaxRequests()));
+			httpRateLimiter().changeLimitForPeriod(configs.root().getMaxConcurrentRequests());
 		}
 	}
 
