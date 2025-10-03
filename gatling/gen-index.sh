@@ -139,10 +139,11 @@ declare -A simulations=(
     ["ComprehensiveSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"
     ["UserJourneySimulation"]="User Journey Test|Real user journey patterns with research and collaboration (5min, >75% success)"
     ["StressTestSimulation"]="Stress Test|System limits and edge cases testing (4min, >70% success)"
+    ["InfernoSimulation"]="Inferno Test|Extreme load test with 2 cycles of massive ramp (2min, >15% success)"
 )
 
 # Check for reports and generate cards
-for simulation in SmokeTestSimulation ComprehensiveSimulation UserJourneySimulation StressTestSimulation; do
+for simulation in SmokeTestSimulation ComprehensiveSimulation UserJourneySimulation StressTestSimulation InfernoSimulation; do
     IFS='|' read -r title description <<< "${simulations[$simulation]}"
     # Find the most recent report directory for this simulation
     report_dir=$(find $REPORT_DIR -name "${simulation,,}*" -type d 2>/dev/null | head -1)
