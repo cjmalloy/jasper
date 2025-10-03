@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Optional;
 
 @Profile("preload")
@@ -73,11 +74,11 @@ public class Preload {
 		var start = Instant.now();
 		logger.info("{} Preloading static files {}", origin, id);
 		try (var zipped = storage.get().streamZip(origin, PRELOAD, id)) {
-			zipped.list("ref.*\\.json").forEachRemaining(is -> backup.restoreRepo(refRepository, origin, is, Ref.class));
-			zipped.list("ext.*\\.json").forEachRemaining(is -> backup.restoreRepo(extRepository, origin, is, Ext.class));
-			zipped.list("user.*\\.json").forEachRemaining(is -> backup.restoreRepo(userRepository, origin, is, User.class));
-			zipped.list("plugin.*\\.json").forEachRemaining(is -> backup.restoreRepo(pluginRepository, origin, is, Plugin.class));
-			zipped.list("template.*\\.json").forEachRemaining(is -> backup.restoreRepo(templateRepository, origin, is, Template.class));
+			backup.restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class);
+			backup.restoreRepo(extRepository, origin, zipped.list("ext.*\\.json"), Ext.class);
+			backup.restoreRepo(userRepository, origin, zipped.list("user.*\\.json"), User.class);
+			backup.restoreRepo(pluginRepository, origin, zipped.list("plugin.*\\.json"), Plugin.class);
+			backup.restoreRepo(templateRepository, origin, zipped.list("template.*\\.json"), Template.class);
 		} catch (Throwable e) {
 			logger.error("{} Error preloading {}", origin, id, e);
 		}
@@ -94,16 +95,18 @@ public class Preload {
 		logger.info("{} Preloading JSON file {}", origin, id);
 		try {
 			var filename = id.toLowerCase();
+			var inputStream = storage.get().stream(origin, PRELOAD, id);
+			var iterator = Collections.singletonList(inputStream).iterator();
 			if (filename.matches("ref.*\\.json")) {
-				backup.restoreRepo(refRepository, origin, storage.get().stream(origin, PRELOAD, id), Ref.class);
+				backup.restoreRepo(refRepository, origin, iterator, Ref.class);
 			} else if (filename.matches("ext.*\\.json")) {
-				backup.restoreRepo(extRepository, origin, storage.get().stream(origin, PRELOAD, id), Ext.class);
+				backup.restoreRepo(extRepository, origin, iterator, Ext.class);
 			} else if (filename.matches("user.*\\.json")) {
-				backup.restoreRepo(userRepository, origin, storage.get().stream(origin, PRELOAD, id), User.class);
+				backup.restoreRepo(userRepository, origin, iterator, User.class);
 			} else if (filename.matches("plugin.*\\.json")) {
-				backup.restoreRepo(pluginRepository, origin, storage.get().stream(origin, PRELOAD, id), Plugin.class);
+				backup.restoreRepo(pluginRepository, origin, iterator, Plugin.class);
 			} else if (filename.matches("template.*\\.json")) {
-				backup.restoreRepo(templateRepository, origin, storage.get().stream(origin, PRELOAD, id), Template.class);
+				backup.restoreRepo(templateRepository, origin, iterator, Template.class);
 			}
 		} catch (Throwable e) {
 			logger.error("{} Error preloading JSON file {}", origin, id, e);

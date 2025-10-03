@@ -37,6 +37,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -204,19 +205,19 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				zipped.list("ref.*\\.json").forEachRemaining(is -> restoreRepo(refRepository, origin, is, Ref.class));
+				restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				zipped.list("ext.*\\.json").forEachRemaining(is -> restoreRepo(extRepository, origin, is, Ext.class));
+				restoreRepo(extRepository, origin, zipped.list("ext.*\\.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				zipped.list("user.*\\.json").forEachRemaining(is -> restoreRepo(userRepository, origin, is, User.class));
+				restoreRepo(userRepository, origin, zipped.list("user.*\\.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				zipped.list("plugin.*\\.json").forEachRemaining(is -> restoreRepo(pluginRepository, origin, is, Plugin.class));
+				restoreRepo(pluginRepository, origin, zipped.list("plugin.*\\.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				zipped.list("template.*\\.json").forEachRemaining(is -> restoreRepo(templateRepository, origin, is, Template.class));
+				restoreRepo(templateRepository, origin, zipped.list("template.*\\.json"), Template.class);
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -227,42 +228,44 @@ public class Backup {
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
 
-	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
-		if (file == null) return; // Silently ignore missing files
-		var done = new AtomicBoolean(false);
-		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
-		int count = 0;
-		try {
-			while (!done.get()) {
-				if (count > 0) logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
-				var lastBatchCount = count * props.getRestoreBatchSize();
-				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-				transactionTemplate.execute(status -> {
-					for (var i = 0; i < props.getRestoreBatchSize(); i++) {
-						if (!it.hasNext()) {
-							done.set(true);
-							logger.info("{} {} {} restored...", origin, type.getSimpleName(), lastBatchCount + i);
-							return null;
-						}
-						var t = it.next();
-						try {
-							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
-							repo.save(t);
-						} catch (Exception e) {
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type) {
+		files.forEachRemaining(file -> {
+			if (file == null) return; // Silently ignore missing files
+			var done = new AtomicBoolean(false);
+			var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
+			int count = 0;
+			try {
+				while (!done.get()) {
+					if (count > 0) logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
+					var lastBatchCount = count * props.getRestoreBatchSize();
+					TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+					transactionTemplate.execute(status -> {
+						for (var i = 0; i < props.getRestoreBatchSize(); i++) {
+							if (!it.hasNext()) {
+								done.set(true);
+								logger.info("{} {} {} restored...", origin, type.getSimpleName(), lastBatchCount + i);
+								return null;
+							}
+							var t = it.next();
 							try {
-								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
-							} catch (JsonProcessingException ex) {
-								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
+								if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+								repo.save(t);
+							} catch (Exception e) {
+								try {
+									logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
+								} catch (JsonProcessingException ex) {
+									logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
+								}
 							}
 						}
-					}
-					return null;
-				});
-				count++;
+						return null;
+					});
+					count++;
+				}
+			} catch (Exception e) {
+				logger.error("Failed to restore", e);
 			}
-		} catch (Exception e) {
-			logger.error("Failed to restore", e);
-		}
+		});
     }
 
 	private void restoreCache(String origin, Zipped backup) {
