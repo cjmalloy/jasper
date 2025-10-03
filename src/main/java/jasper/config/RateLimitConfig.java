@@ -69,7 +69,7 @@ public class RateLimitConfig {
 	}
 
 	@Bean
-	public Filter rateLimitInterceptor() {
+	public Filter rateLimitInterceptor(RateLimiter httpRateLimiter) {
 		return new GenericFilterBean() {
 			@Override
 			public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -84,7 +84,7 @@ public class RateLimitConfig {
 					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return;
 				}
-				if (!httpRateLimiter().acquirePermission()) {
+				if (!httpRateLimiter.acquirePermission()) {
 					RateLimitConfig.logger.debug("HTTP rate limit exceeded for request: {}", httpRequest.getRequestURI());
 					httpResponse.setStatus(429);
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
