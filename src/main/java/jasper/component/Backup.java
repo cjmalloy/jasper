@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static jasper.component.FileCache.CACHE;
-import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
 @Component
 public class Backup {
@@ -253,7 +252,7 @@ public class Backup {
 						}
 						var t = it.next();
 						try {
-							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+							t.setOrigin(origin);
 							repo.save(t);
 						} catch (Exception e) {
 							try {
