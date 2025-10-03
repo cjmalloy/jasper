@@ -79,12 +79,10 @@ public class InfernoSimulation extends Simulation {
 	// ====================== Scenarios ======================
 
 	ScenarioBuilder infernoLoad = scenario("Inferno Load")
-		.group("Inferno Operations").on(
-			randomSwitch().on(
-				percent(50.0).then(exec(rapidRefCreation)),
-				percent(30.0).then(exec(rapidQuery)),
-				percent(20.0).then(exec(searchQuery))
-			)
+		.randomSwitch().on(
+			percent(50.0).then(exec(rapidRefCreation)),
+			percent(30.0).then(exec(rapidQuery)),
+			percent(20.0).then(exec(searchQuery))
 		);
 
 	// ====================== Simulation Setup ======================
@@ -93,13 +91,13 @@ public class InfernoSimulation extends Simulation {
 		setUp(
 			// Warmup: 15 second intro trickle to let the system initialize
 			infernoLoad.injectOpen(
-				constantUsersPerSec(20).during(Duration.ofSeconds(15)),
+				constantUsersPerSec(5).during(Duration.ofSeconds(15)),
 				// Cycle 1: Ramp huge number of users for 10 seconds, then trickle for 50 seconds
-				rampUsers(500).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(200).during(Duration.ofSeconds(50)),
+				rampUsers(5_000).during(Duration.ofSeconds(10)),
+				constantUsersPerSec(5).during(Duration.ofSeconds(50)),
 				// Cycle 2: Another huge ramp for 10 seconds, then trickle for 50 seconds
-				rampUsers(500).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(200).during(Duration.ofSeconds(50))
+				rampUsers(5_000).during(Duration.ofSeconds(10)),
+				constantUsersPerSec(5).during(Duration.ofSeconds(50))
 			)
 		).protocols(httpProtocol)
 			.maxDuration(Duration.ofMinutes(3))
