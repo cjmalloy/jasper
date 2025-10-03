@@ -76,7 +76,7 @@ public class Preload {
 	private void setupWatcher() {
 		try {
 			Path preloadDir = getPreloadDir();
-			if (!Files.exists(preloadDir)) {
+			if (preloadDir == null || !Files.exists(preloadDir)) {
 				logger.info("{} Preload directory does not exist: {}", props.getOrigin(), preloadDir);
 				return;
 			}
