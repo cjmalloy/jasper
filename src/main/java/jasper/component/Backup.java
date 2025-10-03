@@ -115,8 +115,8 @@ public class Backup {
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
 	}
 
-	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
-		backupRepo(repo, origin, newerThan, null, out, true);
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, Instant olderThan, OutputStream out) throws IOException {
+		backupRepo(repo, origin, newerThan, olderThan, out, true);
 	}
 
 	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, Instant olderThan, OutputStream out, boolean evict) throws IOException {
