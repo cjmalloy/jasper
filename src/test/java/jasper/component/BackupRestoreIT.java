@@ -17,7 +17,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -27,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
 @ActiveProfiles({"storage", "test"})
-@Transactional
 public class BackupRestoreIT {
 
 	@Autowired
@@ -163,13 +161,13 @@ public class BackupRestoreIT {
 	void testBackupAndRestoreUsers() throws IOException {
 		// Create test data
 		var user1 = new User();
-		user1.setTag("+user1");
+		user1.setTag("+user/test1");
 		user1.setOrigin(ORIGIN);
 		user1.setName("User One");
 		userRepository.save(user1);
 
 		var user2 = new User();
-		user2.setTag("+user2");
+		user2.setTag("+user/test2");
 		user2.setOrigin(ORIGIN);
 		user2.setName("User Two");
 		userRepository.save(user2);
@@ -196,8 +194,8 @@ public class BackupRestoreIT {
 
 		// Verify data was restored
 		assertThat(userRepository.count()).isEqualTo(2);
-		assertThat(userRepository.existsByQualifiedTag("+user1")).isTrue();
-		assertThat(userRepository.existsByQualifiedTag("+user2")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/test1")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/test2")).isTrue();
 	}
 
 	@Test
@@ -296,7 +294,7 @@ public class BackupRestoreIT {
 		extRepository.save(ext);
 
 		var user = new User();
-		user.setTag("+alluser");
+		user.setTag("+user/all");
 		user.setOrigin(ORIGIN);
 		userRepository.save(user);
 
@@ -473,7 +471,7 @@ public class BackupRestoreIT {
 	private void waitForBackup() {
 		// Wait for async backup operation to complete
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(5000);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
@@ -482,7 +480,7 @@ public class BackupRestoreIT {
 	private void waitForRestore() {
 		// Wait for async restore operation to complete
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(5000);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
