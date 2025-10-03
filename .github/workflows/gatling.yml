@@ -30,6 +30,9 @@ jobs:
       - name: Run Stress Tests
         if: always()
         run: (cd gatling; GATLING_TEST=StressTest docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Inferno Tests
+        if: always()
+        run: (cd gatling; GATLING_TEST=Inferno docker compose --profile lt up --build --exit-code-from gatling)
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
