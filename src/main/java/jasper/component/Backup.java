@@ -37,13 +37,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static jasper.component.FileCache.CACHE;
-import static jasper.domain.proj.HasOrigin.isSubOrigin;
 
 @Component
 public class Backup {
@@ -204,19 +204,19 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
+				restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.in("ext.json"), Ext.class);
+				restoreRepo(extRepository, origin, zipped.list("ext.*\\.json"), Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.in("user.json"), User.class);
+				restoreRepo(userRepository, origin, zipped.list("user.*\\.json"), User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.in("plugin.json"), Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped.list("plugin.*\\.json"), Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.in("template.json"), Template.class);
+				restoreRepo(templateRepository, origin, zipped.list("template.*\\.json"), Template.class);
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -226,6 +226,12 @@ public class Backup {
 		}
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
+
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type) {
+		files.forEachRemaining(file -> {
+			restoreRepo(repo, origin, file, type);
+		});
+    }
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
@@ -246,7 +252,7 @@ public class Backup {
 						}
 						var t = it.next();
 						try {
-							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+							t.setOrigin(origin);
 							repo.save(t);
 						} catch (Exception e) {
 							try {

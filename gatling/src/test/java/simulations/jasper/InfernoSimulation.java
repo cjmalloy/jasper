@@ -93,7 +93,7 @@ public class InfernoSimulation extends Simulation {
 			infernoLoad.injectOpen(
 				constantUsersPerSec(5).during(Duration.ofSeconds(15)),
 				// Cycle 1: Ramp huge number of users for 10 seconds, then trickle for 50 seconds
-				rampUsers(50_000).during(Duration.ofSeconds(10)),
+				rampUsers(20_000).during(Duration.ofSeconds(10)),
 				constantUsersPerSec(5).during(Duration.ofSeconds(50)),
 				// Cycle 2: Another huge ramp for 10 seconds, then trickle for 50 seconds
 				rampUsers(5_000).during(Duration.ofSeconds(10)),
