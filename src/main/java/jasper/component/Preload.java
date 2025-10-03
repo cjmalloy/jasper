@@ -2,6 +2,7 @@ package jasper.component;
 
 import io.micrometer.core.annotation.Counted;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jasper.config.Props;
 import jasper.domain.*;
 import jasper.repository.*;
@@ -9,11 +10,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+import static java.nio.file.StandardWatchEventKinds.*;
 
 @Profile("preload")
 @Component
@@ -45,16 +54,108 @@ public class Preload {
 	@Autowired
 	Backup backup;
 
+	private WatchService watchService;
+	private Map<String, Long> loadedFiles = new ConcurrentHashMap<>();
+
 	@PostConstruct
 	public void init() {
 		if (storage.isEmpty()) {
 			logger.error("Preload enabled but no storage present.");
 			return;
 		}
+		// Load all existing zip files on startup
 		for (var zip : storage.get().listStorage(props.getOrigin(), PRELOAD)) {
 			if (!zip.id().toLowerCase().endsWith(".zip")) continue;
 			loadStatic(props.getOrigin(), zip.id());
+			loadedFiles.put(zip.id(), zip.size());
 		}
+		// Set up file watcher
+		setupWatcher();
+	}
+
+	private void setupWatcher() {
+		try {
+			Path preloadDir = getPreloadDir();
+			if (!Files.exists(preloadDir)) {
+				logger.info("{} Preload directory does not exist: {}", props.getOrigin(), preloadDir);
+				return;
+			}
+			watchService = FileSystems.getDefault().newWatchService();
+			preloadDir.register(watchService, ENTRY_CREATE, ENTRY_MODIFY);
+			logger.info("{} Watching preload directory: {}", props.getOrigin(), preloadDir);
+		} catch (IOException e) {
+			logger.error("{} Failed to setup file watcher", props.getOrigin(), e);
+		}
+	}
+
+	@PreDestroy
+	public void cleanup() {
+		if (watchService != null) {
+			try {
+				watchService.close();
+			} catch (IOException e) {
+				logger.error("{} Error closing watch service", props.getOrigin(), e);
+			}
+		}
+	}
+
+	@Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
+	public void checkForChanges() {
+		if (storage.isEmpty()) return;
+		
+		// Check watch service for file system events
+		if (watchService != null) {
+			WatchKey key;
+			while ((key = watchService.poll()) != null) {
+				for (WatchEvent<?> event : key.pollEvents()) {
+					WatchEvent.Kind<?> kind = event.kind();
+					if (kind == OVERFLOW) continue;
+					
+					@SuppressWarnings("unchecked")
+					WatchEvent<Path> ev = (WatchEvent<Path>) event;
+					Path filename = ev.context();
+					String id = filename.toString();
+					
+					if (!id.toLowerCase().endsWith(".zip")) continue;
+					
+					logger.debug("{} File event detected: {} {}", props.getOrigin(), kind.name(), id);
+					processFile(id);
+				}
+				key.reset();
+			}
+		}
+		
+		// Fallback: Poll for changes in case watch service fails or isn't available
+		for (var zip : storage.get().listStorage(props.getOrigin(), PRELOAD)) {
+			if (!zip.id().toLowerCase().endsWith(".zip")) continue;
+			processFile(zip.id());
+		}
+	}
+
+	private void processFile(String id) {
+		if (storage.isEmpty()) return;
+		
+		// Check if file exists
+		if (!storage.get().exists(props.getOrigin(), PRELOAD, id)) {
+			loadedFiles.remove(id);
+			return;
+		}
+		
+		// Check if file is new or has changed size
+		long currentSize = storage.get().size(props.getOrigin(), PRELOAD, id);
+		Long previousSize = loadedFiles.get(id);
+		
+		if (previousSize == null || previousSize != currentSize) {
+			logger.info("{} Detected {} file: {}", props.getOrigin(), previousSize == null ? "new" : "changed", id);
+			loadStatic(props.getOrigin(), id);
+			loadedFiles.put(id, currentSize);
+		}
+	}
+
+	private Path getPreloadDir() {
+		if (storage.isEmpty()) return null;
+		String tenant = storage.get().originTenant(props.getOrigin());
+		return Paths.get(props.getStorage(), tenant, PRELOAD);
 	}
 
 	@Counted(value = "jasper.preload")
