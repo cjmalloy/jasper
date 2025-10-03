@@ -127,11 +127,7 @@ public class Backup {
 			var buffSize = props.getBackupBufferSize();
 			Stream<?> stream;
 			if (newerThan != null && olderThan != null) {
-				stream = repo.streamAllByOriginOrderByModifiedDesc(origin)
-					.filter(entity -> {
-						var cursor = (jasper.domain.proj.Cursor) entity;
-						return cursor.getModified().compareTo(newerThan) >= 0 && cursor.getModified().compareTo(olderThan) <= 0;
-					});
+				stream = repo.streamAllByOriginAndModifiedBetweenOrderByModifiedDesc(origin, newerThan, olderThan);
 			} else if (newerThan != null) {
 				stream = repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
 			} else if (olderThan != null) {

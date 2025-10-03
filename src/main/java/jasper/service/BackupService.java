@@ -59,10 +59,10 @@ public class BackupService {
 		var id = Instant.now().toString();
 		if (options == null) options = DEFAULT_OPTIONS;
 		if (options.getNewerThan() != null) {
-			id += "_-_" + options.getNewerThan();
+			id += "_newer_" + options.getNewerThan();
 		}
 		if (options.getOlderThan() != null) {
-			id += "_-_" + options.getOlderThan();
+			id += "_older_" + options.getOlderThan();
 		}
 		backup.createBackup(origin, id, options);
 		return id;
