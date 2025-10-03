@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -55,6 +56,7 @@ public interface Storage {
 		Path get(String first, String... more);
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
+		Iterator<InputStream> list(String pattern) throws IOException;
 	}
 
 	interface PathVisitor {
