@@ -188,14 +188,8 @@ public class StorageImplLocal implements Storage {
 			w.forEach(f -> {
 				if (Files.isRegularFile(f)) {
 					var lastModified = f.toFile().lastModified();
-					var includeFile = true;
-					if (modifiedAfter != null && lastModified <= modifiedAfter.toEpochMilli()) {
-						includeFile = false;
-					}
-					if (modifiedBefore != null && lastModified >= modifiedBefore.toEpochMilli()) {
-						includeFile = false;
-					}
-					if (includeFile) {
+					if ((modifiedAfter == null || lastModified > modifiedAfter.toEpochMilli()) &&
+						(modifiedBefore == null || lastModified < modifiedBefore.toEpochMilli())) {
 						try {
 							Files.copy(f, backup.get(namespace, f.getFileName().toString()));
 						} catch (IOException e) {
