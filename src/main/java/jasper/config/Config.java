@@ -220,9 +220,9 @@ public interface Config {
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every second. Default 100_000.
 		 */
-		private int maxRequests = 50;
+		private int maxRequests = 100_000;
 		/**
 		 * Maximum concurrent script executions per origin. Default 100_000.
 		 */

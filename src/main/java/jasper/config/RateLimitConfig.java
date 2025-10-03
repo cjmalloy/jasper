@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.String.format;
 import static java.time.Duration.ofNanos;
+import static java.time.Duration.ofSeconds;
 
 @Configuration
 public class RateLimitConfig {
@@ -47,7 +48,7 @@ public class RateLimitConfig {
 	private RateLimiter getOriginRateLimiter(String origin) {
 		return originRateLimiters.computeIfAbsent(origin, k -> RateLimiter.of("http-" + origin, RateLimiterConfig.custom()
 				.limitForPeriod(configs.security(origin).getMaxRequests())
-				.limitRefreshPeriod(ofNanos(500))
+				.limitRefreshPeriod(ofSeconds(1))
 				.build()));
 	}
 
