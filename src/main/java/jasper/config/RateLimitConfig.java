@@ -46,9 +46,9 @@ public class RateLimitConfig {
 	private final ConcurrentHashMap<String, RateLimiter> originRateLimiters = new ConcurrentHashMap<>();
 	private RateLimiter getOriginRateLimiter(String origin) {
 		return originRateLimiters.computeIfAbsent(origin, k -> RateLimiter.of("http-" + origin, RateLimiterConfig.custom()
-			.limitForPeriod(configs.security(origin).getMaxRequests())
-			.limitRefreshPeriod(ofNanos(500))
-			.build()));
+				.limitForPeriod(configs.security(origin).getMaxRequests())
+				.limitRefreshPeriod(ofNanos(500))
+				.build()));
 	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
@@ -91,20 +91,20 @@ public class RateLimitConfig {
 					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return;
 				}
-                try {
-                    httpBulkhead.executeCheckedSupplier(() -> {
-                        chain.doFilter(request, response);
-                        return null;
-                    });
-                } catch (BulkheadFullException e) {
+				try {
+					httpBulkhead.executeCheckedSupplier(() -> {
+						chain.doFilter(request, response);
+						return null;
+					});
+				} catch (BulkheadFullException e) {
 					RateLimitConfig.logger.debug("HTTP concurrent limit exceeded for request: {}", httpRequest.getRequestURI());
 					httpResponse.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-                } catch (Throwable e) {
+				} catch (Throwable e) {
 					throw new RuntimeException(e);
-                }
-            }
+				}
+			}
 		};
 	}
 }
