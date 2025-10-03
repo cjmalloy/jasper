@@ -135,14 +135,14 @@ EOF
 
 # Define simulation information
 declare -A simulations=(
-    ["SimpleJasperSimulation"]="Smoke Test|Quick validation of core functionality (45s, >75% success)"
-    ["ComprehensiveJasperSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"
+    ["SmokeTestSimulation"]="Smoke Test|Quick validation of core functionality (45s, >75% success)"
+    ["ComprehensiveSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"
     ["UserJourneySimulation"]="User Journey Test|Real user journey patterns with research and collaboration (5min, >75% success)"
     ["StressTestSimulation"]="Stress Test|System limits and edge cases testing (4min, >70% success)"
 )
 
 # Check for reports and generate cards
-for simulation in SimpleJasperSimulation ComprehensiveJasperSimulation UserJourneySimulation StressTestSimulation; do
+for simulation in SmokeTestSimulation ComprehensiveSimulation UserJourneySimulation StressTestSimulation; do
     IFS='|' read -r title description <<< "${simulations[$simulation]}"
     # Find the most recent report directory for this simulation
     report_dir=$(find $REPORT_DIR -name "${simulation,,}*" -type d 2>/dev/null | head -1)
