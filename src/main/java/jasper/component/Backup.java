@@ -204,19 +204,19 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped, zipped.list("ref.*\\.json"), Ref.class);
+				zipped.list("ref.*\\.json").forEachRemaining(is -> restoreRepo(refRepository, origin, is, Ref.class));
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped, zipped.list("ext.*\\.json"), Ext.class);
+				zipped.list("ext.*\\.json").forEachRemaining(is -> restoreRepo(extRepository, origin, is, Ext.class));
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped, zipped.list("user.*\\.json"), User.class);
+				zipped.list("user.*\\.json").forEachRemaining(is -> restoreRepo(userRepository, origin, is, User.class));
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped, zipped.list("plugin.*\\.json"), Plugin.class);
+				zipped.list("plugin.*\\.json").forEachRemaining(is -> restoreRepo(pluginRepository, origin, is, Plugin.class));
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped, zipped.list("template.*\\.json"), Template.class);
+				zipped.list("template.*\\.json").forEachRemaining(is -> restoreRepo(templateRepository, origin, is, Template.class));
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -226,15 +226,6 @@ public class Backup {
 		}
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
-
-	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Zipped zipped, List<String> files, Class<T> type) {
-		for (var file : files) {
-			logger.info("{} Restoring {} from {}", origin, type.getSimpleName(), file);
-			var is = zipped.in(file);
-			if (is == null) continue; // Silently ignore missing files
-			restoreRepo(repo, origin, is, type);
-		}
-    }
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files

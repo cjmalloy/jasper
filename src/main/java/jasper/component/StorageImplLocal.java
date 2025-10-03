@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -267,16 +268,27 @@ public class StorageImplLocal implements Storage {
         }
 
 		@Override
-		public List<String> list(String pattern) throws IOException {
+		public Iterator<InputStream> list(String pattern) throws IOException {
 			logger.debug("Listing files matching pattern {}", pattern);
 			var root = zipfs.getPath("/");
-			if (!Files.exists(root)) return Collections.emptyList();
+			if (!Files.exists(root)) return Collections.emptyIterator();
 			try (var stream = Files.walk(root)) {
-				return stream
+				var files = stream
 					.filter(Files::isRegularFile)
 					.map(p -> p.toString().startsWith("/") ? p.toString().substring(1) : p.toString())
 					.filter(name -> name.matches(pattern))
 					.collect(Collectors.toList());
+				return files.stream()
+					.map(filename -> {
+						try {
+							return Files.newInputStream(zipfs.getPath(filename));
+						} catch (IOException e) {
+							logger.warn("Failed to open file {} in zip", filename, e);
+							return null;
+						}
+					})
+					.filter(is -> is != null)
+					.iterator();
 			}
 		}
 

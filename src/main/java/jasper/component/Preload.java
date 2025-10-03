@@ -73,11 +73,11 @@ public class Preload {
 		var start = Instant.now();
 		logger.info("{} Preloading static files {}", origin, id);
 		try (var zipped = storage.get().streamZip(origin, PRELOAD, id)) {
-			backup.restoreRepo(refRepository, origin, zipped, zipped.list("ref.*\\.json"), Ref.class);
-			backup.restoreRepo(extRepository, origin, zipped, zipped.list("ext.*\\.json"), Ext.class);
-			backup.restoreRepo(userRepository, origin, zipped, zipped.list("user.*\\.json"), User.class);
-			backup.restoreRepo(pluginRepository, origin, zipped, zipped.list("plugin.*\\.json"), Plugin.class);
-			backup.restoreRepo(templateRepository, origin, zipped, zipped.list("template.*\\.json"), Template.class);
+			zipped.list("ref.*\\.json").forEachRemaining(is -> backup.restoreRepo(refRepository, origin, is, Ref.class));
+			zipped.list("ext.*\\.json").forEachRemaining(is -> backup.restoreRepo(extRepository, origin, is, Ext.class));
+			zipped.list("user.*\\.json").forEachRemaining(is -> backup.restoreRepo(userRepository, origin, is, User.class));
+			zipped.list("plugin.*\\.json").forEachRemaining(is -> backup.restoreRepo(pluginRepository, origin, is, Plugin.class));
+			zipped.list("template.*\\.json").forEachRemaining(is -> backup.restoreRepo(templateRepository, origin, is, Template.class));
 		} catch (Throwable e) {
 			logger.error("{} Error preloading {}", origin, id, e);
 		}
