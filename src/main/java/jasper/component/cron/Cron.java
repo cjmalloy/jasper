@@ -1,5 +1,6 @@
 package jasper.component.cron;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -48,6 +49,9 @@ public class Cron {
 
 	@Autowired
 	Watch watch;
+
+	@Autowired
+	Bulkhead scriptBulkhead;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
@@ -141,16 +145,20 @@ public class Cron {
 					if (existing != null && !existing.isDone()) return existing;
 					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						try {
-							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-							ran.add(v);
-							tagger.removeAllResponses(url, origin, "+plugin/user/run");
-						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-						} finally {
-							refs.remove(k);
-						}
+						scriptBulkhead.executeSupplier(() -> {
+							try {
+								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+								ran.add(v);
+								tagger.removeAllResponses(url, origin, "+plugin/user/run");
+								return null;
+							} catch (Exception e) {
+								logger.error("{} Error in run tag {} ", origin, k);
+								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+								throw new RuntimeException(e);
+							} finally {
+								refs.remove(k);
+							}
+						});
 					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
 						logger.warn("{} Rate limited {} ", origin, k);
 						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
@@ -206,13 +214,16 @@ public class Cron {
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
 			runAsync(() -> {
-				try {
-					v.run(ref);
-					ran.add(v);
-				} catch (Exception e) {
-					logger.error("{} Error in cron tag {} ", origin, k);
-					tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-				}
+				scriptBulkhead.executeSupplier(() -> {
+					try {
+						v.run(ref);
+						ran.add(v);
+					} catch (Exception e) {
+						logger.error("{} Error in cron tag {} ", origin, k);
+						tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+					}
+					return null;
+				});
 			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, k);
 				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);

@@ -2,6 +2,7 @@ package jasper.component;
 
 import feign.FeignException;
 import feign.RetryableException;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
@@ -162,6 +163,7 @@ public class Replicator {
 	}
 
 	@Timed(value = "jasper.repl", histogram = true)
+	@Bulkhead(name = "repl")
 	public void pull(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
@@ -376,6 +378,7 @@ public class Replicator {
 	}
 
 	@Timed(value = "jasper.repl", histogram = true)
+	@Bulkhead(name = "repl")
 	public void push(Ref remote) {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());

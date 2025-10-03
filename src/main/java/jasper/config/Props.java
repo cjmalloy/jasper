@@ -149,6 +149,11 @@ public class Props {
 		private List<String> scriptWhitelist;
 		private List<String> hostWhitelist;
 		private List<String> hostBlacklist;
+		private Integer maxRequests;
+		private Integer maxConcurrentRequests;
+		private Integer maxConcurrentScripts;
+		private Integer maxConcurrentReplication;
+		private Integer maxConcurrentFetch;
 	}
 
 	@Getter
@@ -164,6 +169,8 @@ public class Props {
 		private String defaultUser = "";
 		private String tokenEndpoint = "";
 		private String scimEndpoint = "";
+		private Integer maxRequests;
+		private Integer maxConcurrentScripts;
 	}
 
 

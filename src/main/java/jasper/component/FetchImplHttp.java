@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jasper.errors.NotFoundException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.security.HostCheck;
@@ -38,6 +39,7 @@ public class FetchImplHttp implements Fetch {
 	@Autowired
 	Replicator replicator;
 
+	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) throws IOException {
 		var remote = configs.getRemote(origin);
 		var pull = getPull(remote);

@@ -20,25 +20,29 @@ import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.mo
 @Component
 public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
+	private static final int DEFAULT_QUEUE_CAPACITY = 100_000;
 
 	@Autowired
 	MeterRegistry meterRegistry;
 
-	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
+	@Autowired
+	ConfigCache configs;
 
+	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	public ExecutorService get(String tag, String origin) {
 		return executors.computeIfAbsent(tag + origin, k -> {
-			logger.info("{} Creating dynamic script executor for {}", origin, k);
+			int maxPoolSize = configs.security(origin).scriptLimit(tag, origin);
+			logger.info("{} Creating dynamic script executor for {} with max pool size {}", origin, k, maxPoolSize);
 			var executor = new ThreadPoolTaskExecutor();
-			executor.setCorePoolSize(2);
-			executor.setMaxPoolSize(4);
-			executor.setQueueCapacity(1000);
+			executor.setCorePoolSize(1);
+			executor.setMaxPoolSize(maxPoolSize);
+			executor.setQueueCapacity(DEFAULT_QUEUE_CAPACITY);
 			executor.setThreadNamePrefix("script-" + k + "-");
 			executor.setRejectedExecutionHandler((Runnable r, ThreadPoolExecutor e) -> {
 				throw new RejectedExecutionException("Script " + k +
 						" task " + r.toString() +
 						" rejected from " + e.toString() +
-						" queue size " + 1000);
+						" queue size " + DEFAULT_QUEUE_CAPACITY);
 			});
 			executor.setWaitForTasksToCompleteOnShutdown(true);
 			executor.setAwaitTerminationSeconds(60);

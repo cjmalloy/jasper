@@ -161,4 +161,12 @@ jasper/
 - Gatling 3.14.4 (load testing)
 - TestContainers (integration testing)
 
+## Code Style Guidelines
+
+**Logging:**
+- All origin-specific log messages must prefix the message with the origin: `logger.info("{} Message", origin, ...)`
+- The first placeholder `{}` should always be for the origin in multi-tenant operations
+- Example: `logger.debug("{} Creating bulkhead with {} permits", origin, maxConcurrent)`
+- This ensures consistent log filtering and debugging in multi-tenant environments
+
 Always reference this documentation when working with the Jasper codebase to ensure consistency and avoid common pitfalls.
