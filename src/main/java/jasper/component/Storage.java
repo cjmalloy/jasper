@@ -34,7 +34,7 @@ public interface Storage {
 	String store(String origin, String namespace, InputStream is) throws IOException;
 	Zipped zipAt(String origin, String namespace, String id) throws IOException;
 	void delete(String origin, String namespace, String id) throws IOException;
-	void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException;
+	void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter, Instant modifiedBefore) throws IOException;
 	void restore(String origin, String namespace, Zipped backup) throws IOException;
 
 	default String originTenant(String origin) {

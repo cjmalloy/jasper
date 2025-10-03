@@ -181,16 +181,26 @@ public class StorageImplLocal implements Storage {
 	}
 
 	@Override
-	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
+	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter, Instant modifiedBefore) throws IOException {
 		if (!dir(origin, namespace).toFile().exists()) return;
 		Files.createDirectories(backup.get(namespace));
 		try (var w = Files.walk(dir(origin, namespace))) {
 			w.forEach(f -> {
-				if (Files.isRegularFile(f) && (modifiedAfter == null || f.toFile().lastModified() > modifiedAfter.toEpochMilli())) {
-					try {
-						Files.copy(f, backup.get(namespace, f.getFileName().toString()));
-					} catch (IOException e) {
-						throw new RuntimeException(e);
+				if (Files.isRegularFile(f)) {
+					var lastModified = f.toFile().lastModified();
+					var includeFile = true;
+					if (modifiedAfter != null && lastModified <= modifiedAfter.toEpochMilli()) {
+						includeFile = false;
+					}
+					if (modifiedBefore != null && lastModified >= modifiedBefore.toEpochMilli()) {
+						includeFile = false;
+					}
+					if (includeFile) {
+						try {
+							Files.copy(f, backup.get(namespace, f.getFileName().toString()));
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
 					}
 				}
 			});

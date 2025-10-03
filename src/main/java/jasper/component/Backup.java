@@ -97,16 +97,16 @@ public class Backup {
 				backupRepo(refRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("ext.json"), true);
+				backupRepo(extRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("ext.json"));
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("user.json"), true);
+				backupRepo(userRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("user.json"));
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("plugin.json"), true);
+				backupRepo(pluginRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("plugin.json"));
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("template.json"), true);
+				backupRepo(templateRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("template.json"));
 			}
 			if (options.isCache()) {
 				backupCache(origin, options.getNewerThan(), options.getOlderThan(), zipped);
@@ -162,7 +162,7 @@ public class Backup {
 
 	void backupCache(String origin, Instant newerThan, Instant olderThan, Zipped backup) {
 		try {
-			storage.get().backup(origin, CACHE, backup, newerThan);
+			storage.get().backup(origin, CACHE, backup, newerThan, olderThan);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
