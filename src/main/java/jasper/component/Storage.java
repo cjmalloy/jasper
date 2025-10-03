@@ -55,6 +55,7 @@ public interface Storage {
 		Path get(String first, String... more);
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
+		List<String> list(String pattern) throws IOException;
 	}
 
 	interface PathVisitor {

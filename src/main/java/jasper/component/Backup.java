@@ -204,19 +204,19 @@ public class Backup {
 		logger.info("{} Restoring Backup", origin);
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.in("ref.json"), Ref.class);
+				restoreRepoFromPattern(refRepository, origin, zipped, "ref.*\\.json", Ref.class);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.in("ext.json"), Ext.class);
+				restoreRepoFromPattern(extRepository, origin, zipped, "ext.*\\.json", Ext.class);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.in("user.json"), User.class);
+				restoreRepoFromPattern(userRepository, origin, zipped, "user.*\\.json", User.class);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.in("plugin.json"), Plugin.class);
+				restoreRepoFromPattern(pluginRepository, origin, zipped, "plugin.*\\.json", Plugin.class);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.in("template.json"), Template.class);
+				restoreRepoFromPattern(templateRepository, origin, zipped, "template.*\\.json", Template.class);
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -264,6 +264,21 @@ public class Backup {
 			logger.error("Failed to restore", e);
 		}
     }
+
+	<T extends Cursor> void restoreRepoFromPattern(JpaRepository<T, ?> repo, String origin, Zipped zipped, String pattern, Class<T> type) {
+		try {
+			var files = zipped.list(pattern);
+			if (files.isEmpty()) {
+				logger.debug("{} No files matching pattern {} found in zip", origin, pattern);
+			}
+			for (var file : files) {
+				logger.info("{} Restoring {} from {}", origin, type.getSimpleName(), file);
+				restoreRepo(repo, origin, zipped.in(file), type);
+			}
+		} catch (IOException e) {
+			logger.error("{} Error listing files with pattern {}", origin, pattern, e);
+		}
+	}
 
 	private void restoreCache(String origin, Zipped backup) {
 		try {
