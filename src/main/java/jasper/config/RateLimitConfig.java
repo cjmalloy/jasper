@@ -1,8 +1,14 @@
 package jasper.config;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
@@ -15,10 +21,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.filter.GenericFilterBean;
 
+import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -26,7 +31,7 @@ import static java.lang.String.format;
 import static java.time.Duration.ofNanos;
 
 @Configuration
-public class RateLimitConfig implements WebMvcConfigurer {
+public class RateLimitConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RateLimitConfig.class);
 
 	@Autowired
@@ -64,45 +69,42 @@ public class RateLimitConfig implements WebMvcConfigurer {
 	}
 
 	@Bean
-	public HandlerInterceptor rateLimitInterceptor() {
-		return new HandlerInterceptor() {
+	public Filter rateLimitInterceptor() {
+		return new GenericFilterBean() {
 			@Override
-			public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+			public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+				HttpServletRequest httpRequest = (HttpServletRequest) request;
+				HttpServletResponse httpResponse = (HttpServletResponse) response;
 				var origin = auth.getOrigin();
 				if (!getOriginRateLimiter(origin).acquirePermission()) {
-					logger.debug("{} Rate limit exceeded for origin: {}", origin, request.getRequestURI());
-					response.setStatus(429);
-					response.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxRequests());
+					RateLimitConfig.logger.debug("{} Rate limit exceeded for origin: {}", origin, httpRequest.getRequestURI());
+					httpResponse.setStatus(429);
+					httpResponse.setHeader("X-RateLimit-Limit", ""+configs.security(origin).getMaxRequests());
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-					return false;
+					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+					return;
 				}
 				if (!httpRateLimiter().acquirePermission()) {
-					logger.debug("HTTP rate limit exceeded for request: {}", request.getRequestURI());
-					response.setStatus(429);
+					RateLimitConfig.logger.debug("HTTP rate limit exceeded for request: {}", httpRequest.getRequestURI());
+					httpResponse.setStatus(429);
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-					return false;
+					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+					return;
 				}
-				if (!httpBulkhead.tryAcquirePermission()) {
-					logger.debug("HTTP concurrent limit exceeded for request: {}", request.getRequestURI());
-					response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
+                try {
+                    httpBulkhead.executeCheckedSupplier(() -> {
+                        chain.doFilter(request, response);
+                        return null;
+                    });
+                } catch (BulkheadFullException e) {
+					RateLimitConfig.logger.debug("HTTP concurrent limit exceeded for request: {}", httpRequest.getRequestURI());
+					httpResponse.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					response.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-					return false;
-				}
-				return true;
-			}
-
-			@Override
-			public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-				httpBulkhead.onComplete();
-			}
+					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+                } catch (Throwable e) {
+					throw new RuntimeException(e);
+                }
+            }
 		};
-	}
-
-	@Override
-	public void addInterceptors(InterceptorRegistry registry) {
-		registry.addInterceptor(rateLimitInterceptor());
 	}
 }

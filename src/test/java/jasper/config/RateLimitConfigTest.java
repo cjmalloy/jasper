@@ -55,8 +55,6 @@ class RateLimitConfigTest {
 		var security = new Config.SecurityConfig();
 		security.setMaxRequests(10);
 		when(configs.security(anyString())).thenReturn(security);
-
-		rateLimitInterceptor = rateLimitConfig.rateLimitInterceptor();
 	}
 
 	@Test
