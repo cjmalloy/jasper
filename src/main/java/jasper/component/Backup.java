@@ -230,42 +230,46 @@ public class Backup {
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type) {
 		files.forEachRemaining(file -> {
-			if (file == null) return; // Silently ignore missing files
-			var done = new AtomicBoolean(false);
-			var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
-			int count = 0;
-			try {
-				while (!done.get()) {
-					if (count > 0) logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
-					var lastBatchCount = count * props.getRestoreBatchSize();
-					TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-					transactionTemplate.execute(status -> {
-						for (var i = 0; i < props.getRestoreBatchSize(); i++) {
-							if (!it.hasNext()) {
-								done.set(true);
-								logger.info("{} {} {} restored...", origin, type.getSimpleName(), lastBatchCount + i);
-								return null;
-							}
-							var t = it.next();
+			restoreRepo(repo, origin, file, type);
+		});
+    }
+
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+		if (file == null) return; // Silently ignore missing files
+		var done = new AtomicBoolean(false);
+		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
+		int count = 0;
+		try {
+			while (!done.get()) {
+				if (count > 0) logger.info("{} {} {} restored...", origin, type.getSimpleName(), count * props.getRestoreBatchSize());
+				var lastBatchCount = count * props.getRestoreBatchSize();
+				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+				transactionTemplate.execute(status -> {
+					for (var i = 0; i < props.getRestoreBatchSize(); i++) {
+						if (!it.hasNext()) {
+							done.set(true);
+							logger.info("{} {} {} restored...", origin, type.getSimpleName(), lastBatchCount + i);
+							return null;
+						}
+						var t = it.next();
+						try {
+							if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
+							repo.save(t);
+						} catch (Exception e) {
 							try {
-								if (!isSubOrigin(origin, t.getOrigin())) t.setOrigin(origin);
-								repo.save(t);
-							} catch (Exception e) {
-								try {
-									logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
-								} catch (JsonProcessingException ex) {
-									logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
-								}
+								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
+							} catch (JsonProcessingException ex) {
+								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
 							}
 						}
-						return null;
-					});
-					count++;
-				}
-			} catch (Exception e) {
-				logger.error("Failed to restore", e);
+					}
+					return null;
+				});
+				count++;
 			}
-		});
+		} catch (Exception e) {
+			logger.error("Failed to restore", e);
+		}
     }
 
 	private void restoreCache(String origin, Zipped backup) {

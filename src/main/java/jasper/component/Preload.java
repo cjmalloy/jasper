@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Optional;
 
 @Profile("preload")
@@ -96,17 +95,16 @@ public class Preload {
 		try {
 			var filename = id.toLowerCase();
 			var inputStream = storage.get().stream(origin, PRELOAD, id);
-			var iterator = Collections.singletonList(inputStream).iterator();
 			if (filename.matches("ref.*\\.json")) {
-				backup.restoreRepo(refRepository, origin, iterator, Ref.class);
+				backup.restoreRepo(refRepository, origin, inputStream, Ref.class);
 			} else if (filename.matches("ext.*\\.json")) {
-				backup.restoreRepo(extRepository, origin, iterator, Ext.class);
+				backup.restoreRepo(extRepository, origin, inputStream, Ext.class);
 			} else if (filename.matches("user.*\\.json")) {
-				backup.restoreRepo(userRepository, origin, iterator, User.class);
+				backup.restoreRepo(userRepository, origin, inputStream, User.class);
 			} else if (filename.matches("plugin.*\\.json")) {
-				backup.restoreRepo(pluginRepository, origin, iterator, Plugin.class);
+				backup.restoreRepo(pluginRepository, origin, inputStream, Plugin.class);
 			} else if (filename.matches("template.*\\.json")) {
-				backup.restoreRepo(templateRepository, origin, iterator, Template.class);
+				backup.restoreRepo(templateRepository, origin, inputStream, Template.class);
 			}
 		} catch (Throwable e) {
 			logger.error("{} Error preloading JSON file {}", origin, id, e);
