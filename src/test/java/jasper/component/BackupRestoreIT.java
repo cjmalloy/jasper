@@ -153,8 +153,8 @@ public class BackupRestoreIT {
 
 		// Verify data was restored
 		assertThat(extRepository.count()).isEqualTo(2);
-		assertThat(extRepository.existsByTagAndOrigin("test.tag1", ORIGIN)).isTrue();
-		assertThat(extRepository.existsByTagAndOrigin("test.tag2", ORIGIN)).isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test.tag1")).isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test.tag2")).isTrue();
 	}
 
 	@Test
@@ -194,8 +194,8 @@ public class BackupRestoreIT {
 
 		// Verify data was restored
 		assertThat(userRepository.count()).isEqualTo(2);
-		assertThat(userRepository.existsByTagAndOrigin("+user1", ORIGIN)).isTrue();
-		assertThat(userRepository.existsByTagAndOrigin("+user2", ORIGIN)).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user1")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user2")).isTrue();
 	}
 
 	@Test
@@ -235,8 +235,8 @@ public class BackupRestoreIT {
 
 		// Verify data was restored
 		assertThat(pluginRepository.count()).isEqualTo(2);
-		assertThat(pluginRepository.existsByTagAndOrigin("plugin/test1", ORIGIN)).isTrue();
-		assertThat(pluginRepository.existsByTagAndOrigin("plugin/test2", ORIGIN)).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test1")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test2")).isTrue();
 	}
 
 	@Test
@@ -276,8 +276,8 @@ public class BackupRestoreIT {
 
 		// Verify data was restored
 		assertThat(templateRepository.count()).isEqualTo(2);
-		assertThat(templateRepository.existsByTagAndOrigin("_template1", ORIGIN)).isTrue();
-		assertThat(templateRepository.existsByTagAndOrigin("_template2", ORIGIN)).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("_template1")).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("_template2")).isTrue();
 	}
 
 	@Test
