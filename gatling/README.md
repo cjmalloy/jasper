@@ -44,8 +44,9 @@ System limits and edge case testing:
 
 ### 5. InfernoSimulation
 Extreme load testing to push system to absolute limits:
-- Two cycles of massive load (500 users ramped in 10 seconds, then 20 users/sec for 50 seconds)
-- 2 minute total duration
+- 15 second warmup trickle to let the system initialize
+- Two cycles of massive load (500 users ramped in 10 seconds, then 200 users/sec for 50 seconds)
+- 2 minute 15 second total duration
 - Tests extreme concurrent operations and system recovery
 - **Very Low Success Threshold**: Only >15% success rate required (85% failure tolerance)
 
@@ -112,7 +113,7 @@ Each simulation includes assertions and performance expectations:
 - **ComprehensiveJasperSimulation**: Comprehensive test (3 minutes), >80% success rate
 - **UserJourneySimulation**: Realistic workflows (5 minutes), >75% success rate  
 - **StressTestSimulation**: System limits test (4 minutes), >70% success rate
-- **InfernoSimulation**: Extreme load test (2 minutes), >15% success rate
+- **InfernoSimulation**: Extreme load test (2 minutes 15 seconds), >15% success rate
 
 ## Adding New Tests
 

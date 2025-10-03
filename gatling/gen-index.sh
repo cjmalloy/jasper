@@ -139,7 +139,7 @@ declare -A simulations=(
     ["ComprehensiveSimulation"]="Comprehensive Test|Realistic knowledge management workflows (3min, >75% success)"
     ["UserJourneySimulation"]="User Journey Test|Real user journey patterns with research and collaboration (5min, >75% success)"
     ["StressTestSimulation"]="Stress Test|System limits and edge cases testing (4min, >70% success)"
-    ["InfernoSimulation"]="Inferno Test|Extreme load test with 2 cycles of massive ramp (2min, >15% success)"
+    ["InfernoSimulation"]="Inferno Test|Extreme load test with warmup and 2 cycles of massive ramp (2min 15s, >15% success)"
 )
 
 # Check for reports and generate cards

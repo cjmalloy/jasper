@@ -11,8 +11,9 @@ import java.time.Duration;
  * Inferno Load Test for Jasper
  *
  * This simulation pushes the system to its absolute limits:
+ * - 15 second warmup trickle to let the system initialize
  * - Two cycles of extreme load (ramp huge users for 10s, trickle for 50s)
- * - 2 minute total duration
+ * - 2 minute 15 second total duration
  * - >15% success rate required to pass (85% failure tolerance)
  * - Tests extreme concurrent operations and recovery
  */
@@ -90,16 +91,18 @@ public class InfernoSimulation extends Simulation {
 
 	{
 		setUp(
-			// Cycle 1: Ramp huge number of users for 10 seconds, then trickle for 50 seconds
+			// Warmup: 15 second intro trickle to let the system initialize
 			infernoLoad.injectOpen(
+				constantUsersPerSec(20).during(Duration.ofSeconds(15)),
+				// Cycle 1: Ramp huge number of users for 10 seconds, then trickle for 50 seconds
 				rampUsers(500).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(20).during(Duration.ofSeconds(50)),
+				constantUsersPerSec(200).during(Duration.ofSeconds(50)),
 				// Cycle 2: Another huge ramp for 10 seconds, then trickle for 50 seconds
 				rampUsers(500).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(20).during(Duration.ofSeconds(50))
+				constantUsersPerSec(200).during(Duration.ofSeconds(50))
 			)
 		).protocols(httpProtocol)
-			.maxDuration(Duration.ofMinutes(2))
+			.maxDuration(Duration.ofMinutes(3))
 			.assertions(
 				global().responseTime().max().lt(30000), // Allow very long response times
 				global().successfulRequests().percent().gt(15.0) // Only 15% success required
