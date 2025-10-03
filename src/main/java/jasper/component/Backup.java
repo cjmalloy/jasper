@@ -94,40 +94,48 @@ public class Backup {
 		logger.info("{} Creating Backup", origin);
 		try (var zipped = storage.get().zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("ext.json"));
+				backupRepo(extRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("ext.json"), true);
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("user.json"));
+				backupRepo(userRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("user.json"), true);
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("plugin.json"));
+				backupRepo(pluginRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("plugin.json"), true);
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("template.json"));
+				backupRepo(templateRepository, origin, options.getNewerThan(), options.getOlderThan(), zipped.out("template.json"), true);
 			}
 			if (options.isCache()) {
-				backupCache(origin, options.getNewerThan(), zipped);
+				backupCache(origin, options.getNewerThan(), options.getOlderThan(), zipped);
 			}
 		}
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
 	}
 
 	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
-		backupRepo(repo, origin, newerThan, out, true);
+		backupRepo(repo, origin, newerThan, null, out, true);
 	}
 
-	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out, boolean evict) throws IOException {
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, Instant olderThan, OutputStream out, boolean evict) throws IOException {
 		try (out) {
 			var firstElementProcessed = new AtomicBoolean(false);
 			var buf = new StringBuilder();
 			buf.append("[");
 			var buffSize = props.getBackupBufferSize();
 			Stream<?> stream;
-			if (newerThan != null) {
+			if (newerThan != null && olderThan != null) {
+				stream = repo.streamAllByOriginOrderByModifiedDesc(origin)
+					.filter(entity -> {
+						var cursor = (jasper.domain.proj.Cursor) entity;
+						return cursor.getModified().compareTo(newerThan) >= 0 && cursor.getModified().compareTo(olderThan) <= 0;
+					});
+			} else if (newerThan != null) {
 				stream = repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
+			} else if (olderThan != null) {
+				stream = repo.streamAllByOriginAndModifiedLessThanEqualOrderByModifiedDesc(origin, olderThan);
 			} else {
 				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);
 			}
@@ -156,7 +164,7 @@ public class Backup {
 		}
 	}
 
-	void backupCache(String origin, Instant newerThan, Zipped backup) {
+	void backupCache(String origin, Instant newerThan, Instant olderThan, Zipped backup) {
 		try {
 			storage.get().backup(origin, CACHE, backup, newerThan);
 		} catch (IOException e) {

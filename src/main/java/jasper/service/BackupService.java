@@ -61,6 +61,9 @@ public class BackupService {
 		if (options.getNewerThan() != null) {
 			id += "_-_" + options.getNewerThan();
 		}
+		if (options.getOlderThan() != null) {
+			id += "_-_" + options.getOlderThan();
+		}
 		backup.createBackup(origin, id, options);
 		return id;
 	}

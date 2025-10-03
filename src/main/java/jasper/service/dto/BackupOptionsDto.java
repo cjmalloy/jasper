@@ -23,4 +23,5 @@ public class BackupOptionsDto implements Serializable {
 	private boolean plugin;
 	private boolean template;
 	private Instant newerThan;
+	private Instant olderThan;
 }
