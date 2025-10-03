@@ -61,7 +61,9 @@ When building with Docker, use these techniques to efficiently read logs:
 - Navigate to gatling directory: `cd gatling`
 - Docker load tests: `docker compose --profile lt up --build --exit-code-from gatling` -- takes 15 minutes. NEVER CANCEL. Set timeout to 180+ seconds.
 - Docker supported tests: `docker compose up -d; ../mvnw gatling:test`
-- Override the docker CMD to run a single test suite
+- Run a specific test using the `GATLING_TEST` environment variable: `GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling`
+  - Available tests: `SmokeTest`, `Comprehensive`, `UserJourney`, `StressTest`, `Inferno`
+  - Default test (if not specified): `SmokeTest`
 - **When adding new Gatling simulations**: ALWAYS update `.github/workflows/gatling.yml` to include the new test in the CI pipeline. Add a new step following the pattern of existing tests (e.g., `GATLING_TEST=YourNewTest`)
 
 **GitHub Actions Integration:**
