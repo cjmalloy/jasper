@@ -56,13 +56,17 @@ public class BackupService {
 	@PreAuthorize("@auth.subOrigin(#origin) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String createBackup(String origin, BackupOptionsDto options) throws IOException {
-		var id = Instant.now().toString();
+		var now = Instant.now();
+		String id;
 		if (options == null) options = DEFAULT_OPTIONS;
-		if (options.getNewerThan() != null) {
-			id += "_newer_" + options.getNewerThan();
-		}
-		if (options.getOlderThan() != null) {
-			id += "_older_" + options.getOlderThan();
+		if (options.getNewerThan() != null && options.getOlderThan() != null) {
+			id = options.getNewerThan() + "-" + options.getOlderThan();
+		} else if (options.getNewerThan() != null) {
+			id = options.getNewerThan() + "-" + now;
+		} else if (options.getOlderThan() != null) {
+			id = options.getOlderThan().toString();
+		} else {
+			id = now.toString();
 		}
 		backup.createBackup(origin, id, options);
 		return id;
