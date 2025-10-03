@@ -70,6 +70,12 @@ To run a specific simulation:
 mvn gatling:test -Dgatling.simulationClass=simulations.jasper.SimpleJasperSimulation
 ```
 
+To run the Inferno extreme load test:
+
+```bash
+mvn gatling:test -Dgatling.simulationClass=simulations.jasper.InfernoSimulation
+```
+
 ## Docker
 
 The load tests can also be run via Docker using the `gatling` stage:
@@ -77,6 +83,13 @@ The load tests can also be run via Docker using the `gatling` stage:
 ```bash
 docker build --target gatling -t jasper-gatling .
 docker run jasper-gatling
+```
+
+Or run a specific test with environment variable:
+
+```bash
+docker build --target test -t jasper-gatling .
+docker run -e GATLING_TEST=Inferno jasper-gatling
 ```
 
 Or using the docker-compose file:
