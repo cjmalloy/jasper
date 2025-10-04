@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +28,10 @@ public class ScriptExecutorFactory {
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	public ExecutorService get(String tag, String origin) {
 		return executors.computeIfAbsent(tag + origin, k -> {
-			int maxPoolSize = configs.security(origin).scriptLimit(tag, origin);
-			logger.info("{} Creating virtual thread executor for {} with script limit {}", origin, k, maxPoolSize);
-			return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "scriptExecutor", "script", "tag", tag, "origin", origin);
+			logger.info("{} Creating virtual thread executor for {}", origin, k);
+			return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "scriptExecutor", "script", Tags.of(
+				"tag", tag,
+				"origin", origin));
 		});
 	}
 
