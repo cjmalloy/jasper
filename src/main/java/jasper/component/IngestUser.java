@@ -79,12 +79,10 @@ public class IngestUser {
 			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 			if (e instanceof ConstraintViolationException c) {
 				if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("users_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 				if ("users_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
 			}
 			if (e.getCause() instanceof ConstraintViolationException c) {
 				if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("users_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 				if ("users_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
 			}
 			throw e;
@@ -123,7 +121,6 @@ public class IngestUser {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 				if (e instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("users_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
@@ -131,7 +128,6 @@ public class IngestUser {
 				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("users_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("users_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("users_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
