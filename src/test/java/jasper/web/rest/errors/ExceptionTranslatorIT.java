@@ -69,7 +69,7 @@ class ExceptionTranslatorIT {
             .perform(get("/api/exception-translator-test/access-denied"))
             .andExpect(status().isForbidden())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value("error.http.403"))
+            .andExpect(jsonPath("$.message").value("error.accessDenied"))
             .andExpect(jsonPath("$.detail").value("test access denied!"));
     }
 
