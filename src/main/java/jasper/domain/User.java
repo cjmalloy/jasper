@@ -87,6 +87,8 @@ public class User implements Tag {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 

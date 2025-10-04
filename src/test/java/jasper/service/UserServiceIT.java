@@ -47,7 +47,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
@@ -78,7 +78,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -98,7 +98,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -133,7 +133,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -161,7 +161,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -189,7 +189,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -659,7 +659,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -690,7 +690,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -719,7 +719,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -745,7 +745,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -768,7 +768,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
@@ -790,7 +790,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -818,7 +818,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -844,7 +844,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -884,7 +884,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -925,7 +925,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
+		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())

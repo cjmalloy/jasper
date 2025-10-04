@@ -95,7 +95,7 @@ public class ConfigCache {
 				// Race to init
 			}
 		}
-		if (userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin()).isEmpty()) {
+		if (userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user" + props.getLocalOrigin()).isEmpty()) {
 			try {
 				var user = new User();
 				user.setTag("+user");
@@ -151,7 +151,7 @@ public class ConfigCache {
 
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
-		return userRepository.findOneByQualifiedTag(qualifiedTag)
+		return userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 			.orElse(null);
 	}
 
@@ -177,14 +177,14 @@ public class ConfigCache {
 
 	@Cacheable(value = "user-cache", key = "'+user'")
 	public User user() {
-		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
+		return userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")
 	public <T> T getConfig(String url, String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
-		return refRepository.findOneByUrlAndOrigin(url, origin)
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
 			.map(r -> r.getPlugin(tag, toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
 	}

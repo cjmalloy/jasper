@@ -43,7 +43,7 @@ public class TaggingService {
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
 	public Instant create(String tag, String url, String origin) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.hasTag(tag)) throw new DuplicateTagException(tag);
@@ -58,7 +58,7 @@ public class TaggingService {
 		if (tag.equals("locked")) {
 			throw new AccessDeniedException("Cannot unlock Ref");
 		}
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (!ref.hasTag(tag)) return ref.getModified();
@@ -76,7 +76,7 @@ public class TaggingService {
 		if (tags.contains("-locked")) {
 			throw new AccessDeniedException("Cannot unlock Ref");
 		}
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) throw new NotFoundException("Ref " + origin + " " + url);
 		var ref = maybeRef.get();
 		if (ref.hasTag("locked")) {

@@ -66,7 +66,7 @@ public class AsyncWebScraper implements Async.AsyncRunner {
 	}
 
 	private Ref fetch(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin(origin))
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin(origin))
 			.orElseThrow(() -> new NotFoundException("Async"));
 	}
 }

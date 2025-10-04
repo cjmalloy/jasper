@@ -48,7 +48,7 @@ public class Tagger {
 	}
 
 	public Ref tag(boolean retry, boolean internal, String url, String origin, String ...tags) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags);
@@ -77,7 +77,7 @@ public class Tagger {
 	}
 
 	public Ref remove(String url, String origin, String ...tags) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) return null;
 		var ref = maybeRef.get();
@@ -108,7 +108,7 @@ public class Tagger {
 	 * For monkey patching replicated origins.
 	 */
 	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
@@ -133,7 +133,7 @@ public class Tagger {
 	}
 
 	Ref plugin(boolean retry, String url, String origin, String title, String tag, Object plugin, String ...tags) {
-		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeRef = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
 		if (maybeRef.isEmpty()) {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
@@ -229,7 +229,7 @@ public class Tagger {
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref getResponseRef(String user, String origin, String url) {
 		var userUrl = urlForTag(url, user);
-		return refRepository.findOneByUrlAndOrigin(userUrl, origin).map(ref -> {
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(userUrl, origin).map(ref -> {
 				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
 				if (ref.getTags() == null || ref.hasTag("plugin/deleted")) {
 					ref.setTags(new ArrayList<>(List.of("internal", user)));

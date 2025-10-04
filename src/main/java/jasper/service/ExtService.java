@@ -66,7 +66,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public ExtDto get(String qualifiedTag) {
-		return extRepository.findOneByQualifiedTag(qualifiedTag)
+		return extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
 	}
@@ -111,7 +111,7 @@ public class ExtService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var ext = extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
 		if (ext == null) {
 			created = true;
 			ext = new Ext();

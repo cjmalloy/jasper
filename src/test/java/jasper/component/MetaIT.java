@@ -58,7 +58,7 @@ public class MetaIT {
 
 		meta.sources("", child, null);
 
-		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
+		var parent = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).containsExactly(URL+2);
 		assertThat(parent.get().getMetadata().getInternalResponses()).isNullOrEmpty();
@@ -81,7 +81,7 @@ public class MetaIT {
 
 		meta.sources("", child, null);
 
-		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
+		var parent = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
@@ -107,7 +107,7 @@ public class MetaIT {
 
 		meta.sources("", child, null);
 
-		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
+		var parent = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);

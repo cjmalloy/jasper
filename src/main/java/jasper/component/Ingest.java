@@ -75,7 +75,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -87,7 +87,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		meta.ref(rootOrigin, ref);
 		ensureSilentUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
@@ -100,7 +100,7 @@ public class Ingest {
 		if (validation) validate.ref(rootOrigin, ref, stripInvalidPlugins);
 		Ref maybeExisting = null;
 		if (generateMetadata) {
-			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
+			maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(rootOrigin, ref, maybeExisting);
 			meta.ref(rootOrigin, ref);
 		} else {
@@ -119,7 +119,7 @@ public class Ingest {
 	@Transactional
 	@Timed(value = "jasper.ref", histogram = true)
 	public void delete(String rootOrigin, String url, String origin) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);

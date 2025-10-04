@@ -38,7 +38,7 @@ public class Proxy {
 
 	@Timed(value = "jasper.proxy")
 	public Ref stat(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 	}
 
 	@Timed(value = "jasper.proxy")
@@ -106,7 +106,7 @@ public class Proxy {
 			return new ByteArrayInputStream(data);
 		} catch (Exception e) {
 			tagger.attachError(origin,
-				refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),
+				refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElseThrow(),
 				"Error creating thumbnail", getMessage(e));
 			return null;
 		}

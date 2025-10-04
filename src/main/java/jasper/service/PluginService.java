@@ -65,7 +65,7 @@ public class PluginService {
 	@Cacheable(value = "plugin-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public PluginDto get(String qualifiedTag) {
-		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
+		return pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
@@ -101,7 +101,7 @@ public class PluginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var plugin = pluginRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var plugin = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
 		if (plugin == null) {
 			created = true;
 			plugin = new Plugin();

@@ -48,7 +48,7 @@ public class PluginServiceIT {
 
 		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
 			.isTrue();
-		var fetched = pluginRepository.findOneByQualifiedTag("plugin/test").get();
+		var fetched = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc("plugin/test").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("plugin/test");
 	}
