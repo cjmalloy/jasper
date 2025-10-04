@@ -13,9 +13,11 @@ import java.time.Duration;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Cron implements Serializable {
-	private Duration interval;
+	private Duration interval = Duration.ofMinutes(15);
 
+	private static final Cron DEFAULTS = new Cron();
 	public static Cron getCron(Ref ref) {
-		return ref == null ? null : ref.getPlugin("+plugin/cron", Cron.class);
+		var cron = ref == null ? null : ref.getPlugin("plugin/cron", Cron.class);
+		return cron == null ? DEFAULTS : cron;
 	}
 }
