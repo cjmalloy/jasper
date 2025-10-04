@@ -113,4 +113,51 @@ class ExceptionTranslatorIT {
             .andExpect(jsonPath("$.message").value("error.http.500"))
             .andExpect(jsonPath("$.title").value("Internal Server Error"));
     }
+
+    @Test
+    void testHttpMessageConversionExceptionInDev() throws Exception {
+        // In dev/default profiles, detailed error messages should be shown
+        mockMvc
+            .perform(get("/api/exception-translator-test/http-message-conversion"))
+            .andExpect(status().isInternalServerError())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.http.500"))
+            .andExpect(jsonPath("$.detail").value("Failed to convert http message"));
+    }
+
+    @Test
+    void testDataAccessExceptionInDev() throws Exception {
+        // In dev/default profiles, detailed error messages should be shown
+        mockMvc
+            .perform(get("/api/exception-translator-test/data-access"))
+            .andExpect(status().isInternalServerError())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.http.500"))
+            .andExpect(jsonPath("$.detail").value("Database access failed"));
+    }
+
+    @Test
+    void testInternalServerErrorWithPackageNameInDev() throws Exception {
+        // In dev/default profiles, even messages with package names should be shown
+        mockMvc
+            .perform(get("/api/exception-translator-test/internal-server-error-with-package"))
+            .andExpect(status().isInternalServerError())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.http.500"))
+            .andExpect(jsonPath("$.detail").value("Error in org.springframework.web package"));
+    }
+
+    @Test
+    void testMethodArgumentNotValidHasCustomTitle() throws Exception {
+        // Verify that MethodArgumentNotValidException has custom title "Method argument not valid"
+        mockMvc
+            .perform(post("/api/exception-translator-test/method-argument").content("{}").contentType(MediaType.APPLICATION_JSON).with(csrf().asHeader()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_VALIDATION))
+            .andExpect(jsonPath("$.title").value("Method argument not valid"))
+            .andExpect(jsonPath("$.fieldErrors.[0].objectName").value("test"))
+            .andExpect(jsonPath("$.fieldErrors.[0].field").value("test"))
+            .andExpect(jsonPath("$.fieldErrors.[0].message").value("must not be null"));
+    }
 }

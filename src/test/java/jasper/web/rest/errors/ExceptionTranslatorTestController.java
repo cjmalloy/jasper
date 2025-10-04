@@ -3,7 +3,9 @@ package jasper.web.rest.errors;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +46,21 @@ public class ExceptionTranslatorTestController {
     @GetMapping("/internal-server-error")
     public void internalServerError() {
         throw new RuntimeException();
+    }
+
+    @GetMapping("/http-message-conversion")
+    public void httpMessageConversion() {
+        throw new HttpMessageConversionException("Failed to convert http message");
+    }
+
+    @GetMapping("/data-access")
+    public void dataAccess() {
+        throw new DataAccessException("Database access failed") {};
+    }
+
+    @GetMapping("/internal-server-error-with-package")
+    public void internalServerErrorWithPackage() {
+        throw new RuntimeException("Error in org.springframework.web package");
     }
 
     public static class TestDTO {
