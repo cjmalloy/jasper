@@ -153,8 +153,6 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   task:
-    execution:
-      thread-name-prefix: jasper-task-
     scheduling:
       thread-name-prefix: jasper-scheduling-
       pool:
