@@ -58,6 +58,14 @@ public class BulkheadConfiguration {
 			.build());
 	}
 
+	@Bean
+	public Bulkhead recyclerBulkhead() {
+		return registry.bulkhead("recycler", BulkheadConfig.custom()
+			.maxConcurrentCalls(1)
+			.maxWaitDuration(ofMinutes(0))
+			.build());
+	}
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
