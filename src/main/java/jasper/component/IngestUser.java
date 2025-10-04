@@ -60,6 +60,7 @@ public class IngestUser {
 		} else {
 			delete(deletorTag(user.getQualifiedTag()));
 		}
+		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		ensureCreateUniqueModified(user);
 		messages.updateUser(user);
 	}
@@ -105,6 +106,7 @@ public class IngestUser {
 	}
 
 	void ensureCreateUniqueModified(User user) {
+		if (userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new AlreadyExistsException();
 		var count = 0;
 		while (true) {
 			try {
