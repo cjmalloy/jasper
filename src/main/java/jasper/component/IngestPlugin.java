@@ -62,7 +62,6 @@ public class IngestPlugin {
 		} else {
 			delete(deletorTag(plugin.getQualifiedTag()));
 		}
-		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
@@ -111,7 +110,6 @@ public class IngestPlugin {
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {
-		if (pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new AlreadyExistsException();
 		var count = 0;
 		while (true) {
 			try {

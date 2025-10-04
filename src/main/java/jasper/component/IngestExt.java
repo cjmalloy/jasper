@@ -62,7 +62,6 @@ public class IngestExt {
 		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
-		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		validate.ext(ext.getOrigin(), ext);
 		ensureCreateUniqueModified(ext);
 		messages.updateExt(ext);
@@ -94,7 +93,6 @@ public class IngestExt {
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {
-		if (extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new AlreadyExistsException();
 		var count = 0;
 		while (true) {
 			try {

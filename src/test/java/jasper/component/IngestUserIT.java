@@ -7,6 +7,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,6 +50,7 @@ public class IngestUserIT {
 			.isTrue();
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateExtFails() {
 		var existing = new User();
@@ -64,6 +66,7 @@ public class IngestUserIT {
 			.isTrue();
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new User();

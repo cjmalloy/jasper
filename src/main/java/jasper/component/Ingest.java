@@ -64,7 +64,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref) {
-		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
@@ -128,7 +127,6 @@ public class Ingest {
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
-		if (refRepository.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin())) throw new AlreadyExistsException();
 		var count = 0;
 		while (true) {
 			try {

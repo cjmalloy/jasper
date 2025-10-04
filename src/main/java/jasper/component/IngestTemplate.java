@@ -62,7 +62,6 @@ public class IngestTemplate {
 		} else {
 			delete(deletorTag(template.getQualifiedTag()));
 		}
-		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		validate.template(template.getOrigin(), template);
 		ensureCreateUniqueModified(template);
 		messages.updateTemplate(template);
@@ -111,7 +110,6 @@ public class IngestTemplate {
 	}
 
 	void ensureCreateUniqueModified(Template template) {
-		if (templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new AlreadyExistsException();
 		var count = 0;
 		while (true) {
 			try {
