@@ -62,7 +62,6 @@ public class Props {
 	private int backupBufferSize = 1000000;
 	private int restoreBatchSize = 500;
 	private int backfillBatchSize = 100;
-	private int integrationQueueCapacity = 4;
 	private String pullDelayMin = "5";
 	private String pullIntervalMin = "1";
 	private String scrapeDelayMin = "5";

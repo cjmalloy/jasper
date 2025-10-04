@@ -49,9 +49,6 @@ public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	ExecutorService integrationExecutor;
 
 	@Autowired
@@ -171,7 +168,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(cursorRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(cursorRxChannel)
 			.get();
 	}
@@ -217,7 +214,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(refRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(refRxChannel)
 			.get();
 	}
@@ -262,7 +259,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(tagRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(tagRxChannel)
 			.get();
 	}
@@ -304,7 +301,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(responseRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(responseRxChannel)
 			.get();
 	}
@@ -351,7 +348,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(userRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(userRxChannel)
 			.get();
 	}
@@ -402,7 +399,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(extRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(extRxChannel)
 			.get();
 	}
@@ -453,7 +450,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(pluginRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(pluginRxChannel)
 			.get();
 	}
@@ -504,7 +501,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(templateRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(templateRxChannel)
 			.get();
 	}

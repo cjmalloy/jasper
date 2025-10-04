@@ -17,9 +17,6 @@ import java.util.concurrent.ExecutorService;
 public class SingleNodeConfig {
 
 	@Autowired
-	Props props;
-
-	@Autowired
 	ExecutorService integrationExecutor;
 
 	@Autowired
@@ -75,7 +72,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(cursorTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(cursorRxChannel)
 			.get();
 	}
@@ -85,7 +82,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(refTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(refRxChannel)
 			.get();
 	}
@@ -95,7 +92,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(tagTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(tagRxChannel)
 			.get();
 	}
@@ -105,7 +102,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(responseTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(responseRxChannel)
 			.get();
 	}
@@ -115,7 +112,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(userTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(userRxChannel)
 			.get();
 	}
@@ -125,7 +122,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(extTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(extRxChannel)
 			.get();
 	}
@@ -135,7 +132,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(pluginTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(pluginRxChannel)
 			.get();
 	}
@@ -145,7 +142,7 @@ public class SingleNodeConfig {
 		return IntegrationFlow
 			.from(templateTxChannel)
 			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(props.getIntegrationQueueCapacity()))
+			.channel(new QueueChannel(4))
 			.channel(templateRxChannel)
 			.get();
 	}
