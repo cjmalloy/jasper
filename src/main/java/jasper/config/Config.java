@@ -130,6 +130,11 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
+		/**
+		 * Maximum concurrent recycler operations. Default 1.
+		 */
+		@Builder.Default
+		private int maxConcurrentRecycler = 1;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -152,6 +157,7 @@ public interface Config {
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
+			if (server.getMaxConcurrentRecycler() != null) wrapped = wrapped.withMaxConcurrentRecycler(server.getMaxConcurrentRecycler());
 			return wrapped;
 		}
 

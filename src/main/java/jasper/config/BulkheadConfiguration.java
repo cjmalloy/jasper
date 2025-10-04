@@ -58,6 +58,14 @@ public class BulkheadConfiguration {
 			.build());
 	}
 
+	@Bean
+	public Bulkhead recyclerBulkhead() {
+		return registry.bulkhead("recycler", BulkheadConfig.custom()
+			.maxConcurrentCalls(configs.root().getMaxConcurrentRecycler())
+			.maxWaitDuration(ofMinutes(0))
+			.build());
+	}
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
@@ -67,6 +75,7 @@ public class BulkheadConfiguration {
 			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts());
 			updateBulkheadConfig(replBulkhead(), configs.root().getMaxConcurrentReplication());
 			updateBulkheadConfig(fetchBulkhead(), configs.root().getMaxConcurrentFetch());
+			updateBulkheadConfig(recyclerBulkhead(), configs.root().getMaxConcurrentRecycler());
 		}
 	}
 
