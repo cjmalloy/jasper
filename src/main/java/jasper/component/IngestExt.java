@@ -109,6 +109,7 @@ public class IngestExt {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 				if (e instanceof ConstraintViolationException c) {
 					if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("ext_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("ext_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
@@ -116,6 +117,7 @@ public class IngestExt {
 				}
 				if (e.getCause() instanceof ConstraintViolationException c) {
 					if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+					if ("ext_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 					if ("ext_modified_origin_key".equals(c.getConstraintName())) {
 						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
 						continue;
@@ -173,10 +175,12 @@ public class IngestExt {
 			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
 			if (e instanceof ConstraintViolationException c) {
 				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
 			}
 			if (e.getCause() instanceof ConstraintViolationException c) {
 				if ("ext_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
+				if ("ext_tag_origin_key".equals(c.getConstraintName())) throw new AlreadyExistsException();
 				if ("ext_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
 			}
 			throw e;
