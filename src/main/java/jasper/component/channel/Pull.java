@@ -155,6 +155,7 @@ public class Pull {
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
 					pulls.get(localOrigin).connected.set(true);
 					retryCounts.remove(localOrigin);
+					handleCursorUpdate(remote.getOrigin(), localOrigin, null);
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
 						@Override
 						public Type getPayloadType(StompHeaders headers) {
