@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser
 @AutoConfigureMockMvc
 @IntegrationTest
-@ActiveProfiles("prod")
+@ActiveProfiles({"prod", "test"})
 class ExceptionTranslatorProdIT {
 
     @Autowired
