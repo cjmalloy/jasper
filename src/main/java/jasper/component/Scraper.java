@@ -92,7 +92,7 @@ public class Scraper {
 		if (config == null) return null;
 		var data = proxy.fetchString(url, origin, refRepository.existsByUrlAndOrigin(url, origin));
 		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
-		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
+		var result = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(from(url, origin));
 		// Update ref but don't persist changes
 		em.detach(result);
 		var doc = Jsoup.parse(data, url);
@@ -476,7 +476,7 @@ public class Scraper {
 	private void cacheLater(String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}

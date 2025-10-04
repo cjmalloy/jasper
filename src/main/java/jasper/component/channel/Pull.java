@@ -105,7 +105,7 @@ public class Pull {
 	}
 
 	private void watch(HasTags update) {
-		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin()).orElse(null);
+		var remote = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(update.getUrl(), update.getOrigin()).orElse(null);
 		var config = getOrigin(remote);
 		var pull = getPull(remote);
 		if (remote == null || config == null) {
@@ -212,7 +212,7 @@ public class Pull {
 		if (!configs.root().script("+plugin/origin/pull", origin)) return;
 		pulls.compute(local, (k, info) -> {
 			if (info == null) return null;
-			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
+			var maybeRemote = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
 				if (remote.getPluginResponses("+plugin/user/run") == 0 && isPulling.putIfAbsent(local, true) == null) {

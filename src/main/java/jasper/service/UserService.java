@@ -81,7 +81,7 @@ public class UserService {
 		if (isBlank(user.getAuthorizedKeys()) && user.getPubKey() != null) {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
 		if (maybeExisting.isPresent()) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
@@ -142,7 +142,7 @@ public class UserService {
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
 		if (user == null) {
 			created = true;
 			user = new User();
@@ -168,7 +168,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
-		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
+		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
 		var kp = keyPair();

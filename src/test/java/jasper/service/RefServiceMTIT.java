@@ -903,7 +903,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}

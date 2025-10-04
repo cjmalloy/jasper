@@ -96,7 +96,7 @@ public class IngestExtIT {
 
 		assertThat(extRepository.existsByQualifiedTag("test"))
 			.isTrue();
-		var fetched = extRepository.findOneByQualifiedTag("test").get();
+		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -119,7 +119,7 @@ public class IngestExtIT {
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = extRepository.findOneByQualifiedTag("test").get();
+			var fetched1 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -154,10 +154,10 @@ public class IngestExtIT {
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = extRepository.findOneByQualifiedTag("test").get();
+			var fetched1 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
-			var fetched2 = extRepository.findOneByQualifiedTag("other").get();
+			var fetched2 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("other").get();
 			assertThat(fetched2.getName())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())

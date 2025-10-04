@@ -104,7 +104,7 @@ public class IngestIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
@@ -127,7 +127,7 @@ public class IngestIT {
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 				.isTrue();
-			var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "").get();
+			var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 			assertThat(fetched1.getTitle())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -162,10 +162,10 @@ public class IngestIT {
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 				.isTrue();
-			var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "").get();
+			var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 			assertThat(fetched1.getTitle())
 				.isEqualTo("First");
-			var fetched2 = refRepository.findOneByUrlAndOrigin(OTHER_URL, "").get();
+			var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(OTHER_URL, "").get();
 			assertThat(fetched2.getTitle())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())
@@ -243,7 +243,7 @@ public class IngestIT {
 		ref1.setOrigin("@origin1");
 		ref1.setTitle("First");
 		ingest.create("", ref1);
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@origin1")).get().extracting(r -> r.getMetadata().isObsolete()).isNotEqualTo(true);
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1")).get().extracting(r -> r.getMetadata().isObsolete()).isNotEqualTo(true);
 
 		TimeUnit.MILLISECONDS.sleep(1);
 
@@ -253,8 +253,8 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
-		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
@@ -266,9 +266,9 @@ public class IngestIT {
 		ref3.setTitle("Third");
 		ingest.create("", ref3);
 
-		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
-		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
-		var fetched3 = refRepository.findOneByUrlAndOrigin(URL, "@origin3").get();
+		fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
+		var fetched3 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin3").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched3.getMetadata().isObsolete()).isFalse();
@@ -290,8 +290,8 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
-		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
@@ -304,8 +304,8 @@ public class IngestIT {
 		update.setModified(fetched1.getModified());
 		ingest.update("", update);
 
-		var fetched1Updated = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
-		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched1Updated = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
 		assertThat(fetched1Updated.getMetadata().isObsolete()).isFalse();
 		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
 	}
@@ -326,15 +326,15 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
-		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
 		ingest.delete("", URL, "@origin2");
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@origin2")).isFalse();
-		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isFalse();
 	}
 
@@ -354,7 +354,7 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		var latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
 		try {
@@ -363,7 +363,7 @@ public class IngestIT {
 			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
 		}
 
-		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
 		try {
@@ -393,7 +393,7 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		var latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
 		try {
@@ -402,7 +402,7 @@ public class IngestIT {
 			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
 		}
 
-		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		latestB.setModified(timeB);
 		ingest.push("", latestB, false, false);
@@ -428,12 +428,12 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		Ref latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		latestA.setModified(timeA);
 		ingest.push("", latestA, false, false);
 
-		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
 		try {
@@ -463,12 +463,12 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		Ref latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		latestA.setModified(timeA);
 		ingest.push("", latestA, false, false);
 
-		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		latestB.setModified(timeB);
 		ingest.push("", latestB, false, false);

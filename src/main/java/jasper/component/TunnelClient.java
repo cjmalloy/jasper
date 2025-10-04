@@ -108,7 +108,7 @@ public class TunnelClient {
 				if (users.isEmpty()) {
 					throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
 				}
-				var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
+				var user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(users.get(0) + remote.getOrigin());
 				if (user.isEmpty() || user.get().getKey() == null) {
 					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 				}
@@ -154,7 +154,7 @@ public class TunnelClient {
 			if (users.isEmpty()) {
 				throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
 			}
-			var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
+			var user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(users.get(0) + remote.getOrigin());
 			if (user.isEmpty() || user.get().getKey() == null) {
 				throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 			}

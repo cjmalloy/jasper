@@ -142,7 +142,7 @@ public class Async {
 	}
 
 	private Ref fetch(RefDto ud) {
-		return refRepository.findOneByUrlAndOrigin(ud.getUrl(), origin(ud.getOrigin()))
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ud.getUrl(), origin(ud.getOrigin()))
 			.orElseThrow(() -> new NotFoundException("Async"));
 	}
 

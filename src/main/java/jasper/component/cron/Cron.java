@@ -97,7 +97,7 @@ public class Cron {
 		var origin = ref.getOrigin();
 		if (!configs.root().script("+plugin/cron", origin)) return;
 		var url = ref.getUrl();
-		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
+		var config = getCron(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
 		if (config.getInterval().toMinutes() < 1) {
 			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
@@ -114,7 +114,7 @@ public class Cron {
 
 	private void run(HasTags target) {
 		var origin = target.getOrigin();
-		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
+		var url = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
 			.orElse(null);
@@ -123,7 +123,7 @@ public class Cron {
 			tagger.remove(target.getUrl(), origin, "+plugin/user/run");
 			return;
 		}
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 		try {
 			if (!configs.root().script("+plugin/user/run", origin)) throw new RuntimeException();
 			if (ref == null) {
@@ -149,7 +149,7 @@ public class Cron {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
 						scriptBulkhead.executeSupplier(() -> {
 							try {
-								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+								v.run(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElseThrow());
 								ran.add(v);
 								tagger.removeAllResponses(url, origin, "+plugin/user/run");
 								return null;
@@ -195,7 +195,7 @@ public class Cron {
 	}
 
 	private void runSchedule(String url, String origin) {
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 		if (ref == null) {
 			var key = origin + ":" + url;
 			var existing = tasks.get(key);

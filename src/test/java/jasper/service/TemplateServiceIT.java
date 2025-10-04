@@ -48,7 +48,7 @@ public class TemplateServiceIT {
 
 		assertThat(templateRepository.existsByQualifiedTag("test"))
 			.isTrue();
-		var fetched = templateRepository.findOneByQualifiedTag("test").get();
+		var fetched = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("test");
 	}

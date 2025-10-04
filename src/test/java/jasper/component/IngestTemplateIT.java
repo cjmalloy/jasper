@@ -96,7 +96,7 @@ public class IngestTemplateIT {
 
 		assertThat(templateRepository.existsByQualifiedTag("test"))
 			.isTrue();
-		var fetched = templateRepository.findOneByQualifiedTag("test").get();
+		var fetched = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -119,7 +119,7 @@ public class IngestTemplateIT {
 
 			assertThat(templateRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = templateRepository.findOneByQualifiedTag("test").get();
+			var fetched1 = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -154,10 +154,10 @@ public class IngestTemplateIT {
 
 			assertThat(templateRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = templateRepository.findOneByQualifiedTag("test").get();
+			var fetched1 = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
-			var fetched2 = templateRepository.findOneByQualifiedTag("other").get();
+			var fetched2 = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc("other").get();
 			assertThat(fetched2.getName())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())
