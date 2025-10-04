@@ -29,7 +29,7 @@ public class ScriptExecutorFactory {
 		return executors.computeIfAbsent(tag + origin, k -> {
 			int maxPoolSize = configs.security(origin).scriptLimit(tag, origin);
 			logger.info("{} Creating virtual thread executor for {} with script limit {}", origin, k, maxPoolSize);
-			return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "scriptExecutor", "script");
+			return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "scriptExecutor", "script", "tag", tag, "origin", origin);
 		});
 	}
 
