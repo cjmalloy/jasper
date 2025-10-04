@@ -100,7 +100,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		}
 
 		Map<String, Object> problemProperties = problem.getProperties();
-		if (problemProperties == null || !problemProperties.containsKey(MESSAGE_KEY)) problem.setProperty(
+		problem.setProperty(
 			MESSAGE_KEY,
 			getMappedMessageKey(err) != null ? getMappedMessageKey(err) : "error.http." + problem.getStatus()
 		);
