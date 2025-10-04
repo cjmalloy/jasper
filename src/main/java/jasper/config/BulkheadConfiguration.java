@@ -61,7 +61,7 @@ public class BulkheadConfiguration {
 	@Bean
 	public Bulkhead recyclerBulkhead() {
 		return registry.bulkhead("recycler", BulkheadConfig.custom()
-			.maxConcurrentCalls(configs.root().getMaxConcurrentRecycler())
+			.maxConcurrentCalls(1)
 			.maxWaitDuration(ofMinutes(0))
 			.build());
 	}

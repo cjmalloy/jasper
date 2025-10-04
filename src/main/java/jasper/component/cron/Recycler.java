@@ -1,6 +1,5 @@
 package jasper.component.cron;
 
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jasper.component.FileCache;
 import jasper.component.Storage;
 import org.slf4j.Logger;
@@ -24,7 +23,6 @@ public class Recycler {
 	FileCache fileCache;
 
 	@Scheduled(fixedDelay = 24, initialDelay = 24, timeUnit = TimeUnit.HOURS)
-	@Bulkhead(name = "recycler")
 	public void clearDeleted() {
 		storage.visitTenants(fileCache::clearDeleted);
 	}
