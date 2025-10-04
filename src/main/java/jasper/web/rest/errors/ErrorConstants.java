@@ -25,6 +25,11 @@ public final class ErrorConstants {
 	public static final String ERR_INVALID_TUNNEL = "error.invalidTunnel";
 	public static final String ERR_SCRAPE_PROTOCOL = "error.scrapeProtocol";
 	public static final String ERR_ORIGIN_FORBIDDEN = "error.originForbidden";
+	public static final String ERR_ALREADY_EXISTS = "error.alreadyExists";
+	public static final String ERR_MODIFIED = "error.modified";
+	public static final String ERR_TOO_LARGE = "error.tooLarge";
+	public static final String ERR_INVALID_PUSH = "error.invalidPush";
+	public static final String ERR_USER_TAG_IN_USE = "error.userTagInUse";
 
 	// Problem URLs
 	private static final String PROBLEM_BASE_URL = "https://github.com/cjmalloy/jasper/wiki/errors";
@@ -38,6 +43,8 @@ public final class ErrorConstants {
 	public static final URI SCRIPT_ERROR_TYPE = URI.create(PROBLEM_BASE_URL + "#script");
 	public static final URI DATE_ERROR_TYPE = URI.create(PROBLEM_BASE_URL + "#date");
 	public static final URI PROTOCOL_ERROR_TYPE = URI.create(PROBLEM_BASE_URL + "#protocol");
+	public static final URI CONFLICT_TYPE = URI.create(PROBLEM_BASE_URL + "#conflict");
+	public static final URI SIZE_ERROR_TYPE = URI.create(PROBLEM_BASE_URL + "#size");
 
 	private ErrorConstants() {}
 }
