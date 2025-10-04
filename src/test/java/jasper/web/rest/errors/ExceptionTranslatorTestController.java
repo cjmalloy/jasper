@@ -2,6 +2,7 @@ package jasper.web.rest.errors;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jasper.errors.*;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,31 @@ public class ExceptionTranslatorTestController {
     @GetMapping("/internal-server-error-with-package")
     public void internalServerErrorWithPackage() {
         throw new RuntimeException("Error in org.springframework.web package");
+    }
+
+    @GetMapping("/already-exists")
+    public void alreadyExists() {
+        throw new AlreadyExistsException();
+    }
+
+    @GetMapping("/modified")
+    public void modified() {
+        throw new ModifiedException("TestEntity");
+    }
+
+    @GetMapping("/too-large")
+    public void tooLarge() {
+        throw new TooLargeException(1000, 100);
+    }
+
+    @GetMapping("/invalid-push")
+    public void invalidPush() {
+        throw new InvalidPushException();
+    }
+
+    @GetMapping("/user-tag-in-use")
+    public void userTagInUse() {
+        throw new UserTagInUseException();
     }
 
     public static class TestDTO {

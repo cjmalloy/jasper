@@ -160,4 +160,54 @@ class ExceptionTranslatorIT {
             .andExpect(jsonPath("$.fieldErrors.[0].field").value("test"))
             .andExpect(jsonPath("$.fieldErrors.[0].message").value("must not be null"));
     }
+
+    @Test
+    void testAlreadyExistsException() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/already-exists"))
+            .andExpect(status().isConflict())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_ALREADY_EXISTS))
+            .andExpect(jsonPath("$.detail").value("Already exists"));
+    }
+
+    @Test
+    void testModifiedException() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/modified"))
+            .andExpect(status().isConflict())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_MODIFIED))
+            .andExpect(jsonPath("$.detail").value("TestEntity already modified"));
+    }
+
+    @Test
+    void testTooLargeException() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/too-large"))
+            .andExpect(status().isPayloadTooLarge())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_TOO_LARGE))
+            .andExpect(jsonPath("$.detail").value("You requested 1000 entities, but the max is 100."));
+    }
+
+    @Test
+    void testInvalidPushException() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/invalid-push"))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PUSH))
+            .andExpect(jsonPath("$.detail").value("Push contains invalid data."));
+    }
+
+    @Test
+    void testUserTagInUseException() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/user-tag-in-use"))
+            .andExpect(status().isConflict())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_USER_TAG_IN_USE))
+            .andExpect(jsonPath("$.detail").value("User tag already in use by another user."));
+    }
 }

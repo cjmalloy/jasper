@@ -188,6 +188,13 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		if (err instanceof InvalidTunnelException || err instanceof ScrapeProtocolException) {
 			return ErrorConstants.PROTOCOL_ERROR_TYPE;
 		}
+		if (err instanceof AlreadyExistsException || 
+			err instanceof ModifiedException || 
+			err instanceof UserTagInUseException) {
+			return ErrorConstants.CONFLICT_TYPE;
+		}
+		if (err instanceof TooLargeException) return ErrorConstants.SIZE_ERROR_TYPE;
+		if (err instanceof InvalidPushException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
 		return ErrorConstants.DEFAULT_TYPE;
 	}
 
@@ -210,6 +217,11 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		if (err instanceof InvalidTunnelException) return ErrorConstants.ERR_INVALID_TUNNEL;
 		if (err instanceof ScrapeProtocolException) return ErrorConstants.ERR_SCRAPE_PROTOCOL;
 		if (err instanceof OperationForbiddenOnOriginException) return ErrorConstants.ERR_ORIGIN_FORBIDDEN;
+		if (err instanceof AlreadyExistsException) return ErrorConstants.ERR_ALREADY_EXISTS;
+		if (err instanceof ModifiedException) return ErrorConstants.ERR_MODIFIED;
+		if (err instanceof TooLargeException) return ErrorConstants.ERR_TOO_LARGE;
+		if (err instanceof InvalidPushException) return ErrorConstants.ERR_INVALID_PUSH;
+		if (err instanceof UserTagInUseException) return ErrorConstants.ERR_USER_TAG_IN_USE;
 		return null;
 	}
 
