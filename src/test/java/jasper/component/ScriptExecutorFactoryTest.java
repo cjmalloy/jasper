@@ -28,9 +28,8 @@ class ScriptExecutorFactoryTest {
         
         // Mock ConfigCache to return a SecurityConfig with a script limit
         configCache = mock(ConfigCache.class);
-        var security = Config.SecurityConfig.builder()
-            .maxConcurrentScripts(10)
-            .build();
+        var security = new Config.SecurityConfig();
+        security.setMaxConcurrentScripts(10);
         
         when(configCache.security(anyString())).thenReturn(security);
         factory.configs = configCache;
