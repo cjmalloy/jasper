@@ -79,16 +79,18 @@ public class Cron {
 	private void schedule(HasTags ref) {
 		var key = getKey(ref);
 		var existing = tasks.get(key);
+		var cancelled = false;
 		if (existing != null && !existing.isDone()) {
 			existing.cancel(true);
 			tasks.remove(key);
+			cancelled = true;
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (hasMatchingTag(ref, "+plugin/error")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (!hasScheduler(ref)) return;
@@ -156,7 +158,7 @@ public class Cron {
 								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
 								throw new RuntimeException(e);
 							} finally {
-								refs.remove(k);
+								refs.remove(s);
 							}
 						});
 					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
@@ -213,21 +215,24 @@ public class Cron {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			runAsync(() -> {
-				scriptBulkhead.executeSupplier(() -> {
-					try {
-						v.run(ref);
-						ran.add(v);
-					} catch (Exception e) {
-						logger.error("{} Error in cron tag {} ", origin, k);
-						tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-					}
+			refs.compute(getKey(ref), (s, existing) -> {
+				if (existing != null && !existing.isDone()) return existing;
+				return runAsync(() -> {
+					scriptBulkhead.executeSupplier(() -> {
+						try {
+							v.run(ref);
+							ran.add(v);
+						} catch (Exception e) {
+							logger.error("{} Error in cron tag {} ", origin, k);
+							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+						}
+						return null;
+					});
+				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+					logger.warn("{} Rate limited {} ", origin, k);
+					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
 					return null;
 				});
-			}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-				logger.warn("{} Rate limited {} ", origin, k);
-				tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-				return null;
 			});
 		});
 	}
