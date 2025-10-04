@@ -1,0 +1,91 @@
+name: Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the Docker image
+        run: docker build . -t ${{ github.repository }}:$(date +%s)
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the testing image
+        run: docker build . --file Dockerfile --target test --tag test
+      - name: Run the test container
+        run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
+      - name: Copy the tests from the container
+        if: always()
+        run: docker cp test:/tests tests
+      - name: Publish Unit Test Results
+        uses: dorny/test-reporter@v2.1.1
+        if: always()
+        continue-on-error: true
+        with:
+          name: Test Results
+          path: "tests/*.xml"
+          reporter: java-junit
+      - name: Copy the reports from the container
+        if: always()
+        run: docker cp test:/reports reports
+      - name: Upload PR Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-pr-${{ github.event.pull_request.number }}
+          path: reports
+          retention-days: 7
+      - name: Upload Reports
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
+          path: reports
+          retention-days: 90
+
+  clean:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup old artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          # language=JavaScript
+          script: |
+            const maxVersions = 5;
+            const response = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const artifacts = response.data.artifacts
+              .filter(artifact => artifact.name.startsWith('junit-reports-' + '${{ github.ref_name }}'));
+            if (artifacts.length > maxVersions) {
+              // Sort by created_at descending
+              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // Delete all but the latest maxVersions
+              for (const artifact of artifacts.slice(maxVersions)) {
+                console.log('Deleting artifact:', artifact.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+              }
+            }

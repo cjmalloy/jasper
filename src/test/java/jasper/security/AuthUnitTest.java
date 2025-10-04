@@ -1,11 +1,13 @@
 package jasper.security;
 
+import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
-import jasper.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -18,7 +20,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
@@ -36,8 +40,8 @@ public class AuthUnitTest {
 	}
 
 	Auth getAuth(String origin, User user, String ...roles) {
-		var a = new Auth();
-		a.props = new Props();
+		user.setOrigin(origin);
+		var a = new Auth(new Props(), null, configCache, null);
 		a.principal = user.getQualifiedTag();
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
@@ -45,7 +49,18 @@ public class AuthUnitTest {
 		return a;
 	}
 
+	ConfigCache configCache = getConfigs();
+	ConfigCache getConfigs() {
+		var root = new ServerConfig();
+		var security = new SecurityConfig();
+		var configCache = mock(ConfigCache.class);
+		when(configCache.root()).thenReturn(root);
+		when(configCache.security(anyString())).thenReturn(security);
+		return configCache;
+	}
+
 	Set<String> getRoles(String ...roles) {
+		if (roles.length == 0) roles = new String[]{ ANONYMOUS };
 		var userAuthorities = Arrays.stream(roles)
 			.map(SimpleGrantedAuthority::new)
 			.collect(Collectors.toList());
@@ -54,7 +69,7 @@ public class AuthUnitTest {
 
 	User getUser(String userTag, String ...tags) {
 		var u = new User();
-		var qt = selector(userTag);
+		var qt = qt(userTag);
 		u.setTag(qt.tag);
 		u.setOrigin(qt.origin);
 		u.setReadAccess(new ArrayList<>(List.of(tags)));
@@ -82,21 +97,30 @@ public class AuthUnitTest {
 		return mock;
 	}
 
-	UserRepository getUserRepo(User ...users) {
-		var mock = mock(UserRepository.class);
-		when(mock.findFirstByQualifiedTagOrderByModifiedDesc(anyString()))
-			.thenReturn(Optional.empty());
+	ConfigCache getConfigCache(User ...users) {
+		when(configCache.getUser(anyString()))
+			.thenReturn(null);
 		for (var user : users) {
-			when(mock.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag()))
-				.thenReturn(Optional.of(user));
+			when(configCache.getUser(user.getQualifiedTag()))
+				.thenReturn(user);
 		}
-		return mock;
+		return configCache;
 	}
 
 	@Test
 	void testCanReadRef_Public() {
 		var auth = getAuth(getUser("+user/test"));
 		var ref = getRef("public");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_PublicRemote() {
+		var auth = getAuth(getUser("+user/test"));
+		var ref = getRef("public");
+		ref.setOrigin("@other");
 
 		assertThat(auth.canReadRef(ref))
 			.isTrue();
@@ -113,11 +137,21 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_CustomOrigin() {
+		var auth = getAuth(getUser("+user/test"));
+		var ref = getRef("public");
+		ref.setOrigin("@custom");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_CustomOriginFailed() {
 		var auth = getAuth("@custom", getUser("+user/test"));
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
-			.isTrue();
+			.isFalse();
 	}
 
 	@Test
@@ -154,7 +188,7 @@ public class AuthUnitTest {
 	@Test
 	void testCanReadRef_AuthReadAccessRemote() {
 		var auth = getAuth(getUser("+user/test"), VIEWER);
-		auth.readAccess = List.of(selector("+custom@remote"));
+		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
 		ref.setOrigin("@remote");
 
@@ -164,9 +198,10 @@ public class AuthUnitTest {
 
 	@Test
 	void testCanReadRef_AuthReadAccessRemoteFailed() {
-		var auth = getAuth(getUser("+user/test"), VIEWER);
-		auth.readAccess = List.of(selector("+custom@remote"));
+		var auth = getAuth("@other", getUser("+user/test"), VIEWER);
+		auth.readAccess = List.of(selector("+custom"));
 		var ref = getRef("+custom");
+		ref.setOrigin("@remote");
 
 		assertThat(auth.canReadRef(ref))
 			.isFalse();
@@ -402,16 +437,6 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testCanAddTag_ViewerFailed() {
-		var user = getUser("+user/test");
-		user.getTagWriteAccess().add("custom");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canAddTag("custom"))
-			.isFalse();
-	}
-
-	@Test
 	void testCanAddTag_UserTag() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
@@ -567,6 +592,15 @@ public class AuthUnitTest {
 		var auth = getAuth(user, VIEWER);
 
 		assertThat(auth.canReadTag("custom"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadTag_PublicRemote() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadTag("custom@remote"))
 			.isTrue();
 	}
 
@@ -792,7 +826,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("custom");
@@ -806,7 +840,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("custom");
@@ -820,7 +854,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("custom");
@@ -835,7 +869,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("custom");
@@ -850,7 +884,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("+custom");
@@ -864,7 +898,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("+custom");
@@ -878,7 +912,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("+custom");
@@ -893,7 +927,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("+custom");
@@ -907,7 +941,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("+custom");
@@ -922,7 +956,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("_custom");
@@ -936,7 +970,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("_custom");
@@ -950,7 +984,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getReadAccess().add("_custom");
@@ -965,7 +999,7 @@ public class AuthUnitTest {
 		user.getWriteAccess().add("_custom");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("_custom");
@@ -979,7 +1013,7 @@ public class AuthUnitTest {
 		user.getTagWriteAccess().add("+user/alice");
 		var auth = getAuth(user, USER);
 		var alice = getUser("+user/alice");
-		auth.userRepository = getUserRepo(alice);
+		auth.configs = getConfigCache(alice);
 
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("_custom");

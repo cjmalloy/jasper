@@ -1,16 +1,59 @@
 package jasper.config;
 
-import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.hibernate6.Hibernate6Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jsontypedef.jtd.Validator;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.zalando.problem.jackson.ProblemModule;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 
 @Configuration
 public class JacksonConfiguration {
+	static ObjectMapper om = null;
+
+	public static ObjectMapper om() {
+		assert om != null;
+		return om;
+	}
+
+	public static String dump(Object any) {
+        try {
+            return om().writeValueAsString(any);
+        } catch (JsonProcessingException e) {
+			e.printStackTrace();
+            return "{error}" + any.getClass().getName();
+        }
+    }
+
+	@Bean
+	@Primary
+	ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+		return builder.createXmlMapper(false).build();
+	}
+
+	@Bean("yamlMapper")
+	public ObjectMapper yamlMapper(Jackson2ObjectMapperBuilder builder) {
+		return builder
+			.createXmlMapper(false)
+			.factory(new YAMLFactory())
+			.build();
+	}
+
+	@Bean
+	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
+		return builder -> builder.featuresToEnable(
+			JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(),
+			JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER.mappedFeature()
+		);
+	}
 
     /**
      * Support for Java date and time API.
@@ -30,16 +73,8 @@ public class JacksonConfiguration {
      * Support for Hibernate types in Jackson.
      */
     @Bean
-    public Hibernate5Module hibernate5Module() {
-        return new Hibernate5Module();
-    }
-
-    /*
-     * Module for serialization/deserialization of RFC7807 Problem.
-     */
-    @Bean
-    public ProblemModule problemModule() {
-        return new ProblemModule();
+    public Hibernate6Module hibernate6Module() {
+        return new Hibernate6Module();
     }
 
     /*

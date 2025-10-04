@@ -1,28 +1,29 @@
 package jasper.service;
 
+import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.domain.User;
+import jasper.domain.User_;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.validation.ConstraintViolationException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.data.domain.Sort.by;
 
 @WithMockUser("+user/tester")
 @IntegrationTest
-@Transactional
 public class UserServiceIT {
 
 	@Autowired
@@ -30,6 +31,11 @@ public class UserServiceIT {
 
 	@Autowired
 	UserRepository userRepository;
+
+	@BeforeEach
+	void init() {
+		userRepository.deleteAll();
+	}
 
 	@Test
 	void testCreateUser() {
@@ -110,9 +116,7 @@ public class UserServiceIT {
 		user.setTag("+user/other");
 		user.setWriteAccess(List.of("!@excluded"));
 
-		userService.create(user);
-
-		assertThatThrownBy(() -> userRepository.existsByQualifiedTag("+user/other"))
+		assertThatThrownBy(() -> userService.create(user))
 			.isInstanceOf(ConstraintViolationException.class);
 	}
 
@@ -379,7 +383,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -398,7 +402,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(0);
@@ -418,7 +422,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -448,7 +452,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -478,7 +482,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
@@ -502,7 +506,7 @@ public class UserServiceIT {
 
 		var page = userService.page(
 			TagFilter.builder().build(),
-			PageRequest.of(0, 10, Sort.by("tag")));
+			PageRequest.of(0, 10, by(User_.TAG)));
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(1);
@@ -547,6 +551,93 @@ public class UserServiceIT {
 			.isEqualTo("Secret");
 	}
 
+	User user(String tag) {
+		var u = new User();
+		u.setTag(tag);
+		userRepository.save(u);
+		return u;
+	}
+
+	@Test
+	void testGetPageRefWithQuery() {
+		user("+user/public");
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("+user/custom")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQuery() {
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetEmptyPageRefWithEmptyQueryRoot() {
+		user("+user");
+		user("+user/custom");
+		user("+user/extra");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!@*")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageWithNotQueryRef() {
+		user("+user/test");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!+user/test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(0);
+	}
+
+	@Test
+	void testGetPageWithNotQueryFoundRef() {
+		user("+user/public");
+
+		var page = userService.page(
+			TagFilter
+				.builder()
+				.query("!+user/test")
+				.build(),
+			PageRequest.of(0, 10));
+
+		assertThat(page.getTotalElements())
+			.isEqualTo(1);
+	}
+
 	@Test
 	void testUpdateOtherUserWithoutRemovingHiddenTags() {
 		var user = new User();
@@ -557,10 +648,12 @@ public class UserServiceIT {
 		other.setTag("+user/other");
 		other.setName("First");
 		other.setReadAccess(List.of("_secret"));
+		other.setModified(Instant.now());
 		userRepository.save(other);
 		var updated = new User();
 		updated.setTag("+user/other");
 		updated.setName("Second");
+		updated.setModified(other.getModified());
 
 		userService.update(updated);
 
@@ -585,11 +678,13 @@ public class UserServiceIT {
 		other.setTag("+user/other");
 		other.setName("First");
 		other.setReadAccess(List.of("_secret"));
+		other.setModified(Instant.now());
 		userRepository.save(other);
 		var updated = new User();
 		updated.setTag("+user/other");
 		updated.setName("Second");
 		updated.setReadAccess(new ArrayList<>(List.of("+custom")));
+		updated.setModified(other.getModified());
 
 		userService.update(updated);
 
@@ -613,10 +708,12 @@ public class UserServiceIT {
 		var other = new User();
 		other.setTag("+user/other");
 		other.setName("First");
+		other.setModified(Instant.now());
 		userRepository.save(other);
 		var updated = new User();
 		updated.setTag("+user/other");
 		updated.setName("Second");
+		updated.setModified(other.getModified());
 
 		userService.update(updated);
 
@@ -660,10 +757,12 @@ public class UserServiceIT {
 		var user = new User();
 		user.setTag("+user/tester");
 		user.setName("First");
+		user.setModified(Instant.now());
 		userRepository.save(user);
 		var updated = new User();
 		updated.setTag("+user/tester");
 		updated.setName("Second");
+		updated.setModified(user.getModified());
 
 		userService.update(updated);
 
@@ -708,10 +807,12 @@ public class UserServiceIT {
 		var other = new User();
 		other.setTag("_user/other");
 		other.setName("First");
+		other.setModified(Instant.now());
 		userRepository.save(other);
 		var updated = new User();
 		updated.setTag("_user/other");
 		updated.setName("Second");
+		updated.setModified(other.getModified());
 
 		userService.update(updated);
 

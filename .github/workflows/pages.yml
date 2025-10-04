@@ -1,0 +1,156 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+  workflow_run:
+    workflows: ["Test", "Load Test"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@v5
+
+      # Create site directory
+      - name: Create site directory
+        # language=bash
+        run: |
+          mkdir -p _build _site
+          cp README.md _build/
+          cp _config.yml _build/
+          cp -r _includes _build/
+          cp -r docs _build/
+
+      # Build docs from root
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./_build
+          destination: ./_site
+
+      # Download and merge any test reports
+      - name: Process Reports
+        # language=bash
+        run: |
+          mkdir -p "_site/reports"
+          gh auth login --with-token <<< "${{ github.token }}"
+          gh run download --pattern "*-reports-*" --dir _site/reports
+          # Create copy of latest master report
+          latest_junit=$(ls -dv _site/reports/junit-reports-master-* 2>/dev/null | tail -1)
+          if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
+            mkdir -p _site/reports/latest-junit
+            cp -r "$latest_junit/." _site/reports/latest-junit/
+          fi
+          latest_gatling=$(ls -dv _site/reports/gatling-reports-master-* 2>/dev/null | tail -1)
+          if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
+            mkdir -p _site/reports/latest-gatling
+            cp -r "$latest_gatling/." _site/reports/latest-gatling/
+          fi
+          cat > _site/reports/index.html << EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Test Reports</title>
+            <style>
+              :root {
+                /* Light mode variables */
+                --heading-color: #2c3e50;
+                --border-color: #eee;
+                --report-bg: #f8f9fa;
+                --link-color: #3498db;
+                --latest-bg: #e8f5e9;
+                --latest-border: #4caf50;
+                --text-color: #000;
+                --bg-color: #fff;
+              }
+              @media (prefers-color-scheme: dark) {
+                :root {
+                  color-scheme: dark;
+                  /* Dark mode variables */
+                  --heading-color: #89a7c3;
+                  --border-color: #333;
+                  --report-bg: #2a2a2a;
+                  --link-color: #5dade2;
+                  --latest-bg: #1b3320;
+                  --latest-border: #2d6a31;
+                  --text-color: #fff;
+                  --bg-color: #1a1a1a;
+                }
+              }
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                margin: 2em auto;
+                max-width: 800px;
+                line-height: 1.6;
+                color: var(--text-color);
+                background: var(--bg-color);
+              }
+              h1 {
+                color: var(--heading-color);
+                border-bottom: 2px solid var(--border-color);
+                padding-bottom: 0.5em;
+              }
+              .report {
+                margin: 1em 0;
+                padding: 0.8em;
+                background: var(--report-bg);
+                border-radius: 4px;
+              }
+              .report a {
+                color: var(--link-color);
+                text-decoration: none;
+              }
+              .report a:hover {
+                text-decoration: underline;
+              }
+              .latest {
+                background: var(--latest-bg);
+                border-left: 4px solid var(--latest-border);
+              }
+            </style>
+          </head>
+          <body>
+            <h1>Test Reports</h1>
+            <div class='report'>
+              <a href='$(basename $latest_gatling)/'>Latest Gatling Report</a>
+            </div>
+            <div class='report'>
+              <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
+            </div>
+            <h2>All Reports</h2>
+            <div id="reports">
+              $(for d in _site/reports/*/; do
+                name=$(basename "$d")
+                if [[ ! "$name" =~ ^latest-.*$ ]]; then
+                  echo "<div class='report'><a href='$name/'>$name</a></div>"
+                fi
+              done)
+            </div>
+          </body>
+          </html>
+          EOF
+
+      # Upload combined site
+      - uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4

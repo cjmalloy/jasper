@@ -1,14 +1,20 @@
 package jasper.web.rest;
 
 import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import jasper.component.HttpCache;
 import jasper.domain.Ext;
 import jasper.domain.proj.Tag;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
+import jasper.service.dto.ExtDto;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,28 +23,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
 import java.time.Instant;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/ext")
@@ -53,16 +46,19 @@ public class ExtController {
 	@Autowired
 	ExtService extService;
 
+	@Autowired
+	HttpCache httpCache;
+
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createExt(
+	Instant createExt(
 		@RequestBody @Valid Ext ext
 	) {
-		extService.create(ext);
+		return extService.create(ext);
 	}
 
 	@ApiResponses({
@@ -71,11 +67,15 @@ public class ExtController {
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping
-	HttpEntity<Ext> getExt(
-		WebRequest request,
+	HttpEntity<ExtDto> getExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, extService.get(tag));
+		try {
+			return httpCache.ifNotModified(extService.get(tag));
+		} catch (NotFoundException e) {
+			// Catch to avoid error logging
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@ApiResponses({
@@ -83,21 +83,51 @@ public class ExtController {
 		@ApiResponse(responseCode = "304", content = @Content()),
 	})
 	@GetMapping("page")
-	HttpEntity<Page<Ext>> getExtPage(
-		WebRequest request,
+	HttpEntity<Page<ExtDto>> getExtPage(
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
+		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, extService.page(
+		return httpCache.ifNotModifiedPage(extService.page(
 			TagFilter.builder()
 				.query(query)
+				.nesting(nesting)
+				.level(level)
+				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter).build(),
 			pageable));
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "304", content = @Content()),
+	})
+	@GetMapping("count")
+	long countExts(
+		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
+		@RequestParam(required = false) Boolean deleted,
+		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) Instant modifiedBefore,
+		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
+	) {
+		return extService.count(
+			TagFilter.builder()
+				.query(query)
+				.nesting(nesting)
+				.level(level)
+				.deleted(deleted)
+				.search(search)
+				.modifiedBefore(modifiedBefore)
+				.modifiedAfter(modifiedAfter).build());
 	}
 
 	@ApiResponses({
@@ -106,11 +136,10 @@ public class ExtController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateExt(
+	Instant updateExt(
 		@RequestBody @Valid Ext ext
 	) {
-		extService.update(ext);
+		return extService.update(ext);
 	}
 
 	@ApiResponses({
@@ -118,12 +147,26 @@ public class ExtController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/json-patch+json")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchExt(
+	Instant patchExt(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		extService.patch(tag, patch);
+		return extService.patch(tag, cursor, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	Instant mergeExt(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonMergePatch patch
+	) {
+		return extService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({

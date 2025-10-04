@@ -35,11 +35,12 @@ public class MetaIT {
 		ref.setTitle("First");
 		ref.setTags(List.of("+user/tester"));
 
-		meta.update(ref, null, null);
+		meta.ref("", ref);
 
 		assertThat(ref.getMetadata().getResponses()).isEmpty();
 		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
 		assertThat(ref.getMetadata().getPlugins()).isEmpty();
+		assertThat(ref.getMetadata().getUserUrls()).isEmpty();
 	}
 
 	@Test
@@ -55,13 +56,14 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester"));
 
-		meta.update(child, null, null);
+		meta.sources("", child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getInternalResponses()).isEmpty();
-		assertThat(parent.get().getMetadata().getPlugins()).isEmpty();
+		assertThat(parent.get().getMetadata().getInternalResponses()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getUserUrls()).isNullOrEmpty();
 	}
 
 	@Test
@@ -77,13 +79,14 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester", "internal"));
 
-		meta.update(child, null, null);
+		meta.sources("", child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
-		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
+		assertThat(parent.get().getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getPlugins()).isEmpty();
+		assertThat(parent.get().getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.get().getMetadata().getUserUrls()).isNullOrEmpty();
 	}
 
 	@Test
@@ -95,7 +98,6 @@ public class MetaIT {
 		refRepository.save(ref);
 		var comment = new Plugin();
 		comment.setTag("plugin/comment");
-		comment.setGenerateMetadata(true);
 		pluginRepository.save(comment);
 		var child = new Ref();
 		child.setUrl(URL + 2);
@@ -103,13 +105,13 @@ public class MetaIT {
 		child.setSources(List.of(URL));
 		child.setTags(List.of("+user/tester", "plugin/comment", "internal"));
 
-		meta.update(child, null, null);
+		meta.sources("", child, null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
 		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
-		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).containsExactly(URL+2);
+		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).isEqualTo(1);
 	}
 
 }

@@ -1,5 +1,6 @@
 package jasper.config;
 
+import jasper.component.HttpClientFactory;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.cloud.openfeign.FeignClientsConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -25,7 +26,7 @@ public class FeignConfiguration {
 	}
 
 	@Bean
-	public feign.httpclient.ApacheHttpClient feignHttpClient() {
-		return new feign.httpclient.ApacheHttpClient();
+	public feign.httpclient.ApacheHttpClient feignHttpClient(HttpClientFactory factory) {
+		return new feign.httpclient.ApacheHttpClient(factory.getSerialClient());
 	}
 }

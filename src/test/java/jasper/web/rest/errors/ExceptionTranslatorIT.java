@@ -1,7 +1,7 @@
 package jasper.web.rest.errors;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import jasper.IntegrationTest;
@@ -35,7 +35,7 @@ class ExceptionTranslatorIT {
     @Test
     void testMethodArgumentNotValid() throws Exception {
         mockMvc
-            .perform(post("/api/exception-translator-test/method-argument").content("{}").contentType(MediaType.APPLICATION_JSON))
+            .perform(post("/api/exception-translator-test/method-argument").content("{}").contentType(MediaType.APPLICATION_JSON).with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_VALIDATION))
@@ -86,11 +86,11 @@ class ExceptionTranslatorIT {
     @Test
     void testMethodNotSupported() throws Exception {
         mockMvc
-            .perform(post("/api/exception-translator-test/access-denied"))
+            .perform(post("/api/exception-translator-test/access-denied").with(csrf().asHeader()))
             .andExpect(status().isMethodNotAllowed())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.message").value("error.http.405"))
-            .andExpect(jsonPath("$.detail").value("Request method 'POST' not supported"));
+            .andExpect(jsonPath("$.detail").value("Request method 'POST' is not supported"));
     }
 
     @Test

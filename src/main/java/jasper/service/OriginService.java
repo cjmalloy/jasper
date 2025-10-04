@@ -1,9 +1,8 @@
 package jasper.service;
 
-import com.rometools.rome.io.FeedException;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.Replicator;
-import jasper.errors.NotFoundException;
+import jasper.component.Storage;
+import jasper.domain.proj.HasOrigin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -17,54 +16,70 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+
+import static jasper.security.AuthoritiesConstants.ADMIN;
 
 @Service
-@Transactional
 public class OriginService {
 	private static final Logger logger = LoggerFactory.getLogger(OriginService.class);
 
 	@Autowired
 	RefRepository refRepository;
+
 	@Autowired
 	ExtRepository extRepository;
-	@Autowired
-	PluginRepository pluginRepository;
-	@Autowired
-	TemplateRepository templateRepository;
+
 	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
-	Replicator replicator;
+	PluginRepository pluginRepository;
+
+	@Autowired
+	TemplateRepository templateRepository;
 
 	@Autowired
 	Auth auth;
 
-	@PreAuthorize("hasRole('MOD') and @auth.local(#origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
-	public void push(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
-			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		replicator.push(source);
+	@Autowired
+	Optional<Storage> storage;
+
+	@PreAuthorize("@auth.hasRole('MOD')")
+	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
+	public List<String> listOrigins() {
+		var set = new HashSet<String>();
+		set.addAll(refRepository.origins());
+		set.addAll(extRepository.origins());
+		set.addAll(pluginRepository.origins());
+		set.addAll(templateRepository.origins());
+		set.addAll(userRepository.origins());
+		set.addAll(userRepository.origins());
+		if (storage.isPresent()) {
+			set.addAll(storage.get().listTenants().stream()
+				.map(HasOrigin::origin).toList());
+		}
+		return set.stream()
+			.filter(auth::subOrigin).toList();
 	}
 
-	@PreAuthorize("@auth.sysMod() and @auth.local(#origin)")
-	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
-	public void pull(String url, String origin) throws FeedException, IOException {
-		var source = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
-			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-		replicator.pull(source);
-	}
-
-	@PreAuthorize("@auth.sysMod()")
+	@Transactional
+	@PreAuthorize("@auth.hasRole('MOD') and @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "origin"}, histogram = true)
 	public void delete(String origin, Instant olderThan) {
+		var start = Instant.now();
+		logger.info("{} Deleting origin {} older than {}", auth.getOrigin(), origin, olderThan);
 		refRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		extRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
-		pluginRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
-		templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		userRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+		if (!auth.local(origin) || auth.hasRole(ADMIN)) {
+			pluginRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
+		}
+		logger.info("{} Finished deleting origin {} older than {} in {}", auth.getOrigin(), origin, olderThan, Duration.between(start, Instant.now()));
 	}
 }

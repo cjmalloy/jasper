@@ -1,13 +1,18 @@
 package jasper.web.rest;
 
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import jasper.component.HttpCache;
 import jasper.domain.User;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
-import jasper.security.Auth;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
@@ -19,20 +24,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -40,8 +35,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
-import static jasper.util.RestUtil.ifNotModified;
-import static jasper.util.RestUtil.ifNotModifiedPage;
 
 @RestController
 @RequestMapping("api/v1/user")
@@ -57,7 +50,7 @@ public class UserController {
 	UserService userService;
 
 	@Autowired
-	Auth auth;
+	HttpCache httpCache;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -65,10 +58,10 @@ public class UserController {
 	})
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	void createUser(
+	Instant createUser(
 		@RequestBody @Valid User user
 	) {
-		userService.create(user);
+		return userService.create(user);
 	}
 
 	@ApiResponses({
@@ -78,10 +71,14 @@ public class UserController {
 	})
 	@GetMapping
 	HttpEntity<UserDto> getUser(
-		WebRequest request,
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) {
-		return ifNotModified(request, userService.get(tag));
+		try {
+			return httpCache.ifNotModified(userService.get(tag));
+		} catch (NotFoundException e) {
+			// Catch to avoid error logging
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@ApiResponses({
@@ -90,19 +87,25 @@ public class UserController {
 	})
 	@GetMapping("page")
 	HttpEntity<Page<UserDto>> getUserPage(
-		WebRequest request,
 		@PageableDefault(sort = "tag") @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = TagFilter.QUERY) String query,
+		@RequestParam(required = false) Integer nesting,
+		@RequestParam(required = false) Integer level,
+		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
-		return ifNotModifiedPage(request, userService.page(
+		return httpCache.ifNotModifiedPage(userService.page(
 			TagFilter.builder()
+				.query(query)
+				.nesting(nesting)
+				.level(level)
+				.deleted(deleted)
+				.search(search)
 				.modifiedBefore(modifiedBefore)
 				.modifiedAfter(modifiedAfter)
-				.search(search)
-				.query(query).build(),
+				.build(),
 			pageable));
 	}
 
@@ -112,11 +115,37 @@ public class UserController {
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PutMapping
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void updateUser(
+	Instant updateUser(
 		@RequestBody @Valid User user
 	) {
-		userService.update(user);
+		return userService.update(user);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/json-patch+json")
+	Instant patchUser(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonPatch patch
+	) {
+		return userService.patch(tag, cursor, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	Instant mergeUser(
+		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
+		@RequestParam Instant cursor,
+		@RequestBody JsonMergePatch patch
+	) {
+		return userService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({
@@ -126,10 +155,10 @@ public class UserController {
 	})
 	@PostMapping("keygen")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void keygen(
+	Instant keygen(
 			@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) throws NoSuchAlgorithmException, IOException {
-		userService.keygen(tag);
+		return userService.keygen(tag);
 	}
 
 	@ApiResponses({

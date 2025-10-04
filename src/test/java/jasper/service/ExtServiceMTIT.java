@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -24,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester@other")
 @MultiTenantIntegrationTest
-@Transactional
 public class ExtServiceMTIT {
 
 	@Autowired
@@ -58,8 +56,13 @@ public class ExtServiceMTIT {
 	}
 
 	@BeforeEach
+	void init() {
+		extRepository.deleteAll();
+		userRepository.deleteAll();
+	}
+
+	@BeforeEach
 	void clearDefaultPermissions() {
-		props.setAllowUsernameClaimOrigin(true);
 		props.setDefaultReadAccess(null);
 		props.setDefaultWriteAccess(null);
 		props.setDefaultTagReadAccess(null);
@@ -342,27 +345,6 @@ public class ExtServiceMTIT {
 	}
 
 	@Test
-	@WithMockUser(value = "+user/tester", roles = "SYSADMIN")
-	void testPagePublicRemoteExtSysAdmin() {
-		var ext = getExt();
-		ext.setTag("custom");
-		ext.setName("Custom");
-		extRepository.save(ext);
-		var remote = getExt();
-		remote.setTag("extra");
-		remote.setOrigin("@remote");
-		remote.setName("Extra");
-		extRepository.save(remote);
-
-		var page = extService.page(
-			TagFilter.builder().build(),
-			PageRequest.of(0, 10));
-
-		assertThat(page.getTotalElements())
-			.isEqualTo(2);
-	}
-
-	@Test
 	void testPagePublicRemoteReadAccessExt() {
 		props.setDefaultReadAccess(new String[]{"@remote"});
 		var ext = getExt();
@@ -513,7 +495,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.update(updated))
+		assertThatThrownBy(() -> extService.update(ext))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("custom@other"))
@@ -558,7 +540,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.update(updated))
+		assertThatThrownBy(() -> extService.update(ext))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("+user/other@other"))
@@ -612,7 +594,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.update(updated))
+		assertThatThrownBy(() -> extService.update(ext))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("_secret@other"))
@@ -635,7 +617,7 @@ public class ExtServiceMTIT {
 		updated.setName("Second");
 		updated.setModified(ext.getModified());
 
-		assertThatThrownBy(() -> extService.update(updated))
+		assertThatThrownBy(() -> extService.update(ext))
 			.isInstanceOf(AccessDeniedException.class);
 
 		assertThat(extRepository.existsByQualifiedTag("public@other"))

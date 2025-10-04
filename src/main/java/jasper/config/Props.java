@@ -6,13 +6,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
-import tech.jhipster.config.JHipsterDefaults;
 
-import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
-import java.util.Map;
+
+import static jasper.domain.proj.HasOrigin.subOrigin;
+import static java.lang.Integer.parseInt;
+import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 /**
  * Properties specific to Jasper.
  * <p>
@@ -22,69 +24,155 @@ import java.util.Map;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
-	private int maxSources = 1000;
-	private int backupBufferSize = 1000000;
+	private boolean debug = false;
+	/**
+	 * List of workers to create by origin. Each worker will use the
+	 * _config/server/sub-origin file in the local origin to perform certain tasks.
+	 * The sub origin for this worker is at the index in the worker name.
+	 */
+	private String[] workload;
+	/**
+	 * The name of this worker. The number suffix is used as an index
+	 * into workload to determine the worker sub origin.
+	 */
+	private String worker;
+	/**
+	 * Worker sub-origin.
+	 */
+	public String getWorkerOrigin() {
+		if (isNotEmpty(workload) && isNotBlank(worker)) {
+			var index = worker.replaceAll("\\D", "");
+			return workload[isBlank(index) ? 0 : parseInt(index)];
+		} else {
+			return "";
+		}
+	}
+	/**
+	 * Local origin for this server.
+	 */
+	private String localOrigin = "";
+	/**
+	 * Computed origin (local + worker).
+	 */
+	public String getOrigin() {
+		return subOrigin(getLocalOrigin(), getWorkerOrigin());
+	}
 	private int ingestMaxRetry = 5;
+	private int maxEtagPageSize = 300;
+	private int backupBufferSize = 1000000;
+	private int restoreBatchSize = 500;
+	private int backfillBatchSize = 100;
+	private String pullDelayMin = "5";
+	private String pullIntervalMin = "1";
 	private String scrapeDelayMin = "5";
 	private String scrapeIntervalMin = "1";
+	private int clearCacheCooldownSec = 2;
+	private int pushCooldownSec = 1;
+	private int pullWebsocketCooldownSec = 10;
+	private boolean allowUserTagHeader = false;
+	private boolean allowUserRoleHeader = false;
+	private boolean allowAuthHeaders = false;
 	/**
-	 * Whitelist origins to be allowed to scrape using +plugin/feed.
+	 * Highest role allowed access.
 	 */
-	private String[] scrapeOrigins = new String[]{""};
-	private String replicateDelayMin = "5";
-	private String replicateIntervalMin = "1";
-	/**
-	 * Whitelist origins to be allowed to replicate using +plugin/origin.
-	 */
-	private String[] replicateOrigins = new String[]{""};
-	private int maxReplicateBatch = 5000;
-	private String localOrigin = "";
-	private boolean multiTenant = false;
+	private String maxRole = "ROLE_ADMIN";
 	/**
 	 * Minimum role for basic access.
 	 */
 	private String minRole = "ROLE_ANONYMOUS";
+	/**
+	 * Minimum role for writing.
+	 */
+	private String minWriteRole = "ROLE_VIEWER";
+	/**
+	 * Minimum role for admin config.
+	 */
+	private String minConfigRole = "ROLE_ADMIN";
+	/**
+	 * Minimum role for downloading backups.
+	 * Backups may contain private data or private SSH keys, so they are extremely sensitive.
+	 */
+	private String minReadBackupsRole = "ROLE_ADMIN";
+	/**
+	 * Default role given to every user.
+	 */
 	private String defaultRole = "ROLE_ANONYMOUS";
-	private String defaultUser = "+user";
 	private String[] defaultReadAccess;
 	private String[] defaultWriteAccess;
 	private String[] defaultTagReadAccess;
 	private String[] defaultTagWriteAccess;
-	private String usernameClaim = "sub";
-	private boolean allowUsernameClaimOrigin = false;
-	private String authoritiesClaim = "auth";
-	private String readAccessClaim = "readAccess";
-	private String writeAccessClaim = "writeAccess";
-	private String tagReadAccessClaim = "tagReadAccess";
-	private String tagWriteAccessClaim = "tagWriteAccess";
-	private boolean allowUserTagHeader = false;
-	private boolean allowUserRoleHeader = false;
-	private boolean allowLocalOriginHeader = false;
-	private boolean allowAuthHeaders = false;
-	private String scimEndpoint;
+
 	private String storage = "/var/lib/jasper";
-	private final Async async = new Async();
+	private String node = "/usr/local/bin/node";
+	private String python = "/usr/bin/python";
+	private String shell = "/usr/bin/bash";
+	private String cacheApi = "";
+
+	private String sshConfigNamespace = "default";
+	private String sshConfigMapName = "ssh-authorized-keys";
+	private String sshSecretName = "ssh-host-key";
+
+	private final Overrides override = new Overrides();
 	private final Http http = new Http();
-	private final Database database = new Database();
-	private final Cache cache = new Cache();
 	private final Mail mail = new Mail();
 	private final Security security = new Security();
 	private final ApiDocs apiDocs = new ApiDocs();
-	private final Logging logging = new Logging();
 	private final CorsConfiguration cors = new CorsConfiguration();
-	private final Social social = new Social();
-	private final Gateway gateway = new Gateway();
-	private final Registry registry = new Registry();
-	private final ClientApp clientApp = new ClientApp();
 	private final AuditEvents auditEvents = new AuditEvents();
 
 	@Getter
 	@Setter
-	public static class Async {
-		private int corePoolSize = JHipsterDefaults.Async.corePoolSize;
-		private int maxPoolSize = JHipsterDefaults.Async.maxPoolSize;
-		private int queueCapacity = JHipsterDefaults.Async.queueCapacity;
+	public static class Overrides {
+		/**
+		 * Override any server settings for all origins.
+		 */
+		private final ServerOverrides server = new ServerOverrides();
+		/**
+		 * Override any security settings for all origins.
+		 */
+		private final SecurityOverrides security = new SecurityOverrides();
 	}
+
+	@Getter
+	@Setter
+	public static class ServerOverrides {
+		private String emailHost;
+		private Integer maxSources;
+		private List<String> modSeals;
+		private List<String> editorSeals;
+		private List<String> webOrigins;
+		private Integer maxReplEntityBatch;
+		private List<String> sshOrigins;
+		private Integer maxPushEntityBatch;
+		private Integer maxPullEntityBatch;
+		private List<String> scriptSelectors;
+		private List<String> scriptWhitelist;
+		private List<String> hostWhitelist;
+		private List<String> hostBlacklist;
+		private Integer maxRequests;
+		private Integer maxConcurrentRequests;
+		private Integer maxConcurrentScripts;
+		private Integer maxConcurrentReplication;
+		private Integer maxConcurrentFetch;
+	}
+
+	@Getter
+	@Setter
+	public static class SecurityOverrides {
+		private String mode = "";
+		private String clientId = "";
+		private String base64Secret = "";
+		private String secret = "";
+		private String jwksUri = "";
+		private String usernameClaim = "";
+		private String verifiedEmailClaim = "unset";
+		private String defaultUser = "";
+		private String tokenEndpoint = "";
+		private String scimEndpoint = "";
+		private Integer maxRequests;
+		private Integer maxConcurrentScripts;
+	}
+
 
 	@Getter
 	@Setter
@@ -94,253 +182,42 @@ public class Props {
 		@Getter
 		@Setter
 		public static class Cache {
-			private int timeToLiveInDays = JHipsterDefaults.Http.Cache.timeToLiveInDays;
+			private int timeToLiveInDays = 1461; // 4 years (including leap day)
 		}
 	}
-
-	@Getter
-	@Setter
-	public static class Database {
-		private final Couchbase couchbase = new Couchbase();
-
-		@Getter
-		@Setter
-		public static class Couchbase {
-			private String bucketName;
-			private String scopeName;
-		}
-	}
-
-	@Getter
-	@Setter
-	public static class Cache {
-		private final Hazelcast hazelcast = new Hazelcast();
-		private final Caffeine caffeine = new Caffeine();
-		private final Ehcache ehcache = new Ehcache();
-		private final Infinispan infinispan = new Infinispan();
-		private final Memcached memcached = new Memcached();
-		private final Redis redis = new Redis();
-
-		@Getter
-		@Setter
-		public static class Hazelcast {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Hazelcast.timeToLiveSeconds;
-			private int backupCount = JHipsterDefaults.Cache.Hazelcast.backupCount;
-		}
-
-		@Getter
-		@Setter
-		public static class Caffeine {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Caffeine.timeToLiveSeconds;
-			private long maxEntries = JHipsterDefaults.Cache.Caffeine.maxEntries;
-		}
-
-		@Getter
-		@Setter
-		public static class Ehcache {
-			private int timeToLiveSeconds = JHipsterDefaults.Cache.Ehcache.timeToLiveSeconds;
-			private long maxEntries = JHipsterDefaults.Cache.Ehcache.maxEntries;
-		}
-
-		@Getter
-		@Setter
-		public static class Infinispan {
-			private String configFile = JHipsterDefaults.Cache.Infinispan.configFile;
-			private boolean statsEnabled = JHipsterDefaults.Cache.Infinispan.statsEnabled;
-			private final Local local = new Local();
-			private final Distributed distributed = new Distributed();
-			private final Replicated replicated = new Replicated();
-
-			@Getter
-			@Setter
-			public static class Local {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Local.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Local.maxEntries;
-			}
-
-			@Getter
-			@Setter
-			public static class Distributed {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Distributed.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Distributed.maxEntries;
-				private int instanceCount = JHipsterDefaults.Cache.Infinispan.Distributed.instanceCount;
-			}
-
-			@Getter
-			@Setter
-			public static class Replicated {
-				private long timeToLiveSeconds = JHipsterDefaults.Cache.Infinispan.Replicated.timeToLiveSeconds;
-				private long maxEntries = JHipsterDefaults.Cache.Infinispan.Replicated.maxEntries;
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class Memcached {
-			private boolean enabled = JHipsterDefaults.Cache.Memcached.enabled;
-			/**
-			 * Comma or whitespace separated list of servers' addresses.
-			 */
-			private String servers = JHipsterDefaults.Cache.Memcached.servers;
-			private int expiration = JHipsterDefaults.Cache.Memcached.expiration;
-			private boolean useBinaryProtocol = JHipsterDefaults.Cache.Memcached.useBinaryProtocol;
-			private Authentication authentication = new Authentication();
-
-			@Getter
-			@Setter
-			public static class Authentication {
-				private boolean enabled = JHipsterDefaults.Cache.Memcached.Authentication.enabled;
-				private String username;
-				private String password;
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class Redis {
-			private String[] server = JHipsterDefaults.Cache.Redis.server;
-			private int expiration = JHipsterDefaults.Cache.Redis.expiration;
-			private boolean cluster = JHipsterDefaults.Cache.Redis.cluster;
-			private int connectionPoolSize = JHipsterDefaults.Cache.Redis.connectionPoolSize;
-			private int connectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.connectionMinimumIdleSize;
-			private int subscriptionConnectionPoolSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionPoolSize;
-			private int subscriptionConnectionMinimumIdleSize = JHipsterDefaults.Cache.Redis.subscriptionConnectionMinimumIdleSize;
-		}
-	}
-
 	@Getter
 	@Setter
 	public static class Mail {
-		private boolean enabled = JHipsterDefaults.Mail.enabled;
-		private String from = JHipsterDefaults.Mail.from;
-		private String baseUrl = JHipsterDefaults.Mail.baseUrl;
+		private boolean enabled = false;
+		private String from = "";
+		private String baseUrl = "";
 	}
 
 	@Getter
 	@Setter
 	public static class Security {
-		private String contentSecurityPolicy = JHipsterDefaults.Security.contentSecurityPolicy;
-		private final ClientAuthorization clientAuthorization = new ClientAuthorization();
-		private final Authentication authentication = new Authentication();
-		private final RememberMe rememberMe = new RememberMe();
-		private final OAuth2 oauth2 = new OAuth2();
-
-		@Getter
-		@Setter
-		public static class ClientAuthorization {
-			private String accessTokenUri = JHipsterDefaults.Security.ClientAuthorization.accessTokenUri;
-			private String tokenServiceId = JHipsterDefaults.Security.ClientAuthorization.tokenServiceId;
-			private String clientId = JHipsterDefaults.Security.ClientAuthorization.clientId;
-			private String clientSecret = JHipsterDefaults.Security.ClientAuthorization.clientSecret;
-		}
-
-		@Getter
-		@Setter
-		public static class Authentication {
-			private final Jwt jwt = new Jwt();
-
-			@Getter
-			@Setter
-			public static class Jwt {
-				private String clientId = null;
-				private String base64Secret = JHipsterDefaults.Security.Authentication.Jwt.base64Secret;
-				private String secret = null;
-				private String jwksUri = null;
-				private String tokenEndpoint = null;
-				private long tokenValidityInSeconds = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSeconds;
-				private long tokenValidityInSecondsForRememberMe = JHipsterDefaults.Security.Authentication.Jwt.tokenValidityInSecondsForRememberMe;
-
-				public String getSecret() {
-					if (secret == null) {
-						secret = new String(Base64.getDecoder().decode(base64Secret));
-					}
-					return secret;
-				}
-			}
-		}
-
-		@Getter
-		@Setter
-		public static class RememberMe {
-			@NotNull
-			private String key = JHipsterDefaults.Security.RememberMe.key;
-		}
-
-		@Getter
-		@Setter
-		public static class OAuth2 {
-			private List<String> audience = new ArrayList<>();
-		}
+		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 	}
 
 	@Getter
 	@Setter
 	public static class ApiDocs {
-		private String title = JHipsterDefaults.ApiDocs.title;
-		private String description = JHipsterDefaults.ApiDocs.description;
-		private String version = JHipsterDefaults.ApiDocs.version;
-		private String termsOfServiceUrl = JHipsterDefaults.ApiDocs.termsOfServiceUrl;
-		private String contactName = JHipsterDefaults.ApiDocs.contactName;
-		private String contactUrl = JHipsterDefaults.ApiDocs.contactUrl;
-		private String contactEmail = JHipsterDefaults.ApiDocs.contactEmail;
+		private String title = "";
+		private String description = "";
+		private String version = "";
+		private String termsOfServiceUrl = "";
+		private String contactName = "";
+		private String contactUrl = "";
+		private String contactEmail = "";
 		private License license;
-		private String defaultIncludePattern = JHipsterDefaults.ApiDocs.defaultIncludePattern;
-		private String managementIncludePattern = JHipsterDefaults.ApiDocs.managementIncludePattern;
+		private String defaultIncludePattern = "";
+		private String managementIncludePattern = "";
 		private List<Server> servers;
 	}
 
 	@Getter
 	@Setter
-	public static class Logging {
-		private boolean useJsonFormat = JHipsterDefaults.Logging.useJsonFormat;
-		private final Logstash logstash = new Logstash();
-
-		@Getter
-		@Setter
-		public static class Logstash {
-			private boolean enabled = JHipsterDefaults.Logging.Logstash.enabled;
-			private String host = JHipsterDefaults.Logging.Logstash.host;
-			private int port = JHipsterDefaults.Logging.Logstash.port;
-			private int queueSize = JHipsterDefaults.Logging.Logstash.queueSize;
-		}
-	}
-
-	@Getter
-	@Setter
-	public static class Social {
-		private String redirectAfterSignIn = JHipsterDefaults.Social.redirectAfterSignIn;
-	}
-
-	@Getter
-	@Setter
-	public static class Gateway {
-		private final RateLimiting rateLimiting = new RateLimiting();
-		private Map<String, List<String>> authorizedMicroservicesEndpoints = JHipsterDefaults.Gateway.authorizedMicroservicesEndpoints;
-
-		@Getter
-		@Setter
-		public static class RateLimiting {
-			private boolean enabled = JHipsterDefaults.Gateway.RateLimiting.enabled;
-			private long limit = JHipsterDefaults.Gateway.RateLimiting.limit;
-			private int durationInSeconds = JHipsterDefaults.Gateway.RateLimiting.durationInSeconds;
-		}
-	}
-
-	@Getter
-	@Setter
-	public static class Registry {
-		private String password = JHipsterDefaults.Registry.password;
-	}
-
-	@Getter
-	@Setter
-	public static class ClientApp {
-		private String name = JHipsterDefaults.ClientApp.name;
-	}
-
-	@Getter
-	@Setter
 	public static class AuditEvents {
-		private int retentionPeriod = JHipsterDefaults.AuditEvents.retentionPeriod;
+		private int retentionPeriod = 30;
 	}
 }

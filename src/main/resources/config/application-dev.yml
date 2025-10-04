@@ -13,11 +13,7 @@
 logging:
   level:
     ROOT: INFO
-    jasper: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.springframework.orm.jpa: DEBUG
-    org.springframework.transaction: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    jasper.component.cron.Backfill: TRACE
 
 spring:
   devtools:
@@ -44,6 +40,10 @@ spring:
     contexts: dev, faker
   messages:
     cache-duration: PT1S # 1 second, see the ISO 8601 standard
+  mail:
+    properties:
+      'mail.smtp.localhost': 'jasperkm.info'
+      'mail.debug': 'true'
   thymeleaf:
     cache: false
   sleuth:
@@ -69,37 +69,29 @@ server:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
-  replicate-delay-min: 0
-  replicate-interval-min: 1
-  scrape-delay-min: 5
-  scrape-interval-min: 5
-  username-claim: sub
-  scim-endpoint: /test
+  max-role: ROLE_ADMIN
+  push-cooldown-sec: 1
+#  local-origin: '@test'
+#  default-role: ROLE_ADMIN
+  allow-user-role-header: true
+  allow-user-tag-header: true
+  allow-auth-headers: true
+  security:
+    content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'self' http://localhost:4200 https://localhost:4200"
+  override:
+    security:
+      mode: 'jwt'
+      clientId: ''
+      verifiedEmailClaim: 'verified_email'
+      base64-secret: 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM='
   # CORS is disabled by default on microservices, as you should access them through a gateway.
   # If you want to enable it, please uncomment the configuration below.
-  # cors:
-  #   allowed-origins: "http://localhost:9000,https://localhost:9000"
-  #   allowed-methods: "*"
-  #   allowed-headers: "*"
-  #   exposed-headers: "Authorization,Link,X-Total-Count"
-  #   allow-credentials: true
-  #   max-age: 1800
-  security:
-    authentication:
-      jwt:
-        client-id: ''
-        jwks-uri: ''
-        token-endpoint: '/test'
-        # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
-        base64-secret: MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=
-        # Token is valid 24 hours
-        token-validity-in-seconds: 86400
-        token-validity-in-seconds-for-remember-me: 2592000
-  logging:
-    use-json-format: false # By default, logs are not in Json format
-    logstash: # Forward logs to logstash over a socket, used by LoggingConfiguration
-      enabled: false
-      host: localhost
-      port: 5000
-      queue-size: 512
+  cors:
+    allowed-origins: "http://localhost:4200,https://localhost:4200"
+    allowed-methods: "*"
+    allowed-headers: "*"
+    exposed-headers: "Authorization,Link,X-Total-Count"
+    allow-credentials: true
+    max-age: 1800
+
 

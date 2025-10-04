@@ -1,8 +1,13 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.component.Storage;
+import jasper.domain.Ext;
+import jasper.domain.External;
 import jasper.domain.Metadata;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.HasTags;
 import jasper.security.Auth;
@@ -12,17 +17,14 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Map;
 
-import static jasper.repository.spec.QualifiedTag.concat;
-import static jasper.repository.spec.QualifiedTag.selector;
-
+/**
+ * Filtering mapper. Removes fields hidden to the user.
+ */
 @Mapper(componentModel = "spring")
 public abstract class DtoMapper {
 
@@ -32,9 +34,6 @@ public abstract class DtoMapper {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	DateTimeFormatter smtp1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z Z", Locale.US);
-	DateTimeFormatter smtp2 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z z", Locale.US);
-
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
 
@@ -42,91 +41,54 @@ public abstract class DtoMapper {
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
-	public abstract RefReplDto domainToReplDto(Ref ref);
+	public abstract RefReplDto dtoToRepl(RefDto ref);
 
-	public Ref smtpToDomain(SmtpWebhookDto msg) {
-		var result = new Ref();
-		result.setUrl("comment:" + UUID.randomUUID());
-		if (!msg.getDate().startsWith("0001-01-01")) {
-			try {
-				result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp1).toInstant());
-			} catch (RuntimeException e) {
-				result.setPublished(ZonedDateTime.parse(msg.getDate(), smtp2).toInstant());
-			}
-		}
-		result.setTitle(msg.getSubject());
-		result.setComment(msg.getBody().getHtml() == null ?
-			msg.getBody().getText() :
-			msg.getBody().getHtml().replaceAll("(?m)^\\s+", ""));
-		result.setTags(emailToTags(msg));
-		return result;
-	}
+	public abstract ExtDto domainToDto(Ext ext);
 
-	public List<String> emailToTags(SmtpWebhookDto msg) {
-		var tags = new ArrayList<>(List.of("plugin/email"));
-		if (msg.getAddresses() != null) {
-			if (Optional.ofNullable(msg.getAddresses().getTo())
-					.map(SmtpWebhookDto.EmailAddress::getAddress).isPresent()) {
-				tags.add(emailAddressToNotification(msg.getAddresses().getTo().getAddress()));
-			}
-			if (Optional.ofNullable(msg.getAddresses().getFrom())
-					.map(SmtpWebhookDto.EmailAddress::getAddress).isPresent()) {
-				tags.add(emailAddressToNotification(msg.getAddresses().getFrom().getAddress()));
-			}
-			if (msg.getAddresses().getCc() != null) {
-				for (var e : msg.getAddresses().getCc()) {
-					if (e.getAddress() != null) {
-						tags.add(emailAddressToNotification(e.getAddress()));
-					}
-				}
-			}
-			if (msg.getAddresses().getBcc() != null) {
-				for (var e : msg.getAddresses().getBcc()) {
-					if (e.getAddress() != null) {
-						tags.add(emailAddressToNotification(e.getAddress()));
-					}
-				}
-			}
-			if (msg.getAddresses().getReplyTo() != null) {
-				for (var e : msg.getAddresses().getReplyTo()) {
-					if (e.getAddress() != null) {
-						tags.add(emailAddressToNotification(e.getAddress()));
-					}
-				}
-			}
-		}
-		return tags;
-	}
+	public abstract UserDto domainToDto(User user);
+	public abstract ExternalDto domainToDto(External external);
 
-	private String emailAddressToNotification(String email) {
-		var qt = selector(email);
-		if (auth.local(qt.origin)) {
-			return concat("plugin/inbox", qt.tag);
-		} else {
-			return concat("plugin/outbox", qt.origin, qt.tag);
-		}
-	}
+	public abstract PluginDto domainToDto(Plugin plugin);
+
+	public abstract TemplateDto domainToDto(Template plugin);
+
+	public abstract BackupDto domainToDto(Storage.StorageRef plugin);
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget HasTags ref) {
 		if (ref.getTags() == null) return;
-		var filtered = new ArrayList<>(auth.filterTags(ref.getTags()));
-		if (ref.getPlugins() != null && filtered.size() < ref.getTags().size()) {
-			var filteredPlugins = objectMapper.createObjectNode();
-			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (filtered.contains(field)) filteredPlugins.set(field, ref.getPlugins().get(field));
-			});
-			if (filteredPlugins.isEmpty()) {
-				ref.setPlugins(null);
-			} else {
-				ref.setPlugins(filteredPlugins);
-			}
-		}
-		ref.setTags(filtered);
-		Ref.removePrefixTags(ref.getTags());
+		ref.setTags(new ArrayList<>(auth.filterTags(ref.getTags())));
 	}
 
-	public abstract UserDto domainToDto(User user);
+	@AfterMapping
+	protected void filterPlugins(@MappingTarget HasTags ref) {
+		if (ref.getPlugins() == null) return;
+		var filteredPlugins = objectMapper.createObjectNode();
+		ref.getPlugins().fieldNames().forEachRemaining(tag -> {
+			if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.getPlugins().get(tag));
+		});
+		if (filteredPlugins.isEmpty()) {
+			ref.setPlugins(null);
+		} else {
+			ref.setPlugins(filteredPlugins);
+		}
+	}
+
+	@AfterMapping
+	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
+		if (metadata.getPlugins() == null) return;
+		var filteredPlugins = new HashMap<String, Integer>();
+		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
+			if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
+				filteredPlugins.put(e.getKey(), e.getValue());
+			}
+		});
+		if (filteredPlugins.isEmpty()) {
+			metadata.setPlugins(null);
+		} else {
+			metadata.setPlugins(filteredPlugins);
+		}
+	}
 
 	@AfterMapping
 	protected void filterTags(@MappingTarget UserDto userDto) {
@@ -136,14 +98,13 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
-		if (source.getInternalResponses() == null) return;
+		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
-		var start = "tag:/";
-		var ending = "?user=" + auth.getUserTag().toString();
-		target.setUserUrls(source.getInternalResponses().stream()
-			.filter(url -> url.startsWith(start))
-			.filter(url -> url.endsWith(ending))
-			.map(url -> url.substring(start.length(), url.length() - ending.length()))
+		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
+		target.setUserUrls(source.getUserUrls().entrySet().stream()
+			// TODO: how is null getting in here
+			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
+			.map(Map.Entry::getKey)
 			.toList()
 		);
 	}

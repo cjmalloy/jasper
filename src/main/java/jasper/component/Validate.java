@@ -3,48 +3,53 @@ package jasper.component;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.Config.SecurityConfig;
+import jasper.config.Config.ServerConfig;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
-import jasper.domain.User;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
-import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
-import jasper.repository.TemplateRepository;
+import jasper.security.Auth;
+import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
-import static jasper.domain.proj.Tag.urlForUser;
-import static jasper.repository.spec.QualifiedTag.selector;
+import static jasper.component.Meta.expandTags;
+import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.urlForTag;
+import static jasper.repository.spec.QualifiedTag.qt;
+import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
 
 @Component
 public class Validate {
 	private static final Logger logger = LoggerFactory.getLogger(Validate.class);
 
 	@Autowired
+	Auth auth;
+
+	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	PluginRepository pluginRepository;
-
-	@Autowired
-	TemplateRepository templateRepository;
 
 	@Autowired
 	Validator validator;
@@ -52,83 +57,125 @@ public class Validate {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, boolean force) {
-		ref(ref, ref.getOrigin(), force);
+	@Autowired
+	ConfigCache configs;
+
+	@Timed("jasper.validate")
+	public void ref(String rootOrigin, Ref ref) {
+		ref(rootOrigin, ref, false);
 	}
 
-	@Timed("jasper.validate.ref")
-	public void ref(Ref ref, String validationOrigin, boolean force) {
-		tags(ref);
-		plugins(ref, validationOrigin, force);
-		sources(ref);
-		responses(ref);
+	@Timed("jasper.validate")
+	public void ref(String rootOrigin, Ref ref, boolean stripOnError) {
+		var root = configs.root();
+		try {
+			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
+			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
+		} catch (ScopeNotActiveException e) {
+			ref.removeTags(root.getModSeals());
+			ref.removeTags(root.getEditorSeals());
+		}
+		tags(rootOrigin, ref);
+		plugins(rootOrigin, ref, stripOnError);
+		responses(rootOrigin, ref, true);
+		sources(rootOrigin, ref, true);
+		responses(rootOrigin, ref, false);
+		sources(rootOrigin, ref, false);
 	}
 
-	@Timed("jasper.validate.ext")
-	public void ext(Ext ext) {
-		ext(ext, ext.getOrigin(), false);
+	@Timed("jasper.validate")
+	public void ext(String rootOrigin, Ext ext) {
+		ext(rootOrigin, ext,false);
 	}
 
-	@Timed("jasper.validate.ext")
-	public void ext(Ext ext, String origin, boolean stripOnError) {
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(ext.getTag(), origin);
+	@Timed("jasper.validate")
+	public void ext(String rootOrigin, Ext ext, boolean stripOnError) {
+		var templates = configs.getSchemas(ext.getTag(), rootOrigin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
 			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
 			return;
 		}
-		var mergedDefaults = templates
+		var defaults = configs.getDefaults(ext.getTag(), rootOrigin);
+		var mergedDefaults = defaults
 			.stream()
-			.map(Template::getDefaults)
+			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.reduce(null, this::merge);
 		if (ext.getConfig() == null) {
 			ext.setConfig(mergedDefaults);
-			stripOnError = false;
+			stripOnError = true;
 		}
-		if (ext.getConfig() == null) throw new InvalidTemplateException(ext.getTag());
 		var mergedSchemas = templates
 			.stream()
-			.map(Template::getSchema)
+			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+			.reduce(null, this::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
-				template(schema, ext.getTag(), mergedDefaults);
+				template(rootOrigin, schema, ext.getTag(), mergedDefaults);
 			} catch (Exception e) {
+				logger.error("{} Defaults for {} Template do not pass validation", rootOrigin, ext.getTag());
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			template(schema, ext.getTag(), ext.getConfig());
+			template(rootOrigin, schema, ext.getTag(), ext.getConfig());
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			template(schema, ext.getTag(), mergedDefaults);
+			template(rootOrigin, schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
 		}
 	}
 
-	public JsonNode templateDefaults(String qualifiedTag) {
-		var qt = selector(qualifiedTag);
-		var templates = templateRepository.findAllForTagAndOriginWithSchema(qt.tag, qt.origin);
-		return templates
-			.stream()
-			.map(Template::getDefaults)
-			.filter(Objects::nonNull)
-			.reduce(objectMapper.getNodeFactory().objectNode(), this::merge);
+	@Timed("jasper.validate")
+	public void plugin(String rootOrigin, Plugin plugin) {
+
 	}
 
-	private void template(Schema schema, String tag, JsonNode template) {
+	@Timed("jasper.validate")
+	public void template(String rootOrigin, Template template) {
+		try {
+			switch (template.getTag()) {
+				case "_config/server":
+					objectMapper.convertValue(template.getConfig(), ServerConfig.class);
+					break;
+				case "_config/security":
+					objectMapper.convertValue(template.getConfig(), SecurityConfig.class);
+					break;
+			}
+		} catch (Exception e) {
+			throw new InvalidTemplateException(template.getTag());
+		}
+	}
+
+	public ObjectNode templateDefaults(String qualifiedTag) {
+		var qt = qt(qualifiedTag);
+		var templates = configs.getSchemas(qt.tag, qt.origin);
+		return templates
+			.stream()
+			.map(TemplateDto::getDefaults)
+			.reduce(null, this::merge);
+	}
+
+	private void template(String rootOrigin, Schema schema, String tag, JsonNode template) {
+		if (template == null || template.isNull()) {
+			// Allow null to stand in for empty config
+			if (schema.getOptionalProperties() != null) {
+				template = objectMapper.createObjectNode();
+			} else if (template == null) {
+				template = NullNode.getInstance();
+			}
+		}
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(template));
 			for (var error : errors) {
-				logger.debug("Error validating template {}: {}", tag, error);
+				logger.debug("{} Error validating template {}: {}", rootOrigin, tag, error);
 			}
-			if (errors.size() > 0) {
+			if (!errors.isEmpty()) {
 				throw new InvalidTemplateException(tag + ": " + errors);
 			}
 		} catch (MaxDepthExceededException e) {
@@ -136,30 +183,35 @@ public class Validate {
 		}
 	}
 
-	private void tags(Ref ref) {
+	private void tags(String rootOrigin, Ref ref) {
 		if (ref.getTags() == null) return;
 		if (!ref.getTags().stream().allMatch(new HashSet<>()::add)) {
 			throw new DuplicateTagException();
 		}
 	}
 
-	private void plugins(Ref ref, String origin, boolean stripOnError) {
-		if (ref.getTags() == null) return;
+	private void plugins(String rootOrigin, Ref ref, boolean stripOnError) {
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
+			var strip = new ArrayList<String>();
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (field.equals("")) return;
-				if (!ref.getTags().contains(field)) {
-					throw new InvalidPluginException(field);
+				if (!ref.hasTag(field)) {
+					logger.debug("{} Plugin missing tag: {}", rootOrigin, field);
+					if (!stripOnError) throw new InvalidPluginException(field);
+					strip.add(field);
 				}
 			});
+			strip.forEach(field -> ref.getPlugins().remove(field));
 		}
-		for (var tag : ref.getTags()) {
-			plugin(ref, tag, origin, stripOnError);
+		for (var tag : expandTags(ref.getTags())) {
+			plugin(rootOrigin, ref, tag, stripOnError);
 		}
 	}
 
-	private <T extends JsonNode> T merge(T a, JsonNode b) {
+	private ObjectNode merge(ObjectNode a, ObjectNode b) {
+		if (a == null) return b.deepCopy();
+		if (b == null) return a.deepCopy();
+		if (!a.isObject() || !b.isObject()) return b.deepCopy();
 		try {
 			return objectMapper.updateValue(a, b);
 		} catch (JsonMappingException e) {
@@ -167,78 +219,86 @@ public class Validate {
 		}
 	}
 
-	private void plugin(Ref ref, String tag, String origin, boolean stripOnError) {
-		var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, origin);
-		if (plugin.isEmpty()) {
+	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
+		userUrl(ref, tag);
+		var plugin = configs.getPlugin(tag, rootOrigin);
+		if (plugin.isEmpty() || plugin.get().getSchema() == null) {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
-			if (ref.getPlugins() != null && ref.getPlugins().has(tag)) {
+			if (ref.hasPlugin(tag)) {
+				logger.debug("{} Plugin data not allowed: {}", rootOrigin, tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
 				ref.getPlugins().remove(tag);
 			}
 			return;
 		}
-		plugin.ifPresent(p -> {
-			if (p.isUserUrl()) userUrl(ref, p);
-		});
-		var defaults = plugin
-			.map(Plugin::getDefaults)
-			.orElse(objectMapper.getNodeFactory().objectNode());
-		if (ref.getPlugins() == null || !ref.getPlugins().has(tag)) {
-			if (ref.getPlugins() == null) {
-				ref.setPlugins(objectMapper.getNodeFactory().objectNode());
-			}
-			ref.getPlugins().set(tag, defaults);
-			stripOnError = false;
+		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
+		if (!ref.hasPlugin(tag)) {
+			ref.setPlugin(tag, defaults);
+			stripOnError = true;
 		}
 		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
-				plugin(schema, tag, defaults);
+				plugin(rootOrigin, schema, tag, defaults);
 			} catch (Exception e) {
+				logger.error("{} Defaults for {} Plugin do not pass validation", rootOrigin, tag);
 				// Defaults don't validate anyway,
 				// so cancel stripping plugins to pass validation
 				stripOnError = false;
 			}
 		}
 		try {
-			plugin(schema, tag, ref.getPlugins().get(tag));
+			plugin(rootOrigin, schema, tag, ref.getPlugin(tag));
 		} catch (Exception e) {
 			if (!stripOnError) throw e;
-			plugin(schema, tag, defaults);
-			ref.getPlugins().set(tag, defaults);
+			ref.setPlugin(tag, defaults);
 		}
 	}
 
-	private void userUrl(Ref ref, Plugin plugin) {
-		var userTag = ref.getTags().stream().filter(User.REGEX::matches).findFirst();
+	private void userUrl(Ref ref, String plugin) {
+		if (!matchesTemplate("plugin/user", plugin)) return;
+		if (ref.getSources() == null || ref.getSources().size() != 1) {
+			throw new InvalidPluginUserUrlException(plugin);
+		}
+		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
 		if (userTag.isEmpty()) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+			throw new InvalidPluginUserUrlException(plugin);
 		}
-		if (!ref.getUrl().equals(urlForUser(plugin.getTag(), userTag.get() + ref.getOrigin()))) {
-			throw new InvalidPluginUserUrlException(plugin.getTag());
+		var target = ref.getSources().getFirst();
+		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
+			throw new InvalidPluginUserUrlException(plugin);
 		}
 	}
 
-	public ObjectNode pluginDefaults(Ref ref) {
+	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
 		var result = objectMapper.getNodeFactory().objectNode();
-		if (ref.getTags() == null) return result;
-		for (var tag : ref.getTags()) {
-			var plugin = pluginRepository.findByTagAndOriginWithSchema(tag, ref.getOrigin());
-			if (plugin.isPresent()) {
-				result.set(tag, plugin.get().getDefaults());
-			}
+		for (var tag : expandTags(ref.getTags())) {
+			var plugin = configs.getPlugin(tag, rootOrigin);
+			plugin.ifPresent(p -> {
+				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
+			});
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
 		return result;
 	}
 
-	private void plugin(Schema schema, String tag, JsonNode plugin) {
+	private void plugin(String rootOrigin, Schema schema, String tag, JsonNode plugin) {
+		if (plugin == null || plugin.isNull()) {
+			// Allow null to stand in for empty objects or arrays
+			if (schema.getOptionalProperties() != null) {
+				plugin = objectMapper.createObjectNode();
+			} else if (schema.getElements() != null) {
+				plugin = objectMapper.createArrayNode();
+			} else if (plugin == null) {
+				plugin = NullNode.getInstance();
+			}
+		}
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(plugin));
 			for (var error : errors) {
-				logger.debug("Error validating plugin {}: {}", tag, error);
+				logger.debug("{} Error validating plugin {}: {}", rootOrigin, tag, error);
 			}
-			if (errors.size() > 0) {
+			if (!errors.isEmpty()) {
 				throw new InvalidPluginException(tag + ": " + errors);
 			}
 		} catch (MaxDepthExceededException e) {
@@ -246,20 +306,31 @@ public class Validate {
 		}
 	}
 
-	private void sources(Ref ref) {
+	private void sources(String rootOrigin, Ref ref, boolean fix) {
 		if (ref.getSources() == null) return;
 		for (var sourceUrl : ref.getSources()) {
-			var sources = refRepository.findAllByUrlAndPublishedGreaterThanEqual(sourceUrl, ref.getPublished());
+			if (sourceUrl.equals(ref.getUrl())) continue;
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
 			for (var source : sources) {
-				ref.setPublished(source.getPublished().plusMillis(1));
+				if (source.getPublished().isAfter(ref.getPublished())) {
+					if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
+					ref.setPublished(source.getPublished().plusMillis(1));
+				}
 			}
 		}
 	}
 
-	private void responses(Ref ref) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), ref.getPublished());
+	private void responses(String rootOrigin, Ref ref, boolean fix) {
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
 		for (var response : responses) {
-			throw new PublishDateException(response, ref.getUrl());
+			if (response.getPublished().isBefore(ref.getPublished())) {
+				if (response.hasTag("plugin/user")) {
+					response.setPublished(ref.getPublished());
+					continue;
+				}
+				if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
+				ref.setPublished(response.getPublished().minusMillis(1));
+			}
 		}
 	}
 }

@@ -15,10 +15,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.authority.AuthorityUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 @Configuration
 public class MetricsConfig {
+
+	@Autowired
+	Props props;
 
 	@Autowired
 	Auth auth;
@@ -36,14 +40,15 @@ public class MetricsConfig {
 	private Iterable<Tag> tagFactory(ProceedingJoinPoint pjp) {
 		return Tags.of(
 			"class", pjp.getStaticPart().getSignature().getDeclaringTypeName(),
-				"method", pjp.getStaticPart().getSignature().getName())
+				"method", pjp.getStaticPart().getSignature().getName(),
+				"debug", ""+props.isDebug())
 			.and(getUserTags());
 	}
 
 	private Iterable<Tag> getUserTags() {
 		try {
 			var userTag = Optional.ofNullable(auth.getUserTag()).map(QualifiedTag::toString);
-			var roles = AuthorityUtils.authorityListToSet(auth.getAuthentication().getAuthorities());
+			var roles = auth.getAuthentication() != null ? AuthorityUtils.authorityListToSet(auth.getAuthentication().getAuthorities()) : List.of();
 			return Tags.of(
 				"scope", "request",
 				"userTag", userTag.orElse(""),
@@ -52,7 +57,10 @@ public class MetricsConfig {
 			);
 		} catch (ScopeNotActiveException e) {
 			return Tags.of(
-				"scope", "system"
+				"scope", "system",
+				"userTag", "",
+				"roles", "",
+				"origin", ""
 			);
 		}
 	}

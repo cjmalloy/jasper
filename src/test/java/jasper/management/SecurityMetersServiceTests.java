@@ -39,9 +39,11 @@ class SecurityMetersServiceTests {
 
         meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "malformed").counter();
 
+        meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "email-not-verified").counter();
+
         Collection<Counter> counters = meterRegistry.find(INVALID_TOKENS_METER_EXPECTED_NAME).counters();
 
-        assertThat(counters).hasSize(5);
+        assertThat(counters).hasSize(6);
     }
 
     @Test
@@ -75,5 +77,9 @@ class SecurityMetersServiceTests {
         securityMetersService.trackTokenMalformed();
 
         assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "malformed").counter().count()).isEqualTo(1);
+
+        securityMetersService.trackUnverifiedEmail();
+
+        assertThat(meterRegistry.get(INVALID_TOKENS_METER_EXPECTED_NAME).tag("cause", "email-not-verified").counter().count()).isEqualTo(1);
     }
 }

@@ -4,9 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jsontypedef.jtd.InvalidSchemaException;
 import com.jsontypedef.jtd.Schema;
-
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
 public class SchemaValidator implements ConstraintValidator<SchemaValid, JsonNode> {
 	public static final ObjectMapper mapper = new ObjectMapper();
