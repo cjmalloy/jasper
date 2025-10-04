@@ -15,6 +15,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -100,6 +101,7 @@ public class RefServiceIT {
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateRefFails() {
 		var existing = new Ref();
