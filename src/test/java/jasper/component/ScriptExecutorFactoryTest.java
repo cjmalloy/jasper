@@ -1,9 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jasper.config.Props;
-import jasper.domain.Metadata;
-import jasper.plugin.Security;
+import jasper.config.Config;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,14 +26,13 @@ class ScriptExecutorFactoryTest {
         factory = new ScriptExecutorFactory();
         factory.meterRegistry = new SimpleMeterRegistry();
         
-        // Mock ConfigCache to return a Security config with a script limit
+        // Mock ConfigCache to return a SecurityConfig with a script limit
         configCache = mock(ConfigCache.class);
-        var security = new Security();
-        security.setScriptLimit(10);
-        var metadata = new Metadata();
-        metadata.setConfig(security);
+        var security = Config.SecurityConfig.builder()
+            .maxConcurrentScripts(10)
+            .build();
         
-        when(configCache.security(anyString())).thenReturn(metadata);
+        when(configCache.security(anyString())).thenReturn(security);
         factory.configs = configCache;
     }
 
