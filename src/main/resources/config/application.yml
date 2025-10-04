@@ -155,10 +155,6 @@ spring:
   task:
     execution:
       thread-name-prefix: jasper-task-
-      pool:
-        core-size: 2
-        max-size: 50
-        queue-capacity: 10000
     scheduling:
       thread-name-prefix: jasper-scheduling-
       pool:
@@ -193,6 +189,7 @@ info:
 # Add your own application properties here, see the Props class
 # ===================================================================
 jasper:
+  integration-queue-capacity: 4
   push-cooldown-sec: 1
   local-origin: ''
   storage: /var/lib/jasper
