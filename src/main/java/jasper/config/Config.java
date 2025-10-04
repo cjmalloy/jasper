@@ -13,9 +13,13 @@ import lombok.With;
 import java.io.Serializable;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
+import static java.lang.Math.min;
+import static java.util.Comparator.comparingInt;
+import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -64,24 +68,27 @@ public interface Config {
 		private List<String> scriptSelectors = List.of("");
 		@JsonIgnore
 		@Builder.Default
-		private List<QualifiedTag> _scriptSelectors = null;
+		private List<QualifiedTag> _scriptSelectorsParsed = null;
+		@JsonIgnore
+		public List<QualifiedTag> scriptSelectorsParsed() {
+			if (scriptSelectors == null) return null;
+			if (_scriptSelectorsParsed == null) _scriptSelectorsParsed = tagOriginList(scriptSelectors);
+			return _scriptSelectorsParsed;
+		}
 		@JsonIgnore
 		public boolean script(String plugin) {
-			if (scriptSelectors == null) return false;
-			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
-			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)));
+			if (scriptSelectorsParsed() == null) return false;
+			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + s.origin)));
 		}
 		@JsonIgnore
 		public boolean script(String plugin, String origin) {
-			if (scriptSelectors == null) return false;
-			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
-			return _scriptSelectors.stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
+			if (scriptSelectorsParsed() == null) return false;
+			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
 		}
 		@JsonIgnore
 		public List<String> scriptOrigins(String plugin) {
-			if (scriptSelectors == null) return List.of();
-			if (_scriptSelectors == null) _scriptSelectors = tagOriginList(scriptSelectors);
-			return _scriptSelectors.stream().filter(s -> s.captures(tagOriginSelector(plugin + s.origin))).map(s -> s.origin).toList();
+			if (scriptSelectorsParsed() == null) return List.of();
+			return scriptSelectorsParsed().stream().filter(s -> s.captures(tagOriginSelector(plugin + s.origin))).map(s -> s.origin).toList();
 		}
 		/**
 		 * Whitelist script SHA-256 hashes allowed to run. Allows any scripts if empty.
@@ -98,6 +105,31 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
+		/**
+		 * Maximum concurrent script executions. Default 5.
+		 */
+		@Builder.Default
+		private int maxConcurrentScripts = 5;
+		/**
+		 * Maximum concurrent replication push/pull operations. Default 3.
+		 */
+		@Builder.Default
+		private int maxConcurrentReplication = 3;
+		/**
+		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 */
+		@Builder.Default
+		private int maxRequests = 50;
+		/**
+		 * Global maximum concurrent HTTP requests (across all origins). Default 500.
+		 */
+		@Builder.Default
+		private int maxConcurrentRequests = 500;
+		/**
+		 * Maximum concurrent fetch operations (scraping). Default 10.
+		 */
+		@Builder.Default
+		private int maxConcurrentFetch = 10;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -115,6 +147,11 @@ public interface Config {
 			if (isNotEmpty(server.getScriptWhitelist())) wrapped = wrapped.withScriptWhitelist(server.getScriptWhitelist());
 			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
+			if (server.getMaxRequests() != null) wrapped = wrapped.withMaxRequests(server.getMaxRequests());
+			if (server.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(server.getMaxConcurrentRequests());
+			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
+			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
+			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
 			return wrapped;
 		}
 
@@ -182,6 +219,47 @@ public interface Config {
 		private List<String> defaultWriteAccess;
 		private List<String> defaultTagReadAccess;
 		private List<String> defaultTagWriteAccess;
+		/**
+		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 */
+		private int maxRequests = 50;
+		/**
+		 * Maximum concurrent script executions per origin. Default 100_000.
+		 */
+		private int maxConcurrentScripts = 100_000;
+		/**
+		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
+		 * No origin wildcards.
+		 * Example: {"@myorg": 20, "+plugin/delta@myorg": 15, "_plugin/delta": 5}
+		 * If more than one matches, the smallest limit is chosen.
+		 */
+		private Map<String, Integer> scriptLimits = Map.of();
+		@JsonIgnore
+		private Map<QualifiedTag, Integer> _scriptLimitsParsed = null;
+		@JsonIgnore
+		public Map<QualifiedTag, Integer> scriptLimitsParsed() {
+			if (scriptLimits == null) return null;
+			if (_scriptLimitsParsed == null) _scriptLimitsParsed = scriptLimits.entrySet().stream().collect(toMap(e -> tagOriginSelector(e.getKey()), Map.Entry::getValue));
+			return _scriptLimitsParsed;
+		}
+		@JsonIgnore
+		public Integer scriptLimit(String plugin) {
+			if (scriptLimitsParsed() == null) return maxConcurrentScripts;
+			return min(maxConcurrentScripts, scriptLimitsParsed().entrySet().stream()
+				.filter(e -> e.getKey().captures(tagOriginSelector(plugin + e.getKey().origin)))
+				.min(comparingInt(Map.Entry::getValue))
+				.map(Map.Entry::getValue)
+				.orElse(maxConcurrentScripts));
+		}
+		@JsonIgnore
+		public Integer scriptLimit(String plugin, String origin) {
+			if (scriptLimitsParsed() == null) return maxConcurrentScripts;
+			return min(maxConcurrentScripts, scriptLimitsParsed().entrySet().stream()
+				.filter(e -> e.getKey().captures(tagOriginSelector(plugin + origin)))
+				.min(comparingInt(Map.Entry::getValue))
+				.map(Map.Entry::getValue)
+				.orElse(maxConcurrentScripts));
+		}
 
 		public byte[] getSecretBytes() {
 			if (isNotBlank(secret)) return secret.getBytes();
@@ -203,6 +281,8 @@ public interface Config {
 			if (isNotBlank(security.getDefaultUser())) wrapped = wrapped.withDefaultUser(security.getDefaultUser());
 			if (isNotBlank(security.getTokenEndpoint())) wrapped = wrapped.withTokenEndpoint(security.getTokenEndpoint());
 			if (isNotBlank(security.getScimEndpoint())) wrapped = wrapped.withScimEndpoint(security.getScimEndpoint());
+			if (security.getMaxRequests() != null) wrapped = wrapped.withMaxRequests(security.getMaxRequests());
+			if (security.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(security.getMaxConcurrentScripts());
 			return wrapped;
 		}
 	}

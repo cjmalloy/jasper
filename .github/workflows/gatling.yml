@@ -18,21 +18,37 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v5
-      - name: Run load tests
-        run:  docker compose --profile lt -f 'gatling/docker-compose.yaml' up --build --exit-code-from gatling
+      - name: Run Smoke Tests
+        if: always()
+        run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Comprehensive Tests
+        if: always()
+        run: (cd gatling; GATLING_TEST=Comprehensive docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run User Journey
+        if: always()
+        run: (cd gatling; GATLING_TEST=UserJourney docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Stress Tests
+        if: always()
+        run: (cd gatling; GATLING_TEST=StressTest docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Run Inferno Tests
+        if: always()
+        run: (cd gatling; GATLING_TEST=Inferno docker compose --profile lt up --build --exit-code-from gatling)
+      - name: Generate Report Index
+        if: always()
+        run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v4
         with:
           name: gatling-reports-pr-${{ github.event.pull_request.number }}
-          path: report
+          path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v4
         with:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
-          path: report
+          path: gatling/report
           retention-days: 90
       - name: Comment on PR
         if: github.event_name == 'pull_request' && always()

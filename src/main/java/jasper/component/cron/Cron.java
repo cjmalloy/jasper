@@ -1,7 +1,9 @@
 package jasper.component.cron;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.channel.Watch;
 import jasper.domain.Ref;
@@ -10,7 +12,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -18,20 +19,24 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
-public class Scheduler {
-	private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
+public class Cron {
+	private static final Logger logger = LoggerFactory.getLogger(Cron.class);
 
-	@Qualifier("cronScheduler")
 	@Autowired
 	TaskScheduler taskScheduler;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	RefRepository refRepository;
@@ -45,8 +50,11 @@ public class Scheduler {
 	@Autowired
 	Watch watch;
 
+	@Autowired
+	Bulkhead scriptBulkhead;
+
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
-	Map<String, ScheduledFuture<?>> refs = new ConcurrentHashMap<>();
+	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
 	Map<String, CronRunner> tags = new ConcurrentHashMap<>();
 
@@ -71,16 +79,18 @@ public class Scheduler {
 	private void schedule(HasTags ref) {
 		var key = getKey(ref);
 		var existing = tasks.get(key);
+		var cancelled = false;
 		if (existing != null && !existing.isDone()) {
 			existing.cancel(true);
 			tasks.remove(key);
+			cancelled = true;
 		}
 		if (!hasMatchingTag(ref, "+plugin/cron")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (hasMatchingTag(ref, "+plugin/error")) {
-			if (existing != null && !existing.isDone()) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
 		if (!hasScheduler(ref)) return;
@@ -135,19 +145,27 @@ public class Scheduler {
 				if (!configs.root().script(k, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return taskScheduler.schedule(() -> {
+					return runAsync(() -> {
 						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						try {
-							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-							ran.add(v);
-							tagger.removeAllResponses(url, origin, "+plugin/user/run");
-						} catch (Exception e) {
-							logger.error("{} Error in run tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-						} finally {
-							refs.remove(k);
-						}
-					}, Instant.now());
+						scriptBulkhead.executeSupplier(() -> {
+							try {
+								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+								ran.add(v);
+								tagger.removeAllResponses(url, origin, "+plugin/user/run");
+								return null;
+							} catch (Exception e) {
+								logger.error("{} Error in run tag {} ", origin, k);
+								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
+								throw new RuntimeException(e);
+							} finally {
+								refs.remove(s);
+							}
+						});
+					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+						logger.warn("{} Rate limited {} ", origin, k);
+						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+						return null;
+					});
 				});
 			});
 		} catch (Exception e) {
@@ -197,13 +215,25 @@ public class Scheduler {
 			if (!hasMatchingTag(ref, k)) return;
 			if (!configs.root().script(k, origin)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, k, url);
-			try {
-				v.run(ref);
-				ran.add(v);
-			} catch (Exception e) {
-				logger.error("{} Error in cron tag {} ", origin, k);
-				tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-			}
+			refs.compute(getKey(ref), (s, existing) -> {
+				if (existing != null && !existing.isDone()) return existing;
+				return runAsync(() -> {
+					scriptBulkhead.executeSupplier(() -> {
+						try {
+							v.run(ref);
+							ran.add(v);
+						} catch (Exception e) {
+							logger.error("{} Error in cron tag {} ", origin, k);
+							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
+						}
+						return null;
+					});
+				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
+					logger.warn("{} Rate limited {} ", origin, k);
+					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
+					return null;
+				});
+			});
 		});
 	}
 

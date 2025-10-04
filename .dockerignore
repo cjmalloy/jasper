@@ -5,8 +5,8 @@ target/
 docs/
 .idea/
 storage/
+gatling/
 repl/
-Dockerfile
 .DS_Store
 
 # Documentation
@@ -22,6 +22,5 @@ LICENSE
 
 # Scripts and local dev files
 docker-compose.yaml
-Dockerfile
 .dockerignore
 _config.yml

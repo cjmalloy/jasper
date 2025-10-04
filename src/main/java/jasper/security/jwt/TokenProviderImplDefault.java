@@ -28,18 +28,18 @@ public class TokenProviderImplDefault extends AbstractTokenProvider {
 
 	@Override
 	public Authentication getAuthentication(String jwt, String origin) {
-		var principal = configs.security(origin).getDefaultUser();
+		var principal = configs.security(origin).getDefaultUser() + origin;
 		var userTagHeader = getHeader(USER_TAG_HEADER);
 		if (isBlank(userTagHeader) || !userTagHeader.matches(User.REGEX)) {
 			userTagHeader = "";
 		}
 		userTagHeader = userTagHeader.toLowerCase();
-		if (isNotBlank(userTagHeader) && (props.isAllowUserTagHeader() || matchesPublic(principal, userTagHeader))) {
-			principal = userTagHeader;
-			logger.debug("{} User tag set by header: {}", origin, principal);
+		if (isNotBlank(userTagHeader) && (props.isAllowUserTagHeader() || matchesPublic(configs.security(origin).getDefaultUser(), userTagHeader))) {
+			principal = userTagHeader + origin;
+			logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 		}
 		var user = configs.getUser(principal);
 		logger.debug("{} Default Auth {}", origin, principal);
-		return new PreAuthenticatedAuthenticationToken(principal + origin, user, getAuthorities(user, origin));
+		return new PreAuthenticatedAuthenticationToken(principal, user, getAuthorities(user, origin));
 	}
 }

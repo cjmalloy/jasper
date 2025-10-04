@@ -1,8 +1,6 @@
 services:
   gatling:
-    build:
-      context: ..
-      target: gatling
+    build: .
     profiles:
       - lt
     network_mode: host
@@ -11,8 +9,10 @@ services:
         condition: service_healthy
       repl-web:
         condition: service_healthy
+    environment:
+      GATLING_TEST: "${GATLING_TEST:-SmokeTest}"
     volumes:
-      - ../report:/report
+      - ./report:/gatling/report
   web:
     build: ..
     ports:
@@ -21,13 +21,15 @@ services:
       test: "curl -f http://localhost/management/health/readiness"
     environment:
       SPRING_LOGGING_LEVEL_ROOT: WARN
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: prod,storage,scripts,proxy
       SPRING_DATASOURCE_URL: jdbc:postgresql://db/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: jasper
       SERVER_PORT: 80
       JASPER_DEFAULT_ROLE: ROLE_ADMIN
-      JASPER_HEAP: 256m
+      JASPER_OVERRIDE_SERVER_MAX_REQUESTS: 1
+      JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: 100
+      JASPER_HEAP: 512m
     depends_on:
       - db
   db:
@@ -44,7 +46,7 @@ services:
       test: "curl -f http://localhost/management/health/readiness"
     environment:
       SPRING_LOGGING_LEVEL_ROOT: WARN
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: prod,scripts
       SPRING_DATASOURCE_URL: jdbc:postgresql://repl-db/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: jasper

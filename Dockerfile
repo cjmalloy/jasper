@@ -1,6 +1,6 @@
-FROM oven/bun:1.2.22-slim AS bun
+FROM oven/bun:1.2.23-slim AS bun
 
-FROM maven:3.9.9-amazoncorretto-21-debian AS builder
+FROM maven:3.9.11-amazoncorretto-25-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
@@ -41,15 +41,7 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp -r target/reports/* /reports/ && \
 		cp target/reports/surefire.html /reports/index.html
 
-FROM test AS gatling
-COPY gatling/pom.xml ./gatling/
-COPY gatling/src ./gatling/src/
-WORKDIR /app/gatling
-CMD mvn -gs ../settings.xml gatling:test; \
-		mkdir -p /report && \
-		cp -r target/gatling/simplejaspersimulation-*/* /report/
-
-FROM azul/zulu-openjdk-debian:21.0.8-21.44-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.0-25.28-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin

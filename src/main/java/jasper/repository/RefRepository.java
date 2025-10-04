@@ -65,7 +65,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')),  :partialMetadata),
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
 			published = :published,
 			modified = :modified
 		WHERE
@@ -154,17 +154,29 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	""")
 	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 
-	// TODO: Sync cache
 	@Modifying
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref ref
-		SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{obsolete}', CAST('true' as jsonb), true)
-		WHERE ref.url = :url
-			AND ref.origin != :origin
-			AND ref.modified <= :olderThan
-			AND (:rootOrigin = '' OR ref.origin = :rootOrigin OR ref.origin LIKE concat(:rootOrigin, '.%'))""")
-	int setObsolete(String url, String origin, String rootOrigin, Instant olderThan);
+	@Query("""
+    UPDATE Ref r
+    SET r.metadata = jsonb_set(
+        coalesce(r.metadata, cast_to_jsonb('{}')),
+        '{obsolete}',
+        CASE
+            WHEN r.modified = (
+                SELECT MAX(r2.modified)
+                FROM Ref r2
+                WHERE r2.url = :url
+                  AND (:rootOrigin = '' OR r2.origin = :rootOrigin OR r2.origin LIKE CONCAT(:rootOrigin, '.%'))
+            )
+            THEN cast_to_jsonb('false')
+            ELSE cast_to_jsonb('true')
+        END,
+        true
+    )
+    WHERE r.url = :url
+      AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE CONCAT(:rootOrigin, '.%'))
+    """)
+	int updateObsolete(String url, String rootOrigin);
 
 	@Query(nativeQuery = true, value = """
 		SELECT EXISTS (

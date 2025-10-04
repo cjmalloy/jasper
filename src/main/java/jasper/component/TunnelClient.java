@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static jasper.domain.proj.HasTags.authors;
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.Tag.defaultOrigin;
 import static jasper.domain.proj.Tag.reverseOrigin;
 import static jasper.plugin.Origin.getOrigin;
@@ -44,13 +45,13 @@ public class TunnelClient {
 	private static final Logger logger = LoggerFactory.getLogger(TunnelClient.class);
 
 	@Autowired
+	TaskScheduler taskScheduler;
+
+	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
 	Tagger tagger;
-
-	@Autowired
-	TaskScheduler taskScheduler;
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
@@ -100,8 +101,7 @@ public class TunnelClient {
 			} catch (URISyntaxException e) {
 				throw new InvalidTunnelException("Error parsing tunnel URI", e);
 			}
-			var tunnel = getTunnel(remote);
-			if (tunnel == null) {
+			if (!hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 				request.go(url);
 			} else {
 				var users = authors(remote);
@@ -112,6 +112,7 @@ public class TunnelClient {
 				if (user.isEmpty() || user.get().getKey() == null) {
 					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
 				}
+				var tunnel = getTunnel(remote);
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 				var port = tunnel.getSshPort();
@@ -148,28 +149,25 @@ public class TunnelClient {
 			} catch (URISyntaxException e) {
 				throw new InvalidTunnelException("Error parsing tunnel URI", e);
 			}
+			if (!hasMatchingTag(remote, "+plugin/origin/tunnel")) return url;
+			var users = authors(remote);
+			if (users.isEmpty()) {
+				throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
+			}
+			var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
+			if (user.isEmpty() || user.get().getKey() == null) {
+				throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
+			}
 			var tunnel = getTunnel(remote);
-			if (tunnel == null) {
-				return url;
-			} else {
-				var users = authors(remote);
-				if (users.isEmpty()) {
-					throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
-				}
-				var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
-				if (user.isEmpty() || user.get().getKey() == null) {
-					throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
-				}
-				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
-				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
-				var port = tunnel.getSshPort();
-				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
-				try {
-					return new URI("http://localhost:" + tunnelPort);
-				} catch (URISyntaxException e) {
-					killTunnel(host, username, port);
-					throw new InvalidTunnelException("Error creating tunnel tracker", e);
-				}
+			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
+			var port = tunnel.getSshPort();
+			var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
+			try {
+				return new URI("http://localhost:" + tunnelPort);
+			} catch (URISyntaxException e) {
+				killTunnel(host, username, port);
+				throw new InvalidTunnelException("Error creating tunnel tracker", e);
 			}
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
@@ -209,9 +207,9 @@ public class TunnelClient {
 		} catch (URISyntaxException e) {
 			throw new InvalidTunnelException("Error parsing tunnel URI", e);
 		}
-		var tunnel = getTunnel(remote);
-		if (tunnel != null) {
+		if (hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 			var users = authors(remote);
+			var tunnel = getTunnel(remote);
 			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
 			var port = tunnel.getSshPort();
@@ -227,9 +225,9 @@ public class TunnelClient {
 		} catch (URISyntaxException e) {
 			throw new InvalidTunnelException("Error parsing tunnel URI", e);
 		}
-		var tunnel = getTunnel(remote);
-		if (tunnel != null) {
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel")) {
 			var users = authors(remote);
+			var tunnel = getTunnel(remote);
 			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : users.get(0), config.getRemote()));
 			var port = tunnel.getSshPort();

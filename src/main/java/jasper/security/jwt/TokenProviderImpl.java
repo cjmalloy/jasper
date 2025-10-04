@@ -14,7 +14,6 @@ import jasper.domain.User;
 import jasper.domain.proj.Tag;
 import jasper.errors.UserTagInUseException;
 import jasper.management.SecurityMetersService;
-import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -156,7 +155,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		var principal = claims.get(security.getUsernameClaim(), String.class);
 		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal);
 		if (props.isAllowUserTagHeader() && isNotBlank(userTagHeader)) {
-			principal = getHeader(USER_TAG_HEADER);
+			principal = userTagHeader;
 			logger.debug("{} User tag set by header: {}", origin, principal);
 		} else if (security.isExternalId()) {
 			var user = configs.getUserByExternalId(origin, principal);

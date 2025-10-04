@@ -19,10 +19,7 @@ import jasper.plugin.Video;
 import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,18 +59,14 @@ public class RssParser {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	HttpClientFactory httpClientFactory;
+
 	@Timed("jasper.feed")
 	public void scrape(Ref feed) throws IOException, FeedException {
 		var config = getFeed(feed);
-		int timeout = 30 * 1000; // 30 seconds
-		var requestConfig = RequestConfig.custom()
-			.setConnectTimeout(timeout)
-			.setConnectionRequestTimeout(timeout)
-			.setSocketTimeout(timeout).build();
-		var builder = HttpClients.custom()
-			.setDefaultRequestConfig(requestConfig)
-			.disableCookieManagement();
-		try (var client = builder.build()) {
+
+		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
@@ -93,7 +86,7 @@ public class RssParser {
 				}
 			}
 			request.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36");
-			try (CloseableHttpResponse response = client.execute(request)) {
+			try (var response = client.execute(request)) {
 				if (response.getStatusLine().getStatusCode() == 304) {
 					if (lastScrape == null) {
 						logger.info("{} Feed {} not modified", feed.getOrigin(), feed.getTitle());
@@ -253,7 +246,7 @@ public class RssParser {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("image/jpg".equals(e.getType()) || "image/png".equals(e.getType())) {
-					ref.setPlugin("plugin/thumbnail",  Thumbnail.builder().url(e.getUrl()).build());
+					ref.setPlugin("plugin/thumbnail", Thumbnail.builder().url(e.getUrl()).build());
 					return;
 				}
 			}
@@ -292,7 +285,7 @@ public class RssParser {
 			for (var e : entry.getEnclosures()) {
 				if (e.getType() == null) continue;
 				if (e.getType().startsWith("audio/")) {
-					ref.setPlugin("plugin/audio",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/audio", Map.of("url", e.getUrl()));
 					return;
 				}
 			}
@@ -303,7 +296,7 @@ public class RssParser {
 		if (entry.getEnclosures() != null) {
 			for (var e : entry.getEnclosures()) {
 				if ("video/mp4".equals(e.getType())) {
-					ref.setPlugin("plugin/video",  Map.of("url", e.getUrl()));
+					ref.setPlugin("plugin/video", Map.of("url", e.getUrl()));
 					return;
 				}
 			}

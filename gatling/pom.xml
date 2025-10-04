@@ -9,14 +9,14 @@
 	<description>Load testing for Jasper application using Gatling</description>
 
 	<properties>
-		<java.version>21</java.version>
+		<java.version>25</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<maven.compiler.release>${java.version}</maven.compiler.release>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<gatling-maven-plugin.version>4.20.4</gatling-maven-plugin.version>
-		<gatling.version>3.14.4</gatling.version>
+		<gatling-maven-plugin.version>4.20.5</gatling-maven-plugin.version>
+		<gatling.version>3.14.5</gatling.version>
 	</properties>
 
 	<dependencies>
@@ -33,7 +33,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.14.0</version>
+				<version>3.14.1</version>
 				<configuration>
 					<parameters>true</parameters>
 					<source>${java.version}</source>
@@ -50,6 +50,7 @@
 						<jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
 					</jvmArgs>
 					<runMultipleSimulations>true</runMultipleSimulations>
+					<continueOnAssertionFailure>true</continueOnAssertionFailure>
 					<includes>
 						<include>simulations.jasper.*Simulation</include>
 					</includes>

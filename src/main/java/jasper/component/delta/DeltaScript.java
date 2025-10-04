@@ -1,5 +1,6 @@
 package jasper.component.delta;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptRunner;
@@ -45,6 +46,7 @@ public class DeltaScript implements Async.AsyncRunner {
 	}
 
 	@Override
+	@Bulkhead(name = "script")
 	public void run(Ref ref) throws Exception {
 		if (ref.hasTag("_seal/delta")) return;
 		if (ref.hasTag("_plugin/delta/scrape")) return; // TODO: Move to mod scripts

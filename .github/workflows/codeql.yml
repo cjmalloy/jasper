@@ -59,10 +59,10 @@ jobs:
     - uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: 21
+        java-version: 25
 
     - name: Maven Build
-      run:  ./mvnw -B package -Dmaven.test.skip
+      run: ./mvnw -B package -Dmaven.test.skip
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3

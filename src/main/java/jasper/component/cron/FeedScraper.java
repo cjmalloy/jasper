@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import jasper.component.RssParser;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
+import org.jdom2.input.JDOMParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,16 +16,17 @@ import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 import static jasper.util.Logging.getMessage;
 
 @Profile("scripts")
 @Component
-public class FeedScraper implements Scheduler.CronRunner {
+public class FeedScraper implements Cron.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(FeedScraper.class);
 
 	@Autowired
-	Scheduler cron;
+	Cron cron;
 
 	@Autowired
 	RssParser rssParser;
@@ -44,17 +46,20 @@ public class FeedScraper implements Scheduler.CronRunner {
 		try {
 			rssParser.scrape(ref);
 		} catch (ParsingFeedException e) {
-			if (e.getLineNumber() == 1) {
+			if (e.getLineNumber() == 1 || e.getCause() instanceof JDOMParseException) {
 				// Temporary error page, retry later
 				tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 			} else {
 				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 			}
 		} catch (FeedException e) {
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error scraping feed", getMessage(e));
 		} catch (SSLException e) {
 			// Temporary error page, retry later
-			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error with feed SSL", getMessage(e));
+		} catch (SocketTimeoutException e) {
+			// Temporary network timeout, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Timeout loading feed", getMessage(e));
 		} catch (IOException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
 		} catch (Throwable e) {

@@ -19,7 +19,9 @@ public class Tunnel implements Serializable {
 	private String sshHost;
 	private int sshPort = 8022;
 
+	private static final Tunnel DEFAULTS = new Tunnel();
 	public static Tunnel getTunnel(HasTags ref) {
-		return getPlugin(ref, "+plugin/origin/tunnel", Tunnel.class);
+		var tunnel = ref == null ? null : getPlugin(ref, "+plugin/origin/tunnel", Tunnel.class);
+		return tunnel == null ? DEFAULTS : tunnel;
 	}
 }

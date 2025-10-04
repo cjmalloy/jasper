@@ -20,6 +20,15 @@ updates:
       patterns:
         - "*spring-boot*"
         - "*spring-cloud*"
+- package-ecosystem: maven
+  directory: /gatling
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  groups:
+    gatling:
+      patterns:
+        - "*gatling*"
 - package-ecosystem: github-actions
   directory: /
   schedule:
