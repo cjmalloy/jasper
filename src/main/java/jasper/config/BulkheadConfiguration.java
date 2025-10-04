@@ -75,7 +75,6 @@ public class BulkheadConfiguration {
 			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts());
 			updateBulkheadConfig(replBulkhead(), configs.root().getMaxConcurrentReplication());
 			updateBulkheadConfig(fetchBulkhead(), configs.root().getMaxConcurrentFetch());
-			updateBulkheadConfig(recyclerBulkhead(), configs.root().getMaxConcurrentRecycler());
 		}
 	}
 

@@ -1,6 +1,5 @@
 package jasper.service;
 
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.FileCache;
 import jasper.component.Proxy;
@@ -99,7 +98,6 @@ public class ProxyService {
 
 	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
-	@Bulkhead(name = "recycler")
 	public void clearDeleted(String origin) {
 		if (fileCache.isEmpty()) return;
 		fileCache.get().clearDeleted(origin);

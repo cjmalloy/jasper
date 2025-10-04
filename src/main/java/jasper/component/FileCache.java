@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
@@ -59,6 +60,7 @@ public class FileCache {
 	Tagger tagger;
 
 	@Timed(value = "jasper.cache")
+	@Bulkhead(name = "recycler")
 	public void clearDeleted(String origin) {
 		logger.info("{} Purging file cache", origin);
 		var start = Instant.now();
