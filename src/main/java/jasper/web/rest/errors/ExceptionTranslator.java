@@ -208,7 +208,6 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		if (err instanceof InvalidPatchException) return ErrorConstants.ERR_INVALID_PATCH;
 		if (err instanceof MaxSourcesException) return ErrorConstants.ERR_MAX_SOURCES;
 		if (err instanceof NotFoundException) return ErrorConstants.ERR_NOT_FOUND;
-		if (err instanceof AccessDeniedException) return ErrorConstants.ERR_ACCESS_DENIED;
 		if (err instanceof PublishDateException) return ErrorConstants.ERR_PUBLISH_DATE;
 		if (err instanceof ScriptException) return ErrorConstants.ERR_SCRIPT;
 		if (err instanceof UntrustedScriptException) return ErrorConstants.ERR_UNTRUSTED_SCRIPT;
