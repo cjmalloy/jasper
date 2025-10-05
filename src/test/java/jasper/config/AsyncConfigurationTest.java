@@ -36,14 +36,6 @@ class AsyncConfigurationTest {
     }
 
     @Test
-    void shouldCreateWebSocketExecutor() {
-        ExecutorService executor = asyncConfiguration.getWebsocketExecutor();
-
-        assertThat(executor).isNotNull();
-        verifyVirtualThreadExecutor(executor);
-    }
-
-    @Test
     void shouldCreateAsyncExecutor() {
         ExecutorService executor = asyncConfiguration.getAsyncExecutor();
 

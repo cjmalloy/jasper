@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.domain.proj.HasTags;
@@ -37,7 +38,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -58,7 +58,7 @@ public class Pull {
 	TaskScheduler taskScheduler;
 
 	@Autowired
-	ExecutorService websocketExecutor;
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	ConfigCache configs;
@@ -195,7 +195,7 @@ public class Pull {
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
-				}), websocketExecutor);
+				}), scriptExecutorFactory.getExecutor("_plugin/websocket", remote.getOrigin()));
 			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();
