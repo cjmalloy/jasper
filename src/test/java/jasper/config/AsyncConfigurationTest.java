@@ -44,14 +44,6 @@ class AsyncConfigurationTest {
     }
 
     @Test
-    void shouldCreateIntegrationExecutor() {
-        ExecutorService executor = asyncConfiguration.getIntegrationExecutor();
-
-        assertThat(executor).isNotNull();
-        verifyVirtualThreadExecutor(executor);
-    }
-
-    @Test
     void shouldCreateGetSchedulerExecutor() {
         ThreadPoolTaskScheduler scheduler = asyncConfiguration.getSchedulerExecutor();
 

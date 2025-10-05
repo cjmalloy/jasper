@@ -32,24 +32,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	@Autowired
 	TaskSchedulingProperties taskSchedulingProperties;
 
-	@Profile("!redis")
-	@Bean("integrationExecutor")
-	public ExecutorService getIntegrationExecutor() {
-		logger.info("Creating virtual thread executor for integration tasks");
-		// Virtual thread executors don't use traditional thread pools, so ExecutorServiceMetrics.monitor()
-		// is not applicable and causes NullPointerException when trying to introspect pool metrics
-		return Executors.newVirtualThreadPerTaskExecutor();
-	}
-
-	@Profile("redis")
-	@Bean("integrationExecutor")
-	public ExecutorService getRedisExecutor() {
-		logger.info("Creating virtual thread executor for Redis integration tasks");
-		// Virtual thread executors don't use traditional thread pools, so ExecutorServiceMetrics.monitor()
-		// is not applicable and causes NullPointerException when trying to introspect pool metrics
-		return Executors.newVirtualThreadPerTaskExecutor();
-	}
-
 	@Bean("taskExecutor")
 	@Override
 	public ExecutorService getAsyncExecutor() {
