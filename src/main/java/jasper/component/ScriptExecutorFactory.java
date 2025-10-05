@@ -89,12 +89,7 @@ public class ScriptExecutorFactory {
 
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
-		return bulkhead(tag, origin).executeSupplier(() -> {
-			return executors.computeIfAbsent(tag + origin, k -> {
-				logger.debug("{} Creating bulkhead with {} permits", origin, configs.security(origin).scriptLimit(tag, origin));
-				return Executors.newVirtualThreadPerTaskExecutor();
-			});
-		});
+		return bulkhead(tag, origin).executeSupplier(() -> executors.computeIfAbsent(tag + origin, k -> Executors.newVirtualThreadPerTaskExecutor()));
 	}
 
 	private final Map<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
