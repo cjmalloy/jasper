@@ -90,4 +90,14 @@ public class IntegrationConfig {
 	public MessageChannel templateRxChannel() {
 		return new PublishSubscribeChannel();
 	}
+
+	@Bean
+	public MessageChannel bulkheadTxChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel bulkheadRxChannel() {
+		return new PublishSubscribeChannel();
+	}
 }

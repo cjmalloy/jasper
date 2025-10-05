@@ -4,6 +4,7 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.component.ConfigCache;
+import jasper.service.dto.BulkheadDto;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,10 +13,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
 
+import static jasper.component.Messages.originHeaders;
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.messaging.support.MessageBuilder.createMessage;
 
 @Configuration
 public class BulkheadConfiguration {
@@ -26,6 +30,9 @@ public class BulkheadConfiguration {
 
 	@Autowired
 	BulkheadRegistry registry;
+
+	@Autowired
+	MessageChannel bulkheadTxChannel;
 
 	@Bean
 	public Bulkhead httpBulkhead() {
@@ -72,12 +79,31 @@ public class BulkheadConfiguration {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
 		if (template.getTag().startsWith("_config/server")) {
-			logger.debug("Server config template updated, updating bulkhead configurations");
-			updateBulkheadConfig(httpBulkhead(), configs.root().getMaxConcurrentRequests());
-			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts());
-			updateBulkheadConfig(replBulkhead(), configs.root().getMaxConcurrentReplication());
-			updateBulkheadConfig(fetchBulkhead(), configs.root().getMaxConcurrentFetch());
+			var origin = (String) message.getHeaders().get("origin");
+			logger.debug("{} Server config template updated, updating bulkhead configurations", origin);
+			updateBulkheadConfig(httpBulkhead(), configs.root().getMaxConcurrentRequests(), origin);
+			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts(), origin);
+			updateBulkheadConfig(replBulkhead(), configs.root().getMaxConcurrentReplication(), origin);
+			updateBulkheadConfig(fetchBulkhead(), configs.root().getMaxConcurrentFetch(), origin);
 		}
+	}
+
+	@ServiceActivator(inputChannel = "bulkheadRxChannel")
+	public void handleBulkheadUpdate(Message<BulkheadDto> message) {
+		var bulkhead = message.getPayload();
+		var origin = (String) message.getHeaders().get("origin");
+		logger.info("{} Bulkhead {} updated to {} max concurrent calls", origin, bulkhead.getName(), bulkhead.getMaxConcurrentCalls());
+	}
+
+	public void updateBulkheadConfig(Bulkhead bulkhead, int limit, String origin) {
+		logger.debug("{} Creating bulkhead with {} permits", origin, limit);
+		updateBulkheadConfig(bulkhead, limit);
+		// Publish bulkhead state to Redis for distributed visibility
+		var dto = BulkheadDto.builder()
+			.name(bulkhead.getName())
+			.maxConcurrentCalls(limit)
+			.build();
+		bulkheadTxChannel.send(createMessage(dto, originHeaders(origin)));
 	}
 
 	public static void updateBulkheadConfig(Bulkhead bulkhead, int limit) {

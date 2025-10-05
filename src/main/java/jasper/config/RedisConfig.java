@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.service.dto.BulkheadDto;
 import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
@@ -105,6 +106,12 @@ public class RedisConfig {
 	@Autowired
 	MessageChannel templateRxChannel;
 
+	@Autowired
+	MessageChannel bulkheadTxChannel;
+
+	@Autowired
+	MessageChannel bulkheadRxChannel;
+
 	@Bean
 	public MessageChannel cursorRedisChannel() {
 		return new DirectChannel();
@@ -142,6 +149,11 @@ public class RedisConfig {
 
 	@Bean
 	public MessageChannel templateRedisChannel() {
+		return new DirectChannel();
+	}
+
+	@Bean
+	public MessageChannel bulkheadRedisChannel() {
 		return new DirectChannel();
 	}
 
@@ -521,6 +533,56 @@ public class RedisConfig {
 				logger.error("Error parsing TemplateDto from redis.");
 			}
 		}, of("template/*"));
+		return container;
+	}
+
+	@Bean
+	public IntegrationFlow redisPublishBulkheadFlow() {
+		return IntegrationFlow
+			.from(bulkheadTxChannel)
+			.handle(new CustomPublishingMessageHandler<BulkheadDto>() {
+				@Override
+				protected String getTopic(Message<BulkheadDto> message) {
+					return "bulkhead/" + formatOrigin(message.getHeaders().get("origin"));
+				}
+
+				@Override
+				protected byte[] getMessage(Message<BulkheadDto> message) {
+					try {
+						return objectMapper.writeValueAsBytes(message.getPayload());
+					} catch (JsonProcessingException e) {
+						logger.error("Cannot serialize BulkheadDto.");
+						throw new RuntimeException(e);
+					}
+				}
+			})
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow redisSubscribeBulkheadFlow() {
+		return IntegrationFlow
+			.from(bulkheadRedisChannel())
+			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
+			.channel(bulkheadRxChannel)
+			.get();
+	}
+
+	@Bean
+	public RedisMessageListenerContainer redisBulkheadRxAdapter(RedisConnectionFactory redisConnectionFactory) {
+		var container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		container.addMessageListener((message, pattern) -> {
+			try {
+				var bulkhead = objectMapper.readValue(message.getBody(), BulkheadDto.class);
+				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
+				var origin = parts[1];
+				bulkheadRedisChannel().send(MessageBuilder.createMessage(bulkhead, originHeaders(origin)));
+			} catch (IOException e) {
+				logger.error("Error parsing BulkheadDto from redis.");
+			}
+		}, of("bulkhead/*"));
 		return container;
 	}
 

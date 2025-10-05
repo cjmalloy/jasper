@@ -67,6 +67,12 @@ public class SingleNodeConfig {
 	@Autowired
 	MessageChannel templateRxChannel;
 
+	@Autowired
+	MessageChannel bulkheadTxChannel;
+
+	@Autowired
+	MessageChannel bulkheadRxChannel;
+
 	@Bean
 	public IntegrationFlow directCursorFlow() {
 		return IntegrationFlow
@@ -144,6 +150,16 @@ public class SingleNodeConfig {
 			.channel(new ExecutorChannel(integrationExecutor))
 			.channel(new QueueChannel(4))
 			.channel(templateRxChannel)
+			.get();
+	}
+
+	@Bean
+	public IntegrationFlow directBulkheadFlow() {
+		return IntegrationFlow
+			.from(bulkheadTxChannel)
+			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
+			.channel(bulkheadRxChannel)
 			.get();
 	}
 }
