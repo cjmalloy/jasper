@@ -68,12 +68,7 @@ public class ScriptExecutorFactory {
 				try {
 					scriptBulkhead.executeRunnable(runnable);
 				} finally {
-					sample.stop(Timer.builder("script.executor.task.duration")
-						.description("Duration of script executor tasks")
-						.tag("name", tag + origin)
-						.tag("tag", tag)
-						.tag("origin", origin)
-						.register(meterRegistry));
+					sample.stop(timer(tag, origin));
 				}
 			}, get(tag, origin)).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, tag);
@@ -90,6 +85,16 @@ public class ScriptExecutorFactory {
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
 		return bulkhead(tag, origin).executeSupplier(() -> executors.computeIfAbsent(tag + origin, k -> Executors.newVirtualThreadPerTaskExecutor()));
+	}
+
+	private final Map<String, Timer> timers = new ConcurrentHashMap<>();
+	private Timer timer(String tag, String origin) {
+		return timers.computeIfAbsent(tag + origin, k -> Timer.builder("script.executor.task.duration")
+			.description("Duration of script executor tasks")
+			.tag("name", tag + origin)
+			.tag("tag", tag)
+			.tag("origin", origin)
+			.register(meterRegistry));
 	}
 
 	private final Map<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
