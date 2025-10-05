@@ -83,16 +83,12 @@ public class ScriptExecutorFactory {
 		}
 	}
 
+	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	/**
 	 * Get an executor for a specific tag and origin.
 	 * Used when you need direct access to the executor (e.g., for WebSocket tasks).
 	 */
-	public ExecutorService getExecutor(String tag, String origin) throws BulkheadFullException {
-		return get(tag, origin);
-	}
-
-	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
-	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
+	public ExecutorService get(String tag, String origin) throws BulkheadFullException {
 		return bulkhead(tag, origin).executeSupplier(() -> {
 			return executors.computeIfAbsent(tag + origin, k -> {
 				logger.debug("{} Creating bulkhead with {} permits", origin, configs.security(origin).scriptLimit(tag, origin));

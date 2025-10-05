@@ -195,7 +195,7 @@ public class Pull {
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
-				}), scriptExecutorFactory.getExecutor("_plugin/websocket", remote.getOrigin()));
+				}), scriptExecutorFactory.get("_plugin/websocket", remote.getOrigin()));
 			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();
