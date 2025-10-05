@@ -4,8 +4,6 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
 import jakarta.annotation.PreDestroy;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
@@ -21,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.monitor;
 import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
@@ -32,9 +29,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Component
 public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
-
-	@Autowired
-	MeterRegistry meterRegistry;
 
 	@Autowired
 	BulkheadRegistry registry;
@@ -78,9 +72,8 @@ public class ScriptExecutorFactory {
 	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
 		return bulkhead(tag, origin).executeSupplier(() -> {
 			return executors.computeIfAbsent(tag + origin, k -> {
-				return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "scriptExecutor", "script", Tags.of(
-					"tag", tag,
-					"origin", origin));
+				logger.debug("{} Creating bulkhead with {} permits", origin, configs.security(origin).scriptLimit(tag, origin));
+				return Executors.newVirtualThreadPerTaskExecutor();
 			});
 		});
 	}

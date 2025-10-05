@@ -1,6 +1,5 @@
 package jasper.config;
 
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
@@ -34,7 +33,6 @@ class AsyncConfigurationTest {
         taskSchedulingProperties.setThreadNamePrefix("scheduler-");
         taskSchedulingProperties.getPool().setSize(2);
         asyncConfiguration.taskSchedulingProperties = taskSchedulingProperties;
-        asyncConfiguration.meterRegistry = new SimpleMeterRegistry();
     }
 
     @Test

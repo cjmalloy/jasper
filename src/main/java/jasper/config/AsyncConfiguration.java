@@ -1,6 +1,5 @@
 package jasper.config;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
@@ -21,8 +20,6 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.monitor;
-
 @Configuration
 @EnableAsync
 @EnableScheduling
@@ -35,34 +32,31 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	@Autowired
 	TaskSchedulingProperties taskSchedulingProperties;
 
-	@Autowired
-	MeterRegistry meterRegistry;
-
 	@Profile("!redis")
 	@Bean("integrationExecutor")
 	public ExecutorService getIntegrationExecutor() {
 		logger.info("Creating virtual thread executor for integration tasks");
-		return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "integrationExecutor", "task");
+		return Executors.newVirtualThreadPerTaskExecutor();
 	}
 
 	@Profile("redis")
 	@Bean("integrationExecutor")
 	public ExecutorService getRedisExecutor() {
 		logger.info("Creating virtual thread executor for Redis integration tasks");
-		return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "integrationExecutor", "task");
+		return Executors.newVirtualThreadPerTaskExecutor();
 	}
 
 	@Bean("websocketExecutor")
 	public ExecutorService getWebsocketExecutor() {
 		logger.info("Creating virtual thread executor for websocket tasks");
-		return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "websocketExecutor", "task");
+		return Executors.newVirtualThreadPerTaskExecutor();
 	}
 
 	@Bean("taskExecutor")
 	@Override
 	public ExecutorService getAsyncExecutor() {
 		logger.info("Creating virtual thread executor for async tasks");
-		return monitor(meterRegistry, Executors.newVirtualThreadPerTaskExecutor(), "taskExecutor", "task");
+		return Executors.newVirtualThreadPerTaskExecutor();
 	}
 
 	@Bean("taskScheduler")
