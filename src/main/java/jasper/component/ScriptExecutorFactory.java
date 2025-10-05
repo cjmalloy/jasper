@@ -58,7 +58,7 @@ public class ScriptExecutorFactory {
 		}
 	}
 
-	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) throws BulkheadFullException {
+	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
 			return runAsync(() -> {
 				scriptBulkhead.executeRunnable(runnable);
