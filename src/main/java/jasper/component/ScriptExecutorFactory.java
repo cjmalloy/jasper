@@ -73,6 +73,8 @@ public class ScriptExecutorFactory {
 		return bulkhead(tag, origin).executeSupplier(() -> {
 			return executors.computeIfAbsent(tag + origin, k -> {
 				logger.debug("{} Creating bulkhead with {} permits", origin, configs.security(origin).scriptLimit(tag, origin));
+				// Virtual thread executors don't use traditional thread pools, so ExecutorServiceMetrics.monitor()
+				// is not applicable and causes NullPointerException when trying to introspect pool metrics
 				return Executors.newVirtualThreadPerTaskExecutor();
 			});
 		});
