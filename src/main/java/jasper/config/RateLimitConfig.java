@@ -56,11 +56,18 @@ public class RateLimitConfig {
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
+		var origin = (String) message.getHeaders().get("origin");
 		if (template.getTag().startsWith("_config/server")) {
+			logger.debug("{} Server config template updated, updating rate limiter", origin);
 			httpRateLimiter().changeLimitForPeriod(configs.root().getMaxConcurrentRequests());
 		}
 		if (template.getTag().startsWith("_config/security")) {
-			originRateLimiters.forEach((origin, r) -> r.changeLimitForPeriod(configs.security(origin).getMaxRequests()));
+			logger.debug("{} Security config template updated, updating rate limiters", origin);
+			originRateLimiters.forEach((o, r) -> {
+				var limit = configs.security(o).getMaxRequests();
+				logger.debug("{} Updating rate limiter to {} requests", o, limit);
+				r.changeLimitForPeriod(limit);
+			});
 		}
 	}
 
