@@ -35,8 +35,6 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	@Override
 	public ExecutorService getAsyncExecutor() {
 		logger.info("Creating virtual thread executor for async tasks");
-		// Virtual thread executors don't use traditional thread pools, so ExecutorServiceMetrics.monitor()
-		// is not applicable and causes NullPointerException when trying to introspect pool metrics
 		return Executors.newVirtualThreadPerTaskExecutor();
 	}
 
