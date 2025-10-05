@@ -4,6 +4,8 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PreDestroy;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
@@ -31,6 +33,9 @@ public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
 
 	@Autowired
+	MeterRegistry meterRegistry;
+
+	@Autowired
 	BulkheadRegistry registry;
 
 	@Autowired
@@ -55,7 +60,17 @@ public class ScriptExecutorFactory {
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
 			return runAsync(() -> {
-				scriptBulkhead.executeRunnable(runnable);
+				Timer.Sample sample = Timer.start(meterRegistry);
+				try {
+					scriptBulkhead.executeRunnable(runnable);
+				} finally {
+					sample.stop(Timer.builder("script.executor.task.duration")
+						.description("Duration of script executor tasks")
+						.tag("name", tag + origin)
+						.tag("tag", tag)
+						.tag("origin", origin)
+						.register(meterRegistry));
+				}
 			}, get(tag, origin)).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, tag);
 				tagger.attachLogs(url, origin, "Rate Limit Hit " + tag);
