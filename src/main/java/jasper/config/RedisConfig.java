@@ -21,6 +21,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.channel.ExecutorChannel;
+import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.messaging.Message;
@@ -167,6 +168,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(cursorRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(cursorRxChannel)
 			.get();
 	}
@@ -212,6 +214,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(refRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(refRxChannel)
 			.get();
 	}
@@ -256,6 +259,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(tagRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(tagRxChannel)
 			.get();
 	}
@@ -297,6 +301,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(responseRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(responseRxChannel)
 			.get();
 	}
@@ -343,6 +348,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(userRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(userRxChannel)
 			.get();
 	}
@@ -393,6 +399,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(extRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(extRxChannel)
 			.get();
 	}
@@ -443,6 +450,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(pluginRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(pluginRxChannel)
 			.get();
 	}
@@ -493,6 +501,7 @@ public class RedisConfig {
 		return IntegrationFlow
 			.from(templateRedisChannel())
 			.channel(new ExecutorChannel(integrationExecutor))
+			.channel(new QueueChannel(4))
 			.channel(templateRxChannel)
 			.get();
 	}

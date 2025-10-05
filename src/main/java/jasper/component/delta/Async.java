@@ -106,28 +106,24 @@ public class Async {
 			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
 			if (ud.getTags() == null) throw new RuntimeException();
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
-			tags.forEach((k, v) -> {
-				if (!hasMatchingTag(ud, k)) return;
-				if (!configs.root().script(k, origin)) return;
+			tags.forEach((tag, v) -> {
+				if (!hasMatchingTag(ud, tag)) return;
+				if (!configs.root().script(tag, origin)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", origin, k, ud.getUrl(), origin);
+				logger.debug("{} Async Tag ({}): {} {}", origin, tag, ud.getUrl(), origin);
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
-						logger.debug("{} Async tag trying to run before finishing {} ", origin, k);
+						logger.debug("{} Async tag trying to run before finishing {} ", origin, tag);
 						return existing;
 					}
-					return runAsync(() -> {
+					return scriptExecutorFactory.run(tag, origin, ud.getUrl(), () -> {
 						try {
 							v.run(fetch(ud));
 						} catch (NotFoundException e) {
 							logger.debug("{} Plugin not installed {} ", origin, getMessage(e));
 						} catch (Exception e) {
-							logger.error("{} Error in async tag {} ", origin, k, e);
+							logger.error("{} Error in async tag {} ", origin, tag, e);
 						}
-					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-						logger.warn("{} Rate limited {} ", origin, k);
-						tagger.attachError(ud.getUrl(), origin, "Rate Limit Hit " + k);
-						return null;
 					});
 				});
 			});
@@ -157,24 +153,26 @@ public class Async {
 			if (maybeRef.isEmpty()) return;
 			var ref = maybeRef.getContent().getFirst();
 			lastModified = ref.getModified();
-			tags.forEach((k, v) -> {
+			tags.forEach((tag, v) -> {
 				if (!v.backfill()) return;
-				if (!configs.root().script(k, origin)) return;
-				if (!hasMatchingTag(ref, k)) return;
+				if (!configs.root().script(tag, origin)) return;
+				if (!hasMatchingTag(ref, tag)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
-				runAsync(() -> {
-					try {
-						v.run(ref);
-					} catch (NotFoundException e) {
-						logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
-					} catch (Exception e) {
-						logger.error("{} Error in async tag {} ", ref.getOrigin(), k, e);
+				refs.compute(getKey(ref), (u, existing) -> {
+					if (existing != null && !existing.isDone()) {
+						logger.debug("{} Async tag trying to run before finishing {} ", origin, tag);
+						return existing;
 					}
-				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-					logger.warn("{} Rate limited {} ", origin, k);
-					tagger.attachError(ref.getUrl(), origin, "Rate Limit Hit " + k);
-					return null;
+					return scriptExecutorFactory.run(tag, origin, ref.getUrl(), () -> {
+						try {
+							v.run(ref);
+						} catch (NotFoundException e) {
+							logger.debug("{} Plugin not installed {} ", ref.getOrigin(), getMessage(e));
+						} catch (Exception e) {
+							logger.error("{} Error in async tag {} ", ref.getOrigin(), tag, e);
+						}
+					});
 				});
 			});
 		}
