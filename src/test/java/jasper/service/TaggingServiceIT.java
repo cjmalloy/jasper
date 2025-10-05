@@ -48,7 +48,7 @@ public class TaggingServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}
@@ -62,7 +62,7 @@ public class TaggingServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 		assertThat(fetched.getTags())
 			.doesNotContain("_test");
 	}
@@ -76,7 +76,7 @@ public class TaggingServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("_test");
 	}
@@ -98,7 +98,7 @@ public class TaggingServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}

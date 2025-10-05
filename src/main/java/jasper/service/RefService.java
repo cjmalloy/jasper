@@ -90,7 +90,7 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin)
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
@@ -132,7 +132,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		// Hidden tags cannot be removed
@@ -151,7 +151,7 @@ public class RefService {
 	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
 		// TODO: disable patching for large refs
 		var created = false;
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 		if (ref == null) {
 			created = true;
 			var current = refRepository.findAll(isUrl(url).and(isNotObsolete()), ofSize(1));

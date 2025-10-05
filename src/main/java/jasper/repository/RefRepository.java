@@ -21,7 +21,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
-	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
+	Optional<Ref> findFirstByUrlAndOriginOrderByModifiedDesc(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 

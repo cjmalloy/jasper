@@ -2,7 +2,7 @@ name: Draft Github Release
 
 on:
   push:
-    tags: [ 'v*.*.*' ]
+    tags: [ 'archive-v*.*.*' ]
 
 env:
   # Use docker.io for Docker Hub if empty

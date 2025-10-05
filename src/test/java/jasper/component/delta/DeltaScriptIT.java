@@ -68,6 +68,8 @@ public class DeltaScriptIT {
 
 	@BeforeEach
 	void init() {
+		refRepository.deleteAll();
+		pluginRepository.deleteAll();
 		props.setNode(props.getNode().replaceFirst("^~", System.getProperty("user.home")));
 	}
 

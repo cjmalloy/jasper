@@ -88,7 +88,7 @@ public class BackupService {
 	@PreAuthorize("@auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String getKey(String key) {
-		var ref = refRepository.findOneByUrlAndOrigin("system:backup-key", auth.getOrigin()).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc("system:backup-key", auth.getOrigin()).orElse(null);
 		if (ref == null) {
 			ref = new Ref();
 			ref.setUrl("system:backup-key");
@@ -119,7 +119,7 @@ public class BackupService {
 
 	public boolean unlock(String key) {
 		if (isBlank(key)) return false;
-		var ref = refRepository.findOneByUrlAndOrigin("system:backup-key", auth.getOrigin()).orElse(null);
+		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc("system:backup-key", auth.getOrigin()).orElse(null);
 		if (ref == null) return false;
 		return key.equals(ref.getComment());
 	}

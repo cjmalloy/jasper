@@ -298,7 +298,7 @@ public class Auth {
 		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
 
@@ -314,7 +314,7 @@ public class Auth {
 		// If we can write to the existing we are granted permission
 		// We do not need to check if we have write access to the updated Ref,
 		// as self revocation is allowed
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
 		// We do need to check if we are allowed to add any of the new tags
 		// by calling canAddTag on each one
 		return newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canAddTag);
@@ -334,7 +334,7 @@ public class Auth {
 		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
 		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 		if (maybeExisting.isEmpty()) {
 			// If we're creating, simply having the role USER is enough
 			return hasRole(USER);

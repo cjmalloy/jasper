@@ -13,6 +13,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -112,6 +113,7 @@ public class RefServiceMTIT {
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateRefFails() {
 		var existing = getRef();
@@ -208,7 +210,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get().getTags())
 			.containsExactly("_secret");
 	}
 
@@ -222,9 +224,9 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get().getTags())
 			.containsExactly("+user/tester");
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getExpandedTags())
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get().getExpandedTags())
 			.containsExactly("+user/tester", "+user");
 	}
 
@@ -239,9 +241,9 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getTags())
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get().getTags())
 			.containsExactly("_user/tester");
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getExpandedTags())
+		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get().getExpandedTags())
 			.containsExactly("_user/tester", "_user");
 	}
 
@@ -835,7 +837,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -858,7 +860,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -880,7 +882,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
@@ -903,7 +905,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -927,7 +929,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -950,7 +952,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -977,7 +979,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1007,7 +1009,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@remote"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@remote").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1033,7 +1035,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
@@ -1055,7 +1057,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1077,7 +1079,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 		assertThat(fetched.getTags())
@@ -1105,7 +1107,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1130,7 +1132,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
@@ -1158,7 +1160,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -1188,7 +1190,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -1218,7 +1220,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -1251,7 +1253,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -1286,7 +1288,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL + "source", "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL + "source", "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + "source", "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Source");
 		assertThat(fetched.getMetadata().getResponses())
@@ -1307,7 +1309,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1325,7 +1327,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@remote"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@remote").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1343,7 +1345,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1379,7 +1381,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1415,7 +1417,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}
@@ -1437,7 +1439,7 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
+		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("First");
 	}

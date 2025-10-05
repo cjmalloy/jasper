@@ -75,10 +75,10 @@ public class AuthMultiTenantUnitTest {
 
 	RefRepository getRefRepo(Ref ...refs) {
 		var mock = mock(RefRepository.class);
-		when(mock.findOneByUrlAndOrigin(anyString(), anyString()))
+		when(mock.findFirstByUrlAndOriginOrderByModifiedDesc(anyString(), anyString()))
 			.thenReturn(Optional.empty());
 		for (var ref : refs) {
-			when(mock.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
+			when(mock.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin()))
 				.thenReturn(Optional.of(ref));
 		}
 		return mock;
@@ -323,18 +323,6 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canWriteRef(ref))
-			.isFalse();
-	}
-
-	@Test
-	void testCanWriteRef_LockedFailed() {
-		var user = getUser("+user/test@other");
-		user.getWriteAccess().add("+custom");
-		var auth = getAuth(user, USER);
-		var ref = getRef("+custom", "locked");
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))

@@ -23,6 +23,7 @@ import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -128,6 +129,9 @@ public class Ref implements HasTags {
 	@Column(updatable = false)
 	private Instant created = Instant.now();
 
+	@Id
+	@Column(updatable = false)
+	@LastModifiedDate
 	private Instant modified = Instant.now();
 
 	@Type(PostgreSQLTSVectorType.class)

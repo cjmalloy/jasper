@@ -181,7 +181,7 @@ public class FileCache {
 	}
 
 	private Ref stat(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
 	}
 
 	private Cache cache(String url, String origin) {

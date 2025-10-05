@@ -7,6 +7,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.repository.PluginRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,6 +50,7 @@ public class IngestPluginIT {
 			.isTrue();
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateExtFails() {
 		var existing = new Plugin();
@@ -64,6 +66,7 @@ public class IngestPluginIT {
 			.isTrue();
 	}
 
+	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new Plugin();
@@ -96,7 +99,7 @@ public class IngestPluginIT {
 
 		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
 			.isTrue();
-		var fetched = pluginRepository.findOneByQualifiedTag("plugin/test").get();
+		var fetched = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc("plugin/test").get();
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -119,7 +122,7 @@ public class IngestPluginIT {
 
 			assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
 				.isTrue();
-			var fetched1 = pluginRepository.findOneByQualifiedTag("plugin/test").get();
+			var fetched1 = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc("plugin/test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -154,10 +157,10 @@ public class IngestPluginIT {
 
 			assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
 				.isTrue();
-			var fetched1 = pluginRepository.findOneByQualifiedTag("plugin/test").get();
+			var fetched1 = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc("plugin/test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
-			var fetched2 = pluginRepository.findOneByQualifiedTag("plugin/other").get();
+			var fetched2 = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc("plugin/other").get();
 			assertThat(fetched2.getName())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())

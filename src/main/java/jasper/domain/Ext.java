@@ -52,6 +52,8 @@ public class Ext implements Tag {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode config;
 
+	@Id
+	@Column(updatable = false)
 	@LastModifiedDate
 	private Instant modified = Instant.now();
 
