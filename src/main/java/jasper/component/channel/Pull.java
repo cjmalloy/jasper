@@ -48,7 +48,6 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.util.Logging.getMessage;
-import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
 public class Pull {
@@ -186,7 +185,7 @@ public class Pull {
 			};
 			try {
 				var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler);
-				runAsync(() -> future.thenAcceptAsync(session -> {
+				scriptExecutorFactory.run("_plugin/websocket", remote.getOrigin(), () -> future.thenAcceptAsync(session -> {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {
@@ -195,7 +194,7 @@ public class Pull {
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
-				}), scriptExecutorFactory.get("_plugin/websocket", remote.getOrigin()));
+				}));
 			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();

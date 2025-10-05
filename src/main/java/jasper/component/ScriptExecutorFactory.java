@@ -57,6 +57,10 @@ public class ScriptExecutorFactory {
 		}
 	}
 
+	public CompletableFuture<Void> run(String tag, String origin, Runnable runnable) {
+		return run(tag, origin, "tag:/" + tag, runnable);
+	}
+
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
 			return runAsync(() -> {
@@ -84,11 +88,7 @@ public class ScriptExecutorFactory {
 	}
 
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
-	/**
-	 * Get an executor for a specific tag and origin.
-	 * Used when you need direct access to the executor (e.g., for WebSocket tasks).
-	 */
-	public ExecutorService get(String tag, String origin) throws BulkheadFullException {
+	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
 		return bulkhead(tag, origin).executeSupplier(() -> {
 			return executors.computeIfAbsent(tag + origin, k -> {
 				logger.debug("{} Creating bulkhead with {} permits", origin, configs.security(origin).scriptLimit(tag, origin));
