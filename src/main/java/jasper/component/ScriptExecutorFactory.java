@@ -67,12 +67,13 @@ public class ScriptExecutorFactory {
 
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
-			return runAsync(() -> bulkhead(tag, origin).executeRunnable(() -> scriptBulkhead.executeRunnable(() -> {
+			var res = getResources(tag, origin);
+			return runAsync(() -> res.bulkhead().executeRunnable(() -> scriptBulkhead.executeRunnable(() -> {
 				var sample = start(meterRegistry);
 				try {
 					runnable.run();
 				} finally {
-					sample.stop(timer(tag, origin));
+					sample.stop(res.timer());
 				}
 			})), taskExecutor).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, tag);
@@ -101,13 +102,5 @@ public class ScriptExecutorFactory {
 				.maxWaitDuration(ofSeconds(60))
 				.build())
 		));
-	}
-	
-	private Timer timer(String tag, String origin) {
-		return getResources(tag, origin).timer();
-	}
-
-	private Bulkhead bulkhead(String tag, String origin) {
-		return getResources(tag, origin).bulkhead();
 	}
 }
