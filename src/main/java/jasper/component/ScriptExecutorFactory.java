@@ -49,13 +49,15 @@ public class ScriptExecutorFactory {
 	@Autowired
 	Tagger tagger;
 
+	private record ScriptResources(Timer timer, Bulkhead bulkhead) { }
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
 		if (template.getTag() != null && template.getTag().startsWith("_config/security")) {
 			logger.debug("Server config template updated, updating bulkhead configurations");
-			bulkheads.forEach((qtag, bulkhead) -> updateBulkheadConfig(bulkhead, configs.security(tagOrigin(qtag)).scriptLimit(localTag(qtag), tagOrigin(qtag))));
+			resources.forEach((qtag, res) -> updateBulkheadConfig(res.bulkhead(), configs.security(tagOrigin(qtag)).scriptLimit(localTag(qtag), tagOrigin(qtag))));
 		}
 	}
 
@@ -84,23 +86,28 @@ public class ScriptExecutorFactory {
 		}
 	}
 
-	private final Map<String, Timer> timers = new ConcurrentHashMap<>();
-	private Timer timer(String tag, String origin) {
-		return timers.computeIfAbsent(tag + origin, k -> Timer.builder("script.executor.task.duration")
-			.description("Duration of script executor tasks")
-			.tag("name", tag + origin)
-			.tag("tag", tag)
-			.tag("origin", origin)
-			.register(meterRegistry));
-	}
-
-	private final Map<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
-	private Bulkhead bulkhead(String tag, String origin) {
-		return bulkheads.computeIfAbsent(tag + origin, k -> {
-			return bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
+	private final Map<String, ScriptResources> resources = new ConcurrentHashMap<>();
+	
+	private ScriptResources getResources(String tag, String origin) {
+		return resources.computeIfAbsent(tag + origin, k -> new ScriptResources(
+			Timer.builder("script.executor.task.duration")
+				.description("Duration of script executor tasks")
+				.tag("name", tag + origin)
+				.tag("tag", tag)
+				.tag("origin", origin)
+				.register(meterRegistry),
+			bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
 				.maxConcurrentCalls(configs.security(origin).scriptLimit(tag, origin))
 				.maxWaitDuration(ofSeconds(60))
-				.build());
-		});
+				.build())
+		));
+	}
+	
+	private Timer timer(String tag, String origin) {
+		return getResources(tag, origin).timer();
+	}
+
+	private Bulkhead bulkhead(String tag, String origin) {
+		return getResources(tag, origin).bulkhead();
 	}
 }
