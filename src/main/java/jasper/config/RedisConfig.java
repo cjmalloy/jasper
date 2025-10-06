@@ -10,7 +10,6 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +19,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.integration.channel.DirectChannel;
-import org.springframework.integration.channel.ExecutorChannel;
-import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.messaging.Message;
@@ -31,7 +28,6 @@ import org.springframework.messaging.support.MessageBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.concurrent.ExecutorService;
 
 import static jasper.component.Messages.originHeaders;
 import static jasper.component.Messages.refHeaders;
@@ -47,9 +43,6 @@ import static org.springframework.data.redis.listener.PatternTopic.of;
 @Configuration
 public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
-
-	@Autowired
-	ExecutorService integrationExecutor;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -167,8 +160,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeCursorFlow() {
 		return IntegrationFlow
 			.from(cursorRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(cursorRxChannel)
 			.get();
 	}
@@ -213,8 +204,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeRefFlow() {
 		return IntegrationFlow
 			.from(refRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(refRxChannel)
 			.get();
 	}
@@ -258,8 +247,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeTagFlow() {
 		return IntegrationFlow
 			.from(tagRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(tagRxChannel)
 			.get();
 	}
@@ -300,8 +287,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeResponseFlow() {
 		return IntegrationFlow
 			.from(responseRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(responseRxChannel)
 			.get();
 	}
@@ -347,8 +332,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeUserFlow() {
 		return IntegrationFlow
 			.from(userRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(userRxChannel)
 			.get();
 	}
@@ -398,8 +381,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeExtFlow() {
 		return IntegrationFlow
 			.from(extRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(extRxChannel)
 			.get();
 	}
@@ -449,8 +430,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribePluginFlow() {
 		return IntegrationFlow
 			.from(pluginRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(pluginRxChannel)
 			.get();
 	}
@@ -500,8 +479,6 @@ public class RedisConfig {
 	public IntegrationFlow redisSubscribeTemplateFlow() {
 		return IntegrationFlow
 			.from(templateRedisChannel())
-			.channel(new ExecutorChannel(integrationExecutor))
-			.channel(new QueueChannel(4))
 			.channel(templateRxChannel)
 			.get();
 	}
