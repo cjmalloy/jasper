@@ -6,7 +6,6 @@ import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.PreDestroy;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,6 @@ import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
-import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
@@ -34,10 +32,13 @@ public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
 
 	@Autowired
+	ExecutorService taskExecutor;
+
+	@Autowired
 	MeterRegistry meterRegistry;
 
 	@Autowired
-	BulkheadRegistry registry;
+	BulkheadRegistry bulkheadRegistry;
 
 	@Autowired
 	Bulkhead scriptBulkhead;
@@ -64,14 +65,14 @@ public class ScriptExecutorFactory {
 
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
-			return runAsync(() -> {
+			return runAsync(() -> bulkhead(tag, origin).executeRunnable(() -> scriptBulkhead.executeRunnable(() -> {
 				var sample = start(meterRegistry);
 				try {
-					scriptBulkhead.executeRunnable(runnable);
+					runnable.run();
 				} finally {
 					sample.stop(timer(tag, origin));
 				}
-			}, get(tag, origin)).exceptionally(e -> {
+			})), taskExecutor).exceptionally(e -> {
 				logger.warn("{} Rate limited {} ", origin, tag);
 				tagger.attachLogs(url, origin, "Rate Limit Hit " + tag);
 				return null;
@@ -81,11 +82,6 @@ public class ScriptExecutorFactory {
 			tagger.attachLogs(url, origin, "Rate Limit Hit " + tag);
 			return null;
 		}
-	}
-
-	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
-	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
-		return bulkhead(tag, origin).executeSupplier(() -> executors.computeIfAbsent(tag + origin, k -> newVirtualThreadPerTaskExecutor()));
 	}
 
 	private final Map<String, Timer> timers = new ConcurrentHashMap<>();
@@ -101,23 +97,10 @@ public class ScriptExecutorFactory {
 	private final Map<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
 	private Bulkhead bulkhead(String tag, String origin) {
 		return bulkheads.computeIfAbsent(tag + origin, k -> {
-			return registry.bulkhead(k, BulkheadConfig.custom()
+			return bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
 				.maxConcurrentCalls(configs.security(origin).scriptLimit(tag, origin))
 				.maxWaitDuration(ofSeconds(60))
 				.build());
 		});
-	}
-
-	@PreDestroy
-	public void cleanup() {
-		logger.info("Shutting down {} dynamic script executors and their metrics", executors.size());
-		executors.values().forEach(executor -> {
-			try {
-				executor.shutdown();
-			} catch (Exception e) {
-				logger.warn("Error shutting down script executor", e);
-			}
-		});
-		executors.clear();
 	}
 }
