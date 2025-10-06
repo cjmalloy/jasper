@@ -29,7 +29,7 @@ public class TagQuery {
 	}
 
 	private Specification<Ref> _refSpec(JsonNode ast) {
-		Specification<Ref> result = (root, query, cb) -> cb.conjunction();
+		Specification<Ref> result = (root, q, cb) -> cb.conjunction();
 		if (!ast.isArray()) return result;
 		var or = true;
 		var ands = new ArrayList<Specification<Ref>>();
@@ -59,7 +59,7 @@ public class TagQuery {
 	}
 
 	private  <T extends Tag> Specification<T> _spec(JsonNode ast) {
-		Specification<T> result = (root, query, cb) -> cb.conjunction();
+		Specification<T> result = (root, q, cb) -> cb.conjunction();
 		if (!ast.isArray()) return result;
 		var or = true;
 		var ands = new ArrayList<Specification<T>>();
