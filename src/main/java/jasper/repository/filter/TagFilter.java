@@ -38,7 +38,7 @@ public class TagFilter implements Query {
 
 	public <T extends Tag> Specification<T> spec() {
 		if ("!@*".equals(query)) return none();
-		var result = Specification.<T>where(null);
+		Specification<T> result = (root, query, cb) -> cb.conjunction();
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}

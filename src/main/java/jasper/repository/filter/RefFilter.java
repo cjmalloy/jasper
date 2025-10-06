@@ -64,7 +64,7 @@ public class RefFilter implements Query {
 
 	public Specification<Ref> spec() {
 		if ("!@*".equals(query)) return none();
-		var result = Specification.<Ref>where(null);
+		Specification<Ref> result = (root, query, cb) -> cb.conjunction();
 		if (origin != null && !origin.equals("@*")) {
 			result = result.and(isOrigin(origin));
 		}
