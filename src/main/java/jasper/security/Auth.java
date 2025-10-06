@@ -767,7 +767,7 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		var spec = hasRole(MOD)
+		Specification<Ref> spec = hasRole(MOD)
 			? isOrigin(getSubOrigins())
 			: selector("public" + getSubOrigins()).refSpec();
 		if (isLoggedIn()) {
@@ -777,7 +777,7 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		var spec = isOrigin(getSubOrigins());
+		Specification<T> spec = isOrigin(getSubOrigins());
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().downwardSpec());
