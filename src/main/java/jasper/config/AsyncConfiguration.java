@@ -17,7 +17,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
+import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 
 @Configuration
 @EnableAsync
@@ -34,8 +35,7 @@ public class AsyncConfiguration implements AsyncConfigurer, SchedulingConfigurer
 	@Bean("taskExecutor")
 	@Override
 	public ExecutorService getAsyncExecutor() {
-		logger.info("Creating virtual thread executor for async tasks");
-		return Executors.newVirtualThreadPerTaskExecutor();
+		return newVirtualThreadPerTaskExecutor();
 	}
 
 	@Bean("taskScheduler")

@@ -19,13 +19,14 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
+import static io.micrometer.core.instrument.Timer.start;
 import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
+import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
@@ -64,7 +65,7 @@ public class ScriptExecutorFactory {
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		try {
 			return runAsync(() -> {
-				Timer.Sample sample = Timer.start(meterRegistry);
+				var sample = start(meterRegistry);
 				try {
 					scriptBulkhead.executeRunnable(runnable);
 				} finally {
@@ -84,7 +85,7 @@ public class ScriptExecutorFactory {
 
 	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 	private ExecutorService get(String tag, String origin) throws BulkheadFullException {
-		return bulkhead(tag, origin).executeSupplier(() -> executors.computeIfAbsent(tag + origin, k -> Executors.newVirtualThreadPerTaskExecutor()));
+		return bulkhead(tag, origin).executeSupplier(() -> executors.computeIfAbsent(tag + origin, k -> newVirtualThreadPerTaskExecutor()));
 	}
 
 	private final Map<String, Timer> timers = new ConcurrentHashMap<>();
