@@ -9,6 +9,7 @@ on:
 permissions:
   checks: write
   contents: read
+  pull-requests: write
 
 jobs:
   build:
@@ -40,6 +41,162 @@ jobs:
       - name: Copy the reports from the container
         if: always()
         run: docker cp test:/reports reports
+      - name: Generate Test Summary
+        if: always()
+        id: test_summary
+        run: |
+          # Count total tests, failures, errors, and skipped
+          if [ -d "tests" ]; then
+            TOTAL=$(grep -r "testsuite" tests/*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            FAILURES=$(grep -r "testsuite" tests/*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            ERRORS=$(grep -r "testsuite" tests/*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            SKIPPED=$(grep -r "testsuite" tests/*.xml | grep -oP 'skipped="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            
+            # Default to 0 if empty
+            TOTAL=${TOTAL:-0}
+            FAILURES=${FAILURES:-0}
+            ERRORS=${ERRORS:-0}
+            SKIPPED=${SKIPPED:-0}
+            
+            # Calculate passed tests
+            PASSED=$((TOTAL - FAILURES - ERRORS - SKIPPED))
+            
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+            echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+            echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+            
+            # Determine if tests failed
+            if [ $((FAILURES + ERRORS)) -gt 0 ]; then
+              echo "has_failures=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_failures=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # Create workflow summary
+            echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failures | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💥 Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test results found"
+            echo "has_failures=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Comment on PR with Test Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v8
+        with:
+          # language=JavaScript
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const total = '${{ steps.test_summary.outputs.total }}' || '0';
+            const passed = '${{ steps.test_summary.outputs.passed }}' || '0';
+            const failures = '${{ steps.test_summary.outputs.failures }}' || '0';
+            const errors = '${{ steps.test_summary.outputs.errors }}' || '0';
+            const skipped = '${{ steps.test_summary.outputs.skipped }}' || '0';
+            const hasFailures = '${{ steps.test_summary.outputs.has_failures }}' === 'true';
+            
+            let emoji = '✅';
+            let status = 'All tests passed!';
+            
+            if (hasFailures) {
+              emoji = '❌';
+              status = 'Some tests failed!';
+            }
+            
+            let comment = `## ${emoji} Test Results\n\n`;
+            comment += `**${status}**\n\n`;
+            comment += `| Metric | Count |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Total Tests | ${total} |\n`;
+            comment += `| ✅ Passed | ${passed} |\n`;
+            comment += `| ❌ Failures | ${failures} |\n`;
+            comment += `| 💥 Errors | ${errors} |\n`;
+            comment += `| ⏭️ Skipped | ${skipped} |\n\n`;
+            
+            // Add link to detailed report
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/junit-reports-pr-${context.issue.number}/`;
+            comment += `📊 [View detailed test report](${url})\n\n`;
+            
+            // If there are failures, try to extract failure details
+            if (hasFailures) {
+              comment += `### 🔍 Test Failures\n\n`;
+              
+              try {
+                const testsDir = 'tests';
+                if (fs.existsSync(testsDir)) {
+                  const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.xml'));
+                  const failureDetails = [];
+                  
+                  for (const file of files) {
+                    const content = fs.readFileSync(path.join(testsDir, file), 'utf8');
+                    
+                    // Parse XML for failures and errors
+                    const testcaseRegex = /<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*time="([^"]*)"[^>]*>([\s\S]*?)<\/testcase>/g;
+                    let match;
+                    
+                    while ((match = testcaseRegex.exec(content)) !== null) {
+                      const [, testName, className, time, body] = match;
+                      
+                      // Check if this testcase has a failure or error
+                      if (body.includes('<failure') || body.includes('<error')) {
+                        const failureMatch = body.match(/<(?:failure|error)[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/(?:failure|error)>/);
+                        if (failureMatch) {
+                          const [, message, details] = failureMatch;
+                          failureDetails.push({
+                            className: className,
+                            testName: testName,
+                            message: message,
+                            details: details.trim()
+                          });
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (failureDetails.length > 0) {
+                    // Limit to first 10 failures to avoid huge comments
+                    const displayFailures = failureDetails.slice(0, 10);
+                    
+                    for (const failure of displayFailures) {
+                      comment += `#### \`${failure.className}.${failure.testName}\`\n\n`;
+                      comment += `**Message:** ${failure.message}\n\n`;
+                      
+                      // Truncate long stack traces
+                      if (failure.details.length > 500) {
+                        comment += `<details>\n<summary>Stack trace (click to expand)</summary>\n\n\`\`\`\n${failure.details.substring(0, 1000)}...\n\`\`\`\n</details>\n\n`;
+                      } else if (failure.details.length > 0) {
+                        comment += `\`\`\`\n${failure.details}\n\`\`\`\n\n`;
+                      }
+                    }
+                    
+                    if (failureDetails.length > 10) {
+                      comment += `\n*... and ${failureDetails.length - 10} more failures. See the detailed report for all failures.*\n`;
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('Error parsing test results:', error);
+                comment += `\n*Could not parse detailed test failures. Please check the full report.*\n`;
+              }
+            }
+            
+            // Post the comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v4
