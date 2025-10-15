@@ -106,9 +106,32 @@ jobs:
         with:
           # language=JavaScript
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const body = 'Built docker image: https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}\n\n<!-- publish-results-comment -->';
+            
+            // Find existing comment and update it, or create new one
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Built docker image: https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}'
-            })
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('<!-- publish-results-comment -->')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
