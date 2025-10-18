@@ -1,6 +1,5 @@
 package jasper.component.cron;
 
-import io.github.resilience4j.bulkhead.Bulkhead;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -26,7 +25,6 @@ import java.util.concurrent.ScheduledFuture;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
-import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
 public class Cron {
@@ -49,9 +47,6 @@ public class Cron {
 
 	@Autowired
 	Watch watch;
-
-	@Autowired
-	Bulkhead scriptBulkhead;
 
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
@@ -139,32 +134,25 @@ public class Cron {
 				throw new RuntimeException();
 			}
 			var ran = new HashSet<CronRunner>();
-			tags.forEach((k, v) -> {
+			tags.forEach((tag, v) -> {
 				if (ran.contains(v)) return;
-				if (!hasMatchingTag(ref, k)) return;
-				if (!configs.root().script(k, origin)) return;
+				if (!hasMatchingTag(ref, tag)) return;
+				if (!configs.root().script(tag, origin)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return runAsync(() -> {
-						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						scriptBulkhead.executeSupplier(() -> {
-							try {
-								v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
-								ran.add(v);
-								tagger.removeAllResponses(url, origin, "+plugin/user/run");
-								return null;
-							} catch (Exception e) {
-								logger.error("{} Error in run tag {} ", origin, k);
-								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-								throw new RuntimeException(e);
-							} finally {
-								refs.remove(s);
-							}
-						});
-					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-						logger.warn("{} Rate limited {} ", origin, k);
-						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-						return null;
+					logger.warn("{} Run Tag: {} {}", origin, tag, url);
+					return scriptExecutorFactory.run(tag, origin, url, () -> {
+						try {
+							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+							ran.add(v);
+							tagger.removeAllResponses(url, origin, "+plugin/user/run");
+						} catch (Exception e) {
+							logger.error("{} Error in run tag {} ", origin, tag);
+							tagger.attachError(url, origin, "Error in run tag " + tag, getMessage(e));
+							throw new RuntimeException(e);
+						} finally {
+							refs.remove(s);
+						}
 					});
 				});
 			});
@@ -210,28 +198,21 @@ public class Cron {
 			return;
 		}
 		var ran = new HashSet<CronRunner>();
-		tags.forEach((k, v) -> {
+		tags.forEach((tag, v) -> {
 			if (ran.contains(v)) return;
-			if (!hasMatchingTag(ref, k)) return;
-			if (!configs.root().script(k, origin)) return;
-			logger.debug("{} Cron Tag: {} {}", origin, k, url);
+			if (!hasMatchingTag(ref, tag)) return;
+			if (!configs.root().script(tag, origin)) return;
+			logger.debug("{} Cron Tag: {} {}", origin, tag, url);
 			refs.compute(getKey(ref), (s, existing) -> {
 				if (existing != null && !existing.isDone()) return existing;
-				return runAsync(() -> {
-					scriptBulkhead.executeSupplier(() -> {
-						try {
-							v.run(ref);
-							ran.add(v);
-						} catch (Exception e) {
-							logger.error("{} Error in cron tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-						}
-						return null;
-					});
-				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-					logger.warn("{} Rate limited {} ", origin, k);
-					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-					return null;
+				return scriptExecutorFactory.run(tag, origin, url, () -> {
+					try {
+						v.run(ref);
+						ran.add(v);
+					} catch (Exception e) {
+						logger.error("{} Error in cron tag {} ", origin, tag);
+						tagger.attachError(url, origin, "Error in cron tag " + tag, getMessage(e));
+					}
 				});
 			});
 		});

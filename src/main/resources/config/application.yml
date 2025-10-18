@@ -153,12 +153,6 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   task:
-    execution:
-      thread-name-prefix: jasper-task-
-      pool:
-        core-size: 2
-        max-size: 50
-        queue-capacity: 10000
     scheduling:
       thread-name-prefix: jasper-scheduling-
       pool:
