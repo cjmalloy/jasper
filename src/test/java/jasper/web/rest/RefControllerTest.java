@@ -43,8 +43,7 @@ class RefControllerTest {
     @Autowired
     private PluginRepository pluginRepository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     static final String URL = "https://www.example.com/test";
 
@@ -52,7 +51,7 @@ class RefControllerTest {
         var plugin = new Plugin();
         plugin.setTag(tag);
         try {
-            plugin.setSchema((ObjectNode) objectMapper.readTree("""
+            plugin.setSchema((ObjectNode) mapper.readTree("""
             {
                 "properties": {
                     "name": { "type": "string" },
@@ -62,7 +61,7 @@ class RefControllerTest {
                     "email": { "type": "string" }
                 }
             }"""));
-            plugin.setDefaults((ObjectNode) objectMapper.readTree("""
+            plugin.setDefaults((ObjectNode) mapper.readTree("""
             {
                 "name": "default",
                 "age": 0
@@ -89,7 +88,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL);
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", 30);
         ref.setPlugin("plugin/test", pluginData);
@@ -112,7 +111,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/missing-field");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         // "age" field is missing
         ref.setPlugin("plugin/test", pluginData);
@@ -134,7 +133,7 @@ class RefControllerTest {
         plugin.setTag("plugin/strict");
         try {
             // Schema without additionalProperties - strict validation
-            plugin.setSchema((ObjectNode) objectMapper.readTree("""
+            plugin.setSchema((ObjectNode) mapper.readTree("""
             {
                 "properties": {
                     "name": { "type": "string" },
@@ -150,7 +149,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/extra-field");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/strict")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", 30);
         pluginData.put("extra", "not allowed");  // This field is not in schema
@@ -176,7 +175,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/wrong-type");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", "thirty");  // Wrong type: string instead of uint32
         ref.setPlugin("plugin/test", pluginData);
@@ -201,7 +200,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/update-test");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var validPluginData = objectMapper.createObjectNode();
+        var validPluginData = mapper.createObjectNode();
         validPluginData.put("name", "John");
         validPluginData.put("age", 30);
         ref.setPlugin("plugin/test", validPluginData);
@@ -214,7 +213,7 @@ class RefControllerTest {
             .andExpect(status().isCreated());
 
         // Now try to update with invalid plugin data (negative age for uint32)
-        var invalidPluginData = objectMapper.createObjectNode();
+        var invalidPluginData = mapper.createObjectNode();
         invalidPluginData.put("name", "Jane");
         invalidPluginData.put("age", -5);  // Invalid: negative value for uint32
         ref.setPlugin("plugin/test", invalidPluginData);
@@ -239,7 +238,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/optional-field");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", 30);
         pluginData.put("email", "john@example.com");  // Optional field
@@ -263,7 +262,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/multiple-errors");
         ref.setTags(new ArrayList<>(List.of("public", "plugin/test")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         // Missing "name" field
         pluginData.put("age", "not_a_number");  // Wrong type
         ref.setPlugin("plugin/test", pluginData);
@@ -289,7 +288,7 @@ class RefControllerTest {
         var ref = new Ref();
         ref.setUrl(URL + "/no-tag");
         ref.setTags(new ArrayList<>(List.of("public")));
-        var pluginData = objectMapper.createObjectNode();
+        var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", 30);
         ref.setPlugin("plugin/test", pluginData);
