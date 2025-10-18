@@ -275,7 +275,8 @@ class RefControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.message").exists())
-            .andExpect(jsonPath("$.message").value(containsString("plugin/test")));
+            .andExpect(jsonPath("$.message").value(containsString("plugin/test")))
+            .andExpect(jsonPath("$.message").value(containsString("[")));  // Contains error details in array format
     }
 
     @Test
