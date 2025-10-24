@@ -48,6 +48,7 @@
 				<configuration>
 					<jvmArgs>
 						<jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
+						<jvmArg>-XX:+UseCompactObjectHeaders</jvmArg>
 					</jvmArgs>
 					<runMultipleSimulations>true</runMultipleSimulations>
 					<continueOnAssertionFailure>true</continueOnAssertionFailure>
