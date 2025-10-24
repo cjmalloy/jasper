@@ -1,6 +1,5 @@
 package jasper.component.channel;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
@@ -13,6 +12,8 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConverter;
@@ -87,7 +88,7 @@ public class Pull {
 	private final int BASE_BACKOFF_SECONDS = 5;
 	private final int MAX_BACKOFF_SECONDS = 300; // max backoff delay
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		for (var origin : configs.root().scriptOrigins("+plugin/origin/pull")) {
 			// TODO: redo on template change
