@@ -16,7 +16,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<start-class>jasper.JasperApplication</start-class>
-		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m -XX:+UseCompactObjectHeaders</argLine>
+		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
 		<spring-boot.version>3.5.7</spring-boot.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
