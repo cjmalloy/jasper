@@ -1,4 +1,4 @@
-FROM oven/bun:1.2.23-slim AS bun
+FROM oven/bun:1.3.1-slim AS bun
 
 FROM maven:3.9.11-amazoncorretto-25-debian AS builder
 WORKDIR /app
@@ -41,7 +41,7 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp -r target/reports/* /reports/ && \
 		cp target/reports/surefire.html /reports/index.html
 
-FROM azul/zulu-openjdk-debian:25.0.0-25.28-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.1-25.30-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
