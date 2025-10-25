@@ -1,6 +1,5 @@
 package jasper.component.cron;
 
-import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
@@ -11,6 +10,8 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -61,7 +62,7 @@ public class Cron {
 		tags.put(plugin, r);
 	}
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
 			watch.addWatch(origin, "+plugin/cron", this::schedule);

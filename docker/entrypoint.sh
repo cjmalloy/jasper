@@ -3,4 +3,6 @@ java \
 	"-Xmx${JASPER_HEAP:-512m}" \
 	"-Xms${JASPER_HEAP:-512m}" \
 	-XX:+UseZGC \
+	-XX:+UseStringDeduplication \
+	-XX:+UseCompactObjectHeaders \
 	org.springframework.boot.loader.launch.JarLauncher
