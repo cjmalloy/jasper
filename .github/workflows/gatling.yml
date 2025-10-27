@@ -38,14 +38,14 @@ jobs:
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gatling-reports-pr-${{ github.event.pull_request.number }}
           path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
