@@ -40,6 +40,7 @@ jobs:
         if: always()
         id: load_test_summary
         run: |
+          # This script runs in bash (default shell for GitHub Actions run steps)
           cd gatling
           
           # Create Python script for parsing stats.json
@@ -96,14 +97,17 @@ jobs:
               sim_dir=$(dirname "$stats_file")
               sim_name=$(basename "$sim_dir")
               
+              # Sanitize simulation name for use in file paths (remove special chars)
+              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_-')
+              
               # Parse stats.json using Python script
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${sim_name}.txt" 2>/dev/null || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${sim_name}.txt"
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2>/dev/null || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
               
               # Read parsed stats
-              if [ -f "/tmp/parsed_stats_${sim_name}.txt" ]; then
-                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${sim_name}.txt"
+              if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
+                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${safe_sim_name}.txt"
                 
-                # Store simulation stats
+                # Store simulation stats (use original name for display)
                 SIMULATION_STATS[$sim_name]="${total}|${ok}|${ko}|${success_rate}|${mean_time}|${p95}|${p99}"
                 
                 # Aggregate totals
@@ -130,7 +134,8 @@ jobs:
           echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
           
           # Determine if tests passed (>70% success for stress tests, >75% for others)
-          if (( $(echo "$SUCCESS_RATE >= 70.0" | bc -l) )); then
+          # Use awk for arithmetic comparison (more portable than bc)
+          if [ $(awk -v sr="$SUCCESS_RATE" 'BEGIN { print (sr >= 70.0) ? 1 : 0 }') -eq 1 ]; then
             echo "tests_passed=true" >> $GITHUB_OUTPUT
           else
             echo "tests_passed=false" >> $GITHUB_OUTPUT
