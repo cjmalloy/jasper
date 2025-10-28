@@ -36,6 +36,133 @@ jobs:
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
+      - name: Generate Load Test Summary
+        if: always()
+        id: load_test_summary
+        run: |
+          cd gatling
+          
+          # Create Python script for parsing stats.json
+          cat > /tmp/parse_stats.py << 'PYTHON_EOF'
+          import json
+          import sys
+          
+          try:
+              with open(sys.argv[1], 'r') as f:
+                  data = json.load(f)
+              
+              # Get global stats
+              stats = data.get('stats', {})
+              global_stats = stats.get('global', {})
+              
+              # Extract request counts
+              requests = global_stats.get('numberOfRequests', {})
+              total = requests.get('total', 0)
+              ok = requests.get('ok', 0)
+              ko = requests.get('ko', 0)
+              
+              # Extract response time percentiles
+              response_time = global_stats.get('meanResponseTime', {})
+              mean_time = response_time.get('total', 0)
+              
+              percentiles = global_stats.get('percentiles1', {})
+              p95 = percentiles.get('total', 0)
+              
+              percentiles2 = global_stats.get('percentiles2', {})
+              p99 = percentiles2.get('total', 0)
+              
+              # Calculate success rate
+              success_rate = (ok / total * 100) if total > 0 else 0
+              
+              # Output in a parseable format
+              print(f"{total}|{ok}|{ko}|{success_rate:.1f}|{mean_time}|{p95}|{p99}")
+          except Exception as e:
+              print(f"0|0|0|0.0|0|0|0")
+              print(f"Error: {e}", file=sys.stderr)
+          PYTHON_EOF
+          
+          # Initialize summary variables
+          TOTAL_REQUESTS=0
+          SUCCESSFUL_REQUESTS=0
+          FAILED_REQUESTS=0
+          declare -A SIMULATION_STATS
+          
+          # Parse each simulation's stats.json
+          for stats_file in $(find report -name "stats.json" 2>/dev/null); do
+            if [ -f "$stats_file" ]; then
+              echo "Processing $stats_file"
+              
+              # Extract simulation name from path
+              sim_dir=$(dirname "$stats_file")
+              sim_name=$(basename "$sim_dir")
+              
+              # Parse stats.json using Python script
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${sim_name}.txt" 2>/dev/null || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${sim_name}.txt"
+              
+              # Read parsed stats
+              if [ -f "/tmp/parsed_stats_${sim_name}.txt" ]; then
+                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${sim_name}.txt"
+                
+                # Store simulation stats
+                SIMULATION_STATS[$sim_name]="${total}|${ok}|${ko}|${success_rate}|${mean_time}|${p95}|${p99}"
+                
+                # Aggregate totals
+                TOTAL_REQUESTS=$((TOTAL_REQUESTS + total))
+                SUCCESSFUL_REQUESTS=$((SUCCESSFUL_REQUESTS + ok))
+                FAILED_REQUESTS=$((FAILED_REQUESTS + ko))
+                
+                echo "Simulation: $sim_name - Total: $total, OK: $ok, KO: $ko, Success: ${success_rate}%"
+              fi
+            fi
+          done
+          
+          # Calculate overall success rate
+          if [ $TOTAL_REQUESTS -gt 0 ]; then
+            SUCCESS_RATE=$(awk "BEGIN {printf \"%.1f\", ($SUCCESSFUL_REQUESTS / $TOTAL_REQUESTS) * 100}")
+          else
+            SUCCESS_RATE="0.0"
+          fi
+          
+          # Set outputs
+          echo "total_requests=$TOTAL_REQUESTS" >> $GITHUB_OUTPUT
+          echo "successful_requests=$SUCCESSFUL_REQUESTS" >> $GITHUB_OUTPUT
+          echo "failed_requests=$FAILED_REQUESTS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          
+          # Determine if tests passed (>70% success for stress tests, >75% for others)
+          if (( $(echo "$SUCCESS_RATE >= 70.0" | bc -l) )); then
+            echo "tests_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "tests_passed=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Export simulation stats as JSON for the comment script
+          echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
+          for sim in "${!SIMULATION_STATS[@]}"; do
+            echo "$sim:${SIMULATION_STATS[$sim]}"
+          done
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Create workflow summary
+          echo "## Load Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Requests | $TOTAL_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Successful | $SUCCESSFUL_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | $FAILED_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Success Rate | ${SUCCESS_RATE}% |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Per-Simulation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|----------|--------------|-----------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+          
+          for sim in "${!SIMULATION_STATS[@]}"; do
+            IFS='|' read -r total ok ko success_rate mean_time p95 p99 <<< "${SIMULATION_STATS[$sim]}"
+            echo "| $sim | $total | ${success_rate}% | $mean_time | $p95 | $p99 |" >> $GITHUB_STEP_SUMMARY
+          done
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v5
@@ -50,14 +177,87 @@ jobs:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
           retention-days: 90
-      - name: Comment on PR
+      - name: Comment on PR with Load Test Summary
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v8
         with:
           # language=JavaScript
           script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const totalRequests = '${{ steps.load_test_summary.outputs.total_requests }}' || '0';
+            const successfulRequests = '${{ steps.load_test_summary.outputs.successful_requests }}' || '0';
+            const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
+            const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
+            const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
+            
+            let emoji = '✅';
+            let status = 'All load tests passed!';
+            
+            if (!testsPassed) {
+              emoji = '⚠️';
+              status = 'Load tests completed with warnings!';
+            }
+            
+            let comment = `## ${emoji} Load Test Results\n\n`;
+            comment += `**${status}**\n\n`;
+            comment += `### Overall Summary\n\n`;
+            comment += `| Metric | Value |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Total Requests | ${totalRequests} |\n`;
+            comment += `| ✅ Successful | ${successfulRequests} |\n`;
+            comment += `| ❌ Failed | ${failedRequests} |\n`;
+            comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
+            
+            // Parse simulation stats
+            const simulationStats = '${{ steps.load_test_summary.outputs.simulation_stats }}';
+            if (simulationStats && simulationStats !== '') {
+              comment += `### Per-Simulation Results\n\n`;
+              comment += `| Simulation | Requests | Success Rate | Mean Time | P95 | P99 |\n`;
+              comment += `|------------|----------|--------------|-----------|-----|-----|\n`;
+              
+              const simLines = simulationStats.split('\n').filter(line => line.trim() !== '');
+              for (const line of simLines) {
+                const [simName, statsStr] = line.split(':');
+                if (statsStr) {
+                  const [total, ok, ko, success_rate, mean_time, p95, p99] = statsStr.split('|');
+                  
+                  // Format simulation name (remove timestamp suffix for readability)
+                  let displayName = simName.replace(/simulation-\d+/i, '').replace(/-/g, ' ').trim();
+                  if (displayName.toLowerCase().includes('smoketest')) {
+                    displayName = '🔥 Smoke Test';
+                  } else if (displayName.toLowerCase().includes('comprehensive')) {
+                    displayName = '📋 Comprehensive';
+                  } else if (displayName.toLowerCase().includes('userjourney')) {
+                    displayName = '👤 User Journey';
+                  } else if (displayName.toLowerCase().includes('stresstest')) {
+                    displayName = '💪 Stress Test';
+                  } else if (displayName.toLowerCase().includes('inferno')) {
+                    displayName = '🔥 Inferno';
+                  }
+                  
+                  comment += `| ${displayName} | ${total} | ${success_rate}% | ${mean_time}ms | ${p95}ms | ${p99}ms |\n`;
+                }
+              }
+              comment += `\n`;
+            }
+            
+            // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
-            const body = `📊 Load test results available at: ${url}\n\n<!-- gatling-results-comment -->`;
+            comment += `📈 [View detailed performance reports](${url})\n\n`;
+            
+            // Add performance criteria info
+            comment += `<details>\n<summary>Performance Criteria</summary>\n\n`;
+            comment += `- **Smoke Test**: >75% success rate, <5s max response time, <1.5s mean\n`;
+            comment += `- **Comprehensive**: >75% success rate, <8s max response time, <2s mean\n`;
+            comment += `- **User Journey**: >75% success rate, <10s max response time, <3s mean\n`;
+            comment += `- **Stress Test**: >70% success rate, <15s max response time, <5s mean\n`;
+            comment += `- **Inferno**: >15% success rate (extreme load scenario)\n`;
+            comment += `</details>\n\n`;
+            
+            // Add marker to identify our comment
+            comment += `<!-- gatling-results-comment -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -78,14 +278,14 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: botComment.id,
-                body: body
+                body: comment
               });
             } else {
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: body
+                body: comment
               });
             }
 
