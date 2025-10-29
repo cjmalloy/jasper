@@ -94,7 +94,9 @@ jobs:
               echo "Processing $stats_file"
               
               # Extract simulation name from path
-              sim_dir=$(dirname "$stats_file")
+              # Path structure: report/<simulation-name-timestamp>/js/stats.json
+              # Go up two levels from stats.json to get the simulation directory
+              sim_dir=$(dirname "$(dirname "$stats_file")")
               sim_name=$(basename "$sim_dir")
               
               # Sanitize simulation name for use in file paths (remove special chars)
