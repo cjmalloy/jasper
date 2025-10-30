@@ -124,15 +124,21 @@ jobs:
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
               
               # Parse stats.json using Python script (show errors for debugging)
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2>&1 || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              # Redirect both stdout and stderr to capture debug info, then extract last line for data
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}_full.txt" 2>&1 || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}_full.txt"
               
-              # Show what was parsed
-              echo "Parsed output:"
-              cat "/tmp/parsed_stats_${safe_sim_name}.txt"
+              # Show what was parsed (for debugging)
+              echo "Parsed output (full):"
+              cat "/tmp/parsed_stats_${safe_sim_name}_full.txt"
               
-              # Read parsed stats
+              # Extract only the last line (the actual data, not debug messages)
+              tail -1 "/tmp/parsed_stats_${safe_sim_name}_full.txt" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              
+              # Read parsed stats from the data line
               if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
                 IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${safe_sim_name}.txt"
+                
+                echo "Extracted values: total=$total, ok=$ok, ko=$ko, success_rate=$success_rate, mean_time=$mean_time, p95=$p95, p99=$p99"
                 
                 # Store simulation stats (use original name for display)
                 SIMULATION_STATS[$sim_name]="${total}|${ok}|${ko}|${success_rate}|${mean_time}|${p95}|${p99}"
