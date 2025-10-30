@@ -52,9 +52,20 @@ jobs:
               with open(sys.argv[1], 'r') as f:
                   data = json.load(f)
               
+              # Debug: print structure to stderr for debugging
+              print(f"DEBUG: Top-level keys: {list(data.keys())}", file=sys.stderr)
+              
               # Get global stats
               stats = data.get('stats', {})
+              print(f"DEBUG: Stats keys: {list(stats.keys())}", file=sys.stderr)
+              
               global_stats = stats.get('global', {})
+              if not global_stats:
+                  print(f"DEBUG: No 'global' key in stats", file=sys.stderr)
+                  print(f"0|0|0|0.0|0|0|0")
+                  sys.exit(0)
+              
+              print(f"DEBUG: Global stats keys: {list(global_stats.keys())}", file=sys.stderr)
               
               # Extract request counts
               requests = global_stats.get('numberOfRequests', {})
@@ -62,15 +73,18 @@ jobs:
               ok = requests.get('ok', 0)
               ko = requests.get('ko', 0)
               
+              print(f"DEBUG: Requests - total: {total}, ok: {ok}, ko: {ko}", file=sys.stderr)
+              
               # Extract response time percentiles
               response_time = global_stats.get('meanResponseTime', {})
               mean_time = response_time.get('total', 0)
               
-              percentiles = global_stats.get('percentiles1', {})
-              p95 = percentiles.get('total', 0)
+              # Gatling percentiles: 1=50th, 2=75th, 3=95th, 4=99th
+              percentiles3 = global_stats.get('percentiles3', {})
+              p95 = percentiles3.get('total', 0)
               
-              percentiles2 = global_stats.get('percentiles2', {})
-              p99 = percentiles2.get('total', 0)
+              percentiles4 = global_stats.get('percentiles4', {})
+              p99 = percentiles4.get('total', 0)
               
               # Calculate success rate
               success_rate = (ok / total * 100) if total > 0 else 0
@@ -78,8 +92,10 @@ jobs:
               # Output in a parseable format
               print(f"{total}|{ok}|{ko}|{success_rate:.1f}|{mean_time}|{p95}|{p99}")
           except Exception as e:
+              print(f"ERROR: {e}", file=sys.stderr)
+              import traceback
+              traceback.print_exc(file=sys.stderr)
               print(f"0|0|0|0.0|0|0|0")
-              print(f"Error: {e}", file=sys.stderr)
           PYTHON_EOF
           
           # Initialize summary variables
@@ -89,6 +105,9 @@ jobs:
           declare -A SIMULATION_STATS
           
           # Parse each simulation's stats.json
+          echo "Looking for stats.json files in report directory..."
+          find report -name "stats.json" 2>/dev/null
+          
           for stats_file in $(find report -name "stats.json" 2>/dev/null); do
             if [ -f "$stats_file" ]; then
               echo "Processing $stats_file"
@@ -102,8 +121,14 @@ jobs:
               # Sanitize simulation name for use in file paths (remove special chars)
               safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_-')
               
-              # Parse stats.json using Python script
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2>/dev/null || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
+              
+              # Parse stats.json using Python script (show errors for debugging)
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2>&1 || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              
+              # Show what was parsed
+              echo "Parsed output:"
+              cat "/tmp/parsed_stats_${safe_sim_name}.txt"
               
               # Read parsed stats
               if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
