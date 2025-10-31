@@ -111,14 +111,43 @@ jobs:
           if [ -d report ]; then
             echo "Report directory contents:"
             ls -la report/
+            
+            echo ""
+            echo "Exploring subdirectories..."
+            for sim_dir in report/*/; do
+              if [ -d "$sim_dir" ]; then
+                echo "Contents of $sim_dir:"
+                ls -la "$sim_dir" 2>/dev/null || echo "  Cannot list $sim_dir"
+                
+                # Check for js subdirectory
+                if [ -d "${sim_dir}js" ]; then
+                  echo "  Contents of ${sim_dir}js:"
+                  ls -la "${sim_dir}js" 2>/dev/null || echo "    Cannot list ${sim_dir}js"
+                else
+                  echo "  No js subdirectory in $sim_dir"
+                fi
+              fi
+            done
           fi
           
-          stats_files=$(find report -name "stats.json" 2>/dev/null)
+          echo ""
+          echo "Running find command..."
+          stats_files=$(find report -type f -name "stats.json" 2>&1)
+          echo "Find command output:"
+          echo "$stats_files"
+          
+          echo ""
           echo "Found stats.json files:"
+          stats_files=$(find report -type f -name "stats.json" 2>/dev/null)
           echo "$stats_files"
           
           if [ -z "$stats_files" ]; then
             echo "WARNING: No stats.json files found!"
+            echo "Trying alternative paths..."
+            
+            # Try looking for any .json files
+            echo "All JSON files in report:"
+            find report -type f -name "*.json" 2>/dev/null
           fi
           
           for stats_file in $stats_files; do
