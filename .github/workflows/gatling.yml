@@ -56,10 +56,12 @@ jobs:
               # Check if this is a JavaScript file (stats.js) or JSON file (stats.json)
               if sys.argv[1].endswith('.js'):
                   # Parse JavaScript file - extract JSON from variable assignment
-                  # Gatling stats.js format: var stats = { ... };
-                  match = re.search(r'var\s+stats\s*=\s*({.*?});', content, re.DOTALL)
+                  # Gatling stats.js format: var stats = { ... }; or const stats = { ... };
+                  # Use greedy match to capture the entire object
+                  match = re.search(r'(?:var|const|let)\s+stats\s*=\s*(\{.*\});', content, re.DOTALL)
                   if not match:
                       print(f"ERROR: Could not find stats variable in JS file", file=sys.stderr)
+                      print(f"DEBUG: File starts with: {content[:200]}", file=sys.stderr)
                       print(f"0|0|0|0.0|0|0|0")
                       sys.exit(0)
                   
