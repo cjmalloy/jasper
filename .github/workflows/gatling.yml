@@ -47,10 +47,27 @@ jobs:
           cat > /tmp/parse_stats.py << 'PYTHON_EOF'
           import json
           import sys
+          import re
           
           try:
               with open(sys.argv[1], 'r') as f:
-                  data = json.load(f)
+                  content = f.read()
+              
+              # Check if this is a JavaScript file (stats.js) or JSON file (stats.json)
+              if sys.argv[1].endswith('.js'):
+                  # Parse JavaScript file - extract JSON from variable assignment
+                  # Gatling stats.js format: var stats = { ... };
+                  match = re.search(r'var\s+stats\s*=\s*({.*?});', content, re.DOTALL)
+                  if not match:
+                      print(f"ERROR: Could not find stats variable in JS file", file=sys.stderr)
+                      print(f"0|0|0|0.0|0|0|0")
+                      sys.exit(0)
+                  
+                  json_str = match.group(1)
+                  data = json.loads(json_str)
+              else:
+                  # Parse JSON file directly
+                  data = json.loads(content)
               
               # Debug: print structure to stderr for debugging
               print(f"DEBUG: Top-level keys: {list(data.keys())}", file=sys.stderr)
@@ -132,22 +149,26 @@ jobs:
           
           echo ""
           echo "Running find command..."
-          stats_files=$(find report -type f -name "stats.json" 2>&1)
+          stats_files=$(find report -type f -name "stats.js" 2>&1)
           echo "Find command output:"
           echo "$stats_files"
           
           echo ""
-          echo "Found stats.json files:"
-          stats_files=$(find report -type f -name "stats.json" 2>/dev/null)
+          echo "Found stats.js files:"
+          stats_files=$(find report -type f -name "stats.js" 2>/dev/null)
           echo "$stats_files"
           
           if [ -z "$stats_files" ]; then
-            echo "WARNING: No stats.json files found!"
+            echo "WARNING: No stats.js files found!"
             echo "Trying alternative paths..."
             
-            # Try looking for any .json files
-            echo "All JSON files in report:"
-            find report -type f -name "*.json" 2>/dev/null
+            # Try looking for stats.json as fallback
+            echo "Looking for stats.json files:"
+            find report -type f -name "stats.json" 2>/dev/null
+            
+            # Try looking for any .json or .js files
+            echo "All JSON and JS files in report/*/js:"
+            find report -path "*/js/*.js" -o -path "*/js/*.json" 2>/dev/null
           fi
           
           for stats_file in $stats_files; do
@@ -155,8 +176,8 @@ jobs:
               echo "Processing $stats_file"
               
               # Extract simulation name from path
-              # Path structure: report/<simulation-name-timestamp>/js/stats.json
-              # Go up two levels from stats.json to get the simulation directory
+              # Path structure: report/<simulation-name-timestamp>/js/stats.js
+              # Go up two levels from stats.js to get the simulation directory
               sim_dir=$(dirname "$(dirname "$stats_file")")
               sim_name=$(basename "$sim_dir")
               
