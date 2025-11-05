@@ -662,6 +662,15 @@ public class Auth {
 	}
 
 	/**
+	 * Has the minimum role to fetch external resources.
+	 */
+	public boolean minFetchRole() {
+		if (hasAnyRole(BANNED)) return false;
+		if (hasAnyRole(ADMIN)) return true;
+		return hasAnyRole(props.getMinFetchRole()) && hasAnyRole(security().getMinFetchRole());
+	}
+
+	/**
 	 * Has the minimum role download backups.
 	 */
 	public boolean minReadBackupRole() {

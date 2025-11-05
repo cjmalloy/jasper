@@ -76,7 +76,9 @@ public class ProxyService {
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public InputStream fetch(String url, String origin, boolean thumbnail) {
 		// Only require role for new scrapes
-		if (!url.startsWith("cache:") && !auth.hasRole(USER) && !refRepository.existsByUrlAndOrigin(url, origin)) throw new AccessDeniedException("Requires USER role to scrape.");
+		if (!url.startsWith("cache:") && !auth.minFetchRole() && !refRepository.existsByUrlAndOrigin(url, origin)) {
+			throw new AccessDeniedException("Not found and not allowed to scrape.");
+		}
 		return thumbnail
 			? proxy.fetchThumbnail(url, origin)
 			: proxy.fetch(url, origin);
