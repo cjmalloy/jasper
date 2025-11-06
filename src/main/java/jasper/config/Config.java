@@ -199,6 +199,10 @@ public interface Config {
 		 */
 		private String minWriteRole = "ROLE_VIEWER";
 		/**
+		 * Minimum role for fetching external resources.
+		 */
+		private String minFetchRole = "ROLE_USER";
+		/**
 		 * Minimum role for admin config.
 		 */
 		private String minConfigRole = "ROLE_ADMIN";
