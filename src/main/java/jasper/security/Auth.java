@@ -74,7 +74,6 @@ import static java.net.URLDecoder.decode;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.springframework.data.jpa.domain.Specification.where;
 import static org.springframework.security.core.authority.AuthorityUtils.authorityListToSet;
 
 /**
@@ -777,9 +776,9 @@ public class Auth {
 	}
 
 	public Specification<Ref> refReadSpec() {
-		var spec = where(hasRole(MOD)
+		Specification<Ref> spec = hasRole(MOD)
 			? isOrigin(getSubOrigins())
-			: selector("public" + getSubOrigins()).refSpec());
+			: selector("public" + getSubOrigins()).refSpec();
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().downwardRefSpec());
 		}
@@ -787,7 +786,7 @@ public class Auth {
 	}
 
 	public <T extends Tag> Specification<T> tagReadSpec() {
-		var spec = Specification.<T>where(isOrigin(getSubOrigins()));
+		Specification<T> spec = isOrigin(getSubOrigins());
 		if (!hasRole(MOD)) spec = spec.and(notPrivateTag());
 		if (isLoggedIn()) {
 			spec = spec.or(getUserTag().downwardSpec());
