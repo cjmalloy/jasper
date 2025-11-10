@@ -33,7 +33,6 @@
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<javatuples.version>1.2</javatuples.version>
-		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.5.1</apache-httpclient.version>
 		<commons-io.version>2.20.0</commons-io.version>
 		<commons-fileupload.version>1.6.0</commons-fileupload.version>
@@ -247,16 +246,6 @@
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-jackson</artifactId>
 			<version>${jjwt.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.rometools</groupId>
-			<artifactId>rome</artifactId>
-			<version>${rome.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.rometools</groupId>
-			<artifactId>rome-modules</artifactId>
-			<version>${rome.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents.client5</groupId>
