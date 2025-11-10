@@ -1,7 +1,7 @@
 package jasper.component.cron;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
-import jasper.component.ConfigCache;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -21,9 +21,6 @@ public class Script implements Cron.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
 	@Autowired
-	ConfigCache configs;
-
-	@Autowired
 	Cron cron;
 
 	@Autowired
@@ -41,28 +38,24 @@ public class Script implements Cron.CronRunner {
 	}
 
 	@Override
+	@Bulkhead(name = "script")
 	public void run(Ref ref) throws Exception {
-		var found = false;
 		logger.debug("{} Searching scripts for {} ({})", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 		var tags = ref.getExpandedTags().stream()
+			.filter(t -> !publicTag(t).equals("plugin/script"))
 			.filter(t -> matchesTag("plugin/script", publicTag(t)))
 			.sorted()
 			.toList()
 			.reversed();
 		for (var scriptTag : tags) {
-			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), jasper.plugin.config.Script.class);
-			if (config.isPresent()) {
-				try {
-					logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-					scriptRunner.runScripts(ref, scriptTag, config.get());
-				} catch (UntrustedScriptException e) {
-					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
-					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
-				}
-				found = true;
+			try {
+				logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
+				scriptRunner.runScripts(ref, scriptTag);
+			} catch (UntrustedScriptException e) {
+				logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+				tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
 			}
 		}
-		if (!found) tagger.attachError(ref.getOrigin(), ref, "Could not find script");
 	}
 
 }

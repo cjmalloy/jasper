@@ -1,4 +1,4 @@
-package jasper.component;
+package jasper.component.script;
 
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
@@ -7,9 +7,13 @@ import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import io.micrometer.core.annotation.Timed;
+import jasper.component.HttpClientFactory;
+import jasper.component.Ingest;
+import jasper.component.Sanitizer;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.Audio;
@@ -20,13 +24,16 @@ import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpGet;
+import org.jdom2.input.JDOMParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -37,6 +44,7 @@ import java.util.Map;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -62,9 +70,35 @@ public class RssParser {
 	@Autowired
 	HttpClientFactory httpClientFactory;
 
-	@Timed("jasper.feed")
-	public void scrape(Ref feed) throws IOException, FeedException {
-		var config = getFeed(feed);
+	public void runScript(Ref ref, String scriptTag) {
+		logger.info("{} Scraping {} feed: {}.", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		try {
+			scrape(ref, scriptTag);
+		} catch (ParsingFeedException e) {
+			if (e.getLineNumber() == 1 || e.getCause() instanceof JDOMParseException) {
+				// Temporary error page, retry later
+				tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			} else {
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			}
+		} catch (FeedException e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error scraping feed", getMessage(e));
+		} catch (SSLException e) {
+			// Temporary error page, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error with feed SSL", getMessage(e));
+		} catch (SocketTimeoutException e) {
+			// Temporary network timeout, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Timeout loading feed", getMessage(e));
+		} catch (IOException e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
+		} catch (Throwable e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", getMessage(e));
+		}
+		logger.info("{} Finished scraping feed: {}.", ref.getOrigin(), ref.getUrl());
+	}
+
+	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
+		var config = getFeed(feed, scriptTag);
 
 		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
@@ -100,11 +134,11 @@ public class RssParser {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
-							feed.setPlugin("plugin/feed", config);
+							feed.setPlugin(scriptTag, config);
 							ingest.update(feed.getOrigin(), feed);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
-							feed.setPlugin("plugin/feed", config);
+							feed.setPlugin(scriptTag, config);
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
@@ -133,7 +167,7 @@ public class RssParser {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
-							logger.error("Error processing entry", e);
+							logger.error("{} Error processing entry", feed.getOrigin(), e);
 						}
 					}
 				}
