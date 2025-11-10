@@ -23,6 +23,7 @@ import static io.micrometer.core.instrument.Timer.start;
 import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -66,8 +67,8 @@ public class ScriptExecutorFactory {
 	}
 
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
+		var res = getResources(tag, origin);
 		try {
-			var res = getResources(tag, origin);
 			return runAsync(() -> res.bulkhead().executeRunnable(() -> scriptBulkhead.executeRunnable(() -> {
 				var sample = start(meterRegistry);
 				try {
@@ -76,19 +77,21 @@ public class ScriptExecutorFactory {
 					sample.stop(res.timer());
 				}
 			})), taskExecutor).exceptionally(e -> {
-				logger.warn("{} Rate limited {} ", origin, tag);
-				tagger.attachLogs(url, origin, "Rate Limit Hit " + tag);
+				var config = scriptBulkhead.getBulkheadConfig();
+				logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
+				tagger.attachLogs(url, origin, "Rate Limit Hit " + tag, "Max: " + config.getMaxConcurrentCalls() + "\nWait: " + config.getMaxWaitDuration());
 				return null;
 			});
 		} catch (BulkheadFullException e) {
-			logger.warn("{} Rate limited {} ", origin, tag);
-			tagger.attachLogs(url, origin, "Rate Limit Hit " + tag);
+			var config = res.bulkhead().getBulkheadConfig();
+			logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
+			tagger.attachLogs(url, origin, "Rate Limit Hit " + tag, "Max: " + config.getMaxConcurrentCalls() + "\nWait: " + config.getMaxWaitDuration());
 			return null;
 		}
 	}
 
 	private final Map<String, ScriptResources> resources = new ConcurrentHashMap<>();
-	
+
 	private ScriptResources getResources(String tag, String origin) {
 		return resources.computeIfAbsent(tag + origin, k -> new ScriptResources(
 			Timer.builder("script.executor.task.duration")
@@ -99,7 +102,7 @@ public class ScriptExecutorFactory {
 				.register(meterRegistry),
 			bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
 				.maxConcurrentCalls(configs.security(origin).scriptLimit(tag, origin))
-				.maxWaitDuration(ofSeconds(60))
+				.maxWaitDuration(ofMinutes(60))
 				.build())
 		));
 	}
