@@ -816,53 +816,6 @@ const timePlugin = {
 };
 ```
 
-## RSS / Atom Scraping
-TODO: make this a mod `plugin/script/feed` and remove it from the server
-The `plugin/feed` can be used to scrape RSS / Atom feeds. The `+plugin/cron` tag is used to set
-the scraping interval. If no `+plugin/cron` is added the feed is considered disabled.
-Although plugin fields are determined dynamically, the following fields are checked by the
-scraper:
-```json
-{
-  "optionalProperties": {
-    "addTags": { "elements": { "type": "string" } },
-    "disableEtag": { "type": "boolean" },
-    "etag": { "type": "string" },
-    "stripQuery": { "type": "boolean" },
-    "scrapeWebpage": { "type": "boolean" },
-    "scrapeDescription": { "type": "boolean" },
-    "scrapeContents": { "type": "boolean" },
-    "scrapeAuthors": { "type": "boolean" },
-    "scrapeThumbnail": { "type": "boolean" },
-    "scrapeAudio": { "type": "boolean" },
-    "scrapeVideo": { "type": "boolean" },
-    "defaultThumbnail": {
-      "optionalProperties": {
-        "url": { "type": "string" },
-        "color": { "type": "string" },
-        "emoji": { "type": "string" },
-        "radius": { "type": "int32" }
-      }
-    }
-  }
-}
-```
-
-**Add Tags:** Tags to apply to any Refs created by this feed.  
-**Disable Etag:** Don't use etag headers to skip unchanged feeds.  
-**Strip Query:** Remove query (HTTP search field) from any scraped links.  
-**Scrape Webpage:** Scrape the web-page directly instead.  
-**Scrape Description:** Use description field in the feed for the Ref comment field.    
-**Scrape Contents:** Use contents field in the feed for the Ref comment field.  
-**Scrape Authors:** Use authors field in the feed to add an authors line at the bottom of the Ref comment field.  
-**Scrape Thumbnail:** Add a `plugin/thumbnail` Plugin to the Ref with attached feed media.  
-**Scrape Audio:** Add a `plugin/audio` Plugin to the Ref with attached feed media.  
-**Scrape Video:** Add a `plugin/video` Plugin to the Ref with attached feed media or `plugin/embed` tag to the Ref to load oEmbed.  
-**Default Thumbnail:** Default thumbnail if none found in entry.  
-
-The `plugin/feed` will be set as a source for all scraped Refs. If the published date of the new entry is prior to the published date of the
-`plugin/feed` it will be skipped.
-
 ## Remote Origin
 The `+plugin/origin` tag marks a Ref as a Remote Origin and associates it with a local alias. These may be either pulled from or pushed to.
 ```json
