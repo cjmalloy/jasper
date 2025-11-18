@@ -38,7 +38,7 @@
 		<commons-io.version>2.21.0</commons-io.version>
 		<commons-fileupload.version>1.6.0</commons-fileupload.version>
 		<commons-collections4.version>4.5.0</commons-collections4.version>
-		<commons-lang3.version>3.19.0</commons-lang3.version>
+		<commons-lang3.version>3.20.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<jsoup.version>1.21.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
