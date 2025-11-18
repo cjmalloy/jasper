@@ -105,7 +105,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 					break;
 				case "jwks":
                     try {
-                        jwtParsers.put(origin, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
+                        jwtParsers.put(origin, Jwts.parser().keyLocator(new JwkKeyLocator(new URI(security.getJwksUri()), restTemplate)).build());
                     } catch (URISyntaxException e) {
 						logger.error("{} Cannot parse JWKS URI {}", origin, security.getJwksUri());
                         throw new RuntimeException(e);
