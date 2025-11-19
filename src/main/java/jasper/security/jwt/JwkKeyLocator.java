@@ -31,7 +31,7 @@ class JwkKeyLocator implements Locator<Key> {
 
 	@Override
 	public Key locate(Header header) {
-		String keyId = header.get("kid", String.class);
+		String keyId = (String) header.get("kid");
 		return getKey(keyId);
 	}
 
