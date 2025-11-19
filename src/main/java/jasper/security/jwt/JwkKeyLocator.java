@@ -1,7 +1,7 @@
 package jasper.security.jwt;
 
+import io.jsonwebtoken.Header;
 import io.jsonwebtoken.Locator;
-import io.jsonwebtoken.ProtectedHeader;
 import io.jsonwebtoken.io.Decoders;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,8 +30,9 @@ class JwkKeyLocator implements Locator<Key> {
 	}
 
 	@Override
-	public Key locate(ProtectedHeader header) {
-		return getKey(header.getKeyId());
+	public Key locate(Header header) {
+		String keyId = header.get("kid", String.class);
+		return getKey(keyId);
 	}
 
 	private Key getKey(String keyId) {
