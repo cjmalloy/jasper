@@ -17,7 +17,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run Smoke Tests
         if: always()
         run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
