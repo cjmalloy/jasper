@@ -15,14 +15,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build the Docker image
         run: docker build . -t ${{ github.repository }}:$(date +%s)
 
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build the testing image
         run: docker build . --file Dockerfile --target test --tag test
       - name: Run the test container
