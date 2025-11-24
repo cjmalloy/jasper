@@ -53,7 +53,7 @@ public class Script implements Cron.CronRunner {
 			var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), jasper.plugin.config.Script.class);
 			if (config.isPresent()) {
 				try {
-					logger.info("{} Running script {} to {} ({})", scriptTag, ref.getOrigin(), ref.getTitle(), ref.getUrl());
+					logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, scriptTag, config.get());
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
