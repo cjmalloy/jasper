@@ -23,7 +23,6 @@ import static io.micrometer.core.instrument.Timer.start;
 import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -102,7 +101,7 @@ public class ScriptExecutorFactory {
 				.register(meterRegistry),
 			bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
 				.maxConcurrentCalls(configs.security(origin).scriptLimit(tag, origin))
-				.maxWaitDuration(ofMinutes(60))
+				.maxWaitDuration(ofSeconds(60))
 				.build())
 		));
 	}

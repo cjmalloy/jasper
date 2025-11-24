@@ -39,7 +39,7 @@ public class BulkheadConfiguration {
 	public Bulkhead scriptBulkhead() {
 		return registry.bulkhead("script", BulkheadConfig.custom()
 			.maxConcurrentCalls(configs.root().getMaxConcurrentScripts())
-			.maxWaitDuration(ofMinutes(60))
+			.maxWaitDuration(ofSeconds(60))
 			.build());
 	}
 
