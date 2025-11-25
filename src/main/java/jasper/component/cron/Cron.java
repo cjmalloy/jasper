@@ -58,7 +58,6 @@ public class Cron {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
-		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
 	}
 
