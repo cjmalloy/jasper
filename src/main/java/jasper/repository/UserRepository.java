@@ -68,8 +68,6 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 			AND user.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	List<User> findAllByOriginAndAuthorizedKeysIsNotNull(String origin);
-
 	@Query(nativeQuery = true, value = """
 		SELECT tag FROM users
 		WHERE users.origin = :origin

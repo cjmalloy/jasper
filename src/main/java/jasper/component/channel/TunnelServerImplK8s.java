@@ -47,7 +47,7 @@ public class TunnelServerImplK8s implements TunnelServer {
 		if ("+user".equals(user.getTag()) && props.getLocalOrigin().equals(user.getOrigin())) {
 			generateHostKey();
 		}
-		if (configs.root().getSshOrigins().contains(user.getOrigin())) {
+		if (configs.root().ssh(user.getOrigin())) {
 			generateConfig();
 		}
 	}

@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.UserSpec.hasAuthorizedKeys;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface TunnelServer {
@@ -21,7 +23,7 @@ public interface TunnelServer {
 				.append("\n# ")
 				.append(isBlank(origin) ? "default" : origin)
 				.append("\n");
-			for (var u : userRepository.findAllByOriginAndAuthorizedKeysIsNotNull(origin)) {
+			for (var u : userRepository.findAll(hasAuthorizedKeys().and(isOrigin(origin)))) {
 				if (isBlank(u.getAuthorizedKeys())) continue;
 				logger.debug("Enabling SSH access for {}", u.getQualifiedTag());
 				var lines = u.getAuthorizedKeys().split("\n");

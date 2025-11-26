@@ -200,7 +200,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
 			var origin = (String) attributes.get("origin");
 			WebSocketConfig.logger.debug("{} STOMP Determine User", origin);
-			if (!configs.root().getWebOrigins().contains(origin)) {
+			if (!configs.root().web(origin)) {
 				WebSocketConfig.logger.error("{} No web access for origin", origin);
 				return null;
 			}
@@ -243,7 +243,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
 					logger.debug("{} STOMP Default auth {}", auth.getOrigin(), auth.getUserTag());
 				}
-				if (!configs.root().getWebOrigins().contains(auth.getOrigin())) {
+				if (!configs.root().web(auth.getOrigin())) {
 					logger.error("{} No web access for origin", auth.getOrigin());
 					return null;
 				}
