@@ -58,7 +58,7 @@ public class Script implements Cron.CronRunner {
 		for (var scriptTag : tags) {
 			scriptExecutorFactory.run(scriptTag, ref.getOrigin(), ref.getUrl(), () -> {
 				try {
-					logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
+					logger.debug("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 					scriptRunner.runScripts(ref, scriptTag);
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());

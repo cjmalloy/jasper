@@ -89,6 +89,7 @@ public class ScriptRunner {
 			return;
 		}
 		validateScript(config.getScript());
+		logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 		String input;
 		try {
 			switch (config.getFormat().toLowerCase()) {
