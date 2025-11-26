@@ -41,9 +41,6 @@ public class ScriptExecutorFactory {
 	BulkheadRegistry bulkheadRegistry;
 
 	@Autowired
-	Bulkhead scriptBulkhead;
-
-	@Autowired
 	ConfigCache configs;
 
 	@Autowired
@@ -68,19 +65,14 @@ public class ScriptExecutorFactory {
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		var res = getResources(tag, origin);
 		try {
-			return runAsync(() -> res.bulkhead().executeRunnable(() -> scriptBulkhead.executeRunnable(() -> {
+			return runAsync(() -> res.bulkhead().executeRunnable(() -> {
 				var sample = start(meterRegistry);
 				try {
 					runnable.run();
 				} finally {
 					sample.stop(res.timer());
 				}
-			})), taskExecutor).exceptionally(e -> {
-				var config = scriptBulkhead.getBulkheadConfig();
-				logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
-				tagger.attachLogs(url, origin, "Rate Limit Hit " + tag, "Max: " + config.getMaxConcurrentCalls() + "\nWait: " + config.getMaxWaitDuration());
-				return null;
-			});
+			}), taskExecutor);
 		} catch (BulkheadFullException e) {
 			var config = res.bulkhead().getBulkheadConfig();
 			logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
