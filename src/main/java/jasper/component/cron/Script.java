@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
+import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
@@ -20,6 +21,9 @@ import static jasper.domain.proj.Tag.publicTag;
 @Component
 public class Script implements Cron.CronRunner {
 	private static final Logger logger = LoggerFactory.getLogger(Script.class);
+
+	@Autowired
+	ConfigCache config;
 
 	@Autowired
 	Cron cron;
@@ -47,6 +51,7 @@ public class Script implements Cron.CronRunner {
 		var tags = ref.getExpandedTags().stream()
 			.filter(t -> !publicTag(t).equals("plugin/script"))
 			.filter(t -> matchesTag("plugin/script", publicTag(t)))
+			.filter(t -> config.root().script(t, ref.getOrigin()))
 			.sorted()
 			.toList()
 			.reversed();

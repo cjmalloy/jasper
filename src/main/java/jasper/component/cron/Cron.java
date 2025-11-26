@@ -11,8 +11,6 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -64,12 +62,14 @@ public class Cron {
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
-			watch.addWatch(origin, "+plugin/cron", this::schedule);
-		}
-		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
-			watch.addWatch(origin, "+plugin/user/run", this::run);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/cron")) {
+				watch.addWatch(origin, "+plugin/cron", this::schedule);
+			}
+			for (var origin : root.scriptOrigins("+plugin/user/run")) {
+				watch.addWatch(origin, "+plugin/user/run", this::run);
+			}
+		});
 	}
 
 	private void schedule(HasTags ref) {
@@ -89,9 +89,9 @@ public class Cron {
 			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
-		if (!hasScheduler(ref)) return;
 		var origin = ref.getOrigin();
 		if (!configs.root().script("+plugin/cron", origin)) return;
+		if (!hasScheduler(ref)) return;
 		var url = ref.getUrl();
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
@@ -110,6 +110,7 @@ public class Cron {
 
 	private void run(HasTags target) {
 		var origin = target.getOrigin();
+		if (!configs.root().script("+plugin/user/run", origin)) return;
 		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
@@ -121,7 +122,6 @@ public class Cron {
 		}
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
-			if (!configs.root().script("+plugin/user/run", origin)) throw new RuntimeException();
 			if (ref == null) {
 				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
 				throw new RuntimeException();

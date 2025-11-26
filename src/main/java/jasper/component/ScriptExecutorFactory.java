@@ -55,7 +55,7 @@ public class ScriptExecutorFactory {
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
-		if (template.getTag() != null && template.getTag().startsWith("_config/security")) {
+		if (template.getTag().startsWith("_config/security")) {
 			logger.debug("Server config template updated, updating bulkhead configurations");
 			resources.forEach((qtag, res) -> updateBulkheadConfig(res.bulkhead(), configs.security(tagOrigin(qtag)).scriptLimit(localTag(qtag), tagOrigin(qtag))));
 		}

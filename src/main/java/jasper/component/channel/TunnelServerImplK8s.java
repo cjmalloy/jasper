@@ -36,8 +36,11 @@ public class TunnelServerImplK8s implements TunnelServer {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		if (configs.root().getSshOrigins().isEmpty()) return;
-		generateHostKey();
+		configs.rootUpdate(root -> {
+			if (root.getSshOrigins().isEmpty()) return;
+			generateHostKey();
+			generateConfig();
+		});
 	}
 
 	@ServiceActivator(inputChannel = "userRxChannel")
@@ -48,15 +51,6 @@ public class TunnelServerImplK8s implements TunnelServer {
 			generateHostKey();
 		}
 		if (configs.root().ssh(user.getOrigin())) {
-			generateConfig();
-		}
-	}
-
-	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (configs.root().getSshOrigins().isEmpty()) return;
-		var template = message.getPayload();
-		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
 			generateConfig();
 		}
 	}

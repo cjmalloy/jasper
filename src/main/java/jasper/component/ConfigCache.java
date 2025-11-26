@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.security.interfaces.RSAPublicKey;
@@ -33,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.parentOrigin;
@@ -77,7 +80,11 @@ public class ConfigCache {
 	@Autowired
 	ComponentDtoMapper dtoMapper;
 
+	@Autowired
+	ConfigCache self;
+
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
+	Set<Consumer<ServerConfig>> rootListeners = ConcurrentHashMap.newKeySet();
 
 	@PostConstruct
 	public void init() {
@@ -258,6 +265,22 @@ public class ConfigCache {
 			.or(() -> getTemplateConfig("_config/server", props.getLocalOrigin(), ServerConfig.class))
 			.orElse(ServerConfig.builderFor(props.getOrigin()).build())
 			.wrap(props);
+	}
+
+	public void rootUpdate(Consumer<ServerConfig> listener) {
+		listener.accept(self.root());
+		rootListeners.add(listener);
+	}
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		var template = message.getPayload();
+		if (isBlank(template.getTag())) return;
+		if (isNotBlank(template.getOrigin())) return;
+		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
+			logger.debug("Server config template updated, updating listeners");
+			rootListeners.forEach(listener -> listener.accept(self.root()));
+		}
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/index'")

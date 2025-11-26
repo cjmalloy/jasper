@@ -69,6 +69,7 @@ public class Push {
 	}
 
 	private void watch(HasTags update) {
+		if (!configs.root().script("+plugin/origin/push", update.getOrigin())) return;
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
 			.orElseThrow();
 		var config = getOrigin(remote);

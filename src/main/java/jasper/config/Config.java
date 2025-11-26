@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.nesting;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
@@ -86,7 +87,7 @@ public interface Config {
 		public boolean ssh(String origin) {
 			if (sshOriginsParsed() == null) return false;
 			var target = selector(origin);
-			return sshOriginsParsed().stream().anyMatch(s -> s.captures(target));
+			return sshOriginsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
 		}
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
@@ -115,7 +116,7 @@ public interface Config {
 		public boolean script(String plugin, String origin) {
 			if (scriptSelectorsParsed() == null) return false;
 			var target = tagOriginSelector(plugin + origin);
-			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(target));
+			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
 		}
 		@JsonIgnore
 		public List<String> scriptOrigins(String plugin) {

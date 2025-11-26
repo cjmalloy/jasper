@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
+import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
@@ -20,6 +21,9 @@ import static jasper.domain.proj.Tag.publicTag;
 @Component
 public class DeltaScript implements Async.AsyncRunner {
 	private static final Logger logger = LoggerFactory.getLogger(DeltaScript.class);
+
+	@Autowired
+	ConfigCache config;
 
 	@Autowired
 	Async async;
@@ -52,6 +56,7 @@ public class DeltaScript implements Async.AsyncRunner {
 		var tags = ref.getExpandedTags().stream()
 			.filter(t -> !publicTag(t).equals("plugin/delta"))
 			.filter(t -> matchesTag("plugin/delta", t) || matchesTag("_plugin/delta", t))
+			.filter(t -> config.root().script(t, ref.getOrigin()))
 			.sorted()
 			.toList()
 			.reversed();
