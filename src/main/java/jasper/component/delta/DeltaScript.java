@@ -2,6 +2,7 @@ package jasper.component.delta;
 
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -22,6 +23,9 @@ public class DeltaScript implements Async.AsyncRunner {
 
 	@Autowired
 	Async async;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	ScriptRunner scriptRunner;
@@ -52,13 +56,15 @@ public class DeltaScript implements Async.AsyncRunner {
 			.toList()
 			.reversed();
 		for (var scriptTag : tags) {
-			try {
-				logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-				scriptRunner.runScripts(ref, scriptTag);
-			} catch (UntrustedScriptException e) {
-				logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
-				tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
-			}
+			scriptExecutorFactory.run(scriptTag, ref.getOrigin(), ref.getUrl(), () -> {
+				try {
+					logger.info("{} Applying delta response {} to {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
+					scriptRunner.runScripts(ref, scriptTag);
+				} catch (UntrustedScriptException e) {
+					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+				}
+			});
 		}
 	}
 

@@ -2,6 +2,7 @@ package jasper.component.cron;
 
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.annotation.PostConstruct;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -24,6 +25,9 @@ public class Script implements Cron.CronRunner {
 	Cron cron;
 
 	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
+
+	@Autowired
 	ScriptRunner scriptRunner;
 
 	@Autowired
@@ -31,7 +35,6 @@ public class Script implements Cron.CronRunner {
 
 	@PostConstruct
 	void init() {
-		// TODO: redo on template change
 		cron.addCronTag("plugin/script", this);
 		cron.addCronTag("+plugin/script", this);
 		cron.addCronTag("_plugin/script", this);
@@ -48,13 +51,15 @@ public class Script implements Cron.CronRunner {
 			.toList()
 			.reversed();
 		for (var scriptTag : tags) {
-			try {
-				logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
-				scriptRunner.runScripts(ref, scriptTag);
-			} catch (UntrustedScriptException e) {
-				logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
-				tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
-			}
+			scriptExecutorFactory.run(scriptTag, ref.getOrigin(), ref.getUrl(), () -> {
+				try {
+					logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
+					scriptRunner.runScripts(ref, scriptTag);
+				} catch (UntrustedScriptException e) {
+					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
+					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+				}
+			});
 		}
 	}
 
