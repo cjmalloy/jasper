@@ -27,8 +27,8 @@ public class Feed implements Serializable {
 	private Thumbnail defaultThumbnail;
 
 	private static final Feed DEFAULTS = new Feed();
-	public static Feed getFeed(Ref ref) {
-		var feed = ref == null ? null : ref.getPlugin("plugin/feed", Feed.class);
+	public static Feed getFeed(Ref ref, String scriptTag) {
+		var feed = ref == null ? null : ref.getPlugin(scriptTag, Feed.class);
 		return feed == null ? DEFAULTS : feed;
 	}
 }

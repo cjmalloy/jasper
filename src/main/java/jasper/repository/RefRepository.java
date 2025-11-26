@@ -150,7 +150,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url)
 			AND t.tag ~ '^[_+]?plugin/user(/|$)'
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+			AND r.origin = :origin
 	""")
 	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 
