@@ -139,10 +139,10 @@ public interface Config {
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 		/**
-		 * Maximum concurrent script executions. Default 5.
+		 * Maximum concurrent script executions. Default 100_000.
 		 */
 		@Builder.Default
-		private int maxConcurrentScripts = 5;
+		private int maxConcurrentScripts = 100_000;
 		/**
 		 * Maximum concurrent replication push/pull operations. Default 3.
 		 */
