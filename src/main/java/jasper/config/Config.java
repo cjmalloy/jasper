@@ -261,9 +261,9 @@ public interface Config {
 		 */
 		private int maxRequests = 50;
 		/**
-		 * Maximum concurrent script executions per origin. Default 100_000.
+		 * Maximum concurrent script executions per origin. Default 5.
 		 */
-		private int maxConcurrentScripts = 100_000;
+		private int maxConcurrentScripts = 5;
 		/**
 		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
 		 * No origin wildcards.
