@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import jasper.errors.NotAvailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,8 @@ public class FetchImplCache implements Fetch {
 	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) {
 		var remote = configs.getRemote(origin);
-		if (remote == null || hasMatchingTag(remote, "+plugin/error")) return null;
+		if (remote == null) throw new NotAvailableException();
+		if (hasMatchingTag(remote, "+plugin/error")) return null;
 		return replicator.fetch(url, remote);
 	}
 
