@@ -6,10 +6,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
+import jasper.client.JasperClient;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.ProxyService;
+import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
@@ -35,6 +39,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
+import static jasper.client.JasperClient.jasperHeaders;
 import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static org.apache.commons.io.FilenameUtils.getName;
@@ -49,7 +54,16 @@ import static org.springframework.http.MediaType.parseMediaType;
 public class ProxyController {
 
 	@Autowired
+	Props props;
+
+	@Autowired
+	JasperClient jasperClient;
+
+	@Autowired
 	ProxyService proxyService;
+
+	@Autowired
+	DtoMapper mapper;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
@@ -74,11 +88,17 @@ public class ProxyController {
 	})
 	@GetMapping
 	ResponseEntity<StreamingResponseBody> fetch(
+		WebRequest request,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		@RequestParam(defaultValue = "false") boolean thumbnail
-	) {
-		var is = proxyService.fetch(url, origin, thumbnail);
+	) throws URISyntaxException, IOException {
+		InputStream is;
+		if (isNotBlank(props.getCacheApi())) {
+			is = jasperClient.fetch(new URI(props.getCacheApi()), jasperHeaders(request), url, origin).getBody().getInputStream();
+		} else {
+			is = proxyService.fetch(url, origin, thumbnail);
+		}
 		if (is == null) throw new NotFoundException(url);
 		var ref = proxyService.stat(url, origin, thumbnail);
 		String filename = "file";
@@ -113,12 +133,17 @@ public class ProxyController {
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping
 	RefDto save(
+		WebRequest request,
 		@RequestParam(required = false) String title,
 		@RequestParam(required = false) String mime,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
 		InputStream data
-	) throws IOException {
-		return proxyService.save(origin, title, data, mime);
+	) throws IOException, URISyntaxException {
+		if (isNotBlank(props.getCacheApi())) {
+			return mapper.replToDto(jasperClient.save(new URI(props.getCacheApi()), jasperHeaders(request), origin, title, mime, data.readAllBytes()));
+		} else {
+			return proxyService.save(origin, title, data, mime);
+		}
 	}
 
 	@ApiResponses({
@@ -130,6 +155,10 @@ public class ProxyController {
 	void clearDeleted(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
-		proxyService.clearDeleted(origin);
+		if (isNotBlank(props.getCacheApi())) {
+			throw new NotFoundException("Delete forwarding not supported");
+		} else {
+			proxyService.clearDeleted(origin);
+		}
 	}
 }

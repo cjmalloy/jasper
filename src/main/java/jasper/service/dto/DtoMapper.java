@@ -42,6 +42,7 @@ public abstract class DtoMapper {
 	public abstract RefNodeDto domainToNodeDto(Ref ref);
 
 	public abstract RefReplDto dtoToRepl(RefDto ref);
+	public abstract RefDto replToDto(RefReplDto ref);
 
 	public abstract ExtDto domainToDto(Ext ext);
 
