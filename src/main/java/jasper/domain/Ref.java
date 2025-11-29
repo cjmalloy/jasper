@@ -3,7 +3,7 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
+import io.hypersistence.utils.hibernate.type.search.PostgreSQLTSVectorType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -117,7 +117,7 @@ public class Ref implements HasTags {
 	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
 	private String voteScore;
 
-	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
+	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, EXTRACT('EPOCH' FROM age(published)) / (4 * 60 * 60)))")
 	private String voteScoreDecay;
 
 	@Column

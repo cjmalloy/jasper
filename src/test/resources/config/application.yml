@@ -36,9 +36,9 @@ spring:
       hikari:
           poolName: Hikari
           auto-commit: false
-  jackson:
-    serialization:
-      write-durations-as-timestamps: false
+  http:
+    converters:
+      preferred-json-mapper: jackson2
   cache:
     type: NONE
   jpa:
@@ -47,7 +47,7 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+        implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
     properties:
       hibernate.id.new_generator_mappings: true
       hibernate.connection.provider_disables_autocommit: true
@@ -93,6 +93,7 @@ jasper:
   node: ~/.bun/bin/bun
   python: /usr/bin/python3
   shell: /usr/bin/bash
+  storage: /tmp/jasper
   cache-api: ''
   override:
     security:

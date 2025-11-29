@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import jasper.domain.User;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
@@ -15,7 +16,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 	private final String principal;
 
 	public JwtAuthentication(String principal) {
-		super(null);
+		super(AuthorityUtils.NO_AUTHORITIES);
 		this.principal = principal;
 		this.user = null;
 		this.claims = null;
