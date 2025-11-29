@@ -1,7 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
@@ -77,7 +77,7 @@ public class ConfigCache {
 	IngestUser ingestUser;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	ComponentDtoMapper dtoMapper;
@@ -196,7 +196,7 @@ public class ConfigCache {
 		configCacheTags.add(tag);
 		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.map(r -> r.getPlugin(tag, toValueType))
-			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
+			.orElse(jsonMapper.convertValue(jsonMapper.createObjectNode(), toValueType));
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin")
@@ -242,7 +242,7 @@ public class ConfigCache {
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
-			.map(n -> objectMapper.convertValue(n, toValueType));
+			.map(n -> jsonMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
@@ -254,7 +254,7 @@ public class ConfigCache {
 	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
-			.map(n -> objectMapper.convertValue(n, toValueType));
+			.map(n -> jsonMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")
@@ -325,7 +325,7 @@ public class ConfigCache {
 		template.setOrigin(props.getLocalOrigin());
 		template.setTag(concat("_config/server", props.getWorkerOrigin()));
 		template.setName(name);
-		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
+		template.setConfig(jsonMapper.convertValue(config, ObjectNode.class));
 		return template;
 	}
 
@@ -335,7 +335,7 @@ public class ConfigCache {
 		template.setOrigin("");
 		template.setTag("_config/index");
 		template.setName(name);
-		template.setConfig(objectMapper.convertValue(config, ObjectNode.class));
+		template.setConfig(jsonMapper.convertValue(config, ObjectNode.class));
 		return template;
 	}
 }

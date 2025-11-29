@@ -1,8 +1,8 @@
 package jasper.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
@@ -62,7 +62,7 @@ public class RefService {
 	DtoMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -165,8 +165,8 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
-			var updated = objectMapper.treeToValue(patched, Ref.class);
+			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ref, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patched, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
@@ -179,7 +179,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}

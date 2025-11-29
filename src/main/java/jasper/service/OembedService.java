@@ -1,7 +1,7 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.OembedClient;
 import jasper.component.OembedProviders;
@@ -35,7 +35,7 @@ public class OembedService {
 	Auth auth;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Cacheable(value = "oembed-cache", key = "#params.get('theme') + '-' + #params.get('maxwidth') + '-' + #params.get('maxheight') + '-' + #params.get('url')")
 	@Transactional(readOnly = true)
@@ -47,7 +47,7 @@ public class OembedService {
 		if (config == null) return null;
 		params.put("format", "json");
 		try {
-			return objectMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
+			return jsonMapper.readTree(oembedClient.oembed(new URI(config.getUrl().replace("{format}", "json")), params));
 		} catch (Exception e) {
 			throw new NotFoundException(e.getMessage());
 		}

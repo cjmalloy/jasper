@@ -1,7 +1,7 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
@@ -35,7 +35,7 @@ public class PluginServiceIT {
 	void testCreatePluginWithSchema() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
+		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
