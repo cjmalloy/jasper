@@ -1,7 +1,7 @@
 package jasper.component.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.HasTags;
 import lombok.Getter;
 import lombok.Setter;

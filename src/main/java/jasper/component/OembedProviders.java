@@ -1,8 +1,8 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import jasper.domain.Ref;
 import jasper.plugin.Oembed;
 import org.slf4j.Logger;
@@ -32,11 +32,11 @@ public class OembedProviders {
 	Resource defaultProviders;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Async
 	public void defaults(String origin) throws IOException {
-		create(origin, objectMapper.readValue(defaultProviders.getFile(), new TypeReference<List<Oembed>>() {}));
+		create(origin, jsonMapper.readValue(defaultProviders.getFile(), new TypeReference<List<Oembed>>() {}));
 	}
 
 	public void create(String origin, List<Oembed> providers) {
@@ -46,8 +46,8 @@ public class OembedProviders {
 			ref.setUrl(p.getProvider_url());
 			ref.setTitle(p.getProvider_name());
 			ref.setTags(new ArrayList<>(List.of("public", "internal", "+plugin/oembed")));
-			var plugins = objectMapper.createObjectNode();
-			plugins.set("+plugin/oembed", objectMapper.convertValue(p, JsonNode.class));
+			var plugins = jsonMapper.createObjectNode();
+			plugins.set("+plugin/oembed", jsonMapper.convertValue(p, JsonNode.class));
 			ref.setPlugins(plugins);
 			ref.setOrigin(origin);
 			ingest.push(origin, ref, true, false);

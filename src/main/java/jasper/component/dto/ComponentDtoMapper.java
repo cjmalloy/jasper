@@ -1,6 +1,6 @@
 package jasper.component.dto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -25,7 +25,7 @@ import java.util.List;
 public abstract class ComponentDtoMapper {
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
@@ -50,8 +50,8 @@ public abstract class ComponentDtoMapper {
 		if (ref.getTags() == null) return;
 		var filtered = new ArrayList<>(ref.getTags().stream().filter(t -> !t.startsWith("_")).toList());
 		if (ref.getPlugins() != null && filtered.size() < ref.getTags().size()) {
-			var filteredPlugins = objectMapper.createObjectNode();
-			ref.getPlugins().fieldNames().forEachRemaining(field -> {
+			var filteredPlugins = jsonMapper.createObjectNode();
+			ref.getPlugins().propertyNames().forEach(field -> {
 				if (filtered.contains(field)) filteredPlugins.set(field, ref.getPlugins().get(field));
 			});
 			if (filteredPlugins.isEmpty()) {

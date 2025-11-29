@@ -104,9 +104,6 @@ spring:
         - api-docs
         # Uncomment to activate TLS for the dev profile
         #- tls
-  http:
-    converters:
-      preferred-json-mapper: jackson2
   jmx:
     enabled: false
   data:
