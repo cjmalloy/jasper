@@ -73,7 +73,7 @@ public class JacksonConfiguration {
      * Support for Hibernate types in Jackson.
      */
     @Bean
-    public Hibernate7Module hibernate6Module() {
+    public Hibernate7Module hibernate7Module() {
         return new Hibernate7Module();
     }
 
