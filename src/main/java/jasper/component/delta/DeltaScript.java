@@ -69,7 +69,7 @@ public class DeltaScript implements Async.AsyncRunner {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
 					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
 				}
-			});
+			}).join();
 		}
 	}
 
