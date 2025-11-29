@@ -1,9 +1,9 @@
 package jasper.component.channel;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.websocket.DeploymentException;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
+import jasper.component.ScriptExecutorFactory;
 import jasper.component.Tagger;
 import jasper.component.TunnelClient;
 import jasper.domain.proj.HasTags;
@@ -12,6 +12,8 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConverter;
@@ -37,7 +39,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -48,7 +49,6 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.util.Logging.getMessage;
-import static java.util.concurrent.CompletableFuture.runAsync;
 
 @Component
 public class Pull {
@@ -58,7 +58,7 @@ public class Pull {
 	TaskScheduler taskScheduler;
 
 	@Autowired
-	ExecutorService websocketExecutor;
+	ScriptExecutorFactory scriptExecutorFactory;
 
 	@Autowired
 	ConfigCache configs;
@@ -88,12 +88,13 @@ public class Pull {
 	private final int BASE_BACKOFF_SECONDS = 5;
 	private final int MAX_BACKOFF_SECONDS = 300; // max backoff delay
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/origin/pull")) {
-			// TODO: redo on template change
-			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/origin/pull")) {
+				watch.addWatch(origin, "+plugin/origin/pull", this::watch);
+			}
+		});
 	}
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
@@ -105,6 +106,7 @@ public class Pull {
 	}
 
 	private void watch(HasTags update) {
+		if (!configs.root().script("+plugin/origin/pull", update.getOrigin())) return;
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin()).orElse(null);
 		var config = getOrigin(remote);
 		var pull = getPull(remote);
@@ -186,7 +188,7 @@ public class Pull {
 			};
 			try {
 				var future = stomp.connectAsync(url.resolve("/api/stomp/").toString(), handler);
-				runAsync(() -> future.thenAcceptAsync(session -> {
+				scriptExecutorFactory.run("_plugin/websocket", remote.getOrigin(), () -> future.thenAcceptAsync(session -> {
 					// TODO: add plugin response to origin to show connection status
 					logger.info("{} Connected to ({}) via websocket {}: {}", remote.getOrigin(), formatOrigin(localOrigin), remote.getTitle(), remote.getUrl());
 				}).exceptionally(e -> {
@@ -195,7 +197,7 @@ public class Pull {
 					if (e instanceof DeploymentException) return null;
 					scheduleReconnect(update, localOrigin);
 					return null;
-				}), websocketExecutor);
+				}));
 			} catch (Exception e) {
 				logger.error("{} Error creating websocket session: {}", remote.getOrigin(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
 				stomp.stop();

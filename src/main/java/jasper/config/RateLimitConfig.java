@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.String.format;
 import static java.time.Duration.ofNanos;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Configuration
 public class RateLimitConfig {
@@ -54,9 +55,12 @@ public class RateLimitConfig {
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
-		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
-			originRateLimiters.forEach((origin, r) -> r.changeLimitForPeriod(configs.security(origin).getMaxRequests()));
+		if (isBlank(template.getTag())) return;
+		if (template.getTag().startsWith("_config/server")) {
 			httpRateLimiter().changeLimitForPeriod(configs.root().getMaxConcurrentRequests());
+		}
+		if (template.getTag().startsWith("_config/security")) {
+			originRateLimiters.forEach((origin, r) -> r.changeLimitForPeriod(configs.security(origin).getMaxRequests()));
 		}
 	}
 

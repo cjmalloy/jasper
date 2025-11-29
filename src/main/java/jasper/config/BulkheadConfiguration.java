@@ -15,6 +15,7 @@ import org.springframework.messaging.Message;
 
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Configuration
 public class BulkheadConfiguration {
@@ -58,10 +59,19 @@ public class BulkheadConfiguration {
 			.build());
 	}
 
+	@Bean
+	public Bulkhead recyclerBulkhead() {
+		return registry.bulkhead("recycler", BulkheadConfig.custom()
+			.maxConcurrentCalls(1)
+			.maxWaitDuration(ofMinutes(0))
+			.build());
+	}
+
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
-		if (template.getTag() != null && template.getTag().startsWith("_config/server")) {
+		if (isBlank(template.getTag())) return;
+		if (template.getTag().startsWith("_config/server")) {
 			logger.debug("Server config template updated, updating bulkhead configurations");
 			updateBulkheadConfig(httpBulkhead(), configs.root().getMaxConcurrentRequests());
 			updateBulkheadConfig(scriptBulkhead(), configs.root().getMaxConcurrentScripts());
@@ -70,7 +80,7 @@ public class BulkheadConfiguration {
 		}
 	}
 
-	private void updateBulkheadConfig(Bulkhead bulkhead, int limit) {
+	public static void updateBulkheadConfig(Bulkhead bulkhead, int limit) {
 		bulkhead.changeConfig(BulkheadConfig
 			.from(bulkhead.getBulkheadConfig())
 			.maxConcurrentCalls(limit)

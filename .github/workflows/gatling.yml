@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ '**' ]
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run Smoke Tests
         if: always()
         run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
@@ -38,14 +38,14 @@ jobs:
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gatling-reports-pr-${{ github.event.pull_request.number }}
           path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
@@ -57,12 +57,37 @@ jobs:
           # language=JavaScript
           script: |
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `📊 Load test results available at: ${url}`
-            });
+            const body = `📊 Load test results available at: ${url}\n\n<!-- gatling-results-comment -->`;
+            
+            // Find existing comment and update it, or create new one
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              }
+            );
+            
+            const botComment = comments.find(comment => 
+              comment.body.includes('<!-- gatling-results-comment -->')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
 
   clean:
     needs: gatling

@@ -21,6 +21,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static jasper.component.vm.RunProcess.runProcess;
 import static java.lang.System.getProperty;
@@ -44,7 +46,8 @@ public class Python {
 	@Value("http://localhost:${server.port}")
 	String api;
 
-	private Map<String, Instant> lastUpdate = new HashMap<>();
+	private final Map<String, Instant> lastUpdate = new HashMap<>();
+	private final ConcurrentHashMap<String, ReentrantLock> venvLocks = new ConcurrentHashMap<>();
 
 	// language=Python
 	private final String pythonVmWrapperScript = """
@@ -73,25 +76,32 @@ if process.returncode != 0:
 			var tmpDir = Objects.toString(getProperty("java.io.tmpdir"), "/tmp");
 			var venv = Paths.get(tmpDir).resolve(requirementsHash).toAbsolutePath();
 			var requirementsFile = Paths.get(venv + "/requirements.txt");
-			// Create virtual environment if it doesn't exist
-			if (!exists(requirementsFile)) {
-				var venvProcess = new ProcessBuilder(python, "-m", "venv", venv.toString()).start();
-				runProcess(venvProcess, 60_000);
-				createDirectories(venv);
-				writeString(requirementsFile, requirements);
-			}
-			python = venv.resolve("bin/python").toString();
 
-			if (!lastUpdate.containsKey(requirementsHash) || lastUpdate.get(requirementsHash).isBefore(now().minus(UPDATE_COOLDOWN))) {
-				lastUpdate.put(requirementsHash, now());
-				// Mark requirements.txt as accessed to prevent deletion for 24 hours
-				var now = FileTime.from(now());
-				setAttribute(requirementsFile, "lastAccessTime", now);
-				setAttribute(requirementsFile, "lastModifiedTime", now);
-				// Install requirements using pip
-				var pip = venv.resolve("bin/pip").toString();
-				var pipProcess = new ProcessBuilder(pip, "install", "--upgrade", "-r", requirementsFile.toString()).start();
-				runProcess(pipProcess, 300_000);
+			var lock = venvLocks.computeIfAbsent(requirementsHash, k -> new ReentrantLock());
+			lock.lock();
+			try {
+				// Create virtual environment if it doesn't exist
+				if (!exists(requirementsFile)) {
+					var venvProcess = new ProcessBuilder(python, "-m", "venv", venv.toString()).start();
+					runProcess(venvProcess, 60_000);
+					createDirectories(venv);
+					writeString(requirementsFile, requirements);
+				}
+				python = venv.resolve("bin/python").toString();
+
+				if (!lastUpdate.containsKey(requirementsHash) || lastUpdate.get(requirementsHash).isBefore(now().minus(UPDATE_COOLDOWN))) {
+					lastUpdate.put(requirementsHash, now());
+					// Mark requirements.txt as accessed to prevent deletion for 24 hours
+					var now = FileTime.from(now());
+					setAttribute(requirementsFile, "lastAccessTime", now);
+					setAttribute(requirementsFile, "lastModifiedTime", now);
+					// Install requirements using pip
+					var pip = venv.resolve("bin/pip").toString();
+					var pipProcess = new ProcessBuilder(pip, "install", "--upgrade", "-r", requirementsFile.toString()).start();
+					runProcess(pipProcess, 300_000);
+				}
+			} finally {
+				lock.unlock();
 			}
 		}
 		var scriptProcess = new ProcessBuilder(python, "-c", pythonVmWrapperScript, ""+timeoutMs, api, props.getCacheApi()).start();

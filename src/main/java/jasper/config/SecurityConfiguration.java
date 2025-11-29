@@ -95,6 +95,7 @@ public class SecurityConfiguration {
 		logger.info("MAX ROLE:                 {}", props.getMaxRole());
 		logger.info("MIN ROLE:                 {}", props.getMinRole());
 		logger.info("MIN WRITE ROLE:           {}", props.getMinWriteRole());
+		logger.info("MIN FETCH ROLE:           {}", props.getMinFetchRole());
 		logger.info("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
 		logger.info("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
 		logger.info("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");

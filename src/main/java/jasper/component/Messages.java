@@ -14,6 +14,8 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.MessageHeaders;
@@ -68,6 +70,12 @@ public class Messages {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	boolean ready = false;
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void init() {
+		ready = true;
+	}
 	@Async
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
@@ -177,6 +185,7 @@ public class Messages {
 	}
 
 	private void sendAndRetry(Runnable fn, int tries) {
+		if (!ready) return;
 		try {
 			fn.run();
 		} catch (MessageDeliveryException e) {

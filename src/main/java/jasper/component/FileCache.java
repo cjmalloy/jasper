@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
@@ -59,6 +60,7 @@ public class FileCache {
 	Tagger tagger;
 
 	@Timed(value = "jasper.cache")
+	@Bulkhead(name = "recycler")
 	public void clearDeleted(String origin) {
 		logger.info("{} Purging file cache", origin);
 		var start = Instant.now();
@@ -163,7 +165,7 @@ public class FileCache {
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
-			logger.error("{} Error Fetching {}", origin, url, e);
+			logger.error("{} Error Fetching {}", origin, url);
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
 				"Error Fetching: " + getMessage(e));

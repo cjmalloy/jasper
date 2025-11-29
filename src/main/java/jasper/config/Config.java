@@ -15,6 +15,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.nesting;
+import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static java.lang.Math.min;
@@ -50,6 +52,21 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> webOrigins = List.of("");
+		@JsonIgnore
+		@Builder.Default
+		private List<QualifiedTag> _webOriginsParsed = null;
+		@JsonIgnore
+		public List<QualifiedTag> webOriginsParsed() {
+			if (webOrigins == null) return null;
+			if (_webOriginsParsed == null) _webOriginsParsed = tagOriginList(webOrigins);
+			return _webOriginsParsed;
+		}
+		@JsonIgnore
+		public boolean web(String origin) {
+			if (webOriginsParsed() == null) return false;
+			var target = selector(origin);
+			return webOriginsParsed().stream().anyMatch(s -> s.captures(target));
+		}
 		@Builder.Default
 		private int maxReplEntityBatch = 500;
 		/**
@@ -57,6 +74,21 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> sshOrigins = List.of("");
+		@JsonIgnore
+		@Builder.Default
+		private List<QualifiedTag> _sshOriginsParsed = null;
+		@JsonIgnore
+		public List<QualifiedTag> sshOriginsParsed() {
+			if (sshOrigins == null) return null;
+			if (_sshOriginsParsed == null) _sshOriginsParsed = tagOriginList(sshOrigins);
+			return _sshOriginsParsed;
+		}
+		@JsonIgnore
+		public boolean ssh(String origin) {
+			if (sshOriginsParsed() == null) return false;
+			var target = selector(origin);
+			return sshOriginsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
+		}
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
 		@Builder.Default
@@ -83,7 +115,8 @@ public interface Config {
 		@JsonIgnore
 		public boolean script(String plugin, String origin) {
 			if (scriptSelectorsParsed() == null) return false;
-			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
+			var target = tagOriginSelector(plugin + origin);
+			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
 		}
 		@JsonIgnore
 		public List<String> scriptOrigins(String plugin) {
@@ -106,10 +139,10 @@ public interface Config {
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 		/**
-		 * Maximum concurrent script executions. Default 5.
+		 * Maximum concurrent script executions. Default 100_000.
 		 */
 		@Builder.Default
-		private int maxConcurrentScripts = 5;
+		private int maxConcurrentScripts = 100_000;
 		/**
 		 * Maximum concurrent replication push/pull operations. Default 3.
 		 */
@@ -199,6 +232,10 @@ public interface Config {
 		 */
 		private String minWriteRole = "ROLE_VIEWER";
 		/**
+		 * Minimum role for fetching external resources.
+		 */
+		private String minFetchRole = "ROLE_USER";
+		/**
 		 * Minimum role for admin config.
 		 */
 		private String minConfigRole = "ROLE_ADMIN";
@@ -224,9 +261,9 @@ public interface Config {
 		 */
 		private int maxRequests = 50;
 		/**
-		 * Maximum concurrent script executions per origin. Default 100_000.
+		 * Maximum concurrent script executions per origin. Default 5.
 		 */
-		private int maxConcurrentScripts = 100_000;
+		private int maxConcurrentScripts = 5;
 		/**
 		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
 		 * No origin wildcards.

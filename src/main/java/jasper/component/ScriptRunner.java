@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
+import jasper.component.script.ScriptDefaults;
 import jasper.component.vm.JavaScript;
 import jasper.component.vm.Python;
 import jasper.component.vm.Shell;
@@ -41,6 +42,9 @@ public class ScriptRunner {
 	Tagger tagger;
 
 	@Autowired
+	ScriptDefaults scriptDefaults;
+
+	@Autowired
 	JavaScript jsVm;
 
 	@Autowired
@@ -73,9 +77,19 @@ public class ScriptRunner {
 	}
 
 	@Timed("jasper.scripts")
-	public void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
-		if (isBlank(config.getScript())) return;
+	public void runScripts(Ref ref, String scriptTag) throws UntrustedScriptException {
+		var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class)
+			.orElse(null);
+		runScripts(ref, scriptTag, config);
+	}
+
+	void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
+		if (config == null || isBlank(config.getScript())) {
+			scriptDefaults.runScript(ref, scriptTag);
+			return;
+		}
 		validateScript(config.getScript());
+		logger.info("{} Running script {} on {} ({})", ref.getOrigin(), scriptTag, ref.getTitle(), ref.getUrl());
 		String input;
 		try {
 			switch (config.getFormat().toLowerCase()) {

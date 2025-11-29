@@ -1,68 +1,100 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
-import jakarta.annotation.PreDestroy;
+import io.micrometer.core.instrument.Timer;
+import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 
-import static io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics.monitor;
+import static io.micrometer.core.instrument.Timer.start;
+import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static java.time.Duration.ofMinutes;
+import static java.util.concurrent.CompletableFuture.runAsync;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 public class ScriptExecutorFactory {
 	private static final Logger logger = LoggerFactory.getLogger(ScriptExecutorFactory.class);
-	private static final int DEFAULT_QUEUE_CAPACITY = 100_000;
+
+	@Autowired
+	ExecutorService taskExecutor;
 
 	@Autowired
 	MeterRegistry meterRegistry;
 
 	@Autowired
+	BulkheadRegistry bulkheadRegistry;
+
+	@Autowired
 	ConfigCache configs;
 
-	private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
-	public ExecutorService get(String tag, String origin) {
-		return executors.computeIfAbsent(tag + origin, k -> {
-			int maxPoolSize = configs.security(origin).scriptLimit(tag, origin);
-			logger.info("{} Creating dynamic script executor for {} with max pool size {}", origin, k, maxPoolSize);
-			var executor = new ThreadPoolTaskExecutor();
-			executor.setCorePoolSize(1);
-			executor.setMaxPoolSize(maxPoolSize);
-			executor.setQueueCapacity(DEFAULT_QUEUE_CAPACITY);
-			executor.setThreadNamePrefix("script-" + k + "-");
-			executor.setRejectedExecutionHandler((Runnable r, ThreadPoolExecutor e) -> {
-				throw new RejectedExecutionException("Script " + k +
-						" task " + r.toString() +
-						" rejected from " + e.toString() +
-						" queue size " + DEFAULT_QUEUE_CAPACITY);
-			});
-			executor.setWaitForTasksToCompleteOnShutdown(true);
-			executor.setAwaitTerminationSeconds(60);
-			executor.initialize();
-			return monitor(meterRegistry, executor.getThreadPoolExecutor(), "scriptExecutor", "script", Tags.of(
-					"tag", tag,
-					"origin", origin));
-		});
+	@Autowired
+	Tagger tagger;
+
+	private record ScriptResources(Timer timer, Bulkhead bulkhead) { }
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		var template = message.getPayload();
+		if (isBlank(template.getTag())) return;
+		if (template.getTag().startsWith("_config/security")) {
+			logger.debug("Server config template updated, updating bulkhead configurations");
+			resources.forEach((qtag, res) -> updateBulkheadConfig(res.bulkhead(), configs.security(tagOrigin(qtag)).scriptLimit(localTag(qtag), tagOrigin(qtag))));
+		}
 	}
 
-	@PreDestroy
-	public void cleanup() {
-		logger.info("Shutting down {} dynamic script executors and their metrics", executors.size());
-		executors.values().forEach(executor -> {
-			try {
-				executor.shutdown();
-			} catch (Exception e) {
-				logger.warn("Error shutting down script executor", e);
-			}
-		});
-		executors.clear();
+	public CompletableFuture<Void> run(String tag, String origin, Runnable runnable) {
+		return run(tag, origin, "tag:/" + tag, runnable);
+	}
+
+	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
+		var res = getResources(tag, origin);
+		try {
+			return runAsync(() -> res.bulkhead().executeRunnable(() -> {
+				var sample = start(meterRegistry);
+				try {
+					runnable.run();
+				} finally {
+					sample.stop(res.timer());
+				}
+			}), taskExecutor);
+		} catch (BulkheadFullException e) {
+			var config = res.bulkhead().getBulkheadConfig();
+			logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
+			tagger.attachLogs(url, origin, "Rate Limit Hit " + tag, "Max: " + config.getMaxConcurrentCalls() + "\nWait: " + config.getMaxWaitDuration());
+			return null;
+		}
+	}
+
+	private final Map<String, ScriptResources> resources = new ConcurrentHashMap<>();
+
+	private ScriptResources getResources(String tag, String origin) {
+		return resources.computeIfAbsent(tag + origin, k -> new ScriptResources(
+			Timer.builder("script.executor.task.duration")
+				.description("Duration of script executor tasks")
+				.tag("name", tag + origin)
+				.tag("tag", tag)
+				.tag("origin", origin)
+				.register(meterRegistry),
+			bulkheadRegistry.bulkhead(k, BulkheadConfig.custom()
+				.maxConcurrentCalls(configs.security(origin).scriptLimit(tag, origin))
+				.maxWaitDuration(ofMinutes(60))
+				.build())
+		));
 	}
 }

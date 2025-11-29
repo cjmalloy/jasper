@@ -7,11 +7,13 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+@Profile("!no-backfill")
 @Component
 public class Backfill {
 	private static final Logger logger = LoggerFactory.getLogger(Backfill.class);
@@ -37,6 +39,7 @@ public class Backfill {
 	}
 
 	private void backfillOrigin(String origin) {
+		if (!configs.root().script("+plugin/backfill", origin)) return;
 		for (var i = 0; i < props.getBackfillBatchSize(); i++) {
 			var ref = refRepository.getRefBackfill(origin).orElse(null);
 			if (ref == null) return;

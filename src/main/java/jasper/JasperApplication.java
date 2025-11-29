@@ -15,7 +15,7 @@ import org.springframework.cloud.kubernetes.fabric8.discovery.KubernetesDiscover
 @EnableCaching
 public class JasperApplication {
 
-	public static void main(String[] args) {
+	static void main(String[] args) {
 		SpringApplication.run(JasperApplication.class, args);
 	}
 
