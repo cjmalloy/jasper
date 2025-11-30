@@ -181,7 +181,7 @@ public class SecurityConfiguration {
 	}
 
 	@Bean
-	public DefaultMethodSecurityExpressionHandler webSecurityExpressionHandler() {
+	public DefaultMethodSecurityExpressionHandler methodSecurityExpressionHandler() {
 		var expressionHandler = new DefaultMethodSecurityExpressionHandler();
 		expressionHandler.setRoleHierarchy(roleHierarchy());
 		return expressionHandler;
