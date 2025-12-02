@@ -529,13 +529,6 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SECURITY_MAX_CONCURRENT_SCRIPTS`   | Override the security maximum concurrent script executions per origin for all origins.                                         | `5`                                                                                                                                                                                                           |
 | `JASPER_HEAP`                                       | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
 
-### Multi-tenant
-When run with the default settings, the local origin is set to `""`. This means all origins are visible.
-If you change the local origin to something else, like `@other`, you can only see sub-origins, like `@other.one`.
-You can change the local origin with a HTTP header to use the server in multi-tenant mode. If you login though a
-reverse-proxy or gateway that sets the local origin back to `""` you will still be able to see all origins.
-You can also run workers in their own origin as a sandbox.
-
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
 variable. Multiple profiles can be activated by adding them all as a comma
@@ -785,10 +778,6 @@ The `+plugin/cron` tag contains plugin data with a default interval of 15 minute
 
 When the `+plugin/cron` tag is present the script will be run repeatedly at the interval specified. Removing the
 `+plugin/cron` tag will disable the script.
-
-You can use this to mark the input Ref as completed by either:
-1. Removing the `plugin/delta` tag
-2. Adding a `+plugin/delta` Plugin response
 
 #### Example
 Here is a script that outputs the current time:
