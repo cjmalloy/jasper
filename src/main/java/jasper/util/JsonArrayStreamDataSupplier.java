@@ -5,13 +5,11 @@
  */
 package jasper.util;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Spliterators;
@@ -27,20 +25,17 @@ public class JsonArrayStreamDataSupplier<T> implements Iterator<T> {
 	 * code for handling Jackson streams as Java 8 streams, which seems natural.
 	 */
 
-	ObjectMapper mapper;
+	JsonMapper mapper;
 	JsonParser parser;
 	boolean maybeHasNext = false;
-	int count = 0;
-	JsonFactory factory = new JsonFactory();
 	private Class<T> type;
 
-	public JsonArrayStreamDataSupplier(InputStream in, Class<T> type, ObjectMapper mapper) {
+	public JsonArrayStreamDataSupplier(InputStream in, Class<T> type, JsonMapper mapper) {
 		this.type = type;
 		this.mapper = mapper;
 		try {
 			// Setup and get into a state to start iterating
-			parser = factory.createParser(in);
-			parser.setCodec(mapper);
+			parser = mapper.createParser(in);
 			JsonToken token = parser.nextToken();
 			if (token == null) {
 				throw new RuntimeException("Can't get any JSON Token");
@@ -89,7 +84,7 @@ public class JsonArrayStreamDataSupplier<T> implements Iterator<T> {
 			//Because we can't send T as a parameter to the mapper
 			T node = mapper.convertValue(n, type);
 			return node;
-		} catch (IOException | IllegalArgumentException e) {
+		} catch (IllegalArgumentException e) {
 			System.out.println("Ex" + e);
 			return null;
 		}

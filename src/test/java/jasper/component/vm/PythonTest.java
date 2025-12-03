@@ -1,12 +1,11 @@
 package jasper.component.vm;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import jasper.config.Props;
 import jasper.errors.ScriptException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +23,7 @@ class PythonTest {
 
 	@BeforeEach
 	public void init() throws IOException {
-		var mapper = new ObjectMapper(new YAMLFactory());
+		var mapper = YAMLMapper.builder().build();
 		var app = mapper.readValue(new File("src/test/resources/config/application.yml"), ObjectNode.class);
 		var props = app.get("jasper");
 

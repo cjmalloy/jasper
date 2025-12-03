@@ -1,7 +1,7 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Template;
 import jasper.repository.TemplateRepository;
@@ -35,7 +35,7 @@ public class TemplateServiceIT {
 	void testCreateTemplateWithSchema() throws IOException {
 		var template = new Template();
 		template.setTag("test");
-		var mapper = new ObjectMapper();
+		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {

@@ -1,18 +1,18 @@
 package jasper.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class ObjectMapperConfig {
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@PostConstruct
 	void initStatic() {
-		JacksonConfiguration.om = objectMapper;
+		JacksonConfiguration.om = jsonMapper;
 	}
 }

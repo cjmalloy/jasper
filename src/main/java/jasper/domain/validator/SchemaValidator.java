@@ -1,14 +1,14 @@
 package jasper.domain.validator;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.jsontypedef.jtd.InvalidSchemaException;
 import com.jsontypedef.jtd.Schema;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 public class SchemaValidator implements ConstraintValidator<SchemaValid, JsonNode> {
-	public static final ObjectMapper mapper = new ObjectMapper();
+	public static final JsonMapper mapper = new JsonMapper();
 
 	@Override
 	public boolean isValid(JsonNode value, ConstraintValidatorContext context) {

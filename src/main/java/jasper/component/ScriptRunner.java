@@ -1,7 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.dto.Bundle;
 import jasper.component.dto.ComponentDtoMapper;
@@ -57,11 +57,11 @@ public class ScriptRunner {
 	ComponentDtoMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	@Qualifier("yamlMapper")
-	ObjectMapper yamlMapper;
+	JsonMapper yamlMapper;
 
 	@Timed("jasper.scripts")
 	public void validateScript(String script) throws UntrustedScriptException {
@@ -94,7 +94,7 @@ public class ScriptRunner {
 		try {
 			switch (config.getFormat().toLowerCase()) {
 			case "json":
-				input = objectMapper.writeValueAsString(mapper.domainToDto(ref));
+				input = jsonMapper.writeValueAsString(mapper.domainToDto(ref));
 				break;
 			case "yaml":
 				input = yamlMapper.writeValueAsString(mapper.domainToDto(ref));
@@ -140,7 +140,7 @@ public class ScriptRunner {
 		try {
 			switch (config.getFormat().toLowerCase()) {
 			case "json":
-				bundle = objectMapper.readValue(output, new TypeReference<Bundle>() {});
+				bundle = jsonMapper.readValue(output, new TypeReference<Bundle>() {});
 				break;
 			case "yaml":
 				bundle = yamlMapper.readValue(output, new TypeReference<Bundle>() {});
