@@ -21,10 +21,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.lang.Math.floor;
 
 @Component
 public class Cron {
@@ -101,8 +103,9 @@ public class Cron {
 			tasks.compute(key, (k, e) -> {
 				if (e != null && !e.isDone()) return e;
 				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
+				var jitter = config.getInterval().plusMillis((long) floor(config.getInterval().toMillis() * ThreadLocalRandom.current().nextDouble()));
 				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
-					Instant.now().plus(config.getInterval()),
+					Instant.now().plus(jitter),
 					config.getInterval());
 			});
 		}
