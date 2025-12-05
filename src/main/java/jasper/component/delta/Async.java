@@ -99,10 +99,11 @@ public class Async {
 			if (ud.getTags() == null) throw new RuntimeException();
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
 			tags.forEach((tag, v) -> {
+				logger.trace("{} Checking for Async Tag ({}): {}", origin, tag, ud.getUrl());
 				if (!hasMatchingTag(ud, tag)) return;
 				if (!configs.root().script(tag, origin)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", origin, tag, ud.getUrl(), origin);
+				logger.debug("{} Async Tag ({}): {}", origin, tag, ud.getUrl());
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
 						logger.debug("{} Async tag trying to run before finishing {} ", origin, tag);
