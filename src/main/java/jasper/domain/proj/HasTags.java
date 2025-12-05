@@ -1,6 +1,7 @@
 package jasper.domain.proj;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jasper.repository.spec.QualifiedTag;
 import jasper.service.dto.RefDto;
 
 import java.util.List;
@@ -35,6 +36,11 @@ public interface HasTags extends Cursor {
 		if (hasTags == null) return false;
 		if (hasTags.getTags() == null) return false;
 		return hasTags.getTags().stream().anyMatch(t -> matchesTag(prefix, t));
+	}
+
+	static boolean hasCapturingTag(List<String> tags, String origin, QualifiedTag selector) {
+		if (tags == null) return false;
+		return tags.stream().anyMatch(t -> selector.captures(t + origin));
 	}
 
 	static boolean author(String tag) {
