@@ -17,6 +17,7 @@ public class Feed implements Serializable {
 	private boolean disableEtag;
 	private String etag;
 	private boolean stripQuery;
+	private boolean stripHash;
 	private boolean scrapeWebpage;
 	private boolean scrapeDescription;
 	private boolean scrapeContents;

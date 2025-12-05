@@ -184,7 +184,14 @@ public class RssParser {
 			link = entry.getUri();
 		}
 		if (config.isStripQuery() && link.contains("?")) {
-			link = link.substring(0, link.indexOf("?"));
+			if (link.contains("#") && !config.isStripHash()) {
+				link = link.substring(0, link.indexOf("?")) + link.substring(link.indexOf("#"));
+			} else {
+				link = link.substring(0, link.indexOf("?"));
+			}
+		}
+		if (config.isStripHash() && link.contains("#")) {
+			link = link.substring(0, link.indexOf("#"));
 		}
 		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
 			throw new AlreadyExistsException();
