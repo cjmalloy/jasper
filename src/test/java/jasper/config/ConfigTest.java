@@ -192,7 +192,7 @@ class ConfigTest {
 			.scriptSelectors(List.of("_plugin/delta/scrape@alice"))
 			.build();
 
-		// Nesting check: @alice has nesting 0, @alice.sub has nesting 1
+		// Nesting check: @alice has nesting 1, @alice.sub has nesting 2
 		assertThat(config.script("_plugin/delta", new TestHasTags(List.of("_plugin/delta/scrape"), "@alice"))).isTrue();
 		assertThat(config.script("_plugin/delta", new TestHasTags(List.of("_plugin/delta/scrape"), "@alice.sub"))).isFalse();
 	}
