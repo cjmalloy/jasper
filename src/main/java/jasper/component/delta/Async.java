@@ -93,6 +93,7 @@ public class Async {
 	public void handleRefUpdate(Message<RefDto> message) {
 		var ud = message.getPayload();
 		var origin = ud.getOrigin();
+		logger.trace("{} Checking for Async Tag: {} {}", origin, ud.getUrl(), origin);
 		try {
 			if (tags.isEmpty()) throw new RuntimeException();
 			if (isEmpty(configs.root().getScriptSelectors())) throw new RuntimeException();
