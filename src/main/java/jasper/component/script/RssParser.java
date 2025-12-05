@@ -34,6 +34,8 @@ import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -142,8 +144,7 @@ public class RssParser {
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					var input = new SyndFeedInput();
-					var syndFeed = input.build(new XmlReader(stream));
+					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
@@ -192,6 +193,17 @@ public class RssParser {
 		}
 		if (config.isStripHash() && link.contains("#")) {
 			link = link.substring(0, link.indexOf("#"));
+		}
+		try {
+			new URI(link).toURL();
+		} catch (IllegalArgumentException e) {
+			try {
+				link = new URL(new URI(feed.getUrl()).toURL(), link).toExternalForm();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
 			throw new AlreadyExistsException();
