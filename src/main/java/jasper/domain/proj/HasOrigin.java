@@ -40,7 +40,8 @@ public interface HasOrigin {
 	}
 
 	static int nesting(String origin) {
-		return countMatches(origin, '.');
+		if (isBlank(origin) || origin.equals("@")) return 0;
+		return countMatches(origin, '.') + 1;
 	}
 
 	static String[] parts(String origin) {

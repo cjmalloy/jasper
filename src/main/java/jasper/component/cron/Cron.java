@@ -141,7 +141,7 @@ public class Cron {
 			tags.forEach((tag, v) -> {
 				if (ran.contains(v)) return;
 				if (!hasMatchingTag(ref, tag)) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ref)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					logger.warn("{} Run Tag: {} {}", origin, tag, url);
@@ -205,7 +205,7 @@ public class Cron {
 		tags.forEach((tag, v) -> {
 			if (ran.contains(v)) return;
 			if (!hasMatchingTag(ref, tag)) return;
-			if (!configs.root().script(tag, origin)) return;
+			if (!configs.root().script(tag, ref)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, tag, url);
 			refs.compute(getKey(ref), (s, existing) -> {
 				if (existing != null && !existing.isDone()) return existing;

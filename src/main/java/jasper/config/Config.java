@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jasper.domain.proj.HasTags;
 import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 import static jasper.domain.proj.HasOrigin.nesting;
+import static jasper.domain.proj.HasTags.hasCapturingTag;
+import static jasper.domain.proj.Tag.matchesTag;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
@@ -117,6 +120,15 @@ public interface Config {
 			if (scriptSelectorsParsed() == null) return false;
 			var target = tagOriginSelector(plugin + origin);
 			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
+		}
+		@JsonIgnore
+		public boolean script(String plugin, HasTags ref) {
+			if (ref == null) return false;
+			if (ref.getTags() == null) return false;
+			if (scriptSelectorsParsed() == null) return false;
+			var origin = isBlank(ref.getOrigin()) ? "@" : ref.getOrigin();
+			var filtered = ref.getTags().stream().filter(t -> matchesTag(plugin, t)).toList();
+			return scriptSelectorsParsed().stream().anyMatch(s -> hasCapturingTag(filtered, origin, s) && nesting(ref.getOrigin()) == nesting(s.origin));
 		}
 		@JsonIgnore
 		public List<String> scriptOrigins(String plugin) {
