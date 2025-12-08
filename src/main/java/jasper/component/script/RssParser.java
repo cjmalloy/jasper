@@ -79,7 +79,7 @@ public class RssParser {
 		} catch (ParsingFeedException e) {
 			if (e.getLineNumber() == 1 || e.getCause() instanceof JDOMParseException) {
 				// Temporary error page, retry later
-				tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+				logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
 			} else {
 				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 			}
