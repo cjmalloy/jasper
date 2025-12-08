@@ -753,8 +753,21 @@ paths:
               schema:
                 type: string
                 format: binary
+        '206':
+          description: Partial content
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
         '404':
           $ref: '#/components/responses/NotFound'
+        '416':
+          description: Range not satisfiable
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
         '500':
           description: Error fetching
           content:
