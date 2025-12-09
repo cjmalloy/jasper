@@ -122,24 +122,31 @@ public class ProxyController {
 		long start;
 		long end;
 		
-		// Check for suffix-byte-range-spec (bytes=-500)
-		if (ranges[0].isEmpty() && ranges.length >= 2) {
-			// suffix-byte-range-spec: last N bytes
-			long suffix = Long.parseLong(ranges[1]);
-			if (suffix <= 0) {
-				return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
-					.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
-					.build();
+		try {
+			// Check for suffix-byte-range-spec (bytes=-500)
+			if (ranges[0].isEmpty() && ranges.length >= 2) {
+				// suffix-byte-range-spec: last N bytes
+				long suffix = Long.parseLong(ranges[1]);
+				if (suffix <= 0) {
+					return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+						.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
+						.build();
+				}
+				// Calculate start position for the last 'suffix' bytes
+				start = Math.max(0, contentLength - suffix);
+				end = contentLength - 1;
+			} else {
+				// byte-range-spec: bytes=start-end (end is optional)
+				start = Long.parseLong(ranges[0]);
+				end = ranges.length > 1 && !ranges[1].isEmpty()
+					? Long.parseLong(ranges[1])
+					: contentLength - 1;
 			}
-			// Calculate start position for the last 'suffix' bytes
-			start = Math.max(0, contentLength - suffix);
-			end = contentLength - 1;
-		} else {
-			// byte-range-spec: bytes=start-end (end is optional)
-			start = Long.parseLong(ranges[0]);
-			end = ranges.length > 1 && !ranges[1].isEmpty()
-				? Long.parseLong(ranges[1])
-				: contentLength - 1;
+		} catch (NumberFormatException e) {
+			// Invalid range format
+			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
+				.build();
 		}
 		
 		if (start >= contentLength || end >= contentLength || start > end) {
