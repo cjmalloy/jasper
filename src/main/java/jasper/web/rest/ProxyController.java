@@ -154,7 +154,6 @@ public class ProxyController {
 		}
 	}
 
-
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
