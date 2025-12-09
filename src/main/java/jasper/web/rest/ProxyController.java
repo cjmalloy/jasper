@@ -121,40 +121,51 @@ public class ProxyController {
 	}
 
 	private ResponseEntity<StreamingResponseBody> handleRangeRequest(InputStream is, String rangeHeader, long contentLength, MediaType contentType, String contentDisposition) {
-		// Parse "bytes=start-end" (end is optional)
-		var rangeValue = rangeHeader.substring("bytes=".length());
-		var ranges = rangeValue.split("-");
-		var start = isBlank(ranges[0])
-			? contentLength - parseLong(ranges[1])
-			: parseLong(ranges[0]);
-		var end = ranges.length > 1 && isNotBlank(ranges[0]) && isNotBlank(ranges[1])
-			? parseLong(ranges[1])
-			: contentLength - 1;
-		
-		// RFC 7233: If end >= contentLength, adjust to contentLength - 1
-		if (end >= contentLength) {
-			end = contentLength - 1;
+		try {
+			// Parse "bytes=start-end" (end is optional)
+			var rangeValue = rangeHeader.substring("bytes=".length());
+			var ranges = rangeValue.split("-");
+			var start = isBlank(ranges[0])
+				? contentLength - parseLong(ranges[1])
+				: parseLong(ranges[0]);
+			var end = ranges.length > 1 && isNotBlank(ranges[0]) && isNotBlank(ranges[1])
+				? parseLong(ranges[1])
+				: contentLength - 1;
+			
+			// RFC 7233: If end >= contentLength, adjust to contentLength - 1
+			if (end >= contentLength) {
+				end = contentLength - 1;
+			}
+			// RFC 7233: If suffix-byte-range-spec exceeds content length, clamp start to 0
+			if (start < 0) {
+				start = 0;
+			}
+			// Only return 416 if start is beyond content or start > end after adjustment
+			if (start >= contentLength || start > end) {
+				try { is.close(); } catch (IOException ignored) { }
+				return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+					.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
+					.build();
+			}
+			long rangeLength = end - start + 1;
+			return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+				.header(HttpHeaders.ACCEPT_RANGES, "bytes")
+				.header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + contentLength)
+				.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+				.contentLength(rangeLength)
+				.contentType(contentType)
+				.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
+				.body(outputStream -> streamContent(is, outputStream, start, rangeLength));
+		} catch (NumberFormatException e) {
+			// RFC 7233 Section 3.1: Ignore syntactically invalid range headers and return full content
+			return ResponseEntity.ok()
+				.header(HttpHeaders.ACCEPT_RANGES, "bytes")
+				.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+				.contentLength(contentLength)
+				.contentType(contentType)
+				.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
+				.body(outputStream -> streamContent(is, outputStream, 0, null));
 		}
-		// RFC 7233: If suffix-byte-range-spec exceeds content length, clamp start to 0
-		if (start < 0) {
-			start = 0;
-		}
-		// Only return 416 if start is beyond content or start > end after adjustment
-		if (start >= contentLength || start > end) {
-			try { is.close(); } catch (IOException ignored) { }
-			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
-				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
-				.build();
-		}
-		long rangeLength = end - start + 1;
-		return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-			.header(HttpHeaders.ACCEPT_RANGES, "bytes")
-			.header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + contentLength)
-			.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
-			.contentLength(rangeLength)
-			.contentType(contentType)
-			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
-			.body(outputStream -> streamContent(is, outputStream, start, rangeLength));
 	}
 
 	private void streamContent(InputStream is, OutputStream outputStream, long skip, Long length) throws IOException {

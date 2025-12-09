@@ -217,14 +217,15 @@ class ProxyControllerIT {
 
 	@Test
 	void testMalformedRangeHeaderInvalidFormat() throws Exception {
-		// Test: malformed range format should cause error or be handled gracefully
-		// Note: This will throw NumberFormatException, which Spring will handle
+		// Test: RFC 7233 Section 3.1 - malformed range headers should be ignored and full content returned
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)
 				.param("origin", "")
 				.header("Range", "bytes=invalid"))
-			.andExpect(status().is5xxServerError());
+			.andExpect(status().isOk())
+			.andExpect(header().string("Accept-Ranges", "bytes"))
+			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)));
 	}
 
 	@Test
