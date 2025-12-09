@@ -255,6 +255,23 @@ class ProxyControllerIT {
 	}
 
 	@Test
+	void testSuffixByteRangeSpec() throws Exception {
+		// Test: bytes=-500 (last 500 bytes)
+		// Note: Current implementation doesn't support suffix-byte-range-spec
+		// This test documents the expected behavior if/when it's implemented
+		mockMvc
+			.perform(get("/api/v1/proxy")
+				.param("url", TEST_URL)
+				.param("origin", TEST_ORIGIN)
+				.header("Range", "bytes=-50"))
+			.andExpect(status().is5xxServerError()); // Currently fails with NumberFormatException
+		// When properly implemented, it should return:
+		// .andExpect(status().isPartialContent())
+		// .andExpect(header().string("Content-Range", "bytes " + (TEST_CONTENT.length - 50) + "-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
+		// .andExpect(header().string("Content-Length", "50"));
+	}
+
+	@Test
 	void testFetchNotFound() throws Exception {
 		// Test: URL that doesn't exist
 		String nonExistentUrl = "https://example.com/nonexistent.txt";
