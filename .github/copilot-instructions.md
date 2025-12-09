@@ -11,36 +11,73 @@ Bootstrap, build, and test the repository:
 This project **requires Java 25** (not earlier or later versions). Before attempting any build or test:
 
 1. **Check if Java 25 is available**: Run `java -version` to check your Java version
-2. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
-3. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+2. **If Java 25 is NOT the default but is installed**: Configure it using the commands below
+3. **If Java 25 is NOT installed at all**: Install it first (see installation instructions below)
 
-**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+**IMPORTANT**: In GitHub Actions runners, Java 25 (Temurin) is typically pre-installed but not set as the default. You MUST configure it before building.
 
 ### Quick Decision Guide
 
 | Your Situation | Build Approach | Command |
 |----------------|----------------|---------|
-| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
-| Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
-| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
-| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
-| Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
+| GitHub Actions runner | **Configure Java 25 first** | See "Configuring Java 25" section below |
+| Java 25 available and configured | Local Maven (RECOMMENDED) | `./mvnw clean compile` or `./mvnw clean package` |
+| Need to run full tests | Local Maven | `./mvnw clean package` |
+| Java 25 not installed | Install Java 25 | See "Installing Java 25" section below |
 
-**Docker-Based Build (Recommended - use this if Java 25 is not installed):**
-- Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
-- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
-- Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
-- Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
-- **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
+### Configuring Java 25 (GitHub Actions / Pre-installed Java 25)
 
-**Local Development (Alternative - requires Java 25 setup):**
-- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
-- Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
-- Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
-- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
-- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
-- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+If Java 25 is installed but not the default (common in GitHub Actions runners):
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+java -version  # Should show Java 25
+```
+
+**ALWAYS run these export commands before running Maven commands** if Java 25 is not your default version.
+
+### Installing Java 25
+
+If Java 25 is not installed on your system:
+
+**On Ubuntu/Debian (via Adoptium repository):**
+```bash
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo tee /usr/share/keyrings/adoptium.asc
+echo "deb [signed-by=/usr/share/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+sudo apt-get update
+sudo apt-get install -y temurin-25-jdk
+export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+```
+
+**Using SDKMAN (cross-platform):**
+```bash
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk install java 25-tem
+sdk use java 25-tem
+```
+
+### Local Maven Build (RECOMMENDED)
+
+Once Java 25 is configured:
+
+- **Quick compile**: `./mvnw clean compile` -- takes ~11-15 seconds. Set timeout to 30+ seconds.
+- **Full build with tests**: `./mvnw clean package` -- takes ~85 seconds. Set timeout to 180+ seconds.
+- **Skip tests**: `./mvnw clean package -DskipTests` -- takes ~15 seconds. Set timeout to 30+ seconds.
+- **Specific test**: `./mvnw test -Dtest=YourTestClass`
+
+### Docker Build (NOT RECOMMENDED - Certificate Issues)
+
+**WARNING**: Docker builds may fail with SSL certificate errors in some environments (including GitHub Actions).
+
+If you still want to try Docker:
+- Full build: `docker build -t jasper .` -- takes 45+ minutes
+- Builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes
+- Test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes
+
+If Docker builds fail with certificate errors, use local Maven builds instead (see above).
 
 ## Running the Application
 
@@ -62,18 +99,19 @@ ALWAYS run the bootstrapping steps first.
 
 ## Testing
 
-**Unit and Integration Tests:**
-- **Docker-based (Recommended)**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 3600+ seconds.
-- **Local**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Note: Some tests require Bun and Python dependencies to pass completely
-- Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
+**Unit and Integration Tests (RECOMMENDED):**
 
-**Efficient Log Reading with Docker:**
-When building with Docker, use these techniques to efficiently read logs:
-- Tail output: `docker build -t jasper . 2>&1 | tail -100` -- shows last 100 lines
-- Save to file: `docker build -t jasper . 2>&1 | tee build.log` -- saves full log while showing output
-- Check specific stage: `docker build --target builder -t jasper-builder . 2>&1 | tail -50` -- faster feedback on build stage
-- Progress mode: `docker build --progress=plain -t jasper .` -- shows all build output without fancy formatting
+First, ensure Java 25 is configured (see "Configuring Java 25" section above).
+
+- **Run all tests**: `./mvnw test` -- takes ~85 seconds. Set timeout to 180+ seconds.
+- **Run specific test**: `./mvnw test -Dtest=YourTestClass`
+- **Run with full package**: `./mvnw clean package` -- includes compile + test
+
+**Note**: Some tests require Bun and Python dependencies to pass completely. Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation.
+
+**Installing Optional Test Dependencies:**
+- **Bun** (for JavaScript tests): `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- **Python** (for Python script tests): Usually pre-installed on most systems
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
@@ -116,11 +154,12 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 ## Common Tasks
 
 **Development Workflow:**
-1. Make code changes
-2. **Quick validation with Docker**: `docker build --target builder -t jasper-builder . 2>&1 | tail -30` -- validates compilation
-3. **Run specific test class** (local): `./mvnw test -Dtest=YourTestClass`
-4. **Run application for manual testing**: See "Running the Application" section
-5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
+1. **Configure Java 25**: `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64 && export PATH=$JAVA_HOME/bin:$PATH`
+2. Make code changes
+3. **Quick validation**: `./mvnw clean compile` -- validates compilation (~11-15 seconds)
+4. **Run specific test class**: `./mvnw test -Dtest=YourTestClass`
+5. **Run application for manual testing**: See "Running the Application" section
+6. **Full test suite before committing**: `./mvnw clean package` -- runs all tests (~85 seconds)
 
 **Troubleshooting:**
 

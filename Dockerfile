@@ -1,6 +1,6 @@
 FROM oven/bun:1.3.4-slim AS bun
 
-FROM maven:3.9.11-amazoncorretto-25-debian AS builder
+FROM maven:3.9.11-eclipse-temurin-25 AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
