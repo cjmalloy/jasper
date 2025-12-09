@@ -135,7 +135,10 @@ public class ProxyController {
 		if (end >= contentLength) {
 			end = contentLength - 1;
 		}
-		
+		// RFC 7233: If suffix-byte-range-spec exceeds content length, clamp start to 0
+		if (start < 0) {
+			start = 0;
+		}
 		// Only return 416 if start is beyond content or start > end after adjustment
 		if (start >= contentLength || start > end) {
 			try { is.close(); } catch (IOException ignored) { }
