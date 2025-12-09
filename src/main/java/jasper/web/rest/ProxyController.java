@@ -104,7 +104,12 @@ public class ProxyController {
 		var contentDisposition = "inline; filename*=UTF-8''" +
 			URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
 		if (rangeHeader != null && contentLength != null && rangeHeader.startsWith("bytes=")) {
-			return handleRangeRequest(is, rangeHeader, contentLength, contentType, contentDisposition);
+			try {
+				return handleRangeRequest(is, rangeHeader, contentLength, contentType, contentDisposition);
+			} catch (NumberFormatException e) {
+				// RFC 7233 Section 3.1: Ignore syntactically invalid range headers and return full content
+				// Fall through to return full content below
+			}
 		}
 		var responseBuilder = ResponseEntity.ok();
 		if (contentLength != null) {
@@ -120,7 +125,7 @@ public class ProxyController {
 			.body(outputStream -> streamContent(is, outputStream, 0, null));
 	}
 
-	private ResponseEntity<StreamingResponseBody> handleRangeRequest(InputStream is, String rangeHeader, long contentLength, MediaType contentType, String contentDisposition) {
+	private ResponseEntity<StreamingResponseBody> handleRangeRequest(InputStream is, String rangeHeader, long contentLength, MediaType contentType, String contentDisposition) throws NumberFormatException {
 		// Parse "bytes=start-end" (end is optional)
 		var rangeValue = rangeHeader.substring("bytes=".length());
 		var ranges = rangeValue.split("-");
@@ -130,12 +135,23 @@ public class ProxyController {
 		var end = ranges.length > 1 && isNotBlank(ranges[0]) && isNotBlank(ranges[1])
 			? parseLong(ranges[1])
 			: contentLength - 1;
-		if (end >= contentLength || start > end) {
+
+		// RFC 7233: If end >= contentLength, adjust to contentLength - 1
+		if (end >= contentLength) {
+			end = contentLength - 1;
+		}
+		// RFC 7233: If suffix-byte-range-spec exceeds content length, clamp start to 0
+		if (start < 0) {
+			start = 0;
+		}
+		// Only return 416 if start is beyond content or start > end after adjustment
+		if (start >= contentLength || start > end) {
 			try { is.close(); } catch (IOException ignored) { }
 			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
 				.build();
 		}
+		long rangeStart = start;
 		long rangeLength = end - start + 1;
 		return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
 			.header(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -144,7 +160,7 @@ public class ProxyController {
 			.contentLength(rangeLength)
 			.contentType(contentType)
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
-			.body(outputStream -> streamContent(is, outputStream, start, rangeLength));
+			.body(outputStream -> streamContent(is, outputStream, rangeStart, rangeLength));
 	}
 
 	private void streamContent(InputStream is, OutputStream outputStream, long skip, Long length) throws IOException {
