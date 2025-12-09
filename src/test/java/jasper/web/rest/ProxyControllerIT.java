@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -98,7 +99,8 @@ class ProxyControllerIT {
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes 0-99/" + TEST_CONTENT.length))
 			.andExpect(header().string("Content-Length", "100"))
-			.andExpect(content().contentType(MediaType.TEXT_PLAIN));
+			.andExpect(content().contentType(MediaType.TEXT_PLAIN))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, 0, 100)));
 	}
 
 	@Test
@@ -116,7 +118,8 @@ class ProxyControllerIT {
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes " + start + "-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
 			.andExpect(header().string("Content-Length", String.valueOf(expectedLength)))
-			.andExpect(content().contentType(MediaType.TEXT_PLAIN));
+			.andExpect(content().contentType(MediaType.TEXT_PLAIN))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, start, TEST_CONTENT.length)));
 	}
 
 	@Test
@@ -131,7 +134,8 @@ class ProxyControllerIT {
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes 0-0/" + TEST_CONTENT.length))
 			.andExpect(header().string("Content-Length", "1"))
-			.andExpect(content().contentType(MediaType.TEXT_PLAIN));
+			.andExpect(content().contentType(MediaType.TEXT_PLAIN))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, 0, 1)));
 	}
 
 	@Test
@@ -149,7 +153,8 @@ class ProxyControllerIT {
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes " + start + "-" + end + "/" + TEST_CONTENT.length))
 			.andExpect(header().string("Content-Length", "10"))
-			.andExpect(content().contentType(MediaType.TEXT_PLAIN));
+			.andExpect(content().contentType(MediaType.TEXT_PLAIN))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, start, end + 1)));
 	}
 
 	@Test
@@ -187,7 +192,8 @@ class ProxyControllerIT {
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes 0-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
-			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)));
+			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)))
+			.andExpect(content().bytes(TEST_CONTENT));
 	}
 
 	@Test
@@ -241,7 +247,8 @@ class ProxyControllerIT {
 				.header("Range", "bytes=" + start + "-"))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Content-Range", "bytes " + start + "-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
-			.andExpect(header().string("Content-Length", String.valueOf(expectedLength)));
+			.andExpect(header().string("Content-Length", String.valueOf(expectedLength)))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, start, TEST_CONTENT.length)));
 	}
 
 	@Test
@@ -259,7 +266,8 @@ class ProxyControllerIT {
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes " + start + "-" + end + "/" + TEST_CONTENT.length))
-			.andExpect(header().string("Content-Length", String.valueOf(suffixLength)));
+			.andExpect(header().string("Content-Length", String.valueOf(suffixLength)))
+			.andExpect(content().bytes(Arrays.copyOfRange(TEST_CONTENT, start, TEST_CONTENT.length)));
 	}
 
 	@Test
@@ -275,7 +283,8 @@ class ProxyControllerIT {
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().string("Content-Range", "bytes 0-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
-			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)));
+			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)))
+			.andExpect(content().bytes(TEST_CONTENT));
 	}
 
 	@Test
