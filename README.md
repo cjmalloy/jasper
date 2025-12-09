@@ -12,21 +12,6 @@ the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/do
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
 
-## For Developers
-
-**⚠️ Java 25 Required**: This project requires Java 25.
-
-**Quick Build**:
-```bash
-# With Docker (recommended, no Java install needed)
-docker build -t jasper .
-
-# Or locally (requires Java 25)
-./mvnw clean package
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions, or jump to the [Developing](#developing) section below.
-
 ## Knowledge Management
 Jasper is an open source knowledge management (KM) system. A KM system is similar to a Content Management
 System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
@@ -913,111 +898,18 @@ When playing on mutually replicating servers, each server is trusted to generate
 * [v1.0](./docs/release-notes/jasper-1.0.md)
 
 ## Developing
-
-### Prerequisites
-
-**Java 25 Required**: This project requires Java 25. There are two approaches to building and testing:
-
-#### Option 1: Docker (Recommended)
-No local Java installation needed. Docker handles all dependencies including Java 25, Bun, and Python.
-
-#### Option 2: Local Development
-If building locally without Docker, you must install:
-- **Java 25**: Use [Amazon Corretto 25](https://docs.aws.amazon.com/corretto/latest/corretto-25-ug/downloads-list.html), [Eclipse Temurin 25](https://adoptium.net/temurin/releases/?version=25), or another Java 25 distribution
-- **Bun**: JavaScript runtime for server-side scripting tests - `curl -fsSL https://bun.sh/install | bash`
-- **Python 3**: Required for Python script tests - `sudo apt install python3 python3-pip`
-
-After installing Java 25, configure your environment:
-```bash
-export JAVA_HOME=/path/to/java-25
-export PATH=$JAVA_HOME/bin:$PATH
-java -version  # Should show version 25
-```
-
-### Quick Start
-
 Run a dev server with `docker compose up`.  
 Run a supporting dev database and cache with `docker compose up db redis -d`.
 
 ### Build
 
-**With Docker (Recommended):**
-```bash
-# Full build (includes Java 25, takes ~45 minutes)
-docker build -t jasper .
-
-# Build only (no tests, takes ~10-15 minutes)
-docker build --target builder -t jasper-builder .
-```
-
-**Local Build (Requires Java 25):**
-```bash
-# Clean build with tests (~85 seconds)
-./mvnw clean package
-
-# Skip tests (~15 seconds)
-./mvnw clean package -DskipTests
-
-# Compile only (~11 seconds)
-./mvnw clean compile
-```
+Run `docker build -t jasper .` to build the project.
 
 ### Running unit tests
 
-**With Docker (Recommended):**
-```bash
-# Build test image and run tests
-docker build --target test -t jasper-tests .
-docker run --rm jasper-tests
-```
-
-**Local Testing (Requires Java 25, Bun, and Python):**
-```bash
-# Run all tests
-./mvnw test
-
-# Run specific test class
-./mvnw test -Dtest=YourTestClass
-```
-
-**Note**: Some tests require Bun and Python. Without these dependencies, you may see failures related to missing `/home/runner/.bun/bin/bun` or Python scripts.
-
-### Running the application locally
-
-**Prerequisites**: PostgreSQL and Redis must be running
-```bash
-# Start database and cache
-docker compose up db redis -d
-
-# Run application (requires Java 25)
-SPRING_PROFILES_ACTIVE=dev \
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/jasper \
-SPRING_DATASOURCE_USERNAME=jasper \
-SPRING_DATASOURCE_PASSWORD=jasper \
-./mvnw spring-boot:run
-
-# Verify application is running (takes ~22 seconds to start)
-curl http://localhost:8081/management/health
-```
+Run `docker build --target=test -t jasper-tests .` to build the tests.  
+Run `docker run -it jasper-tests` to execute the unit tests.
 
 ### Running end-to-end tests
 
 See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).
-
-### Troubleshooting
-
-**"release version 25 not supported" error:**
-- Install Java 25 (see Prerequisites above)
-- Verify: `java -version` shows version 25
-- Update alternatives: `sudo update-alternatives --config java` and select Java 25
-
-**JavaScript test failures:**
-- Install Bun: `curl -fsSL https://bun.sh/install | bash`
-- Add to PATH: `export PATH="$HOME/.bun/bin:$PATH"`
-
-**Python test failures:**
-- Install Python 3: `sudo apt install python3 python3-pip python3-yaml`
-
-**Maven hangs or slow downloads:**
-- Check network connectivity
-- Maven downloads dependencies on first build (can take several minutes)
