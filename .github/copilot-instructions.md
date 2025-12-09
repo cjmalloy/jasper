@@ -58,7 +58,7 @@ ALWAYS run the bootstrapping steps first.
 
 **Production Build:**
 - Build Docker image: `docker build -t jasper .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Test Docker build: `docker build --target test -t jasper-tests .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
+- Test Docker build: `docker build --target test -t jasper-test .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
 
 ## Testing
 
@@ -133,7 +133,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
-- If Maven hangs: Check network connectivity for dependency downloads (first build downloads many dependencies, takes 5-10 minutes)
+- If Maven hangs: Check network connectivity for dependency downloads. First Maven build downloads many dependencies which can take 5-10 minutes. Subsequent builds are faster (~11-85 seconds depending on scope).
 - If Docker build fails: Ensure Docker has enough disk space (`docker system prune -a` to clean up)
 
 **Performance Notes:**
