@@ -106,10 +106,14 @@ public class ProxyController {
 		if (rangeHeader != null && contentLength != null && rangeHeader.startsWith("bytes=")) {
 			return handleRangeRequest(is, rangeHeader, contentLength, contentType, contentDisposition);
 		}
-		var response = ResponseEntity.ok()
-			.header(HttpHeaders.ACCEPT_RANGES, "bytes");
-		if (contentLength != null) response.contentLength(contentLength);
-		return response
+		var responseBuilder = ResponseEntity.ok();
+		if (contentLength != null) {
+			responseBuilder.header(HttpHeaders.ACCEPT_RANGES, "bytes");
+			responseBuilder.contentLength(contentLength);
+		} else {
+			responseBuilder.header(HttpHeaders.ACCEPT_RANGES, "none");
+		}
+		return responseBuilder
 			.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
 			.contentType(contentType)
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
