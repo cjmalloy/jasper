@@ -118,11 +118,11 @@ public class ProxyController {
 		// Parse "bytes=start-end" (end is optional)
 		var rangeValue = rangeHeader.substring("bytes=".length());
 		var ranges = rangeValue.split("-");
-		long start = Long.parseLong(ranges[0]);
-		long end = ranges.length > 1 && !ranges[1].isEmpty()
+		var start = Long.parseLong(ranges[0]);
+		var end = ranges.length > 1 && !ranges[1].isEmpty()
 			? Long.parseLong(ranges[1])
 			: contentLength - 1;
-		if (start >= contentLength || end >= contentLength || start > end) {
+		if (end >= contentLength || start > end) {
 			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
 				.build();
