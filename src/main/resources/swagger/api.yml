@@ -759,11 +759,11 @@ paths:
             Content-Range:
               schema:
                 type: string
-              description: 'The range of bytes being returned (e.g., bytes 0-1023/5000)'
+              description: 'The range of bytes being returned (e.g., bytes 200-1023/1024)'
             Accept-Ranges:
               schema:
                 type: string
-              description: 'Indicates server supports range requests (bytes)'
+              description: 'Indicates the server accepts range requests for this resource (value: bytes)'
           content:
             '*/*':
               schema:
