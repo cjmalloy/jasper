@@ -52,6 +52,8 @@ class ProxyControllerIT {
 		// Create the _plugin/cache plugin required by FileCache
 		var cachePlugin = new Plugin();
 		cachePlugin.setTag("_plugin/cache");
+		cachePlugin.setOrigin("");
+		cachePlugin.setName("Cache Plugin");
 		pluginRepository.save(cachePlugin);
 		
 		// Upload a test file to the cache using the real ProxyService
