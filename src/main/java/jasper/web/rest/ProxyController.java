@@ -127,6 +127,7 @@ public class ProxyController {
 			? parseLong(ranges[1])
 			: contentLength - 1;
 		if (end >= contentLength || start > end) {
+			try { is.close(); } catch (IOException ignored) { }
 			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
 				.build();
