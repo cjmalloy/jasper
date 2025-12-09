@@ -262,6 +262,22 @@ class ProxyControllerIT {
 	}
 
 	@Test
+	void testSuffixByteRangeSpecExceedingContentLength() throws Exception {
+		// Test: bytes=-1000 (suffix exceeds content length) - RFC 7233 requires returning entire representation
+		int suffixLength = TEST_CONTENT.length + 100;
+		
+		mockMvc
+			.perform(get("/api/v1/proxy")
+				.param("url", testUrl)
+				.param("origin", "")
+				.header("Range", "bytes=-" + suffixLength))
+			.andExpect(status().isPartialContent())
+			.andExpect(header().string("Accept-Ranges", "bytes"))
+			.andExpect(header().string("Content-Range", "bytes 0-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
+			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)));
+	}
+
+	@Test
 	void testFetchNotFound() throws Exception {
 		// Test: URL that doesn't exist in cache
 		String nonExistentUrl = "cache:nonexistent-id";
