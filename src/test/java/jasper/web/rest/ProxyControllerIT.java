@@ -33,12 +33,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @IntegrationTest
 class ProxyControllerIT {
 
+	private static ProxyService mockProxyService;
+
 	@TestConfiguration
 	static class TestConfig {
 		@Bean
 		@Primary
 		public ProxyService proxyService() {
-			return Mockito.mock(ProxyService.class);
+			mockProxyService = Mockito.mock(ProxyService.class);
+			return mockProxyService;
 		}
 	}
 
@@ -58,7 +61,7 @@ class ProxyControllerIT {
 	@BeforeEach
 	void setup() {
 		refRepository.deleteAll();
-		Mockito.reset(proxyService);
+		Mockito.reset(mockProxyService);
 		
 		// Create a test Ref for the URL
 		var ref = new Ref();
@@ -68,16 +71,16 @@ class ProxyControllerIT {
 		refRepository.save(ref);
 
 		// Mock ProxyService responses
-		when(proxyService.fetch(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
+		when(mockProxyService.fetch(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
 			.thenAnswer(invocation -> new ByteArrayInputStream(TEST_CONTENT));
 
-		when(proxyService.stat(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
+		when(mockProxyService.stat(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
 			.thenReturn(null);
 
 		var cache = new Cache();
 		cache.setContentLength((long) TEST_CONTENT.length);
 		cache.setMimeType("text/plain");
-		when(proxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
+		when(mockProxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
 			.thenReturn(cache);
 	}
 
@@ -236,7 +239,7 @@ class ProxyControllerIT {
 	@Test
 	void testRangeRequestWithoutContentLength() throws Exception {
 		// Test: Range request when content length is not available should fall back to full content
-		when(proxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
+		when(mockProxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
 			.thenReturn(null);
 
 		mockMvc
@@ -286,7 +289,7 @@ class ProxyControllerIT {
 	void testFetchNotFound() throws Exception {
 		// Test: URL that doesn't exist
 		String nonExistentUrl = "https://example.com/nonexistent.txt";
-		when(proxyService.fetch(eq(nonExistentUrl), eq(TEST_ORIGIN), eq(false)))
+		when(mockProxyService.fetch(eq(nonExistentUrl), eq(TEST_ORIGIN), eq(false)))
 			.thenReturn(null);
 
 		mockMvc
