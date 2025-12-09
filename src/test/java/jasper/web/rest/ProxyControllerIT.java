@@ -1,7 +1,6 @@
 package jasper.web.rest;
 
 import jasper.IntegrationTest;
-import jasper.component.FileCache;
 import jasper.domain.Ref;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
@@ -16,7 +15,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
