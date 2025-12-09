@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser("+user/tester")
 @AutoConfigureMockMvc
 @IntegrationTest
-@ActiveProfiles({"file-cache", "storage"})
+@ActiveProfiles({"storage", "test"})
 class ProxyControllerIT {
 
 	@Autowired
