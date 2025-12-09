@@ -754,7 +754,16 @@ paths:
                 type: string
                 format: binary
         '206':
-          description: Partial content
+          description: Partial content (returned when Range header is provided)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+              description: 'The range of bytes being returned (e.g., bytes 200-1023/1024)'
+            Accept-Ranges:
+              schema:
+                type: string
+              description: 'Indicates the server accepts range requests for this resource (value: bytes)'
           content:
             '*/*':
               schema:
