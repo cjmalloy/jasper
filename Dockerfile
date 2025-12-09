@@ -66,6 +66,7 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
+RUN apt-get update && apt-get install ffmpeg -y
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true
