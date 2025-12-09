@@ -7,9 +7,14 @@ import jasper.repository.RefRepository;
 import jasper.service.ProxyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,12 +33,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser("+user/tester")
 @AutoConfigureMockMvc
 @IntegrationTest
+@ExtendWith(MockitoExtension.class)
 class ProxyControllerIT {
+
+	@TestConfiguration
+	static class TestConfig {
+		@Bean
+		@Primary
+		public ProxyService proxyService() {
+			return Mockito.mock(ProxyService.class);
+		}
+	}
 
 	@Autowired
 	private MockMvc mockMvc;
 
-	@MockBean
+	@Autowired
 	private ProxyService proxyService;
 
 	@Autowired
@@ -46,6 +61,7 @@ class ProxyControllerIT {
 	@BeforeEach
 	void setup() {
 		refRepository.deleteAll();
+		Mockito.reset(proxyService);
 		
 		// Create a test Ref for the URL
 		var ref = new Ref();
