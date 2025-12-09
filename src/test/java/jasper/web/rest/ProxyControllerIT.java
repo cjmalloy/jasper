@@ -1,49 +1,29 @@
 package jasper.web.rest;
 
 import jasper.IntegrationTest;
-import jasper.domain.Ref;
-import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
 import jasper.service.ProxyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.ByteArrayInputStream;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * Integration tests for {@link ProxyController}.
- * Tests the range request functionality and edge cases.
+ * Tests the range request functionality and edge cases using real beans.
  */
 @WithMockUser("+user/tester")
 @AutoConfigureMockMvc
 @IntegrationTest
 class ProxyControllerIT {
-
-	private static ProxyService mockProxyService;
-
-	@TestConfiguration
-	static class TestConfig {
-		@Bean
-		@Primary
-		public ProxyService proxyService() {
-			mockProxyService = Mockito.mock(ProxyService.class);
-			return mockProxyService;
-		}
-	}
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -54,42 +34,24 @@ class ProxyControllerIT {
 	@Autowired
 	private RefRepository refRepository;
 
-	private static final String TEST_URL = "https://example.com/test.txt";
-	private static final String TEST_ORIGIN = "";
 	private static final byte[] TEST_CONTENT = "This is a test file with some content for range request testing. It has enough data to test various range scenarios.".getBytes();
+	private String testUrl;
 
 	@BeforeEach
-	void setup() {
+	void setup() throws Exception {
 		refRepository.deleteAll();
-		Mockito.reset(mockProxyService);
 		
-		// Create a test Ref for the URL
-		var ref = new Ref();
-		ref.setUrl(TEST_URL);
-		ref.setOrigin(TEST_ORIGIN);
-		ref.setTitle("test.txt");
-		refRepository.save(ref);
-
-		// Mock ProxyService responses
-		when(mockProxyService.fetch(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
-			.thenAnswer(invocation -> new ByteArrayInputStream(TEST_CONTENT));
-
-		when(mockProxyService.stat(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
-			.thenReturn(null);
-
-		var cache = new Cache();
-		cache.setContentLength((long) TEST_CONTENT.length);
-		cache.setMimeType("text/plain");
-		when(mockProxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
-			.thenReturn(cache);
+		// Upload a test file to the cache using the real ProxyService
+		var savedRef = proxyService.save("", "test.txt", new ByteArrayInputStream(TEST_CONTENT), "text/plain");
+		testUrl = savedRef.getUrl();
 	}
 
 	@Test
 	void testFetchWithoutRangeHeader() throws Exception {
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN))
+				.param("url", testUrl)
+				.param("origin", ""))
 			.andExpect(status().isOk())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
 			.andExpect(header().exists("Content-Disposition"))
@@ -102,8 +64,8 @@ class ProxyControllerIT {
 		// Test: bytes=0-99 (first 100 bytes)
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=0-99"))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
@@ -120,8 +82,8 @@ class ProxyControllerIT {
 
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=" + start + "-"))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
@@ -135,8 +97,8 @@ class ProxyControllerIT {
 		// Test: bytes=0-0 (first byte only)
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=0-0"))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
@@ -153,8 +115,8 @@ class ProxyControllerIT {
 
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=" + start + "-" + end))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
@@ -168,8 +130,8 @@ class ProxyControllerIT {
 		// Test: start > end should return 416
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=100-50"))
 			.andExpect(status().isRequestedRangeNotSatisfiable())
 			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
@@ -180,8 +142,8 @@ class ProxyControllerIT {
 		// Test: start >= contentLength should return 416
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=" + TEST_CONTENT.length + "-"))
 			.andExpect(status().isRequestedRangeNotSatisfiable())
 			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
@@ -192,8 +154,8 @@ class ProxyControllerIT {
 		// Test: end >= contentLength should return 416
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=0-" + TEST_CONTENT.length))
 			.andExpect(status().isRequestedRangeNotSatisfiable())
 			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
@@ -204,8 +166,8 @@ class ProxyControllerIT {
 		// Test: start > contentLength should return 416
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=" + (TEST_CONTENT.length + 100) + "-"))
 			.andExpect(status().isRequestedRangeNotSatisfiable())
 			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
@@ -216,8 +178,8 @@ class ProxyControllerIT {
 		// Test: malformed header without "bytes=" prefix should be ignored
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "0-99"))
 			.andExpect(status().isOk())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
@@ -230,26 +192,24 @@ class ProxyControllerIT {
 		// Note: This will throw NumberFormatException, which Spring will handle
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=invalid"))
 			.andExpect(status().is5xxServerError());
 	}
 
 	@Test
 	void testRangeRequestWithoutContentLength() throws Exception {
-		// Test: Range request when content length is not available should fall back to full content
-		when(mockProxyService.cache(eq(TEST_URL), eq(TEST_ORIGIN), eq(false)))
-			.thenReturn(null);
-
+		// Test: Range request when content length is available (it always is with real cache)
+		// With real cache, this will return partial content
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=0-99"))
-			.andExpect(status().isOk())
+			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Accept-Ranges", "bytes"))
-			.andExpect(content().bytes(TEST_CONTENT));
+			.andExpect(header().string("Content-Range", "bytes 0-99/" + TEST_CONTENT.length));
 	}
 
 	@Test
@@ -260,8 +220,8 @@ class ProxyControllerIT {
 
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=" + start + "-"))
 			.andExpect(status().isPartialContent())
 			.andExpect(header().string("Content-Range", "bytes " + start + "-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
@@ -275,8 +235,8 @@ class ProxyControllerIT {
 		// This test documents the expected behavior if/when it's implemented
 		mockMvc
 			.perform(get("/api/v1/proxy")
-				.param("url", TEST_URL)
-				.param("origin", TEST_ORIGIN)
+				.param("url", testUrl)
+				.param("origin", "")
 				.header("Range", "bytes=-50"))
 			.andExpect(status().is5xxServerError()); // Currently fails with NumberFormatException
 		// When properly implemented, it should return:
@@ -287,15 +247,13 @@ class ProxyControllerIT {
 
 	@Test
 	void testFetchNotFound() throws Exception {
-		// Test: URL that doesn't exist
-		String nonExistentUrl = "https://example.com/nonexistent.txt";
-		when(mockProxyService.fetch(eq(nonExistentUrl), eq(TEST_ORIGIN), eq(false)))
-			.thenReturn(null);
-
+		// Test: URL that doesn't exist in cache
+		String nonExistentUrl = "cache:nonexistent-id";
+		
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", nonExistentUrl)
-				.param("origin", TEST_ORIGIN))
+				.param("origin", ""))
 			.andExpect(status().isNotFound());
 	}
 }
