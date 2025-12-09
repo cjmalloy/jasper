@@ -21,7 +21,6 @@ RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bunx \
     && bun --version
 ENV JASPER_NODE=/usr/local/bin/bun
-RUN rm /etc/apt/sources.list.d/corretto.list
 RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
     && which python3 \
     && python3 --version
