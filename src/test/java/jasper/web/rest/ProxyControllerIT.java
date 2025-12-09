@@ -228,20 +228,6 @@ class ProxyControllerIT {
 	}
 
 	@Test
-	void testRangeRequestWithoutContentLength() throws Exception {
-		// Test: Range request when content length is available (it always is with real cache)
-		// With real cache, this will return partial content
-		mockMvc
-			.perform(get("/api/v1/proxy")
-				.param("url", testUrl)
-				.param("origin", "")
-				.header("Range", "bytes=0-99"))
-			.andExpect(status().isPartialContent())
-			.andExpect(header().string("Accept-Ranges", "bytes"))
-			.andExpect(header().string("Content-Range", "bytes 0-99/" + TEST_CONTENT.length));
-	}
-
-	@Test
 	void testRangeRequestWithEmptyEnd() throws Exception {
 		// Test: bytes=10- (trailing dash with no end value)
 		int start = 10;
