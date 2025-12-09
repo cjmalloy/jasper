@@ -1,6 +1,8 @@
 package jasper.web.rest;
 
 import jasper.IntegrationTest;
+import jasper.domain.Plugin;
+import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.service.ProxyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,12 +38,21 @@ class ProxyControllerIT {
 	@Autowired
 	private RefRepository refRepository;
 
+	@Autowired
+	private PluginRepository pluginRepository;
+
 	private static final byte[] TEST_CONTENT = "This is a test file with some content for range request testing. It has enough data to test various range scenarios.".getBytes();
 	private String testUrl;
 
 	@BeforeEach
 	void setup() throws Exception {
 		refRepository.deleteAll();
+		pluginRepository.deleteAll();
+		
+		// Create the _plugin/cache plugin required by FileCache
+		var cachePlugin = new Plugin();
+		cachePlugin.setTag("_plugin/cache");
+		pluginRepository.save(cachePlugin);
 		
 		// Upload a test file to the cache using the real ProxyService
 		var savedRef = proxyService.save("", "test.txt", new ByteArrayInputStream(TEST_CONTENT), "text/plain");
