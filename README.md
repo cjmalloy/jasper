@@ -12,6 +12,21 @@ the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/do
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
 
+## For Developers
+
+**⚠️ Java 25 Required**: This project requires Java 25.
+
+**Quick Build**:
+```bash
+# With Docker (recommended, no Java install needed)
+docker build -t jasper .
+
+# Or locally (requires Java 25)
+./mvnw clean package
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions, or jump to the [Developing](#developing) section below.
+
 ## Knowledge Management
 Jasper is an open source knowledge management (KM) system. A KM system is similar to a Content Management
 System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
