@@ -6,9 +6,27 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**Important Note on Java 25:** The project requires Java 25. The Docker-based build is recommended for consistent, reproducible builds.
+**⚠️ CRITICAL: Java 25 Requirement**
 
-**Docker-Based Build (Recommended):**
+This project **requires Java 25** (not earlier or later versions). Before attempting any build or test:
+
+1. **Check if Java 25 is available**: Run `java -version` to check your Java version
+2. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
+3. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+
+**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+
+### Quick Decision Guide
+
+| Your Situation | Build Approach | Command |
+|----------------|----------------|---------|
+| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
+| Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
+| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
+| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
+| Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
+
+**Docker-Based Build (Recommended - use this if Java 25 is not installed):**
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
@@ -40,7 +58,7 @@ ALWAYS run the bootstrapping steps first.
 
 **Production Build:**
 - Build Docker image: `docker build -t jasper .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Test Docker build: `docker build --target test -t jasper-tests .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
+- Test Docker build: `docker build --target test -t jasper-test .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
 
 ## Testing
 
@@ -105,11 +123,18 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
 
 **Troubleshooting:**
-- If local build fails with "release version 25 not supported": Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
-- If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
-- If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
+
+**Most Common Error: "release version 25 not supported"**
+- **Cause**: Java 25 is not installed or not configured correctly
+- **Solution**: Switch to Docker-based build immediately: `docker build -t jasper .`
+- **Alternative**: Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
+
+**Other Common Issues:**
+- If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
+- If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
-- If Maven hangs: Check network connectivity for dependency downloads
+- If Maven hangs: Check network connectivity for dependency downloads. First Maven build downloads many dependencies which can take 5-10 minutes. Subsequent builds are faster (~11-85 seconds depending on scope).
+- If Docker build fails: Ensure Docker has enough disk space (`docker system prune -a` to clean up)
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
