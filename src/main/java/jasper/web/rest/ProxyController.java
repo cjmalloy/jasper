@@ -135,7 +135,7 @@ public class ProxyController {
 		var end = ranges.length > 1 && isNotBlank(ranges[0]) && isNotBlank(ranges[1])
 			? parseLong(ranges[1])
 			: contentLength - 1;
-		
+
 		// RFC 7233: If end >= contentLength, adjust to contentLength - 1
 		if (end >= contentLength) {
 			end = contentLength - 1;
@@ -151,6 +151,7 @@ public class ProxyController {
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
 				.build();
 		}
+		long rangeStart = start;
 		long rangeLength = end - start + 1;
 		return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
 			.header(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -159,7 +160,7 @@ public class ProxyController {
 			.contentLength(rangeLength)
 			.contentType(contentType)
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
-			.body(outputStream -> streamContent(is, outputStream, start, rangeLength));
+			.body(outputStream -> streamContent(is, outputStream, rangeStart, rangeLength));
 	}
 
 	private void streamContent(InputStream is, OutputStream outputStream, long skip, Long length) throws IOException {
