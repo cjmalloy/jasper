@@ -1,5 +1,7 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
@@ -48,14 +50,24 @@ class ProxyControllerIT {
 	void setup() throws Exception {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
-		
+
 		// Create the _plugin/cache plugin required by FileCache
 		var cachePlugin = new Plugin();
 		cachePlugin.setTag("_plugin/cache");
-		cachePlugin.setOrigin("");
-		cachePlugin.setName("Cache Plugin");
+		var mapper = new ObjectMapper();
+		cachePlugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+		    "optionalProperties": {
+		      "id": { "type": "string" },
+		      "mimeType": { "type": "string" },
+		      "contentLength": { "type": "uint32" },
+		      "ban": { "type": "boolean" },
+		      "noStore": { "type": "boolean" },
+		      "thumbnail": { "type": "boolean" }
+		    }
+		}"""));
 		pluginRepository.save(cachePlugin);
-		
+
 		// Upload a test file to the cache using the real ProxyService
 		var savedRef = proxyService.save("", "test.txt", new ByteArrayInputStream(TEST_CONTENT), "text/plain");
 		testUrl = savedRef.getUrl();
@@ -251,7 +263,7 @@ class ProxyControllerIT {
 		int suffixLength = 50;
 		int start = TEST_CONTENT.length - suffixLength;
 		int end = TEST_CONTENT.length - 1;
-		
+
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)
@@ -267,7 +279,7 @@ class ProxyControllerIT {
 	void testFetchNotFound() throws Exception {
 		// Test: URL that doesn't exist in cache
 		String nonExistentUrl = "cache:nonexistent-id";
-		
+
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", nonExistentUrl)
