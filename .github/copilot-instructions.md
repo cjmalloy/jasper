@@ -29,8 +29,20 @@ This project **requires Java 25** (not earlier or later versions). Before attemp
 
 If Java 25 is installed but not the default (common in GitHub Actions runners):
 
+**For GitHub Actions runners:**
 ```bash
 export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+java -version  # Should show Java 25
+```
+
+**For other systems (find Java 25 installation):**
+```bash
+# List available Java installations
+ls -d /usr/lib/jvm/java-25* /usr/lib/jvm/*-25-* 2>/dev/null || ls -d /Library/Java/JavaVirtualMachines/*/Contents/Home 2>/dev/null
+
+# Set JAVA_HOME to your Java 25 installation
+export JAVA_HOME=/path/to/your/java-25
 export PATH=$JAVA_HOME/bin:$PATH
 java -version  # Should show Java 25
 ```
@@ -70,9 +82,20 @@ Once Java 25 is configured:
 
 ### Docker Build (NOT RECOMMENDED - Certificate Issues)
 
-**WARNING**: Docker builds may fail with SSL certificate errors in some environments (including GitHub Actions).
+**WARNING**: Docker builds may fail with SSL/TLS certificate validation errors when accessing Maven Central in certain network environments, particularly in:
+- GitHub Actions runners
+- Corporate networks with SSL inspection
+- Environments with restrictive firewall policies
 
-If you still want to try Docker:
+The errors typically manifest as:
+```
+certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: 
+unable to find valid certification path to requested target
+```
+
+**Recommendation**: Use local Maven builds (see above) which work reliably and are faster (~11-20 seconds vs 10-45+ minutes for Docker).
+
+If you still want to try Docker (e.g., for deployment testing):
 - Full build: `docker build -t jasper .` -- takes 45+ minutes
 - Builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes
 - Test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes
