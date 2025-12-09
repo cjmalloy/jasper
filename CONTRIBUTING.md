@@ -382,7 +382,7 @@ docker compose up -d
 **Problem**: Application fails to start because port 8081 is in use.
 
 **Solution**:
-1. Find process using port: `lsof -i :8081` or `netcagent -tlnp | grep 8081`
+1. Find process using port: `lsof -i :8081` or `netstat -tlnp | grep 8081`
 2. Kill the process or stop the service
 3. **Alternative**: Change port with `SERVER_PORT=8082 ./mvnw spring-boot:run`
 
