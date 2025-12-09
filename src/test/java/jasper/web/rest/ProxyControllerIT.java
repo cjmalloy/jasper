@@ -7,9 +7,7 @@ import jasper.repository.RefRepository;
 import jasper.service.ProxyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -33,7 +31,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser("+user/tester")
 @AutoConfigureMockMvc
 @IntegrationTest
-@ExtendWith(MockitoExtension.class)
 class ProxyControllerIT {
 
 	@TestConfiguration
