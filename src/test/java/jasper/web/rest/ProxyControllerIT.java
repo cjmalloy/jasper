@@ -151,7 +151,10 @@ class ProxyControllerIT {
 
 	@Test
 	void testInvalidRangeEndGreaterThanContentLength() throws Exception {
-		// Test: end >= contentLength should return 416
+		// Test: end >= contentLength returns 416
+		// TODO: RFC 7233 Section 2.1 states that when end position exceeds content length,
+		// the server should satisfy the request with available content (200 or 206) rather than return 416.
+		// Current implementation deviates from HTTP spec - should be fixed in the future.
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)
