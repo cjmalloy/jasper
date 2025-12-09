@@ -230,19 +230,20 @@ class ProxyControllerIT {
 
 	@Test
 	void testSuffixByteRangeSpec() throws Exception {
-		// Test: bytes=-500 (last 500 bytes)
-		// Note: Current implementation doesn't support suffix-byte-range-spec
-		// This test documents the expected behavior if/when it's implemented
+		// Test: bytes=-50 (last 50 bytes) - suffix-byte-range-spec
+		int suffixLength = 50;
+		int start = TEST_CONTENT.length - suffixLength;
+		int end = TEST_CONTENT.length - 1;
+		
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)
 				.param("origin", "")
-				.header("Range", "bytes=-50"))
-			.andExpect(status().is5xxServerError()); // Currently fails with NumberFormatException
-		// When properly implemented, it should return:
-		// .andExpect(status().isPartialContent())
-		// .andExpect(header().string("Content-Range", "bytes " + (TEST_CONTENT.length - 50) + "-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
-		// .andExpect(header().string("Content-Length", "50"));
+				.header("Range", "bytes=-" + suffixLength))
+			.andExpect(status().isPartialContent())
+			.andExpect(header().string("Accept-Ranges", "bytes"))
+			.andExpect(header().string("Content-Range", "bytes " + start + "-" + end + "/" + TEST_CONTENT.length))
+			.andExpect(header().string("Content-Length", String.valueOf(suffixLength)));
 	}
 
 	@Test
