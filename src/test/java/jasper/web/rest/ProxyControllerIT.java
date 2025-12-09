@@ -150,18 +150,17 @@ class ProxyControllerIT {
 	}
 
 	@Test
-	void testInvalidRangeEndGreaterThanContentLength() throws Exception {
-		// Test: end >= contentLength returns 416
-		// TODO: RFC 7233 Section 2.1 states that when end position exceeds content length,
-		// the server should satisfy the request with available content (200 or 206) rather than return 416.
-		// Current implementation deviates from HTTP spec - should be fixed in the future.
+	void testRangeEndGreaterThanContentLength() throws Exception {
+		// Test: RFC 7233 compliant - when end >= contentLength, adjust to contentLength-1 and return 206
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)
 				.param("origin", "")
 				.header("Range", "bytes=0-" + TEST_CONTENT.length))
-			.andExpect(status().isRequestedRangeNotSatisfiable())
-			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
+			.andExpect(status().isPartialContent())
+			.andExpect(header().string("Accept-Ranges", "bytes"))
+			.andExpect(header().string("Content-Range", "bytes 0-" + (TEST_CONTENT.length - 1) + "/" + TEST_CONTENT.length))
+			.andExpect(header().string("Content-Length", String.valueOf(TEST_CONTENT.length)));
 	}
 
 	@Test

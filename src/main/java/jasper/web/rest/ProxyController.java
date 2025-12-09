@@ -130,7 +130,14 @@ public class ProxyController {
 		var end = ranges.length > 1 && isNotBlank(ranges[0]) && isNotBlank(ranges[1])
 			? parseLong(ranges[1])
 			: contentLength - 1;
-		if (end >= contentLength || start > end) {
+		
+		// RFC 7233: If end >= contentLength, adjust to contentLength - 1
+		if (end >= contentLength) {
+			end = contentLength - 1;
+		}
+		
+		// Only return 416 if start is beyond content or start > end after adjustment
+		if (start >= contentLength || start > end) {
 			try { is.close(); } catch (IOException ignored) { }
 			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
