@@ -14,6 +14,7 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1636,7 +1637,7 @@ public class RefServiceIT {
 
 	@Test
 	void testApplySortingSpec_WithNoSort() {
-		var spec = refService.applySortingSpec(
+		var spec = RefSpec.applySortingSpec(
 			RefFilter.builder().build().spec(),
 			PageRequest.of(0, 10));
 
@@ -1647,7 +1648,7 @@ public class RefServiceIT {
 	void testApplySortingSpec_WithJsonbSort() {
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
-		var spec = refService.applySortingSpec(
+		var spec = RefSpec.applySortingSpec(
 			RefFilter.builder().build().spec(),
 			pageable);
 
@@ -1656,7 +1657,7 @@ public class RefServiceIT {
 
 	@Test
 	void testClearJsonbSort_WithNullPageable() {
-		var result = refService.clearJsonbSort(null);
+		var result = RefSpec.clearJsonbSort(null);
 
 		assertThat(result.getPageNumber()).isEqualTo(0);
 		assertThat(result.getPageSize()).isEqualTo(20);
@@ -1665,7 +1666,7 @@ public class RefServiceIT {
 
 	@Test
 	void testClearJsonbSort_WithNoSort() {
-		var result = refService.clearJsonbSort(PageRequest.of(0, 10));
+		var result = RefSpec.clearJsonbSort(PageRequest.of(0, 10));
 
 		assertThat(result.getPageNumber()).isEqualTo(0);
 		assertThat(result.getPageSize()).isEqualTo(10);
@@ -1676,7 +1677,7 @@ public class RefServiceIT {
 	void testClearJsonbSort_WithJsonbSort() {
 		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
-		var result = refService.clearJsonbSort(pageable);
+		var result = RefSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(1);
 		assertThat(result.getPageSize()).isEqualTo(15);
@@ -1688,7 +1689,7 @@ public class RefServiceIT {
 		var pageable = PageRequest.of(2, 20, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("modified"),
 			org.springframework.data.domain.Sort.Order.asc("metadata.plugins.plugin/comment")));
-		var result = refService.clearJsonbSort(pageable);
+		var result = RefSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(2);
 		assertThat(result.getPageSize()).isEqualTo(20);
