@@ -354,8 +354,8 @@ public class RefSpec {
 
 	/**
 	 * Creates a specification that adds ordering for a JSONB metadata plugins field.
-	 * The path format is "metadata.plugins.{pluginTag}" where pluginTag is the plugin identifier.
-	 * Example: "metadata.plugins.plugin/comment" sorts by the comment count.
+	 * The path format is "metadata->plugins->{pluginTag}" where pluginTag is the plugin identifier.
+	 * Example: "metadata->plugins->plugin/comment" sorts by the comment count.
 	 *
 	 * @param pluginTag the plugin tag to sort by (e.g., "plugin/comment")
 	 * @param ascending true for ascending order, false for descending
