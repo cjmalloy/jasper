@@ -83,6 +83,9 @@ public class RssParser {
 			} else {
 				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 			}
+		} catch (IllegalArgumentException e) {
+			// Temporary error page, retry later
+			logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
 		} catch (FeedException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error scraping feed", getMessage(e));
 		} catch (SSLException e) {
