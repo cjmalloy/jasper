@@ -34,7 +34,7 @@ public class SortSpec {
 		var parts = property.split("->");
 		if (parts.length < 2) return null;
 		var jsonbFieldName = parts[0];
-		if (stream(prefixes).noneMatch(p -> jsonbFieldName.startsWith(p + "->"))) return null;
+		if (stream(prefixes).noneMatch(p -> jsonbFieldName.equals(p))) return null;
 
 		Expression<?> expr = root.get(jsonbFieldName);
 		for (int i = 1; i < parts.length; i++) {
