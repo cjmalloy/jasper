@@ -353,21 +353,24 @@ database schema changes.
 **Sort Syntax:**
 - Use `->` as the path separator to navigate JSONB fields
 - Append `:num` suffix for numeric sorting (otherwise values sort as strings)
-- Append `:len` suffix to sort by array length
+- Append `:len` suffix to sort by array length or origin nesting level
 - Use `[index]` notation for array element access (e.g., `external->ids[0]`)
 
 **Examples by Entity Type:**
 
 | Entity | Sort Pattern | Description |
 |--------|-------------|-------------|
+| Ref | `origin:len` | Sort by origin nesting level (0 for root, 1 for @origin, 2 for @origin.sub, etc.) |
 | Ref | `tags:len` | Sort by number of tags |
 | Ref | `sources:len` | Sort by number of sources |
 | Ref | `metadata->responses:len` | Sort by number of responses |
 | Ref | `metadata->plugins->plugin/comment` | Sort by comment count |
 | Ref | `plugins->_plugin/cache->contentLength:num` | Sort by cached content length (numeric) |
+| Ext | `origin:len` | Sort by origin nesting level |
 | Ext | `config->value` | Sort by config value (string) |
 | Ext | `config->count:num` | Sort by config count (numeric) |
 | Ext | `config->items:len` | Sort by number of items in config |
+| User | `origin:len` | Sort by origin nesting level |
 | User | `external->ids[0]` | Sort by first ID in external array |
 | User | `external->score:num` | Sort by external score (numeric) |
 | User | `external->tags:len` | Sort by number of external tags |
@@ -376,6 +379,7 @@ database schema changes.
 ```
 GET /api/v1/ref/page?query=_plugin/cache&sort=plugins->_plugin/cache->contentLength:num,DESC
 GET /api/v1/ref/page?sort=tags:len,DESC
+GET /api/v1/ref/page?sort=origin:len,ASC
 GET /api/v1/ref/page?sort=metadata->responses:len,DESC
 GET /api/v1/ext/page?sort=config->priority:num,ASC
 GET /api/v1/user/page?sort=external->score:num,DESC
@@ -385,6 +389,7 @@ GET /api/v1/user/page?sort=external->score:num,DESC
 - Records with null values for the sort field are filtered out of results
 - Standard entity fields (like `modified`, `tag`, `url`) can still be used for sorting
 - Multiple sort fields can be combined with commas
+- `origin:len` returns 0 for empty origin, 1 for `@origin`, 2 for `@origin.sub`, etc.
 
 ### Validation Layer
 The validation layer of the Jasper model includes all entity fields. Plugins and Templates are validated

@@ -517,9 +517,15 @@ public class RefSpec {
 					}
 				} else if (isLengthSort) {
 					// Handle direct JSONB array field length sorting (e.g., "tags:len", "sources:len")
+					// or origin nesting level ("origin:len")
 					var fieldName = property.substring(0, property.length() - 4);
-					expr = cb.function("jsonb_array_length", Integer.class, root.get(fieldName));
-					predicates.add(cb.isNotNull(root.get(fieldName)));
+					if ("origin".equals(fieldName)) {
+						// Special case: origin:len calculates nesting level by splitting on '.'
+						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
+					} else {
+						expr = cb.function("jsonb_array_length", Integer.class, root.get(fieldName));
+						predicates.add(cb.isNotNull(root.get(fieldName)));
+					}
 				} else {
 					expr = root.get(property);
 				}

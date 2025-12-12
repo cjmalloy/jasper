@@ -48,11 +48,20 @@ public class UserSpec {
 				
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("external->");
+				boolean isLengthSort = property.endsWith(":len");
 				if (isJsonbField) {
 					expr = createJsonbSortExpression(root, cb, property);
 					// Filter out records where the JSONB path returns null
 					if (expr != null) {
 						predicates.add(cb.isNotNull(expr));
+					}
+				} else if (isLengthSort) {
+					// Handle origin:len for nesting level
+					var fieldName = property.substring(0, property.length() - 4);
+					if ("origin".equals(fieldName)) {
+						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
+					} else {
+						expr = root.get(property);
 					}
 				} else {
 					expr = root.get(property);
