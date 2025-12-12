@@ -484,60 +484,108 @@ public class RefSpec {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
-		var result = spec;
-		for (Sort.Order order : pageable.getSort()) {
-			var property = order.getProperty();
-			var ascending = order.isAscending();
-			if (property != null && (property.startsWith("metadata->") || property.startsWith("plugins->"))) {
-				var jsonbSpec = createJsonbSortSpec(property, ascending);
-				if (jsonbSpec != null) {
-					result = result.and(jsonbSpec);
-				}
-			} else if (property != null) {
-				// Handle regular entity field sorting
-				result = result.and(orderByField(property, ascending));
+		// Collect all sort orders to apply in a single specification
+		var orders = pageable.getSort().toList();
+		return spec.and((root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
 			}
-		}
-		return result;
-	}
-
-	/**
-	 * Creates a Specification that orders by a regular entity field.
-	 */
-	private static Specification<Ref> orderByField(String fieldName, boolean ascending) {
-		return (root, query, cb) -> {
-			if (query.getResultType() != Long.class && query.getResultType() != long.class) {
-				var path = root.get(fieldName);
-				query.orderBy(ascending ? cb.asc(path) : cb.desc(path));
+			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
+			for (Sort.Order order : orders) {
+				var property = order.getProperty();
+				var ascending = order.isAscending();
+				if (property == null) continue;
+				
+				Expression<?> expr;
+				boolean isJsonbField = property.startsWith("metadata->") || property.startsWith("plugins->");
+				if (isJsonbField) {
+					expr = createJsonbSortExpression(root, cb, property);
+				} else {
+					expr = root.get(property);
+				}
+				if (expr != null) {
+					// Use NULLS LAST for JSONB fields to push missing values to the end
+					if (isJsonbField) {
+						jpaOrders.add(ascending ? cb.asc(expr).nullsLast() : cb.desc(expr).nullsLast());
+					} else {
+						jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
+					}
+				}
+			}
+			if (!jpaOrders.isEmpty()) {
+				query.orderBy(jpaOrders);
 			}
 			return null;
-		};
+		});
 	}
 
 	/**
-	 * Creates a Specification that applies ordering for a JSONB sort property.
-	 *
-	 * @param property the JSONB property path (e.g., "metadata->plugins->plugin/comment" or "plugins->_plugin/cache->contentLength")
-	 * @param ascending true for ascending order, false for descending
-	 * @return a Specification that applies the ordering, or null if invalid
+	 * Creates a JSONB sort expression for the given property path.
 	 */
-	private static Specification<Ref> createJsonbSortSpec(String property, boolean ascending) {
+	private static Expression<?> createJsonbSortExpression(Root<Ref> root, CriteriaBuilder cb, String property) {
 		var parts = property.split("->");
 		if (parts.length < 2) {
 			return null;
 		}
+		
+		// Check if numeric sorting is requested
+		var lastPart = parts[parts.length - 1];
+		var numericSort = lastPart.endsWith(":num");
+		if (numericSort) {
+			parts[parts.length - 1] = lastPart.substring(0, lastPart.length() - 4);
+		}
+		
 		// Handle "metadata->plugins->{pluginTag}" pattern - sorting by response count
 		if (parts.length >= 3 && "metadata".equals(parts[0]) && "plugins".equals(parts[1])) {
 			var pluginTag = parts[2];
-			return orderByPluginCount(pluginTag, ascending);
+			Expression<?> expr = cb.function("jsonb_object_field", Object.class,
+				root.get(Ref_.metadata),
+				cb.literal("plugins"));
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(pluginTag));
+			return cb.function("cast_to_int", Integer.class, expr);
 		}
+		
 		// Handle "plugins->{pluginTag}->{field}" pattern - sorting by plugin field value
 		if (parts.length >= 3 && "plugins".equals(parts[0])) {
 			var pluginTag = parts[1];
-			var fieldPath = Arrays.copyOfRange(parts, 2, parts.length);
-			return orderByPluginField(pluginTag, List.of(fieldPath), ascending);
+			Expression<?> expr = cb.function("jsonb_object_field", Object.class,
+				root.get(Ref_.plugins),
+				cb.literal(pluginTag));
+			// Navigate through field path
+			for (int i = 2; i < parts.length - 1; i++) {
+				expr = cb.function("jsonb_object_field", Object.class,
+					expr,
+					cb.literal(parts[i]));
+			}
+			// Get the final field as text
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(parts[parts.length - 1]));
+			if (numericSort) {
+				expr = cb.function("cast_to_numeric", Double.class, expr);
+			}
+			return expr;
 		}
-		// Handle generic JSONB path
-		return orderByJsonbPath(List.of(parts), ascending);
+		
+		// Handle generic JSONB path (metadata->field->subfield)
+		if ("metadata".equals(parts[0])) {
+			Expression<?> expr = root.get(Ref_.metadata);
+			for (int i = 1; i < parts.length - 1; i++) {
+				expr = cb.function("jsonb_object_field", Object.class,
+					expr,
+					cb.literal(parts[i]));
+			}
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(parts[parts.length - 1]));
+			if (numericSort) {
+				expr = cb.function("cast_to_numeric", Double.class, expr);
+			}
+			return expr;
+		}
+		
+		return null;
 	}
 }

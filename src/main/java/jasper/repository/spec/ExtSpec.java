@@ -1,15 +1,12 @@
 package jasper.repository.spec;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Root;
 import jasper.domain.Ext;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-
-import java.util.Arrays;
-import java.util.List;
-
-import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class ExtSpec {
 
@@ -25,93 +22,72 @@ public class ExtSpec {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
-		var result = spec;
-		for (Sort.Order order : pageable.getSort()) {
-			var property = order.getProperty();
-			var ascending = order.isAscending();
-			if (property != null && property.startsWith("config->")) {
-				var jsonbSpec = createJsonbSortSpec(property, ascending);
-				if (jsonbSpec != null) {
-					result = result.and(jsonbSpec);
+		// Collect all sort orders to apply in a single specification
+		var orders = pageable.getSort().toList();
+		return spec.and((root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
+			}
+			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
+			for (Sort.Order order : orders) {
+				var property = order.getProperty();
+				var ascending = order.isAscending();
+				if (property == null) continue;
+				
+				Expression<?> expr;
+				boolean isJsonbField = property.startsWith("config->");
+				if (isJsonbField) {
+					expr = createJsonbSortExpression(root, cb, property);
+				} else {
+					expr = root.get(property);
 				}
-			} else if (property != null) {
-				// Handle regular entity field sorting
-				result = result.and(orderByField(property, ascending));
+				if (expr != null) {
+					// Use NULLS LAST for JSONB fields to push missing values to the end
+					if (isJsonbField) {
+						jpaOrders.add(ascending ? cb.asc(expr).nullsLast() : cb.desc(expr).nullsLast());
+					} else {
+						jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
+					}
+				}
 			}
-		}
-		return result;
-	}
-
-	/**
-	 * Creates a Specification that orders by a regular entity field.
-	 */
-	private static Specification<Ext> orderByField(String fieldName, boolean ascending) {
-		return (root, query, cb) -> {
-			if (query.getResultType() != Long.class && query.getResultType() != long.class) {
-				var path = root.get(fieldName);
-				query.orderBy(ascending ? cb.asc(path) : cb.desc(path));
+			if (!jpaOrders.isEmpty()) {
+				query.orderBy(jpaOrders);
 			}
 			return null;
-		};
+		});
 	}
 
 	/**
-	 * Creates a Specification that applies ordering for a JSONB sort property.
-	 *
-	 * @param property the JSONB property path (e.g., "config->value" or "config->count:num")
-	 * @param ascending true for ascending order, false for descending
-	 * @return a Specification that applies the ordering, or null if invalid
+	 * Creates a JSONB sort expression for the given property path.
 	 */
-	private static Specification<Ext> createJsonbSortSpec(String property, boolean ascending) {
+	private static Expression<?> createJsonbSortExpression(Root<Ext> root, CriteriaBuilder cb, String property) {
 		var parts = property.split("->");
-		if (parts.length < 2) {
+		if (parts.length < 2 || !"config".equals(parts[0])) {
 			return null;
 		}
-		// Handle "config->{field}" pattern
-		if ("config".equals(parts[0])) {
-			var fieldPath = Arrays.copyOfRange(parts, 1, parts.length);
-			return orderByConfigField(List.of(fieldPath), ascending);
+		
+		// Check if numeric sorting is requested
+		var lastField = parts[parts.length - 1];
+		var numericSort = lastField.endsWith(":num");
+		if (numericSort) {
+			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
+			lastField = parts[parts.length - 1];
 		}
-		return null;
-	}
-
-	/**
-	 * Creates a specification that adds ordering based on a field within Ext's config data.
-	 * Append ":num" to the last field for numeric sorting (e.g., "count:num").
-	 *
-	 * @param fieldPath the path to the field within the config data
-	 * @param ascending true for ascending order, false for descending
-	 * @return a specification that applies the ordering
-	 */
-	public static Specification<Ext> orderByConfigField(List<String> fieldPath, boolean ascending) {
-		if (fieldPath == null || fieldPath.isEmpty()) return unrestricted();
-		return (root, query, cb) -> {
-			// Check if numeric sorting is requested
-			var lastField = fieldPath.get(fieldPath.size() - 1);
-			var numericSort = lastField.endsWith(":num");
-			if (numericSort) {
-				lastField = lastField.substring(0, lastField.length() - 4);
-			}
-			Expression<?> expr = root.get("config");
-			for (int i = 0; i < fieldPath.size() - 1; i++) {
-				expr = cb.function("jsonb_object_field", Object.class,
-					expr,
-					cb.literal(fieldPath.get(i)));
-			}
-			// Get the final field as text
-			expr = cb.function("jsonb_object_field_text", String.class,
+		
+		Expression<?> expr = root.get("config");
+		for (int i = 1; i < parts.length - 1; i++) {
+			expr = cb.function("jsonb_object_field", Object.class,
 				expr,
-				cb.literal(lastField));
-			// Cast to numeric if requested
-			if (numericSort) {
-				expr = cb.function("cast_to_numeric", Double.class, expr);
-			}
-			if (ascending) {
-				query.orderBy(cb.asc(expr));
-			} else {
-				query.orderBy(cb.desc(expr));
-			}
-			return null;
-		};
+				cb.literal(parts[i]));
+		}
+		// Get the final field as text
+		expr = cb.function("jsonb_object_field_text", String.class,
+			expr,
+			cb.literal(lastField));
+		// Cast to numeric if requested
+		if (numericSort) {
+			expr = cb.function("cast_to_numeric", Double.class, expr);
+		}
+		return expr;
 	}
 }
