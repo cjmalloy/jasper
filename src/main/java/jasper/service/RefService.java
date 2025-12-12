@@ -39,7 +39,6 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.applySortingSpec;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
-import static jasper.repository.spec.JsonSpec.clearJsonbSort;
 import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Service
@@ -115,7 +114,7 @@ public class RefService {
 					auth.refReadSpec()
 						.and(filter.spec(auth.getUserTag())),
 					pageable),
-				clearJsonbSort(pageable))
+				PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 

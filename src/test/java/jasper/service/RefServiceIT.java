@@ -1657,49 +1657,6 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testClearJsonbSort_WithNullPageable() {
-		var result = JsonSpec.clearJsonbSort(null);
-
-		assertThat(result.getPageNumber()).isEqualTo(0);
-		assertThat(result.getPageSize()).isEqualTo(20);
-		assertThat(result.getSort().isUnsorted()).isTrue();
-	}
-
-	@Test
-	void testClearJsonbSort_WithNoSort() {
-		var result = JsonSpec.clearJsonbSort(PageRequest.of(0, 10));
-
-		assertThat(result.getPageNumber()).isEqualTo(0);
-		assertThat(result.getPageSize()).isEqualTo(10);
-		assertThat(result.getSort().isUnsorted()).isTrue();
-	}
-
-	@Test
-	void testClearJsonbSort_WithJsonbSort() {
-		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
-		var result = JsonSpec.clearJsonbSort(pageable);
-
-		assertThat(result.getPageNumber()).isEqualTo(1);
-		assertThat(result.getPageSize()).isEqualTo(15);
-		assertThat(result.getSort().isUnsorted()).isTrue();
-	}
-
-	@Test
-	void testClearJsonbSort_WithMixedSort() {
-		var pageable = PageRequest.of(2, 20, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("modified"),
-			org.springframework.data.domain.Sort.Order.asc("metadata->plugins->plugin/comment")));
-		var result = JsonSpec.clearJsonbSort(pageable);
-
-		assertThat(result.getPageNumber()).isEqualTo(2);
-		assertThat(result.getPageSize()).isEqualTo(20);
-		assertThat(result.getSort().isSorted()).isTrue();
-		assertThat(result.getSort().getOrderFor("modified")).isNotNull();
-		assertThat(result.getSort().getOrderFor("metadata->plugins->plugin/comment")).isNull();
-	}
-
-	@Test
 	void testApplySortingSpec_WithPluginsSort() {
 		// Test sorting by plugins->_plugin/cache->contentLength
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(

@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,6 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.repository.spec.ExtSpec.applySortingSpec;
-import static jasper.repository.spec.JsonSpec.clearJsonbSort;
 
 @Service
 public class ExtService {
@@ -90,7 +90,7 @@ public class ExtService {
 					auth.<Ext>tagReadSpec()
 						.and(filter.spec()),
 					pageable),
-				clearJsonbSort(pageable))
+				PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 

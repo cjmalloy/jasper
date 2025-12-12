@@ -640,15 +640,4 @@ public class ExtServiceIT {
 		assertThat(spec).isNotNull();
 	}
 
-	@Test
-	void testClearJsonbSort_WithConfigSort() {
-		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("config->value")));
-		var result = JsonSpec.clearJsonbSort(pageable);
-
-		assertThat(result.getPageNumber()).isEqualTo(1);
-		assertThat(result.getPageSize()).isEqualTo(15);
-		assertThat(result.getSort().isUnsorted()).isTrue();
-	}
-
 }

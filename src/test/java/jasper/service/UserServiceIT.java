@@ -962,14 +962,4 @@ public class UserServiceIT {
 
 		assertThat(spec).isNotNull();
 	}
-
-	@Test
-	void testClearJsonbSort_WithExternalSort() {
-		var pageable = PageRequest.of(1, 15, by("external->ids[0]"));
-		var result = JsonSpec.clearJsonbSort(pageable);
-
-		assertThat(result.getPageNumber()).isEqualTo(1);
-		assertThat(result.getPageSize()).isEqualTo(15);
-		assertThat(result.getSort().isUnsorted()).isTrue();
-	}
 }
