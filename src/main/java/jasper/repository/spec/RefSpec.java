@@ -365,7 +365,7 @@ public class RefSpec {
 					if ("origin".equals(fieldName)) {
 						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
 					} else {
-						expr = cb.coalesce(cb.function("jsonb_array_length", Integer.class, root.get(fieldName)), cb.literal(0));
+						expr = SortSpec.createArrayLengthExpression(root, cb, fieldName);
 					}
 				} else {
 					expr = root.get(property);
