@@ -327,7 +327,7 @@ public class RefSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for all fields
 	 */
-	public static Specification<Ref> applySortingSpec(Specification<Ref> spec, Pageable pageable) {
+	public static Specification<Ref> sort(Specification<Ref> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}

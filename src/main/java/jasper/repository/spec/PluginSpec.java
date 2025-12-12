@@ -20,7 +20,7 @@ public class PluginSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for all fields
 	 */
-	public static Specification<Plugin> applySortingSpec(Specification<Plugin> spec, Pageable pageable) {
+	public static Specification<Plugin> sort(Specification<Plugin> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
@@ -35,7 +35,7 @@ public class PluginSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				if (property == null) continue;
-				
+
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("config->") || property.startsWith("defaults->") || property.startsWith("schema->");
 				boolean isLengthSort = property.endsWith(":len");
@@ -76,13 +76,13 @@ public class PluginSpec {
 		if (parts.length < 2) {
 			return null;
 		}
-		
+
 		// Determine which JSONB field to use
 		var jsonbFieldName = parts[0];
 		if (!"config".equals(jsonbFieldName) && !"defaults".equals(jsonbFieldName) && !"schema".equals(jsonbFieldName)) {
 			return null;
 		}
-		
+
 		// Check if numeric or length sorting is requested
 		var lastField = parts[parts.length - 1];
 		var numericSort = lastField.endsWith(":num");
@@ -94,7 +94,7 @@ public class PluginSpec {
 			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
 			lastField = parts[parts.length - 1];
 		}
-		
+
 		Expression<?> expr = root.get(jsonbFieldName);
 		for (int i = 1; i < parts.length - 1; i++) {
 			expr = cb.function("jsonb_object_field", Object.class,

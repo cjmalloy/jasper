@@ -115,6 +115,17 @@ but would not match `['science', 'math']`
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
+#### JSONB Field Sorting
+Jasper supports dynamic sorting on JSONB fields using arrow notation (`->`). This allows sorting by
+any field within the `plugins`, `metadata`, `config`, or `external` JSONB columns without requiring
+database schema changes.
+
+**Sort Syntax:**
+- Use `->` as the path separator to navigate JSONB fields
+- Append `:num` suffix for numeric sorting (otherwise values sort as strings)
+- Append `:len` suffix to sort by array length, origin nesting level, or tag levels
+- Use `[index]` notation for array element access (e.g., `external->ids[0]`)
+
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
@@ -344,77 +355,6 @@ replication.
 ### Indexing Layer
 The indexing layer of the Jasper model adds tags to Refs. A system operating at this layer should support
 tag queries, sorting and filtering.
-
-#### JSONB Field Sorting
-Jasper supports dynamic sorting on JSONB fields using arrow notation (`->`). This allows sorting by
-any field within the `plugins`, `metadata`, `config`, or `external` JSONB columns without requiring
-database schema changes.
-
-**Sort Syntax:**
-- Use `->` as the path separator to navigate JSONB fields
-- Append `:num` suffix for numeric sorting (otherwise values sort as strings)
-- Append `:len` suffix to sort by array length, origin nesting level, or tag levels
-- Use `[index]` notation for array element access (e.g., `external->ids[0]`)
-
-**Examples by Entity Type:**
-
-| Entity | Sort Pattern | Description |
-|--------|-------------|-------------|
-| Ref | `origin:len` | Sort by origin nesting level (0 for root, 1 for @origin, 2 for @origin.sub, etc.) |
-| Ref | `tags:len` | Sort by number of tags |
-| Ref | `sources:len` | Sort by number of sources |
-| Ref | `metadata->responses:len` | Sort by number of responses |
-| Ref | `metadata->plugins->plugin/comment` | Sort by comment count |
-| Ref | `plugins->_plugin/cache->contentLength:num` | Sort by cached content length (numeric) |
-| Ref | `plugins->plugin/user/vote:top` | Sort by total vote count (up + down) |
-| Ref | `plugins->plugin/user/vote:score` | Sort by vote score (up - down) |
-| Ref | `plugins->plugin/user/vote:decay` | Sort by time-decaying vote score |
-| Ext | `origin:len` | Sort by origin nesting level |
-| Ext | `tag:len` | Sort by tag levels (0 for empty, 1 for plugin, 2 for plugin/sub, etc.) |
-| Ext | `config->value` | Sort by config value (string) |
-| Ext | `config->count:num` | Sort by config count (numeric) |
-| Ext | `config->items:len` | Sort by number of items in config |
-| User | `origin:len` | Sort by origin nesting level |
-| User | `tag:len` | Sort by tag levels |
-| User | `external->ids[0]` | Sort by first ID in external array |
-| User | `external->score:num` | Sort by external score (numeric) |
-| User | `external->tags:len` | Sort by number of external tags |
-| Plugin | `origin:len` | Sort by origin nesting depth (0 for root) |
-| Plugin | `tag:len` | Sort by tag nesting depth |
-| Plugin | `config->field` | Sort by config field (text) |
-| Plugin | `defaults->field` | Sort by defaults field (text) |
-| Plugin | `schema->field` | Sort by schema field (text) |
-| Template | `origin:len` | Sort by origin nesting depth (0 for root) |
-| Template | `tag:len` | Sort by tag nesting depth |
-| Template | `config->field` | Sort by config field (text) |
-| Template | `defaults->field` | Sort by defaults field (text) |
-| Template | `schema->field` | Sort by schema field (text) |
-
-**API Usage:**
-```
-GET /api/v1/ref/page?query=_plugin/cache&sort=plugins->_plugin/cache->contentLength:num,DESC
-GET /api/v1/ref/page?sort=tags:len,DESC
-GET /api/v1/ref/page?sort=origin:len,ASC
-GET /api/v1/ref/page?sort=metadata->responses:len,DESC
-GET /api/v1/ref/page?sort=plugins->plugin/user/vote:score,DESC
-GET /api/v1/ref/page?sort=plugins->plugin/user/vote:decay,DESC
-GET /api/v1/ext/page?sort=config->priority:num,ASC
-GET /api/v1/ext/page?sort=tag:len,ASC
-GET /api/v1/user/page?sort=external->score:num,DESC
-GET /api/v1/plugin/page?sort=origin:len,ASC
-GET /api/v1/plugin/page?sort=tag:len,DESC
-GET /api/v1/plugin/page?sort=config->enabled,ASC
-GET /api/v1/template/page?sort=tag:len,ASC
-GET /api/v1/template/page?sort=defaults->priority:num,DESC
-```
-
-**Notes:**
-- Records with null values for the sort field are included in results; nulls are treated as 0 for numeric/length fields and as empty string for string fields (sorted to the beginning)
-- Standard entity fields (like `modified`, `tag`, `url`) can still be used for sorting
-- Multiple sort fields can be combined with commas
-- `origin:len` returns 0 for empty origin, 1 for `@origin`, 2 for `@origin.sub`, etc.
-- `tag:len` returns 0 for empty tag, 1 for `plugin`, 2 for `plugin/sub`, etc.
-- Vote sorting: `:top` = up+down, `:score` = up-down, `:decay` = time-decaying score
 
 ### Validation Layer
 The validation layer of the Jasper model includes all entity fields. Plugins and Templates are validated

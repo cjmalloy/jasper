@@ -19,7 +19,7 @@ public class ExtSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for all fields
 	 */
-	public static Specification<Ext> applySortingSpec(Specification<Ext> spec, Pageable pageable) {
+	public static Specification<Ext> sort(Specification<Ext> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
@@ -34,7 +34,7 @@ public class ExtSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				if (property == null) continue;
-				
+
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("config->");
 				boolean isLengthSort = property.endsWith(":len");
@@ -74,7 +74,7 @@ public class ExtSpec {
 		if (parts.length < 2 || !"config".equals(parts[0])) {
 			return null;
 		}
-		
+
 		// Check if numeric or length sorting is requested
 		var lastField = parts[parts.length - 1];
 		var numericSort = lastField.endsWith(":num");
@@ -86,7 +86,7 @@ public class ExtSpec {
 			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
 			lastField = parts[parts.length - 1];
 		}
-		
+
 		Expression<?> expr = root.get("config");
 		for (int i = 1; i < parts.length - 1; i++) {
 			expr = cb.function("jsonb_object_field", Object.class,

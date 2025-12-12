@@ -30,7 +30,7 @@ public class UserSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for all fields
 	 */
-	public static Specification<User> applySortingSpec(Specification<User> spec, Pageable pageable) {
+	public static Specification<User> sort(Specification<User> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
@@ -45,7 +45,7 @@ public class UserSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				if (property == null) continue;
-				
+
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("external->");
 				boolean isLengthSort = property.endsWith(":len");
@@ -85,7 +85,7 @@ public class UserSpec {
 		if (parts.length < 2 || !"external".equals(parts[0])) {
 			return null;
 		}
-		
+
 		// Check if numeric or length sorting is requested on the last field
 		var lastField = parts[parts.length - 1];
 		var numericSort = lastField.endsWith(":num");
@@ -97,7 +97,7 @@ public class UserSpec {
 			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
 			lastField = parts[parts.length - 1];
 		}
-		
+
 		Expression<?> expr = root.get(User_.external);
 		for (int i = 1; i < parts.length; i++) {
 			var field = parts[i];

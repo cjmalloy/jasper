@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,7 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.repository.spec.UserSpec.applySortingSpec;
+import static jasper.repository.spec.UserSpec.sort;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -47,6 +46,7 @@ import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class UserService {
@@ -118,11 +118,11 @@ public class UserService {
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
-				applySortingSpec(
+				sort(
 					auth.<User>tagReadSpec()
 						.and(filter.spec()),
 					pageable),
-				PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
+				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto)
 			.map(auth::filterUser);
 	}

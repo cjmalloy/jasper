@@ -1647,7 +1647,7 @@ public class RefServiceIT {
 		ref2.setTags(new ArrayList<>(List.of("+user/tester")));
 		refRepository.save(ref2);
 
-		var spec = RefSpec.applySortingSpec(
+		var spec = RefSpec.sort(
 			RefFilter.builder().build().spec(),
 			PageRequest.of(0, 10));
 
@@ -1679,7 +1679,7 @@ public class RefServiceIT {
 
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
-		var spec = RefSpec.applySortingSpec(
+		var spec = RefSpec.sort(
 			RefFilter.builder().build().spec(),
 			pageable);
 
@@ -1709,7 +1709,7 @@ public class RefServiceIT {
 
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("plugins->_plugin/cache->contentLength:num")));
-		var spec = RefSpec.applySortingSpec(
+		var spec = RefSpec.sort(
 			RefFilter.builder().build().spec(),
 			pageable);
 

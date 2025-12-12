@@ -620,7 +620,7 @@ public class ExtServiceIT {
 		ext2.setName("Test2");
 		extRepository.save(ext2);
 
-		var spec = ExtSpec.applySortingSpec(
+		var spec = ExtSpec.sort(
 			TagFilter.builder().build().spec(),
 			PageRequest.of(0, 10));
 
@@ -648,7 +648,7 @@ public class ExtServiceIT {
 
 			var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 				org.springframework.data.domain.Sort.Order.desc("config->value")));
-			var spec = ExtSpec.applySortingSpec(
+			var spec = ExtSpec.sort(
 				TagFilter.builder().build().spec(),
 				pageable);
 
@@ -682,7 +682,7 @@ public class ExtServiceIT {
 
 			var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 				org.springframework.data.domain.Sort.Order.asc("config->count:num")));
-			var spec = ExtSpec.applySortingSpec(
+			var spec = ExtSpec.sort(
 				TagFilter.builder().build().spec(),
 				pageable);
 

@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PostAuthorize;
@@ -37,9 +36,10 @@ import java.util.LinkedHashSet;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.RefSpec.applySortingSpec;
+import static jasper.repository.spec.RefSpec.sort;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
+import static org.springframework.data.domain.PageRequest.of;
 import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Service
@@ -111,11 +111,11 @@ public class RefService {
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
 		return refRepository
 			.findAll(
-				applySortingSpec(
+				sort(
 					auth.refReadSpec()
 						.and(filter.spec(auth.getUserTag())),
 					pageable),
-				PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
+				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 

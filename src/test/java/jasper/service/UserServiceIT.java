@@ -945,7 +945,7 @@ public class UserServiceIT {
 		user2.setName("Test2");
 		userRepository.save(user2);
 
-		var spec = UserSpec.applySortingSpec(
+		var spec = UserSpec.sort(
 			TagFilter.builder().build().spec(),
 			PageRequest.of(0, 10));
 
@@ -970,7 +970,7 @@ public class UserServiceIT {
 		userRepository.save(user2);
 
 		var pageable = PageRequest.of(0, 10, by("external->ids[0]"));
-		var spec = UserSpec.applySortingSpec(
+		var spec = UserSpec.sort(
 			TagFilter.builder().build().spec(),
 			pageable);
 
@@ -988,7 +988,7 @@ public class UserServiceIT {
 		// For numeric sorting, we would need a field like external->count:num
 		// Since External doesn't have count, we verify the spec builds correctly
 		var pageable = PageRequest.of(0, 10, by("external->count:num"));
-		var spec = UserSpec.applySortingSpec(
+		var spec = UserSpec.sort(
 			TagFilter.builder().build().spec(),
 			pageable);
 

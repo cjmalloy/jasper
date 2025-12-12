@@ -108,7 +108,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, '' as metadataModified
+		SELECT *, '' as scheme
 		FROM ref
 		WHERE ref.url != :url
 			AND ref.published <= :published
@@ -221,7 +221,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	int backfillMetadata(String origin, int batchSize);
 
 	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme, false as obsolete, '' as metadataModified
+		SELECT *, '' as scheme
 		FROM ref
 		WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR metadata->>'regen' = 'true')
 			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
