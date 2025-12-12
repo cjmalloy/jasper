@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
@@ -1677,14 +1678,14 @@ public class RefServiceIT {
 		ref2.setMetadata(metadata2);
 		refRepository.save(ref2);
 
-		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
+		var pageable = PageRequest.of(0, 10, Sort.by(
+			Sort.Order.desc("metadata->plugins->plugin/comment:num")));
 		var spec = RefSpec.sort(
 			RefFilter.builder().build().spec(),
 			pageable);
 
 		// Execute query to verify sorting works
-		var result = refRepository.findAll(spec, PageRequest.of(0, 10));
+		var result = refRepository.findAll(spec, PageRequest.ofSize(10));
 		assertThat(result.getContent()).hasSize(2);
 		// Verify descending order (10 before 5)
 		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");
@@ -1708,13 +1709,13 @@ public class RefServiceIT {
 		refRepository.save(ref2);
 
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("plugins->_plugin/cache->contentLength:num")));
+			Sort.Order.desc("plugins->_plugin/cache->contentLength:num")));
 		var spec = RefSpec.sort(
 			RefFilter.builder().build().spec(),
 			pageable);
 
 		// Execute query to verify numeric sorting works
-		var result = refRepository.findAll(spec, PageRequest.of(0, 10));
+		var result = refRepository.findAll(spec, PageRequest.ofSize(10));
 		assertThat(result.getContent()).hasSize(2);
 		// Verify descending numeric order (200 before 100)
 		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");

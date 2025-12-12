@@ -2,6 +2,7 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -10,11 +11,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.none;
+import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
@@ -337,17 +341,12 @@ public class RefSpec {
 			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
 				return null; // Don't apply ordering to count queries
 			}
-			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
+			var jpaOrders = new ArrayList<Order>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
-				if (property == null) continue;
-
 				Expression<?> expr;
-				boolean isJsonbField = property.startsWith("metadata->") || property.startsWith("plugins->");
-				boolean isLengthSort = property.endsWith(":len");
-				boolean isVoteSort = property.startsWith("plugins->plugin/user/vote:");
-				if (isVoteSort) {
+				if (property.startsWith("plugins->plugin/user/vote:")) {
 					// Handle vote sorting patterns using registered functions
 					var voteType = property.substring("plugins->plugin/user/vote:".length());
 					if ("top".equals(voteType)) {
@@ -359,14 +358,11 @@ public class RefSpec {
 					} else {
 						expr = null;
 					}
-				} else if (isJsonbField) {
-					expr = createJsonbSortExpression(root, cb, property);
-				} else if (isLengthSort) {
-					// Handle direct JSONB array field length sorting (e.g., "tags:len", "sources:len")
-					// or origin nesting level ("origin:len")
-					var fieldName = property.substring(0, property.length() - 4);
+				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
+					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
+				} else if (property.endsWith(":len")) {
+					var fieldName = property.substring(0, property.length() - ":len".length());
 					if ("origin".equals(fieldName)) {
-						// Special case: origin:len calculates nesting level by splitting on '.'
 						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
 					} else {
 						expr = cb.coalesce(cb.function("jsonb_array_length", Integer.class, root.get(fieldName)), cb.literal(0));
@@ -374,104 +370,10 @@ public class RefSpec {
 				} else {
 					expr = root.get(property);
 				}
-				if (expr != null) {
-					jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
-				}
+				if (expr != null) jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
 			}
-			if (!jpaOrders.isEmpty()) {
-				query.orderBy(jpaOrders);
-			}
+			if (!jpaOrders.isEmpty()) query.orderBy(jpaOrders);
 			return null;
 		});
-	}
-
-	/**
-	 * Creates a JSONB sort expression for the given property path.
-	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array/object length sorting.
-	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
-	 */
-	private static Expression<?> createJsonbSortExpression(Root<Ref> root, CriteriaBuilder cb, String property) {
-		var parts = property.split("->");
-		if (parts.length < 2) {
-			return null;
-		}
-
-		// Check if numeric or length sorting is requested
-		var lastPart = parts[parts.length - 1];
-		var numericSort = lastPart.endsWith(":num");
-		var lengthSort = lastPart.endsWith(":len");
-		if (numericSort) {
-			parts[parts.length - 1] = lastPart.substring(0, lastPart.length() - 4);
-		} else if (lengthSort) {
-			parts[parts.length - 1] = lastPart.substring(0, lastPart.length() - 4);
-		}
-
-		// Handle "metadata->plugins->{pluginTag}" pattern - sorting by response count
-		if (parts.length >= 3 && "metadata".equals(parts[0]) && "plugins".equals(parts[1])) {
-			var pluginTag = parts[2];
-			Expression<?> expr = cb.function("jsonb_object_field", Object.class,
-				root.get(Ref_.metadata),
-				cb.literal("plugins"));
-			expr = cb.function("jsonb_object_field_text", String.class,
-				expr,
-				cb.literal(pluginTag));
-			return cb.coalesce(cb.function("cast_to_int", Integer.class, expr), cb.literal(0));
-		}
-
-		// Handle "plugins->{pluginTag}->{field}" pattern - sorting by plugin field value
-		if (parts.length >= 3 && "plugins".equals(parts[0])) {
-			var pluginTag = parts[1];
-			Expression<?> expr = cb.function("jsonb_object_field", Object.class,
-				root.get(Ref_.plugins),
-				cb.literal(pluginTag));
-			// Navigate through field path
-			for (int i = 2; i < parts.length - 1; i++) {
-				expr = cb.function("jsonb_object_field", Object.class,
-					expr,
-					cb.literal(parts[i]));
-			}
-			// Get the final field - as JSONB for length, as text otherwise
-			if (lengthSort) {
-				expr = cb.function("jsonb_object_field", Object.class,
-					expr,
-					cb.literal(parts[parts.length - 1]));
-				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
-			} else {
-				expr = cb.function("jsonb_object_field_text", String.class,
-					expr,
-					cb.literal(parts[parts.length - 1]));
-				if (numericSort) {
-					return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
-				}
-				return cb.coalesce(expr, cb.literal(""));
-			}
-		}
-
-		// Handle generic JSONB path (metadata->field->subfield)
-		if ("metadata".equals(parts[0])) {
-			Expression<?> expr = root.get(Ref_.metadata);
-			for (int i = 1; i < parts.length - 1; i++) {
-				expr = cb.function("jsonb_object_field", Object.class,
-					expr,
-					cb.literal(parts[i]));
-			}
-			// Get the final field - as JSONB for length, as text otherwise
-			if (lengthSort) {
-				expr = cb.function("jsonb_object_field", Object.class,
-					expr,
-					cb.literal(parts[parts.length - 1]));
-				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
-			} else {
-				expr = cb.function("jsonb_object_field_text", String.class,
-					expr,
-					cb.literal(parts[parts.length - 1]));
-				if (numericSort) {
-					return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
-				}
-				return cb.coalesce(expr, cb.literal(""));
-			}
-		}
-
-		return null;
 	}
 }

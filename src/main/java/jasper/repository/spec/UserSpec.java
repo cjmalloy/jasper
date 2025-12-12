@@ -1,19 +1,20 @@
 package jasper.repository.spec;
 
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
 import jasper.domain.User;
-import jasper.domain.User_;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.util.List;
+import java.util.ArrayList;
 
-import static jasper.repository.spec.SortSpec.*;
+import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.createOriginNestingExpression;
+import static jasper.repository.spec.SortSpec.createTagLevelsExpression;
+import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 
 public class UserSpec {
-
-	private static final List<String> JSONB_PREFIXES = List.of("external");
 
 	public static Specification<User> hasAuthorizedKeys() {
 		return (root, query, cb) ->
@@ -39,15 +40,13 @@ public class UserSpec {
 			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
 				return null; // Don't apply ordering to count queries
 			}
-			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
+			var jpaOrders = new ArrayList<Order>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
-				if (property == null) continue;
-
 				Expression<?> expr;
 				if (isJsonbSortProperty(property, "external")) {
-					expr = createJsonbSortExpression(root, cb, property, JSONB_PREFIXES);
+					expr = createJsonbSortExpression(root, cb, property, "external");
 				} else if (property.equals("origin:len")) {
 					expr = createOriginNestingExpression(root, cb);
 				} else if (property.equals("tag:len")) {
@@ -55,13 +54,9 @@ public class UserSpec {
 				} else {
 					expr = root.get(property);
 				}
-				if (expr != null) {
-					jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
-				}
+				if (expr != null) jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
 			}
-			if (!jpaOrders.isEmpty()) {
-				query.orderBy(jpaOrders);
-			}
+			if (!jpaOrders.isEmpty()) query.orderBy(jpaOrders);
 			return null;
 		});
 	}

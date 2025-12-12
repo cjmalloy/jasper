@@ -2,6 +2,7 @@ package jasper.service;
 
 import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
+import jasper.domain.External;
 import jasper.domain.User;
 import jasper.domain.User_;
 import jasper.errors.NotFoundException;
@@ -983,33 +984,29 @@ public class UserServiceIT {
 	}
 
 	@Test
-	void testApplySortingSpec_WithNumericSort() {
+	void testApplySortingSpec_WithLenSort() {
 		// Create users with numeric values in external field via raw JSON
 		var user1 = new User();
 		user1.setTag("+user/num1");
 		user1.setOrigin("");
-		user1.setReadAccess(new String[]{});
-		user1.setWriteAccess(new String[]{});
 		// Use JsonNode to set external with count field
 		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		try {
-			user1.setExternal(mapper.readValue("{\"count\": 10}", jasper.domain.proj.External.class));
+			user1.setExternal(mapper.readValue("{\"ids\": [\"10\"]}", External.class));
 		} catch (Exception e) { throw new RuntimeException(e); }
 		userRepository.save(user1);
 
 		var user2 = new User();
 		user2.setTag("+user/num2");
 		user2.setOrigin("");
-		user2.setReadAccess(new String[]{});
-		user2.setWriteAccess(new String[]{});
 		try {
-			user2.setExternal(mapper.readValue("{\"count\": 2}", jasper.domain.proj.External.class));
+			user2.setExternal(mapper.readValue("{\"ids\": [\"2\"]}", External.class));
 		} catch (Exception e) { throw new RuntimeException(e); }
 		userRepository.save(user2);
 
 		// Sort by external->count:num ascending (2 should come before 10)
-		var pageable = PageRequest.of(0, 10, by("external->count:num"));
-		var spec = UserSpec.applySortingSpec(
+		var pageable = PageRequest.of(0, 10, by("external->ids:len"));
+		var spec = UserSpec.sort(
 			TagFilter.builder().build().spec(),
 			pageable);
 		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
