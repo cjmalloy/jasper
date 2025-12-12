@@ -79,17 +79,9 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("COALESCE(metadata->>'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
-	@Setter(AccessLevel.NONE)
-	private String metadataModified;
-
 	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
 	@Setter(AccessLevel.NONE)
 	private String scheme;
-
-	@Formula("metadata->'obsolete'")
-	@Setter(AccessLevel.NONE)
-	private Boolean obsolete;
 
 	@Column
 	@NotNull
