@@ -10,6 +10,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 	public void initializeFunctionRegistry(FunctionContributions functionContributions) {
 		super.initializeFunctionRegistry(functionContributions);
 		var functionRegistry = functionContributions.getFunctionRegistry();
+		var string = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.STRING);
 		var bool = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.BOOLEAN);
 		var integer = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.INTEGER);
 		var doubleType = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.DOUBLE);
@@ -22,7 +23,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
 		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		functionRegistry.registerPattern("jsonb_array_length", "jsonb_array_length(?1)", integer);
-		functionRegistry.registerPattern("jsonb_array_element_text", "(?1)->>(?2)", functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.STRING));
+		functionRegistry.registerPattern("jsonb_array_element_text", "jsonb_array_element_text(?1, ?2)", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
