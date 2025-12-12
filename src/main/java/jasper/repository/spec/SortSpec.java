@@ -66,7 +66,7 @@ public class SortSpec {
 		if ("metadata".equals(jsonbFieldName)) {
 			var metadataField = parts[1];
 			// Only allow access to specific metadata fields
-			if (!ALLOWED_METADATA_FIELDS.contains(metadataField) && !metadataField.startsWith("plugins")) {
+			if (!ALLOWED_METADATA_FIELDS.contains(metadataField)) {
 				return null; // Deny access to non-allowed metadata fields
 			}
 			// Auto-apply correct suffix for known metadata fields (only if not already specified)
