@@ -1,27 +1,17 @@
 package jasper.repository.spec;
 
 import jakarta.persistence.criteria.Expression;
-import jasper.domain.User;
-import jasper.domain.User_;
+import jasper.domain.Ext;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
-public class UserSpec {
-
-	private static final Pattern ARRAY_INDEX_PATTERN = Pattern.compile("\\[(\\d+)]");
-
-	public static Specification<User> hasAuthorizedKeys() {
-		return (root, query, cb) ->
-			cb.isNotNull(
-				root.get("authorizedKeys"));
-	}
+public class ExtSpec {
 
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
@@ -31,7 +21,7 @@ public class UserSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for JSONB fields
 	 */
-	public static Specification<User> applySortingSpec(Specification<User> spec, Pageable pageable) {
+	public static Specification<Ext> applySortingSpec(Specification<Ext> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
@@ -52,55 +42,43 @@ public class UserSpec {
 	/**
 	 * Creates a Specification that applies ordering for a JSONB sort property.
 	 *
-	 * @param property the JSONB property path (e.g., "external.ids[0]")
+	 * @param property the JSONB property path (e.g., "config.value")
 	 * @param ascending true for ascending order, false for descending
 	 * @return a Specification that applies the ordering, or null if invalid
 	 */
-	private static Specification<User> createJsonbSortSpec(String property, boolean ascending) {
+	private static Specification<Ext> createJsonbSortSpec(String property, boolean ascending) {
 		var parts = property.split("\\.");
 		if (parts.length < 2) {
 			return null;
 		}
-		// Handle "external.{field}" pattern
-		if ("external".equals(parts[0])) {
+		// Handle "config.{field}" pattern
+		if ("config".equals(parts[0])) {
 			var fieldPath = Arrays.copyOfRange(parts, 1, parts.length);
-			return orderByExternalField(List.of(fieldPath), ascending);
+			return orderByConfigField(List.of(fieldPath), ascending);
 		}
 		return null;
 	}
 
 	/**
-	 * Creates a specification that adds ordering based on a field within User's external data.
-	 * Supports array access with [index] notation (e.g., "ids[0]").
+	 * Creates a specification that adds ordering based on a field within Ext's config data.
 	 *
-	 * @param fieldPath the path to the field within the external data
+	 * @param fieldPath the path to the field within the config data
 	 * @param ascending true for ascending order, false for descending
 	 * @return a specification that applies the ordering
 	 */
-	public static Specification<User> orderByExternalField(List<String> fieldPath, boolean ascending) {
+	public static Specification<Ext> orderByConfigField(List<String> fieldPath, boolean ascending) {
 		if (fieldPath == null || fieldPath.isEmpty()) return unrestricted();
 		return (root, query, cb) -> {
-			Expression<?> expr = root.get(User_.external);
-			for (String field : fieldPath) {
-				// Check for array index notation like "ids[0]"
-				var matcher = ARRAY_INDEX_PATTERN.matcher(field);
-				if (matcher.find()) {
-					var fieldName = field.substring(0, matcher.start());
-					var index = Integer.parseInt(matcher.group(1));
-					if (!fieldName.isEmpty()) {
-						expr = cb.function("jsonb_object_field", Object.class,
-							expr,
-							cb.literal(fieldName));
-					}
-					expr = cb.function("jsonb_array_element_text", String.class,
-						expr,
-						cb.literal(index));
-				} else {
-					expr = cb.function("jsonb_object_field_text", String.class,
-						expr,
-						cb.literal(field));
-				}
+			Expression<?> expr = root.get("config");
+			for (int i = 0; i < fieldPath.size() - 1; i++) {
+				expr = cb.function("jsonb_object_field", Object.class,
+					expr,
+					cb.literal(fieldPath.get(i)));
 			}
+			// Get the final field as text
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(fieldPath.get(fieldPath.size() - 1)));
 			if (ascending) {
 				query.orderBy(cb.asc(expr));
 			} else {

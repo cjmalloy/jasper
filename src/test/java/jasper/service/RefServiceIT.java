@@ -1699,4 +1699,28 @@ public class RefServiceIT {
 		assertThat(result.getSort().getOrderFor("metadata.plugins.plugin/comment")).isNull();
 	}
 
+	@Test
+	void testApplySortingSpec_WithPluginsSort() {
+		// Test sorting by plugins._plugin/cache.contentLength
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("plugins._plugin/cache.contentLength")));
+		var spec = RefSpec.applySortingSpec(
+			RefFilter.builder().build().spec(),
+			pageable);
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testIsJsonbSortProperty_AllPatterns() {
+		// Test all supported JSONB field patterns
+		assertThat(TagSpec.isJsonbSortProperty("metadata.plugins.plugin/comment")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("plugins._plugin/cache.contentLength")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("external.ids[0]")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("config.value")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("modified")).isFalse();
+		assertThat(TagSpec.isJsonbSortProperty("title")).isFalse();
+		assertThat(TagSpec.isJsonbSortProperty(null)).isFalse();
+	}
+
 }

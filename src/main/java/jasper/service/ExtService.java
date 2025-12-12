@@ -29,6 +29,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.ExtSpec.applySortingSpec;
 import static jasper.repository.spec.TagSpec.clearJsonbSort;
 
 @Service
@@ -85,8 +86,10 @@ public class ExtService {
 	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
-				auth.<Ext>tagReadSpec()
-					.and(filter.spec()),
+				applySortingSpec(
+					auth.<Ext>tagReadSpec()
+						.and(filter.spec()),
+					pageable),
 				clearJsonbSort(pageable))
 			.map(mapper::domainToDto);
 	}

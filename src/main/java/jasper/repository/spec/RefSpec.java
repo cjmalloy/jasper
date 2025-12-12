@@ -408,6 +408,42 @@ public class RefSpec {
 	}
 
 	/**
+	 * Creates a specification that adds ordering based on a field within a plugin's data.
+	 * The path format is "plugins.{pluginTag}.{field}" where field can be nested.
+	 * Example: "plugins._plugin/cache.contentLength" sorts by the contentLength field.
+	 *
+	 * @param pluginTag the plugin tag (e.g., "_plugin/cache")
+	 * @param fieldPath the path to the field within the plugin data
+	 * @param ascending true for ascending order, false for descending
+	 * @return a specification that applies the ordering
+	 */
+	public static Specification<Ref> orderByPluginField(String pluginTag, List<String> fieldPath, boolean ascending) {
+		if (pluginTag == null || pluginTag.isBlank() || fieldPath == null || fieldPath.isEmpty()) return unrestricted();
+		return (root, query, cb) -> {
+			// Start with plugins->{pluginTag}
+			Expression<?> expr = cb.function("jsonb_object_field", Object.class,
+				root.get(Ref_.plugins),
+				cb.literal(pluginTag));
+			// Navigate through field path
+			for (int i = 0; i < fieldPath.size() - 1; i++) {
+				expr = cb.function("jsonb_object_field", Object.class,
+					expr,
+					cb.literal(fieldPath.get(i)));
+			}
+			// Get the final field as text
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(fieldPath.get(fieldPath.size() - 1)));
+			if (ascending) {
+				query.orderBy(cb.asc(expr));
+			} else {
+				query.orderBy(cb.desc(expr));
+			}
+			return null; // No predicate filter, just ordering
+		};
+	}
+
+	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
 	 * Sort columns that target JSONB fields use the pattern "metadata.plugins.{pluginTag}"
@@ -438,7 +474,7 @@ public class RefSpec {
 	/**
 	 * Creates a Specification that applies ordering for a JSONB sort property.
 	 *
-	 * @param property the JSONB property path (e.g., "metadata.plugins.plugin/comment")
+	 * @param property the JSONB property path (e.g., "metadata.plugins.plugin/comment" or "plugins._plugin/cache.contentLength")
 	 * @param ascending true for ascending order, false for descending
 	 * @return a Specification that applies the ordering, or null if invalid
 	 */
@@ -447,10 +483,16 @@ public class RefSpec {
 		if (parts.length < 2) {
 			return null;
 		}
-		// Handle "metadata.plugins.{pluginTag}" pattern
+		// Handle "metadata.plugins.{pluginTag}" pattern - sorting by response count
 		if (parts.length >= 3 && "metadata".equals(parts[0]) && "plugins".equals(parts[1])) {
 			var pluginTag = String.join(".", Arrays.copyOfRange(parts, 2, parts.length));
 			return orderByPluginCount(pluginTag, ascending);
+		}
+		// Handle "plugins.{pluginTag}.{field}" pattern - sorting by plugin field value
+		if (parts.length >= 3 && "plugins".equals(parts[0])) {
+			var pluginTag = parts[1];
+			var fieldPath = Arrays.copyOfRange(parts, 2, parts.length);
+			return orderByPluginField(pluginTag, List.of(fieldPath), ascending);
 		}
 		// Handle generic JSONB path
 		return orderByJsonbPath(List.of(parts), ascending);

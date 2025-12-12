@@ -40,13 +40,21 @@ public class TagSpec {
 
 	/**
 	 * Checks if a sort property targets a JSONB field.
-	 * JSONB properties follow the pattern "metadata.plugins.{tag}" or "metadata.{field}".
+	 * JSONB properties include patterns like:
+	 * - "metadata.plugins.{tag}" or "metadata.{field}" (Ref)
+	 * - "plugins.{tag}.{field}" (Ref)
+	 * - "external.{field}" (User)
+	 * - "config.{field}" (Ext)
 	 *
 	 * @param property the sort property name
 	 * @return true if this is a JSONB sort property
 	 */
 	public static boolean isJsonbSortProperty(String property) {
-		return property != null && property.startsWith("metadata.");
+		if (property == null) return false;
+		return property.startsWith("metadata.") ||
+			property.startsWith("plugins.") ||
+			property.startsWith("external.") ||
+			property.startsWith("config.");
 	}
 
 	public static <T extends Tag> Specification<T> searchTagOrName(String search) {
