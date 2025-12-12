@@ -91,15 +91,6 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private Boolean obsolete;
 
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
-	private String voteCount;
-
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
-	private String voteScore;
-
-	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, EXTRACT('EPOCH' FROM age(published)) / (4 * 60 * 60)))")
-	private String voteScoreDecay;
-
 	@Column
 	@NotNull
 	private Instant published = Instant.now();

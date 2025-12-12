@@ -366,6 +366,9 @@ database schema changes.
 | Ref | `metadata->responses:len` | Sort by number of responses |
 | Ref | `metadata->plugins->plugin/comment` | Sort by comment count |
 | Ref | `plugins->_plugin/cache->contentLength:num` | Sort by cached content length (numeric) |
+| Ref | `plugins->plugin/user/vote:top` | Sort by total vote count (up + down) |
+| Ref | `plugins->plugin/user/vote:score` | Sort by vote score (up - down) |
+| Ref | `plugins->plugin/user/vote:decay` | Sort by time-decaying vote score |
 | Ext | `origin:len` | Sort by origin nesting level |
 | Ext | `tag:len` | Sort by tag levels (0 for empty, 1 for plugin, 2 for plugin/sub, etc.) |
 | Ext | `config->value` | Sort by config value (string) |
@@ -383,6 +386,8 @@ GET /api/v1/ref/page?query=_plugin/cache&sort=plugins->_plugin/cache->contentLen
 GET /api/v1/ref/page?sort=tags:len,DESC
 GET /api/v1/ref/page?sort=origin:len,ASC
 GET /api/v1/ref/page?sort=metadata->responses:len,DESC
+GET /api/v1/ref/page?sort=plugins->plugin/user/vote:score,DESC
+GET /api/v1/ref/page?sort=plugins->plugin/user/vote:decay,DESC
 GET /api/v1/ext/page?sort=config->priority:num,ASC
 GET /api/v1/ext/page?sort=tag:len,ASC
 GET /api/v1/user/page?sort=external->score:num,DESC
@@ -394,6 +399,7 @@ GET /api/v1/user/page?sort=external->score:num,DESC
 - Multiple sort fields can be combined with commas
 - `origin:len` returns 0 for empty origin, 1 for `@origin`, 2 for `@origin.sub`, etc.
 - `tag:len` returns 0 for empty tag, 1 for `plugin`, 2 for `plugin/sub`, etc.
+- Vote sorting: `:top` = up+down, `:score` = up-down, `:decay` = time-decaying score
 
 ### Validation Layer
 The validation layer of the Jasper model includes all entity fields. Plugins and Templates are validated

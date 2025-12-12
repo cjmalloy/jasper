@@ -509,7 +509,20 @@ public class RefSpec {
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("metadata->") || property.startsWith("plugins->");
 				boolean isLengthSort = property.endsWith(":len");
-				if (isJsonbField) {
+				boolean isVoteSort = property.startsWith("plugins->plugin/user/vote:");
+				if (isVoteSort) {
+					// Handle vote sorting patterns
+					var voteType = property.substring("plugins->plugin/user/vote:".length());
+					if ("top".equals(voteType)) {
+						expr = cb.function("vote_top", Integer.class, root.get(Ref_.metadata));
+					} else if ("score".equals(voteType)) {
+						expr = cb.function("vote_score", Integer.class, root.get(Ref_.metadata));
+					} else if ("decay".equals(voteType)) {
+						expr = cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published));
+					} else {
+						expr = null;
+					}
+				} else if (isJsonbField) {
 					expr = createJsonbSortExpression(root, cb, property);
 					// Filter out records where the JSONB path returns null
 					if (expr != null) {
