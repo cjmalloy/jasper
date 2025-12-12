@@ -8,7 +8,6 @@ import jasper.repository.ExtRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.ExtSpec;
-import jasper.repository.spec.JsonSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

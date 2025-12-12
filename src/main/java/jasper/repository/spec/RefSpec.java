@@ -10,7 +10,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
@@ -117,40 +116,6 @@ public class RefSpec {
 					root.get(Ref_.metadata),
 					cb.literal("internalResponses")),
 				cb.literal(url)));
-	}
-
-	public static Specification<Ref> hasNoTags() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.tags)),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class, root.get(Ref_.tags)),
-					cb.literal(0)));
-	}
-
-	public static Specification<Ref> hasNoSources() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.sources)),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class, root.get(Ref_.sources)),
-					cb.literal(0)));
-	}
-
-	public static Specification<Ref> hasNoResponses() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("responses"))),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", Object.class,
-							root.get(Ref_.metadata),
-							cb.literal("responses"))),
-					cb.literal(0)));
 	}
 
 	public static Specification<Ref> hasNoPluginResponses(String plugin) {
@@ -504,7 +469,7 @@ public class RefSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				if (property == null) continue;
-				
+
 				Expression<?> expr;
 				boolean isJsonbField = property.startsWith("metadata->") || property.startsWith("plugins->");
 				boolean isLengthSort = property.endsWith(":len");
@@ -557,7 +522,7 @@ public class RefSpec {
 		if (parts.length < 2) {
 			return null;
 		}
-		
+
 		// Check if numeric or length sorting is requested
 		var lastPart = parts[parts.length - 1];
 		var numericSort = lastPart.endsWith(":num");
@@ -567,7 +532,7 @@ public class RefSpec {
 		} else if (lengthSort) {
 			parts[parts.length - 1] = lastPart.substring(0, lastPart.length() - 4);
 		}
-		
+
 		// Handle "metadata->plugins->{pluginTag}" pattern - sorting by response count
 		if (parts.length >= 3 && "metadata".equals(parts[0]) && "plugins".equals(parts[1])) {
 			var pluginTag = parts[2];
@@ -579,7 +544,7 @@ public class RefSpec {
 				cb.literal(pluginTag));
 			return cb.coalesce(cb.function("cast_to_int", Integer.class, expr), cb.literal(0));
 		}
-		
+
 		// Handle "plugins->{pluginTag}->{field}" pattern - sorting by plugin field value
 		if (parts.length >= 3 && "plugins".equals(parts[0])) {
 			var pluginTag = parts[1];
@@ -608,7 +573,7 @@ public class RefSpec {
 				return cb.coalesce(expr, cb.literal(""));
 			}
 		}
-		
+
 		// Handle generic JSONB path (metadata->field->subfield)
 		if ("metadata".equals(parts[0])) {
 			Expression<?> expr = root.get(Ref_.metadata);
@@ -633,7 +598,7 @@ public class RefSpec {
 				return cb.coalesce(expr, cb.literal(""));
 			}
 		}
-		
+
 		return null;
 	}
 }

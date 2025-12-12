@@ -14,7 +14,6 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
-import jasper.repository.spec.JsonSpec;
 import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -1720,18 +1719,6 @@ public class RefServiceIT {
 		// Verify descending numeric order (200 before 100)
 		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
-	}
-
-	@Test
-	void testIsJsonbSortProperty_AllPatterns() {
-		// Test all supported JSONB field patterns
-		assertThat(JsonSpec.isJsonbSortProperty("metadata->plugins->plugin/comment")).isTrue();
-		assertThat(JsonSpec.isJsonbSortProperty("plugins->_plugin/cache->contentLength")).isTrue();
-		assertThat(JsonSpec.isJsonbSortProperty("external->ids[0]")).isTrue();
-		assertThat(JsonSpec.isJsonbSortProperty("config->value")).isTrue();
-		assertThat(JsonSpec.isJsonbSortProperty("modified")).isFalse();
-		assertThat(JsonSpec.isJsonbSortProperty("title")).isFalse();
-		assertThat(JsonSpec.isJsonbSortProperty(null)).isFalse();
 	}
 
 }

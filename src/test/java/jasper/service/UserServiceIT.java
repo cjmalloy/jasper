@@ -7,7 +7,6 @@ import jasper.domain.User_;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
-import jasper.repository.spec.JsonSpec;
 import jasper.repository.spec.UserSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
