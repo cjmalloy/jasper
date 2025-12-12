@@ -95,7 +95,11 @@ public class UserSpec {
 			var matcher = ARRAY_INDEX_PATTERN.matcher(field);
 			if (matcher.find()) {
 				var fieldName = field.substring(0, matcher.start());
-				var index = Integer.parseInt(matcher.group(1));
+				var indexStr = matcher.group(1);
+				if (indexStr == null || !indexStr.matches("\\d+")) {
+					throw new IllegalArgumentException("Invalid array index in field: '" + field + "'");
+				}
+				var index = Integer.parseInt(indexStr);
 				if (!fieldName.isEmpty()) {
 					expr = cb.function("jsonb_object_field", Object.class,
 						expr,

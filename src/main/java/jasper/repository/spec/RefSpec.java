@@ -364,6 +364,9 @@ public class RefSpec {
 	public static Specification<Ref> orderByPluginCount(String pluginTag, boolean ascending) {
 		if (pluginTag == null || pluginTag.isBlank()) return unrestricted();
 		return (root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
+			}
 			var expr = cb.coalesce(
 				cb.function("cast_to_int", Integer.class,
 					cb.function("jsonb_object_field_text", String.class,
@@ -393,6 +396,9 @@ public class RefSpec {
 	public static Specification<Ref> orderByJsonbPath(List<String> jsonbPath, boolean ascending) {
 		if (jsonbPath == null || jsonbPath.isEmpty()) return unrestricted();
 		return (root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
+			}
 			// Check if numeric sorting is requested
 			var lastField = jsonbPath.get(jsonbPath.size() - 1);
 			var numericSort = lastField.endsWith(":num");
@@ -425,9 +431,9 @@ public class RefSpec {
 
 	/**
 	 * Creates a specification that adds ordering based on a field within a plugin's data.
-	 * The path format is "plugins.{pluginTag}.{field}" where field can be nested.
-	 * Append ":num" to the last field for numeric sorting (e.g., "plugins._plugin/cache.contentLength:num").
-	 * Example: "plugins._plugin/cache.contentLength" sorts by the contentLength field.
+	 * The path format is "plugins->{pluginTag}->{field}" where field can be nested.
+	 * Append ":num" to the last field for numeric sorting (e.g., "plugins->_plugin/cache->contentLength:num").
+	 * Example: "plugins->_plugin/cache->contentLength" sorts by the contentLength field.
 	 *
 	 * @param pluginTag the plugin tag (e.g., "_plugin/cache")
 	 * @param fieldPath the path to the field within the plugin data
@@ -437,6 +443,9 @@ public class RefSpec {
 	public static Specification<Ref> orderByPluginField(String pluginTag, List<String> fieldPath, boolean ascending) {
 		if (pluginTag == null || pluginTag.isBlank() || fieldPath == null || fieldPath.isEmpty()) return unrestricted();
 		return (root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
+			}
 			// Check if numeric sorting is requested
 			var lastField = fieldPath.get(fieldPath.size() - 1);
 			var numericSort = lastField.endsWith(":num");
