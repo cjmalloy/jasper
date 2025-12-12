@@ -92,7 +92,7 @@ public class TagSpec {
 	public static <T extends Tag> Specification<T> isLevel(int level) {
 		return (root, query, cb) ->
 			cb.equal(
-				root.get("levels"),
+				cb.function("tag_levels", Integer.class, root.get("tag")),
 				level);
 	}
 

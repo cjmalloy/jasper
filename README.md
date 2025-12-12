@@ -115,6 +115,28 @@ but would not match `['science', 'math']`
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
+#### JSONB Field Sorting
+Jasper supports dynamic sorting on JSONB fields using arrow notation (`->`). This allows sorting by
+any field within the `plugins`, `metadata`, `config`, or `external` JSONB columns without requiring
+database schema changes.
+
+**Sort Syntax:**
+- Use `->` as the path separator to navigate JSONB fields
+- Append `:num` suffix for numeric sorting (otherwise values sort as strings)
+- Append `:len` suffix to sort by array length, origin nesting level, or tag levels
+- Use `[index]` notation for array element access (e.g., `external->ids[0]`)
+
+**Metadata Field Restrictions:**
+For security and consistency, only these metadata fields can be accessed for sorting:
+- `metadata->modified` - auto-applies `:num` suffix (timestamp)
+- `metadata->expandedTags` - auto-applies `:len` suffix (array)
+- `metadata->responses` - auto-applies `:len` suffix (array)
+- `metadata->internalResponses` - auto-applies `:len` suffix (array)
+- `metadata->plugins->*` - access to plugin data under metadata (e.g., `metadata->plugins->plugin/comment`)
+
+The `:num` and `:len` suffixes are automatically applied to known metadata fields, so you can use
+`metadata->responses` instead of `metadata->responses:len`.
+
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  

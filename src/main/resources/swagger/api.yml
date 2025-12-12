@@ -213,21 +213,6 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: untagged
-          in: query
-          required: false
-          schema:
-            type: boolean
-        - name: uncited
-          in: query
-          required: false
-          schema:
-            type: boolean
-        - name: unsourced
-          in: query
-          required: false
-          schema:
-            type: boolean
         - name: modifiedBefore
           in: query
           required: false
