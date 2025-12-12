@@ -1016,5 +1016,18 @@ public class UserServiceIT {
 
 		// Should have at least our 2 test users
 		assertThat(result.getContent().size()).isGreaterThanOrEqualTo(2);
+
+		// Find our test users in the results and verify sorting order
+		var len1Index = -1;
+		var len2Index = -1;
+		for (int i = 0; i < result.getContent().size(); i++) {
+			var tag = result.getContent().get(i).getTag();
+			if ("+user/len1".equals(tag)) len1Index = i;
+			if ("+user/len2".equals(tag)) len2Index = i;
+		}
+		// Verify both users were found and user2 (1 element) comes before user1 (3 elements)
+		assertThat(len1Index).isGreaterThan(-1);
+		assertThat(len2Index).isGreaterThan(-1);
+		assertThat(len2Index).isLessThan(len1Index);
 	}
 }
