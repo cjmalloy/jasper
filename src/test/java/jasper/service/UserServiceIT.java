@@ -936,30 +936,64 @@ public class UserServiceIT {
 
 	@Test
 	void testApplySortingSpec_WithNoSort() {
+		// Create test User entities
+		var user1 = new User();
+		user1.setTag("+user/test1");
+		user1.setName("Test1");
+		userRepository.save(user1);
+		var user2 = new User();
+		user2.setTag("+user/test2");
+		user2.setName("Test2");
+		userRepository.save(user2);
+
 		var spec = UserSpec.applySortingSpec(
 			TagFilter.builder().build().spec(),
 			PageRequest.of(0, 10));
 
-		assertThat(spec).isNotNull();
+		// Execute query to verify no exceptions
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
 	}
 
 	@Test
 	void testApplySortingSpec_WithExternalSort() {
+		// Create User entities with external->ids arrays
+		var user1 = new User();
+		user1.setTag("+user/test1");
+		user1.setName("Test1");
+		user1.setExternal(jasper.domain.External.builder().ids(List.of("alpha", "other")).build());
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("+user/test2");
+		user2.setName("Test2");
+		user2.setExternal(jasper.domain.External.builder().ids(List.of("beta", "other")).build());
+		userRepository.save(user2);
+
 		var pageable = PageRequest.of(0, 10, by("external->ids[0]"));
 		var spec = UserSpec.applySortingSpec(
 			TagFilter.builder().build().spec(),
 			pageable);
 
-		assertThat(spec).isNotNull();
+		// Execute query to verify array index sorting works
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify ascending order by first element (alpha before beta)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
 	}
 
 	@Test
 	void testApplySortingSpec_WithNumericSort() {
+		// Note: External class only has ids field, so we test with a custom JSON pattern
+		// For numeric sorting, we would need a field like external->count:num
+		// Since External doesn't have count, we verify the spec builds correctly
 		var pageable = PageRequest.of(0, 10, by("external->count:num"));
 		var spec = UserSpec.applySortingSpec(
 			TagFilter.builder().build().spec(),
 			pageable);
 
+		// Spec should be built, but results will be empty since field doesn't exist
 		assertThat(spec).isNotNull();
 	}
 }
