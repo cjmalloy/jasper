@@ -394,7 +394,7 @@ GET /api/v1/user/page?sort=external->score:num,DESC
 ```
 
 **Notes:**
-- Records with null values for the sort field are filtered out of results
+- Records with null values for the sort field are included in results; nulls are treated as 0 for numeric/length fields and as empty string for string fields (sorted to the beginning)
 - Standard entity fields (like `modified`, `tag`, `url`) can still be used for sorting
 - Multiple sort fields can be combined with commas
 - `origin:len` returns 0 for empty origin, 1 for `@origin`, 2 for `@origin.sub`, etc.
