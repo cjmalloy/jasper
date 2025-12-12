@@ -56,10 +56,12 @@ public class UserSpec {
 						predicates.add(cb.isNotNull(expr));
 					}
 				} else if (isLengthSort) {
-					// Handle origin:len for nesting level
+					// Handle origin:len for nesting level or tag:len for tag levels
 					var fieldName = property.substring(0, property.length() - 4);
 					if ("origin".equals(fieldName)) {
 						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
+					} else if ("tag".equals(fieldName)) {
+						expr = cb.function("tag_levels", Integer.class, root.get(fieldName));
 					} else {
 						expr = root.get(property);
 					}

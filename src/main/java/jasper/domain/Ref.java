@@ -79,10 +79,6 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int nesting;
-
 	@Formula("COALESCE(metadata->>'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
 	@Setter(AccessLevel.NONE)
 	private String metadataModified;
@@ -94,20 +90,6 @@ public class Ref implements HasTags {
 	@Formula("metadata->'obsolete'")
 	@Setter(AccessLevel.NONE)
 	private Boolean obsolete;
-
-	@Formula("COALESCE(jsonb_array_length(tags), 0)")
-	@Setter(AccessLevel.NONE)
-	private String tagCount;
-
-	@Formula("COALESCE(jsonb_array_length(sources), 0)")
-	@Setter(AccessLevel.NONE)
-	private String sourceCount;
-
-	@Formula("COALESCE(jsonb_array_length(metadata->'responses'), 0)")
-	@Setter(AccessLevel.NONE)
-	private String responseCount;
-
-
 
 	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
 	private String voteCount;
