@@ -5,7 +5,6 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -426,7 +425,7 @@ public class RefSpec {
 		for (Sort.Order order : pageable.getSort()) {
 			var property = order.getProperty();
 			var ascending = order.isAscending();
-			if (isJsonbSortProperty(property)) {
+			if (TagSpec.isJsonbSortProperty(property)) {
 				var jsonbSpec = createJsonbSortSpec(property, ascending);
 				if (jsonbSpec != null) {
 					result = result.and(jsonbSpec);
@@ -434,41 +433,6 @@ public class RefSpec {
 			}
 		}
 		return result;
-	}
-
-	/**
-	 * Creates a PageRequest with JSONB sort columns removed from the sort orders.
-	 * Non-JSONB sort columns are preserved. This should be used in conjunction with
-	 * applySortingSpec() which handles the JSONB sorting via Specifications.
-	 *
-	 * @param pageable the original page request
-	 * @return a new PageRequest with JSONB sort columns removed
-	 */
-	public static PageRequest clearJsonbSort(Pageable pageable) {
-		if (pageable == null) {
-			return PageRequest.of(0, 20);
-		}
-		if (pageable.getSort().isUnsorted()) {
-			return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-		}
-		var validOrders = pageable.getSort().stream()
-			.filter(order -> !isJsonbSortProperty(order.getProperty()))
-			.toList();
-		if (validOrders.isEmpty()) {
-			return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-		}
-		return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(validOrders));
-	}
-
-	/**
-	 * Checks if a sort property targets a JSONB field.
-	 * JSONB properties follow the pattern "metadata.plugins.{tag}" or "metadata.{field}".
-	 *
-	 * @param property the sort property name
-	 * @return true if this is a JSONB sort property
-	 */
-	private static boolean isJsonbSortProperty(String property) {
-		return property != null && property.startsWith("metadata.");
 	}
 
 	/**

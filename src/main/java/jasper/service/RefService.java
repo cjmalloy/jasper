@@ -36,8 +36,10 @@ import java.util.LinkedHashSet;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.applySortingSpec;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
+import static jasper.repository.spec.TagSpec.clearJsonbSort;
 import static org.springframework.data.domain.PageRequest.ofSize;
 
 @Service
@@ -107,11 +109,12 @@ public class RefService {
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
+		var spec = applySortingSpec(
+			auth.refReadSpec()
+				.and(filter.spec(auth.getUserTag())),
+			pageable);
 		return refRepository
-			.findAll(
-				auth.refReadSpec()
-					.and(filter.spec(auth.getUserTag())),
-				pageable)
+			.findAll(spec, clearJsonbSort(pageable))
 			.map(mapper::domainToDto);
 	}
 

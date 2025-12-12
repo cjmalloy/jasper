@@ -35,6 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.TagSpec.clearJsonbSort;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -118,7 +119,7 @@ public class UserService {
 			.findAll(
 				auth.<User>tagReadSpec()
 					.and(filter.spec()),
-				pageable)
+				clearJsonbSort(pageable))
 			.map(mapper::domainToDto)
 			.map(auth::filterUser);
 	}
