@@ -29,7 +29,7 @@ public class UserSpec {
 	 *
 	 * @param spec the base specification to add sorting to
 	 * @param pageable the page request containing sort orders
-	 * @return a new Specification with sorting applied for JSONB fields
+	 * @return a new Specification with sorting applied for all fields
 	 */
 	public static Specification<User> applySortingSpec(Specification<User> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
@@ -44,9 +44,25 @@ public class UserSpec {
 				if (jsonbSpec != null) {
 					result = result.and(jsonbSpec);
 				}
+			} else if (property != null) {
+				// Handle regular entity field sorting
+				result = result.and(orderByField(property, ascending));
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Creates a Specification that orders by a regular entity field.
+	 */
+	private static Specification<User> orderByField(String fieldName, boolean ascending) {
+		return (root, query, cb) -> {
+			if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+				var path = root.get(fieldName);
+				query.orderBy(ascending ? cb.asc(path) : cb.desc(path));
+			}
+			return null;
+		};
 	}
 
 	/**
