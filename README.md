@@ -379,6 +379,16 @@ database schema changes.
 | User | `external->ids[0]` | Sort by first ID in external array |
 | User | `external->score:num` | Sort by external score (numeric) |
 | User | `external->tags:len` | Sort by number of external tags |
+| Plugin | `origin:len` | Sort by origin nesting depth (0 for root) |
+| Plugin | `tag:len` | Sort by tag nesting depth |
+| Plugin | `config->field` | Sort by config field (text) |
+| Plugin | `defaults->field` | Sort by defaults field (text) |
+| Plugin | `schema->field` | Sort by schema field (text) |
+| Template | `origin:len` | Sort by origin nesting depth (0 for root) |
+| Template | `tag:len` | Sort by tag nesting depth |
+| Template | `config->field` | Sort by config field (text) |
+| Template | `defaults->field` | Sort by defaults field (text) |
+| Template | `schema->field` | Sort by schema field (text) |
 
 **API Usage:**
 ```
@@ -391,6 +401,11 @@ GET /api/v1/ref/page?sort=plugins->plugin/user/vote:decay,DESC
 GET /api/v1/ext/page?sort=config->priority:num,ASC
 GET /api/v1/ext/page?sort=tag:len,ASC
 GET /api/v1/user/page?sort=external->score:num,DESC
+GET /api/v1/plugin/page?sort=origin:len,ASC
+GET /api/v1/plugin/page?sort=tag:len,DESC
+GET /api/v1/plugin/page?sort=config->enabled,ASC
+GET /api/v1/template/page?sort=tag:len,ASC
+GET /api/v1/template/page?sort=defaults->priority:num,DESC
 ```
 
 **Notes:**

@@ -12,6 +12,7 @@ import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
+import jasper.repository.spec.PluginSpec;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -84,9 +86,11 @@ public class PluginService {
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
-				auth.<Plugin>tagReadSpec()
-					.and(filter.spec()),
-				pageable)
+				PluginSpec.applySortingSpec(
+					auth.<Plugin>tagReadSpec()
+						.and(filter.spec()),
+					pageable),
+				PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 
