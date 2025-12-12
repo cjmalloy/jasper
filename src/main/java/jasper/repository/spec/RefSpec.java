@@ -348,4 +348,58 @@ public class RefSpec {
 					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
 	}
+
+	/**
+	 * Creates a specification that adds ordering for a JSONB metadata plugins field.
+	 * The path format is "metadata.plugins.{pluginTag}" where pluginTag is the plugin identifier.
+	 * Example: "metadata.plugins.plugin/comment" sorts by the comment count.
+	 *
+	 * @param pluginTag the plugin tag to sort by (e.g., "plugin/comment")
+	 * @param ascending true for ascending order, false for descending
+	 * @return a specification that applies the ordering
+	 */
+	public static Specification<Ref> orderByPluginCount(String pluginTag, boolean ascending) {
+		return (root, query, cb) -> {
+			var expr = cb.coalesce(
+				cb.function("cast_to_int", Integer.class,
+					cb.function("jsonb_object_field_text", String.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("plugins")),
+						cb.literal(pluginTag))),
+				cb.literal(0));
+			if (ascending) {
+				query.orderBy(cb.asc(expr));
+			} else {
+				query.orderBy(cb.desc(expr));
+			}
+			return null; // No predicate filter, just ordering
+		};
+	}
+
+	/**
+	 * Creates a specification that adds ordering based on a jsonb path expression.
+	 * Supports arbitrary JSONB field access for sorting.
+	 *
+	 * @param jsonbPath the JSONB path to sort by (e.g., ["metadata", "plugins", "plugin/comment"])
+	 * @param ascending true for ascending order, false for descending
+	 * @return a specification that applies the ordering
+	 */
+	public static Specification<Ref> orderByJsonbPath(List<String> jsonbPath, boolean ascending) {
+		if (jsonbPath == null || jsonbPath.isEmpty()) return unrestricted();
+		return (root, query, cb) -> {
+			Expression<?> expr = root.get(jsonbPath.get(0));
+			for (int i = 1; i < jsonbPath.size(); i++) {
+				expr = cb.function("jsonb_object_field_text", String.class,
+					expr,
+					cb.literal(jsonbPath.get(i)));
+			}
+			if (ascending) {
+				query.orderBy(cb.asc(expr));
+			} else {
+				query.orderBy(cb.desc(expr));
+			}
+			return null; // No predicate filter, just ordering
+		};
+	}
 }

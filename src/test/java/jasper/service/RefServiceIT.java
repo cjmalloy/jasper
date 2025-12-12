@@ -1634,4 +1634,67 @@ public class RefServiceIT {
 			.isFalse();
 	}
 
+	@Test
+	void testApplySortingSpec_WithNoSort() {
+		var spec = refService.applySortingSpec(
+			RefFilter.builder().build().spec(),
+			PageRequest.of(0, 10));
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testApplySortingSpec_WithJsonbSort() {
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
+		var spec = refService.applySortingSpec(
+			RefFilter.builder().build().spec(),
+			pageable);
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testClearJsonbSort_WithNullPageable() {
+		var result = refService.clearJsonbSort(null);
+
+		assertThat(result.getPageNumber()).isEqualTo(0);
+		assertThat(result.getPageSize()).isEqualTo(20);
+		assertThat(result.getSort().isUnsorted()).isTrue();
+	}
+
+	@Test
+	void testClearJsonbSort_WithNoSort() {
+		var result = refService.clearJsonbSort(PageRequest.of(0, 10));
+
+		assertThat(result.getPageNumber()).isEqualTo(0);
+		assertThat(result.getPageSize()).isEqualTo(10);
+		assertThat(result.getSort().isUnsorted()).isTrue();
+	}
+
+	@Test
+	void testClearJsonbSort_WithJsonbSort() {
+		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
+		var result = refService.clearJsonbSort(pageable);
+
+		assertThat(result.getPageNumber()).isEqualTo(1);
+		assertThat(result.getPageSize()).isEqualTo(15);
+		assertThat(result.getSort().isUnsorted()).isTrue();
+	}
+
+	@Test
+	void testClearJsonbSort_WithMixedSort() {
+		var pageable = PageRequest.of(2, 20, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("modified"),
+			org.springframework.data.domain.Sort.Order.asc("metadata.plugins.plugin/comment")));
+		var result = refService.clearJsonbSort(pageable);
+
+		assertThat(result.getPageNumber()).isEqualTo(2);
+		assertThat(result.getPageSize()).isEqualTo(20);
+		assertThat(result.getSort().isSorted()).isTrue();
+		assertThat(result.getSort().getOrderFor("modified")).isNotNull();
+		assertThat(result.getSort().getOrderFor("metadata.plugins.plugin/comment")).isNull();
+	}
+
 }

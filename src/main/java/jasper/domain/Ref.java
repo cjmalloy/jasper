@@ -107,9 +107,7 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String responseCount;
 
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/comment')::int, 0)")
-	@Setter(AccessLevel.NONE)
-	private String commentCount;
+
 
 	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
 	private String voteCount;
