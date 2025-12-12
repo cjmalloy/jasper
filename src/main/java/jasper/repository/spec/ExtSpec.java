@@ -1,14 +1,18 @@
 package jasper.repository.spec;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Root;
 import jasper.domain.Ext;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.List;
+
+import static jasper.repository.spec.SortSpec.*;
+
 public class ExtSpec {
+
+	private static final List<String> JSONB_PREFIXES = List.of("config");
 
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
@@ -23,7 +27,6 @@ public class ExtSpec {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
-		// Collect all sort orders to apply in a single specification
 		var orders = pageable.getSort().toList();
 		return spec.and((root, query, cb) -> {
 			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
@@ -36,20 +39,12 @@ public class ExtSpec {
 				if (property == null) continue;
 
 				Expression<?> expr;
-				boolean isJsonbField = property.startsWith("config->");
-				boolean isLengthSort = property.endsWith(":len");
-				if (isJsonbField) {
-					expr = createJsonbSortExpression(root, cb, property);
-				} else if (isLengthSort) {
-					// Handle origin:len for nesting level or tag:len for tag levels
-					var fieldName = property.substring(0, property.length() - 4);
-					if ("origin".equals(fieldName)) {
-						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
-					} else if ("tag".equals(fieldName)) {
-						expr = cb.function("tag_levels", Integer.class, root.get(fieldName));
-					} else {
-						expr = root.get(property);
-					}
+				if (isJsonbSortProperty(property, "config")) {
+					expr = createJsonbSortExpression(root, cb, property, JSONB_PREFIXES);
+				} else if (property.equals("origin:len")) {
+					expr = createOriginNestingExpression(root, cb);
+				} else if (property.equals("tag:len")) {
+					expr = createTagLevelsExpression(root, cb);
 				} else {
 					expr = root.get(property);
 				}
@@ -62,51 +57,5 @@ public class ExtSpec {
 			}
 			return null;
 		});
-	}
-
-	/**
-	 * Creates a JSONB sort expression for the given property path.
-	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
-	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
-	 */
-	private static Expression<?> createJsonbSortExpression(Root<Ext> root, CriteriaBuilder cb, String property) {
-		var parts = property.split("->");
-		if (parts.length < 2 || !"config".equals(parts[0])) {
-			return null;
-		}
-
-		// Check if numeric or length sorting is requested
-		var lastField = parts[parts.length - 1];
-		var numericSort = lastField.endsWith(":num");
-		var lengthSort = lastField.endsWith(":len");
-		if (numericSort) {
-			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
-			lastField = parts[parts.length - 1];
-		} else if (lengthSort) {
-			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
-			lastField = parts[parts.length - 1];
-		}
-
-		Expression<?> expr = root.get("config");
-		for (int i = 1; i < parts.length - 1; i++) {
-			expr = cb.function("jsonb_object_field", Object.class,
-				expr,
-				cb.literal(parts[i]));
-		}
-		// Get the final field - as JSONB for length, as text otherwise
-		if (lengthSort) {
-			expr = cb.function("jsonb_object_field", Object.class,
-				expr,
-				cb.literal(lastField));
-			return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
-		} else {
-			expr = cb.function("jsonb_object_field_text", String.class,
-				expr,
-				cb.literal(lastField));
-			if (numericSort) {
-				return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
-			}
-			return cb.coalesce(expr, cb.literal(""));
-		}
 	}
 }
