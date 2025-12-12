@@ -42,16 +42,16 @@ public class ExtSpec {
 	/**
 	 * Creates a Specification that applies ordering for a JSONB sort property.
 	 *
-	 * @param property the JSONB property path (e.g., "config.value")
+	 * @param property the JSONB property path (e.g., "config->value" or "config->count:num")
 	 * @param ascending true for ascending order, false for descending
 	 * @return a Specification that applies the ordering, or null if invalid
 	 */
 	private static Specification<Ext> createJsonbSortSpec(String property, boolean ascending) {
-		var parts = property.split("\\.");
+		var parts = property.split("->");
 		if (parts.length < 2) {
 			return null;
 		}
-		// Handle "config.{field}" pattern
+		// Handle "config->{field}" pattern
 		if ("config".equals(parts[0])) {
 			var fieldPath = Arrays.copyOfRange(parts, 1, parts.length);
 			return orderByConfigField(List.of(fieldPath), ascending);
@@ -61,6 +61,7 @@ public class ExtSpec {
 
 	/**
 	 * Creates a specification that adds ordering based on a field within Ext's config data.
+	 * Append ":num" to the last field for numeric sorting (e.g., "count:num").
 	 *
 	 * @param fieldPath the path to the field within the config data
 	 * @param ascending true for ascending order, false for descending
@@ -69,6 +70,12 @@ public class ExtSpec {
 	public static Specification<Ext> orderByConfigField(List<String> fieldPath, boolean ascending) {
 		if (fieldPath == null || fieldPath.isEmpty()) return unrestricted();
 		return (root, query, cb) -> {
+			// Check if numeric sorting is requested
+			var lastField = fieldPath.get(fieldPath.size() - 1);
+			var numericSort = lastField.endsWith(":num");
+			if (numericSort) {
+				lastField = lastField.substring(0, lastField.length() - 4);
+			}
 			Expression<?> expr = root.get("config");
 			for (int i = 0; i < fieldPath.size() - 1; i++) {
 				expr = cb.function("jsonb_object_field", Object.class,
@@ -78,7 +85,11 @@ public class ExtSpec {
 			// Get the final field as text
 			expr = cb.function("jsonb_object_field_text", String.class,
 				expr,
-				cb.literal(fieldPath.get(fieldPath.size() - 1)));
+				cb.literal(lastField));
+			// Cast to numeric if requested
+			if (numericSort) {
+				expr = cb.function("cast_to_numeric", Double.class, expr);
+			}
 			if (ascending) {
 				query.orderBy(cb.asc(expr));
 			} else {

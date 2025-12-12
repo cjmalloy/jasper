@@ -7,6 +7,8 @@ import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
+import jasper.repository.spec.ExtSpec;
+import jasper.repository.spec.TagSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -605,6 +607,48 @@ public class ExtServiceIT {
 			.isEqualTo("_secret");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
+	}
+
+	@Test
+	void testApplySortingSpec_WithNoSort() {
+		var spec = ExtSpec.applySortingSpec(
+			TagFilter.builder().build().spec(),
+			PageRequest.of(0, 10));
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testApplySortingSpec_WithConfigSort() {
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("config->value")));
+		var spec = ExtSpec.applySortingSpec(
+			TagFilter.builder().build().spec(),
+			pageable);
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testApplySortingSpec_WithNumericSort() {
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.asc("config->count:num")));
+		var spec = ExtSpec.applySortingSpec(
+			TagFilter.builder().build().spec(),
+			pageable);
+
+		assertThat(spec).isNotNull();
+	}
+
+	@Test
+	void testClearJsonbSort_WithConfigSort() {
+		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.desc("config->value")));
+		var result = TagSpec.clearJsonbSort(pageable);
+
+		assertThat(result.getPageNumber()).isEqualTo(1);
+		assertThat(result.getPageSize()).isEqualTo(15);
+		assertThat(result.getSort().isUnsorted()).isTrue();
 	}
 
 }

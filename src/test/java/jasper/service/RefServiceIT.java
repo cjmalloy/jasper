@@ -1648,7 +1648,7 @@ public class RefServiceIT {
 	@Test
 	void testApplySortingSpec_WithJsonbSort() {
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
+			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
 		var spec = RefSpec.applySortingSpec(
 			RefFilter.builder().build().spec(),
 			pageable);
@@ -1677,7 +1677,7 @@ public class RefServiceIT {
 	@Test
 	void testClearJsonbSort_WithJsonbSort() {
 		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("metadata.plugins.plugin/comment")));
+			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
 		var result = TagSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(1);
@@ -1689,21 +1689,21 @@ public class RefServiceIT {
 	void testClearJsonbSort_WithMixedSort() {
 		var pageable = PageRequest.of(2, 20, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("modified"),
-			org.springframework.data.domain.Sort.Order.asc("metadata.plugins.plugin/comment")));
+			org.springframework.data.domain.Sort.Order.asc("metadata->plugins->plugin/comment")));
 		var result = TagSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(2);
 		assertThat(result.getPageSize()).isEqualTo(20);
 		assertThat(result.getSort().isSorted()).isTrue();
 		assertThat(result.getSort().getOrderFor("modified")).isNotNull();
-		assertThat(result.getSort().getOrderFor("metadata.plugins.plugin/comment")).isNull();
+		assertThat(result.getSort().getOrderFor("metadata->plugins->plugin/comment")).isNull();
 	}
 
 	@Test
 	void testApplySortingSpec_WithPluginsSort() {
-		// Test sorting by plugins._plugin/cache.contentLength
+		// Test sorting by plugins->_plugin/cache->contentLength
 		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-			org.springframework.data.domain.Sort.Order.desc("plugins._plugin/cache.contentLength")));
+			org.springframework.data.domain.Sort.Order.desc("plugins->_plugin/cache->contentLength")));
 		var spec = RefSpec.applySortingSpec(
 			RefFilter.builder().build().spec(),
 			pageable);
@@ -1714,10 +1714,10 @@ public class RefServiceIT {
 	@Test
 	void testIsJsonbSortProperty_AllPatterns() {
 		// Test all supported JSONB field patterns
-		assertThat(TagSpec.isJsonbSortProperty("metadata.plugins.plugin/comment")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("plugins._plugin/cache.contentLength")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("external.ids[0]")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("config.value")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("metadata->plugins->plugin/comment")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("plugins->_plugin/cache->contentLength")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("external->ids[0]")).isTrue();
+		assertThat(TagSpec.isJsonbSortProperty("config->value")).isTrue();
 		assertThat(TagSpec.isJsonbSortProperty("modified")).isFalse();
 		assertThat(TagSpec.isJsonbSortProperty("title")).isFalse();
 		assertThat(TagSpec.isJsonbSortProperty(null)).isFalse();

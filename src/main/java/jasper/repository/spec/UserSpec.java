@@ -52,16 +52,16 @@ public class UserSpec {
 	/**
 	 * Creates a Specification that applies ordering for a JSONB sort property.
 	 *
-	 * @param property the JSONB property path (e.g., "external.ids[0]")
+	 * @param property the JSONB property path (e.g., "external->ids[0]" or "external->count:num")
 	 * @param ascending true for ascending order, false for descending
 	 * @return a Specification that applies the ordering, or null if invalid
 	 */
 	private static Specification<User> createJsonbSortSpec(String property, boolean ascending) {
-		var parts = property.split("\\.");
+		var parts = property.split("->");
 		if (parts.length < 2) {
 			return null;
 		}
-		// Handle "external.{field}" pattern
+		// Handle "external->{field}" pattern
 		if ("external".equals(parts[0])) {
 			var fieldPath = Arrays.copyOfRange(parts, 1, parts.length);
 			return orderByExternalField(List.of(fieldPath), ascending);
@@ -72,6 +72,7 @@ public class UserSpec {
 	/**
 	 * Creates a specification that adds ordering based on a field within User's external data.
 	 * Supports array access with [index] notation (e.g., "ids[0]").
+	 * Append ":num" to the last field for numeric sorting (e.g., "count:num").
 	 *
 	 * @param fieldPath the path to the field within the external data
 	 * @param ascending true for ascending order, false for descending
@@ -80,8 +81,15 @@ public class UserSpec {
 	public static Specification<User> orderByExternalField(List<String> fieldPath, boolean ascending) {
 		if (fieldPath == null || fieldPath.isEmpty()) return unrestricted();
 		return (root, query, cb) -> {
+			// Check if numeric sorting is requested on the last field
+			var lastField = fieldPath.get(fieldPath.size() - 1);
+			var numericSort = lastField.endsWith(":num");
+			if (numericSort) {
+				lastField = lastField.substring(0, lastField.length() - 4);
+			}
 			Expression<?> expr = root.get(User_.external);
-			for (String field : fieldPath) {
+			for (int i = 0; i < fieldPath.size(); i++) {
+				var field = (i == fieldPath.size() - 1) ? lastField : fieldPath.get(i);
 				// Check for array index notation like "ids[0]"
 				var matcher = ARRAY_INDEX_PATTERN.matcher(field);
 				if (matcher.find()) {
@@ -100,6 +108,10 @@ public class UserSpec {
 						expr,
 						cb.literal(field));
 				}
+			}
+			// Cast to numeric if requested
+			if (numericSort) {
+				expr = cb.function("cast_to_numeric", Double.class, expr);
 			}
 			if (ascending) {
 				query.orderBy(cb.asc(expr));
