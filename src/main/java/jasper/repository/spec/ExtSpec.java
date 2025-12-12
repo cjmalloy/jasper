@@ -13,6 +13,7 @@ public class ExtSpec {
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
+	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
 	 *
 	 * @param spec the base specification to add sorting to
 	 * @param pageable the page request containing sort orders
@@ -29,7 +30,6 @@ public class ExtSpec {
 				return null; // Don't apply ordering to count queries
 			}
 			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
-			var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
@@ -40,10 +40,6 @@ public class ExtSpec {
 				boolean isLengthSort = property.endsWith(":len");
 				if (isJsonbField) {
 					expr = createJsonbSortExpression(root, cb, property);
-					// Filter out records where the JSONB path returns null
-					if (expr != null) {
-						predicates.add(cb.isNotNull(expr));
-					}
 				} else if (isLengthSort) {
 					// Handle origin:len for nesting level or tag:len for tag levels
 					var fieldName = property.substring(0, property.length() - 4);
@@ -64,9 +60,6 @@ public class ExtSpec {
 			if (!jpaOrders.isEmpty()) {
 				query.orderBy(jpaOrders);
 			}
-			if (!predicates.isEmpty()) {
-				return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-			}
 			return null;
 		});
 	}
@@ -74,6 +67,7 @@ public class ExtSpec {
 	/**
 	 * Creates a JSONB sort expression for the given property path.
 	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
+	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
 	 */
 	private static Expression<?> createJsonbSortExpression(Root<Ext> root, CriteriaBuilder cb, String property) {
 		var parts = property.split("->");
@@ -104,15 +98,15 @@ public class ExtSpec {
 			expr = cb.function("jsonb_object_field", Object.class,
 				expr,
 				cb.literal(lastField));
-			expr = cb.function("jsonb_array_length", Integer.class, expr);
+			return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
 		} else {
 			expr = cb.function("jsonb_object_field_text", String.class,
 				expr,
 				cb.literal(lastField));
 			if (numericSort) {
-				expr = cb.function("cast_to_numeric", Double.class, expr);
+				return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
 			}
+			return cb.coalesce(expr, cb.literal(""));
 		}
-		return expr;
 	}
 }

@@ -500,7 +500,6 @@ public class RefSpec {
 				return null; // Don't apply ordering to count queries
 			}
 			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
-			var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
@@ -514,20 +513,16 @@ public class RefSpec {
 					// Handle vote sorting patterns using registered functions
 					var voteType = property.substring("plugins->plugin/user/vote:".length());
 					if ("top".equals(voteType)) {
-						expr = cb.function("vote_top", Integer.class, root.get(Ref_.metadata));
+						expr = cb.coalesce(cb.function("vote_top", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
 					} else if ("score".equals(voteType)) {
-						expr = cb.function("vote_score", Integer.class, root.get(Ref_.metadata));
+						expr = cb.coalesce(cb.function("vote_score", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
 					} else if ("decay".equals(voteType)) {
-						expr = cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published));
+						expr = cb.coalesce(cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published)), cb.literal(0.0));
 					} else {
 						expr = null;
 					}
 				} else if (isJsonbField) {
 					expr = createJsonbSortExpression(root, cb, property);
-					// Filter out records where the JSONB path returns null
-					if (expr != null) {
-						predicates.add(cb.isNotNull(expr));
-					}
 				} else if (isLengthSort) {
 					// Handle direct JSONB array field length sorting (e.g., "tags:len", "sources:len")
 					// or origin nesting level ("origin:len")
@@ -536,8 +531,7 @@ public class RefSpec {
 						// Special case: origin:len calculates nesting level by splitting on '.'
 						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
 					} else {
-						expr = cb.function("jsonb_array_length", Integer.class, root.get(fieldName));
-						predicates.add(cb.isNotNull(root.get(fieldName)));
+						expr = cb.coalesce(cb.function("jsonb_array_length", Integer.class, root.get(fieldName)), cb.literal(0));
 					}
 				} else {
 					expr = root.get(property);
@@ -549,9 +543,6 @@ public class RefSpec {
 			if (!jpaOrders.isEmpty()) {
 				query.orderBy(jpaOrders);
 			}
-			if (!predicates.isEmpty()) {
-				return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-			}
 			return null;
 		});
 	}
@@ -559,6 +550,7 @@ public class RefSpec {
 	/**
 	 * Creates a JSONB sort expression for the given property path.
 	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array/object length sorting.
+	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
 	 */
 	private static Expression<?> createJsonbSortExpression(Root<Ref> root, CriteriaBuilder cb, String property) {
 		var parts = property.split("->");
@@ -585,7 +577,7 @@ public class RefSpec {
 			expr = cb.function("jsonb_object_field_text", String.class,
 				expr,
 				cb.literal(pluginTag));
-			return cb.function("cast_to_int", Integer.class, expr);
+			return cb.coalesce(cb.function("cast_to_int", Integer.class, expr), cb.literal(0));
 		}
 		
 		// Handle "plugins->{pluginTag}->{field}" pattern - sorting by plugin field value
@@ -605,16 +597,16 @@ public class RefSpec {
 				expr = cb.function("jsonb_object_field", Object.class,
 					expr,
 					cb.literal(parts[parts.length - 1]));
-				expr = cb.function("jsonb_array_length", Integer.class, expr);
+				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
 			} else {
 				expr = cb.function("jsonb_object_field_text", String.class,
 					expr,
 					cb.literal(parts[parts.length - 1]));
 				if (numericSort) {
-					expr = cb.function("cast_to_numeric", Double.class, expr);
+					return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
 				}
+				return cb.coalesce(expr, cb.literal(""));
 			}
-			return expr;
 		}
 		
 		// Handle generic JSONB path (metadata->field->subfield)
@@ -630,16 +622,16 @@ public class RefSpec {
 				expr = cb.function("jsonb_object_field", Object.class,
 					expr,
 					cb.literal(parts[parts.length - 1]));
-				expr = cb.function("jsonb_array_length", Integer.class, expr);
+				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
 			} else {
 				expr = cb.function("jsonb_object_field_text", String.class,
 					expr,
 					cb.literal(parts[parts.length - 1]));
 				if (numericSort) {
-					expr = cb.function("cast_to_numeric", Double.class, expr);
+					return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
 				}
+				return cb.coalesce(expr, cb.literal(""));
 			}
-			return expr;
 		}
 		
 		return null;
