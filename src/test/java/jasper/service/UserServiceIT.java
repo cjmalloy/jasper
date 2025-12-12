@@ -985,26 +985,28 @@ public class UserServiceIT {
 
 	@Test
 	void testApplySortingSpec_WithLenSort() {
-		// Create users with numeric values in external field via raw JSON
+		// Create users with different array lengths in external->ids field
 		var user1 = new User();
-		user1.setTag("+user/num1");
+		user1.setTag("+user/len1");
 		user1.setOrigin("");
-		// Use JsonNode to set external with count field
+		// Use JsonNode to set external with ids array
 		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		try {
-			user1.setExternal(mapper.readValue("{\"ids\": [\"10\"]}", External.class));
+			// user1 has 3 ids
+			user1.setExternal(mapper.readValue("{\"ids\": [\"a\", \"b\", \"c\"]}", External.class));
 		} catch (Exception e) { throw new RuntimeException(e); }
 		userRepository.save(user1);
 
 		var user2 = new User();
-		user2.setTag("+user/num2");
+		user2.setTag("+user/len2");
 		user2.setOrigin("");
 		try {
-			user2.setExternal(mapper.readValue("{\"ids\": [\"2\"]}", External.class));
+			// user2 has 1 id
+			user2.setExternal(mapper.readValue("{\"ids\": [\"x\"]}", External.class));
 		} catch (Exception e) { throw new RuntimeException(e); }
 		userRepository.save(user2);
 
-		// Sort by external->count:num ascending (2 should come before 10)
+		// Sort by external->ids:len ascending (1 element should come before 3 elements)
 		var pageable = PageRequest.of(0, 10, by("external->ids:len"));
 		var spec = UserSpec.sort(
 			TagFilter.builder().build().spec(),
