@@ -473,8 +473,8 @@ public class RefSpec {
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
-	 * Sort columns that target JSONB fields use the pattern "metadata.plugins.{pluginTag}"
-	 * or generic JSONB paths like "metadata.field.subfield".
+	 * Sort columns that target JSONB fields use the pattern "metadata->plugins->{pluginTag}"
+	 * or generic JSONB paths like "metadata->field->subfield".
 	 *
 	 * @param spec the base specification to add sorting to
 	 * @param pageable the page request containing sort orders
