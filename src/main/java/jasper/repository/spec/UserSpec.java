@@ -39,7 +39,7 @@ public class UserSpec {
 		for (Sort.Order order : pageable.getSort()) {
 			var property = order.getProperty();
 			var ascending = order.isAscending();
-			if (TagSpec.isJsonbSortProperty(property)) {
+			if (property != null && property.startsWith("external->")) {
 				var jsonbSpec = createJsonbSortSpec(property, ascending);
 				if (jsonbSpec != null) {
 					result = result.and(jsonbSpec);

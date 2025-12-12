@@ -35,7 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.repository.spec.TagSpec.clearJsonbSort;
+import static jasper.repository.spec.JsonSpec.clearJsonbSort;
 import static jasper.repository.spec.UserSpec.applySortingSpec;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;

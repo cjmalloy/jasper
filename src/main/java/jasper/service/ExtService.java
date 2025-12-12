@@ -30,7 +30,7 @@ import java.time.Instant;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.repository.spec.ExtSpec.applySortingSpec;
-import static jasper.repository.spec.TagSpec.clearJsonbSort;
+import static jasper.repository.spec.JsonSpec.clearJsonbSort;
 
 @Service
 public class ExtService {

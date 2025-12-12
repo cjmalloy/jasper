@@ -29,7 +29,7 @@ public class ExtSpec {
 		for (Sort.Order order : pageable.getSort()) {
 			var property = order.getProperty();
 			var ascending = order.isAscending();
-			if (TagSpec.isJsonbSortProperty(property)) {
+			if (property != null && property.startsWith("config->")) {
 				var jsonbSpec = createJsonbSortSpec(property, ascending);
 				if (jsonbSpec != null) {
 					result = result.and(jsonbSpec);

@@ -14,8 +14,8 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.JsonSpec;
 import jasper.repository.spec.RefSpec;
-import jasper.repository.spec.TagSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1658,7 +1658,7 @@ public class RefServiceIT {
 
 	@Test
 	void testClearJsonbSort_WithNullPageable() {
-		var result = TagSpec.clearJsonbSort(null);
+		var result = JsonSpec.clearJsonbSort(null);
 
 		assertThat(result.getPageNumber()).isEqualTo(0);
 		assertThat(result.getPageSize()).isEqualTo(20);
@@ -1667,7 +1667,7 @@ public class RefServiceIT {
 
 	@Test
 	void testClearJsonbSort_WithNoSort() {
-		var result = TagSpec.clearJsonbSort(PageRequest.of(0, 10));
+		var result = JsonSpec.clearJsonbSort(PageRequest.of(0, 10));
 
 		assertThat(result.getPageNumber()).isEqualTo(0);
 		assertThat(result.getPageSize()).isEqualTo(10);
@@ -1678,7 +1678,7 @@ public class RefServiceIT {
 	void testClearJsonbSort_WithJsonbSort() {
 		var pageable = PageRequest.of(1, 15, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("metadata->plugins->plugin/comment")));
-		var result = TagSpec.clearJsonbSort(pageable);
+		var result = JsonSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(1);
 		assertThat(result.getPageSize()).isEqualTo(15);
@@ -1690,7 +1690,7 @@ public class RefServiceIT {
 		var pageable = PageRequest.of(2, 20, org.springframework.data.domain.Sort.by(
 			org.springframework.data.domain.Sort.Order.desc("modified"),
 			org.springframework.data.domain.Sort.Order.asc("metadata->plugins->plugin/comment")));
-		var result = TagSpec.clearJsonbSort(pageable);
+		var result = JsonSpec.clearJsonbSort(pageable);
 
 		assertThat(result.getPageNumber()).isEqualTo(2);
 		assertThat(result.getPageSize()).isEqualTo(20);
@@ -1714,13 +1714,13 @@ public class RefServiceIT {
 	@Test
 	void testIsJsonbSortProperty_AllPatterns() {
 		// Test all supported JSONB field patterns
-		assertThat(TagSpec.isJsonbSortProperty("metadata->plugins->plugin/comment")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("plugins->_plugin/cache->contentLength")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("external->ids[0]")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("config->value")).isTrue();
-		assertThat(TagSpec.isJsonbSortProperty("modified")).isFalse();
-		assertThat(TagSpec.isJsonbSortProperty("title")).isFalse();
-		assertThat(TagSpec.isJsonbSortProperty(null)).isFalse();
+		assertThat(JsonSpec.isJsonbSortProperty("metadata->plugins->plugin/comment")).isTrue();
+		assertThat(JsonSpec.isJsonbSortProperty("plugins->_plugin/cache->contentLength")).isTrue();
+		assertThat(JsonSpec.isJsonbSortProperty("external->ids[0]")).isTrue();
+		assertThat(JsonSpec.isJsonbSortProperty("config->value")).isTrue();
+		assertThat(JsonSpec.isJsonbSortProperty("modified")).isFalse();
+		assertThat(JsonSpec.isJsonbSortProperty("title")).isFalse();
+		assertThat(JsonSpec.isJsonbSortProperty(null)).isFalse();
 	}
 
 }
