@@ -984,15 +984,37 @@ public class UserServiceIT {
 
 	@Test
 	void testApplySortingSpec_WithNumericSort() {
-		// Note: External class only has ids field, so we test with a custom JSON pattern
-		// For numeric sorting, we would need a field like external->count:num
-		// Since External doesn't have count, we verify the spec builds correctly
+		// Create users with numeric values in external field via raw JSON
+		var user1 = new User();
+		user1.setTag("+user/num1");
+		user1.setOrigin("");
+		user1.setReadAccess(new String[]{});
+		user1.setWriteAccess(new String[]{});
+		// Use JsonNode to set external with count field
+		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		try {
+			user1.setExternal(mapper.readValue("{\"count\": 10}", jasper.domain.proj.External.class));
+		} catch (Exception e) { throw new RuntimeException(e); }
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("+user/num2");
+		user2.setOrigin("");
+		user2.setReadAccess(new String[]{});
+		user2.setWriteAccess(new String[]{});
+		try {
+			user2.setExternal(mapper.readValue("{\"count\": 2}", jasper.domain.proj.External.class));
+		} catch (Exception e) { throw new RuntimeException(e); }
+		userRepository.save(user2);
+
+		// Sort by external->count:num ascending (2 should come before 10)
 		var pageable = PageRequest.of(0, 10, by("external->count:num"));
-		var spec = UserSpec.sort(
+		var spec = UserSpec.applySortingSpec(
 			TagFilter.builder().build().spec(),
 			pageable);
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
 
-		// Spec should be built, but results will be empty since field doesn't exist
-		assertThat(spec).isNotNull();
+		// Should have at least our 2 test users
+		assertThat(result.getContent().size()).isGreaterThanOrEqualTo(2);
 	}
 }
