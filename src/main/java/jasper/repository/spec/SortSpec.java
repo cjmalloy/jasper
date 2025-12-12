@@ -36,7 +36,6 @@ public class SortSpec {
 	 * Metadata fields that should automatically use :num suffix (numeric fields).
 	 */
 	private static final Set<String> METADATA_NUM_FIELDS = Set.of(
-		"modified"
 	);
 
 	/**
@@ -60,15 +59,13 @@ public class SortSpec {
 		var parts = property.split("->");
 		if (parts.length < 2) return null;
 		var jsonbFieldName = parts[0];
-		if (stream(prefixes).noneMatch(p -> jsonbFieldName.equals(p))) return null;
+		if (stream(prefixes).noneMatch(jsonbFieldName::equals)) return null;
 
 		// Special handling for metadata prefix
 		if ("metadata".equals(jsonbFieldName)) {
 			var metadataField = parts[1];
 			// Only allow access to specific metadata fields
-			if (!ALLOWED_METADATA_FIELDS.contains(metadataField)) {
-				return null; // Deny access to non-allowed metadata fields
-			}
+			if (!ALLOWED_METADATA_FIELDS.contains(metadataField)) return null;
 			// Auto-apply correct suffix for known metadata fields (only if not already specified)
 			if (!numericSort && !lengthSort) {
 				if (METADATA_LEN_FIELDS.contains(metadataField)) {
