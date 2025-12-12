@@ -4,6 +4,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static java.util.Arrays.stream;
@@ -17,9 +19,34 @@ public class SortSpec {
 	private static final Pattern ARRAY_INDEX_PATTERN = Pattern.compile("\\[(\\d+)]");
 
 	/**
+	 * Allowed metadata fields for sorting.
+	 * Only these fields can be accessed under metadata->.
+	 */
+	private static final Set<String> ALLOWED_METADATA_FIELDS = Set.of(
+		"modified", "expandedTags", "responses", "internalResponses", "plugins"
+	);
+
+	/**
+	 * Metadata fields that should automatically use :len suffix (array fields).
+	 */
+	private static final Set<String> METADATA_LEN_FIELDS = Set.of(
+		"expandedTags", "responses", "internalResponses"
+	);
+
+	/**
+	 * Metadata fields that should automatically use :num suffix (numeric fields).
+	 */
+	private static final Set<String> METADATA_NUM_FIELDS = Set.of(
+		"modified"
+	);
+
+	/**
 	 * Creates a JSONB sort expression for the given property path.
 	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
 	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
+	 *
+	 * For metadata fields, automatically applies the correct suffix and restricts access
+	 * to only allowed fields: modified, expandedTags, responses, internalResponses, plugins.
 	 *
 	 * @param root the query root
 	 * @param cb the criteria builder
@@ -35,6 +62,23 @@ public class SortSpec {
 		if (parts.length < 2) return null;
 		var jsonbFieldName = parts[0];
 		if (stream(prefixes).noneMatch(p -> jsonbFieldName.equals(p))) return null;
+
+		// Special handling for metadata prefix
+		if ("metadata".equals(jsonbFieldName)) {
+			var metadataField = parts[1];
+			// Only allow access to specific metadata fields
+			if (!ALLOWED_METADATA_FIELDS.contains(metadataField) && !metadataField.startsWith("plugins")) {
+				return null; // Deny access to non-allowed metadata fields
+			}
+			// Auto-apply correct suffix for known metadata fields (only if not already specified)
+			if (!numericSort && !lengthSort) {
+				if (METADATA_LEN_FIELDS.contains(metadataField)) {
+					lengthSort = true;
+				} else if (METADATA_NUM_FIELDS.contains(metadataField)) {
+					numericSort = true;
+				}
+			}
+		}
 
 		Expression<?> expr = root.get(jsonbFieldName);
 		for (int i = 1; i < parts.length; i++) {
