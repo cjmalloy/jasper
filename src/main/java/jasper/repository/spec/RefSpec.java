@@ -511,33 +511,13 @@ public class RefSpec {
 				boolean isLengthSort = property.endsWith(":len");
 				boolean isVoteSort = property.startsWith("plugins->plugin/user/vote:");
 				if (isVoteSort) {
-					// Handle vote sorting patterns using inline JPA expressions
+					// Handle vote sorting patterns using registered functions
 					var voteType = property.substring("plugins->plugin/user/vote:".length());
-					// Get up and down vote counts from metadata
-					var upVotes = cb.coalesce(
-						cb.function("cast_to_int", Integer.class,
-							cb.function("jsonb_object_field_text", String.class,
-								cb.function("jsonb_object_field", Object.class,
-									root.get(Ref_.metadata),
-									cb.literal("plugins")),
-								cb.literal("plugin/user/vote/up"))),
-						cb.literal(0));
-					var downVotes = cb.coalesce(
-						cb.function("cast_to_int", Integer.class,
-							cb.function("jsonb_object_field_text", String.class,
-								cb.function("jsonb_object_field", Object.class,
-									root.get(Ref_.metadata),
-									cb.literal("plugins")),
-								cb.literal("plugin/user/vote/down"))),
-						cb.literal(0));
 					if ("top".equals(voteType)) {
-						// top = up + down (total vote count)
-						expr = cb.sum(upVotes, downVotes);
+						expr = cb.function("vote_top", Integer.class, root.get(Ref_.metadata));
 					} else if ("score".equals(voteType)) {
-						// score = up - down
-						expr = cb.diff(upVotes, downVotes);
+						expr = cb.function("vote_score", Integer.class, root.get(Ref_.metadata));
 					} else if ("decay".equals(voteType)) {
-						// decay uses a complex time-based formula - use the registered function
 						expr = cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published));
 					} else {
 						expr = null;
