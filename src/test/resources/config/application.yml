@@ -11,7 +11,7 @@
 # ===================================================================
 logging:
   level:
-    jasper: WARN
+    ROOT: WARN
 #    org.hibernate.SQL: DEBUG
 #    org.hibernate.orm.jdbc.bind: TRACE
 #    org.hibernate.stat: DEBUG
