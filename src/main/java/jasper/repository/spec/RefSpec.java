@@ -491,6 +491,7 @@ public class RefSpec {
 				return null; // Don't apply ordering to count queries
 			}
 			var jpaOrders = new java.util.ArrayList<jakarta.persistence.criteria.Order>();
+			var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
@@ -500,20 +501,22 @@ public class RefSpec {
 				boolean isJsonbField = property.startsWith("metadata->") || property.startsWith("plugins->");
 				if (isJsonbField) {
 					expr = createJsonbSortExpression(root, cb, property);
+					// Filter out records where the JSONB path returns null
+					if (expr != null) {
+						predicates.add(cb.isNotNull(expr));
+					}
 				} else {
 					expr = root.get(property);
 				}
 				if (expr != null) {
-					// Use NULLS LAST for JSONB fields to push missing values to the end
-					if (isJsonbField) {
-						jpaOrders.add(ascending ? cb.asc(expr).nullsLast() : cb.desc(expr).nullsLast());
-					} else {
-						jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
-					}
+					jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
 				}
 			}
 			if (!jpaOrders.isEmpty()) {
 				query.orderBy(jpaOrders);
+			}
+			if (!predicates.isEmpty()) {
+				return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
 			}
 			return null;
 		});
