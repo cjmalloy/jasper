@@ -62,6 +62,7 @@ public class ExtSpec {
 
 	/**
 	 * Creates a JSONB sort expression for the given property path.
+	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
 	 */
 	private static Expression<?> createJsonbSortExpression(Root<Ext> root, CriteriaBuilder cb, String property) {
 		var parts = property.split("->");
@@ -69,10 +70,14 @@ public class ExtSpec {
 			return null;
 		}
 		
-		// Check if numeric sorting is requested
+		// Check if numeric or length sorting is requested
 		var lastField = parts[parts.length - 1];
 		var numericSort = lastField.endsWith(":num");
+		var lengthSort = lastField.endsWith(":len");
 		if (numericSort) {
+			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
+			lastField = parts[parts.length - 1];
+		} else if (lengthSort) {
 			parts[parts.length - 1] = lastField.substring(0, lastField.length() - 4);
 			lastField = parts[parts.length - 1];
 		}
@@ -83,13 +88,19 @@ public class ExtSpec {
 				expr,
 				cb.literal(parts[i]));
 		}
-		// Get the final field as text
-		expr = cb.function("jsonb_object_field_text", String.class,
-			expr,
-			cb.literal(lastField));
-		// Cast to numeric if requested
-		if (numericSort) {
-			expr = cb.function("cast_to_numeric", Double.class, expr);
+		// Get the final field - as JSONB for length, as text otherwise
+		if (lengthSort) {
+			expr = cb.function("jsonb_object_field", Object.class,
+				expr,
+				cb.literal(lastField));
+			expr = cb.function("jsonb_array_length", Integer.class, expr);
+		} else {
+			expr = cb.function("jsonb_object_field_text", String.class,
+				expr,
+				cb.literal(lastField));
+			if (numericSort) {
+				expr = cb.function("cast_to_numeric", Double.class, expr);
+			}
 		}
 		return expr;
 	}
