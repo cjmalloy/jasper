@@ -223,7 +223,7 @@ public class UserRepositoryMergeIT {
 	}
 
 	@Test
-	void testFindAllByQualifiedSuffix_OrderedByTag() {
+	void testFindAllByQualifiedSuffix_DifferentTagPrefixes() {
 		var user1 = new User();
 		user1.setTag("_user/zebra");
 		user1.setOrigin("");
