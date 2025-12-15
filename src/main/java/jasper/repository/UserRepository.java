@@ -67,17 +67,15 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 			AND u.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	@Query(nativeQuery = true, value = """
-		SELECT * FROM users u
+	@Query("""
+		SELECT u FROM User u
 		WHERE u.origin = :origin
-			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
-		ORDER BY u.tag COLLATE "C" """)
+			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)""")
 	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
-	@Query(nativeQuery = true, value = """
-		SELECT * FROM users u
-		WHERE (u.tag || u.origin = '+' || :tag) OR (u.tag || u.origin = '_' || :tag)
-		ORDER BY u.tag COLLATE "C" """)
+	@Query("""
+		SELECT u FROM User u
+		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
 
 	// TODO: Sync cache

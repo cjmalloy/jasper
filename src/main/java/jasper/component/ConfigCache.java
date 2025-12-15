@@ -161,13 +161,17 @@ public class ConfigCache {
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
-		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
+		var users = userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1));
+		users.sort((a, b) -> a.getTag().compareTo(b.getTag()));
+		return merge(users)
 			.orElse(null);
 	}
 
 	@Cacheable("external-user-cache")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
-		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
+		var users = userRepository.findAllByOriginAndExternalId(origin, externalId);
+		users.sort((a, b) -> a.getTag().compareTo(b.getTag()));
+		return merge(users);
 	}
 
 	public User createUser(String tag, String origin, String externalId) {

@@ -217,7 +217,8 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(3);
-		// Should be ordered by tag
+		// Sort in Java to ensure correct order
+		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/alpha", "+user/beta", "+user/zebra");
 	}
@@ -239,7 +240,8 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(2);
-		// Should be ordered by tag: + comes before _ in ASCII
+		// Sort in Java to ensure correct order: + comes before _ in ASCII
+		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/test", "_user/test");
 	}
@@ -308,7 +310,8 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByOriginAndExternalId("", "shared123");
 
 		assertThat(results).hasSize(4);
-		// Should be ordered by tag: + comes before _ in ASCII, then alphabetically
+		// Sort in Java to ensure correct order: + comes before _ in ASCII, then alphabetically
+		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/alice", "+user/dave", "_user/bob", "_user/charlie");
 		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("shared123"));
