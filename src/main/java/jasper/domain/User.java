@@ -185,16 +185,16 @@ public class User implements Tag {
 		result.setAuthorizedKeys(users.getFirst().getAuthorizedKeys());
 		result.setExternal(users.getFirst().getExternal());
 		result.setRole(users.stream().map(User::getRole).max((a, b) -> {
-			if (ADMIN.equals(a)) return -1;
-			if (ADMIN.equals(b)) return 1;
-			if (MOD.equals(a)) return -1;
-			if (MOD.equals(b)) return 1;
-			if (EDITOR.equals(a)) return -1;
-			if (EDITOR.equals(b)) return 1;
-			if (USER.equals(a)) return -1;
-			if (USER.equals(b)) return 1;
-			if (VIEWER.equals(a)) return -1;
-			if (VIEWER.equals(b)) return 1;
+			if (ADMIN.equals(a)) return 1;
+			if (ADMIN.equals(b)) return -1;
+			if (MOD.equals(a)) return 1;
+			if (MOD.equals(b)) return -1;
+			if (EDITOR.equals(a)) return 1;
+			if (EDITOR.equals(b)) return -1;
+			if (USER.equals(a)) return 1;
+			if (USER.equals(b)) return -1;
+			if (VIEWER.equals(a)) return 1;
+			if (VIEWER.equals(b)) return -1;
 			return 0;
 		}).orElse(ANONYMOUS));
 		result.setReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getReadAccess()).stream()).distinct().toList());
