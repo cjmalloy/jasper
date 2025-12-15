@@ -267,13 +267,11 @@ public class ConfigCacheMergeIT {
 		user2.setRole(ADMIN);
 		userRepository.save(user2);
 
-		// They should be retrievable separately
+		// Users with different origins should be retrievable independently
 		var result1 = configCache.getUser("+user/test");
 		var result2 = configCache.getUser("+user/test@other");
 
-		// Note: getUser uses substring(1) so it queries by base tag only,
-		// but the repository should still differentiate by origin
-		// This test verifies behavior when origins differ
+		// Verifies that users with the same tag but different origins are not merged together
 		assertThat(result1).isNotNull();
 	}
 
