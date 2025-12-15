@@ -228,8 +228,8 @@ public class ConfigCacheMergeIT {
 		user1.setOrigin("");
 		user1.setReadAccess(List.of("read1"));
 		user1.setWriteAccess(List.of("write1"));
-		user1.setTagReadAccess(List.of("tagRead1"));
-		user1.setTagWriteAccess(List.of("tagWrite1"));
+		user1.setTagReadAccess(List.of("tagread1"));
+		user1.setTagWriteAccess(List.of("tagwrite1"));
 		userRepository.save(user1);
 
 		var user2 = new User();
@@ -237,8 +237,8 @@ public class ConfigCacheMergeIT {
 		user2.setOrigin("");
 		user2.setReadAccess(List.of("read2"));
 		user2.setWriteAccess(List.of("write2"));
-		user2.setTagReadAccess(List.of("tagRead2"));
-		user2.setTagWriteAccess(List.of("tagWrite2"));
+		user2.setTagReadAccess(List.of("tagread2"));
+		user2.setTagWriteAccess(List.of("tagwrite2"));
 		userRepository.save(user2);
 
 		var result = configCache.getUser("+user/test");
@@ -246,8 +246,8 @@ public class ConfigCacheMergeIT {
 		assertThat(result).isNotNull();
 		assertThat(result.getReadAccess()).containsExactlyInAnyOrder("read1", "read2");
 		assertThat(result.getWriteAccess()).containsExactlyInAnyOrder("write1", "write2");
-		assertThat(result.getTagReadAccess()).containsExactlyInAnyOrder("tagRead1", "tagRead2");
-		assertThat(result.getTagWriteAccess()).containsExactlyInAnyOrder("tagWrite1", "tagWrite2");
+		assertThat(result.getTagReadAccess()).containsExactlyInAnyOrder("tagread1", "tagread2");
+		assertThat(result.getTagWriteAccess()).containsExactlyInAnyOrder("tagwrite1", "tagwrite2");
 	}
 
 	@Test
