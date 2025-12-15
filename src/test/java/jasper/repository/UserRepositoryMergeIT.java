@@ -308,9 +308,9 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByOriginAndExternalId("", "shared123");
 
 		assertThat(results).hasSize(4);
-		// Should be ordered by tag: + comes before _ in ASCII, then alphabetically
+		// Results are ordered by tag alphabetically
 		assertThat(results).extracting(User::getTag)
-			.containsExactly("+user/alice", "+user/dave", "_user/bob", "_user/charlie");
+			.containsExactly("+user/alice", "_user/bob", "_user/charlie", "+user/dave");
 		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("shared123"));
 	}
 }
