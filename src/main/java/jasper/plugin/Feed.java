@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 @JsonInclude(Include.NON_NULL)
 public class Feed implements Serializable {
+	private List<String> matchText;
 	private List<String> addTags;
 	private boolean disableEtag;
 	private String etag;

@@ -16,6 +16,7 @@ import jasper.component.Sanitizer;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
@@ -170,6 +171,9 @@ public class RssParser {
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (NotFoundException e) {
+							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
 							logger.error("{} Error processing entry {}: {}", feed.getOrigin(), feed.getUrl(), entry.getLink());
 							tagger.attachLogs(feed.getOrigin(), feed, "Error processing entry " + entry.getLink(), getMessage(e));
@@ -181,6 +185,12 @@ public class RssParser {
 	}
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
+		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
+			var title = entry.getTitle().toLowerCase();
+			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
+				throw new NotFoundException(entry.getTitle());
+			}
+		}
 		var ref = new Ref();
 		var link = entry.getLink();
 		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
