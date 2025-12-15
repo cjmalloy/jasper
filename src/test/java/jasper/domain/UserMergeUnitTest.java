@@ -195,18 +195,18 @@ public class UserMergeUnitTest {
 		user1.setTag("+user/first");
 		user1.setOrigin("origin1");
 		user1.setName("First User");
-		user1.setKey("key1");
-		user1.setPubKey("pubKey1");
-		user1.setAuthorizedKeys(List.of("auth1", "auth2"));
+		user1.setKey("key1".getBytes());
+		user1.setPubKey("pubKey1".getBytes());
+		user1.setAuthorizedKeys("auth1\nauth2");
 		user1.setExternal(External.builder().ids(List.of("ext1")).build());
 
 		var user2 = new User();
 		user2.setTag("+user/second");
 		user2.setOrigin("origin2");
 		user2.setName("Second User");
-		user2.setKey("key2");
-		user2.setPubKey("pubKey2");
-		user2.setAuthorizedKeys(List.of("auth3"));
+		user2.setKey("key2".getBytes());
+		user2.setPubKey("pubKey2".getBytes());
+		user2.setAuthorizedKeys("auth3");
 		user2.setExternal(External.builder().ids(List.of("ext2")).build());
 
 		var result = User.merge(List.of(user1, user2));
@@ -216,9 +216,9 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getTag()).isEqualTo("+user/first");
 		assertThat(result.get().getOrigin()).isEqualTo("origin1");
 		assertThat(result.get().getName()).isEqualTo("First User");
-		assertThat(result.get().getKey()).isEqualTo("key1");
-		assertThat(result.get().getPubKey()).isEqualTo("pubKey1");
-		assertThat(result.get().getAuthorizedKeys()).containsExactly("auth1", "auth2");
+		assertThat(result.get().getKey()).isEqualTo("key1".getBytes());
+		assertThat(result.get().getPubKey()).isEqualTo("pubKey1".getBytes());
+		assertThat(result.get().getAuthorizedKeys()).isEqualTo("auth1\nauth2");
 		assertThat(result.get().getExternal()).isNotNull();
 		assertThat(result.get().getExternal().getIds()).containsExactly("ext1");
 	}
