@@ -247,4 +247,38 @@ public class UserRepositoryMergeIT {
 		assertThat(results2.get(0).getTag()).isEqualTo("+user/alpha");
 		assertThat(results3.get(0).getTag()).isEqualTo("_user/beta");
 	}
+
+	@Test
+	void testFindAllByOriginAndExternalId_JpqlWithJsonbExtractPath() {
+		// This test verifies that the JPQL query using jsonb_extract_path works correctly
+		// with the custom PostgreSQLDialect function registration. The query uses:
+		// jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+		// which requires both functions to be registered in PostgreSQLDialect.
+
+		var user1 = new User();
+		user1.setTag("+user/test1");
+		user1.setOrigin("");
+		user1.setExternal(External.builder().ids(List.of("github123", "google456")).build());
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("_user/test2");
+		user2.setOrigin("");
+		user2.setExternal(External.builder().ids(List.of("github123", "facebook789")).build());
+		userRepository.save(user2);
+
+		var user3 = new User();
+		user3.setTag("+user/test3");
+		user3.setOrigin("");
+		user3.setExternal(External.builder().ids(List.of("twitter101")).build());
+		userRepository.save(user3);
+
+		// Query should find users with external ID "github123"
+		var results = userRepository.findAllByOriginAndExternalId("", "github123");
+
+		assertThat(results).hasSize(2);
+		assertThat(results).extracting(User::getTag)
+			.containsExactlyInAnyOrder("+user/test1", "_user/test2");
+		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("github123"));
+	}
 }
