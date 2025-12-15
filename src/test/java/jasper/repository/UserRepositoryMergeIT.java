@@ -223,28 +223,24 @@ public class UserRepositoryMergeIT {
 	}
 
 	@Test
-	void testFindAllByQualifiedSuffix_DifferentTagPrefixes() {
-		var user1 = new User();
-		user1.setTag("_user/zebra");
-		user1.setOrigin("");
-		userRepository.save(user1);
+	void testFindAllByQualifiedSuffix_OrderedByTag() {
+		// Create public user
+		var publicUser = new User();
+		publicUser.setTag("+user/test");
+		publicUser.setOrigin("");
+		userRepository.save(publicUser);
 
-		var user2 = new User();
-		user2.setTag("+user/alpha");
-		user2.setOrigin("");
-		userRepository.save(user2);
+		// Create private user with same suffix
+		var privateUser = new User();
+		privateUser.setTag("_user/test");
+		privateUser.setOrigin("");
+		userRepository.save(privateUser);
 
-		var user3 = new User();
-		user3.setTag("_user/beta");
-		user3.setOrigin("");
-		userRepository.save(user3);
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
-		var results1 = userRepository.findAllByQualifiedSuffix("user/zebra");
-		var results2 = userRepository.findAllByQualifiedSuffix("user/alpha");
-		var results3 = userRepository.findAllByQualifiedSuffix("user/beta");
-
-		assertThat(results1.get(0).getTag()).isEqualTo("_user/zebra");
-		assertThat(results2.get(0).getTag()).isEqualTo("+user/alpha");
-		assertThat(results3.get(0).getTag()).isEqualTo("_user/beta");
+		assertThat(results).hasSize(2);
+		// Should be ordered by tag: + comes before _ in ASCII
+		assertThat(results).extracting(User::getTag)
+			.containsExactly("+user/test", "_user/test");
 	}
 }
