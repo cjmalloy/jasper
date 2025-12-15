@@ -156,7 +156,7 @@ public class ConfigCacheMergeIT {
 
 		// Create second user with same external ID
 		var user2 = new User();
-		user2.setTag("_user/alice-private");
+		user2.setTag("_user/aliceprivate");
 		user2.setOrigin("");
 		user2.setRole(ADMIN);
 		user2.setExternal(External.builder().ids(List.of("alice@example.com")).build());
@@ -286,14 +286,14 @@ public class ConfigCacheMergeIT {
 		userRepository.save(user1);
 
 		var user2 = new User();
-		user2.setTag("_user/alice-private");
+		user2.setTag("_user/aliceprivate");
 		user2.setOrigin("");
 		user2.setRole(USER);
 		user2.setExternal(External.builder().ids(List.of("shared@example.com")).build());
 		userRepository.save(user2);
 
 		var user3 = new User();
-		user3.setTag("+user/alice-alt");
+		user3.setTag("+user/alicealt");
 		user3.setOrigin("");
 		user3.setRole(MOD);
 		user3.setExternal(External.builder().ids(List.of("shared@example.com")).build());
