@@ -21,10 +21,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
+import static java.lang.Math.floor;
 
 @Component
 public class Cron {
@@ -57,18 +59,19 @@ public class Cron {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
-		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
 	}
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
-			watch.addWatch(origin, "+plugin/cron", this::schedule);
-		}
-		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
-			watch.addWatch(origin, "+plugin/user/run", this::run);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/cron")) {
+				watch.addWatch(origin, "+plugin/cron", this::schedule);
+			}
+			for (var origin : root.scriptOrigins("+plugin/user/run")) {
+				watch.addWatch(origin, "+plugin/user/run", this::run);
+			}
+		});
 	}
 
 	private void schedule(HasTags ref) {
@@ -88,9 +91,9 @@ public class Cron {
 			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
-		if (!hasScheduler(ref)) return;
 		var origin = ref.getOrigin();
 		if (!configs.root().script("+plugin/cron", origin)) return;
+		if (!hasScheduler(ref)) return;
 		var url = ref.getUrl();
 		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
@@ -100,8 +103,9 @@ public class Cron {
 			tasks.compute(key, (k, e) -> {
 				if (e != null && !e.isDone()) return e;
 				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
+				var jitter = config.getInterval().plusMillis((long) floor(config.getInterval().toMillis() * ThreadLocalRandom.current().nextDouble()));
 				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
-					Instant.now().plus(config.getInterval()),
+					Instant.now().plus(jitter),
 					config.getInterval());
 			});
 		}
@@ -109,6 +113,7 @@ public class Cron {
 
 	private void run(HasTags target) {
 		var origin = target.getOrigin();
+		if (!configs.root().script("+plugin/user/run", origin)) return;
 		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
@@ -120,7 +125,6 @@ public class Cron {
 		}
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
-			if (!configs.root().script("+plugin/user/run", origin)) throw new RuntimeException();
 			if (ref == null) {
 				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
 				throw new RuntimeException();
@@ -137,7 +141,7 @@ public class Cron {
 			tags.forEach((tag, v) -> {
 				if (ran.contains(v)) return;
 				if (!hasMatchingTag(ref, tag)) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ref)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
 					logger.warn("{} Run Tag: {} {}", origin, tag, url);
@@ -201,7 +205,7 @@ public class Cron {
 		tags.forEach((tag, v) -> {
 			if (ran.contains(v)) return;
 			if (!hasMatchingTag(ref, tag)) return;
-			if (!configs.root().script(tag, origin)) return;
+			if (!configs.root().script(tag, ref)) return;
 			logger.debug("{} Cron Tag: {} {}", origin, tag, url);
 			refs.compute(getKey(ref), (s, existing) -> {
 				if (existing != null && !existing.isDone()) return existing;

@@ -104,9 +104,6 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noSources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noResponses,
-		@RequestParam(required = false) boolean untagged,
-		@RequestParam(required = false) boolean uncited,
-		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant publishedBefore,
@@ -160,9 +157,6 @@ public class RefController {
 				.noSources(noSources)
 				.responses(responses)
 				.noResponses(noResponses)
-				.untagged(untagged)
-				.uncited(uncited)
-				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
 				.userResponse(userResponse)
@@ -194,9 +188,6 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noSources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String noResponses,
-		@RequestParam(required = false) boolean untagged,
-		@RequestParam(required = false) boolean uncited,
-		@RequestParam(required = false) boolean unsourced,
 		@RequestParam(required = false) Instant modifiedBefore,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant publishedBefore,
@@ -224,9 +215,6 @@ public class RefController {
 				.noSources(noSources)
 				.responses(responses)
 				.noResponses(noResponses)
-				.untagged(untagged)
-				.uncited(uncited)
-				.unsourced(unsourced)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
 				.userResponse(userResponse)
