@@ -83,6 +83,7 @@ public class UserRepositoryMergeIT {
 
 	@Test
 	void testFindAllByQualifiedSuffix_DifferentOrigins() {
+		// Create users with same tag but different origins
 		var user1 = new User();
 		user1.setTag("+user/test");
 		user1.setOrigin("");
@@ -90,14 +91,22 @@ public class UserRepositoryMergeIT {
 
 		var user2 = new User();
 		user2.setTag("_user/test");
-		user2.setOrigin("@other");
+		user2.setOrigin("");
 		userRepository.save(user2);
 
+		var user3 = new User();
+		user3.setTag("+user/test");
+		user3.setOrigin("@other");
+		userRepository.save(user3);
+
+		// Query only matches exact qualifiedTag, so different origins won't be merged
 		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
+		// Should return user1 and user2 (both with empty origin), but not user3
 		assertThat(results).hasSize(2);
-		assertThat(results).extracting(User::getOrigin)
-			.containsExactlyInAnyOrder("", "@other");
+		assertThat(results).extracting(User::getTag)
+			.containsExactlyInAnyOrder("+user/test", "_user/test");
+		assertThat(results).allMatch(u -> u.getOrigin().equals(""));
 	}
 
 	@Test

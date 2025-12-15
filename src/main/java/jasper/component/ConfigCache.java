@@ -165,7 +165,7 @@ public class ConfigCache {
 			.orElse(null);
 	}
 
-	@Cacheable(value = "external-user-cache", unless = "#result.isEmpty()")
+	@Cacheable(value = "external-user-cache", unless = "#result == null || #result.empty")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
 		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
