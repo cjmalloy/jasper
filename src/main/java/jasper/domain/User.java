@@ -22,16 +22,21 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
+import static java.util.Optional.*;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 @Entity
 @Getter
@@ -167,5 +172,35 @@ public class User implements Tag {
 		if (external == null) return false;
 		if (external.getIds() == null) return false;
 		return external.getIds().contains(id);
+	}
+
+	public static Optional<User> merge(List<User> users) {
+		if (users.isEmpty()) return empty();
+		var result = new User();
+		result.setTag(users.getFirst().getTag());
+		result.setOrigin(users.getFirst().getOrigin());
+		result.setName(users.getFirst().getName());
+		result.setKey(users.getFirst().getKey());
+		result.setPubKey(users.getFirst().getPubKey());
+		result.setAuthorizedKeys(users.getFirst().getAuthorizedKeys());
+		result.setExternal(users.getFirst().getExternal());
+		result.setRole(users.stream().map(User::getRole).max((a, b) -> {
+			if (ADMIN.equals(a)) return -1;
+			if (ADMIN.equals(b)) return 1;
+			if (MOD.equals(a)) return -1;
+			if (MOD.equals(b)) return 1;
+			if (EDITOR.equals(a)) return -1;
+			if (EDITOR.equals(b)) return 1;
+			if (USER.equals(a)) return -1;
+			if (USER.equals(b)) return 1;
+			if (VIEWER.equals(a)) return -1;
+			if (VIEWER.equals(b)) return 1;
+			return 0;
+		}).orElse(ANONYMOUS));
+		result.setReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getReadAccess()).stream()).distinct().toList());
+		result.setWriteAccess(users.stream().flatMap(u -> emptyIfNull(u.getWriteAccess()).stream()).distinct().toList());
+		result.setTagReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagReadAccess()).stream()).distinct().toList());
+		result.setTagWriteAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagWriteAccess()).stream()).distinct().toList());
+		return of(result);
 	}
 }
