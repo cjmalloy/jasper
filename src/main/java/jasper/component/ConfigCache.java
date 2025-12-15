@@ -128,8 +128,7 @@ public class ConfigCache {
 	@CacheEvict(value = {
 		"user-cache",
 		"user-dto-cache",
-		"user-dto-page-cache",
-		"external-user-cache"
+		"user-dto-page-cache"
 	}, allEntries = true)
 	public void clearUserCache() {
 		logger.info("Cleared user cache.");
@@ -165,7 +164,6 @@ public class ConfigCache {
 			.orElse(null);
 	}
 
-	@Cacheable(value = "external-user-cache", unless = "#result.empty")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
 		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
