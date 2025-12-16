@@ -34,7 +34,7 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getName()).isEqualTo("Test User");
 		assertThat(result.get().getRole()).isEqualTo(USER);
 		assertThat(result.get().getReadAccess()).containsExactly("tag1", "tag2");
-		assertThat(result.get().getWriteAccess()).containsExactly("tag3");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "+user/test");
 	}
 
 	@Test
@@ -141,7 +141,7 @@ public class UserMergeUnitTest {
 		assertThat(result).isPresent();
 		// Verify distinct operation removes duplicates
 		assertThat(result.get().getReadAccess()).containsExactlyInAnyOrder("tag1", "tag2", "tag6");
-		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "tag7");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "tag7", "+user/test");
 		assertThat(result.get().getTagReadAccess()).containsExactlyInAnyOrder("tag4", "tag8");
 		assertThat(result.get().getTagWriteAccess()).containsExactlyInAnyOrder("tag5", "tag9");
 	}
@@ -164,7 +164,7 @@ public class UserMergeUnitTest {
 
 		assertThat(result).isPresent();
 		assertThat(result.get().getReadAccess()).containsExactlyInAnyOrder("tag1", "tag2", "tag4", "tag5");
-		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "tag6");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "tag6", "+user/test");
 	}
 
 	@Test
@@ -186,7 +186,7 @@ public class UserMergeUnitTest {
 		assertThat(result).isPresent();
 		// Verify emptyIfNull handles null access lists properly
 		assertThat(result.get().getReadAccess()).containsExactly("tag1");
-		assertThat(result.get().getWriteAccess()).containsExactly("tag2");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag2", "+user/test");
 	}
 
 	@Test
@@ -252,7 +252,7 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getName()).isEqualTo("Primary");
 		assertThat(result.get().getRole()).isEqualTo(ADMIN); // Highest role
 		assertThat(result.get().getReadAccess()).containsExactlyInAnyOrder("tag1", "tag2", "tag3");
-		assertThat(result.get().getWriteAccess()).containsExactly("tag4");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag4", "+user/test", "_user/test");
 		assertThat(result.get().getTagReadAccess()).containsExactly("tag5");
 	}
 
