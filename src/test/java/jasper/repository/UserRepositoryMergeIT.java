@@ -217,7 +217,7 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(3);
-		// Should be ordered by tag
+		// Database sorts by tag with String.compareTo() semantics
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/alpha", "+user/beta", "+user/zebra");
 	}
@@ -239,7 +239,7 @@ public class UserRepositoryMergeIT {
 		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(2);
-		// Should be ordered by tag: + comes before _ in ASCII
+		// Database sorts by tag: + comes before _ in ASCII
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/test", "_user/test");
 	}
@@ -276,5 +276,41 @@ public class UserRepositoryMergeIT {
 		assertThat(results).extracting(User::getTag)
 			.containsExactlyInAnyOrder("+user/test1", "_user/test2");
 		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("github123"));
+	}
+
+	@Test
+	void testFindAllByOriginAndExternalId_MultipleAccountsOrderedByTag() {
+		// Create multiple users with different tag prefixes sharing the same external ID
+		var user1 = new User();
+		user1.setTag("_user/charlie");
+		user1.setOrigin("");
+		user1.setExternal(External.builder().ids(List.of("shared123")).build());
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("+user/alice");
+		user2.setOrigin("");
+		user2.setExternal(External.builder().ids(List.of("shared123")).build());
+		userRepository.save(user2);
+
+		var user3 = new User();
+		user3.setTag("_user/bob");
+		user3.setOrigin("");
+		user3.setExternal(External.builder().ids(List.of("shared123")).build());
+		userRepository.save(user3);
+
+		var user4 = new User();
+		user4.setTag("+user/dave");
+		user4.setOrigin("");
+		user4.setExternal(External.builder().ids(List.of("shared123")).build());
+		userRepository.save(user4);
+
+		var results = userRepository.findAllByOriginAndExternalId("", "shared123");
+
+		assertThat(results).hasSize(4);
+		// Database sorts by tag: + comes before _ in ASCII, then alphabetically
+		assertThat(results).extracting(User::getTag)
+			.containsExactly("+user/alice", "+user/dave", "_user/bob", "_user/charlie");
+		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("shared123"));
 	}
 }

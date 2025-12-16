@@ -71,13 +71,13 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		SELECT u FROM User u
 		WHERE u.origin = :origin
 			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
-		ORDER BY u.tag""")
+		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
 	@Query("""
 		SELECT u FROM User u
 		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
-		ORDER BY u.tag""")
+		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
 
 	// TODO: Sync cache
