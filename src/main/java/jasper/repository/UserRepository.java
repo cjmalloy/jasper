@@ -3,7 +3,6 @@ package jasper.repository;
 import jasper.domain.External;
 import jasper.domain.TagId;
 import jasper.domain.User;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -71,13 +70,15 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 	@Query("""
 		SELECT u FROM User u
 		WHERE u.origin = :origin
-			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)""")
-	List<User> findAllByOriginAndExternalId(String origin, String externalId, Sort sort);
+			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
 	@Query("""
 		SELECT u FROM User u
-		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)""")
-	List<User> findAllByQualifiedSuffix(String tag, Sort sort);
+		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByQualifiedSuffix(String tag);
 
 	// TODO: Sync cache
 	@Modifying

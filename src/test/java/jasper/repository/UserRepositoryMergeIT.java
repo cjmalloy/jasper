@@ -6,7 +6,6 @@ import jasper.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -42,7 +41,7 @@ public class UserRepositoryMergeIT {
 		privateUser.setRole(ADMIN);
 		userRepository.save(privateUser);
 
-		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.unsorted());
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(2);
 		assertThat(results).extracting(User::getTag)
@@ -56,7 +55,7 @@ public class UserRepositoryMergeIT {
 		protectedUser.setOrigin("");
 		userRepository.save(protectedUser);
 
-		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.unsorted());
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(1);
 		assertThat(results.get(0).getTag()).isEqualTo("+user/test");
@@ -69,7 +68,7 @@ public class UserRepositoryMergeIT {
 		privateUser.setOrigin("");
 		userRepository.save(privateUser);
 
-		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.unsorted());
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(1);
 		assertThat(results.get(0).getTag()).isEqualTo("_user/test");
@@ -77,7 +76,7 @@ public class UserRepositoryMergeIT {
 
 	@Test
 	void testFindAllByQualifiedSuffix_NoResults() {
-		var results = userRepository.findAllByQualifiedSuffix("user/nonexistent", Sort.unsorted());
+		var results = userRepository.findAllByQualifiedSuffix("user/nonexistent");
 
 		assertThat(results).isEmpty();
 	}
@@ -101,7 +100,7 @@ public class UserRepositoryMergeIT {
 		userRepository.save(user3);
 
 		// Query only matches exact qualifiedTag, so different origins won't be merged
-		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.unsorted());
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		// Should return user1 and user2 (both with empty origin), but not user3
 		assertThat(results).hasSize(2);
@@ -126,7 +125,7 @@ public class UserRepositoryMergeIT {
 		user2.setExternal(External.builder().ids(List.of("ext123", "another")).build());
 		userRepository.save(user2);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "ext123", Sort.unsorted());
+		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(2);
 		assertThat(results).extracting(User::getTag)
@@ -141,7 +140,7 @@ public class UserRepositoryMergeIT {
 		user.setExternal(External.builder().ids(List.of("ext123")).build());
 		userRepository.save(user);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "ext123", Sort.unsorted());
+		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(1);
 		assertThat(results.get(0).getTag()).isEqualTo("+user/test");
@@ -149,7 +148,7 @@ public class UserRepositoryMergeIT {
 
 	@Test
 	void testFindAllByOriginAndExternalId_NoResults() {
-		var results = userRepository.findAllByOriginAndExternalId("", "nonexistent", Sort.unsorted());
+		var results = userRepository.findAllByOriginAndExternalId("", "nonexistent");
 
 		assertThat(results).isEmpty();
 	}
@@ -168,7 +167,7 @@ public class UserRepositoryMergeIT {
 		user2.setExternal(External.builder().ids(List.of("ext123")).build());
 		userRepository.save(user2);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "ext123", Sort.unsorted());
+		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(1);
 		assertThat(results.get(0).getTag()).isEqualTo("+user/test1");
@@ -183,9 +182,9 @@ public class UserRepositoryMergeIT {
 		userRepository.save(user);
 
 		// Should find user with any of its external IDs
-		var results1 = userRepository.findAllByOriginAndExternalId("", "ext1", Sort.unsorted());
-		var results2 = userRepository.findAllByOriginAndExternalId("", "ext2", Sort.unsorted());
-		var results3 = userRepository.findAllByOriginAndExternalId("", "ext3", Sort.unsorted());
+		var results1 = userRepository.findAllByOriginAndExternalId("", "ext1");
+		var results2 = userRepository.findAllByOriginAndExternalId("", "ext2");
+		var results3 = userRepository.findAllByOriginAndExternalId("", "ext3");
 
 		assertThat(results1).hasSize(1);
 		assertThat(results2).hasSize(1);
@@ -215,7 +214,7 @@ public class UserRepositoryMergeIT {
 		user3.setExternal(External.builder().ids(List.of("ext123")).build());
 		userRepository.save(user3);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "ext123", Sort.by("tag"));
+		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
 
 		assertThat(results).hasSize(3);
 		// Database sorts by tag with String.compareTo() semantics
@@ -237,7 +236,7 @@ public class UserRepositoryMergeIT {
 		privateUser.setOrigin("");
 		userRepository.save(privateUser);
 
-		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.by("tag"));
+		var results = userRepository.findAllByQualifiedSuffix("user/test");
 
 		assertThat(results).hasSize(2);
 		// Database sorts by tag: + comes before _ in ASCII
@@ -271,7 +270,7 @@ public class UserRepositoryMergeIT {
 		userRepository.save(user3);
 
 		// Query should find users with external ID "github123"
-		var results = userRepository.findAllByOriginAndExternalId("", "github123", Sort.unsorted());
+		var results = userRepository.findAllByOriginAndExternalId("", "github123");
 
 		assertThat(results).hasSize(2);
 		assertThat(results).extracting(User::getTag)
@@ -306,7 +305,7 @@ public class UserRepositoryMergeIT {
 		user4.setExternal(External.builder().ids(List.of("shared123")).build());
 		userRepository.save(user4);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "shared123", Sort.by("tag"));
+		var results = userRepository.findAllByOriginAndExternalId("", "shared123");
 
 		assertThat(results).hasSize(4);
 		// Database sorts by tag: + comes before _ in ASCII, then alphabetically

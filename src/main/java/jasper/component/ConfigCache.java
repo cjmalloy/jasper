@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Sort;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
@@ -162,13 +161,13 @@ public class ConfigCache {
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
-		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1), Sort.by("tag")))
+		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
 			.orElse(null);
 	}
 
 	@Cacheable("external-user-cache")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
-		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId, Sort.by("tag")));
+		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
 
 	public User createUser(String tag, String origin, String externalId) {
