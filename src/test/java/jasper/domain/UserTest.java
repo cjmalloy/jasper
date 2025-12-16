@@ -7,7 +7,7 @@ import java.util.List;
 import static jasper.security.AuthoritiesConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class UserMergeUnitTest {
+public class UserTest {
 
 	@Test
 	void testMergeEmptyList() {
@@ -34,7 +34,7 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getName()).isEqualTo("Test User");
 		assertThat(result.get().getRole()).isEqualTo(USER);
 		assertThat(result.get().getReadAccess()).containsExactly("tag1", "tag2");
-		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3", "+user/test");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag3");
 	}
 
 	@Test
@@ -272,7 +272,7 @@ public class UserMergeUnitTest {
 
 		assertThat(result).isPresent();
 		// The merged user's writeAccess should contain the tags of all merged users
-		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("+user/alice", "_user/bob");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("_user/bob");
 	}
 
 	@Test
@@ -294,7 +294,7 @@ public class UserMergeUnitTest {
 		assertThat(result).isPresent();
 		// The merged user's writeAccess should contain both existing tags and user tags
 		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
-			"tag1", "tag2", "tag3", "+user/alice", "_user/bob"
+			"tag1", "tag2", "tag3", "_user/bob"
 		);
 	}
 
@@ -333,7 +333,7 @@ public class UserMergeUnitTest {
 
 		assertThat(result).isPresent();
 		// Single user merge should also include its own tag in writeAccess
-		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag1", "+user/test");
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag1");
 	}
 
 	@Test
@@ -362,7 +362,7 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getRole()).isEqualTo(ADMIN); // Highest role
 		// Should contain all writeAccess tags plus all user tags
 		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
-			"tag1", "tag2", "tag3", "+user/alice", "_user/bob", "+user/charlie"
+			"tag1", "tag2", "tag3", "_user/bob", "+user/charlie"
 		);
 	}
 
@@ -385,7 +385,7 @@ public class UserMergeUnitTest {
 		assertThat(result).isPresent();
 		// Should handle null writeAccess and still include user tags
 		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
-			"tag1", "+user/alice", "_user/bob"
+			"tag1", "_user/bob"
 		);
 	}
 

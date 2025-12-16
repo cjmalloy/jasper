@@ -37,6 +37,7 @@ import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static java.util.Optional.*;
+import static java.util.stream.Stream.concat;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 @Entity
@@ -199,14 +200,10 @@ public class User implements Tag {
 			return 0;
 		}).orElse(ANONYMOUS));
 		result.setReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getReadAccess()).stream()).distinct().toList());
-		// Merge writeAccess from all users and add the tags of all merged users
-		result.setWriteAccess(users.stream()
-			.flatMap(u -> Stream.concat(
-				emptyIfNull(u.getWriteAccess()).stream(),
-				Stream.of(u.getTag())
-			))
-			.distinct()
-			.toList());
+		result.setWriteAccess(concat(
+			users.stream().skip(1).map(User::getTag),
+			users.stream().flatMap(u -> emptyIfNull(u.getWriteAccess()).stream())
+		).distinct().toList());
 		result.setTagReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagReadAccess()).stream()).distinct().toList());
 		result.setTagWriteAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagWriteAccess()).stream()).distinct().toList());
 		return of(result);

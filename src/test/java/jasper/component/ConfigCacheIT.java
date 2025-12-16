@@ -14,7 +14,7 @@ import static jasper.security.AuthoritiesConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
-public class ConfigCacheMergeIT {
+public class ConfigCacheIT {
 
 	@Autowired
 	ConfigCache configCache;
@@ -25,7 +25,6 @@ public class ConfigCacheMergeIT {
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
-		// Clear any caches that might interfere
 		configCache.clearUserCache();
 	}
 
@@ -60,7 +59,7 @@ public class ConfigCacheMergeIT {
 		assertThat(result.getRole()).isEqualTo(ADMIN);
 		// Should merge and deduplicate access lists
 		assertThat(result.getReadAccess()).containsExactlyInAnyOrder("tag1", "tag2", "tag3");
-		assertThat(result.getWriteAccess()).containsExactly("tag4");
+		assertThat(result.getWriteAccess()).containsExactly("_user/test", "tag4");
 	}
 
 	@Test
@@ -245,7 +244,7 @@ public class ConfigCacheMergeIT {
 
 		assertThat(result).isNotNull();
 		assertThat(result.getReadAccess()).containsExactlyInAnyOrder("read1", "read2");
-		assertThat(result.getWriteAccess()).containsExactlyInAnyOrder("write1", "write2");
+		assertThat(result.getWriteAccess()).containsExactlyInAnyOrder("_user/test", "write1", "write2");
 		assertThat(result.getTagReadAccess()).containsExactlyInAnyOrder("tagread1", "tagread2");
 		assertThat(result.getTagWriteAccess()).containsExactlyInAnyOrder("tagwrite1", "tagwrite2");
 	}
