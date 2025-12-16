@@ -272,6 +272,14 @@ public class ConfigCacheIT {
 
 		// Verifies that users with the same tag but different origins are not merged together
 		assertThat(result1).isNotNull();
+		assertThat(result1.getTag()).isEqualTo("+user/test");
+		assertThat(result1.getName()).isEqualTo("Origin 1");
+		assertThat(result1.getRole()).isEqualTo(USER);
+
+		assertThat(result2).isNotNull();
+		assertThat(result2.getTag()).isEqualTo("+user/test");
+		assertThat(result2.getName()).isEqualTo("Origin 2");
+		assertThat(result2.getRole()).isEqualTo(ADMIN);
 	}
 
 	@Test
