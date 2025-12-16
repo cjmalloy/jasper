@@ -6,6 +6,7 @@ import jasper.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -214,11 +215,10 @@ public class UserRepositoryMergeIT {
 		user3.setExternal(External.builder().ids(List.of("ext123")).build());
 		userRepository.save(user3);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "ext123");
+		var results = userRepository.findAllByOriginAndExternalId("", "ext123", Sort.by("tag"));
 
 		assertThat(results).hasSize(3);
-		// Sort in Java to ensure correct order
-		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
+		// Database sorts by tag with String.compareTo() semantics
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/alpha", "+user/beta", "+user/zebra");
 	}
@@ -237,11 +237,10 @@ public class UserRepositoryMergeIT {
 		privateUser.setOrigin("");
 		userRepository.save(privateUser);
 
-		var results = userRepository.findAllByQualifiedSuffix("user/test");
+		var results = userRepository.findAllByQualifiedSuffix("user/test", Sort.by("tag"));
 
 		assertThat(results).hasSize(2);
-		// Sort in Java to ensure correct order: + comes before _ in ASCII
-		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
+		// Database sorts by tag: + comes before _ in ASCII
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/test", "_user/test");
 	}
@@ -307,11 +306,10 @@ public class UserRepositoryMergeIT {
 		user4.setExternal(External.builder().ids(List.of("shared123")).build());
 		userRepository.save(user4);
 
-		var results = userRepository.findAllByOriginAndExternalId("", "shared123");
+		var results = userRepository.findAllByOriginAndExternalId("", "shared123", Sort.by("tag"));
 
 		assertThat(results).hasSize(4);
-		// Sort in Java to ensure correct order: + comes before _ in ASCII, then alphabetically
-		results.sort((a, b) -> a.getTag().compareTo(b.getTag()));
+		// Database sorts by tag: + comes before _ in ASCII, then alphabetically
 		assertThat(results).extracting(User::getTag)
 			.containsExactly("+user/alice", "+user/dave", "_user/bob", "_user/charlie");
 		assertThat(results).allMatch(u -> u.getExternal().getIds().contains("shared123"));
