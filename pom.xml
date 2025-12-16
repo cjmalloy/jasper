@@ -21,7 +21,7 @@
 		<spring-boot.version>4.0.0</spring-boot.version>
 		<spring-cloud.version>2025.1.0</spring-cloud.version>
 		<lombok.version>1.18.42</lombok.version>
-		<testcontainers.version>2.0.2</testcontainers.version>
+		<testcontainers.version>2.0.3</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.8</jackson-databind-nullable.version>
 		<postgresql.version>42.3.9</postgresql.version>
