@@ -256,6 +256,139 @@ public class UserMergeUnitTest {
 		assertThat(result.get().getTagReadAccess()).containsExactly("tag5");
 	}
 
+	@Test
+	void testMergeAddsUserTagsToWriteAccess() {
+		var user1 = new User();
+		user1.setTag("+user/alice");
+		user1.setOrigin("");
+		user1.setRole(USER);
+
+		var user2 = new User();
+		user2.setTag("_user/bob");
+		user2.setOrigin("");
+		user2.setRole(USER);
+
+		var result = User.merge(List.of(user1, user2));
+
+		assertThat(result).isPresent();
+		// The merged user's writeAccess should contain the tags of all merged users
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("+user/alice", "_user/bob");
+	}
+
+	@Test
+	void testMergeAddsUserTagsToWriteAccess_WithExistingWriteAccess() {
+		var user1 = new User();
+		user1.setTag("+user/alice");
+		user1.setOrigin("");
+		user1.setRole(USER);
+		user1.setWriteAccess(List.of("tag1", "tag2"));
+
+		var user2 = new User();
+		user2.setTag("_user/bob");
+		user2.setOrigin("");
+		user2.setRole(USER);
+		user2.setWriteAccess(List.of("tag3"));
+
+		var result = User.merge(List.of(user1, user2));
+
+		assertThat(result).isPresent();
+		// The merged user's writeAccess should contain both existing tags and user tags
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
+			"tag1", "tag2", "tag3", "+user/alice", "_user/bob"
+		);
+	}
+
+	@Test
+	void testMergeAddsUserTagsToWriteAccess_WithDuplicates() {
+		var user1 = new User();
+		user1.setTag("+user/alice");
+		user1.setOrigin("");
+		user1.setRole(USER);
+		user1.setWriteAccess(List.of("+user/alice", "tag1")); // User tag already in writeAccess
+
+		var user2 = new User();
+		user2.setTag("_user/bob");
+		user2.setOrigin("");
+		user2.setRole(USER);
+		user2.setWriteAccess(List.of("tag1", "_user/bob")); // Both duplicate tag1 and user tag
+
+		var result = User.merge(List.of(user1, user2));
+
+		assertThat(result).isPresent();
+		// Should deduplicate tags
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
+			"+user/alice", "_user/bob", "tag1"
+		);
+	}
+
+	@Test
+	void testMergeAddsUserTagsToWriteAccess_SingleUser() {
+		var user = new User();
+		user.setTag("+user/test");
+		user.setOrigin("");
+		user.setRole(USER);
+		user.setWriteAccess(List.of("tag1"));
+
+		var result = User.merge(List.of(user));
+
+		assertThat(result).isPresent();
+		// Single user merge should also include its own tag in writeAccess
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder("tag1", "+user/test");
+	}
+
+	@Test
+	void testMergeAddsUserTagsToWriteAccess_MultipleUsers() {
+		var user1 = new User();
+		user1.setTag("+user/alice");
+		user1.setOrigin("");
+		user1.setRole(USER);
+		user1.setWriteAccess(List.of("tag1"));
+
+		var user2 = new User();
+		user2.setTag("_user/bob");
+		user2.setOrigin("");
+		user2.setRole(ADMIN);
+		user2.setWriteAccess(List.of("tag2"));
+
+		var user3 = new User();
+		user3.setTag("+user/charlie");
+		user3.setOrigin("");
+		user3.setRole(MOD);
+		user3.setWriteAccess(List.of("tag3"));
+
+		var result = User.merge(List.of(user1, user2, user3));
+
+		assertThat(result).isPresent();
+		assertThat(result.get().getRole()).isEqualTo(ADMIN); // Highest role
+		// Should contain all writeAccess tags plus all user tags
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
+			"tag1", "tag2", "tag3", "+user/alice", "_user/bob", "+user/charlie"
+		);
+	}
+
+	@Test
+	void testMergeAddsUserTagsToWriteAccess_WithNullWriteAccess() {
+		var user1 = new User();
+		user1.setTag("+user/alice");
+		user1.setOrigin("");
+		user1.setRole(USER);
+		user1.setWriteAccess(null); // null writeAccess
+
+		var user2 = new User();
+		user2.setTag("_user/bob");
+		user2.setOrigin("");
+		user2.setRole(USER);
+		user2.setWriteAccess(List.of("tag1"));
+
+		var result = User.merge(List.of(user1, user2));
+
+		assertThat(result).isPresent();
+		// Should handle null writeAccess and still include user tags
+		assertThat(result.get().getWriteAccess()).containsExactlyInAnyOrder(
+			"tag1", "+user/alice", "_user/bob"
+		);
+	}
+
 	private User createUser(String tag, String role) {
 		var user = new User();
 		user.setTag(tag);

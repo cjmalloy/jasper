@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
@@ -198,7 +199,14 @@ public class User implements Tag {
 			return 0;
 		}).orElse(ANONYMOUS));
 		result.setReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getReadAccess()).stream()).distinct().toList());
-		result.setWriteAccess(users.stream().flatMap(u -> emptyIfNull(u.getWriteAccess()).stream()).distinct().toList());
+		// Merge writeAccess from all users and add the tags of all merged users
+		result.setWriteAccess(users.stream()
+			.flatMap(u -> Stream.concat(
+				emptyIfNull(u.getWriteAccess()).stream(),
+				Stream.of(u.getTag())
+			))
+			.distinct()
+			.toList());
 		result.setTagReadAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagReadAccess()).stream()).distinct().toList());
 		result.setTagWriteAccess(users.stream().flatMap(u -> emptyIfNull(u.getTagWriteAccess()).stream()).distinct().toList());
 		return of(result);
