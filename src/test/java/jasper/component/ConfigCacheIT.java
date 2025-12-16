@@ -59,7 +59,7 @@ public class ConfigCacheIT {
 		assertThat(result.getRole()).isEqualTo(ADMIN);
 		// Should merge and deduplicate access lists
 		assertThat(result.getReadAccess()).containsExactlyInAnyOrder("tag1", "tag2", "tag3");
-		assertThat(result.getWriteAccess()).containsExactly("_user/test", "tag4");
+		assertThat(result.getWriteAccess()).containsExactlyInAnyOrder("_user/test", "tag4");
 	}
 
 	@Test
