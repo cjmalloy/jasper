@@ -319,11 +319,11 @@ public class Props {
 		 */
 		private String scimEndpoint = "";
 		/**
-		 * Override the security maximum HTTP requests per origin every 500 nanoseconds for all origins.
+		 * Override the per-origin maximum HTTP requests every 500 nanoseconds. This limit applies to all origins.
 		 */
 		private Integer maxRequests;
 		/**
-		 * Override the security maximum concurrent script executions per origin for all origins.
+		 * Override the per-origin maximum concurrent script executions. This limit applies to all origins.
 		 */
 		private Integer maxConcurrentScripts;
 	}
