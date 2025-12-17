@@ -199,6 +199,7 @@ public class Cron {
 		}
 		if (ref.hasPluginResponse("+plugin/user/run")) {
 			// Remove tag in case script had failed
+			logger.warn("{} Cancelled possibly stuck run {}:", origin, url);
 			tagger.removeAllResponses(url, origin, "+plugin/user/run");
 			// Skip scheduled run since we are running manually
 			return;
