@@ -161,7 +161,7 @@ public interface Config {
 		@Builder.Default
 		private int maxConcurrentReplication = 3;
 		/**
-		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
 		 */
 		@Builder.Default
 		private int maxRequests = 50;
@@ -332,7 +332,7 @@ public interface Config {
 		 */
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
 		 */
 		private int maxRequests = 50;
 		/**
