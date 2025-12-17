@@ -57,18 +57,6 @@ public class Props {
 	public String getOrigin() {
 		return subOrigin(getLocalOrigin(), getWorkerOrigin());
 	}
-	private int ingestMaxRetry = 5;
-	private int maxEtagPageSize = 300;
-	private int backupBufferSize = 1000000;
-	private int restoreBatchSize = 500;
-	private int backfillBatchSize = 100;
-	private String pullDelayMin = "5";
-	private String pullIntervalMin = "1";
-	private String scrapeDelayMin = "5";
-	private String scrapeIntervalMin = "1";
-	private int clearCacheCooldownSec = 2;
-	private int pushCooldownSec = 1;
-	private int pullWebsocketCooldownSec = 10;
 	private boolean allowUserTagHeader = false;
 	private boolean allowUserRoleHeader = false;
 	private boolean allowAuthHeaders = false;
@@ -105,6 +93,13 @@ public class Props {
 	private String[] defaultWriteAccess;
 	private String[] defaultTagReadAccess;
 	private String[] defaultTagWriteAccess;
+
+	private int ingestMaxRetry = 5;
+	private int backupBufferSize = 1000000;
+	private int restoreBatchSize = 500;
+	private int backfillBatchSize = 100;
+	private int clearCacheCooldownSec = 2;
+	private int pushCooldownSec = 1;
 
 	private String storage = "/var/lib/jasper";
 	private String node = "/usr/local/bin/node";
