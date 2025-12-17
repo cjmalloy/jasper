@@ -7,7 +7,7 @@ Knowledge Management Server
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
-To start the server, client and database with a single admin user, run
+To start the server, client, and database with a single admin user, run
 the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/docker-compose.yaml)
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
@@ -27,7 +27,7 @@ with dubious potential benefit. Instead, empower departments to run their own an
 reporting format to allow centralized aggregation.
 
 Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
-both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics or alerts.
+both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics, or alerts.
 Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
 to use your existing data structures and formats. Stitch together department-level resources to create
 a central overview that explicitly describes dependencies.
@@ -115,26 +115,18 @@ but would not match `['science', 'math']`
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
-#### JSONB Field Sorting
-Jasper supports dynamic sorting on JSONB fields using arrow notation (`->`). This allows sorting by
+## Sorting
+Jasper supports dynamic sorting on fields using arrow notation (`->`). This allows sorting by
 any field within the `plugins`, `metadata`, `config`, or `external` JSONB columns without requiring
 database schema changes.
 
 **Sort Syntax:**
-- Use `->` as the path separator to navigate JSONB fields
+- Use `->` as the path separator to navigate fields
 - Append `:num` suffix for numeric sorting (otherwise values sort as strings)
 - Append `:len` suffix to sort by array length, origin nesting level, or tag levels
 - Use `[index]` notation for array element access (e.g., `external->ids[0]`)
 
-**Metadata Field Restrictions:**
-For security and consistency, only these metadata fields can be accessed for sorting:
-- `metadata->modified` - auto-applies `:num` suffix (timestamp)
-- `metadata->expandedTags` - auto-applies `:len` suffix (array)
-- `metadata->responses` - auto-applies `:len` suffix (array)
-- `metadata->internalResponses` - auto-applies `:len` suffix (array)
-- `metadata->plugins->*` - access to plugin data under metadata (e.g., `metadata->plugins->plugin/comment`)
-
-The `:num` and `:len` suffixes are automatically applied to known metadata fields, so you can use
+The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
 ## Modding
@@ -250,6 +242,7 @@ An Ext allows you to customise a Tag page. For example, you could set the sideba
 
 ### User
 A User is a Tag-like entity representing a user.
+
 ```json 
 {
   "tag": "+user/charlie",
@@ -260,6 +253,9 @@ A User is a Tag-like entity representing a user.
   "tagReadAccess": [],
   "tagWriteAccess": [],
   "pubKey": "...",
+  "external": {
+    "ids": []
+  },
   "modified": "2022-06-18T16:00:59.978700Z"
 }
 ```
@@ -278,6 +274,7 @@ all entities with this tag.
 **Tag Read Access:** List of tags this user can read. Only applies to Tag-like entities. Only needed
 for private tags.  
 **Tag Write Access:** List of tags this user can write. Only applies to Tag-like entities.  
+**External IDs:** IDs used in an external auth system. Only used when external IDs are enabled.  
 **Pub Key:** Base 64 encoded public RSA key. Used for verifying signatures to validate authorship.  
 **Modified:** Last modified date of this User.  
 
@@ -350,7 +347,7 @@ string the Template matches all Exts.
 **Modified:** Last modified date of this Template.
 
 ## Layers
-The jasper model is defined in layers. This is to facilitate lower level operations such as routing, querying
+The jasper model is defined in layers. This is to facilitate lower level operations such as routing, querying,
 and archiving.
 
 ### Identity Layer
@@ -365,7 +362,7 @@ replication.
 
 ### Indexing Layer
 The indexing layer of the Jasper model adds tags to Refs. A system operating at this layer should support
-tag queries, sorting and filtering.
+tag queries, sorting, and filtering.
 
 ### Validation Layer
 The validation layer of the Jasper model includes all entity fields. Plugins and Templates are validated
@@ -624,6 +621,10 @@ The tag permissions are stored in the User entities:
    * No public tags
    * Can write ref with tag
    * Can edit tag Ext
+
+The protected and private versions of the User entity are merged when
+calculating the tag access lists.
+If external IDs are enabled, all matching users by external ID are also merged.
 
 ### Special URL Schemas
 
@@ -903,7 +904,7 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 
 ## Random Number Generator
 
-The `plugin/rng` tag can be used to generate random numbers. Random numbers are generated whenever editing, creating or
+The `plugin/rng` tag can be used to generate random numbers. Random numbers are generated whenever editing, creating, or
 pushing a Ref replaces an existing Ref of a different origin. When a new random number is generated it is represented in
 hex
 in the tag `+plugin/rng/6d7eb8ebb38a47d29c6a6cbc9156a1a3`, for example. When replicated, random numbers will not be
