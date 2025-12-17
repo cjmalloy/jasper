@@ -548,6 +548,74 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SECURITY_MAX_CONCURRENT_SCRIPTS`   | Override the security maximum concurrent script executions per origin for all origins.                                         | `5`                                                                                                                                                                                                           |
 | `JASPER_HEAP`                                       | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
 
+### Configuration Templates
+Jasper uses special templates in the root origin to configure server-wide and per-origin settings.
+These templates are automatically generated with default values if they do not exist.
+
+#### Server Config (`_config/server` Template)
+The `_config/server` template is installed in the root origin (the local origin for this server)
+and controls server-wide settings. It is automatically created on startup if it does not exist.
+
+| Field                      | Description                                                                                     | Default Value                              |
+|----------------------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|
+| `emailHost`                | Email host used for sending emails.                                                             | `jasper.local`                             |
+| `maxSources`               | Maximum number of sources allowed per Ref.                                                      | `1000`                                     |
+| `modSeals`                 | List of tags that act as mod seals (protected tags that only mods can add/remove).              | `["seal", "+seal", "_seal", "_moderated"]` |
+| `editorSeals`              | List of tags that act as editor seals.                                                          | `["plugin/qc"]`                            |
+| `webOrigins`               | Whitelist of origins allowed web access. Supports wildcards.                                    | `[""]` (root origin only)                  |
+| `maxReplEntityBatch`       | Maximum batch size for the replicate controller.                                                | `500`                                      |
+| `sshOrigins`               | Whitelist of origins allowed to open SSH tunnels.                                               | `[""]` (root origin only)                  |
+| `maxPushEntityBatch`       | Maximum batch size for push replication.                                                        | `5000`                                     |
+| `maxPullEntityBatch`       | Maximum batch size for pull replication.                                                        | `5000`                                     |
+| `scriptSelectors`          | Whitelist of selectors (tag + origin) allowed to run scripts. No origin wildcards.              | `[""]` (root origin only)                  |
+| `scriptWhitelist`          | Whitelist of script SHA-256 hashes allowed to run. If empty, all scripts are allowed.           | `null` (all allowed)                       |
+| `hostWhitelist`            | Whitelist of domains allowed to fetch from. If empty, all hosts are allowed (except blacklist). | `null` (all allowed)                       |
+| `hostBlacklist`            | Blacklist of domains not allowed to fetch from. Takes precedence over whitelist.                | `["*.local"]`                              |
+| `maxConcurrentScripts`     | Maximum concurrent script executions server-wide.                                               | `100000`                                   |
+| `maxConcurrentReplication` | Maximum concurrent replication push/pull operations.                                            | `3`                                        |
+| `maxRequests`              | Maximum HTTP requests per origin every 500 nanoseconds.                                         | `50`                                       |
+| `maxConcurrentRequests`    | Global maximum concurrent HTTP requests across all origins.                                     | `500`                                      |
+| `maxConcurrentFetch`       | Maximum concurrent fetch operations (scraping).                                                 | `10`                                       |
+
+#### Security Config (`_config/security` Template)
+The `_config/security` template is installed per-origin to configure authentication and authorization
+settings. Each tenant can have their own security configuration. It is automatically used with default
+values if it does not exist. Security settings are inherited from parent origins if not set.
+
+| Field                    | Description                                                                                      | Default Value                             |
+|--------------------------|--------------------------------------------------------------------------------------------------|-------------------------------------------|
+| `mode`                   | Authentication mode (`jwt` or `jwks`).                                                           | `""` (none)                               |
+| `clientId`               | Client ID for OAuth2/JWT authentication.                                                         | `""`                                      |
+| `base64Secret`           | Base64 encoded secret for JWT validation.                                                        | `""`                                      |
+| `secret`                 | Plain text secret for JWT validation (alternative to base64Secret).                              | `""`                                      |
+| `jwksUri`                | URI to JWKS endpoint for token validation.                                                       | `""`                                      |
+| `tokenEndpoint`          | OAuth2 token endpoint.                                                                           | `""`                                      |
+| `scimEndpoint`           | SCIM endpoint for user management.                                                               | `""`                                      |
+| `usernameClaim`          | JWT claim to use as the username.                                                                | `sub`                                     |
+| `externalId`             | Enable external ID matching for users.                                                           | `false`                                   |
+| `emailDomainInUsername`  | Include email domain in username.                                                                | `false`                                   |
+| `rootEmailDomain`        | Root email domain for the server.                                                                | `""`                                      |
+| `verifiedEmailClaim`     | JWT claim for verified email status.                                                             | `verified_email`                          |
+| `authoritiesClaim`       | JWT claim for user authorities/roles.                                                            | `auth`                                    |
+| `readAccessClaim`        | JWT claim for read access tags.                                                                  | `readAccess`                              |
+| `writeAccessClaim`       | JWT claim for write access tags.                                                                 | `writeAccess`                             |
+| `tagReadAccessClaim`     | JWT claim for tag read access.                                                                   | `tagReadAccess`                           |
+| `tagWriteAccessClaim`    | JWT claim for tag write access.                                                                  | `tagWriteAccess`                          |
+| `minRole`                | Minimum role for basic access.                                                                   | `ROLE_ANONYMOUS`                          |
+| `minWriteRole`           | Minimum role for writing.                                                                        | `ROLE_VIEWER`                             |
+| `minFetchRole`           | Minimum role for fetching external resources.                                                    | `ROLE_USER`                               |
+| `minConfigRole`          | Minimum role for admin configuration.                                                            | `ROLE_ADMIN`                              |
+| `minReadBackupsRole`     | Minimum role for downloading backups.                                                            | `ROLE_ADMIN`                              |
+| `defaultRole`            | Default role given to every user.                                                                | `ROLE_ANONYMOUS`                          |
+| `defaultUser`            | Default user tag given to logged out users.                                                      | `""`                                      |
+| `defaultReadAccess`      | Default read access tags for all users.                                                          | `null`                                    |
+| `defaultWriteAccess`     | Default write access tags for all users.                                                         | `null`                                    |
+| `defaultTagReadAccess`   | Default tag read access tags for all users.                                                      | `null`                                    |
+| `defaultTagWriteAccess`  | Default tag write access tags for all users.                                                     | `null`                                    |
+| `maxRequests`            | Maximum HTTP requests per origin every 500 nanoseconds for this origin.                          | `50`                                      |
+| `maxConcurrentScripts`   | Maximum concurrent script executions per origin.                                                 | `5`                                       |
+| `scriptLimits`           | Per-origin script execution limits. Map of selector patterns to max concurrent value.            | `{}` (empty)                              |
+
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
 variable. Multiple profiles can be activated by adding them all as a comma
