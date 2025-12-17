@@ -559,6 +559,10 @@ These templates are automatically generated with default values if they do not e
 The `_config/server` template is installed in the root origin (the local origin for this server)
 and controls server-wide settings. It is automatically created on startup if it does not exist.
 
+If the current node is running as a worker in origin @worker, the config used will be
+`_config/server/worker` in the local origin (not the worker origin). This allows you to assign
+different nodes to run different workloads.
+
 | Field                      | Description                                                                                     | Default Value                              |
 |----------------------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|
 | `emailHost`                | Email host used for sending emails.                                                             | `jasper.local`                             |
