@@ -218,22 +218,73 @@ public interface Config {
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class SecurityConfig implements Serializable {
+		/**
+		 * Authentication mode (jwt or jwks).
+		 */
 		private String mode = "";
+		/**
+		 * Client ID for OAuth2/JWT authentication.
+		 */
 		private String clientId = "";
+		/**
+		 * Base64 encoded secret for JWT validation.
+		 */
 		private String base64Secret = "";
+		/**
+		 * Plain text secret for JWT validation (alternative to base64Secret).
+		 */
 		private String secret = "";
+		/**
+		 * URI to JWKS endpoint for token validation.
+		 */
 		private String jwksUri = "";
+		/**
+		 * OAuth2 token endpoint.
+		 */
 		private String tokenEndpoint = "";
+		/**
+		 * SCIM endpoint for user management.
+		 */
 		private String scimEndpoint = "";
+		/**
+		 * JWT claim to use as the username.
+		 */
 		private String usernameClaim = "sub";
+		/**
+		 * Enable external ID matching for users.
+		 */
 		private boolean externalId = false;
+		/**
+		 * Include email domain in username.
+		 */
 		private boolean emailDomainInUsername = false;
+		/**
+		 * Root email domain for the server.
+		 */
 		private String rootEmailDomain = "";
+		/**
+		 * JWT claim for verified email status.
+		 */
 		private String verifiedEmailClaim = "verified_email";
+		/**
+		 * JWT claim for user authorities/roles.
+		 */
 		private String authoritiesClaim = "auth";
+		/**
+		 * JWT claim for read access tags.
+		 */
 		private String readAccessClaim = "readAccess";
+		/**
+		 * JWT claim for write access tags.
+		 */
 		private String writeAccessClaim = "writeAccess";
+		/**
+		 * JWT claim for tag read access.
+		 */
 		private String tagReadAccessClaim = "tagReadAccess";
+		/**
+		 * JWT claim for tag write access.
+		 */
 		private String tagWriteAccessClaim = "tagWriteAccess";
 		/**
 		 * Minimum role for basic access.
@@ -264,9 +315,21 @@ public interface Config {
 		 * Default user tag given to every logged out user.
 		 */
 		private String defaultUser = "";
+		/**
+		 * Default read access tags for all users.
+		 */
 		private List<String> defaultReadAccess;
+		/**
+		 * Default write access tags for all users.
+		 */
 		private List<String> defaultWriteAccess;
+		/**
+		 * Default tag read access tags for all users.
+		 */
 		private List<String> defaultTagReadAccess;
+		/**
+		 * Default tag write access tags for all users.
+		 */
 		private List<String> defaultTagWriteAccess;
 		/**
 		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.

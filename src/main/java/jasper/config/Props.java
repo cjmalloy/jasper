@@ -24,6 +24,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Setter
 @ConfigurationProperties(prefix = "jasper", ignoreUnknownFields = false)
 public class Props {
+	/**
+	 * Enable debug mode for additional logging.
+	 */
 	private boolean debug = false;
 	/**
 	 * List of workers to create by origin. Each worker will use the
@@ -57,8 +60,17 @@ public class Props {
 	public String getOrigin() {
 		return subOrigin(getLocalOrigin(), getWorkerOrigin());
 	}
+	/**
+	 * Allow pre-authentication of a user via the User-Tag header.
+	 */
 	private boolean allowUserTagHeader = false;
+	/**
+	 * Allow escalating user role via User-Role header.
+	 */
 	private boolean allowUserRoleHeader = false;
+	/**
+	 * Allow adding additional user permissions via Read-Access, Write-Access, Tag-Read-Access, and Tag-Write-Access headers.
+	 */
 	private boolean allowAuthHeaders = false;
 	/**
 	 * Highest role allowed access.
@@ -89,26 +101,80 @@ public class Props {
 	 * Default role given to every user.
 	 */
 	private String defaultRole = "ROLE_ANONYMOUS";
+	/**
+	 * Additional read access qualified tags to apply to all users.
+	 */
 	private String[] defaultReadAccess;
+	/**
+	 * Additional write access qualified tags to apply to all users.
+	 */
 	private String[] defaultWriteAccess;
+	/**
+	 * Additional tag read access qualified tags to apply to all users.
+	 */
 	private String[] defaultTagReadAccess;
+	/**
+	 * Additional tag write access qualified tags to apply to all users.
+	 */
 	private String[] defaultTagWriteAccess;
 
+	/**
+	 * Maximum number of retry attempts for getting a unique modified date when ingesting a Ref.
+	 */
 	private int ingestMaxRetry = 5;
+	/**
+	 * Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.
+	 */
 	private int backupBufferSize = 1000000;
+	/**
+	 * Number of entities to restore in each transaction.
+	 */
 	private int restoreBatchSize = 500;
+	/**
+	 * Number of entities to generate Metadata for in each transaction when backfilling.
+	 */
 	private int backfillBatchSize = 100;
+	/**
+	 * Number of seconds to throttle clearing the config cache.
+	 */
 	private int clearCacheCooldownSec = 2;
+	/**
+	 * Number of seconds to throttle pushing after modification.
+	 */
 	private int pushCooldownSec = 1;
 
+	/**
+	 * Path to the folder to use for storage. Used by the backup system.
+	 */
 	private String storage = "/var/lib/jasper";
+	/**
+	 * Path to node binary for running javascript deltas.
+	 */
 	private String node = "/usr/local/bin/node";
+	/**
+	 * Path to python binary for running python scripts.
+	 */
 	private String python = "/usr/bin/python";
+	/**
+	 * Path to shell binary for running shell scripts.
+	 */
 	private String shell = "/usr/bin/bash";
+	/**
+	 * HTTP address of an instance where storage is enabled.
+	 */
 	private String cacheApi = "";
 
+	/**
+	 * K8s namespace to write authorized_keys config map file to.
+	 */
 	private String sshConfigNamespace = "default";
+	/**
+	 * K8s config map name to write authorized_keys file to.
+	 */
 	private String sshConfigMapName = "ssh-authorized-keys";
+	/**
+	 * K8s secret name to write the host_key file to.
+	 */
 	private String sshSecretName = "ssh-host-key";
 
 	private final Overrides override = new Overrides();
@@ -135,40 +201,130 @@ public class Props {
 	@Getter
 	@Setter
 	public static class ServerOverrides {
+		/**
+		 * Override the server email host.
+		 */
 		private String emailHost;
+		/**
+		 * Override the server max sources.
+		 */
 		private Integer maxSources;
+		/**
+		 * Override the server mod seals.
+		 */
 		private List<String> modSeals;
+		/**
+		 * Override the server editor seals.
+		 */
 		private List<String> editorSeals;
+		/**
+		 * Override the server origins with web access.
+		 */
 		private List<String> webOrigins;
+		/**
+		 * Override the server maximum batch size for replicate controller.
+		 */
 		private Integer maxReplEntityBatch;
+		/**
+		 * Override the server origins with SSH access.
+		 */
 		private List<String> sshOrigins;
+		/**
+		 * Override the server maximum batch size for push replicate.
+		 */
 		private Integer maxPushEntityBatch;
+		/**
+		 * Override the server maximum batch size for pull replicate.
+		 */
 		private Integer maxPullEntityBatch;
+		/**
+		 * Override the server tags and origins that can run scripts. No wildcard origins.
+		 */
 		private List<String> scriptSelectors;
+		/**
+		 * Override the server list of whitelisted script SHA-256 hashes.
+		 */
 		private List<String> scriptWhitelist;
+		/**
+		 * Override the server list of whitelisted hosts.
+		 */
 		private List<String> hostWhitelist;
+		/**
+		 * Override the server list of blacklisted hosts.
+		 */
 		private List<String> hostBlacklist;
+		/**
+		 * Override the server maximum HTTP requests per origin every 500 nanoseconds.
+		 */
 		private Integer maxRequests;
+		/**
+		 * Override the server global maximum concurrent HTTP requests (across all origins).
+		 */
 		private Integer maxConcurrentRequests;
+		/**
+		 * Override the server maximum concurrent script executions.
+		 */
 		private Integer maxConcurrentScripts;
+		/**
+		 * Override the server maximum concurrent replication push/pull operations.
+		 */
 		private Integer maxConcurrentReplication;
+		/**
+		 * Override the server maximum concurrent fetch operations (scraping).
+		 */
 		private Integer maxConcurrentFetch;
 	}
 
 	@Getter
 	@Setter
 	public static class SecurityOverrides {
+		/**
+		 * Override the security mode for all origins.
+		 */
 		private String mode = "";
+		/**
+		 * Override the security clientId for all origins.
+		 */
 		private String clientId = "";
+		/**
+		 * Override the security base64Secret for all origins.
+		 */
 		private String base64Secret = "";
+		/**
+		 * Override the security secret for all origins.
+		 */
 		private String secret = "";
+		/**
+		 * Override the security jwksUri for all origins.
+		 */
 		private String jwksUri = "";
+		/**
+		 * Override the security usernameClaim for all origins.
+		 */
 		private String usernameClaim = "";
+		/**
+		 * Override the security verifiedEmailClaim for all origins.
+		 */
 		private String verifiedEmailClaim = "unset";
+		/**
+		 * Override the security defaultUser for all origins.
+		 */
 		private String defaultUser = "";
+		/**
+		 * Override the security tokenEndpoint for all origins.
+		 */
 		private String tokenEndpoint = "";
+		/**
+		 * Override the security scimEndpoint for all origins.
+		 */
 		private String scimEndpoint = "";
+		/**
+		 * Override the security maximum HTTP requests per origin every 500 nanoseconds for all origins.
+		 */
 		private Integer maxRequests;
+		/**
+		 * Override the security maximum concurrent script executions per origin for all origins.
+		 */
 		private Integer maxConcurrentScripts;
 	}
 
@@ -181,42 +337,93 @@ public class Props {
 		@Getter
 		@Setter
 		public static class Cache {
+			/**
+			 * Time to live for HTTP cache in days.
+			 */
 			private int timeToLiveInDays = 1461; // 4 years (including leap day)
 		}
 	}
 	@Getter
 	@Setter
 	public static class Mail {
+		/**
+		 * Enable mail service.
+		 */
 		private boolean enabled = false;
+		/**
+		 * From address for outgoing emails.
+		 */
 		private String from = "";
+		/**
+		 * Base URL for email links.
+		 */
 		private String baseUrl = "";
 	}
 
 	@Getter
 	@Setter
 	public static class Security {
+		/**
+		 * Content Security Policy header value.
+		 */
 		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 	}
 
 	@Getter
 	@Setter
 	public static class ApiDocs {
+		/**
+		 * API documentation title.
+		 */
 		private String title = "";
+		/**
+		 * API documentation description.
+		 */
 		private String description = "";
+		/**
+		 * API version.
+		 */
 		private String version = "";
+		/**
+		 * Terms of service URL.
+		 */
 		private String termsOfServiceUrl = "";
+		/**
+		 * Contact name for API support.
+		 */
 		private String contactName = "";
+		/**
+		 * Contact URL for API support.
+		 */
 		private String contactUrl = "";
+		/**
+		 * Contact email for API support.
+		 */
 		private String contactEmail = "";
+		/**
+		 * API license information.
+		 */
 		private License license;
+		/**
+		 * Default include pattern for API docs.
+		 */
 		private String defaultIncludePattern = "";
+		/**
+		 * Management include pattern for API docs.
+		 */
 		private String managementIncludePattern = "";
+		/**
+		 * List of API servers.
+		 */
 		private List<Server> servers;
 	}
 
 	@Getter
 	@Setter
 	public static class AuditEvents {
+		/**
+		 * Audit event retention period in days.
+		 */
 		private int retentionPeriod = 30;
 	}
 }
