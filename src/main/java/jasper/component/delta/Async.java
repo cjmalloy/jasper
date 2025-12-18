@@ -2,7 +2,6 @@ package jasper.component.delta;
 
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
-import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.domain.proj.HasTags;
@@ -32,7 +31,6 @@ import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.HasTags.hasPluginResponse;
 import static jasper.util.Logging.getMessage;
-import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
@@ -61,9 +59,6 @@ public class Async {
 	@Autowired
 	ConfigCache configs;
 
-	@Autowired
-	Tagger tagger;
-
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 	Map<String, AsyncRunner> tags = new ConcurrentHashMap<>();
 
@@ -71,7 +66,6 @@ public class Async {
 	 * Register a runner for a tag.
 	 */
 	public void addAsyncTag(String plugin, AsyncRunner r) {
-		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
 	}
 
@@ -92,9 +86,7 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		return "!+plugin/error" +
-			":(" + String.join("|", tags.keySet()) + ")" +
-			":(" + String.join("|", configs.root().getScriptSelectors()) + ")";
+		return "!+plugin/error:(" + String.join("|", configs.root().getScriptSelectors()) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
@@ -107,10 +99,11 @@ public class Async {
 			if (ud.getTags() == null) throw new RuntimeException();
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
 			tags.forEach((tag, v) -> {
+				logger.trace("{} Checking for Async Tag ({} {}): {} Tags: {} Whitelisted: {}", origin, tag, configs.root().script(tag, ud) ? "☑️" : "🚩️", ud.getUrl(), ud.getTags(), configs.root().getScriptSelectors());
 				if (!hasMatchingTag(ud, tag)) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ud)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", origin, tag, ud.getUrl(), origin);
+				logger.debug("{} Async Tag ({}): {}", origin, tag, ud.getUrl());
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
 						logger.debug("{} Async tag trying to run before finishing {} ", origin, tag);
@@ -155,7 +148,7 @@ public class Async {
 			lastModified = ref.getModified();
 			tags.forEach((tag, v) -> {
 				if (!v.backfill()) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ref)) return;
 				if (!hasMatchingTag(ref, tag)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;

@@ -90,10 +90,11 @@ public class Pull {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/origin/pull")) {
-			// TODO: redo on template change
-			watch.addWatch(origin, "+plugin/origin/pull", this::watch);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/origin/pull")) {
+				watch.addWatch(origin, "+plugin/origin/pull", this::watch);
+			}
+		});
 	}
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
@@ -105,6 +106,7 @@ public class Pull {
 	}
 
 	private void watch(HasTags update) {
+		if (!configs.root().script("+plugin/origin/pull", update.getOrigin())) return;
 		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin()).orElse(null);
 		var config = getOrigin(remote);
 		var pull = getPull(remote);

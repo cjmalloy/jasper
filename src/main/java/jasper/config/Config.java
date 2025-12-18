@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jasper.domain.proj.HasTags;
 import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +16,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.domain.proj.HasOrigin.nesting;
+import static jasper.domain.proj.HasTags.hasCapturingTag;
+import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static java.lang.Math.min;
@@ -50,6 +55,21 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> webOrigins = List.of("");
+		@JsonIgnore
+		@Builder.Default
+		private List<QualifiedTag> _webOriginsParsed = null;
+		@JsonIgnore
+		public List<QualifiedTag> webOriginsParsed() {
+			if (webOrigins == null) return null;
+			if (_webOriginsParsed == null) _webOriginsParsed = tagOriginList(webOrigins);
+			return _webOriginsParsed;
+		}
+		@JsonIgnore
+		public boolean web(String origin) {
+			if (webOriginsParsed() == null) return false;
+			var target = selector(origin);
+			return webOriginsParsed().stream().anyMatch(s -> s.captures(target));
+		}
 		@Builder.Default
 		private int maxReplEntityBatch = 500;
 		/**
@@ -57,6 +77,21 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<String> sshOrigins = List.of("");
+		@JsonIgnore
+		@Builder.Default
+		private List<QualifiedTag> _sshOriginsParsed = null;
+		@JsonIgnore
+		public List<QualifiedTag> sshOriginsParsed() {
+			if (sshOrigins == null) return null;
+			if (_sshOriginsParsed == null) _sshOriginsParsed = tagOriginList(sshOrigins);
+			return _sshOriginsParsed;
+		}
+		@JsonIgnore
+		public boolean ssh(String origin) {
+			if (sshOriginsParsed() == null) return false;
+			var target = selector(origin);
+			return sshOriginsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
+		}
 		@Builder.Default
 		private int maxPushEntityBatch = 5000;
 		@Builder.Default
@@ -83,7 +118,17 @@ public interface Config {
 		@JsonIgnore
 		public boolean script(String plugin, String origin) {
 			if (scriptSelectorsParsed() == null) return false;
-			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(tagOriginSelector(plugin + origin)));
+			var target = tagOriginSelector(plugin + origin);
+			return scriptSelectorsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
+		}
+		@JsonIgnore
+		public boolean script(String plugin, HasTags ref) {
+			if (ref == null) return false;
+			if (ref.getTags() == null) return false;
+			if (scriptSelectorsParsed() == null) return false;
+			var origin = isBlank(ref.getOrigin()) ? "@" : ref.getOrigin();
+			var filtered = ref.getTags().stream().filter(t -> matchesTag(plugin, t)).toList();
+			return scriptSelectorsParsed().stream().anyMatch(s -> hasCapturingTag(filtered, origin, s) && nesting(ref.getOrigin()) == nesting(s.origin));
 		}
 		@JsonIgnore
 		public List<String> scriptOrigins(String plugin) {
@@ -106,17 +151,17 @@ public interface Config {
 		@Builder.Default
 		private List<String> hostBlacklist = List.of("*.local");
 		/**
-		 * Maximum concurrent script executions. Default 5.
+		 * Maximum concurrent script executions. Default 100_000.
 		 */
 		@Builder.Default
-		private int maxConcurrentScripts = 5;
+		private int maxConcurrentScripts = 100_000;
 		/**
 		 * Maximum concurrent replication push/pull operations. Default 3.
 		 */
 		@Builder.Default
 		private int maxConcurrentReplication = 3;
 		/**
-		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
 		 */
 		@Builder.Default
 		private int maxRequests = 50;
@@ -173,22 +218,73 @@ public interface Config {
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class SecurityConfig implements Serializable {
+		/**
+		 * Authentication mode (jwt or jwks).
+		 */
 		private String mode = "";
+		/**
+		 * Client ID for OAuth2/JWT authentication.
+		 */
 		private String clientId = "";
+		/**
+		 * Base64 encoded secret for JWT validation.
+		 */
 		private String base64Secret = "";
+		/**
+		 * Plain text secret for JWT validation (alternative to base64Secret).
+		 */
 		private String secret = "";
+		/**
+		 * URI to JWKS endpoint for token validation.
+		 */
 		private String jwksUri = "";
+		/**
+		 * OAuth2 token endpoint.
+		 */
 		private String tokenEndpoint = "";
+		/**
+		 * SCIM endpoint for user management.
+		 */
 		private String scimEndpoint = "";
+		/**
+		 * JWT claim to use as the username.
+		 */
 		private String usernameClaim = "sub";
+		/**
+		 * Enable external ID matching for users.
+		 */
 		private boolean externalId = false;
+		/**
+		 * Include email domain in username.
+		 */
 		private boolean emailDomainInUsername = false;
+		/**
+		 * Root email domain for the server.
+		 */
 		private String rootEmailDomain = "";
+		/**
+		 * JWT claim for verified email status.
+		 */
 		private String verifiedEmailClaim = "verified_email";
+		/**
+		 * JWT claim for user authorities/roles.
+		 */
 		private String authoritiesClaim = "auth";
+		/**
+		 * JWT claim for read access tags.
+		 */
 		private String readAccessClaim = "readAccess";
+		/**
+		 * JWT claim for write access tags.
+		 */
 		private String writeAccessClaim = "writeAccess";
+		/**
+		 * JWT claim for tag read access.
+		 */
 		private String tagReadAccessClaim = "tagReadAccess";
+		/**
+		 * JWT claim for tag write access.
+		 */
 		private String tagWriteAccessClaim = "tagWriteAccess";
 		/**
 		 * Minimum role for basic access.
@@ -198,6 +294,10 @@ public interface Config {
 		 * Minimum role for writing.
 		 */
 		private String minWriteRole = "ROLE_VIEWER";
+		/**
+		 * Minimum role for fetching external resources.
+		 */
+		private String minFetchRole = "ROLE_USER";
 		/**
 		 * Minimum role for admin config.
 		 */
@@ -215,18 +315,30 @@ public interface Config {
 		 * Default user tag given to every logged out user.
 		 */
 		private String defaultUser = "";
+		/**
+		 * Default read access tags for all users.
+		 */
 		private List<String> defaultReadAccess;
+		/**
+		 * Default write access tags for all users.
+		 */
 		private List<String> defaultWriteAccess;
+		/**
+		 * Default tag read access tags for all users.
+		 */
 		private List<String> defaultTagReadAccess;
+		/**
+		 * Default tag write access tags for all users.
+		 */
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum HTTP requests per origin evert 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
 		 */
 		private int maxRequests = 50;
 		/**
-		 * Maximum concurrent script executions per origin. Default 100_000.
+		 * Maximum concurrent script executions per origin. Default 5.
 		 */
-		private int maxConcurrentScripts = 100_000;
+		private int maxConcurrentScripts = 5;
 		/**
 		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
 		 * No origin wildcards.
