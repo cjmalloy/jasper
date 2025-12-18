@@ -28,6 +28,8 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.TemplateSpec.sort;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class TemplateService {
@@ -83,9 +85,11 @@ public class TemplateService {
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TagFilter filter, Pageable pageable) {
 		return templateRepository.findAll(
-			auth.<Template>tagReadSpec()
-				.and(filter.spec()),
-			pageable)
+			sort(
+				auth.<Template>tagReadSpec()
+					.and(filter.spec()),
+				pageable),
+			of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 

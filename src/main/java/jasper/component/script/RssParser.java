@@ -16,6 +16,7 @@ import jasper.component.Sanitizer;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
@@ -34,6 +35,8 @@ import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -77,10 +80,13 @@ public class RssParser {
 		} catch (ParsingFeedException e) {
 			if (e.getLineNumber() == 1 || e.getCause() instanceof JDOMParseException) {
 				// Temporary error page, retry later
-				tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+				logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
 			} else {
 				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
 			}
+		} catch (IllegalArgumentException e) {
+			// Temporary error page, retry later
+			logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
 		} catch (FeedException e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error scraping feed", getMessage(e));
 		} catch (SSLException e) {
@@ -142,8 +148,7 @@ public class RssParser {
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					var input = new SyndFeedInput();
-					var syndFeed = input.build(new XmlReader(stream));
+					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
@@ -166,8 +171,12 @@ public class RssParser {
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (NotFoundException e) {
+							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
-							logger.error("{} Error processing entry", feed.getOrigin(), e);
+							logger.error("{} Error processing entry {}: {}", feed.getOrigin(), feed.getUrl(), entry.getLink());
+							tagger.attachLogs(feed.getOrigin(), feed, "Error processing entry " + entry.getLink(), getMessage(e));
 						}
 					}
 				}
@@ -176,6 +185,12 @@ public class RssParser {
 	}
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
+		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
+			var title = entry.getTitle().toLowerCase();
+			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
+				throw new NotFoundException(entry.getTitle());
+			}
+		}
 		var ref = new Ref();
 		var link = entry.getLink();
 		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
@@ -183,7 +198,25 @@ public class RssParser {
 			link = entry.getUri();
 		}
 		if (config.isStripQuery() && link.contains("?")) {
-			link = link.substring(0, link.indexOf("?"));
+			if (link.contains("#") && !config.isStripHash()) {
+				link = link.substring(0, link.indexOf("?")) + link.substring(link.indexOf("#"));
+			} else {
+				link = link.substring(0, link.indexOf("?"));
+			}
+		}
+		if (config.isStripHash() && link.contains("#")) {
+			link = link.substring(0, link.indexOf("#"));
+		}
+		try {
+			new URI(link).toURL();
+		} catch (IllegalArgumentException e) {
+			try {
+				link = new URL(new URI(feed.getUrl()).toURL(), link).toExternalForm();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
 			throw new AlreadyExistsException();

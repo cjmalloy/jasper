@@ -2,7 +2,7 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Order;
-import jasper.domain.User;
+import jasper.domain.Ext;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -14,13 +14,7 @@ import static jasper.repository.spec.SortSpec.createOriginNestingExpression;
 import static jasper.repository.spec.SortSpec.createTagLevelsExpression;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 
-public class UserSpec {
-
-	public static Specification<User> hasAuthorizedKeys() {
-		return (root, query, cb) ->
-			cb.isNotNull(
-				root.get("authorizedKeys"));
-	}
+public class ExtSpec {
 
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
@@ -31,7 +25,7 @@ public class UserSpec {
 	 * @param pageable the page request containing sort orders
 	 * @return a new Specification with sorting applied for all fields
 	 */
-	public static Specification<User> sort(Specification<User> spec, Pageable pageable) {
+	public static Specification<Ext> sort(Specification<Ext> spec, Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) {
 			return spec;
 		}
@@ -45,8 +39,8 @@ public class UserSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				Expression<?> expr;
-				if (isJsonbSortProperty(property, "external")) {
-					expr = createJsonbSortExpression(root, cb, property, "external");
+				if (isJsonbSortProperty(property, "config")) {
+					expr = createJsonbSortExpression(root, cb, property, "config");
 				} else if (property.equals("origin:len")) {
 					expr = createOriginNestingExpression(root, cb);
 				} else if (property.equals("tag:len")) {

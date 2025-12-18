@@ -61,7 +61,7 @@ public class Mail implements Async.AsyncRunner {
 
 	@Override
 	public void run(Ref ref) throws Exception {
-		var mb = ref.getExpandedTags().stream()
+		var mb = ref.getTags().stream()
 			.filter(t -> t.startsWith("plugin/inbox/") || t.startsWith("plugin/outbox/"))
 			.toArray(String[]::new);
 		String[] emails = new String[]{};

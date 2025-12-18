@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import static jasper.domain.User.merge;
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.parentOrigin;
 import static jasper.domain.proj.HasOrigin.parts;
@@ -47,6 +48,7 @@ import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -158,13 +160,14 @@ public class ConfigCache {
 
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
-		return userRepository.findOneByQualifiedTag(qualifiedTag)
+		if (isEmpty(qualifiedTag)) return null;
+		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
 			.orElse(null);
 	}
 
-	@Cacheable(value = "external-user-cache", unless = "#result == null")
-	public Optional<String> getUserByExternalId(String origin, String externalId) {
-		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	@Cacheable("external-user-cache")
+	public Optional<User> getUserByExternalId(String origin, String externalId) {
+		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
 
 	public User createUser(String tag, String origin, String externalId) {
