@@ -49,7 +49,7 @@ public class JWTFilter extends GenericFilterBean {
 			if (route.startsWith("/api/") || route.startsWith("/pub/api/")) {
 				var origin = resolveOrigin(httpServletRequest);
 				var jwt = resolveToken(httpServletRequest);
-				if (configs.root().getWebOrigins().contains(origin)) {
+				if (configs.root().web(origin)) {
 					if (tokenProvider.validateToken(jwt, origin)) {
 						SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
 					} else {

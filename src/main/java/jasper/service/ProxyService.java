@@ -3,6 +3,7 @@ package jasper.service;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.FileCache;
 import jasper.component.Proxy;
+import jasper.errors.NotAvailableException;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
@@ -42,14 +43,14 @@ public class ProxyService {
 	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public void preFetch(String url, String origin, boolean thumbnail) {
-		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
+		if (fileCache.isEmpty()) throw new NotAvailableException();
 		fileCache.get().preFetch(url, origin, thumbnail);
 	}
 
 	@PreAuthorize("@auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public InputStream fetchIfExists(String url, String origin) {
-		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
+		if (fileCache.isEmpty()) throw new NotAvailableException();
 		if (!refRepository.existsByUrlAndOrigin(url, origin)) throw new NotFoundException("Cache not found");
 		return fileCache.get().fetch(url, origin);
 	}
@@ -87,21 +88,21 @@ public class ProxyService {
 	@PreAuthorize("@auth.hasRole('USER') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public RefDto save(String origin, String title, InputStream in, String mime) throws IOException {
-		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
+		if (fileCache.isEmpty()) throw new NotAvailableException();
 		return mapper.domainToDto(fileCache.get().save(origin, title, in, mime, "plugin/file", auth.getUserTag() == null ? null : auth.getUserTag().tag));
 	}
 
 	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public void push(String url, String origin, InputStream in) throws IOException {
-		if (fileCache.isEmpty()) throw new NotFoundException("No file cache");
+		if (fileCache.isEmpty()) throw new NotAvailableException();
 		fileCache.get().push(url, origin, in);
 	}
 
 	@PreAuthorize("@auth.hasRole('MOD') && @auth.subOrigin(#origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "proxy"}, histogram = true)
 	public void clearDeleted(String origin) {
-		if (fileCache.isEmpty()) return;
+		if (fileCache.isEmpty()) throw new NotAvailableException();
 		fileCache.get().clearDeleted(origin);
 	}
 }

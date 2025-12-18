@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ '**' ]
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run Smoke Tests
         if: always()
         run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
@@ -287,14 +287,14 @@ jobs:
           done
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: gatling-reports-pr-${{ github.event.pull_request.number }}
           path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report

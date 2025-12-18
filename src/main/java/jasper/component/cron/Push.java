@@ -24,7 +24,6 @@ public class Push implements Cron.CronRunner  {
 
 	@PostConstruct
 	void init() {
-		// TODO: redo on template change
 		cron.addCronTag("+plugin/origin/push", this);
 	}
 

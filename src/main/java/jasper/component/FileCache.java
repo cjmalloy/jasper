@@ -165,7 +165,7 @@ public class FileCache {
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
-			logger.error("{} Error Fetching {}", origin, url, e);
+			logger.error("{} Error Fetching {}", origin, url);
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
 				"Error Fetching: " + getMessage(e));

@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.1-slim AS bun
+FROM oven/bun:1.3.5-slim AS bun
 
 FROM maven:3.9.11-amazoncorretto-25-debian AS builder
 WORKDIR /app
@@ -66,6 +66,7 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
+RUN apt-get update && apt-get install ffmpeg -y
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true
