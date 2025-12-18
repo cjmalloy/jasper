@@ -21,12 +21,12 @@
 		<spring-boot.version>4.0.0</spring-boot.version>
 		<spring-cloud.version>2025.1.0</spring-cloud.version>
 		<lombok.version>1.18.42</lombok.version>
-		<testcontainers.version>2.0.2</testcontainers.version>
+		<testcontainers.version>2.0.3</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.8</jackson-databind-nullable.version>
 		<postgresql.version>42.3.9</postgresql.version>
 		<hibernate.version>7.1.8.Final</hibernate.version>
-		<hypersistence-utils-71.version>3.13.3</hypersistence-utils-71.version>
+		<hypersistence-utils-71.version>3.14.1</hypersistence-utils-71.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<jjwt.version>0.13.0</jjwt.version>

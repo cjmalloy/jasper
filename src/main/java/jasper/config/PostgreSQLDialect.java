@@ -17,6 +17,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		var jsonb = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(Object.class, SqlTypes.JSON);
 		functionRegistry.register("age", new StandardSQLFunction("age", StandardBasicTypes.DURATION));
 		functionRegistry.registerPattern("jsonb_exists", "jsonb_exists(?1, ?2)", bool);
+		functionRegistry.registerPattern("jsonb_extract_path", "jsonb_extract_path(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
 		functionRegistry.registerPattern("cast_to_jsonb", "?1::jsonb", jsonb);
 		functionRegistry.registerPattern("jsonb_concat", "jsonb_concat(?1, ?2)", jsonb);
@@ -32,6 +33,8 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("vote_top", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);
 		functionRegistry.registerPattern("vote_score", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);
 		functionRegistry.registerPattern("vote_decay", "floor((3 + COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, EXTRACT('EPOCH' FROM age(?2)) / (4 * 60 * 60)))", doubleType);
+		// Collation function for binary ASCII sorting (+ comes before _)
+		functionRegistry.registerPattern("collate_c", "(?1) COLLATE \"C\"", string);
 	}
 
 }
