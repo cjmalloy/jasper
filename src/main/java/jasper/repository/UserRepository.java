@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
@@ -63,19 +62,23 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 
 	@Modifying(clearAutomatically = true)
 	@Query("""
-		DELETE FROM User user
-		WHERE user.origin = :origin
-			AND user.modified <= :olderThan""")
+		DELETE FROM User u
+		WHERE u.origin = :origin
+			AND u.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	List<User> findAllByOriginAndAuthorizedKeysIsNotNull(String origin);
+	@Query("""
+		SELECT u FROM User u
+		WHERE u.origin = :origin
+			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
-	@Query(nativeQuery = true, value = """
-		SELECT tag FROM users
-		WHERE users.origin = :origin
-			AND jsonb_exists(users.external->'ids', :externalId)
-		LIMIT 1""")
-	Optional<String> findOneByOriginAndExternalId(String origin, String externalId);
+	@Query("""
+		SELECT u FROM User u
+		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByQualifiedSuffix(String tag);
 
 	// TODO: Sync cache
 	@Modifying

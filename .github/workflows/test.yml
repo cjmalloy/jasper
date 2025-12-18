@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ '**' ]
 
 permissions:
   checks: write
@@ -15,14 +15,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build the Docker image
         run: docker build . -t ${{ github.repository }}:$(date +%s)
 
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build the testing image
         run: docker build . --file Dockerfile --target test --tag test
       - name: Run the test container
@@ -31,7 +31,7 @@ jobs:
         if: always()
         run: docker cp test:/tests tests
       - name: Publish Unit Test Results
-        uses: dorny/test-reporter@v2.2.0
+        uses: dorny/test-reporter@v2.3.0
         if: always()
         continue-on-error: true
         with:
@@ -224,14 +224,14 @@ jobs:
             }
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: junit-reports-pr-${{ github.event.pull_request.number }}
           path: reports
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: reports

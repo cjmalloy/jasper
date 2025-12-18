@@ -1,4 +1,4 @@
-package jasper.component;
+package jasper.component.script;
 
 import com.rometools.modules.itunes.ITunes;
 import com.rometools.modules.mediarss.MediaEntryModuleImpl;
@@ -7,11 +7,16 @@ import com.rometools.rome.feed.module.DCModule;
 import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.io.FeedException;
+import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import io.micrometer.core.annotation.Timed;
+import jasper.component.HttpClientFactory;
+import jasper.component.Ingest;
+import jasper.component.Sanitizer;
+import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
 import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
@@ -20,13 +25,18 @@ import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpGet;
+import org.jdom2.input.JDOMParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -37,6 +47,7 @@ import java.util.Map;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
+import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -62,9 +73,38 @@ public class RssParser {
 	@Autowired
 	HttpClientFactory httpClientFactory;
 
-	@Timed("jasper.feed")
-	public void scrape(Ref feed) throws IOException, FeedException {
-		var config = getFeed(feed);
+	public void runScript(Ref ref, String scriptTag) {
+		logger.info("{} Scraping {} feed: {}.", ref.getOrigin(), ref.getTitle(), ref.getUrl());
+		try {
+			scrape(ref, scriptTag);
+		} catch (ParsingFeedException e) {
+			if (e.getLineNumber() == 1 || e.getCause() instanceof JDOMParseException) {
+				// Temporary error page, retry later
+				logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
+			} else {
+				tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error parsing feed", getMessage(e));
+			}
+		} catch (IllegalArgumentException e) {
+			// Temporary error page, retry later
+			logger.warn("{} Error parsing feed {}: {}", ref.getOrigin(), ref.getUrl(), getMessage(e));
+		} catch (FeedException e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error scraping feed", getMessage(e));
+		} catch (SSLException e) {
+			// Temporary error page, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error with feed SSL", getMessage(e));
+		} catch (SocketTimeoutException e) {
+			// Temporary network timeout, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Timeout loading feed", getMessage(e));
+		} catch (IOException e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
+		} catch (Throwable e) {
+			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", getMessage(e));
+		}
+		logger.info("{} Finished scraping feed: {}.", ref.getOrigin(), ref.getUrl());
+	}
+
+	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
+		var config = getFeed(feed, scriptTag);
 
 		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
@@ -100,16 +140,15 @@ public class RssParser {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
 						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
 							config.setEtag(etag.getValue());
-							feed.setPlugin("plugin/feed", config);
+							feed.setPlugin(scriptTag, config);
 							ingest.update(feed.getOrigin(), feed);
 						} else if (etag == null && config.getEtag() != null) {
 							config.setEtag(null);
-							feed.setPlugin("plugin/feed", config);
+							feed.setPlugin(scriptTag, config);
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					var input = new SyndFeedInput();
-					var syndFeed = input.build(new XmlReader(stream));
+					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));
 					if (syndFeed.getImage() != null) {
 						var image = syndFeed.getImage().getUrl();
 						cacheLater(image, feed.getOrigin());
@@ -132,8 +171,12 @@ public class RssParser {
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (NotFoundException e) {
+							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (Exception e) {
-							logger.error("Error processing entry", e);
+							logger.error("{} Error processing entry {}: {}", feed.getOrigin(), feed.getUrl(), entry.getLink());
+							tagger.attachLogs(feed.getOrigin(), feed, "Error processing entry " + entry.getLink(), getMessage(e));
 						}
 					}
 				}
@@ -142,6 +185,12 @@ public class RssParser {
 	}
 
 	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
+		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
+			var title = entry.getTitle().toLowerCase();
+			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
+				throw new NotFoundException(entry.getTitle());
+			}
+		}
 		var ref = new Ref();
 		var link = entry.getLink();
 		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
@@ -149,7 +198,25 @@ public class RssParser {
 			link = entry.getUri();
 		}
 		if (config.isStripQuery() && link.contains("?")) {
-			link = link.substring(0, link.indexOf("?"));
+			if (link.contains("#") && !config.isStripHash()) {
+				link = link.substring(0, link.indexOf("?")) + link.substring(link.indexOf("#"));
+			} else {
+				link = link.substring(0, link.indexOf("?"));
+			}
+		}
+		if (config.isStripHash() && link.contains("#")) {
+			link = link.substring(0, link.indexOf("#"));
+		}
+		try {
+			new URI(link).toURL();
+		} catch (IllegalArgumentException e) {
+			try {
+				link = new URL(new URI(feed.getUrl()).toURL(), link).toExternalForm();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
 			throw new AlreadyExistsException();

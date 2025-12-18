@@ -160,9 +160,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		} else if (security.isExternalId()) {
 			var user = configs.getUserByExternalId(origin, principal);
 			if (user.isPresent()) {
-				logger.debug("{} Username: {} (external ID: {})", origin, user.get(), principal);
+				logger.debug("{} Username: {} (external ID: {})", origin, user.get().getTag(), principal);
 				if (isBlank(userTagHeader)) {
-					return user.get() + origin;
+					return user.get().getTag() + origin;
 				} else if (matchesPublic(principal, userTagHeader)) {
 					logger.debug("{} User tag set by header: {}", origin, userTagHeader);
 					return userTagHeader + origin;

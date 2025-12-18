@@ -164,13 +164,13 @@ public class Tagger {
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String url, String origin, String msg) {
-		attachLogs(origin, tag(url, origin, "+plugin/error"), "", msg);
+		attachLogs(origin, tag(url, origin), "", msg);
 	}
 
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String url, String origin, String title, String logs) {
-		attachLogs(origin, tag(url, origin, "+plugin/error"), title, logs);
+		attachLogs(origin, tag(url, origin), title, logs);
 	}
 
 	@Async

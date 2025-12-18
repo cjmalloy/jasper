@@ -8,6 +8,7 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.tagOrigin;
 import static java.util.Arrays.stream;
+import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface HasOrigin {
@@ -36,6 +37,11 @@ public interface HasOrigin {
 		if (isBlank(origin)) return local;
 		if (origin.startsWith("@")) origin = origin.substring(1);
 		return local + '.' + origin;
+	}
+
+	static int nesting(String origin) {
+		if (isBlank(origin) || origin.equals("@")) return 0;
+		return countMatches(origin, '.') + 1;
 	}
 
 	static String[] parts(String origin) {

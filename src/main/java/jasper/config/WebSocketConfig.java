@@ -12,8 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.web.embedded.tomcat.TomcatContextCustomizer;
-import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.tomcat.TomcatContextCustomizer;
+import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -46,7 +46,6 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -90,8 +89,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
-		var factory = new TomcatServletWebServerFactory();;
-		factory.setTomcatContextCustomizers(Collections.singletonList(tomcatContextCustomizer()));
+		var factory = new TomcatServletWebServerFactory();
+		factory.addContextCustomizers(tomcatContextCustomizer());
 		return factory;
 	}
 
@@ -200,7 +199,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		public Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {
 			var origin = (String) attributes.get("origin");
 			WebSocketConfig.logger.debug("{} STOMP Determine User", origin);
-			if (!configs.root().getWebOrigins().contains(origin)) {
+			if (!configs.root().web(origin)) {
 				WebSocketConfig.logger.error("{} No web access for origin", origin);
 				return null;
 			}
@@ -243,7 +242,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
 					logger.debug("{} STOMP Default auth {}", auth.getOrigin(), auth.getUserTag());
 				}
-				if (!configs.root().getWebOrigins().contains(auth.getOrigin())) {
+				if (!configs.root().web(auth.getOrigin())) {
 					logger.error("{} No web access for origin", auth.getOrigin());
 					return null;
 				}
