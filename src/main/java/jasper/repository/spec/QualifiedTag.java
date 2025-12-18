@@ -69,6 +69,10 @@ public class QualifiedTag {
 		return Tag.matchesDownwards(tag, qt.tag) && origin.equals(qt.origin) && not == qt.not;
 	}
 
+	public boolean captures(String c) {
+		return captures(selector(c));
+	}
+
 	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
 		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;

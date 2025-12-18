@@ -40,9 +40,6 @@ public class RefFilter implements Query {
 	private String noSources;
 	private String responses;
 	private String noResponses;
-	private boolean untagged;
-	private boolean uncited;
-	private boolean unsourced;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
 	private String user;
@@ -109,15 +106,6 @@ public class RefFilter implements Query {
 		}
 		if (isNotBlank(noResponses)) {
 			result = result.and(not(hasSource(noResponses)));
-		}
-		if (untagged) {
-			result = result.and(hasNoTags());
-		}
-		if (uncited) {
-			result = result.and(hasNoResponses());
-		}
-		if (unsourced) {
-			result = result.and(hasNoSources());
 		}
 		if (pluginResponse != null) {
 			for (var r : pluginResponse) {

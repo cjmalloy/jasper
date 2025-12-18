@@ -14,10 +14,12 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
@@ -1632,6 +1634,92 @@ public class RefServiceIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isFalse();
+	}
+
+	@Test
+	void testApplySortingSpec_WithNoSort() {
+		// Create test refs
+		var ref1 = new Ref();
+		ref1.setUrl("https://example.com/1");
+		ref1.setTags(new ArrayList<>(List.of("+user/tester")));
+		refRepository.save(ref1);
+		var ref2 = new Ref();
+		ref2.setUrl("https://example.com/2");
+		ref2.setTags(new ArrayList<>(List.of("+user/tester")));
+		refRepository.save(ref2);
+
+		var spec = RefSpec.sort(
+			RefFilter.builder().build().spec(),
+			PageRequest.of(0, 10));
+
+		// Execute query to verify no exceptions
+		var result = refRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
+	}
+
+	@Test
+	void testApplySortingSpec_WithJsonbSort() {
+		// Create refs with metadata.plugins
+		var ref1 = new Ref();
+		ref1.setUrl("https://example.com/1");
+		ref1.setTags(new ArrayList<>(List.of("+user/tester")));
+		var metadata1 = new jasper.domain.Metadata();
+		metadata1.setPlugins(new java.util.HashMap<>());
+		metadata1.getPlugins().put("plugin/comment", 5L);
+		ref1.setMetadata(metadata1);
+		refRepository.save(ref1);
+
+		var ref2 = new Ref();
+		ref2.setUrl("https://example.com/2");
+		ref2.setTags(new ArrayList<>(List.of("+user/tester")));
+		var metadata2 = new jasper.domain.Metadata();
+		metadata2.setPlugins(new java.util.HashMap<>());
+		metadata2.getPlugins().put("plugin/comment", 10L);
+		ref2.setMetadata(metadata2);
+		refRepository.save(ref2);
+
+		var pageable = PageRequest.of(0, 10, Sort.by(
+			Sort.Order.desc("metadata->plugins->plugin/comment:num")));
+		var spec = RefSpec.sort(
+			RefFilter.builder().build().spec(),
+			pageable);
+
+		// Execute query to verify sorting works
+		var result = refRepository.findAll(spec, PageRequest.ofSize(10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify descending order (10 before 5)
+		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");
+		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
+	}
+
+	@Test
+	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
+		// Create refs with plugins data containing contentLength
+		var mapper = new ObjectMapper();
+		var ref1 = new Ref();
+		ref1.setUrl("https://example.com/1");
+		ref1.setTags(new ArrayList<>(List.of("+user/tester")));
+		ref1.setPlugins((ObjectNode) mapper.readTree("{\"_plugin/cache\": {\"contentLength\": 100}}"));
+		refRepository.save(ref1);
+
+		var ref2 = new Ref();
+		ref2.setUrl("https://example.com/2");
+		ref2.setTags(new ArrayList<>(List.of("+user/tester")));
+		ref2.setPlugins((ObjectNode) mapper.readTree("{\"_plugin/cache\": {\"contentLength\": 200}}"));
+		refRepository.save(ref2);
+
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			Sort.Order.desc("plugins->_plugin/cache->contentLength:num")));
+		var spec = RefSpec.sort(
+			RefFilter.builder().build().spec(),
+			pageable);
+
+		// Execute query to verify numeric sorting works
+		var result = refRepository.findAll(spec, PageRequest.ofSize(10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify descending numeric order (200 before 100)
+		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");
+		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
 }
