@@ -149,9 +149,7 @@ public class StorageImplLocal implements Storage {
 		var id = UUID.randomUUID().toString();
 		var path = path(origin, namespace, id);
 		Files.createDirectories(path.getParent());
-		try (var fos = new FileOutputStream(path.toFile())) {
-			StreamUtils.copy(is, fos);
-		}
+		StreamUtils.copy(is, new FileOutputStream(path.toFile()));
 		return id;
 	}
 
@@ -175,9 +173,7 @@ public class StorageImplLocal implements Storage {
 		var path = path(origin, namespace, id);
 		if (path.toFile().exists()) throw new AlreadyExistsException();
 		Files.createDirectories(path.getParent());
-		try (var fos = new FileOutputStream(path.toFile())) {
-			StreamUtils.copy(is, fos);
-		}
+		StreamUtils.copy(is, new FileOutputStream(path.toFile()));
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
