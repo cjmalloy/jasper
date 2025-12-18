@@ -151,8 +151,6 @@ public class StorageImplLocal implements Storage {
 		Files.createDirectories(path.getParent());
 		try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
 			StreamUtils.copy(is, fos);
-			fos.flush();
-			fos.getFD().sync(); // Force data to disk to prevent race conditions
 		}
 		return id;
 	}
@@ -179,8 +177,6 @@ public class StorageImplLocal implements Storage {
 		Files.createDirectories(path.getParent());
 		try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
 			StreamUtils.copy(is, fos);
-			fos.flush();
-			fos.getFD().sync(); // Force data to disk to prevent race conditions
 		}
 	}
 
