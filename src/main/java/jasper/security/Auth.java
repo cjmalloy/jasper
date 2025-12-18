@@ -51,6 +51,7 @@ import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.matchesTag;
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.publicTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.domain.proj.Tag.tagUrl;
 import static jasper.domain.proj.Tag.urlToTag;
@@ -925,6 +926,7 @@ public class Auth {
 			}
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
+				readAccess.add(qt(publicTag(getUserTag().toString())));
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
