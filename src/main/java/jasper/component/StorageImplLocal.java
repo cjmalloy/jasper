@@ -149,7 +149,7 @@ public class StorageImplLocal implements Storage {
 		var id = UUID.randomUUID().toString();
 		var path = path(origin, namespace, id);
 		Files.createDirectories(path.getParent());
-		try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
+		try (var fos = new FileOutputStream(path.toFile())) {
 			StreamUtils.copy(is, fos);
 		}
 		return id;
@@ -175,7 +175,7 @@ public class StorageImplLocal implements Storage {
 		var path = path(origin, namespace, id);
 		if (path.toFile().exists()) throw new AlreadyExistsException();
 		Files.createDirectories(path.getParent());
-		try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
+		try (var fos = new FileOutputStream(path.toFile())) {
 			StreamUtils.copy(is, fos);
 		}
 	}
