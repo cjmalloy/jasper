@@ -717,11 +717,11 @@ Instead, you can access this Ref if you can access the tag it points to.
 #### User URLs
 URLs that point to a user tag, such as `tag:/+user/chris` are always owned by the user.
 These specials URLs can also be used to store per-plugin config data,
-such as `tag:/+user/chris?url=tag:/plugin/kanban`.
+such as `tag:/+user/chris?url=tag:/kanban`.
 Visibility of plugin setting can be set on a per-user, per-plugin basis.
 For convenience, the user URL is used if a blank URL is passed to the tagging response controller.
 This allows you to quickly ensure settings are initialized and fetch / edit Ref plugins and tags to read settings.
-If a tag are passed, for example `plugin/kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/plugin/kanban`.
+If a tag are passed, for example `kanban`, the default is the kanban user settings Ref: `tag:/+user/chris?url=tag:/kanban`.
 If a blank URL and a blank tag are passed, the default is the generic user settings Ref: `tag:/+user/chris`.
 User plugins, which follow the template `plugin/user`, may **only** be added to user URL Refs.
 
