@@ -99,11 +99,7 @@ public class ProfileManagerScim implements ProfileManager {
 			? "_user/" + user.getUserName()
 			: "+user/" + user.getUserName();
 		
-		return ProfileDto.builder()
-			.active(user.isActive())
-			.role(role)
-			.tag(tag)
-			.build();
+		return new ProfileDto(tag, user.isActive(), null, role);
 	}
 
 	private ScimUserResource _getUser(String userName) {

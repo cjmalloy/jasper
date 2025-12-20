@@ -3,7 +3,6 @@ package jasper.component.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.HasTags;
-import lombok.Builder;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -17,7 +16,6 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
  * We can't verify what tags the user has access to, so all private tags
  * metadata, and plugins are dropped.
  */
-@Builder(toBuilder = true)
 @JsonInclude(NON_EMPTY)
 public record RefUpdateDto(
 	String url,
@@ -33,4 +31,13 @@ public record RefUpdateDto(
 	Instant created,
 	Instant modified
 ) implements HasTags, Serializable {
+	
+	// Helper methods for MapStruct
+	public RefUpdateDto withTags(List<String> tags) {
+		return new RefUpdateDto(url, origin, title, comment, tags, sources, alternateUrls, plugins, metadata, published, created, modified);
+	}
+	
+	public RefUpdateDto withPlugins(ObjectNode plugins) {
+		return new RefUpdateDto(url, origin, title, comment, tags, sources, alternateUrls, plugins, metadata, published, created, modified);
+	}
 }

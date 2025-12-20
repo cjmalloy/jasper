@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-@Mapper(componentModel = "spring", builder = @org.mapstruct.Builder(disableBuilder = false))
+@Mapper(componentModel = "spring")
 public abstract class ComponentDtoMapper {
 
 	@Autowired
@@ -46,23 +46,22 @@ public abstract class ComponentDtoMapper {
 	public abstract RefUpdateDto dtoToUpdateDto(RefDto ref);
 
 	@AfterMapping
-	protected void publicTags(@MappingTarget RefUpdateDto.RefUpdateDtoBuilder target) {
-		var ref = target.build();
-		if (ref.tags() == null) return;
+	protected RefUpdateDto publicTags(@MappingTarget RefUpdateDto ref) {
+		if (ref.tags() == null) return ref;
 		var filtered = new ArrayList<>(ref.tags().stream().filter(t -> !t.startsWith("_")).toList());
+		RefUpdateDto result = ref.withTags(filtered);
 		if (ref.plugins() != null && filtered.size() < ref.tags().size()) {
 			var filteredPlugins = objectMapper.createObjectNode();
 			ref.plugins().fieldNames().forEachRemaining(field -> {
 				if (filtered.contains(field)) filteredPlugins.set(field, ref.plugins().get(field));
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			result = result.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
-		target.tags(filtered);
+		return result;
 	}
 
 	@AfterMapping
-	protected void publicMetadata(@MappingTarget MetadataUpdateDto.MetadataUpdateDtoBuilder target) {
-		var metadata = target.build();
+	protected MetadataUpdateDto publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
 		if (metadata.plugins() != null) {
 			var filteredPlugins = new HashMap<String, Integer>();
 			metadata.plugins().entrySet().forEach(e -> {
@@ -70,7 +69,8 @@ public abstract class ComponentDtoMapper {
 					filteredPlugins.put(e.getKey(), e.getValue());
 				}
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			return metadata.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
+		return metadata;
 	}
 }

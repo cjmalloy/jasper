@@ -174,9 +174,7 @@ public class ConfigCache {
 		var user = new User();
 		user.setTag(tag);
 		user.setOrigin(origin);
-		user.setExternal(External.builder()
-			.ids(List.of(externalId))
-			.build());
+		user.setExternal(new External(List.of(externalId)));
 		ingestUser.create(user);
 		return user;
 	}
@@ -290,7 +288,7 @@ public class ConfigCache {
 	public Index index() {
 		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(), Index.class)
 			.or(() -> getTemplateConfig("_config/index", props.getLocalOrigin(), Index.class))
-			.orElse(Index.builder().build());
+			.orElse(new Index());
 	}
 
 	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
@@ -330,7 +328,7 @@ public class ConfigCache {
 	}
 
 	private Template index(String name) {
-		var config = Index.builder().build();
+		var config = new Index();
 		var template = new Template();
 		template.setOrigin("");
 		template.setTag("_config/index");

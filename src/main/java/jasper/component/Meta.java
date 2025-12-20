@@ -46,27 +46,28 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
-		ref.setMetadata(Metadata
-			.builder()
-			.expandedTags(expandTags(ref.getTags()))
-			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
-			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
-			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
-				.stream()
-				.map(tag -> new UserUrlResponse(
-					tag,
-					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
-				.filter(p -> !p.responses.isEmpty())
-				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
+		ref.setMetadata(new Metadata(
+			null, // modified - will be set to now() by compact constructor
+			expandTags(ref.getTags()),
+			refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"),
+			refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"),
+			refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new PluginResponses(
 					tag,
 					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
 				.filter(p -> p.count() > 0)
-				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
-			.build()
-		);
+				.collect(toMap(PluginResponses::tag, PluginResponses::count)),
+			refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
+				.stream()
+				.map(tag -> new UserUrlResponse(
+					tag,
+					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
+				.filter(p -> !p.responses.isEmpty())
+				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)),
+			false, // obsolete
+			false  // regen
+		));
 	}
 
 	public static List<String> expandTags(List<String> tags) {
@@ -88,10 +89,9 @@ public class Meta {
 	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().modified();
 		ref(rootOrigin, ref);
-		ref.setMetadata(ref.getMetadata().toBuilder()
-			.modified(originalDate)
-			.obsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()))
-			.build());
+		ref.setMetadata(ref.getMetadata()
+			.withModified(originalDate)
+			.withObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified())));
 		if (ref.getMetadata().obsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
@@ -118,12 +118,16 @@ public class Meta {
 				var metadata = source.getMetadata();
 				if (metadata == null) {
 					logger.debug("Ref missing metadata: {}", ref.getUrl());
-					metadata = Metadata
-						.builder()
-						.responses(new ArrayList<>())
-						.internalResponses(new ArrayList<>())
-						.plugins(new HashMap<>())
-						.build();
+					metadata = new Metadata(
+						null, // modified
+						null, // expandedTags
+						new ArrayList<>(),
+						new ArrayList<>(),
+						new HashMap<>(),
+						null, // userUrls
+						false, // obsolete
+						false  // regen
+					);
 				}
 				if (ref.hasTag("internal")) {
 					metadata = metadata.withAddedInternalResponse(ref.getUrl());
@@ -154,7 +158,7 @@ public class Meta {
 			if (!maybeLatest.isEmpty()) {
 				var latest = maybeLatest.getContent().get(0);
 				if (latest.getMetadata() != null) {
-					latest.setMetadata(latest.getMetadata().toBuilder().obsolete(false).build());
+					latest.setMetadata(latest.getMetadata().withObsolete(false));
 					refRepository.save(latest);
 					messages.updateMetadata(latest);
 				}

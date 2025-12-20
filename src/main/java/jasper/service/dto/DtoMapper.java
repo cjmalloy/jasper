@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Filtering mapper. Removes fields hidden to the user.
  */
-@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = false))
+@Mapper(componentModel = "spring")
 public abstract class DtoMapper {
 
 	@Autowired
@@ -55,68 +55,68 @@ public abstract class DtoMapper {
 	public abstract BackupDto domainToDto(Storage.StorageRef plugin);
 
 	@AfterMapping
-	protected void filterRefDtoTags(@MappingTarget RefDto.RefDtoBuilder target) {
-		var ref = target.build();
+	protected RefDto filterRefDtoTags(@MappingTarget RefDto ref) {
 		if (ref.tags() != null) {
-			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+			return ref.withTags(new ArrayList<>(auth.filterTags(ref.tags())));
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterRefDtoPlugins(@MappingTarget RefDto.RefDtoBuilder target) {
-		var ref = target.build();
+	protected RefDto filterRefDtoPlugins(@MappingTarget RefDto ref) {
 		if (ref.plugins() != null) {
 			var filteredPlugins = objectMapper.createObjectNode();
 			ref.plugins().fieldNames().forEachRemaining(tag -> {
 				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			return ref.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterRefNodeDtoTags(@MappingTarget RefNodeDto.RefNodeDtoBuilder target) {
-		var ref = target.build();
+	protected RefNodeDto filterRefNodeDtoTags(@MappingTarget RefNodeDto ref) {
 		if (ref.tags() != null) {
-			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+			return ref.withTags(new ArrayList<>(auth.filterTags(ref.tags())));
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterRefNodeDtoPlugins(@MappingTarget RefNodeDto.RefNodeDtoBuilder target) {
-		var ref = target.build();
+	protected RefNodeDto filterRefNodeDtoPlugins(@MappingTarget RefNodeDto ref) {
 		if (ref.plugins() != null) {
 			var filteredPlugins = objectMapper.createObjectNode();
 			ref.plugins().fieldNames().forEachRemaining(tag -> {
 				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			return ref.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterRefReplDtoTags(@MappingTarget RefReplDto.RefReplDtoBuilder target) {
-		var ref = target.build();
+	protected RefReplDto filterRefReplDtoTags(@MappingTarget RefReplDto ref) {
 		if (ref.tags() != null) {
-			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+			return ref.withTags(new ArrayList<>(auth.filterTags(ref.tags())));
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterRefReplDtoPlugins(@MappingTarget RefReplDto.RefReplDtoBuilder target) {
-		var ref = target.build();
+	protected RefReplDto filterRefReplDtoPlugins(@MappingTarget RefReplDto ref) {
 		if (ref.plugins() != null) {
 			var filteredPlugins = objectMapper.createObjectNode();
 			ref.plugins().fieldNames().forEachRemaining(tag -> {
 				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			return ref.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
+		return ref;
 	}
 
 	@AfterMapping
-	protected void filterMetadata(@MappingTarget MetadataDto.MetadataDtoBuilder target, Metadata source) {
-		var metadata = target.build();
+	protected MetadataDto filterMetadata(Metadata source, @MappingTarget MetadataDto metadata) {
+		MetadataDto result = metadata;
 		if (metadata.plugins() != null) {
 			var filteredPlugins = new HashMap<String, Integer>();
 			metadata.plugins().entrySet().forEach(e -> {
@@ -124,7 +124,7 @@ public abstract class DtoMapper {
 					filteredPlugins.put(e.getKey(), e.getValue());
 				}
 			});
-			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+			result = result.withPlugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
 		
 		// Handle userUrls
@@ -134,8 +134,16 @@ public abstract class DtoMapper {
 				.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
 				.map(Map.Entry::getKey)
 				.toList();
-			target.userUrls(userUrls);
+			result = result.withUserUrls(userUrls);
 		}
+		return result;
+	}
+
+	@AfterMapping
+	protected UserDto filterTags(@MappingTarget UserDto userDto) {
+		return userDto
+			.withReadAccess(auth.filterTags(userDto.readAccess()))
+			.withWriteAccess(auth.filterTags(userDto.writeAccess()));
 	}
 
 	public int countMetadata(List<String> responses) {

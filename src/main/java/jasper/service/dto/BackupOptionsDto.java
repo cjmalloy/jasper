@@ -1,11 +1,8 @@
 package jasper.service.dto;
 
-import lombok.Builder;
-
 import java.io.Serializable;
 import java.time.Instant;
 
-@Builder
 public record BackupOptionsDto(
 	boolean cache,
 	boolean ref,
@@ -16,4 +13,9 @@ public record BackupOptionsDto(
 	Instant newerThan
 ) implements Serializable {
 	public static final int ID_LEN = 256;
+	
+	// Convenience method to get newerThan (for backward compatibility with old getter)
+	public Instant getNewerThan() {
+		return newerThan;
+	}
 }

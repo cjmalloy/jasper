@@ -2,15 +2,12 @@ package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jasper.domain.proj.Tag;
-import lombok.Builder;
-
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
-@Builder(toBuilder = true)
 @JsonInclude(NON_EMPTY)
 public record UserDto(
 	String tag,
@@ -26,4 +23,13 @@ public record UserDto(
 	String authorizedKeys,
 	ExternalDto external
 ) implements Tag, Serializable {
+	
+	// Helper methods for MapStruct
+	public UserDto withReadAccess(List<String> readAccess) {
+		return new UserDto(tag, origin, name, role, readAccess, writeAccess, tagReadAccess, tagWriteAccess, modified, pubKey, authorizedKeys, external);
+	}
+	
+	public UserDto withWriteAccess(List<String> writeAccess) {
+		return new UserDto(tag, origin, name, role, readAccess, writeAccess, tagReadAccess, tagWriteAccess, modified, pubKey, authorizedKeys, external);
+	}
 }

@@ -29,14 +29,15 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Service
 public class BackupService {
 
-	private static final BackupOptionsDto DEFAULT_OPTIONS = BackupOptionsDto.builder()
-		.ref(true)
-		.ext(true)
-		.user(true)
-		.plugin(false)
-		.template(false)
-		.cache(true)
-		.build();
+	private static final BackupOptionsDto DEFAULT_OPTIONS = new BackupOptionsDto(
+		true,  // cache
+		true,  // ref
+		true,  // ext
+		true,  // user
+		false, // plugin
+		false, // template
+		null   // newerThan
+	);
 
 	@Autowired
 	Backup backup;

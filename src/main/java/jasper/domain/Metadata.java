@@ -1,9 +1,6 @@
 package jasper.domain;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import lombok.Builder;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -16,8 +13,6 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 import static jasper.domain.proj.Tag.matchesTemplate;
 
-@Builder(toBuilder = true)
-@JsonDeserialize(builder = Metadata.MetadataBuilder.class)
 @JsonInclude(NON_EMPTY)
 public record Metadata(
 	String modified,
@@ -30,13 +25,20 @@ public record Metadata(
 	@JsonInclude(NON_DEFAULT) boolean regen
 ) implements Serializable {
 
-	@JsonPOJOBuilder(withPrefix = "")
-	public static class MetadataBuilder {
-		// Lombok will generate this class
-		// Initialize defaults
-		private String modified = Instant.now().toString();
-		private boolean obsolete = false;
-		private boolean regen = false;
+	// Default constructor with current timestamp
+	public Metadata {
+		if (modified == null) {
+			modified = Instant.now().toString();
+		}
+	}
+
+	// Helper method to create a copy with modified fields
+	public Metadata withModified(String modified) {
+		return new Metadata(modified, expandedTags, responses, internalResponses, plugins, userUrls, obsolete, regen);
+	}
+
+	public Metadata withObsolete(boolean obsolete) {
+		return new Metadata(modified, expandedTags, responses, internalResponses, plugins, userUrls, obsolete, regen);
 	}
 
 	public Metadata withAddedResponse(String url) {
@@ -53,11 +55,16 @@ public record Metadata(
 			newInternalResponses.remove(url);
 		}
 		
-		return toBuilder()
-			.modified(newModified)
-			.responses(newResponses.isEmpty() ? null : newResponses)
-			.internalResponses(newInternalResponses != null && newInternalResponses.isEmpty() ? null : newInternalResponses)
-			.build();
+		return new Metadata(
+			newModified,
+			expandedTags,
+			newResponses.isEmpty() ? null : newResponses,
+			newInternalResponses != null && newInternalResponses.isEmpty() ? null : newInternalResponses,
+			plugins,
+			userUrls,
+			obsolete,
+			regen
+		);
 	}
 
 	public Metadata withAddedInternalResponse(String url) {
@@ -74,11 +81,16 @@ public record Metadata(
 			newResponses.remove(url);
 		}
 		
-		return toBuilder()
-			.modified(newModified)
-			.responses(newResponses != null && newResponses.isEmpty() ? null : newResponses)
-			.internalResponses(newInternalResponses.isEmpty() ? null : newInternalResponses)
-			.build();
+		return new Metadata(
+			newModified,
+			expandedTags,
+			newResponses != null && newResponses.isEmpty() ? null : newResponses,
+			newInternalResponses.isEmpty() ? null : newInternalResponses,
+			plugins,
+			userUrls,
+			obsolete,
+			regen
+		);
 	}
 
 	public Metadata withAddedPlugins(List<String> add, String url) {
@@ -102,11 +114,16 @@ public record Metadata(
 			}
 		}
 		
-		return toBuilder()
-			.modified(Instant.now().toString())
-			.plugins(newPlugins.isEmpty() ? null : newPlugins)
-			.userUrls(newUserUrls.isEmpty() ? null : newUserUrls)
-			.build();
+		return new Metadata(
+			Instant.now().toString(),
+			expandedTags,
+			responses,
+			internalResponses,
+			newPlugins.isEmpty() ? null : newPlugins,
+			newUserUrls.isEmpty() ? null : newUserUrls,
+			obsolete,
+			regen
+		);
 	}
 
 	public Metadata withRemovedPlugins(List<String> remove, String url) {
@@ -142,11 +159,16 @@ public record Metadata(
 		
 		if (!changed) return this;
 		
-		return toBuilder()
-			.modified(Instant.now().toString())
-			.plugins(newPlugins.isEmpty() ? null : newPlugins)
-			.userUrls(newUserUrls.isEmpty() ? null : newUserUrls)
-			.build();
+		return new Metadata(
+			Instant.now().toString(),
+			expandedTags,
+			responses,
+			internalResponses,
+			newPlugins.isEmpty() ? null : newPlugins,
+			newUserUrls.isEmpty() ? null : newUserUrls,
+			obsolete,
+			regen
+		);
 	}
 
 	public Metadata withRemoved(String url) {
@@ -165,10 +187,15 @@ public record Metadata(
 		
 		if (!changed) return this;
 		
-		return toBuilder()
-			.modified(Instant.now().toString())
-			.responses(newResponses != null && newResponses.isEmpty() ? null : newResponses)
-			.internalResponses(newInternalResponses != null && newInternalResponses.isEmpty() ? null : newInternalResponses)
-			.build();
+		return new Metadata(
+			Instant.now().toString(),
+			expandedTags,
+			newResponses != null && newResponses.isEmpty() ? null : newResponses,
+			newInternalResponses != null && newInternalResponses.isEmpty() ? null : newInternalResponses,
+			plugins,
+			userUrls,
+			obsolete,
+			regen
+		);
 	}
 }
