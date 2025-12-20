@@ -1,7 +1,7 @@
 package jasper.web.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
@@ -55,7 +55,7 @@ class ProxyControllerIT {
 		// Create the _plugin/cache plugin required by FileCache
 		var cachePlugin = new Plugin();
 		cachePlugin.setTag("_plugin/cache");
-		var mapper = new ObjectMapper();
+		var mapper = new JsonMapper();
 		cachePlugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 		    "optionalProperties": {

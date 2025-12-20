@@ -991,7 +991,7 @@ public class UserServiceIT {
 		user1.setTag("+user/len1");
 		user1.setOrigin("");
 		// Use JsonNode to set external with ids array
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		var mapper = new tools.jackson.databind.json.JsonMapper();
 		try {
 			// user1 has 3 ids
 			user1.setExternal(mapper.readValue("{\"ids\": [\"a\", \"b\", \"c\"]}", External.class));
