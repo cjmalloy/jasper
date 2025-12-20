@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
@@ -61,7 +62,7 @@ public class ScriptRunner {
 
 	@Autowired
 	@Qualifier("yamlMapper")
-	JsonMapper yamlMapper;
+	YAMLMapper yamlMapper;
 
 	@Timed("jasper.scripts")
 	public void validateScript(String script) throws UntrustedScriptException {

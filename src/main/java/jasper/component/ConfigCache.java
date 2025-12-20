@@ -1,7 +1,5 @@
 package jasper.component;
 
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.config.Config.SecurityConfig;
@@ -29,6 +27,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.security.interfaces.RSAPublicKey;
 import java.util.List;

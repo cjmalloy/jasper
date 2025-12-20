@@ -1,6 +1,5 @@
 package jasper.config;
 
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.jsontypedef.jtd.Validator;
 import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +8,7 @@ import org.springframework.context.annotation.Primary;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.datatype.hibernate7.Hibernate7Module;
 
 import static tools.jackson.core.json.JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER;
