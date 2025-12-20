@@ -35,7 +35,7 @@
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
-		<apache-httpclient.version>5.5.1</apache-httpclient.version>
+		<apache-httpclient.version>5.5.2</apache-httpclient.version>
 		<commons-io.version>2.21.0</commons-io.version>
 		<commons-fileupload.version>1.6.0</commons-fileupload.version>
 		<commons-collections4.version>4.5.0</commons-collections4.version>
