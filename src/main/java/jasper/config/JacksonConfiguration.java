@@ -42,6 +42,7 @@ public class JacksonConfiguration {
 	public JsonMapper jsonMapper() {
 		return JsonMapper.builder()
 			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER)
+			.enable(ALLOW_TRAILING_COMMA)
 			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
 			.build();
