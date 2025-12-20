@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.ProblemDetail;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -46,6 +47,7 @@ public class JacksonConfiguration {
 			.enable(ALLOW_TRAILING_COMMA)
 			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
+			.addMixIn(ProblemDetail.class, ProblemDetailMixin.class)
 			.build();
 	}
 
@@ -58,6 +60,7 @@ public class JacksonConfiguration {
 			.enable(ALLOW_TRAILING_COMMA)
 			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
+			.addMixIn(ProblemDetail.class, ProblemDetailMixin.class)
 			.build();
 	}
 
