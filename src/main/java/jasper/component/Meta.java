@@ -86,11 +86,13 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
-		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
+		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().modified();
 		ref(rootOrigin, ref);
-		ref.getMetadata().setModified(originalDate);
-		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
-		if (ref.getMetadata().isObsolete()) return;
+		ref.setMetadata(ref.getMetadata().toBuilder()
+			.modified(originalDate)
+			.obsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()))
+			.build());
+		if (ref.getMetadata().obsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
 			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
@@ -124,17 +126,17 @@ public class Meta {
 						.build();
 				}
 				if (ref.hasTag("internal")) {
-					metadata.addInternalResponse(ref.getUrl());
+					metadata = metadata.withAddedInternalResponse(ref.getUrl());
 				} else {
-					metadata.addResponse(ref.getUrl());
+					metadata = metadata.withAddedResponse(ref.getUrl());
 				}
 				if (existing != null) {
-					metadata.removePlugins(existing.getExpandedTags().stream()
+					metadata = metadata.withRemovedPlugins(existing.getExpandedTags().stream()
 							.filter(tag -> matchesTemplate("plugin", tag))
 							.toList(),
 						ref.getUrl());
 				}
-				metadata.addPlugins(ref.getExpandedTags().stream()
+				metadata = metadata.withAddedPlugins(ref.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
 					ref.getUrl());
@@ -152,7 +154,7 @@ public class Meta {
 			if (!maybeLatest.isEmpty()) {
 				var latest = maybeLatest.getContent().get(0);
 				if (latest.getMetadata() != null) {
-					latest.getMetadata().setObsolete(false);
+					latest.setMetadata(latest.getMetadata().toBuilder().obsolete(false).build());
 					refRepository.save(latest);
 					messages.updateMetadata(latest);
 				}
@@ -178,8 +180,8 @@ public class Meta {
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
-		metadata.remove(existing.getUrl());
-		metadata.removePlugins(existing.getExpandedTags().stream()
+		metadata = metadata.withRemoved(existing.getUrl());
+		metadata = metadata.withRemovedPlugins(existing.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
 			existing.getUrl());

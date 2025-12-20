@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * Filtering mapper. Removes fields hidden to the user.
  */
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = false))
 public abstract class DtoMapper {
 
 	@Autowired
@@ -75,38 +75,27 @@ public abstract class DtoMapper {
 	}
 
 	@AfterMapping
-	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
-		if (metadata.getPlugins() == null) return;
-		var filteredPlugins = new HashMap<String, Integer>();
-		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
-			if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
-				filteredPlugins.put(e.getKey(), e.getValue());
-			}
-		});
-		if (filteredPlugins.isEmpty()) {
-			metadata.setPlugins(null);
-		} else {
-			metadata.setPlugins(filteredPlugins);
+	protected void filterMetadata(@MappingTarget MetadataDto.MetadataDtoBuilder target, Metadata source) {
+		var metadata = target.build();
+		if (metadata.plugins() != null) {
+			var filteredPlugins = new HashMap<String, Integer>();
+			metadata.plugins().entrySet().forEach(e -> {
+				if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
+					filteredPlugins.put(e.getKey(), e.getValue());
+				}
+			});
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
-	}
-
-	@AfterMapping
-	protected void filterTags(@MappingTarget UserDto userDto) {
-		userDto.setReadAccess(auth.filterTags(userDto.getReadAccess()));
-		userDto.setWriteAccess(auth.filterTags(userDto.getWriteAccess()));
-	}
-
-	@AfterMapping
-	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
-		if (source.getUserUrls() == null) return;
-		if (auth.getUserTag() == null) return;
-		var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
-		target.setUserUrls(source.getUserUrls().entrySet().stream()
-			// TODO: how is null getting in here
-			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
-			.map(Map.Entry::getKey)
-			.toList()
-		);
+		
+		// Handle userUrls
+		if (source.userUrls() != null && auth.getUserTag() != null) {
+			var prefix = "tag:/" + auth.getUserTag().tag + "?url=";
+			var userUrls = source.userUrls().entrySet().stream()
+				.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
+				.map(Map.Entry::getKey)
+				.toList();
+			target.userUrls(userUrls);
+		}
 	}
 
 	public int countMetadata(List<String> responses) {
