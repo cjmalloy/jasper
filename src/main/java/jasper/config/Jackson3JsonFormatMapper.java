@@ -24,7 +24,8 @@ public class Jackson3JsonFormatMapper implements FormatMapper {
 			return null;
 		}
 		try {
-			return jsonMapper.readValue(charSequence.toString(), jsonMapper.constructType(javaType.getJavaType()));
+			return jsonMapper.readValue(charSequence.toString(), 
+				jsonMapper.getTypeFactory().constructType(javaType.getJavaType()));
 		} catch (JacksonException e) {
 			throw new IllegalArgumentException("Could not deserialize string to java type: " + javaType.getJavaType(), e);
 		}
