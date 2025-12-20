@@ -709,7 +709,7 @@ public class ExtServiceIT {
 		var cursor = ext.getModified();
 
 		// Create a JSON Patch to add a new field
-		var patchJson = "[{\"op\":\"add\",\"path\:\"/name\",\"value\":\"Updated\"}]";
+		var patchJson = "[{\"op\":\"add\",\"path\":\"/name\",\"value\":\"Updated\"}]";
 		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		var patch = jackson2Mapper.readValue(patchJson, JsonPatch.class);
 
