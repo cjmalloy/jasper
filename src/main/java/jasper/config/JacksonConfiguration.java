@@ -7,18 +7,23 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.datatype.hibernate7.Hibernate7Module;
 
+import java.util.List;
+
 import static tools.jackson.core.StreamReadFeature.*;
 import static tools.jackson.core.json.JsonReadFeature.*;
 import static tools.jackson.databind.DeserializationFeature.*;
 
 @Configuration
-public class JacksonConfiguration {
+public class JacksonConfiguration implements WebMvcConfigurer {
 	static JsonMapper om = null;
 	
 	private final JsonMapper jsonMapper;
@@ -101,5 +106,22 @@ public class JacksonConfiguration {
 		validator.setMaxDepth(32);
 		validator.setMaxErrors(5);
 		return validator;
+	}
+	
+	@Override
+	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+		// Replace all Jackson 2 converters with Jackson 3 converter using our configured JsonMapper
+		converters.removeIf(converter -> converter instanceof MappingJackson2HttpMessageConverter);
+		converters.add(0, new MappingJackson2HttpMessageConverter(
+			com.fasterxml.jackson.databind.ObjectMapper.builder()
+				.enable(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNESCAPED_CONTROL_CHARS)
+				.enable(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER)
+				.enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_TRAILING_COMMA.mappedFeature())
+				.enable(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
+				.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+				.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+				.addMixIn(ProblemDetail.class, ProblemDetailJackson2Mixin.class)
+				.build()
+		));
 	}
 }
