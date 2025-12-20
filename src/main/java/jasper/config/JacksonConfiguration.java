@@ -48,6 +48,8 @@ public class JacksonConfiguration {
 			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, ALLOW_TRAILING_COMMA)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
 			.addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+			.addModule(hibernate7Module())
+			.addModule(constraintViolationProblemModule())
 			.build();
 	}
 
