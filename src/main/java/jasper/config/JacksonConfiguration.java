@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.jsontypedef.jtd.Validator;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,7 +36,8 @@ public class JacksonConfiguration {
 	@Bean
 	@Primary
 	JsonMapper jsonMapper(JsonMapper.Builder builder) {
-		return builder.build();
+		om = builder.build();
+		return om;
 	}
 
 	@Bean("yamlMapper")
@@ -73,5 +75,16 @@ public class JacksonConfiguration {
 		validator.setMaxDepth(32);
 		validator.setMaxErrors(5);
 		return validator;
+	}
+
+	/**
+	 * Configure Hibernate to use Jackson 3 for JSON serialization instead of Jackson 2.
+	 */
+	@Bean
+	public HibernatePropertiesCustomizer hibernatePropertiesCustomizer(JsonMapper jsonMapper) {
+		return hibernateProperties -> hibernateProperties.put(
+			"hibernate.type.json_format_mapper",
+			new Jackson3JsonFormatMapper(jsonMapper)
+		);
 	}
 }
