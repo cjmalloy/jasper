@@ -2,9 +2,9 @@ package jasper.config;
 
 import com.jsontypedef.jtd.Validator;
 import jakarta.annotation.PostConstruct;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ProblemDetail;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
@@ -20,6 +20,12 @@ import static tools.jackson.databind.DeserializationFeature.*;
 @Configuration
 public class JacksonConfiguration {
 	static JsonMapper om = null;
+	
+	private final JsonMapper jsonMapper;
+	
+	public JacksonConfiguration(JsonMapper jsonMapper) {
+		this.jsonMapper = jsonMapper;
+	}
 
 	public static JsonMapper om() {
 		assert om != null;
@@ -28,7 +34,7 @@ public class JacksonConfiguration {
 
 	@PostConstruct
 	void initStatic() {
-		JacksonConfiguration.om = jsonMapper();
+		JacksonConfiguration.om = jsonMapper;
 	}
 
 	public static String dump(Object any) {
@@ -41,6 +47,7 @@ public class JacksonConfiguration {
     }
 
 	@Bean
+	@Primary
 	@Profile("!test")
 	public JsonMapper jsonMapper() {
 		return JsonMapper.builder()
@@ -53,6 +60,7 @@ public class JacksonConfiguration {
 	}
 
 	@Bean
+	@Primary
 	@Profile("test")
 	public JsonMapper testJonMapper() {
 		return JsonMapper.builder()
@@ -86,16 +94,6 @@ public class JacksonConfiguration {
     public ConstraintViolationProblemModule constraintViolationProblemModule() {
         return new ConstraintViolationProblemModule();
     }
-
-	/**
-	 * Customizer for Spring Boot's Jackson2ObjectMapperBuilder to ensure ProblemDetail mixin is registered.
-	 * This is necessary for Spring MVC's HTTP message converters to properly serialize ProblemDetail responses.
-	 * Uses Jackson 2 annotations since Spring Boot 4's HTTP message converters still use Jackson 2.
-	 */
-	@Bean
-	public Jackson2ObjectMapperBuilderCustomizer problemDetailCustomizer() {
-		return builder -> builder.mixIn(ProblemDetail.class, ProblemDetailJackson2Mixin.class);
-	}
 
 	@Bean
 	public Validator validator() {
