@@ -1,5 +1,6 @@
 package jasper.config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jsontypedef.jtd.Validator;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
@@ -7,11 +8,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
+import org.zalando.problem.violations.ConstraintViolationProblem;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
+import org.zalando.problem.violations.Violation;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.datatype.hibernate7.Hibernate7Module;
+
+import java.util.List;
 
 import static tools.jackson.core.StreamReadFeature.*;
 import static tools.jackson.core.json.JsonReadFeature.*;
@@ -48,9 +53,22 @@ public class JacksonConfiguration {
 			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, ALLOW_TRAILING_COMMA)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
 			.addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+			.addMixIn(ConstraintViolationProblem.class, ConstraintViolationProblemMixIn.class)
+			.addMixIn(Violation.class, ViolationMixIn.class)
 			.addModule(hibernate7Module())
-			.addModule(constraintViolationProblemModule())
 			.build();
+	}
+
+	public interface ConstraintViolationProblemMixIn {
+		@JsonProperty("violations")
+		List<Violation> getViolations();
+	}
+
+	public interface ViolationMixIn {
+		@JsonProperty("field")
+		String getField();
+		@JsonProperty("message")
+		String getMessage();
 	}
 
 	@Bean
