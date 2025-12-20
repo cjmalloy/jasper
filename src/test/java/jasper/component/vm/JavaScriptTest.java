@@ -1,11 +1,11 @@
 package jasper.component.vm;
 
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import jasper.config.Props;
 import jasper.errors.ScriptException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.io.File;
 import java.io.IOException;
