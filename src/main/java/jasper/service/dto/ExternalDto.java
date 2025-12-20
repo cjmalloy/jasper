@@ -1,17 +1,16 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
 
 import java.io.Serializable;
 import java.util.List;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
-@Getter
-@Setter
+@Builder
 @JsonInclude(NON_EMPTY)
-public class ExternalDto implements Serializable {
-	private List<String> ids;
+public record ExternalDto(
+	List<String> ids
+) implements Serializable {
 }

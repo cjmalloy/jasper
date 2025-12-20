@@ -2,28 +2,33 @@ package jasper.plugin.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.jackson.Jacksonized;
 
 import java.io.Serializable;
 
-@Getter
-@Setter
-@Jacksonized @Builder
+@Builder
+@JsonDeserialize(builder = Index.IndexBuilder.class)
 @JsonInclude(Include.NON_NULL)
-public class Index implements Serializable {
-	@Builder.Default
-	private boolean tags = true;
-	@Builder.Default
-	private boolean sources = true;
-	@Builder.Default
-	private boolean alts = true;
-	@Builder.Default
-	private boolean fulltext = true;
-	@Builder.Default
-	private boolean published = true;
-	@Builder.Default
-	private boolean modified = true;
+public record Index(
+	boolean tags,
+	boolean sources,
+	boolean alts,
+	boolean fulltext,
+	boolean published,
+	boolean modified
+) implements Serializable {
+	
+	@JsonPOJOBuilder(withPrefix = "")
+	public static class IndexBuilder {
+		// Lombok will generate this class
+		// Initialize defaults
+		private boolean tags = true;
+		private boolean sources = true;
+		private boolean alts = true;
+		private boolean fulltext = true;
+		private boolean published = true;
+		private boolean modified = true;
+	}
 }
