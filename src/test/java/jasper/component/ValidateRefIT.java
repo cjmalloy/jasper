@@ -145,7 +145,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "string" },
+			{ "type": "string" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -165,7 +165,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "boolean" },
+			{ "type": "boolean" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -185,7 +185,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "uint32" },
+			{ "type": "uint32" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -205,7 +205,7 @@ public class ValidateRefIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "elements": { "type": "string" } },
+			{ "elements": { "type": "string" } }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
