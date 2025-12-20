@@ -88,13 +88,14 @@ public class BackupRestoreIT {
 		refRepository.save(ref2);
 
 		// Create backup
-		var options = new BackupOptionsDto();
-		options.setRef(true);
-		options.setExt(false);
-		options.setUser(false);
-		options.setPlugin(false);
-		options.setTemplate(false);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(true)
+			.ext(false)
+			.user(false)
+			.plugin(false)
+			.template(false)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		// Wait for async backup to complete
@@ -132,13 +133,14 @@ public class BackupRestoreIT {
 		extRepository.save(ext2);
 
 		// Create backup
-		var options = new BackupOptionsDto();
-		options.setRef(false);
-		options.setExt(true);
-		options.setUser(false);
-		options.setPlugin(false);
-		options.setTemplate(false);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(false)
+			.ext(true)
+			.user(false)
+			.plugin(false)
+			.template(false)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		waitForBackup();
@@ -173,13 +175,14 @@ public class BackupRestoreIT {
 		userRepository.save(user2);
 
 		// Create backup
-		var options = new BackupOptionsDto();
-		options.setRef(false);
-		options.setExt(false);
-		options.setUser(true);
-		options.setPlugin(false);
-		options.setTemplate(false);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(false)
+			.ext(false)
+			.user(true)
+			.plugin(false)
+			.template(false)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		waitForBackup();
@@ -214,13 +217,14 @@ public class BackupRestoreIT {
 		pluginRepository.save(plugin2);
 
 		// Create backup
-		var options = new BackupOptionsDto();
-		options.setRef(false);
-		options.setExt(false);
-		options.setUser(false);
-		options.setPlugin(true);
-		options.setTemplate(false);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(false)
+			.ext(false)
+			.user(false)
+			.plugin(true)
+			.template(false)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		waitForBackup();
@@ -255,13 +259,14 @@ public class BackupRestoreIT {
 		templateRepository.save(template2);
 
 		// Create backup
-		var options = new BackupOptionsDto();
-		options.setRef(false);
-		options.setExt(false);
-		options.setUser(false);
-		options.setPlugin(false);
-		options.setTemplate(true);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(false)
+			.ext(false)
+			.user(false)
+			.plugin(false)
+			.template(true)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		waitForBackup();
@@ -309,13 +314,14 @@ public class BackupRestoreIT {
 		templateRepository.save(template);
 
 		// Create backup of all types
-		var options = new BackupOptionsDto();
-		options.setRef(true);
-		options.setExt(true);
-		options.setUser(true);
-		options.setPlugin(true);
-		options.setTemplate(true);
-		options.setCache(false);
+		var options = BackupOptionsDto.builder()
+			.ref(true)
+			.ext(true)
+			.user(true)
+			.plugin(true)
+			.template(true)
+			.cache(false)
+			.build();
 		backup.createBackup(ORIGIN, BACKUP_ID, options);
 
 		waitForBackup();
