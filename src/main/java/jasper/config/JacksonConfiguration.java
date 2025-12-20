@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.datatype.hibernate7.Hibernate7Module;
@@ -48,7 +49,8 @@ public class JacksonConfiguration {
 	public JsonMapperBuilderCustomizer jsonCustomizer() {
 		return builder -> builder
 			.configure(ALLOW_UNESCAPED_CONTROL_CHARS, true)
-			.configure(ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+			.configure(ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true)
+			.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
 	}
 
     /*
