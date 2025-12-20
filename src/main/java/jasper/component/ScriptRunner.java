@@ -1,5 +1,6 @@
 package jasper.component;
 
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 import io.micrometer.core.annotation.Timed;
@@ -61,7 +62,7 @@ public class ScriptRunner {
 
 	@Autowired
 	@Qualifier("yamlMapper")
-	JsonMapper yamlMapper;
+	YAMLMapper yamlMapper;
 
 	@Timed("jasper.scripts")
 	public void validateScript(String script) throws UntrustedScriptException {
@@ -143,7 +144,7 @@ public class ScriptRunner {
 				bundle = jsonMapper.readValue(output, new TypeReference<Bundle>() {});
 				break;
 			case "yaml":
-				bundle = yamlMapper.readValue(output, new TypeReference<Bundle>() {});
+				bundle = yamlMapper.readValue(output, new com.fasterxml.jackson.core.type.TypeReference<Bundle>() {});
 				break;
 			default:
 				// Unreachable
