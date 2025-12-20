@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -991,7 +992,7 @@ public class UserServiceIT {
 		user1.setTag("+user/len1");
 		user1.setOrigin("");
 		// Use JsonNode to set external with ids array
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		var mapper = JsonMapper.builder().build();
 		try {
 			// user1 has 3 ids
 			user1.setExternal(mapper.readValue("{\"ids\": [\"a\", \"b\", \"c\"]}", External.class));

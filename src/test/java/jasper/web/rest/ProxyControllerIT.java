@@ -1,7 +1,5 @@
 package jasper.web.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
@@ -15,12 +13,16 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for {@link ProxyController}.
@@ -55,7 +57,7 @@ class ProxyControllerIT {
 		// Create the _plugin/cache plugin required by FileCache
 		var cachePlugin = new Plugin();
 		cachePlugin.setTag("_plugin/cache");
-		var mapper = new ObjectMapper();
+		var mapper = JsonMapper.builder().build();
 		cachePlugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 		    "optionalProperties": {
@@ -276,7 +278,7 @@ class ProxyControllerIT {
 	void testSuffixByteRangeSpecExceedingContentLength() throws Exception {
 		// Test: bytes=-1000 (suffix exceeds content length) - RFC 7233 requires returning entire representation
 		int suffixLength = TEST_CONTENT.length + 100;
-		
+
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", testUrl)

@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
@@ -633,69 +635,61 @@ public class ExtServiceIT {
 	@Test
 	void testApplySortingSpec_WithConfigSort() {
 		// Create Ext entities with config->value
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		try {
-			var ext1 = new Ext();
-			ext1.setTag("+user/test1");
-			ext1.setName("Test1");
-			ext1.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"value\": \"alpha\"}"));
-			extRepository.save(ext1);
+		var mapper = JsonMapper.builder().build();
+		var ext1 = new Ext();
+		ext1.setTag("+user/test1");
+		ext1.setName("Test1");
+		ext1.setConfig((ObjectNode) mapper.readTree("{\"value\": \"alpha\"}"));
+		extRepository.save(ext1);
 
-			var ext2 = new Ext();
-			ext2.setTag("+user/test2");
-			ext2.setName("Test2");
-			ext2.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"value\": \"beta\"}"));
-			extRepository.save(ext2);
+		var ext2 = new Ext();
+		ext2.setTag("+user/test2");
+		ext2.setName("Test2");
+		ext2.setConfig((ObjectNode) mapper.readTree("{\"value\": \"beta\"}"));
+		extRepository.save(ext2);
 
-			var pageable = PageRequest.of(0, 10, Sort.by(
-				Sort.Order.desc("config->value")));
-			var spec = ExtSpec.sort(
-				TagFilter.builder().build().spec(),
-				pageable);
+		var pageable = PageRequest.of(0, 10, Sort.by(
+			Sort.Order.desc("config->value")));
+		var spec = ExtSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
 
-			// Execute query to verify sorting works
-			var result = extRepository.findAll(spec, PageRequest.ofSize(10));
-			assertThat(result.getContent()).hasSize(2);
-			// Verify descending order (beta before alpha)
-			assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test2");
-			assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test1");
-		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-			throw new RuntimeException(e);
-		}
+		// Execute query to verify sorting works
+		var result = extRepository.findAll(spec, PageRequest.ofSize(10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify descending order (beta before alpha)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test2");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test1");
 	}
 
 	@Test
 	void testApplySortingSpec_WithNumericSort() {
 		// Create Ext entities with numeric config->count
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		try {
-			var ext1 = new Ext();
-			ext1.setTag("+user/test1");
-			ext1.setName("Test1");
-			ext1.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"count\": 2}"));
-			extRepository.save(ext1);
+		var mapper = JsonMapper.builder().build();
+		var ext1 = new Ext();
+		ext1.setTag("+user/test1");
+		ext1.setName("Test1");
+		ext1.setConfig((ObjectNode) mapper.readTree("{\"count\": 2}"));
+		extRepository.save(ext1);
 
-			var ext2 = new Ext();
-			ext2.setTag("+user/test2");
-			ext2.setName("Test2");
-			ext2.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"count\": 10}"));
-			extRepository.save(ext2);
+		var ext2 = new Ext();
+		ext2.setTag("+user/test2");
+		ext2.setName("Test2");
+		ext2.setConfig((ObjectNode) mapper.readTree("{\"count\": 10}"));
+		extRepository.save(ext2);
 
-			var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-				org.springframework.data.domain.Sort.Order.asc("config->count:num")));
-			var spec = ExtSpec.sort(
-				TagFilter.builder().build().spec(),
-				pageable);
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.asc("config->count:num")));
+		var spec = ExtSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
 
-			// Execute query to verify numeric sorting (2 before 10, not string sort where "10" < "2")
-			var result = extRepository.findAll(spec, PageRequest.of(0, 10));
-			assertThat(result.getContent()).hasSize(2);
-			// Verify ascending numeric order (2 before 10)
-			assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
-			assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
-		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-			throw new RuntimeException(e);
-		}
+		// Execute query to verify numeric sorting (2 before 10, not string sort where "10" < "2")
+		var result = extRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify ascending numeric order (2 before 10)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
 	}
 
 }
