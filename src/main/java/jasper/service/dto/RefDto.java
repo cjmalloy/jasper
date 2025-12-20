@@ -1,6 +1,8 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.HasTags;
 import lombok.Builder;
@@ -12,6 +14,7 @@ import java.util.List;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
 @Builder(toBuilder = true)
+@JsonDeserialize(builder = RefDto.RefDtoBuilder.class)
 @JsonInclude(NON_EMPTY)
 public record RefDto(
 	String url,
@@ -28,8 +31,10 @@ public record RefDto(
 	Instant modified
 ) implements HasTags, Serializable {
 	
-	public RefDto {
-		// Set default for origin if null
-		if (origin == null) origin = "";
+	@JsonPOJOBuilder(withPrefix = "")
+	public static class RefDtoBuilder {
+		// Lombok will generate this class
+		// Initialize default
+		private String origin = "";
 	}
 }

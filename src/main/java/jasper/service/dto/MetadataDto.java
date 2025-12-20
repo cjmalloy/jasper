@@ -1,6 +1,8 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
 
 import java.io.Serializable;
@@ -11,6 +13,7 @@ import java.util.Map;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
 @Builder(toBuilder = true)
+@JsonDeserialize(builder = MetadataDto.MetadataDtoBuilder.class)
 @JsonInclude(NON_EMPTY)
 public record MetadataDto(
 	String modified,
@@ -21,8 +24,10 @@ public record MetadataDto(
 	boolean obsolete
 ) implements Serializable {
 	
-	public MetadataDto {
-		// Set default for modified if null
-		if (modified == null) modified = Instant.now().toString();
+	@JsonPOJOBuilder(withPrefix = "")
+	public static class MetadataDtoBuilder {
+		// Lombok will generate this class
+		// Initialize default
+		private String modified = Instant.now().toString();
 	}
 }
