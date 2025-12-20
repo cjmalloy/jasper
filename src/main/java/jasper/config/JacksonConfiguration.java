@@ -4,13 +4,13 @@ import com.jsontypedef.jtd.Validator;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.datatype.hibernate7.Hibernate7Module;
 
+import static tools.jackson.core.StreamReadFeature.*;
 import static tools.jackson.core.json.JsonReadFeature.*;
 import static tools.jackson.databind.DeserializationFeature.*;
 
@@ -38,11 +38,10 @@ public class JacksonConfiguration {
     }
 
 	@Bean
-	@Primary
 	public JsonMapper jsonMapper() {
 		return JsonMapper.builder()
-			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER)
 			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
+			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, ALLOW_TRAILING_COMMA)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
 			.build();
 	}
