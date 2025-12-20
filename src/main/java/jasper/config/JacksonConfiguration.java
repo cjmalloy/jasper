@@ -4,6 +4,9 @@ import com.jsontypedef.jtd.Validator;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -38,11 +41,13 @@ public class JacksonConfiguration {
     }
 
 	@Bean
+	@Primary
 	public JsonMapper jsonMapper() {
 		return JsonMapper.builder()
 			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
 			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, ALLOW_TRAILING_COMMA)
 			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
+			.addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
 			.build();
 	}
 
