@@ -67,7 +67,7 @@ public class JacksonConfiguration implements WebMvcConfigurer {
 	@Bean
 	@Primary
 	@Profile("test")
-	public JsonMapper testJonMapper() {
+	public JsonMapper testJsonMapper() {
 		return JsonMapper.builder()
 			.enable(INCLUDE_SOURCE_IN_LOCATION)
 			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER)
@@ -110,7 +110,8 @@ public class JacksonConfiguration implements WebMvcConfigurer {
 	
 	@Override
 	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
-		// Replace all Jackson 2 converters with Jackson 3 converter using our configured JsonMapper
+		// Replace all Jackson message converters with a Jackson 2 converter configured with ProblemDetail mixin
+		// This is necessary because Spring Boot 4's HTTP message converters still use Jackson 2
 		converters.removeIf(converter -> converter instanceof MappingJackson2HttpMessageConverter);
 		converters.add(0, new MappingJackson2HttpMessageConverter(
 			com.fasterxml.jackson.databind.ObjectMapper.builder()
