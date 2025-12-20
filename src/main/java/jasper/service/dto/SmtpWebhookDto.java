@@ -1,73 +1,63 @@
 package jasper.service.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
 
 import java.io.Serializable;
 
-@Getter
-@Setter
-public class SmtpWebhookDto implements Serializable {
-	private String spf;
-	private String[] references;
+@Builder
+public record SmtpWebhookDto(
+	String spf,
+	String[] references,
+	String id,
+	String date,
+	String subject,
+	String resentDate,
+	String resentId,
+	Body body,
+	Addresses addresses,
+	EmailAttachment[] attachments,
+	EmailEmbeddedFile[] embeddedFiles
+) implements Serializable {
 
-	private String id;
-	private String date;
-	private String subject;
+	@Builder
+	public record Body(
+		String text,
+		String html
+	) implements Serializable {}
 
-	private String resentDate;
-	private String resentId;
+	@Builder
+	public record Addresses(
+		EmailAddress from,
+		EmailAddress to,
+		EmailAddress[] replyTo,
+		EmailAddress[] cc,
+		EmailAddress[] bcc,
+		String[] inReplyTo,
+		String html,
+		EmailAddress resentFrom,
+		EmailAddress[] resentTo,
+		EmailAddress[] resentCc,
+		EmailAddress[] resentBcc
+	) implements Serializable {}
 
-	private Body body;
-	private Addresses addresses;
+	@Builder
+	public record EmailAddress(
+		String name,
+		String address
+	) implements Serializable {}
 
-	private EmailAttachment[] attachments;
-	private EmailEmbeddedFile[] embeddedFiles;
+	@Builder
+	public record EmailAttachment(
+		String filename,
+		String contentType,
+		String data
+	) implements Serializable {}
 
-	@Getter
-	@Setter
-	public static class Body {
-		private String text;
-		private String html;
-	}
-
-	@Getter
-	@Setter
-	public static class Addresses {
-		private EmailAddress from;
-		private EmailAddress to;
-		private EmailAddress[] replyTo;
-		private EmailAddress[] cc;
-		private EmailAddress[] bcc;
-		private String[] inReplyTo;
-		private String html;
-		private EmailAddress resentFrom;
-		private EmailAddress[] resentTo;
-		private EmailAddress[] resentCc;
-		private EmailAddress[] resentBcc;
-	}
-
-	@Getter
-	@Setter
-	public static class EmailAddress {
-		private String name;
-		private String address;
-	}
-
-	@Getter
-	@Setter
-	public static class EmailAttachment {
-		private String filename;
-		private String contentType;
-		private String data;
-	}
-
-	@Getter
-	@Setter
-	public static class EmailEmbeddedFile {
-		private String cid;
-		private String contentType;
-		private String data;
-	}
+	@Builder
+	public record EmailEmbeddedFile(
+		String cid,
+		String contentType,
+		String data
+	) implements Serializable {}
 }
 
