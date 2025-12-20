@@ -748,16 +748,17 @@ public class ExtServiceIT {
 
 	@Test
 	void testJsonPatch_RemoveOperation() throws Exception {
-		// Create an existing Ext with description
+		// Create an existing Ext with config field
+		var mapper = JsonMapper.builder().build();
 		var ext = new Ext();
 		ext.setTag("+user/tester");
 		ext.setName("Test");
-		ext.setDescription("To be removed");
+		ext.setConfig((ObjectNode) mapper.readTree("{\"toRemove\":\"value\"}"));
 		extRepository.save(ext);
 		var cursor = ext.getModified();
 
-		// Create a JSON Patch to remove description
-		var patchJson = "[{\"op\":\"remove\",\"path\":\"/description\"}]";
+		// Create a JSON Patch to remove config field
+		var patchJson = "[{\"op\":\"remove\",\"path\":\"/config/toRemove\"}]";
 		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		var patch = jackson2Mapper.readValue(patchJson, JsonPatch.class);
 
@@ -766,7 +767,7 @@ public class ExtServiceIT {
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
-		assertThat(fetched.getDescription()).isNull();
+		assertThat(fetched.getConfig().has("toRemove")).isFalse();
 	}
 
 	@Test
@@ -963,15 +964,14 @@ public class ExtServiceIT {
 		var ext = new Ext();
 		ext.setTag("+user/tester");
 		ext.setName("Original");
-		ext.setDescription("Old description");
-		ext.setConfig((ObjectNode) mapper.readTree("{\"keep\":\"this\",\"remove\":\"that\",\"nested\":{\"value\":1}}"));
+		ext.setConfig((ObjectNode) mapper.readTree("{\"keep\":\"this\",\"remove\":\"that\",\"nested\":{\"value\":1},\"oldField\":\"toRemove\"}"));
 		extRepository.save(ext);
 		var cursor = ext.getModified();
 
 		// Create a complex JSON Patch with multiple operations
 		var patchJson = "[" +
 			"{\"op\":\"replace\",\"path\":\"/name\",\"value\":\"Updated\"}," +
-			"{\"op\":\"remove\",\"path\":\"/description\"}," +
+			"{\"op\":\"remove\",\"path\":\"/config/oldField\"}," +
 			"{\"op\":\"remove\",\"path\":\"/config/remove\"}," +
 			"{\"op\":\"replace\",\"path\":\"/config/nested/value\",\"value\":2}," +
 			"{\"op\":\"add\",\"path\":\"/config/new\",\"value\":\"added\"}" +
@@ -985,7 +985,7 @@ public class ExtServiceIT {
 		// Verify all operations were applied correctly
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getName()).isEqualTo("Updated");
-		assertThat(fetched.getDescription()).isNull();
+		assertThat(fetched.getConfig().has("oldField")).isFalse();
 		assertThat(fetched.getConfig().get("keep").asText()).isEqualTo("this");
 		assertThat(fetched.getConfig().has("remove")).isFalse();
 		assertThat(fetched.getConfig().get("nested").get("value").asInt()).isEqualTo(2);
