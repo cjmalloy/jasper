@@ -1,8 +1,7 @@
 package jasper.component.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -10,13 +9,18 @@ import java.util.Map;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 
-@Getter
-@Setter
+@Builder(toBuilder = true)
 @JsonInclude(NON_EMPTY)
-public class MetadataUpdateDto implements Serializable {
-	private String modified = Instant.now().toString();
-	private int responses;
-	private int internalResponses;
-	private Map<String, Integer> plugins;
-	private boolean obsolete;
+public record MetadataUpdateDto(
+	String modified,
+	int responses,
+	int internalResponses,
+	Map<String, Integer> plugins,
+	boolean obsolete
+) implements Serializable {
+	
+	public MetadataUpdateDto {
+		// Set default for modified if null
+		if (modified == null) modified = Instant.now().toString();
+	}
 }

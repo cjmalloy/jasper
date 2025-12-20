@@ -14,9 +14,7 @@ public interface HasTags extends Cursor {
 	String getTitle();
 	String getUrl();
 	List<String> getTags();
-	void setTags(List<String> tags);
 	ObjectNode getPlugins();
-	void setPlugins(ObjectNode plugins);
 
 	static String formatTag(Object tag) {
 		if (isBlank((String) tag)) return "~";
@@ -67,10 +65,10 @@ public interface HasTags extends Cursor {
 	}
 
 	static boolean hasPluginResponse(RefDto ref, String tag) {
-		if (ref.getMetadata() == null) return false;
-		if (ref.getMetadata().getPlugins() == null) return false;
-		return ref.getMetadata().getPlugins().keySet().stream()
+		if (ref.metadata() == null) return false;
+		if (ref.metadata().plugins() == null) return false;
+		return ref.metadata().plugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> ref.getMetadata().getPlugins().get(t) > 0);
+			.anyMatch(t -> ref.metadata().plugins().get(t) > 0);
 	}
 }

@@ -55,22 +55,62 @@ public abstract class DtoMapper {
 	public abstract BackupDto domainToDto(Storage.StorageRef plugin);
 
 	@AfterMapping
-	protected void filterTags(@MappingTarget HasTags ref) {
-		if (ref.getTags() == null) return;
-		ref.setTags(new ArrayList<>(auth.filterTags(ref.getTags())));
+	protected void filterRefDtoTags(@MappingTarget RefDto.RefDtoBuilder target) {
+		var ref = target.build();
+		if (ref.tags() != null) {
+			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+		}
 	}
 
 	@AfterMapping
-	protected void filterPlugins(@MappingTarget HasTags ref) {
-		if (ref.getPlugins() == null) return;
-		var filteredPlugins = objectMapper.createObjectNode();
-		ref.getPlugins().fieldNames().forEachRemaining(tag -> {
-			if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.getPlugins().get(tag));
-		});
-		if (filteredPlugins.isEmpty()) {
-			ref.setPlugins(null);
-		} else {
-			ref.setPlugins(filteredPlugins);
+	protected void filterRefDtoPlugins(@MappingTarget RefDto.RefDtoBuilder target) {
+		var ref = target.build();
+		if (ref.plugins() != null) {
+			var filteredPlugins = objectMapper.createObjectNode();
+			ref.plugins().fieldNames().forEachRemaining(tag -> {
+				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
+			});
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+		}
+	}
+
+	@AfterMapping
+	protected void filterRefNodeDtoTags(@MappingTarget RefNodeDto.RefNodeDtoBuilder target) {
+		var ref = target.build();
+		if (ref.tags() != null) {
+			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+		}
+	}
+
+	@AfterMapping
+	protected void filterRefNodeDtoPlugins(@MappingTarget RefNodeDto.RefNodeDtoBuilder target) {
+		var ref = target.build();
+		if (ref.plugins() != null) {
+			var filteredPlugins = objectMapper.createObjectNode();
+			ref.plugins().fieldNames().forEachRemaining(tag -> {
+				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
+			});
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
+		}
+	}
+
+	@AfterMapping
+	protected void filterRefReplDtoTags(@MappingTarget RefReplDto.RefReplDtoBuilder target) {
+		var ref = target.build();
+		if (ref.tags() != null) {
+			target.tags(new ArrayList<>(auth.filterTags(ref.tags())));
+		}
+	}
+
+	@AfterMapping
+	protected void filterRefReplDtoPlugins(@MappingTarget RefReplDto.RefReplDtoBuilder target) {
+		var ref = target.build();
+		if (ref.plugins() != null) {
+			var filteredPlugins = objectMapper.createObjectNode();
+			ref.plugins().fieldNames().forEachRemaining(tag -> {
+				if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.plugins().get(tag));
+			});
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
 	}
 

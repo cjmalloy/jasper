@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", builder = @org.mapstruct.Builder(disableBuilder = false))
 public abstract class ComponentDtoMapper {
 
 	@Autowired
@@ -46,36 +46,31 @@ public abstract class ComponentDtoMapper {
 	public abstract RefUpdateDto dtoToUpdateDto(RefDto ref);
 
 	@AfterMapping
-	protected void publicTags(@MappingTarget RefUpdateDto ref) {
-		if (ref.getTags() == null) return;
-		var filtered = new ArrayList<>(ref.getTags().stream().filter(t -> !t.startsWith("_")).toList());
-		if (ref.getPlugins() != null && filtered.size() < ref.getTags().size()) {
+	protected void publicTags(@MappingTarget RefUpdateDto.RefUpdateDtoBuilder target) {
+		var ref = target.build();
+		if (ref.tags() == null) return;
+		var filtered = new ArrayList<>(ref.tags().stream().filter(t -> !t.startsWith("_")).toList());
+		if (ref.plugins() != null && filtered.size() < ref.tags().size()) {
 			var filteredPlugins = objectMapper.createObjectNode();
-			ref.getPlugins().fieldNames().forEachRemaining(field -> {
-				if (filtered.contains(field)) filteredPlugins.set(field, ref.getPlugins().get(field));
+			ref.plugins().fieldNames().forEachRemaining(field -> {
+				if (filtered.contains(field)) filteredPlugins.set(field, ref.plugins().get(field));
 			});
-			if (filteredPlugins.isEmpty()) {
-				ref.setPlugins(null);
-			} else {
-				ref.setPlugins(filteredPlugins);
-			}
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
-		ref.setTags(filtered);
+		target.tags(filtered);
 	}
 
 	@AfterMapping
-	protected void publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
-		if (metadata.getPlugins() == null) return;
-		var filteredPlugins = new HashMap<String, Integer>();
-		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
-			if (!e.getKey().startsWith("_")) {
-				filteredPlugins.put(e.getKey(), e.getValue());
-			}
-		});
-		if (filteredPlugins.isEmpty()) {
-			metadata.setPlugins(null);
-		} else {
-			metadata.setPlugins(filteredPlugins);
+	protected void publicMetadata(@MappingTarget MetadataUpdateDto.MetadataUpdateDtoBuilder target) {
+		var metadata = target.build();
+		if (metadata.plugins() != null) {
+			var filteredPlugins = new HashMap<String, Integer>();
+			metadata.plugins().entrySet().forEach(e -> {
+				if (!e.getKey().startsWith("_")) {
+					filteredPlugins.put(e.getKey(), e.getValue());
+				}
+			});
+			target.plugins(filteredPlugins.isEmpty() ? null : filteredPlugins);
 		}
 	}
 }

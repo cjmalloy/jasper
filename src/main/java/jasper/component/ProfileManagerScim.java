@@ -87,21 +87,23 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	private ProfileDto mapUser(ScimUserResource user) {
-		var result = new ProfileDto();
-		result.setActive(user.isActive());
 		var roles = Arrays.asList(getRoles(user));
-		for (var role : roles) {
-			if (!role.equals(PRIVATE)) {
-				result.setRole(role);
+		String role = null;
+		for (var r : roles) {
+			if (!r.equals(PRIVATE)) {
+				role = r;
 				break;
 			}
 		}
-		if (roles.contains(PRIVATE)) {
-			result.setTag("_user/" + user.getUserName());
-		} else {
-			result.setTag("+user/" + user.getUserName());
-		}
-		return result;
+		var tag = roles.contains(PRIVATE) 
+			? "_user/" + user.getUserName()
+			: "+user/" + user.getUserName();
+		
+		return ProfileDto.builder()
+			.active(user.isActive())
+			.role(role)
+			.tag(tag)
+			.build();
 	}
 
 	private ScimUserResource _getUser(String userName) {
