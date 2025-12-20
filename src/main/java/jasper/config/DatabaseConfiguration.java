@@ -1,12 +1,15 @@
 package jasper.config;
 
-import org.hibernate.cfg.AvailableSettings;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import tools.jackson.databind.json.JsonMapper;
+
+import static org.hibernate.cfg.MappingSettings.JSON_FORMAT_MAPPER;
 
 @Configuration
 @EnableJpaRepositories({ "jasper.repository" })
@@ -14,10 +17,13 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 public class DatabaseConfiguration {
 
+	@Autowired
+	JsonMapper mapper;
+
 	@Bean
 	public HibernatePropertiesCustomizer hibernateCustomizer() {
 		return (properties) -> properties.put(
-			AvailableSettings.JSON_FORMAT_MAPPER, new Jackson3JsonFormatMapper()
+			JSON_FORMAT_MAPPER, new Jackson3JsonFormatMapper(mapper)
 		);
 	}
 }

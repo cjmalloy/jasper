@@ -31,6 +31,9 @@ public class ValidateRefIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	static final String URL = "https://www.example.com/";
 
 	@Test
@@ -48,7 +51,6 @@ public class ValidateRefIT {
 	void testValidateRefWithInvalidPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -70,7 +72,6 @@ public class ValidateRefIT {
 	void testValidateRefWithInvalidPluginDefaults() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -94,7 +95,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithPlugin() throws IOException {
-		var mapper = new JsonMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
@@ -122,7 +122,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithOptionalPlugin() throws IOException {
-		var mapper = new JsonMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
@@ -145,7 +144,6 @@ public class ValidateRefIT {
 	void testValidateRefWithStringPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 			{ "type": "string" },
 		"""));
@@ -166,7 +164,6 @@ public class ValidateRefIT {
 	void testValidateRefWithBooleanPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 			{ "type": "boolean" },
 		"""));
@@ -187,7 +184,6 @@ public class ValidateRefIT {
 	void testValidateRefWithNumberPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 			{ "type": "uint32" },
 		"""));
@@ -208,7 +204,6 @@ public class ValidateRefIT {
 	void testValidateRefWithArrayPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 			{ "elements": { "type": "string" } },
 		"""));
@@ -229,7 +224,6 @@ public class ValidateRefIT {
 	void testValidateRefWithPluginExtraFailed() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -259,7 +253,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithSchemalessPluginFailed() throws IOException {
-		var mapper = new JsonMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		pluginRepository.save(plugin);
@@ -283,7 +276,6 @@ public class ValidateRefIT {
 	void testValidateRefWithPluginDefaults() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",

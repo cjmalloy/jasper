@@ -26,6 +26,9 @@ public class PluginServiceIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	@BeforeEach
 	void init() {
 		pluginRepository.deleteAll();
@@ -35,7 +38,6 @@ public class PluginServiceIT {
 	void testCreatePluginWithSchema() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new JsonMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {

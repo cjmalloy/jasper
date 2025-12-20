@@ -49,12 +49,14 @@ public class RefServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	static final String URL = "https://www.example.com/";
 
 	Plugin getPlugin(String tag) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
-		var mapper = new JsonMapper();
 		try {
 			plugin.setSchema((ObjectNode) mapper.readTree("""
 			{
@@ -1223,7 +1225,6 @@ public class RefServiceIT {
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "+plugin/test")));
-		var mapper = new JsonMapper();
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"+plugin/test": {

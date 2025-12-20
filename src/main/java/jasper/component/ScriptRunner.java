@@ -61,7 +61,6 @@ public class ScriptRunner {
 	JsonMapper jsonMapper;
 
 	@Autowired
-	@Qualifier("yamlMapper")
 	YAMLMapper yamlMapper;
 
 	@Timed("jasper.scripts")

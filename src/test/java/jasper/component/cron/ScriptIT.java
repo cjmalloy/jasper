@@ -37,10 +37,12 @@ public class ScriptIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
-		var mapper = new JsonMapper();
 		try {
 			plugin.setConfig((ObjectNode) mapper.readTree("""
 			{

@@ -33,6 +33,9 @@ public class ValidateExtIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	@Test
 	void testValidateExt() {
 		var ext = new Ext();
@@ -46,7 +49,6 @@ public class ValidateExtIT {
 	void testValidateTagWithInvalidTemplate() throws IOException {
 		var template = new Template();
 		template.setTag("user");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -67,7 +69,6 @@ public class ValidateExtIT {
 	void testValidateTagWithTemplate() throws IOException {
 		var template = new Template();
 		template.setTag("user");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -92,7 +93,6 @@ public class ValidateExtIT {
 	void testValidateTagWithTemplateAndNullConfig() throws IOException {
 		var template = new Template();
 		template.setTag("user");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"optionalProperties": {
@@ -131,7 +131,6 @@ public class ValidateExtIT {
 		userRepository.save(user);
 		var template = new Template();
 		template.setTag("slug");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -155,7 +154,6 @@ public class ValidateExtIT {
 		user.setReadAccess(List.of("+slug/more/custom"));
 		user.setWriteAccess(List.of("+slug/more/custom"));
 		userRepository.save(user);
-		var mapper = new JsonMapper();
 		var template1 = new Template();
 		template1.setTag("slug");
 		template1.setSchema((ObjectNode) mapper.readTree("""
@@ -199,7 +197,6 @@ public class ValidateExtIT {
 		user.setReadAccess(List.of("+slug/more/custom"));
 		user.setWriteAccess(List.of("+slug/more/custom"));
 		userRepository.save(user);
-		var mapper = new JsonMapper();
 		var template1 = new Template();
 		template1.setTag("slug");
 		template1.setSchema((ObjectNode) mapper.readTree("""
@@ -248,7 +245,6 @@ public class ValidateExtIT {
 		userRepository.save(user);
 		var template = new Template();
 		template.setTag("slug");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -278,7 +274,6 @@ public class ValidateExtIT {
 		userRepository.save(user);
 		var template = new Template();
 		template.setTag("_slug");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -304,7 +299,6 @@ public class ValidateExtIT {
 		userRepository.save(user);
 		var template = new Template();
 		template.setTag("_slug");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {

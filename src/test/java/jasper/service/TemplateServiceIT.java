@@ -26,6 +26,9 @@ public class TemplateServiceIT {
 	@Autowired
 	TemplateRepository templateRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	@BeforeEach
 	void init() {
 		templateRepository.deleteAll();
@@ -35,7 +38,6 @@ public class TemplateServiceIT {
 	void testCreateTemplateWithSchema() throws IOException {
 		var template = new Template();
 		template.setTag("test");
-		var mapper = new JsonMapper();
 		template.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
