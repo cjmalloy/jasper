@@ -1693,9 +1693,9 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
+	void testApplySortingSpec_WithPluginsSort() throws JacksonException {
 		// Create refs with plugins data containing contentLength
-		var mapper = new ObjectMapper();
+		var mapper = JsonMapper.builder().build();
 		var ref1 = new Ref();
 		ref1.setUrl("https://example.com/1");
 		ref1.setTags(new ArrayList<>(List.of("+user/tester")));
