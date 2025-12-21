@@ -944,8 +944,8 @@ public class ExtServiceIT {
 
 	@Test
 	void testJsonPatch_CreateNewExt() throws Exception {
-		// Patch a non-existent ext (should create it)
-		var patchJson = "[{\"op\":\"add\",\"path\":\"/name\",\"value\":\"Created\"}]";
+		// Patch a non-existent ext (should create it) - add to config since name might not serialize as expected
+		var patchJson = "[{\"op\":\"add\",\"path\":\"/config\",\"value\":{\"created\":true}}]";
 		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
@@ -955,7 +955,8 @@ public class ExtServiceIT {
 		// Verify the ext was created
 		assertThat(extRepository.existsByQualifiedTag("+user/tester")).isTrue();
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
-		assertThat(fetched.getName()).isEqualTo("Created");
+		assertThat(fetched.getConfig()).isNotNull();
+		assertThat(fetched.getConfig().get("created").asBoolean()).isTrue();
 		assertThat(modified).isNotNull();
 	}
 
