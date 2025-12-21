@@ -59,7 +59,7 @@ jobs:
     - uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: 25
+        java-version: 17
 
     - name: Maven Build
       run: ./mvnw -B package -Dmaven.test.skip

@@ -6,37 +6,37 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**⚠️ CRITICAL: Java 25 Requirement**
+**⚠️ CRITICAL: Java 17 Requirement**
 
-This project **requires Java 25** (not earlier or later versions). Before attempting any build or test:
+This project **requires Java 17** (not earlier or later versions). Before attempting any build or test:
 
-1. **Check if Java 25 is available**: Run `java -version` to check your Java version
-2. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
-3. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+1. **Check if Java 17 is available**: Run `java -version` to check your Java version
+2. **If Java 17 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
+3. **If Java 17 IS installed**: You can use either Docker or local Maven builds
 
-**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+**Docker-based builds are ALWAYS the safest option** as they include Java 17, Bun, Python, and all other dependencies.
 
 ### Quick Decision Guide
 
 | Your Situation | Build Approach | Command |
 |----------------|----------------|---------|
-| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
+| Java 17 not available | **Use Docker** | `docker build -t jasper .` |
 | Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
-| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
-| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
+| Java 17 installed, quick compile | Local Maven | `./mvnw clean compile` |
+| Java 17 installed, with tests | Local Maven | `./mvnw clean package` |
 | Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
 
-**Docker-Based Build (Recommended - use this if Java 25 is not installed):**
-- Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+**Docker-Based Build (Recommended - use this if Java 17 is not installed):**
+- Build with Docker (handles Java 17 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
 
-**Local Development (Alternative - requires Java 25 setup):**
-- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
-- Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
-- Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
+**Local Development (Alternative - requires Java 17 setup):**
+- Install Java 17: The project requires Java 17. Use Amazon Corretto 17, Eclipse Temurin 17, or another Java 17 distribution.
+- Configure Java: `export JAVA_HOME=/path/to/java-17` (set to your Java 17 installation path)
+- Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 17
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
 - Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 - Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
@@ -124,10 +124,10 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Troubleshooting:**
 
-**Most Common Error: "release version 25 not supported"**
-- **Cause**: Java 25 is not installed or not configured correctly
+**Most Common Error: "release version 17 not supported"**
+- **Cause**: Java 17 is not installed or not configured correctly
 - **Solution**: Switch to Docker-based build immediately: `docker build -t jasper .`
-- **Alternative**: Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
+- **Alternative**: Install Java 17 (Amazon Corretto 17, Eclipse Temurin 17, or another distribution)
 
 **Other Common Issues:**
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
@@ -181,7 +181,7 @@ jasper/
 
 **Important Dependencies:**
 - Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
-- Java 25 (required)
+- Java 17 (required)
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
 - Liquibase (database migrations)
