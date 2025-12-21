@@ -702,14 +702,16 @@ public class ExtServiceIT {
 	@Test
 	void testJsonPatch_AddOperation() throws Exception {
 		// Create an existing Ext
+		var mapper = JsonMapper.builder().build();
 		var ext = new Ext();
 		ext.setTag("+user/tester");
-		ext.setName("Original");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("{}"));
 		extRepository.save(ext);
 		var cursor = ext.getModified();
 
-		// Create a JSON Patch to add a new field
-		var patchJson = "[{\"op\":\"add\",\"path\":\"/name\",\"value\":\"Updated\"}]";
+		// Create a JSON Patch to add a new field to config
+		var patchJson = "[{\"op\":\"add\",\"path\":\"/config/newField\",\"value\":\"newValue\"}]";
 		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
@@ -718,7 +720,7 @@ public class ExtServiceIT {
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
-		assertThat(fetched.getName()).isEqualTo("Updated");
+		assertThat(fetched.getConfig().get("newField").asText()).isEqualTo("newValue");
 		assertThat(modified).isAfter(cursor);
 	}
 
