@@ -2,6 +2,7 @@ package jasper.util;
 
 import com.github.fge.jsonpatch.JsonPatchException;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -40,7 +41,7 @@ public class Jackson3PatchAdapter implements Patch {
 	 * @return patched Jackson 3 JsonNode
 	 */
 	@Override
-	public tools.jackson.databind.JsonNode apply(tools.jackson.databind.JsonNode node) {
+	public JsonNode apply(JsonNode node) {
 		try {
 			// 1. Serialize Jackson 3 JsonNode to JSON string
 			String json = jsonMapper.writeValueAsString(node);
@@ -62,12 +63,5 @@ public class Jackson3PatchAdapter implements Patch {
 	}
 	
 
-	/**
-	 * Gets the underlying Jackson 2 Patch.
-	 * 
-	 * @return the wrapped Jackson 2 patch from json-patch library
-	 */
-	public com.github.fge.jsonpatch.Patch getJackson2Patch() {
-		return jackson2Patch;
-	}
+
 }
