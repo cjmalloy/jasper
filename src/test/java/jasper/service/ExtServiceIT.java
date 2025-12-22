@@ -57,13 +57,10 @@ public class ExtServiceIT {
 		
 		// Create a Template for user/* tags (matches +user/* Exts) that allows any config structure
 		// This enables json-patch tests to modify config fields
+		// Empty schema {} allows any JSON structure
 		var template = new Template();
 		template.setTag("user");
-		template.setSchema((ObjectNode) jsonMapper.readTree("""
-		{
-			"properties": {},
-			"additionalProperties": true
-		}"""));
+		template.setSchema((ObjectNode) jsonMapper.readTree("{}"));
 		templateRepository.save(template);
 	}
 
