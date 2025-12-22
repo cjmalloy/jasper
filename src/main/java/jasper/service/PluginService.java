@@ -113,13 +113,12 @@ public class PluginService {
 			plugin.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(plugin, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, Plugin.class);
+			var patched = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(plugin)), JsonNode.class);
 			if (created) {
-				return create(updated);
+				return create(patched);
 			} else {
-				updated.setModified(cursor);
-				return update(updated);
+				patched.setModified(cursor);
+				return update(patched);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Plugin " + qualifiedTag, e);

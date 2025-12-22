@@ -154,15 +154,14 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(user, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, User.class);
+			var patched = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(user)), JsonNode.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
-			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
+			if (!auth.canWriteUser(patched)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(updated);
+				return create(patched);
 			} else {
-				updated.setModified(cursor);
-				return update(updated);
+				patched.setModified(cursor);
+				return update(patched);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);
