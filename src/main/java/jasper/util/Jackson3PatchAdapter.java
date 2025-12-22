@@ -6,14 +6,12 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Wrapper for Jackson 2 Patch that provides Jackson 3 compatibility.
+ * Adapter that implements Patch interface to provide Jackson 3 compatibility.
  * 
- * This wrapper bridges between Jackson 2 (used by json-patch library) and Jackson 3 (used by the application).
- * It handles conversion between Jackson 2 and Jackson 3 JsonNodes automatically.
- * 
- * This class wraps a Patch object and provides helper methods for working with entities.
+ * This adapter bridges between Jackson 2 (used by json-patch library) and Jackson 3 (used by the application).
+ * It implements the Patch interface so it can be used anywhere a Patch is expected.
  */
-public class Jackson3PatchAdapter {
+public class Jackson3PatchAdapter implements Patch {
 	
 	private final Patch jackson2Patch;
 	private final JsonMapper jsonMapper;
@@ -21,7 +19,7 @@ public class Jackson3PatchAdapter {
 	
 	/**
 	 * Creates a new adapter for a Jackson 2 Patch.
-	 * If the patch is already a Jackson3PatchAdapter, returns it directly to avoid double-wrapping.
+	 * If the patch is already a Jackson3PatchAdapter, reuses its internal patch to avoid double-wrapping.
 	 * 
 	 * @param jackson2Patch the Jackson 2 patch to wrap
 	 * @param jsonMapper Jackson 3 mapper (application)
@@ -42,6 +40,19 @@ public class Jackson3PatchAdapter {
 			this.jsonMapper = jsonMapper;
 			this.jackson2ObjectMapper = jackson2ObjectMapper;
 		}
+	}
+	
+	/**
+	 * Implements Patch.apply() to delegate to the wrapped patch.
+	 * This allows Jackson3PatchAdapter to be used as a Patch.
+	 * 
+	 * @param node Jackson 2 JsonNode to patch
+	 * @return patched Jackson 2 JsonNode
+	 * @throws JsonPatchException if patch application fails
+	 */
+	@Override
+	public com.fasterxml.jackson.databind.JsonNode apply(com.fasterxml.jackson.databind.JsonNode node) throws JsonPatchException {
+		return jackson2Patch.apply(node);
 	}
 	
 	/**
@@ -81,20 +92,5 @@ public class Jackson3PatchAdapter {
 	 */
 	public Patch getPatch() {
 		return jackson2Patch;
-	}
-	
-	/**
-	 * Creates an adapter from a Patch, or returns the existing adapter if already wrapped.
-	 * 
-	 * @param patch the patch to wrap
-	 * @param jsonMapper Jackson 3 mapper
-	 * @param jackson2ObjectMapper Jackson 2 mapper
-	 * @return an adapter for the patch
-	 */
-	public static Jackson3PatchAdapter from(Patch patch, JsonMapper jsonMapper, com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper) {
-		if (patch instanceof Jackson3PatchAdapter) {
-			return (Jackson3PatchAdapter) patch;
-		}
-		return new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
 	}
 }
