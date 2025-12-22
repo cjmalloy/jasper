@@ -11,10 +11,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.support.CompositeCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -136,6 +140,14 @@ public class RedisConfig {
 	@Bean
 	public MessageChannel templateRedisChannel() {
 		return new DirectChannel();
+	}
+
+	@Bean
+	public CacheManager cacheManager(CaffeineCacheManager caffeineCacheManager, RedisConnectionFactory connectionFactory) {
+		var redisCacheManager = RedisCacheManager.builder(connectionFactory).build();
+		var manager = new CompositeCacheManager(caffeineCacheManager, redisCacheManager);
+		manager.setFallbackToNoOpCache(true);
+		return manager;
 	}
 
 	@Bean
