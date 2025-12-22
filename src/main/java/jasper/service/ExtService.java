@@ -1,7 +1,5 @@
 package jasper.service;
 
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestExt;
 import jasper.domain.Ext;
@@ -12,6 +10,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.ExtDto;
+import jasper.util.Patch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +20,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
@@ -123,15 +120,14 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ext, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, Ext.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ext)), Ext.class);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (RuntimeException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
 	}

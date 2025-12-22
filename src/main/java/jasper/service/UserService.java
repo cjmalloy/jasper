@@ -1,10 +1,5 @@
 package jasper.service;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestUser;
 import jasper.config.Props;
@@ -17,6 +12,7 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
+import jasper.util.Patch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -26,6 +22,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -154,8 +151,7 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(user, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, User.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(user)), User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
@@ -164,7 +160,7 @@ public class UserService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (RuntimeException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);
 		}
 	}

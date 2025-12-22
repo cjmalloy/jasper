@@ -12,6 +12,7 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.ExtSpec;
+import jasper.util.Jackson3PatchAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,16 +55,13 @@ public class ExtServiceIT {
 		extRepository.deleteAll();
 		userRepository.deleteAll();
 		templateRepository.deleteAll();
-		
+
 		// Create a Template for user/* tags (matches +user/* Exts) that allows any config structure
 		// This enables json-patch tests to modify config fields
+		// Empty schema {} allows any JSON structure
 		var template = new Template();
 		template.setTag("user");
-		template.setSchema((ObjectNode) jsonMapper.readTree("""
-		{
-			"properties": {},
-			"additionalProperties": true
-		}"""));
+		template.setSchema((ObjectNode) jsonMapper.readTree("{}"));
 		templateRepository.save(template);
 	}
 
@@ -738,7 +736,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		var modified = extService.patch("+user/tester", cursor, patch);
+		var modified = extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -763,7 +761,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -787,7 +785,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -811,7 +809,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -836,7 +834,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -859,7 +857,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -881,7 +879,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch - should throw exception
-		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, patch))
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper)))
 			.isInstanceOf(InvalidPatchException.class);
 
 		// Verify the patch was not applied
@@ -906,7 +904,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -930,7 +928,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -955,7 +953,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -972,7 +970,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch to create new ext
-		var modified = extService.patch("+user/tester", Instant.now(), patch);
+		var modified = extService.patch("+user/tester", Instant.now(), new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the ext was created
 		assertThat(extRepository.existsByQualifiedTag("+user/tester")).isTrue();
@@ -1005,7 +1003,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify all operations were applied correctly
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -1032,7 +1030,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch - should throw exception
-		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, patch))
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper)))
 			.isInstanceOf(InvalidPatchException.class);
 	}
 
@@ -1051,7 +1049,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied with special characters preserved
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -1080,7 +1078,7 @@ public class ExtServiceIT {
 		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, patch);
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
 
 		// Verify the patch was applied with correct types
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
