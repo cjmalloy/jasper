@@ -16,7 +16,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, StreamMixin<Ext>, ModifiedCursor, OriginMixin {
 
-	@Modifying
+	@Modifying(clearAutomatically = true)
 	@Query("""
 		UPDATE Ext SET
 			name = :name,
