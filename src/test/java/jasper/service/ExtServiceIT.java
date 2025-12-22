@@ -19,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester")
 @IntegrationTest
+@Transactional
 public class ExtServiceIT {
 
 	@Autowired
