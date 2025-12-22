@@ -191,7 +191,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}
