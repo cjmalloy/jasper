@@ -18,7 +18,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
 
-	@Modifying
+	@Modifying(clearAutomatically = true)
 	@Query("""
 		UPDATE Plugin SET
 			name = :name,

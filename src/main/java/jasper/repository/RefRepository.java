@@ -25,7 +25,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
-	@Modifying
+	@Modifying(clearAutomatically = true)
 	@Query("""
 		UPDATE Ref SET
 			title = :title,

@@ -18,7 +18,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
 
-	@Modifying
+	@Modifying(clearAutomatically = true)
 	@Query("""
 		UPDATE Template SET
 			name = :name,

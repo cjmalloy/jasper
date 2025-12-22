@@ -17,7 +17,7 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
 	ModifiedCursor, OriginMixin {
 
-	@Modifying
+	@Modifying(clearAutomatically = true)
 	@Query("""
 		UPDATE User SET
 			name = :name,
