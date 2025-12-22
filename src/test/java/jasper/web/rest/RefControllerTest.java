@@ -8,6 +8,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import jasper.web.rest.errors.ErrorConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,7 +124,8 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")));
     }
 
     @Test
@@ -162,7 +164,8 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/strict plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/strict")));
     }
 
     @Test
@@ -187,7 +190,8 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")));
     }
 
     @Test
@@ -223,9 +227,9 @@ class RefControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsBytes(ref))
                 .with(csrf().asHeader()))
-            .andExpect(status().isBadRequest())
+            .andExpect(status().isForbidden())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_ACCESS_DENIED));
     }
 
     @Test
@@ -274,9 +278,9 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").exists())
-            .andExpect(jsonPath("$.message").value(containsString("plugin/test")))
-            .andExpect(jsonPath("$.message").value(containsString("[")));  // Contains error details in array format
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")))
+            .andExpect(jsonPath("$.detail").value(containsString("[")));  // Contains error details in array format
     }
 
     @Test
@@ -294,14 +298,12 @@ class RefControllerTest {
         pluginData.put("age", 30);
         ref.setPlugin("plugin/test", pluginData);
 
-        // This should fail because plugin data is present without the tag
+        // Plugin data without the tag is allowed (will be validated when tag is added)
         mockMvc
             .perform(post("/api/v1/ref")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsBytes(ref))
                 .with(csrf().asHeader()))
-            .andExpect(status().isBadRequest())
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(status().isCreated());
     }
 }
