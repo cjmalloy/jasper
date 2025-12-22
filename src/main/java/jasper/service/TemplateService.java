@@ -49,6 +49,9 @@ public class TemplateService {
 	@Autowired
 	JsonMapper jsonMapper;
 
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant create(Template template) {
@@ -112,15 +115,24 @@ public class TemplateService {
 			template.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(template, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, Template.class);
+			// Bridge between Jackson 3 (application) and Jackson 2 (json-patch library)
+			// 1. Serialize Jackson 3 object to JSON string
+			String templateJson = jsonMapper.writeValueAsString(template);
+			// 2. Parse with Jackson 2 to get Jackson 2 JsonNode
+			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(templateJson);
+			// 3. Apply patch using Jackson 2
+			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = patch.apply(jackson2Node);
+			// 4. Serialize back to JSON string
+			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
+			// 5. Parse with Jackson 3 and convert to Template
+			var updated = jsonMapper.readValue(patchedJson, Template.class);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("Template " + qualifiedTag, e);
 		}
 	}

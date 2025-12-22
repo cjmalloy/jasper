@@ -93,6 +93,16 @@ public class JacksonConfiguration {
         return new ConstraintViolationProblemModule();
     }
 
+	/**
+	 * Jackson 2 ObjectMapper for json-patch library compatibility.
+	 * The json-patch library uses Jackson 2, so we need a separate ObjectMapper
+	 * to bridge between Jackson 3 (used by the application) and Jackson 2.
+	 */
+	@Bean
+	public com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper() {
+		return new com.fasterxml.jackson.databind.ObjectMapper();
+	}
+
 	@Bean
 	public Validator validator() {
 		var validator = new Validator();

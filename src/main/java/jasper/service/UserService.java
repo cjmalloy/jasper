@@ -69,6 +69,9 @@ public class UserService {
 	@Autowired
 	JsonMapper jsonMapper;
 
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
@@ -154,8 +157,17 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(user, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, User.class);
+			// Bridge between Jackson 3 (application) and Jackson 2 (json-patch library)
+			// 1. Serialize Jackson 3 object to JSON string
+			String userJson = jsonMapper.writeValueAsString(user);
+			// 2. Parse with Jackson 2 to get Jackson 2 JsonNode
+			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(userJson);
+			// 3. Apply patch using Jackson 2
+			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = patch.apply(jackson2Node);
+			// 4. Serialize back to JSON string
+			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
+			// 5. Parse with Jackson 3 and convert to User
+			var updated = jsonMapper.readValue(patchedJson, User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
@@ -164,7 +176,7 @@ public class UserService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);
 		}
 	}

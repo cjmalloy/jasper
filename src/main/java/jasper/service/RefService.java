@@ -65,6 +65,9 @@ public class RefService {
 	JsonMapper jsonMapper;
 
 	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+
+	@Autowired
 	ConfigCache configs;
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
@@ -165,8 +168,17 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ref, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, Ref.class);
+			// Bridge between Jackson 3 (application) and Jackson 2 (json-patch library)
+			// 1. Serialize Jackson 3 object to JSON string
+			String refJson = jsonMapper.writeValueAsString(ref);
+			// 2. Parse with Jackson 2 to get Jackson 2 JsonNode
+			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(refJson);
+			// 3. Apply patch using Jackson 2
+			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = patch.apply(jackson2Node);
+			// 4. Serialize back to JSON string
+			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
+			// 5. Parse with Jackson 3 and convert to Ref
+			var updated = jsonMapper.readValue(patchedJson, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
@@ -179,7 +191,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}
