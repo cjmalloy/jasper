@@ -28,6 +28,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +46,78 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private static final String MESSAGE_KEY = "message";
 	private static final String PATH_KEY = "path";
 	private static final boolean CASUAL_CHAIN_ENABLED = false;
+
+	private static final Map<Class<? extends Throwable>, ExceptionMapping> EXCEPTION_MAPPINGS = new HashMap<>();
+
+	static {
+		// Spring framework exceptions
+		EXCEPTION_MAPPINGS.put(MethodArgumentNotValidException.class, 
+			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_VALIDATION));
+		EXCEPTION_MAPPINGS.put(AccessDeniedException.class, 
+			new ExceptionMapping(ErrorConstants.ACCESS_VIOLATION_TYPE, ErrorConstants.ERR_ACCESS_DENIED));
+		EXCEPTION_MAPPINGS.put(ConcurrencyFailureException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_OPTIMISTIC_LOCK));
+		
+		// Plugin and template exceptions
+		EXCEPTION_MAPPINGS.put(InvalidPluginException.class, 
+			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_PLUGIN));
+		EXCEPTION_MAPPINGS.put(InvalidPluginUserUrlException.class, 
+			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_USER_URL));
+		EXCEPTION_MAPPINGS.put(InvalidTemplateException.class, 
+			new ExceptionMapping(ErrorConstants.TEMPLATE_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_TEMPLATE));
+		
+		// Duplicate and conflict exceptions
+		EXCEPTION_MAPPINGS.put(DuplicateTagException.class, 
+			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, ErrorConstants.ERR_DUPLICATE_TAG));
+		EXCEPTION_MAPPINGS.put(DuplicateModifiedDateException.class, 
+			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, null));
+		EXCEPTION_MAPPINGS.put(AlreadyExistsException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_ALREADY_EXISTS));
+		EXCEPTION_MAPPINGS.put(ModifiedException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_MODIFIED));
+		EXCEPTION_MAPPINGS.put(UserTagInUseException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_USER_TAG_IN_USE));
+		
+		// Date and time exceptions
+		EXCEPTION_MAPPINGS.put(PublishDateException.class, 
+			new ExceptionMapping(ErrorConstants.DATE_ERROR_TYPE, ErrorConstants.ERR_PUBLISH_DATE));
+		
+		// Script exceptions
+		EXCEPTION_MAPPINGS.put(ScriptException.class, 
+			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_SCRIPT));
+		EXCEPTION_MAPPINGS.put(UntrustedScriptException.class, 
+			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_UNTRUSTED_SCRIPT));
+		
+		// User exceptions
+		EXCEPTION_MAPPINGS.put(InvalidUserProfileException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, null));
+		EXCEPTION_MAPPINGS.put(DeactivateSelfException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_DEACTIVATE_SELF));
+		EXCEPTION_MAPPINGS.put(FreshLoginException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_FRESH_LOGIN));
+		
+		// Protocol and network exceptions
+		EXCEPTION_MAPPINGS.put(InvalidTunnelException.class, 
+			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_INVALID_TUNNEL));
+		EXCEPTION_MAPPINGS.put(ScrapeProtocolException.class, 
+			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_SCRAPE_PROTOCOL));
+		
+		// Size and validation exceptions
+		EXCEPTION_MAPPINGS.put(TooLargeException.class, 
+			new ExceptionMapping(ErrorConstants.SIZE_ERROR_TYPE, ErrorConstants.ERR_TOO_LARGE));
+		EXCEPTION_MAPPINGS.put(InvalidPushException.class, 
+			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_INVALID_PUSH));
+		
+		// Other application exceptions
+		EXCEPTION_MAPPINGS.put(InvalidPatchException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_INVALID_PATCH));
+		EXCEPTION_MAPPINGS.put(MaxSourcesException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_MAX_SOURCES));
+		EXCEPTION_MAPPINGS.put(NotFoundException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_NOT_FOUND));
+		EXCEPTION_MAPPINGS.put(OperationForbiddenOnOriginException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_ORIGIN_FORBIDDEN));
+	}
 
 	private final Environment env;
 
@@ -167,62 +240,16 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	}
 
 	private URI getMappedType(Throwable err) {
-		if (err instanceof MethodArgumentNotValidException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
-		if (err instanceof AccessDeniedException) return ErrorConstants.ACCESS_VIOLATION_TYPE;
-		if (err instanceof InvalidPluginException || err instanceof InvalidPluginUserUrlException) {
-			return ErrorConstants.PLUGIN_VALIDATION_TYPE;
+		ExceptionMapping mapping = EXCEPTION_MAPPINGS.get(err.getClass());
+		if (mapping != null && mapping.getType() != null) {
+			return mapping.getType();
 		}
-		if (err instanceof InvalidTemplateException) return ErrorConstants.TEMPLATE_VALIDATION_TYPE;
-		if (err instanceof DuplicateTagException || err instanceof DuplicateModifiedDateException) {
-			return ErrorConstants.DUPLICATE_KEY_TYPE;
-		}
-		if (err instanceof PublishDateException) return ErrorConstants.DATE_ERROR_TYPE;
-		if (err instanceof ScriptException || err instanceof UntrustedScriptException) {
-			return ErrorConstants.SCRIPT_ERROR_TYPE;
-		}
-		if (err instanceof InvalidUserProfileException ||
-			err instanceof DeactivateSelfException ||
-			err instanceof FreshLoginException) {
-			return ErrorConstants.USER_ERROR_TYPE;
-		}
-		if (err instanceof InvalidTunnelException || err instanceof ScrapeProtocolException) {
-			return ErrorConstants.PROTOCOL_ERROR_TYPE;
-		}
-		if (err instanceof AlreadyExistsException || 
-			err instanceof ModifiedException || 
-			err instanceof UserTagInUseException) {
-			return ErrorConstants.CONFLICT_TYPE;
-		}
-		if (err instanceof TooLargeException) return ErrorConstants.SIZE_ERROR_TYPE;
-		if (err instanceof InvalidPushException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
 		return ErrorConstants.DEFAULT_TYPE;
 	}
 
 	private String getMappedMessageKey(Throwable err) {
-		if (err instanceof MethodArgumentNotValidException) return ErrorConstants.ERR_VALIDATION;
-		if (err instanceof ConcurrencyFailureException) return ErrorConstants.ERR_OPTIMISTIC_LOCK;
-		if (err instanceof DuplicateTagException) return ErrorConstants.ERR_DUPLICATE_TAG;
-		if (err instanceof InvalidPluginException) return ErrorConstants.ERR_INVALID_PLUGIN;
-		if (err instanceof InvalidPluginUserUrlException) return ErrorConstants.ERR_INVALID_USER_URL;
-		if (err instanceof InvalidTemplateException) return ErrorConstants.ERR_INVALID_TEMPLATE;
-		if (err instanceof InvalidPatchException) return ErrorConstants.ERR_INVALID_PATCH;
-		if (err instanceof MaxSourcesException) return ErrorConstants.ERR_MAX_SOURCES;
-		if (err instanceof NotFoundException) return ErrorConstants.ERR_NOT_FOUND;
-		if (err instanceof AccessDeniedException) return ErrorConstants.ERR_ACCESS_DENIED;
-		if (err instanceof PublishDateException) return ErrorConstants.ERR_PUBLISH_DATE;
-		if (err instanceof ScriptException) return ErrorConstants.ERR_SCRIPT;
-		if (err instanceof UntrustedScriptException) return ErrorConstants.ERR_UNTRUSTED_SCRIPT;
-		if (err instanceof FreshLoginException) return ErrorConstants.ERR_FRESH_LOGIN;
-		if (err instanceof DeactivateSelfException) return ErrorConstants.ERR_DEACTIVATE_SELF;
-		if (err instanceof InvalidTunnelException) return ErrorConstants.ERR_INVALID_TUNNEL;
-		if (err instanceof ScrapeProtocolException) return ErrorConstants.ERR_SCRAPE_PROTOCOL;
-		if (err instanceof OperationForbiddenOnOriginException) return ErrorConstants.ERR_ORIGIN_FORBIDDEN;
-		if (err instanceof AlreadyExistsException) return ErrorConstants.ERR_ALREADY_EXISTS;
-		if (err instanceof ModifiedException) return ErrorConstants.ERR_MODIFIED;
-		if (err instanceof TooLargeException) return ErrorConstants.ERR_TOO_LARGE;
-		if (err instanceof InvalidPushException) return ErrorConstants.ERR_INVALID_PUSH;
-		if (err instanceof UserTagInUseException) return ErrorConstants.ERR_USER_TAG_IN_USE;
-		return null;
+		ExceptionMapping mapping = EXCEPTION_MAPPINGS.get(err.getClass());
+		return mapping != null ? mapping.getMessageKey() : null;
 	}
 
 	private String getCustomizedTitle(Throwable err) {
@@ -299,5 +326,26 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private boolean containsPackageName(String message) {
 		// This list is for sure not complete
 		return StringUtils.containsAny(message, "org.", "java.", "net.", "jakarta.", "javax.", "com.", "io.", "de.", "jasper.");
+	}
+
+	/**
+	 * Helper class to hold exception mapping configuration.
+	 */
+	private static class ExceptionMapping {
+		private final URI type;
+		private final String messageKey;
+
+		ExceptionMapping(URI type, String messageKey) {
+			this.type = type;
+			this.messageKey = messageKey;
+		}
+
+		URI getType() {
+			return type;
+		}
+
+		String getMessageKey() {
+			return messageKey;
+		}
 	}
 }
