@@ -5,11 +5,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import jasper.IntegrationTest;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 
@@ -209,5 +212,58 @@ class ExceptionTranslatorIT {
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_USER_TAG_IN_USE))
             .andExpect(jsonPath("$.detail").value("User tag already in use by another user."));
+    }
+
+    /**
+     * Tests for production profile error message sanitization.
+     * The prod profile sanitizes error messages to avoid exposing implementation details.
+     */
+    @Nested
+    @WithMockUser
+    @AutoConfigureMockMvc
+    @IntegrationTest
+    @ActiveProfiles({"prod", "test"})
+    @TestPropertySource(properties = {
+        "spring.datasource.url=jdbc:tc:postgresql:14.2:///jasper?TC_TMPFS=/testtmpfs:rw",
+        "spring.datasource.driver-class-name=org.testcontainers.jdbc.ContainerDatabaseDriver",
+        "spring.liquibase.contexts=test"
+    })
+    class ProductionProfileTests {
+
+        @Autowired
+        private MockMvc mockMvc;
+
+        @Test
+        void testHttpMessageConversionExceptionInProd() throws Exception {
+            // In prod profile, error message should be sanitized
+            mockMvc
+                .perform(get("/api/exception-translator-test/http-message-conversion"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.message").value("error.http.500"))
+                .andExpect(jsonPath("$.detail").value("Unable to convert http message"));
+        }
+
+        @Test
+        void testDataAccessExceptionInProd() throws Exception {
+            // In prod profile, error message should be sanitized
+            mockMvc
+                .perform(get("/api/exception-translator-test/data-access"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.message").value("error.http.500"))
+                .andExpect(jsonPath("$.detail").value("Failure during data access"));
+        }
+
+        @Test
+        void testInternalServerErrorWithPackageNameInProd() throws Exception {
+            // In prod profile, messages with package names should be sanitized
+            mockMvc
+                .perform(get("/api/exception-translator-test/internal-server-error-with-package"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.message").value("error.http.500"))
+                .andExpect(jsonPath("$.detail").value("Unexpected runtime exception"));
+        }
     }
 }
