@@ -100,15 +100,4 @@ public class JacksonConfiguration {
 		validator.setMaxErrors(5);
 		return validator;
 	}
-
-	/**
-	 * Jackson 2 ObjectMapper bean for json-patch library compatibility.
-	 * The json-patch library (com.github.fge.jsonpatch) requires Jackson 2,
-	 * while the main application uses Jackson 3. This bean provides the
-	 * Jackson 2 mapper needed for json-patch operations.
-	 */
-	@Bean(name = "jackson2ObjectMapper")
-	public com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper() {
-		return new com.fasterxml.jackson.databind.ObjectMapper();
-	}
 }
