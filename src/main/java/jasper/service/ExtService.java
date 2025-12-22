@@ -51,6 +51,9 @@ public class ExtService {
 	@Autowired
 	JsonMapper jsonMapper;
 
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+
 	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant create(Ext ext) {
@@ -123,15 +126,31 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ext, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
-			var updated = jsonMapper.treeToValue(patched, Ext.class);
+			// Convert Ext to JSON string using Jackson 3
+			String extJson = jsonMapper.writeValueAsString(ext);
+			
+			// Parse JSON with Jackson 2 to get Jackson 2 JsonNode
+			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(extJson);
+			
+			// Apply patch (operates on Jackson 2 JsonNode)
+			com.fasterxml.jackson.databind.JsonNode patchedJackson2Node = patch.apply(jackson2Node);
+			
+			// Convert patched Jackson 2 JsonNode back to JSON string
+			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2Node);
+			
+			// Parse JSON string with Jackson 3 to get Jackson 3 JsonNode
+			JsonNode patchedJackson3Node = jsonMapper.readTree(patchedJson);
+			
+			// Convert Jackson 3 JsonNode to Ext object
+			var updated = jsonMapper.treeToValue(patchedJackson3Node, Ext.class);
+			
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
 	}
