@@ -33,6 +33,7 @@
 		<problem-spring-web.version>0.29.1</problem-spring-web.version>
 		<springdoc-openapi.version>1.8.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
+		<archunit-junit5.version>1.4.1</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.5.2</apache-httpclient.version>
@@ -381,6 +382,20 @@
 			<artifactId>spring-boot-starter-liquibase-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5-api</artifactId>
+			<version>${archunit-junit5.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Adding the engine dependency to the surefire-plugin unfortunately does not work in the current version. -->
+		<!-- https://www.archunit.org/userguide/html/000_Index.html#_junit_5 -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5-engine</artifactId>
+			<version>${archunit-junit5.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -495,6 +510,7 @@
 						<include>**/*Test.java</include>
 						<include>**/*IT.java</include>
 					</includes>
+					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

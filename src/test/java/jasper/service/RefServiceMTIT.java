@@ -149,7 +149,6 @@ public class RefServiceMTIT {
 	@Test
 	void testCreateRefWithPublicTag() {
 		var ref = getRef();
-		ref.setUrl(URL);
 		ref.setTags(new ArrayList<>(List.of("public")));
 
 		refService.create(ref);
