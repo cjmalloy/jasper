@@ -18,7 +18,6 @@ import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,9 +63,6 @@ public class RefService {
 
 	@Autowired
 	JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -169,13 +165,8 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			Jackson3PatchAdapter adapter;
-			if (patch instanceof Jackson3PatchAdapter) {
-				adapter = (Jackson3PatchAdapter) patch;
-			} else {
-				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
-			}
-			var updated = adapter.apply(ref, Ref.class);
+			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ref, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patched, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
@@ -188,7 +179,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}

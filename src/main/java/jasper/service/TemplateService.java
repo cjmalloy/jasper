@@ -12,7 +12,6 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.TemplateDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -49,9 +48,6 @@ public class TemplateService {
 
 	@Autowired
 	JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
@@ -116,20 +112,15 @@ public class TemplateService {
 			template.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			Jackson3PatchAdapter adapter;
-			if (patch instanceof Jackson3PatchAdapter) {
-				adapter = (Jackson3PatchAdapter) patch;
-			} else {
-				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
-			}
-			var updated = adapter.apply(template, Template.class);
+			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(template, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patched, Template.class);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Template " + qualifiedTag, e);
 		}
 	}

@@ -5,12 +5,13 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Adapter that implements jasper.util.Patch interface to provide Jackson 3 compatibility.
+ * Adapter that implements both jasper.util.Patch and com.github.fge.jsonpatch.Patch interfaces
+ * to provide Jackson 3 compatibility while maintaining compatibility with existing code.
  * 
  * This adapter bridges between Jackson 2 (used by json-patch library) and Jackson 3 (used by the application).
- * It implements our custom Patch interface (jasper.util.Patch) so it can be used anywhere a Patch is expected.
+ * It implements both patch interfaces so it can be used anywhere either Patch type is expected.
  */
-public class Jackson3PatchAdapter implements Patch {
+public class Jackson3PatchAdapter implements Patch, com.github.fge.jsonpatch.Patch {
 	
 	private final com.github.fge.jsonpatch.Patch jackson2Patch;
 	private final JsonMapper jsonMapper;
@@ -59,6 +60,20 @@ public class Jackson3PatchAdapter implements Patch {
 		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new RuntimeException("Failed to apply patch", e);
 		}
+	}
+	
+	/**
+	 * Implements com.github.fge.jsonpatch.Patch.apply() to apply the patch to a Jackson 2 JsonNode.
+	 * This method delegates directly to the wrapped Jackson 2 patch.
+	 * 
+	 * @param node Jackson 2 JsonNode to patch  
+	 * @return patched Jackson 2 JsonNode
+	 * @throws JsonPatchException if patch application fails
+	 */
+	@Override
+	public com.fasterxml.jackson.databind.JsonNode apply(com.fasterxml.jackson.databind.JsonNode node) 
+			throws JsonPatchException {
+		return jackson2Patch.apply(node);
 	}
 	
 	/**

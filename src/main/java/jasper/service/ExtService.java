@@ -12,7 +12,6 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.ExtDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,9 +50,6 @@ public class ExtService {
 
 	@Autowired
 	JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
@@ -127,20 +123,15 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			Jackson3PatchAdapter adapter;
-			if (patch instanceof Jackson3PatchAdapter) {
-				adapter = (Jackson3PatchAdapter) patch;
-			} else {
-				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
-			}
-			var updated = adapter.apply(ext, Ext.class);
+			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(ext, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patched, Ext.class);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);
 		}
 	}

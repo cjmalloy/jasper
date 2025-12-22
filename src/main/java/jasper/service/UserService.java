@@ -17,7 +17,6 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -69,9 +68,6 @@ public class UserService {
 
 	@Autowired
 	JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
@@ -158,13 +154,8 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			Jackson3PatchAdapter adapter;
-			if (patch instanceof Jackson3PatchAdapter) {
-				adapter = (Jackson3PatchAdapter) patch;
-			} else {
-				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
-			}
-			var updated = adapter.apply(user, User.class);
+			var patched = jsonMapper.convertValue(patch.apply(jsonMapper.convertValue(user, com.fasterxml.jackson.databind.JsonNode.class)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patched, User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
@@ -173,7 +164,7 @@ public class UserService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);
 		}
 	}
