@@ -15,7 +15,9 @@ import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
+import jasper.util.Jackson3PatchAdapter;
 import jasper.service.dto.UserDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,12 @@ public class UserController {
 
 	@Autowired
 	UserService userService;
+
+	@Autowired
+	tools.jackson.databind.json.JsonMapper jsonMapper;
+
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -131,7 +139,8 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return userService.patch(tag, cursor, patch);
+		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+		return userService.patch(tag, cursor, adapter);
 	}
 
 	@ApiResponses({
@@ -145,7 +154,8 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return userService.patch(tag, cursor, patch);
+		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+		return userService.patch(tag, cursor, adapter);
 	}
 
 	@ApiResponses({

@@ -1,7 +1,7 @@
 package jasper.service;
 
 import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
+
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestTemplate;
 import jasper.domain.Template;
@@ -50,8 +50,7 @@ public class TemplateService {
 	@Autowired
 	JsonMapper jsonMapper;
 
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+	
 
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
@@ -106,7 +105,7 @@ public class TemplateService {
 
 	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
-	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
+	public Instant patch(String qualifiedTag, Instant cursor, Jackson3PatchAdapter adapter) {
 		var created = false;
 		var template = templateRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (template == null) {
@@ -116,7 +115,7 @@ public class TemplateService {
 			template.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			// Adapter is now passed in as a parameter
 			var updated = adapter.apply(template, Template.class);
 			if (created) {
 				return create(updated);
