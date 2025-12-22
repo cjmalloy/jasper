@@ -72,6 +72,8 @@ class ProxyControllerIT {
 		// Upload a test file to the cache using the real ProxyService
 		var savedRef = proxyService.save("", "test.txt", new ByteArrayInputStream(TEST_CONTENT), "text/plain");
 		testUrl = savedRef.getUrl();
+		// Give OS time to flush file buffers to prevent flaky reads
+		Thread.sleep(100);
 	}
 
 	@Test
