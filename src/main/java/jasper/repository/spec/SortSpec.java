@@ -136,4 +136,12 @@ public class SortSpec {
 	public static Expression<?> createArrayLengthExpression(Root<?> root, CriteriaBuilder cb, String fieldName) {
 		return cb.coalesce(cb.function("jsonb_array_length", Integer.class, root.get(fieldName)), cb.literal(0));
 	}
+
+	/**
+	 * Creates a sort expression for the tag field with binary collation (COLLATE "C").
+	 * This ensures ASCII ordering where '+' comes before '_'.
+	 */
+	public static Expression<String> createTagSortExpression(Root<?> root, CriteriaBuilder cb) {
+		return cb.function("collate_c", String.class, root.get("tag"));
+	}
 }

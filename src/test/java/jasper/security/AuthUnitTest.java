@@ -208,6 +208,24 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_ProtectedUserTagReadsPublicTag() {
+		var auth = getAuth(getUser("+user/alice"), VIEWER);
+		var ref = getRef("user/alice");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadRef_PrivateUserTagReadsPublicTag() {
+		var auth = getAuth(getUser("_user/alice"), VIEWER);
+		var ref = getRef("user/alice");
+
+		assertThat(auth.canReadRef(ref))
+			.isTrue();
+	}
+
+	@Test
 	void testCanReadRef_WriteAccessFailed() {
 		var user = getUser("+user/test");
 		user.getWriteAccess().add("+custom");
