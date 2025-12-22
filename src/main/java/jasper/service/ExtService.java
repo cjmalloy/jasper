@@ -1,7 +1,7 @@
 package jasper.service;
 
 import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
+import jasper.util.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestExt;
 import jasper.domain.Ext;
@@ -127,7 +127,12 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			Jackson3PatchAdapter adapter;
+			if (patch instanceof Jackson3PatchAdapter) {
+				adapter = (Jackson3PatchAdapter) patch;
+			} else {
+				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
+			}
 			var updated = adapter.apply(ext, Ext.class);
 			if (created) {
 				return create(updated);

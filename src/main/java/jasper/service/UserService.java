@@ -4,7 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
+import jasper.util.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestUser;
 import jasper.config.Props;
@@ -158,7 +158,12 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			Jackson3PatchAdapter adapter;
+			if (patch instanceof Jackson3PatchAdapter) {
+				adapter = (Jackson3PatchAdapter) patch;
+			} else {
+				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
+			}
 			var updated = adapter.apply(user, User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");

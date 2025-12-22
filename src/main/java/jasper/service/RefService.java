@@ -4,7 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
+import jasper.util.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
@@ -169,7 +169,12 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			Jackson3PatchAdapter adapter;
+			if (patch instanceof Jackson3PatchAdapter) {
+				adapter = (Jackson3PatchAdapter) patch;
+			} else {
+				throw new IllegalArgumentException("Patch must be a Jackson3PatchAdapter");
+			}
 			var updated = adapter.apply(ref, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
