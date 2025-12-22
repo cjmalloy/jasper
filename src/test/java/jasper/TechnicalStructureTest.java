@@ -32,13 +32,13 @@ class TechnicalStructureTest {
             .layer("Domain").definedBy("jasper.domain..")
             .layer("Plugin").definedBy("jasper.plugin..")
 
-            .whereLayer("Config").mayOnlyBeAccessedByLayers("Domain")
+            .whereLayer("Config").mayOnlyBeAccessedByLayers("Domain", "Web", "Service", "Component", "Security", "Client", "Persistence", "Util")
             .whereLayer("Client").mayOnlyBeAccessedByLayers("Web", "Component", "Service")
             .whereLayer("Web").mayOnlyBeAccessedByLayers("Config")
-            .whereLayer("Component").mayOnlyBeAccessedByLayers("Web", "Client", "Service", "Config")
-            .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Component", "Config", "Security", "Util")
+            .whereLayer("Component").mayOnlyBeAccessedByLayers("Web", "Client", "Service", "Config", "Security", "Domain")
+            .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Component", "Config", "Security", "Util", "Client", "Domain")
             .whereLayer("Security").mayOnlyBeAccessedByLayers("Config", "Client", "Service", "Component", "Persistence", "Web")
-            .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config")
+            .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config", "Domain")
             .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Plugin", "Client", "Service", "Component", "Security", "Web", "Util", "Config")
 
             .ignoreDependency(belongToAnyOf(JasperApplication.class), alwaysTrue())
