@@ -59,7 +59,7 @@ This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. Th
 
 **Fallback - Use Java 21 (if Java 25 not available):**
 - Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
-- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 or /usr/lib/jvm/temurin-21-jdk-amd64`
+- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` (or `/usr/lib/jvm/temurin-21-jdk-amd64` if using Temurin)
 - Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
 - Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
