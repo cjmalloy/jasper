@@ -44,16 +44,16 @@ public class Jackson3PatchAdapter implements Patch {
 	public JsonNode apply(JsonNode node) {
 		try {
 			// 1. Serialize Jackson 3 JsonNode to JSON string
-			String json = jsonMapper.writeValueAsString(node);
+			var json = jsonMapper.writeValueAsString(node);
 			
 			// 2. Deserialize to Jackson 2 JsonNode
-			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(json);
+			var jackson2Node = jackson2ObjectMapper.readTree(json);
 			
 			// 3. Apply patch using Jackson 2
-			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = jackson2Patch.apply(jackson2Node);
+			var patchedJackson2 = jackson2Patch.apply(jackson2Node);
 			
 			// 4. Serialize back to JSON string
-			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
+			var patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
 			
 			// 5. Deserialize to Jackson 3 JsonNode
 			return jsonMapper.readTree(patchedJson);
