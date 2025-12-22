@@ -112,12 +112,12 @@ public class TemplateService {
 			template.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			template = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(template)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(template)), Template.class);
 			if (created) {
-				return create(template);
+				return create(updated);
 			} else {
-				template.setModified(cursor);
-				return update(template);
+				updated.setModified(cursor);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Template " + qualifiedTag, e);

@@ -165,18 +165,18 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			ref = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ref)), JsonNode.class);
-			if (ref.getTags() != null) {
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ref)), Ref.class);
+			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
-				ref.setTags(new ArrayList<>(new LinkedHashSet<>(ref.getTags())));
+				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
 			}
 			// @PreAuthorize annotations are not triggered for calls within the same class
-			if (!auth.canWriteRef(ref)) throw new AccessDeniedException("Can't add new tags");
+			if (!auth.canWriteRef(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(ref);
+				return create(updated);
 			} else {
-				ref.setModified(cursor);
-				return update(ref);
+				updated.setModified(cursor);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);

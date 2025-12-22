@@ -113,12 +113,12 @@ public class PluginService {
 			plugin.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			plugin = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(plugin)), JsonNode.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(plugin)), Plugin.class);
 			if (created) {
-				return create(plugin);
+				return create(updated);
 			} else {
-				plugin.setModified(cursor);
-				return update(plugin);
+				updated.setModified(cursor);
+				return update(updated);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Plugin " + qualifiedTag, e);
