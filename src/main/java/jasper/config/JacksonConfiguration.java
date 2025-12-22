@@ -100,7 +100,15 @@ public class JacksonConfiguration {
 	 */
 	@Bean
 	public com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper() {
-		return new com.fasterxml.jackson.databind.ObjectMapper();
+		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		// Align key configuration with the Jackson 3 JsonMapper
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_TRAILING_COMMA, true);
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		return mapper;
 	}
 
 	@Bean
