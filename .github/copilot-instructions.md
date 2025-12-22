@@ -8,24 +8,34 @@ Bootstrap, build, and test the repository:
 
 **⚠️ CRITICAL: Java Version Requirement**
 
-This project is configured for **Java 25** in pom.xml. Before attempting any build or test:
+This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
 
-1. **Update pom.xml to Java 25**: The repository pom.xml files (main and gatling/pom.xml) need to have `<java.version>25</java.version>` set
-2. **Check if Java 25 is available**: Run `java -version` to check your Java version
-3. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
-4. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+**Most environments only have Java 17 available, which is NOT compatible with this codebase.**
 
-**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+### Build Options:
+
+1. **Docker Build (RECOMMENDED - works everywhere)**:
+   - Use `docker build -t jasper .` to build with Java 25 in a container
+   - This is the most reliable approach and doesn't require any pom.xml changes
+
+2. **Local Build with Java 21+ (if available)**:
+   - Check your Java version: `java -version`
+   - If you have Java 21, 22, 23, 24, or 25: You can build directly with `./mvnw clean package`
+   - The existing pom.xml configuration (Java 25) will work with any Java 21+
+
+3. **Cannot build with Java 17**:
+   - Spring Boot 4.0.0 requires Java 21 minimum
+   - If you only have Java 17, you MUST use Docker
+   - Do NOT attempt to change pom.xml to Java 17 - it will fail with Spring Boot 4.0.0
 
 ### Quick Decision Guide
 
 | Your Situation | Build Approach | Command |
 |----------------|----------------|---------|
-| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
-| Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
-| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
-| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
-| Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
+| Java 17 only (most common) | **Docker Required** | `docker build -t jasper .` |
+| Java 21+ installed | Local Maven | `./mvnw clean package` |
+| Need full test suite | **Use Docker** | `docker build --target test -t jasper-test .` |
+| Unsure about Java version | **Use Docker** | `docker build -t jasper .` |
 
 **Docker-Based Build (Recommended - use this if Java 25 is not installed):**
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
@@ -34,7 +44,14 @@ This project is configured for **Java 25** in pom.xml. Before attempting any bui
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
 
-**Local Development (Alternative - requires Java 25 setup):**
+**Local Development with Java 21+ (if available):**
+- Check Java version: `java -version` should show Java 21 or higher
+- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+
+**Alternative - Install Java 21+:**
 - Install Java 25: The project requires Java 25. Use Oracle JDK 25, OpenJDK 25, or another Java 25 distribution.
 - Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
 - Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
@@ -126,9 +143,10 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 **Troubleshooting:**
 
 **Most Common Error: "release version 25 not supported"**
-- **Cause**: Java 25 is not installed or not configured correctly
-- **Solution**: Switch to Docker-based build immediately: `docker build -t jasper .`
-- **Alternative**: Install Java 25 (Oracle JDK 25, OpenJDK 25, or another distribution)
+- **Cause**: Java 21+ is not installed (only Java 17 is available)
+- **Solution**: Use Docker build immediately: `docker build -t jasper .`
+- **Why not change to Java 17?**: Spring Boot 4.0.0 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+- **Alternative**: Install Java 21, 22, 23, 24, or 25 (Oracle JDK, OpenJDK, Eclipse Temurin, etc.)
 
 **Other Common Issues:**
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
