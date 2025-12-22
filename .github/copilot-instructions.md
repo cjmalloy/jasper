@@ -32,13 +32,16 @@ This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. Th
 
 | Your Situation | Build Approach | Command |
 |----------------|----------------|---------|
-| Java 17 only (most common) | **Docker Required** | `docker build -t jasper .` |
-| Java 21+ installed | Local Maven | `./mvnw clean package` |
+| Java 17 only (most common) | **Docker Required** | `docker build -t jasper .` (or `--network=host` if cert errors) |
+| Java 21+ installed | **Local Maven (Preferred)** | `./mvnw clean package` |
+| Docker certificate errors | Local Maven with Java 21+ | `./mvnw clean package` |
 | Need full test suite | **Use Docker** | `docker build --target test -t jasper-test .` |
 | Unsure about Java version | **Use Docker** | `docker build -t jasper .` |
 
 **Docker-Based Build (Recommended - use this if Java 25 is not installed):**
+- **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed). See Troubleshooting section for workarounds.
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+- If certificate errors occur, try: `docker build --network=host -t jasper .`
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
@@ -149,6 +152,11 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 - **Alternative**: Install Java 21, 22, 23, 24, or 25 (Oracle JDK, OpenJDK, Eclipse Temurin, etc.)
 
 **Other Common Issues:**
+- **Docker certificate error ("PKIX path building failed")**: The Docker build may fail with SSL certificate validation errors when downloading Maven dependencies. This is a known issue with the Java Docker images.
+  - **Workaround 1**: Use a local build with Java 21+ if available (bypasses Docker)
+  - **Workaround 2**: The certificate issue is intermittent - retry the Docker build
+  - **Workaround 3**: Use `--network=host` flag: `docker build --network=host -t jasper .`
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
