@@ -17,7 +17,7 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
-import jasper.util.PatchUtil;
+import jasper.util.Jackson3PatchAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -158,7 +158,8 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var updated = PatchUtil.applyPatch(patch, user, User.class, jsonMapper, jackson2ObjectMapper);
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			var updated = adapter.apply(user, User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {

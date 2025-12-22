@@ -12,7 +12,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.ExtDto;
-import jasper.util.PatchUtil;
+import jasper.util.Jackson3PatchAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -127,7 +127,8 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var updated = PatchUtil.applyPatch(patch, ext, Ext.class, jsonMapper, jackson2ObjectMapper);
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			var updated = adapter.apply(ext, Ext.class);
 			if (created) {
 				return create(updated);
 			} else {

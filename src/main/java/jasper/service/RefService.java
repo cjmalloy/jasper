@@ -18,7 +18,7 @@ import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
-import jasper.util.PatchUtil;
+import jasper.util.Jackson3PatchAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -169,7 +169,8 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var updated = PatchUtil.applyPatch(patch, ref, Ref.class, jsonMapper, jackson2ObjectMapper);
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			var updated = adapter.apply(ref, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));

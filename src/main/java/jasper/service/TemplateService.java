@@ -12,7 +12,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.TemplateDto;
-import jasper.util.PatchUtil;
+import jasper.util.Jackson3PatchAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -116,7 +116,8 @@ public class TemplateService {
 			template.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var updated = PatchUtil.applyPatch(patch, template, Template.class, jsonMapper, jackson2ObjectMapper);
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
+			var updated = adapter.apply(template, Template.class);
 			if (created) {
 				return create(updated);
 			} else {
