@@ -176,7 +176,7 @@ public class UserService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);
 		}
 	}
