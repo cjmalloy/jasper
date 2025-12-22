@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,7 +16,6 @@ import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
-import jasper.util.Jackson3PatchAdapter;
 import jasper.service.dto.UserDto;
 import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
@@ -29,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -52,10 +53,10 @@ public class UserController {
 	UserService userService;
 
 	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;

@@ -178,7 +178,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JacksonException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}

@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.List;
@@ -59,10 +61,10 @@ public class RefController {
 	RefService refService;
 
 	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
