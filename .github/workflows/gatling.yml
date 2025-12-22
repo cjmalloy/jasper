@@ -58,7 +58,8 @@ jobs:
                   # Parse HTML file - extract JSON from script tag
                   # Gatling embeds stats in: var stats = { ... };
                   # or window.stats = { ... }; inside a <script> tag
-                  match = re.search(r'(?:var|const|let|window\.)\s*stats\s*=\s*(\{.*?\});', content, re.DOTALL)
+                  # Use greedy match to capture the entire object
+                  match = re.search(r'(?:var|const|let|window\.)\s*stats\s*=\s*(\{.*\});', content, re.DOTALL)
                   if not match:
                       print(f"ERROR: Could not find stats variable in HTML file", file=sys.stderr)
                       print(f"DEBUG: Searching in HTML content (length: {len(content)})", file=sys.stderr)
