@@ -104,6 +104,9 @@ spring:
         - api-docs
         # Uncomment to activate TLS for the dev profile
         #- tls
+  http:
+    converters:
+      preferred-json-mapper: jackson2
   jmx:
     enabled: false
   data:
@@ -131,7 +134,7 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+        implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
   liquibase:
     change-log: classpath:config/liquibase/master.xml
   messages:

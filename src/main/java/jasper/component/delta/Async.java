@@ -99,10 +99,11 @@ public class Async {
 			if (ud.getTags() == null) throw new RuntimeException();
 			if (hasMatchingTag(ud, "+plugin/error")) throw new RuntimeException();
 			tags.forEach((tag, v) -> {
+				logger.trace("{} Checking for Async Tag ({} {}): {} Tags: {} Whitelisted: {}", origin, tag, configs.root().script(tag, ud) ? "☑️" : "🚩️", ud.getUrl(), ud.getTags(), configs.root().getScriptSelectors());
 				if (!hasMatchingTag(ud, tag)) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ud)) return;
 				if (isNotBlank(v.signature()) && hasPluginResponse(ud, v.signature())) return;
-				logger.debug("{} Async Tag ({}): {} {}", origin, tag, ud.getUrl(), origin);
+				logger.debug("{} Async Tag ({}): {}", origin, tag, ud.getUrl());
 				refs.compute(getKey(ud), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {
 						logger.debug("{} Async tag trying to run before finishing {} ", origin, tag);
@@ -147,7 +148,7 @@ public class Async {
 			lastModified = ref.getModified();
 			tags.forEach((tag, v) -> {
 				if (!v.backfill()) return;
-				if (!configs.root().script(tag, origin)) return;
+				if (!configs.root().script(tag, ref)) return;
 				if (!hasMatchingTag(ref, tag)) return;
 				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;

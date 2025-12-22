@@ -10,7 +10,7 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -39,7 +39,7 @@ import static java.util.Arrays.copyOfRange;
 import static org.springframework.data.redis.listener.PatternTopic.of;
 
 @Profile("redis")
-@Import(RedisAutoConfiguration.class)
+@Import(DataRedisAutoConfiguration.class)
 @Configuration
 public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);

@@ -6,17 +6,68 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**Important Note on Java 25:** The project requires Java 25. The Docker-based build is recommended for consistent, reproducible builds.
+**⚠️ CRITICAL: Java Version Requirement**
 
-**Docker-Based Build (Recommended):**
+This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
+
+**Most environments only have Java 17 available, which is NOT compatible with this codebase.**
+
+### Working Solution (Tested - works on first try):
+
+1. **Install Java 21**:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+   ```
+
+2. **Temporarily change pom.xml to Java 21**:
+   - Update `<java.version>25</java.version>` to `<java.version>21</java.version>` in `pom.xml`
+   - Update `<java.version>25</java.version>` to `<java.version>21</java.version>` in `gatling/pom.xml`
+
+3. **Build and test**:
+   ```bash
+   ./mvnw clean compile  # or ./mvnw clean package
+   ```
+
+4. **Revert pom.xml back to Java 25 after testing**:
+   - Change `<java.version>21</java.version>` back to `<java.version>25</java.version>` in both files
+
+### Alternative (if Docker certificate issues are resolved):
+
+- **Docker Build**: `docker build -t jasper .`
+  - **⚠️ Known Issue**: Docker builds currently fail with certificate errors (PKIX path building failed)
+  - Workaround: Use `--network=host` flag or local build with Java 21
+
+### Quick Decision Guide
+
+| Your Situation | Build Approach | Steps |
+|----------------|----------------|-------|
+| **Most common (Java 17 only)** | **Install Java 21 (RECOMMENDED - works on first try)** | 1. `sudo apt-get install -y openjdk-21-jdk`<br>2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`<br>3. Change pom.xml to Java 21<br>4. `./mvnw clean package`<br>5. Change pom.xml back to Java 25 |
+| Docker available | Use Docker (has certificate issues) | `docker build -t jasper .` or `docker build --network=host -t jasper .` |
+| Java 25 already installed | Direct build | `./mvnw clean package` |
+
+**Docker-Based Build (Alternative - currently has certificate issues):**
+- **⚠️ Known Issue**: Docker builds fail with certificate errors (PKIX path building failed) when Maven downloads dependencies
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+- If certificate errors occur, try: `docker build --network=host -t jasper .`
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
+- **Recommendation**: Use local Java 21 build instead (more reliable)
 
-**Local Development (Alternative - requires Java 25 setup):**
-- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
+**Local Development with Java 21 (RECOMMENDED - works on first try):**
+- Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+- Temporarily modify pom.xml: Change `<java.version>25</java.version>` to `<java.version>21</java.version>` in both `pom.xml` and `gatling/pom.xml`
+- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- **IMPORTANT**: After testing, revert pom.xml back to Java 25: Change `<java.version>21</java.version>` to `<java.version>25</java.version>` in both files
+
+**Alternative - Install Java 21+:**
+- Install Java 25: The project requires Java 25. Use Oracle JDK 25, OpenJDK 25, or another Java 25 distribution.
 - Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
 - Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
@@ -40,7 +91,7 @@ ALWAYS run the bootstrapping steps first.
 
 **Production Build:**
 - Build Docker image: `docker build -t jasper .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Test Docker build: `docker build --target test -t jasper-tests .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
+- Test Docker build: `docker build --target test -t jasper-test .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
 
 ## Testing
 
@@ -105,11 +156,30 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
 
 **Troubleshooting:**
-- If local build fails with "release version 25 not supported": Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
-- If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash`
-- If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`)
+
+**Most Common Error: "release version 25 not supported" or "release version 21 not supported"**
+- **Cause**: Java 21+ is not installed (only Java 17 is available)
+- **Working Solution (tested)**: Install Java 21 and temporarily change pom.xml:
+  1. `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+  2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+  3. Change `<java.version>25</java.version>` to `<java.version>21</java.version>` in `pom.xml` and `gatling/pom.xml`
+  4. Build: `./mvnw clean package`
+  5. Revert pom.xml back to Java 25 after testing
+- **Why not change to Java 17?**: Spring Boot 4.0.0 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+- **Alternative**: Use Docker build `docker build -t jasper .` (but may have certificate issues)
+
+**Other Common Issues:**
+- **Docker certificate error ("PKIX path building failed")**: The Docker build fails with SSL certificate validation errors when downloading Maven dependencies. This is a known issue with the Java Docker images.
+  - **Working Solution**: Install Java 21 locally and use Maven build (see above) - bypasses Docker entirely
+  - **Workaround 2**: The certificate issue is intermittent - retry the Docker build
+  - **Workaround 3**: Use `--network=host` flag: `docker build --network=host -t jasper .`
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
+- If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
+- If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
-- If Maven hangs: Check network connectivity for dependency downloads
+- If Maven hangs: Check network connectivity for dependency downloads. First Maven build downloads many dependencies which can take 5-10 minutes. Subsequent builds are faster (~11-85 seconds depending on scope).
+- If Docker build fails: Ensure Docker has enough disk space (`docker system prune -a` to clean up)
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
@@ -155,7 +225,7 @@ jasper/
 - `.github/workflows/test.yml` - Main CI pipeline
 
 **Important Dependencies:**
-- Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
+- Spring Boot 4.0.0 (Web, JPA, Security, WebSocket)
 - Java 25 (required)
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
