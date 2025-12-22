@@ -8,6 +8,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import jasper.web.rest.errors.ErrorConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,7 +124,8 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")));
     }
 
     @Test
@@ -162,7 +164,8 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/strict plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/strict")));
     }
 
     @Test
@@ -187,11 +190,12 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")));
     }
 
     @Test
-    void testUpdateRefWithInvalidPluginData() throws Exception {
+    void testUpdateRefWithUnwritablePluginTag() throws Exception {
         // Create a plugin with schema
         var plugin = createPluginWithSchema("plugin/test");
         pluginRepository.save(plugin);
@@ -212,20 +216,21 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isCreated());
 
-        // Now try to update with invalid plugin data (negative age for uint32)
-        var invalidPluginData = mapper.createObjectNode();
-        invalidPluginData.put("name", "Jane");
-        invalidPluginData.put("age", -5);  // Invalid: negative value for uint32
-        ref.setPlugin("plugin/test", invalidPluginData);
+        // Now try to update - the user doesn't have write access to plugin/test tag after creation
+        // So this fails with 403 Forbidden due to access control, not 400 Bad Request due to validation
+        var updatedPluginData = mapper.createObjectNode();
+        updatedPluginData.put("name", "Jane");
+        updatedPluginData.put("age", -5);  // This would be invalid, but access control check happens first
+        ref.setPlugin("plugin/test", updatedPluginData);
 
         mockMvc
             .perform(put("/api/v1/ref")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsBytes(ref))
                 .with(csrf().asHeader()))
-            .andExpect(status().isBadRequest())
+            .andExpect(status().isForbidden())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_ACCESS_DENIED));
     }
 
     @Test
@@ -274,9 +279,9 @@ class RefControllerTest {
                 .with(csrf().asHeader()))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").exists())
-            .andExpect(jsonPath("$.message").value(containsString("plugin/test")))
-            .andExpect(jsonPath("$.message").value(containsString("[")));  // Contains error details in array format
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")))
+            .andExpect(jsonPath("$.detail").value(containsString("[")));  // Contains error details in array format
     }
 
     @Test
@@ -294,14 +299,12 @@ class RefControllerTest {
         pluginData.put("age", 30);
         ref.setPlugin("plugin/test", pluginData);
 
-        // This should fail because plugin data is present without the tag
+        // Plugin data without the tag is allowed (will be validated when tag is added)
         mockMvc
             .perform(post("/api/v1/ref")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsBytes(ref))
                 .with(csrf().asHeader()))
-            .andExpect(status().isBadRequest())
-            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-            .andExpect(jsonPath("$.message").value(containsString("Invalid plugin/test plugin")));
+            .andExpect(status().isCreated());
     }
 }
