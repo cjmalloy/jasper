@@ -28,7 +28,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,77 +46,75 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private static final String PATH_KEY = "path";
 	private static final boolean CASUAL_CHAIN_ENABLED = false;
 
-	private static final Map<Class<? extends Throwable>, ExceptionMapping> EXCEPTION_MAPPINGS = new HashMap<>();
-
-	static {
+	private static final Map<Class<? extends Throwable>, ExceptionMapping> EXCEPTION_MAPPINGS = Map.ofEntries(
 		// Spring framework exceptions
-		EXCEPTION_MAPPINGS.put(MethodArgumentNotValidException.class, 
-			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_VALIDATION));
-		EXCEPTION_MAPPINGS.put(AccessDeniedException.class, 
-			new ExceptionMapping(ErrorConstants.ACCESS_VIOLATION_TYPE, ErrorConstants.ERR_ACCESS_DENIED));
-		EXCEPTION_MAPPINGS.put(ConcurrencyFailureException.class, 
-			new ExceptionMapping(null, ErrorConstants.ERR_OPTIMISTIC_LOCK));
+		Map.entry(MethodArgumentNotValidException.class, 
+			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_VALIDATION)),
+		Map.entry(AccessDeniedException.class, 
+			new ExceptionMapping(ErrorConstants.ACCESS_VIOLATION_TYPE, ErrorConstants.ERR_ACCESS_DENIED)),
+		Map.entry(ConcurrencyFailureException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_OPTIMISTIC_LOCK)),
 		
 		// Plugin and template exceptions
-		EXCEPTION_MAPPINGS.put(InvalidPluginException.class, 
-			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_PLUGIN));
-		EXCEPTION_MAPPINGS.put(InvalidPluginUserUrlException.class, 
-			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_USER_URL));
-		EXCEPTION_MAPPINGS.put(InvalidTemplateException.class, 
-			new ExceptionMapping(ErrorConstants.TEMPLATE_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_TEMPLATE));
+		Map.entry(InvalidPluginException.class, 
+			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_PLUGIN)),
+		Map.entry(InvalidPluginUserUrlException.class, 
+			new ExceptionMapping(ErrorConstants.PLUGIN_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_USER_URL)),
+		Map.entry(InvalidTemplateException.class, 
+			new ExceptionMapping(ErrorConstants.TEMPLATE_VALIDATION_TYPE, ErrorConstants.ERR_INVALID_TEMPLATE)),
 		
 		// Duplicate and conflict exceptions
-		EXCEPTION_MAPPINGS.put(DuplicateTagException.class, 
-			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, ErrorConstants.ERR_DUPLICATE_TAG));
-		EXCEPTION_MAPPINGS.put(DuplicateModifiedDateException.class, 
-			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, null));
-		EXCEPTION_MAPPINGS.put(AlreadyExistsException.class, 
-			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_ALREADY_EXISTS));
-		EXCEPTION_MAPPINGS.put(ModifiedException.class, 
-			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_MODIFIED));
-		EXCEPTION_MAPPINGS.put(UserTagInUseException.class, 
-			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_USER_TAG_IN_USE));
+		Map.entry(DuplicateTagException.class, 
+			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, ErrorConstants.ERR_DUPLICATE_TAG)),
+		Map.entry(DuplicateModifiedDateException.class, 
+			new ExceptionMapping(ErrorConstants.DUPLICATE_KEY_TYPE, null)),
+		Map.entry(AlreadyExistsException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_ALREADY_EXISTS)),
+		Map.entry(ModifiedException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_MODIFIED)),
+		Map.entry(UserTagInUseException.class, 
+			new ExceptionMapping(ErrorConstants.CONFLICT_TYPE, ErrorConstants.ERR_USER_TAG_IN_USE)),
 		
 		// Date and time exceptions
-		EXCEPTION_MAPPINGS.put(PublishDateException.class, 
-			new ExceptionMapping(ErrorConstants.DATE_ERROR_TYPE, ErrorConstants.ERR_PUBLISH_DATE));
+		Map.entry(PublishDateException.class, 
+			new ExceptionMapping(ErrorConstants.DATE_ERROR_TYPE, ErrorConstants.ERR_PUBLISH_DATE)),
 		
 		// Script exceptions
-		EXCEPTION_MAPPINGS.put(ScriptException.class, 
-			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_SCRIPT));
-		EXCEPTION_MAPPINGS.put(UntrustedScriptException.class, 
-			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_UNTRUSTED_SCRIPT));
+		Map.entry(ScriptException.class, 
+			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_SCRIPT)),
+		Map.entry(UntrustedScriptException.class, 
+			new ExceptionMapping(ErrorConstants.SCRIPT_ERROR_TYPE, ErrorConstants.ERR_UNTRUSTED_SCRIPT)),
 		
 		// User exceptions
-		EXCEPTION_MAPPINGS.put(InvalidUserProfileException.class, 
-			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, null));
-		EXCEPTION_MAPPINGS.put(DeactivateSelfException.class, 
-			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_DEACTIVATE_SELF));
-		EXCEPTION_MAPPINGS.put(FreshLoginException.class, 
-			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_FRESH_LOGIN));
+		Map.entry(InvalidUserProfileException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, null)),
+		Map.entry(DeactivateSelfException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_DEACTIVATE_SELF)),
+		Map.entry(FreshLoginException.class, 
+			new ExceptionMapping(ErrorConstants.USER_ERROR_TYPE, ErrorConstants.ERR_FRESH_LOGIN)),
 		
 		// Protocol and network exceptions
-		EXCEPTION_MAPPINGS.put(InvalidTunnelException.class, 
-			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_INVALID_TUNNEL));
-		EXCEPTION_MAPPINGS.put(ScrapeProtocolException.class, 
-			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_SCRAPE_PROTOCOL));
+		Map.entry(InvalidTunnelException.class, 
+			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_INVALID_TUNNEL)),
+		Map.entry(ScrapeProtocolException.class, 
+			new ExceptionMapping(ErrorConstants.PROTOCOL_ERROR_TYPE, ErrorConstants.ERR_SCRAPE_PROTOCOL)),
 		
 		// Size and validation exceptions
-		EXCEPTION_MAPPINGS.put(TooLargeException.class, 
-			new ExceptionMapping(ErrorConstants.SIZE_ERROR_TYPE, ErrorConstants.ERR_TOO_LARGE));
-		EXCEPTION_MAPPINGS.put(InvalidPushException.class, 
-			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_INVALID_PUSH));
+		Map.entry(TooLargeException.class, 
+			new ExceptionMapping(ErrorConstants.SIZE_ERROR_TYPE, ErrorConstants.ERR_TOO_LARGE)),
+		Map.entry(InvalidPushException.class, 
+			new ExceptionMapping(ErrorConstants.CONSTRAINT_VIOLATION_TYPE, ErrorConstants.ERR_INVALID_PUSH)),
 		
 		// Other application exceptions
-		EXCEPTION_MAPPINGS.put(InvalidPatchException.class, 
-			new ExceptionMapping(null, ErrorConstants.ERR_INVALID_PATCH));
-		EXCEPTION_MAPPINGS.put(MaxSourcesException.class, 
-			new ExceptionMapping(null, ErrorConstants.ERR_MAX_SOURCES));
-		EXCEPTION_MAPPINGS.put(NotFoundException.class, 
-			new ExceptionMapping(null, ErrorConstants.ERR_NOT_FOUND));
-		EXCEPTION_MAPPINGS.put(OperationForbiddenOnOriginException.class, 
-			new ExceptionMapping(null, ErrorConstants.ERR_ORIGIN_FORBIDDEN));
-	}
+		Map.entry(InvalidPatchException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_INVALID_PATCH)),
+		Map.entry(MaxSourcesException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_MAX_SOURCES)),
+		Map.entry(NotFoundException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_NOT_FOUND)),
+		Map.entry(OperationForbiddenOnOriginException.class, 
+			new ExceptionMapping(null, ErrorConstants.ERR_ORIGIN_FORBIDDEN))
+	);
 
 	private final Environment env;
 
@@ -241,15 +238,15 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 	private URI getMappedType(Throwable err) {
 		ExceptionMapping mapping = EXCEPTION_MAPPINGS.get(err.getClass());
-		if (mapping != null && mapping.getType() != null) {
-			return mapping.getType();
+		if (mapping != null && mapping.type() != null) {
+			return mapping.type();
 		}
 		return ErrorConstants.DEFAULT_TYPE;
 	}
 
 	private String getMappedMessageKey(Throwable err) {
 		ExceptionMapping mapping = EXCEPTION_MAPPINGS.get(err.getClass());
-		return mapping != null ? mapping.getMessageKey() : null;
+		return mapping != null ? mapping.messageKey() : null;
 	}
 
 	private String getCustomizedTitle(Throwable err) {
@@ -329,23 +326,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	}
 
 	/**
-	 * Helper class to hold exception mapping configuration.
+	 * Helper record to hold exception mapping configuration.
 	 */
-	private static class ExceptionMapping {
-		private final URI type;
-		private final String messageKey;
-
-		ExceptionMapping(URI type, String messageKey) {
-			this.type = type;
-			this.messageKey = messageKey;
-		}
-
-		URI getType() {
-			return type;
-		}
-
-		String getMessageKey() {
-			return messageKey;
-		}
-	}
+	private record ExceptionMapping(URI type, String messageKey) {}
 }
