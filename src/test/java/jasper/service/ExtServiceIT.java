@@ -3,10 +3,12 @@ package jasper.service;
 import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.domain.Ext;
+import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
+import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.ExtSpec;
@@ -39,10 +41,28 @@ public class ExtServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	TemplateRepository templateRepository;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
 	@BeforeEach
-	void init() {
+	void init() throws Exception {
 		extRepository.deleteAll();
 		userRepository.deleteAll();
+		templateRepository.deleteAll();
+		
+		// Create a Template for +user/* tags that allows any config structure
+		// This enables json-patch tests to modify config fields
+		var template = new Template();
+		template.setTag("+user");
+		template.setSchema((ObjectNode) jsonMapper.readTree("""
+		{
+			"properties": {},
+			"additionalProperties": true
+		}"""));
+		templateRepository.save(template);
 	}
 
 	@Test
