@@ -15,6 +15,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
+import jasper.util.PatchUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -116,24 +117,14 @@ public class PluginService {
 			plugin.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			// Bridge between Jackson 3 (application) and Jackson 2 (json-patch library)
-			// 1. Serialize Jackson 3 object to JSON string
-			String pluginJson = jsonMapper.writeValueAsString(plugin);
-			// 2. Parse with Jackson 2 to get Jackson 2 JsonNode
-			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(pluginJson);
-			// 3. Apply patch using Jackson 2
-			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = patch.apply(jackson2Node);
-			// 4. Serialize back to JSON string
-			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
-			// 5. Parse with Jackson 3 and convert to Plugin
-			var updated = jsonMapper.readValue(patchedJson, Plugin.class);
+			var updated = PatchUtil.applyPatch(patch, plugin, Plugin.class, jsonMapper, jackson2ObjectMapper);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("Plugin " + qualifiedTag, e);
 		}
 	}

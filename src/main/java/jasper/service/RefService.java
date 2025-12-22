@@ -18,6 +18,7 @@ import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
+import jasper.util.PatchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -168,17 +169,7 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			// Bridge between Jackson 3 (application) and Jackson 2 (json-patch library)
-			// 1. Serialize Jackson 3 object to JSON string
-			String refJson = jsonMapper.writeValueAsString(ref);
-			// 2. Parse with Jackson 2 to get Jackson 2 JsonNode
-			com.fasterxml.jackson.databind.JsonNode jackson2Node = jackson2ObjectMapper.readTree(refJson);
-			// 3. Apply patch using Jackson 2
-			com.fasterxml.jackson.databind.JsonNode patchedJackson2 = patch.apply(jackson2Node);
-			// 4. Serialize back to JSON string
-			String patchedJson = jackson2ObjectMapper.writeValueAsString(patchedJackson2);
-			// 5. Parse with Jackson 3 and convert to Ref
-			var updated = jsonMapper.readValue(patchedJson, Ref.class);
+			var updated = PatchUtil.applyPatch(patch, ref, Ref.class, jsonMapper, jackson2ObjectMapper);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
@@ -191,7 +182,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException e) {
+		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}
