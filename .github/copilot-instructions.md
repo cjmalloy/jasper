@@ -6,35 +6,68 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**⚠️ CRITICAL: Java 25 Requirement**
+**⚠️ CRITICAL: Java Version Requirement**
 
-This project **requires Java 25** (not earlier or later versions). Before attempting any build or test:
+This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
 
-1. **Check if Java 25 is available**: Run `java -version` to check your Java version
-2. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
-3. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+**Most environments only have Java 17 available, which is NOT compatible with this codebase.**
 
-**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+### Working Solution (Tested - works on first try):
+
+1. **Install Java 21**:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+   ```
+
+2. **Temporarily change pom.xml to Java 21**:
+   - Update `<java.version>25</java.version>` to `<java.version>21</java.version>` in `pom.xml`
+   - Update `<java.version>25</java.version>` to `<java.version>21</java.version>` in `gatling/pom.xml`
+
+3. **Build and test**:
+   ```bash
+   ./mvnw clean compile  # or ./mvnw clean package
+   ```
+
+4. **Revert pom.xml back to Java 25 after testing**:
+   - Change `<java.version>21</java.version>` back to `<java.version>25</java.version>` in both files
+
+### Alternative (if Docker certificate issues are resolved):
+
+- **Docker Build**: `docker build -t jasper .`
+  - **⚠️ Known Issue**: Docker builds currently fail with certificate errors (PKIX path building failed)
+  - Workaround: Use `--network=host` flag or local build with Java 21
 
 ### Quick Decision Guide
 
-| Your Situation | Build Approach | Command |
-|----------------|----------------|---------|
-| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
-| Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
-| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
-| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
-| Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
+| Your Situation | Build Approach | Steps |
+|----------------|----------------|-------|
+| **Most common (Java 17 only)** | **Install Java 21 (RECOMMENDED - works on first try)** | 1. `sudo apt-get install -y openjdk-21-jdk`<br>2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`<br>3. Change pom.xml to Java 21<br>4. `./mvnw clean package`<br>5. Change pom.xml back to Java 25 |
+| Docker available | Use Docker (has certificate issues) | `docker build -t jasper .` or `docker build --network=host -t jasper .` |
+| Java 25 already installed | Direct build | `./mvnw clean package` |
 
-**Docker-Based Build (Recommended - use this if Java 25 is not installed):**
+**Docker-Based Build (Alternative - currently has certificate issues):**
+- **⚠️ Known Issue**: Docker builds fail with certificate errors (PKIX path building failed) when Maven downloads dependencies
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+- If certificate errors occur, try: `docker build --network=host -t jasper .`
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
+- **Recommendation**: Use local Java 21 build instead (more reliable)
 
-**Local Development (Alternative - requires Java 25 setup):**
-- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
+**Local Development with Java 21 (RECOMMENDED - works on first try):**
+- Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+- Temporarily modify pom.xml: Change `<java.version>25</java.version>` to `<java.version>21</java.version>` in both `pom.xml` and `gatling/pom.xml`
+- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- **IMPORTANT**: After testing, revert pom.xml back to Java 25: Change `<java.version>21</java.version>` to `<java.version>25</java.version>` in both files
+
+**Alternative - Install Java 21+:**
+- Install Java 25: The project requires Java 25. Use Oracle JDK 25, OpenJDK 25, or another Java 25 distribution.
 - Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
 - Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
@@ -124,12 +157,24 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Troubleshooting:**
 
-**Most Common Error: "release version 25 not supported"**
-- **Cause**: Java 25 is not installed or not configured correctly
-- **Solution**: Switch to Docker-based build immediately: `docker build -t jasper .`
-- **Alternative**: Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
+**Most Common Error: "release version 25 not supported" or "release version 21 not supported"**
+- **Cause**: Java 21+ is not installed (only Java 17 is available)
+- **Working Solution (tested)**: Install Java 21 and temporarily change pom.xml:
+  1. `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+  2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+  3. Change `<java.version>25</java.version>` to `<java.version>21</java.version>` in `pom.xml` and `gatling/pom.xml`
+  4. Build: `./mvnw clean package`
+  5. Revert pom.xml back to Java 25 after testing
+- **Why not change to Java 17?**: Spring Boot 4.0.0 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+- **Alternative**: Use Docker build `docker build -t jasper .` (but may have certificate issues)
 
 **Other Common Issues:**
+- **Docker certificate error ("PKIX path building failed")**: The Docker build fails with SSL certificate validation errors when downloading Maven dependencies. This is a known issue with the Java Docker images.
+  - **Working Solution**: Install Java 21 locally and use Maven build (see above) - bypasses Docker entirely
+  - **Workaround 2**: The certificate issue is intermittent - retry the Docker build
+  - **Workaround 3**: Use `--network=host` flag: `docker build --network=host -t jasper .`
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
@@ -180,7 +225,7 @@ jasper/
 - `.github/workflows/test.yml` - Main CI pipeline
 
 **Important Dependencies:**
-- Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
+- Spring Boot 4.0.0 (Web, JPA, Security, WebSocket)
 - Java 25 (required)
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
