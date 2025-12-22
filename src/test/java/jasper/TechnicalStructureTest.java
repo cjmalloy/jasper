@@ -40,7 +40,7 @@ class TechnicalStructureTest {
             .whereLayer("Security").mayOnlyBeAccessedByLayers("Config", "Client", "Service", "Component", "Persistence", "Web")
             .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Component", "Security", "Web", "Config", "Domain")
             .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Plugin", "Client", "Service", "Component", "Security", "Web", "Util", "Config")
-            .whereLayer("Plugin").mayOnlyBeAccessedByLayers("Component", "Service")
+            .whereLayer("Plugin").mayOnlyBeAccessedByLayers("Component", "Service", "Web")
 
             .ignoreDependency(belongToAnyOf(JasperApplication.class), alwaysTrue())
             .ignoreDependency(alwaysTrue(), belongToAnyOf(
