@@ -123,12 +123,12 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ext)), JsonNode.class);
+			ext = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ext)), JsonNode.class);
 			if (created) {
-				return create(patched);
+				return create(ext);
 			} else {
-				patched.setModified(cursor);
-				return update(patched);
+				ext.setModified(cursor);
+				return update(ext);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Ext " + qualifiedTag, e);

@@ -261,8 +261,7 @@ public class RefController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return refService.patch(url, origin, cursor, adapter);
+		return refService.patch(url, origin, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -277,8 +276,7 @@ public class RefController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return refService.patch(url, origin, cursor, adapter);
+		return refService.patch(url, origin, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

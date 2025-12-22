@@ -159,8 +159,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return extService.patch(tag, cursor, adapter);
+		return extService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -174,8 +173,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return extService.patch(tag, cursor, adapter);
+		return extService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

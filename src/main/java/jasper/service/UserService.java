@@ -154,14 +154,14 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(user)), JsonNode.class);
+			user = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(user)), JsonNode.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
-			if (!auth.canWriteUser(patched)) throw new AccessDeniedException("Can't add new tags");
+			if (!auth.canWriteUser(user)) throw new AccessDeniedException("Can't add new tags");
 			if (created) {
-				return create(patched);
+				return create(user);
 			} else {
-				patched.setModified(cursor);
-				return update(patched);
+				user.setModified(cursor);
+				return update(user);
 			}
 		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("User " + qualifiedTag, e);

@@ -139,8 +139,7 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return userService.patch(tag, cursor, adapter);
+		return userService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -154,8 +153,7 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return userService.patch(tag, cursor, adapter);
+		return userService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

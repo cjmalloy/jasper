@@ -131,8 +131,7 @@ public class TemplateController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return templateService.patch(tag, cursor, adapter);
+		return templateService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -146,8 +145,7 @@ public class TemplateController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return templateService.patch(tag, cursor, adapter);
+		return templateService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
