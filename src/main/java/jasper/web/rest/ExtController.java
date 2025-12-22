@@ -15,7 +15,6 @@ import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import jasper.service.dto.ExtDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,12 +48,6 @@ public class ExtController {
 
 	@Autowired
 	HttpCache httpCache;
-
-	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -159,8 +152,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return extService.patch(tag, cursor, adapter);
+		return extService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({
@@ -174,8 +166,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return extService.patch(tag, cursor, adapter);
+		return extService.patch(tag, cursor, patch);
 	}
 
 	@ApiResponses({

@@ -4,7 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
-
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
@@ -50,7 +50,8 @@ public class PluginService {
 	@Autowired
 	JsonMapper jsonMapper;
 
-	
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -106,7 +107,7 @@ public class PluginService {
 
 	@PreAuthorize("@auth.canEditConfig(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
-	public Instant patch(String qualifiedTag, Instant cursor, Jackson3PatchAdapter adapter) {
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
 		var plugin = pluginRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (plugin == null) {
@@ -116,7 +117,7 @@ public class PluginService {
 			plugin.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			// Adapter is now passed in as a parameter
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
 			var updated = adapter.apply(plugin, Plugin.class);
 			if (created) {
 				return create(updated);

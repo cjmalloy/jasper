@@ -18,7 +18,6 @@ import jasper.domain.proj.HasOrigin;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
 import jasper.service.dto.RefDto;
-import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,12 +56,6 @@ public class RefController {
 
 	@Autowired
 	RefService refService;
-
-	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
-
-	@Autowired
-	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -261,8 +254,7 @@ public class RefController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return refService.patch(url, origin, cursor, adapter);
+		return refService.patch(url, origin, cursor, patch);
 	}
 
 	@ApiResponses({
@@ -277,8 +269,7 @@ public class RefController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
-		return refService.patch(url, origin, cursor, adapter);
+		return refService.patch(url, origin, cursor, patch);
 	}
 
 	@ApiResponses({

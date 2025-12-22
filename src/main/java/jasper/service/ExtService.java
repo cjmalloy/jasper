@@ -1,6 +1,7 @@
 package jasper.service;
 
 import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestExt;
 import jasper.domain.Ext;
@@ -50,6 +51,9 @@ public class ExtService {
 
 	@Autowired
 	JsonMapper jsonMapper;
+
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canCreateTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
@@ -113,7 +117,7 @@ public class ExtService {
 
 	@PreAuthorize("@auth.canWriteTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
-	public Instant patch(String qualifiedTag, Instant cursor, Jackson3PatchAdapter adapter) {
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
 		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {
@@ -123,6 +127,7 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
 			var updated = adapter.apply(ext, Ext.class);
 			if (created) {
 				return create(updated);

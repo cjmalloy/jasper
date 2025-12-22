@@ -65,7 +65,8 @@ public class RefService {
 	@Autowired
 	JsonMapper jsonMapper;
 
-	
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -155,7 +156,7 @@ public class RefService {
 
 	@PreAuthorize("@auth.canWriteRef(#url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
-	public Instant patch(String url, String origin, Instant cursor, Jackson3PatchAdapter adapter) {
+	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
 		// TODO: disable patching for large refs
 		var created = false;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
@@ -168,7 +169,7 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			// Adapter is now passed in as a parameter
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
 			var updated = adapter.apply(ref, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags

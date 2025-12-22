@@ -4,7 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
-
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestUser;
 import jasper.config.Props;
@@ -70,7 +70,8 @@ public class UserService {
 	@Autowired
 	JsonMapper jsonMapper;
 
-	
+	@Autowired
+	com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper;
 
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
@@ -147,7 +148,7 @@ public class UserService {
 
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
-	public Instant patch(String qualifiedTag, Instant cursor, Jackson3PatchAdapter adapter) {
+	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
 		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (user == null) {
@@ -157,7 +158,7 @@ public class UserService {
 			user.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			// Adapter is now passed in as a parameter
+			var adapter = new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper);
 			var updated = adapter.apply(user, User.class);
 			// @PreAuthorize annotations are not triggered for calls within the same class
 			if (!auth.canWriteUser(updated)) throw new AccessDeniedException("Can't add new tags");
