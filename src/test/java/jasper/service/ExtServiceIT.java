@@ -55,10 +55,10 @@ public class ExtServiceIT {
 		userRepository.deleteAll();
 		templateRepository.deleteAll();
 		
-		// Create a Template for +user/* tags that allows any config structure
+		// Create a Template for user/* tags (matches +user/* Exts) that allows any config structure
 		// This enables json-patch tests to modify config fields
 		var template = new Template();
-		template.setTag("+user");
+		template.setTag("user");
 		template.setSchema((ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {},
