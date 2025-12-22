@@ -133,7 +133,7 @@ public class PluginService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JacksonException | com.fasterxml.jackson.core.JsonProcessingException e) {
+		} catch (JsonPatchException | JacksonException e) {
 			throw new InvalidPatchException("Plugin " + qualifiedTag, e);
 		}
 	}
