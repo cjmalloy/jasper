@@ -1,33 +1,45 @@
 package jasper.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.hibernate7.Hibernate7Module;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jsontypedef.jtd.Validator;
-import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
+import org.zalando.problem.violations.ConstraintViolationProblem;
 import org.zalando.problem.violations.ConstraintViolationProblemModule;
+import org.zalando.problem.violations.Violation;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.datatype.hibernate7.Hibernate7Module;
+
+import java.util.List;
+
+import static tools.jackson.core.StreamReadFeature.*;
+import static tools.jackson.core.json.JsonReadFeature.*;
+import static tools.jackson.databind.DeserializationFeature.*;
 
 @Configuration
 public class JacksonConfiguration {
-	static ObjectMapper om = null;
+	static JsonMapper om = null;
 
-	public static ObjectMapper om() {
+	public static JsonMapper om() {
 		assert om != null;
 		return om;
+	}
+
+	@PostConstruct
+	void initStatic() {
+		JacksonConfiguration.om = jsonMapper();
 	}
 
 	public static String dump(Object any) {
         try {
             return om().writeValueAsString(any);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
 			e.printStackTrace();
             return "{error}" + any.getClass().getName();
         }
@@ -35,39 +47,35 @@ public class JacksonConfiguration {
 
 	@Bean
 	@Primary
-	ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
-		return builder.createXmlMapper(false).build();
-	}
-
-	@Bean("yamlMapper")
-	public ObjectMapper yamlMapper(Jackson2ObjectMapperBuilder builder) {
-		return builder
-			.createXmlMapper(false)
-			.factory(new YAMLFactory())
+	public JsonMapper jsonMapper() {
+		return JsonMapper.builder()
+			.enable(ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
+			.enable(ALLOW_UNESCAPED_CONTROL_CHARS, ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, ALLOW_TRAILING_COMMA)
+			.disable(FAIL_ON_NULL_FOR_PRIMITIVES, FAIL_ON_UNKNOWN_PROPERTIES)
+			.addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+			.addMixIn(ConstraintViolationProblem.class, ConstraintViolationProblemMixIn.class)
+			.addMixIn(Violation.class, ViolationMixIn.class)
+			.addModule(hibernate7Module())
 			.build();
 	}
 
-	@Bean
-	public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
-		return builder -> builder.featuresToEnable(
-			JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(),
-			JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER.mappedFeature()
-		);
+	public interface ConstraintViolationProblemMixIn {
+		@JsonProperty("violations")
+		List<Violation> getViolations();
 	}
 
-    /**
-     * Support for Java date and time API.
-     * @return the corresponding Jackson module.
-     */
-    @Bean
-    public JavaTimeModule javaTimeModule() {
-        return new JavaTimeModule();
-    }
+	public interface ViolationMixIn {
+		@JsonProperty("field")
+		String getField();
+		@JsonProperty("message")
+		String getMessage();
+	}
 
-    @Bean
-    public Jdk8Module jdk8TimeModule() {
-        return new Jdk8Module();
-    }
+	@Bean
+	public YAMLMapper yamlMapper() {
+		return YAMLMapper.builder()
+			.build();
+	}
 
     /*
      * Support for Hibernate types in Jackson.
@@ -84,6 +92,24 @@ public class JacksonConfiguration {
     public ConstraintViolationProblemModule constraintViolationProblemModule() {
         return new ConstraintViolationProblemModule();
     }
+
+	/**
+	 * Jackson 2 ObjectMapper for json-patch library compatibility.
+	 * The json-patch library uses Jackson 2, so we need a separate ObjectMapper
+	 * to bridge between Jackson 3 (used by the application) and Jackson 2.
+	 */
+	@Bean
+	public com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper() {
+		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		// Align key configuration with the Jackson 3 JsonMapper
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+		mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_TRAILING_COMMA, true);
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
+		mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		return mapper;
+	}
 
 	@Bean
 	public Validator validator() {

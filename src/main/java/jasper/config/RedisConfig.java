@@ -1,7 +1,5 @@
 package jasper.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.service.dto.ExtDto;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.RefDto;
@@ -24,8 +22,9 @@ import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
@@ -45,7 +44,7 @@ public class RedisConfig {
 	private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	RedisConnectionFactory redisConnectionFactory;
@@ -190,8 +189,8 @@ public class RedisConfig {
 				@Override
 				protected byte[] getMessage(Message<RefDto> message) {
 					try {
-						return objectMapper.writeValueAsBytes(message.getPayload());
-					} catch (JsonProcessingException e) {
+						return jsonMapper.writeValueAsBytes(message.getPayload());
+					} catch (JacksonException e) {
 						logger.error("Cannot serialize RefDto.");
 						throw new RuntimeException(e);
 					}
@@ -214,11 +213,11 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var ref = objectMapper.readValue(message.getBody(), RefDto.class);
+				var ref = jsonMapper.readValue(message.getBody(), RefDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				refRedisChannel().send(MessageBuilder.createMessage(ref, refHeaders(origin, ref)));
-			} catch (IOException e) {
+			} catch (JacksonException e) {
 				logger.error("Error parsing RefDto from redis.");
 			}
 		}, of("ref/*"));
@@ -318,8 +317,8 @@ public class RedisConfig {
 				@Override
 				protected byte[] getMessage(Message<UserDto> message) {
 					try {
-						return objectMapper.writeValueAsBytes(message.getPayload());
-					} catch (JsonProcessingException e) {
+						return jsonMapper.writeValueAsBytes(message.getPayload());
+					} catch (JacksonException e) {
 						logger.error("Cannot serialize UserDto.");
 						throw new RuntimeException(e);
 					}
@@ -342,12 +341,12 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var user = objectMapper.readValue(message.getBody(), UserDto.class);
+				var user = jsonMapper.readValue(message.getBody(), UserDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				userRedisChannel().send(MessageBuilder.createMessage(user, tagHeaders(origin, tag)));
-			} catch (IOException e) {
+			} catch (JacksonException e) {
 				logger.error("Error parsing UserDto from redis.");
 			}
 		}, of("user/*"));
@@ -367,8 +366,8 @@ public class RedisConfig {
 				@Override
 				protected byte[] getMessage(Message<ExtDto> message) {
 					try {
-						return objectMapper.writeValueAsBytes(message.getPayload());
-					} catch (JsonProcessingException e) {
+						return jsonMapper.writeValueAsBytes(message.getPayload());
+					} catch (JacksonException e) {
 						logger.error("Cannot serialize ExtDto.");
 						throw new RuntimeException(e);
 					}
@@ -391,12 +390,12 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var ext = objectMapper.readValue(message.getBody(), ExtDto.class);
+				var ext = jsonMapper.readValue(message.getBody(), ExtDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				extRedisChannel().send(MessageBuilder.createMessage(ext, tagHeaders(origin, tag)));
-			} catch (IOException e) {
+			} catch (JacksonException e) {
 				logger.error("Error parsing ExtDto from redis.");
 			}
 		}, of("ext/*"));
@@ -416,8 +415,8 @@ public class RedisConfig {
 				@Override
 				protected byte[] getMessage(Message<PluginDto> message) {
 					try {
-						return objectMapper.writeValueAsBytes(message.getPayload());
-					} catch (JsonProcessingException e) {
+						return jsonMapper.writeValueAsBytes(message.getPayload());
+					} catch (JacksonException e) {
 						logger.error("Cannot serialize PluginDto.");
 						throw new RuntimeException(e);
 					}
@@ -440,12 +439,12 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var plugin = objectMapper.readValue(message.getBody(), PluginDto.class);
+				var plugin = jsonMapper.readValue(message.getBody(), PluginDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				pluginRedisChannel().send(MessageBuilder.createMessage(plugin, tagHeaders(origin, tag)));
-			} catch (IOException e) {
+			} catch (JacksonException e) {
 				logger.error("Error parsing PluginDto from redis.");
 			}
 		}, of("plugin/*"));
@@ -465,8 +464,8 @@ public class RedisConfig {
 				@Override
 				protected byte[] getMessage(Message<TemplateDto> message) {
 					try {
-						return objectMapper.writeValueAsBytes(message.getPayload());
-					} catch (JsonProcessingException e) {
+						return jsonMapper.writeValueAsBytes(message.getPayload());
+					} catch (JacksonException e) {
 						logger.error("Cannot serialize TemplateDto.");
 						throw new RuntimeException(e);
 					}
@@ -489,12 +488,12 @@ public class RedisConfig {
 		container.setConnectionFactory(redisConnectionFactory);
 		container.addMessageListener((message, pattern) -> {
 			try {
-				var template = objectMapper.readValue(message.getBody(), TemplateDto.class);
+				var template = jsonMapper.readValue(message.getBody(), TemplateDto.class);
 				var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 				var origin = parts[1];
 				var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 				templateRedisChannel().send(MessageBuilder.createMessage(template, tagHeaders(origin, tag)));
-			} catch (IOException e) {
+			} catch (JacksonException e) {
 				logger.error("Error parsing TemplateDto from redis.");
 			}
 		}, of("template/*"));

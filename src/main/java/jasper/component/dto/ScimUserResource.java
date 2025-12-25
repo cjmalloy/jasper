@@ -1,6 +1,6 @@
 package jasper.component.dto;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.unboundid.scim2.common.types.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

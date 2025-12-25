@@ -1,7 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import com.mdimension.jchronic.Chronic;
 import com.mdimension.jchronic.Options;
 import com.mdimension.jchronic.tags.Pointer;
@@ -52,7 +52,7 @@ public class Scraper {
 	Sanitizer sanitizer;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	RefRepository refRepository;
@@ -323,8 +323,8 @@ public class Scraper {
 			var json = jsonld.html().trim().replaceAll("\n", " ");
 			try {
 				var configs = json.startsWith("{") ?
-					List.of(objectMapper.readValue(json, JsonLd.class)) :
-					objectMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
+					List.of(jsonMapper.readValue(json, JsonLd.class)) :
+					jsonMapper.readValue(json, new TypeReference<List<JsonLd>>(){});
 				for (var c : configs) parseLd(result, c);
 			} catch (Exception e) {
 				logger.warn("Invalid LD+JSON. {}", getMessage(e));
@@ -407,7 +407,7 @@ public class Scraper {
 		if (ld.getPublisher() != null) {
 			for (var p : ld.getPublisher()) {
 				if (p.isTextual()) continue;
-				var pub = objectMapper.convertValue(p, JsonLd.class);
+				var pub = jsonMapper.convertValue(p, JsonLd.class);
 				if (pub.getLogo() != null) {
 					for (var icon : pub.getLogo().isArray() ? pub.getLogo() : List.of(pub.getLogo())) {
 						if (icon.isObject()) {
@@ -424,7 +424,7 @@ public class Scraper {
 				if (image.isTextual()) {
 					addPluginUrl(result, "plugin/image", image.textValue());
 				} else {
-					parseLd(result, objectMapper.convertValue(image, JsonLd.class));
+					parseLd(result, jsonMapper.convertValue(image, JsonLd.class));
 				}
 			}
 		}
@@ -433,7 +433,7 @@ public class Scraper {
 				if (video.isTextual()) {
 					addPluginUrl(result, "plugin/video", video.textValue());
 				} else {
-					parseLd(result, objectMapper.convertValue(video, JsonLd.class));
+					parseLd(result, jsonMapper.convertValue(video, JsonLd.class));
 				}
 			}
 		}
