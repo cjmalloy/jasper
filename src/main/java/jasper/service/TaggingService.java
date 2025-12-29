@@ -145,7 +145,7 @@ public class TaggingService {
 				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
 				ref.addPlugins(ref.getTags(), plugins);
 			} catch (JsonPatchException e) {
-				throw new InvalidPatchException("Ref " + " " + url, e);
+				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
 		}
 		try {
