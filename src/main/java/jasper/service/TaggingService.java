@@ -118,7 +118,12 @@ public class TaggingService {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		if (isNotBlank(tag) && !ref.hasTag(tag)) {
 			ref.addTag(tag);
-			ingest.update(auth.getOrigin(), ref);
+			try {
+				ingest.update(auth.getOrigin(), ref);
+			} catch (ModifiedException e) {
+				// TODO: infinite retrys?
+				createResponse(tag, url);
+			}
 		}
 	}
 
@@ -127,7 +132,12 @@ public class TaggingService {
 	public void deleteResponse(String tag, String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
-		ingest.update(auth.getOrigin(), ref);
+		try {
+			ingest.update(auth.getOrigin(), ref);
+		} catch (ModifiedException e) {
+			// TODO: infinite retrys?
+			deleteResponse(tag, url);
+		}
 	}
 
 	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canPatchTags(#tags)")
