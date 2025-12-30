@@ -145,8 +145,9 @@ public class TaggingService {
 	public void respond(List<String> tags, String url, Patch patch) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		for (var tag : tags) {
-			if (!ref.hasTag(tag)) {
-				ref.addTag(tag);
+			var newTag = !tag.startsWith("-") && !ref.hasTag(tag);
+			ref.addTag(tag);
+			if (newTag) {
 				configs.getPlugin(tag, auth.getOrigin())
 					.map(Plugin::getDefaults)
 					.ifPresent(defaults -> ref.setPlugin(tag, defaults));
