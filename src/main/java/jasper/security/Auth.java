@@ -294,12 +294,13 @@ public class Auth {
 		if (!subOrigin(origin)) return false;
 		// Mods can read anything
 		if (hasRole(MOD)) return true;
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (maybeExisting.filter(this::canReadRef).isPresent()) return true;
 		// User URL
 		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		return maybeExisting.filter(this::canReadRef).isPresent();
+		return false;
 	}
 
 	/**
@@ -331,9 +332,9 @@ public class Auth {
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url)) return hasRole(MOD) || isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
-		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
+		if (tagUrl(url)) return hasRole(MOD) || canWriteTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
 			// If we're creating, simply having the role USER is enough
