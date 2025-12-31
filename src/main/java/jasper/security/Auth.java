@@ -398,6 +398,8 @@ public class Auth {
 	 * Does the user have permission to use a tag when tagging Refs?
 	 */
 	public boolean canAddTag(String tag) {
+		// Reject qualified tags (tags with @ origin suffix)
+		if (tag != null && tag.contains("@")) return false;
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
@@ -413,6 +415,8 @@ public class Auth {
 	 * Does the user have permission to remove a tag when tagging Refs?
 	 */
 	public boolean canDeleteTag(String tag) {
+		// Reject qualified tags (tags with @ origin suffix)
+		if (tag != null && tag.contains("@")) return false;
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
