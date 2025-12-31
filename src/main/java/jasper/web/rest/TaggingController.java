@@ -129,6 +129,7 @@ public class TaggingController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping("response")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
