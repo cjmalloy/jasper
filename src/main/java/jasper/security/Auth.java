@@ -294,13 +294,12 @@ public class Auth {
 		if (!subOrigin(origin)) return false;
 		// Mods can read anything
 		if (hasRole(MOD)) return true;
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (maybeExisting.filter(this::canReadRef).isPresent()) return true;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url) && isLoggedIn() && userUrl(url, getUserTag().tag)) return true;
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
-		return false;
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
 
 	/**
