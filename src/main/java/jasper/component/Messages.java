@@ -76,6 +76,7 @@ public class Messages {
 	public void init() {
 		ready = true;
 	}
+
 	@Async
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
