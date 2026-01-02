@@ -43,6 +43,7 @@
 		<commons-lang3.version>3.20.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<jsoup.version>1.22.1</jsoup.version>
+		<re2j.version>1.8</re2j.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
 		<mockito.version>5.11.0</mockito.version>
 		<byte-buddy.version>1.14.12</byte-buddy.version>
@@ -271,6 +272,11 @@
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>${jsoup.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.re2j</groupId>
+			<artifactId>re2j</artifactId>
+			<version>${re2j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.unboundid.product.scim2</groupId>
