@@ -249,7 +249,6 @@ public class Tagger {
 		});
 	}
 
-
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void removeAllResponses(String url, String origin, String tag) {

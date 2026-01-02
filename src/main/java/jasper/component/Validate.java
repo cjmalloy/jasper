@@ -84,6 +84,20 @@ public class Validate {
 	}
 
 	@Timed("jasper.validate")
+	public void response(String rootOrigin, Ref ref) {
+		var root = configs.root();
+		try {
+			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
+			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
+		} catch (ScopeNotActiveException e) {
+			ref.removeTags(root.getModSeals());
+			ref.removeTags(root.getEditorSeals());
+		}
+		tags(rootOrigin, ref);
+		plugins(rootOrigin, ref, false);
+	}
+
+	@Timed("jasper.validate")
 	public void ext(String rootOrigin, Ext ext) {
 		ext(rootOrigin, ext,false);
 	}
