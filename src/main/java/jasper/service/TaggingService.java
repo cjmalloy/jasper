@@ -119,7 +119,7 @@ public class TaggingService {
 		if (isNotBlank(tag) && !ref.hasTag(tag)) {
 			ref.addTag(tag);
 			try {
-				ingest.update(auth.getOrigin(), ref);
+				ingest.updateResponse(auth.getOrigin(), ref);
 			} catch (ModifiedException e) {
 				// TODO: infinite retrys?
 				createResponse(tag, url);
@@ -133,7 +133,7 @@ public class TaggingService {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
 		try {
-			ingest.update(auth.getOrigin(), ref);
+			ingest.updateResponse(auth.getOrigin(), ref);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			deleteResponse(tag, url);
@@ -162,7 +162,7 @@ public class TaggingService {
 			}
 		}
 		try {
-			ingest.update(auth.getOrigin(), ref);
+			ingest.updateResponse(auth.getOrigin(), ref);
 		} catch (ModifiedException e) {
 			// TODO: infinite retrys?
 			respond(tags, url, patch);
