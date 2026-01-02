@@ -1,7 +1,7 @@
 package jasper.component;
 
 import jasper.client.TokenClient;
-import jasper.client.dto.TokenDto;
+import jasper.component.dto.AuthTokenResponse;
 import jasper.config.Config.SecurityConfig;
 import jasper.security.Auth;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +49,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("jasper-client");
 		when(securityConfig.getSecret()).thenReturn("secret123");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("test-token-12345");
 		when(tokenClient.tokenService(any(URI.class), eq("jasper-client"), eq("secret123"), eq("admin")))
 			.thenReturn(tokenDto);
@@ -67,7 +67,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("jasper-client");
 		when(securityConfig.getSecret()).thenReturn("secret123");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("cached-token");
 		when(tokenClient.tokenService(any(URI.class), anyString(), anyString(), eq("admin")))
 			.thenReturn(tokenDto);
@@ -101,7 +101,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("different-client");
 		when(securityConfig.getSecret()).thenReturn("different-secret");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("different-token");
 		when(tokenClient.tokenService(any(URI.class), eq("different-client"), eq("different-secret"), eq("admin")))
 			.thenReturn(tokenDto);
@@ -124,7 +124,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn(null);
 		when(securityConfig.getSecret()).thenReturn("secret");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("token");
 		when(tokenClient.tokenService(any(URI.class), eq(null), eq("secret"), eq("admin")))
 			.thenReturn(tokenDto);
@@ -141,7 +141,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("client");
 		when(securityConfig.getSecret()).thenReturn(null);
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("token");
 		when(tokenClient.tokenService(any(URI.class), eq("client"), eq(null), eq("admin")))
 			.thenReturn(tokenDto);
@@ -158,7 +158,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("client");
 		when(securityConfig.getSecret()).thenReturn("secret");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("secure-token");
 		when(tokenClient.tokenService(any(URI.class), anyString(), anyString(), eq("admin")))
 			.thenReturn(tokenDto);
@@ -175,7 +175,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("client");
 		when(securityConfig.getSecret()).thenReturn("secret");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("local-token");
 		when(tokenClient.tokenService(any(URI.class), anyString(), anyString(), eq("admin")))
 			.thenReturn(tokenDto);
@@ -192,7 +192,7 @@ public class AccessTokenTest {
 		when(securityConfig.getClientId()).thenReturn("client");
 		when(securityConfig.getSecret()).thenReturn("secret");
 
-		var tokenDto = new TokenDto();
+		var tokenDto = new AuthTokenResponse();
 		tokenDto.setAccess_token("");
 		when(tokenClient.tokenService(any(URI.class), anyString(), anyString(), eq("admin")))
 			.thenReturn(tokenDto);

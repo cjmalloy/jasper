@@ -32,7 +32,7 @@ public class RngIT {
 	}
 
 	@Test
-	void testRngTagAddedForFirstRef() {
+	void testRngTagUnchangedWhenNoExistingRefs() {
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setOrigin("");
@@ -40,12 +40,19 @@ public class RngIT {
 		
 		rng.update("", ref, null);
 		
-		assertThat(ref.getTags()).anyMatch(tag -> tag.startsWith("+plugin/rng/"));
-		assertThat(ref.getTags()).doesNotContain("plugin/rng");
+		// When no existing refs exist, tags remain unchanged (early return at line 48)
+		assertThat(ref.getTags()).containsExactly("plugin/rng");
 	}
 
 	@Test
-	void testRngTagNotAddedWhenNoExisting() {
+	void testRngTagAddedWhenExistingRefsFound() {
+		// Create an existing ref in the database so count > 0
+		var existingInDb = new Ref();
+		existingInDb.setUrl(URL);
+		existingInDb.setOrigin("other.origin.com");
+		existingInDb.setModified(Instant.now().minusSeconds(100));
+		refRepository.save(existingInDb);
+		
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setOrigin("");
@@ -53,7 +60,8 @@ public class RngIT {
 		
 		rng.update("", ref, null);
 		
-		// When no existing refs exist, rng tag should be removed
+		// When existing refs exist in DB, new rng tag should be generated
+		assertThat(ref.getTags()).anyMatch(tag -> tag.startsWith("+plugin/rng/"));
 		assertThat(ref.getTags()).doesNotContain("plugin/rng");
 	}
 
@@ -111,7 +119,7 @@ public class RngIT {
 		// Should generate new rng tag
 		assertThat(ref.getTags()).anyMatch(tag -> 
 			tag.startsWith("+plugin/rng/") && !tag.equals("+plugin/rng/abc123"));
-		assertThat(ref.getTags()).doesNotContain("+plugin/rng");
+		assertThat(ref.getTags()).doesNotContain("plugin/rng");
 	}
 
 	@Test
