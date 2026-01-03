@@ -25,15 +25,11 @@ public class OembedProvidersIT {
 	RefRepository refRepository;
 
 	@Autowired
-	ConfigCache configCache;
-
-	@Autowired
 	ObjectMapper objectMapper;
 
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
-		configCache.clear();
 	}
 
 	@Test
@@ -68,7 +64,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var result = oembedProviders.getProvider("", "https://example.com/video/123");
 
@@ -88,7 +83,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var result = oembedProviders.getProvider("", "https://wildcard.com/videos/abc123");
 
@@ -108,7 +102,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var result = oembedProviders.getProvider("", "https://different.com/video/123");
 
@@ -127,7 +120,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		// Should match based on provider_url prefix
 		var result = oembedProviders.getProvider("", "https://noscheme.com/video/123");
@@ -151,7 +143,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var videoResult = oembedProviders.getProvider("", "https://multi.com/videos/123");
 		var photoResult = oembedProviders.getProvider("", "https://multi.com/photos/456");
@@ -179,7 +170,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint1, endpoint2));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var videoResult = oembedProviders.getProvider("", "https://multi-endpoint.com/videos/123");
 		var photoResult = oembedProviders.getProvider("", "https://multi-endpoint.com/photos/456");
@@ -224,7 +214,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("", List.of(provider));
-		configCache.invalidate();
 
 		var result = oembedProviders.getProvider("", "https://complex.com/user123/videos/video456");
 
@@ -244,7 +233,6 @@ public class OembedProvidersIT {
 		provider.setEndpoints(List.of(endpoint));
 
 		oembedProviders.create("tenant1.example.com", List.of(provider));
-		configCache.invalidate();
 
 		var result = oembedProviders.getProvider("tenant1.example.com", "https://origin.com/video/123");
 
