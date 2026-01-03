@@ -106,7 +106,7 @@ public class HttpClientFactoryTest {
 
 	@Test
 	void testGetClientWithNoActiveScope() {
-		when(auth.getOrigin()).thenThrow(new ScopeNotActiveException("No scope"));
+		when(auth.getOrigin()).thenThrow(new ScopeNotActiveException("request", "Request scope is not active", new IllegalStateException("No active request")));
 		when(props.getOrigin()).thenReturn("default-origin");
 
 		var client = factory.getClient();
@@ -117,7 +117,7 @@ public class HttpClientFactoryTest {
 
 	@Test
 	void testGetSerialClientWithNoActiveScope() {
-		when(auth.getOrigin()).thenThrow(new ScopeNotActiveException("No scope"));
+		when(auth.getOrigin()).thenThrow(new ScopeNotActiveException("request", "Request scope is not active", new IllegalStateException("No active request")));
 		when(props.getOrigin()).thenReturn("default-origin");
 
 		var client = factory.getSerialClient();

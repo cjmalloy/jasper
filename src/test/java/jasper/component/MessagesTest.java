@@ -7,6 +7,11 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.service.dto.ExtDto;
+import jasper.service.dto.PluginDto;
+import jasper.service.dto.RefDto;
+import jasper.service.dto.TemplateDto;
+import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -93,10 +98,15 @@ public class MessagesTest {
 		ref.setTags(new ArrayList<>(List.of("tag1", "tag2")));
 		ref.setModified(Instant.now());
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+		refDto.setTags(new ArrayList<>(List.of("tag1", "tag2")));
+
 		when(refTxChannel.send(any())).thenReturn(true);
 		when(tagTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(ref)).thenReturn(ref);
+		when(mapper.domainToDto(ref)).thenReturn(refDto);
 
 		messages.updateRef(ref);
 
@@ -113,10 +123,15 @@ public class MessagesTest {
 		ref.setTags(new ArrayList<>());
 		ref.setModified(Instant.now());
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+		refDto.setTags(new ArrayList<>());
+
 		when(refTxChannel.send(any())).thenReturn(true);
 		when(responseTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(ref)).thenReturn(ref);
+		when(mapper.domainToDto(ref)).thenReturn(refDto);
 
 		messages.updateRef(ref);
 
@@ -148,8 +163,12 @@ public class MessagesTest {
 		ref.setUrl("https://example.com");
 		ref.setOrigin("");
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+
 		when(refTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(ref)).thenReturn(ref);
+		when(mapper.domainToDto(ref)).thenReturn(refDto);
 
 		messages.updateSilentRef(ref);
 
@@ -163,8 +182,12 @@ public class MessagesTest {
 		ref.setUrl("https://example.com");
 		ref.setOrigin("");
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+
 		when(refTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(ref)).thenReturn(ref);
+		when(mapper.domainToDto(ref)).thenReturn(refDto);
 
 		messages.updateMetadata(ref);
 
@@ -178,9 +201,14 @@ public class MessagesTest {
 		ref.setOrigin("");
 		ref.setTags(new ArrayList<>());
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+		refDto.setTags(new ArrayList<>());
+
 		when(refTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(any(Ref.class))).thenReturn(ref);
+		when(mapper.domainToDto(any(Ref.class))).thenReturn(refDto);
 
 		messages.deleteRef(ref);
 
@@ -194,9 +222,13 @@ public class MessagesTest {
 		ext.setOrigin("");
 		ext.setModified(Instant.now());
 
+		var extDto = new ExtDto();
+		extDto.setTag("test-tag");
+		extDto.setOrigin("");
+
 		when(extTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(ext)).thenReturn(ext);
+		when(mapper.domainToDto(ext)).thenReturn(extDto);
 
 		messages.updateExt(ext);
 
@@ -211,9 +243,13 @@ public class MessagesTest {
 		user.setOrigin("");
 		user.setModified(Instant.now());
 
+		var userDto = new UserDto();
+		userDto.setTag("+user/test");
+		userDto.setOrigin("");
+
 		when(userTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(user)).thenReturn(user);
+		when(mapper.domainToDto(user)).thenReturn(userDto);
 
 		messages.updateUser(user);
 
@@ -237,9 +273,13 @@ public class MessagesTest {
 		plugin.setOrigin("");
 		plugin.setModified(Instant.now());
 
+		var pluginDto = new PluginDto();
+		pluginDto.setTag("plugin/test");
+		pluginDto.setOrigin("");
+
 		when(pluginTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(plugin)).thenReturn(plugin);
+		when(mapper.domainToDto(plugin)).thenReturn(pluginDto);
 
 		messages.updatePlugin(plugin);
 
@@ -263,9 +303,13 @@ public class MessagesTest {
 		template.setOrigin("");
 		template.setModified(Instant.now());
 
+		var templateDto = new TemplateDto();
+		templateDto.setTag("_template/test");
+		templateDto.setOrigin("");
+
 		when(templateTxChannel.send(any())).thenReturn(true);
 		when(cursorTxChannel.send(any())).thenReturn(true);
-		when(mapper.domainToDto(template)).thenReturn(template);
+		when(mapper.domainToDto(template)).thenReturn(templateDto);
 
 		messages.updateTemplate(template);
 
@@ -289,10 +333,15 @@ public class MessagesTest {
 		ref.setOrigin("");
 		ref.setTags(new ArrayList<>());
 
+		var refDto = new RefDto();
+		refDto.setUrl("https://example.com");
+		refDto.setOrigin("");
+		refDto.setTags(new ArrayList<>());
+
 		when(refTxChannel.send(any()))
 			.thenThrow(new MessageDeliveryException("Failed"))
 			.thenReturn(true);
-		when(mapper.domainToDto(ref)).thenReturn(ref);
+		when(mapper.domainToDto(ref)).thenReturn(refDto);
 
 		messages.updateSilentRef(ref);
 
