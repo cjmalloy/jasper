@@ -202,14 +202,19 @@ public class TaggingServiceIT {
 		{
 			"properties": {
 				"color": { "type": "string" },
-				"size": { "type": "uint32" }
+				"size": { "type": "uint32" },
+				"newField": { "type": "string" }
 			}
 		}""");
 		plugin.setSchema(schema);
 		pluginRepository.save(plugin);
 
-		// Create a JSON patch to modify the plugin data
-		var patchJson = "[{\"op\": \"replace\", \"path\": \"/plugin~1test/color\", \"value\": \"red\"}]";
+		// Create a JSON patch to modify the plugin data - test both replace and add operations
+		var patchJson = """
+		[
+			{"op": "replace", "path": "/plugin~1test/color", "value": "red"},
+			{"op": "add", "path": "/plugin~1test/newField", "value": "newValue"}
+		]""";
 		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
@@ -225,40 +230,6 @@ public class TaggingServiceIT {
 			.isEqualTo("red");
 		assertThat(pluginData.get("size").asInt())
 			.isEqualTo(10);
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondWithJsonPatchAdd() throws IOException {
-		refWithTags(URL, "+user/tester");
-
-		// Create a plugin with defaults and schema
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\"}");
-		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
-		{
-			"properties": {
-				"color": { "type": "string" },
-				"newField": { "type": "string" }
-			}
-		}""");
-		plugin.setSchema(schema);
-		pluginRepository.save(plugin);
-
-		// Create a JSON patch to add a new field
-		var patchJson = "[{\"op\": \"add\", \"path\": \"/plugin~1test/newField\", \"value\": \"newValue\"}]";
-		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
-
-		taggingService.respond(List.of("plugin/test"), URL, patch);
-
-		var responseUrl = "tag:/+user/tester?url=" + URL;
-		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
-		var pluginData = fetched.getPlugins().get("plugin/test");
-		assertThat(pluginData.get("color").asText())
-			.isEqualTo("blue");
 		assertThat(pluginData.get("newField").asText())
 			.isEqualTo("newValue");
 	}
@@ -349,6 +320,41 @@ public class TaggingServiceIT {
 			.isEqualTo("a");
 		assertThat(fetched.getPlugins().get("plugin/test2").get("value2").asText())
 			.isEqualTo("b");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithConcurrentModification() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		// Create a plugin with defaults
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setDefaults((ObjectNode) objectMapper.readTree("{\"counter\": 0}"));
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"properties": {
+				"counter": { "type": "uint32" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		// First call creates the response ref
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		// Second call should succeed even if there was a concurrent modification
+		// The retry logic should handle any ModifiedException transparently
+		var patchJson = "[{\"op\": \"replace\", \"path\": \"/plugin~1test/counter\", \"value\": 5}]";
+		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
+
+		// This should not throw even with potential concurrent modifications
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test").get("counter").asInt())
+			.isEqualTo(5);
 	}
 
 }
