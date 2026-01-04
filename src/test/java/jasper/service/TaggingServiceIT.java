@@ -202,19 +202,14 @@ public class TaggingServiceIT {
 		{
 			"properties": {
 				"color": { "type": "string" },
-				"size": { "type": "uint32" },
-				"newField": { "type": "string" }
+				"size": { "type": "uint32" }
 			}
 		}""");
 		plugin.setSchema(schema);
 		pluginRepository.save(plugin);
 
-		// Create a JSON patch to modify the plugin data - test both replace and add operations
-		var patchJson = """
-		[
-			{"op": "replace", "path": "/plugin~1test/color", "value": "red"},
-			{"op": "add", "path": "/plugin~1test/newField", "value": "newValue"}
-		]""";
+		// Create a JSON patch to modify the plugin data
+		var patchJson = "[{\"op\": \"replace\", \"path\": \"/plugin~1test/color\", \"value\": \"red\"}]";
 		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
@@ -230,6 +225,40 @@ public class TaggingServiceIT {
 			.isEqualTo("red");
 		assertThat(pluginData.get("size").asInt())
 			.isEqualTo(10);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchAdd() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		// Create a plugin with defaults and schema
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\"}");
+		plugin.setDefaults(defaults);
+		var schema = (ObjectNode) objectMapper.readTree("""
+		{
+			"properties": {
+				"color": { "type": "string" },
+				"newField": { "type": "string" }
+			}
+		}""");
+		plugin.setSchema(schema);
+		pluginRepository.save(plugin);
+
+		// Create a JSON patch to add a new field
+		var patchJson = "[{\"op\": \"add\", \"path\": \"/plugin~1test/newField\", \"value\": \"newValue\"}]";
+		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		var pluginData = fetched.getPlugins().get("plugin/test");
+		assertThat(pluginData.get("color").asText())
+			.isEqualTo("blue");
 		assertThat(pluginData.get("newField").asText())
 			.isEqualTo("newValue");
 	}
