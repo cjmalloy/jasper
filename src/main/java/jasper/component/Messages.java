@@ -30,6 +30,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasTags.formatTag;
 import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.matchesTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static org.springframework.messaging.support.MessageBuilder.createMessage;
 
@@ -83,9 +84,12 @@ public class Messages {
 		var update = mapper.domainToDto(ref);
 		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
 		if (update.getTags() != null) {
-			for (var tag : update.getTags()) {
-				for (var path : ref.getExpandedTags()) {
-					sendAndRetry(() -> tagTxChannel.send(createMessage(tag, tagHeaders(ref.getOrigin(), path))));
+			for (var path : ref.getExpandedTags()) {
+				var headers = tagHeaders(ref.getOrigin(), path);
+				for (var tag : update.getTags()) {
+					if (matchesTag(path, tag)) {
+						sendAndRetry(() -> tagTxChannel.send(createMessage(tag, headers)));
+					}
 				}
 			}
 		}
