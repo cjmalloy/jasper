@@ -1,3 +1,4 @@
+#!/bin/bash
 
 if [ -z "$(ls -A /cr 2> /dev/null)" ]; then
   echo "Creating checkpoint..."
