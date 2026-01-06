@@ -20,6 +20,8 @@ logging:
     org:
       springframework:
         boot: INFO
+    com:
+      rometools: ERROR
 management:
   metrics:
     export:
