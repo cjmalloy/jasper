@@ -1,6 +1,7 @@
 package jasper.config;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
@@ -18,9 +19,9 @@ class ConfigTest {
 		@Override
 		public void setTags(List<String> tags) {}
 		@Override
-		public com.fasterxml.jackson.databind.node.ObjectNode getPlugins() { return null; }
+		public ObjectNode getPlugins() { return null; }
 		@Override
-		public void setPlugins(com.fasterxml.jackson.databind.node.ObjectNode plugins) {}
+		public void setPlugins(ObjectNode plugins) {}
 		@Override
 		public String getOrigin() { return origin; }
 		@Override

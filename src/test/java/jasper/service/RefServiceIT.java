@@ -1,8 +1,8 @@
 package jasper.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.component.Ingest;
 import jasper.domain.Plugin;
@@ -49,12 +49,14 @@ public class RefServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	static final String URL = "https://www.example.com/";
 
 	Plugin getPlugin(String tag) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
-		var mapper = new ObjectMapper();
 		try {
 			plugin.setSchema((ObjectNode) mapper.readTree("""
 			{
@@ -68,7 +70,7 @@ public class RefServiceIT {
 				"name": "bob",
 				"age": 42
 			}"""));
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException(e);
 		}
 		return plugin;
@@ -1217,13 +1219,12 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testUpdateRefWithoutLoosingProtectedPluginData() throws JsonProcessingException {
+	void testUpdateRefWithoutLoosingProtectedPluginData() throws JacksonException {
 		pluginRepository.save(getPlugin("+plugin/test"));
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
 		ref.setTags(new ArrayList<>(List.of("+user/tester", "+plugin/test")));
-		var mapper = new ObjectMapper();
 		ref.setPlugins((ObjectNode) mapper.readTree("""
 		{
 			"+plugin/test": {
@@ -1693,9 +1694,9 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
+	void testApplySortingSpec_WithPluginsSort() {
 		// Create refs with plugins data containing contentLength
-		var mapper = new ObjectMapper();
+		var mapper = JsonMapper.builder().build();
 		var ref1 = new Ref();
 		ref1.setUrl("https://example.com/1");
 		ref1.setTags(new ArrayList<>(List.of("+user/tester")));
