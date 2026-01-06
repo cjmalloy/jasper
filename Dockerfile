@@ -77,4 +77,4 @@ COPY --from=builder /app/layers/snapshot-dependencies/ ./
 RUN true
 COPY --from=builder /app/layers/application/ ./
 COPY docker/entrypoint.sh .
-ENTRYPOINT ["sh", "entrypoint.sh"]
+ENTRYPOINT ["bash", "entrypoint.sh"]
