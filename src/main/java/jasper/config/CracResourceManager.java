@@ -24,6 +24,11 @@ public class CracResourceManager implements Resource {
 
     private static final Logger logger = LoggerFactory.getLogger(CracResourceManager.class);
     
+    /**
+     * Time to wait after evicting connections to ensure sockets are fully closed.
+     */
+    private static final long CONNECTION_EVICTION_WAIT_MS = 100;
+    
     private final DataSource dataSource;
     
     public CracResourceManager(DataSource dataSource) {
@@ -36,8 +41,12 @@ public class CracResourceManager implements Resource {
             // Register this resource with CRaC global context
             Core.getGlobalContext().register(this);
             logger.info("Registered CRaC resource manager for database connections");
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
+            // CRaC not available or already in checkpoint/restore phase
             logger.warn("Failed to register CRaC resource manager: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unexpected error registering CRaC resource manager", e);
+            throw e;
         }
     }
 
@@ -45,28 +54,30 @@ public class CracResourceManager implements Resource {
     public void beforeCheckpoint(Context<? extends Resource> context) throws Exception {
         logger.info("CRaC beforeCheckpoint: Closing database connections");
         
-        if (dataSource instanceof HikariDataSource) {
-            HikariDataSource hikariDataSource = (HikariDataSource) dataSource;
-            
-            if (!hikariDataSource.isClosed()) {
-                int activeConnections = hikariDataSource.getHikariPoolMXBean().getActiveConnections();
-                int idleConnections = hikariDataSource.getHikariPoolMXBean().getIdleConnections();
-                
-                logger.info("Closing HikariCP pool - Active: {}, Idle: {}", activeConnections, idleConnections);
-                
-                // Evict all connections to close sockets
-                hikariDataSource.getHikariPoolMXBean().softEvictConnections();
-                
-                // Give connections time to close
-                Thread.sleep(100);
-                
-                logger.info("HikariCP connections evicted for checkpoint");
-            } else {
-                logger.debug("HikariCP pool already closed");
-            }
+        if (dataSource instanceof HikariDataSource hikariDataSource) {
+            closeHikariConnections(hikariDataSource);
         } else {
             logger.warn("DataSource is not HikariDataSource (type: {}), may not close properly", 
                 dataSource.getClass().getName());
+        }
+    }
+    
+    private void closeHikariConnections(HikariDataSource hikariDataSource) throws InterruptedException {
+        if (!hikariDataSource.isClosed()) {
+            int activeConnections = hikariDataSource.getHikariPoolMXBean().getActiveConnections();
+            int idleConnections = hikariDataSource.getHikariPoolMXBean().getIdleConnections();
+            
+            logger.info("Closing HikariCP pool - Active: {}, Idle: {}", activeConnections, idleConnections);
+            
+            // Evict all connections to close sockets
+            hikariDataSource.getHikariPoolMXBean().softEvictConnections();
+            
+            // Give connections time to close
+            Thread.sleep(CONNECTION_EVICTION_WAIT_MS);
+            
+            logger.info("HikariCP connections evicted for checkpoint");
+        } else {
+            logger.debug("HikariCP pool already closed");
         }
     }
 
