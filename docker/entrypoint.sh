@@ -8,7 +8,7 @@ if [ -z "$(ls -A /cr 2> /dev/null)" ]; then
     "-Xms${JASPER_HEAP:-512m}" \
     -XX:+UseStringDeduplication \
     -XX:+UseCompactObjectHeaders \
-    -Dspring.context.checkpoint=onStartup \
+    -Dspring.context.checkpoint=onRefresh \
     -XX:CRaCCheckpointTo=/cr \
     -XX:CRaCMinPid=128 \
     org.springframework.boot.loader.launch.JarLauncher
