@@ -109,6 +109,12 @@ spring:
       preferred-json-mapper: jackson2
   jmx:
     enabled: false
+  datasource:
+    hikari:
+      # Enable pool suspension for CRaC checkpoint/restore support
+      # This allows HikariCP to properly close connections before checkpoint
+      # and recreate them after restore
+      allow-pool-suspension: true
   data:
     jpa:
       repositories:
