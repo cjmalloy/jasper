@@ -20,12 +20,17 @@ if [ -z "$(ls -A /cr 2> /dev/null)" ]; then
   # Wait for application to be fully ready (check health endpoint)
   WAIT_TIME=0
   MAX_WAIT=120
-  until curl -f -s http://localhost:8081/management/health > /dev/null 2>&1; do
+  MANAGEMENT_PORT=${MANAGEMENT_PORT:-8081}
+  until curl -f -s http://localhost:${MANAGEMENT_PORT}/management/health > /dev/null 2>&1; do
     sleep 2
     WAIT_TIME=$((WAIT_TIME + 2))
     if [ $WAIT_TIME -ge $MAX_WAIT ]; then
       echo "ERROR: Application failed to start within ${MAX_WAIT} seconds"
-      kill $APP_PID 2>/dev/null
+      # Attempt graceful shutdown first
+      kill -TERM $APP_PID 2>/dev/null
+      sleep 5
+      # Force kill if still running
+      kill -KILL $APP_PID 2>/dev/null
       exit 1
     fi
     echo "Waiting for application startup... (${WAIT_TIME}s/${MAX_WAIT}s)"
