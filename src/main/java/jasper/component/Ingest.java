@@ -86,6 +86,18 @@ public class Ingest {
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
+	public void updateResponse(String rootOrigin, Ref ref) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
+		validate.response(rootOrigin, ref);
+		rng.update(rootOrigin, ref, maybeExisting.get());
+		meta.response(rootOrigin, ref);
+		ensureUpdateUniqueModified(ref);
+		meta.responseSource(rootOrigin, ref, maybeExisting.get());
+		messages.updateResponse(ref);
+	}
+
+	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		meta.ref(rootOrigin, ref);
