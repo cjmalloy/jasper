@@ -22,11 +22,16 @@ public interface Tag extends Cursor {
 
 	static boolean userUrl(String url) {
 		return
-			userUrl(url, "user") || url.startsWith("tag:/user/");
+			userUrl(url, "user") || url.startsWith("tag:/user/") ||
+			userUrl(url, "+user") || url.startsWith("tag:/+user/") ||
+			userUrl(url, "_user") || url.startsWith("tag:/_user/");
 	}
 
 	static boolean userUrl(String url, String user) {
-		return url.equals("tag:/" + publicTag(user)) ||
+		return url.equals("tag:/" + user) ||
+			url.startsWith("tag:/" + user + "?") ||
+			url.startsWith("tag:/" + user + "/") ||
+			url.equals("tag:/" + publicTag(user)) ||
 			url.startsWith("tag:/" + publicTag(user) + "?") ||
 			url.startsWith("tag:/" + publicTag(user) + "/");
 	}
