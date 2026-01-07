@@ -173,7 +173,7 @@ public class RedisConfig {
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
 			cursorRedisChannel().send(MessageBuilder.createMessage(cursor, originHeaders(origin)));
-		}, of("cursor/**"));
+		}, of("cursor/*"));
 		return container;
 	}
 
@@ -221,7 +221,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing RefDto from redis.");
 			}
-		}, of("ref/**"));
+		}, of("ref/*"));
 		return container;
 	}
 
@@ -261,7 +261,7 @@ public class RedisConfig {
 			var origin = parts[1];
 			var tag = String.join("/", copyOfRange(parts, 2, parts.length));
 			tagRedisChannel().send(MessageBuilder.createMessage(fullTag, tagHeaders(origin, tag)));
-		}, of("tag/**"));
+		}, of("tag/*"));
 		return container;
 	}
 
@@ -301,7 +301,7 @@ public class RedisConfig {
 			var origin = parts[1];
 			var source = String.join("/", copyOfRange(parts, 2, parts.length));
 			responseRedisChannel().send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
-		}, of("response/**"));
+		}, of("response/*"));
 		return container;
 	}
 
@@ -350,7 +350,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing UserDto from redis.");
 			}
-		}, of("user/**"));
+		}, of("user/*"));
 		return container;
 	}
 
@@ -399,7 +399,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing ExtDto from redis.");
 			}
-		}, of("ext/**"));
+		}, of("ext/*"));
 		return container;
 	}
 
@@ -448,7 +448,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing PluginDto from redis.");
 			}
-		}, of("plugin/**"));
+		}, of("plugin/*"));
 		return container;
 	}
 
@@ -497,7 +497,7 @@ public class RedisConfig {
 			} catch (IOException e) {
 				logger.error("Error parsing TemplateDto from redis.");
 			}
-		}, of("template/**"));
+		}, of("template/*"));
 		return container;
 	}
 
