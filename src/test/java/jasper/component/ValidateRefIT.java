@@ -10,12 +10,14 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @IntegrationTest
@@ -303,5 +305,146 @@ public class ValidateRefIT {
 		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
 
 		validate.ref("", ref, false);
+	}
+
+	@Test
+	void testResponseValidationWithNoRoles() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc")));
+
+		validate.response("", ref);
+
+		// Without any roles, all mod and editor seals should be removed
+		assertThat(ref.getTags())
+			.contains("+user/tester")
+			.doesNotContain("seal", "+seal", "_seal", "_moderated", "plugin/qc");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testResponseValidationWithUserRole() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc")));
+
+		validate.response("", ref);
+
+		// With USER role (not MOD or EDITOR), all mod and editor seals should be removed
+		assertThat(ref.getTags())
+			.contains("+user/tester")
+			.doesNotContain("seal", "+seal", "_seal", "_moderated", "plugin/qc");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
+	void testResponseValidationWithModRole() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc")));
+
+		validate.response("", ref);
+
+		// With MOD role, due to role hierarchy MOD > EDITOR, both mod and editor seals are kept
+		assertThat(ref.getTags())
+			.contains("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"EDITOR"})
+	void testResponseValidationWithEditorRole() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc")));
+
+		validate.response("", ref);
+
+		// With EDITOR role (but not MOD), editor seals are kept but mod seals are removed
+		assertThat(ref.getTags())
+			.contains("+user/tester", "plugin/qc")
+			.doesNotContain("seal", "+seal", "_seal", "_moderated");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"MOD", "EDITOR"})
+	void testResponseValidationWithBothModAndEditorRoles() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc")));
+
+		validate.response("", ref);
+
+		// With both MOD and EDITOR roles, all seals should be kept
+		assertThat(ref.getTags())
+			.contains("+user/tester", "seal", "+seal", "_seal", "_moderated", "plugin/qc");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testResponseValidationCallsPluginValidation() throws IOException {
+		// Create a plugin with schema
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "plugin/test")));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": {
+				"name": "Alice"
+			}
+		}"""));
+
+		// Should pass validation
+		validate.response("", ref);
+
+		assertThat(ref.getTags())
+			.contains("+user/tester", "plugin/test");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testResponseValidationFailsWithInvalidPlugin() throws IOException {
+		// Create a plugin with schema
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		var mapper = new ObjectMapper();
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Response Ref");
+		ref.setTags(new ArrayList<>(Arrays.asList("+user/tester", "plugin/test")));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": {
+				"name": 123
+			}
+		}"""));
+
+		// Should fail validation because name should be string, not number
+		assertThatThrownBy(() -> validate.response("", ref))
+			.isInstanceOf(InvalidPluginException.class);
 	}
 }

@@ -69,6 +69,22 @@ public class Meta {
 		);
 	}
 
+	@Timed(value = "jasper.meta", histogram = true)
+	public void response(String rootOrigin, Ref ref) {
+		if (ref == null) return;
+		ref.setMetadata(Metadata
+			.builder()
+			.expandedTags(expandTags(ref.getTags()))
+			.build()
+		);
+	}
+
+	@Timed(value = "jasper.meta", histogram = true)
+	public void responseSource(String rootOrigin, Ref ref, Ref existing) {
+		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) return;
+		sources(rootOrigin, ref, existing);
+	}
+
 	public static List<String> expandTags(List<String> tags) {
 		if (tags == null) return new ArrayList<>();
 		var result = new ArrayList<>(tags);

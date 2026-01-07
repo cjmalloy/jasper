@@ -1,5 +1,7 @@
 package jasper.web.rest;
 
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -126,14 +129,42 @@ public class TaggingController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
-		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping("response")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void patchResponse(
+	void respond(
 		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url
 	) {
-		taggingService.respond(tags, url);
+		taggingService.respond(tags, url, null);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(value = "response", consumes = "application/json-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void patchResponse(
+		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestBody JsonPatch patch
+	) {
+		taggingService.respond(tags, url, patch);
+	}
+
+	@ApiResponses({
+		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	})
+	@PatchMapping(value = "response", consumes = "application/merge-patch+json")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void mergeResponse(
+		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
+		@RequestBody JsonMergePatch patch
+	) {
+		taggingService.respond(tags, url, patch);
 	}
 }
