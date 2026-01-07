@@ -170,7 +170,7 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
 	}
 
 	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
@@ -184,7 +184,7 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
 	}
 
 	private static Expression<Object> getTagsExpression(Root<Ref> root, CriteriaBuilder cb) {
