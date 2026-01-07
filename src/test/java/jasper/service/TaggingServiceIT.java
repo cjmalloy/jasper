@@ -124,7 +124,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("test"), URL, null);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		assertThat(refRepository.existsByUrlAndOrigin(responseUrl, ""))
 			.isTrue();
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -141,7 +141,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("tag1", "tag2", "tag3"), URL, null);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		assertThat(refRepository.existsByUrlAndOrigin(responseUrl, ""))
 			.isTrue();
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -172,7 +172,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, null);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
@@ -214,7 +214,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getPlugins())
 			.isNotNull();
@@ -254,7 +254,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		assertThat(pluginData.get("color").asText())
@@ -294,7 +294,7 @@ public class TaggingServiceIT {
 		// Respond with a tag that has no plugin configured
 		taggingService.respond(List.of("plugin/nonexistent"), URL, null);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		assertThat(refRepository.existsByUrlAndOrigin(responseUrl, ""))
 			.isTrue();
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -339,7 +339,7 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("plugin/test1", "plugin/test2"), URL, null);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getPlugins().has("plugin/test1"))
 			.isTrue();

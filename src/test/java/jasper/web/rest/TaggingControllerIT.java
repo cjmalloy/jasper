@@ -85,7 +85,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getPlugins()).isNotNull();
 		assertThat(fetched.getPlugins().has("plugin/test")).isTrue();
@@ -122,7 +122,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		assertThat(pluginData.get("color").asText()).isEqualTo("blue");
@@ -157,7 +157,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		assertThat(pluginData.get("color").asText()).isEqualTo("blue");
@@ -202,7 +202,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		var config = pluginData.get("config");
@@ -250,7 +250,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test1", "plugin/test2"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getPlugins().get("plugin/test1").get("value1").asText())
 			.isEqualTo("modified_a");
@@ -306,7 +306,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		var config = pluginData.get("config");
@@ -343,7 +343,7 @@ public class TaggingControllerIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, patch);
 
-		var responseUrl = "tag:/+user/tester?url=" + URL;
+		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		var pluginData = fetched.getPlugins().get("plugin/test");
 		assertThat(pluginData.get("color").asText()).isEqualTo("blue");
