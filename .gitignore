@@ -2,6 +2,7 @@ HELP.md
 target/
 storage/
 repl/
+cr/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

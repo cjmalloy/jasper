@@ -41,7 +41,7 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp -r target/reports/* /reports/ && \
 		cp target/reports/surefire.html /reports/index.html
 
-FROM azul/zulu-openjdk-debian:25.0.1-25.30-jre AS deploy
+FROM azul/zulu-openjdk:25-jdk-crac AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
@@ -68,6 +68,7 @@ ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
 RUN apt-get update && apt-get install ffmpeg -y
 WORKDIR /app
+RUN mkdir -p /cr && chmod 755 /cr
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true
 COPY --from=builder /app/layers/spring-boot-loader/ ./
@@ -76,4 +77,4 @@ COPY --from=builder /app/layers/snapshot-dependencies/ ./
 RUN true
 COPY --from=builder /app/layers/application/ ./
 COPY docker/entrypoint.sh .
-ENTRYPOINT ["sh", "entrypoint.sh"]
+ENTRYPOINT ["bash", "entrypoint.sh"]
