@@ -94,7 +94,7 @@ public class Ingest {
 		meta.response(rootOrigin, ref);
 		ensureUpdateUniqueModified(ref);
 		meta.responseSource(rootOrigin, ref, maybeExisting.get());
-		messages.updateResponse(ref);
+		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
