@@ -72,9 +72,10 @@ jobs:
               
               def extract_cell_value(col_num):
                   """Extract numeric value from a table cell"""
-                  # Capture full inner HTML of the target <td> (including any nested tags)
-                  pattern = rf'(?s)<td[^>]*class="[^"]*col-{col_num}"[^>]*>(.*?)</td>'
-                  match = re.search(pattern, row_content)
+                  # Capture inner content of the target <td> cell
+                  # Use non-greedy match and specific class boundary to avoid matching across cells
+                  pattern = rf'<td[^>]*class="[^"]*\bcol-{col_num}\b[^"]*"[^>]*>(.*?)</td>'
+                  match = re.search(pattern, row_content, re.DOTALL)
                   if match:
                       cell_html = match.group(1)
                       # Strip any nested HTML tags before extracting the numeric value
@@ -167,7 +168,8 @@ jobs:
               sim_name=$(basename "$sim_dir")
               
               # Sanitize simulation name for use in file paths (allow alnum, underscore, hyphen, and period)
-              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-')
+              # Remove any potential path traversal sequences for security
+              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-' | sed 's/\.\.\+/./g' | sed 's/^\.*//' | sed 's/\.*$//')
               
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
               
@@ -199,7 +201,7 @@ jobs:
                   continue
                 fi
                 
-                # Ensure count fields are numeric to avoid bash arithmetic errors
+                # Ensure count fields are numeric to avoid bash arithmetic errors (allow zero)
                 if ! [[ "$total" =~ ^[0-9]+$ ]] || ! [[ "$ok" =~ ^[0-9]+$ ]] || ! [[ "$ko" =~ ^[0-9]+$ ]]; then
                   echo "ERROR: Non-numeric count values in parsed output for simulation '$sim_name': total='$total', ok='$ok', ko='$ko'"
                   continue
