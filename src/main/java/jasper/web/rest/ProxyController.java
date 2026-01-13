@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -60,11 +61,12 @@ public class ProxyController {
 		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping("prefetch")
+	@GetMapping("prefetch/{filename:.+}")
 	ResponseEntity<String> preFetch(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestParam(defaultValue = "false") boolean thumbnail
+		@RequestParam(defaultValue = "false") boolean thumbnail,
+		@PathVariable(required = false) String filename
 	) {
 		proxyService.preFetch(url, origin, thumbnail);
 		return ResponseEntity.noContent()
@@ -79,24 +81,27 @@ public class ProxyController {
 		@ApiResponse(responseCode = "416", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping
+	@GetMapping("{filename:.+}")
 	ResponseEntity<StreamingResponseBody> fetch(
 		@RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestParam(defaultValue = "false") boolean thumbnail
+		@RequestParam(defaultValue = "false") boolean thumbnail,
+		@PathVariable(required = false) String filename
 	) {
 		var is = proxyService.fetch(url, origin, thumbnail);
 		if (is == null) throw new NotFoundException(url);
 		var ref = proxyService.stat(url, origin, thumbnail);
 		var cache = proxyService.cache(url, origin, thumbnail);
-		var filename = "file";
-		try {
-			filename
-				= isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
-				: ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
-				: filename;
-		} catch (URISyntaxException ignored) { }
+		if (isBlank(filename) || filename.equals(url)) {
+			filename = "file";
+			try {
+				filename
+					= isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
+					: ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
+					: filename;
+			} catch (URISyntaxException ignored) { }
+		}
 		var contentLength = cache != null ? cache.getContentLength() : null;
 		var contentType = cache != null && isNotBlank(cache.getMimeType())
 			? parseMediaType(cache.getMimeType())
