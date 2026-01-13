@@ -56,15 +56,23 @@ jobs:
               # Check if this is an HTML file (index.html) or JS file (stats.js)
               if sys.argv[1].endswith('.html'):
                   # Parse HTML file - extract JSON from script tag
-                  # Gatling embeds stats in: var stats = { ... };
+                  # Gatling embeds stats in: var stats = { ... }; or var stats = { ... }
                   # or window.stats = { ... }; inside a <script> tag
-                  # Use greedy match to capture the entire object
-                  match = re.search(r'(?:var|const|let|window\.)\s*stats\s*=\s*(\{.*\});', content, re.DOTALL)
+                  # Use greedy match to capture the entire object, semicolon is optional
+                  match = re.search(r'(?:var|const|let|window\.)\s*stats\s*=\s*(\{.*\})\s*;?', content, re.DOTALL)
                   if not match:
-                      print(f"ERROR: Could not find stats variable in HTML file", file=sys.stderr)
-                      print(f"DEBUG: Searching in HTML content (length: {len(content)})", file=sys.stderr)
-                      print(f"0|0|0|0.0|0|0|0")
-                      sys.exit(0)
+                      # Try alternative pattern without var/const/let
+                      match = re.search(r'\bstats\s*=\s*(\{.*\})\s*;?', content, re.DOTALL)
+                      if not match:
+                          print(f"ERROR: Could not find stats variable in HTML file", file=sys.stderr)
+                          print(f"DEBUG: Searching in HTML content (length: {len(content)})", file=sys.stderr)
+                          # Show a snippet of content around where 'stats' appears
+                          stats_pos = content.find('stats')
+                          if stats_pos >= 0:
+                              snippet = content[max(0, stats_pos-100):min(len(content), stats_pos+200)]
+                              print(f"DEBUG: Found 'stats' at position {stats_pos}, context: ...{snippet}...", file=sys.stderr)
+                          print(f"0|0|0|0.0|0|0|0")
+                          sys.exit(0)
                   
                   json_str = match.group(1)
                   data = json.loads(json_str)
