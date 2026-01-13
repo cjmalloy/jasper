@@ -43,9 +43,8 @@ jobs:
           # This script runs in bash (default shell for GitHub Actions run steps)
           cd gatling
           
-          # Create Python script for parsing stats.json
+          # Create Python script for parsing HTML table stats
           cat > /tmp/parse_stats.py << 'PYTHON_EOF'
-          import json
           import sys
           import re
           
@@ -53,82 +52,49 @@ jobs:
               with open(sys.argv[1], 'r') as f:
                   content = f.read()
               
-              # Check if this is an HTML file (index.html) or JS file (stats.js)
-              if sys.argv[1].endswith('.html'):
-                  # Parse HTML file - extract JSON from script tag
-                  # Gatling embeds stats in: var stats = { ... }; or var stats = { ... }
-                  # or window.stats = { ... }; inside a <script> tag
-                  # Use greedy match to capture the entire object, semicolon is optional
-                  match = re.search(r'(?:var|const|let|window\.)\s*stats\s*=\s*(\{.*\})\s*;?', content, re.DOTALL)
-                  if not match:
-                      # Try alternative pattern without var/const/let
-                      match = re.search(r'\bstats\s*=\s*(\{.*\})\s*;?', content, re.DOTALL)
-                      if not match:
-                          print(f"ERROR: Could not find stats variable in HTML file", file=sys.stderr)
-                          print(f"DEBUG: Searching in HTML content (length: {len(content)})", file=sys.stderr)
-                          # Show a snippet of content around where 'stats' appears
-                          stats_pos = content.find('stats')
-                          if stats_pos >= 0:
-                              snippet = content[max(0, stats_pos-100):min(len(content), stats_pos+200)]
-                              print(f"DEBUG: Found 'stats' at position {stats_pos}, context: ...{snippet}...", file=sys.stderr)
-                          print(f"0|0|0|0.0|0|0|0")
-                          sys.exit(0)
-                  
-                  json_str = match.group(1)
-                  data = json.loads(json_str)
-              elif sys.argv[1].endswith('.js'):
-                  # Parse JavaScript file - extract JSON from variable assignment
-                  # Gatling stats.js format: var stats = { ... }; or const stats = { ... };
-                  # Use greedy match to capture the entire object
-                  match = re.search(r'(?:var|const|let)\s+stats\s*=\s*(\{.*\});', content, re.DOTALL)
-                  if not match:
-                      print(f"ERROR: Could not find stats variable in JS file", file=sys.stderr)
-                      print(f"DEBUG: File starts with: {content[:200]}", file=sys.stderr)
-                      print(f"0|0|0|0.0|0|0|0")
-                      sys.exit(0)
-                  
-                  json_str = match.group(1)
-                  data = json.loads(json_str)
-              else:
-                  # Parse JSON file directly
-                  data = json.loads(content)
+              # Parse HTML file - extract stats from table rows
+              # Gatling 3.14.9+ embeds stats directly in HTML tables, not as JavaScript variables
+              # Look for the "All Requests" row in the statistics table
+              # Format: <tr id="ROOT" >...<td class="value total col-2">169</td>...
               
-              # Debug: print structure to stderr for debugging
-              print(f"DEBUG: Top-level keys: {list(data.keys())}", file=sys.stderr)
-              
-              # Get global stats
-              stats = data.get('stats', {})
-              print(f"DEBUG: Stats keys: {list(stats.keys())}", file=sys.stderr)
-              
-              global_stats = stats.get('global', {})
-              if not global_stats:
-                  print(f"DEBUG: No 'global' key in stats", file=sys.stderr)
+              # Find the ROOT table row (contains "All Requests")
+              root_row_match = re.search(r'<tr\s+id="ROOT"[^>]*>(.*?)</tr>', content, re.DOTALL | re.IGNORECASE)
+              if not root_row_match:
+                  print(f"ERROR: Could not find ROOT statistics row in HTML", file=sys.stderr)
                   print(f"0|0|0|0.0|0|0|0")
                   sys.exit(0)
               
-              print(f"DEBUG: Global stats keys: {list(global_stats.keys())}", file=sys.stderr)
+              row_content = root_row_match.group(1)
               
-              # Extract request counts
-              requests = global_stats.get('numberOfRequests', {})
-              total = requests.get('total', 0)
-              ok = requests.get('ok', 0)
-              ko = requests.get('ko', 0)
+              # Extract values from table cells
+              # col-2: Total requests, col-3: OK, col-4: KO, col-5: % KO
+              # col-13: Mean time, col-10: P95, col-11: P99
               
-              print(f"DEBUG: Requests - total: {total}, ok: {ok}, ko: {ko}", file=sys.stderr)
+              def extract_cell_value(col_num):
+                  """Extract numeric value from a table cell"""
+                  pattern = rf'<td[^>]*class="[^"]*col-{col_num}"[^>]*>([^<]+)</td>'
+                  match = re.search(pattern, row_content)
+                  if match:
+                      value_str = match.group(1).strip()
+                      # Remove any non-numeric characters except dots and minus
+                      value_str = re.sub(r'[^\d.-]', '', value_str)
+                      try:
+                          return float(value_str) if '.' in value_str else int(value_str)
+                      except ValueError:
+                          return 0
+                  return 0
               
-              # Extract response time percentiles
-              response_time = global_stats.get('meanResponseTime', {})
-              mean_time = response_time.get('total', 0)
-              
-              # Gatling percentiles: 1=50th, 2=75th, 3=95th, 4=99th
-              percentiles3 = global_stats.get('percentiles3', {})
-              p95 = percentiles3.get('total', 0)
-              
-              percentiles4 = global_stats.get('percentiles4', {})
-              p99 = percentiles4.get('total', 0)
+              total = extract_cell_value(2)     # Total requests
+              ok = extract_cell_value(3)        # OK requests
+              ko = extract_cell_value(4)        # KO (failed) requests
+              mean_time = extract_cell_value(13)  # Mean response time
+              p95 = extract_cell_value(10)      # 95th percentile
+              p99 = extract_cell_value(11)      # 99th percentile
               
               # Calculate success rate
               success_rate = (ok / total * 100) if total > 0 else 0
+              
+              print(f"DEBUG: Extracted from HTML table - Total: {total}, OK: {ok}, KO: {ko}, Mean: {mean_time}, P95: {p95}, P99: {p99}", file=sys.stderr)
               
               # Output in a parseable format
               print(f"{total}|{ok}|{ko}|{success_rate:.1f}|{mean_time}|{p95}|{p99}")
