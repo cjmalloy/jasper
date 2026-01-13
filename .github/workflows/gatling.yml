@@ -155,7 +155,8 @@ jobs:
             echo "WARNING: No index.html files found!"
           fi
           
-          printf '%s\n' "$stats_files" | while IFS= read -r stats_file; do
+          # Use process substitution to avoid subshell (variables need to persist)
+          while IFS= read -r stats_file; do
             if [ -f "$stats_file" ]; then
               echo "Processing $stats_file"
               
@@ -216,7 +217,7 @@ jobs:
                 echo "Running totals - Total: $TOTAL_REQUESTS, OK: $SUCCESSFUL_REQUESTS, KO: $FAILED_REQUESTS"
               fi
             fi
-          done
+          done < <(printf '%s\n' "$stats_files")
           
           echo "Final aggregated values:"
           echo "TOTAL_REQUESTS=$TOTAL_REQUESTS"
