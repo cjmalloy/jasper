@@ -72,10 +72,13 @@ jobs:
               
               def extract_cell_value(col_num):
                   """Extract numeric value from a table cell"""
-                  pattern = rf'<td[^>]*class="[^"]*col-{col_num}"[^>]*>([^<]+)</td>'
+                  # Capture full inner HTML of the target <td> (including any nested tags)
+                  pattern = rf'(?s)<td[^>]*class="[^"]*col-{col_num}"[^>]*>(.*?)</td>'
                   match = re.search(pattern, row_content)
                   if match:
-                      value_str = match.group(1).strip()
+                      cell_html = match.group(1)
+                      # Strip any nested HTML tags before extracting the numeric value
+                      value_str = re.sub(r'<[^>]*>', '', cell_html).strip()
                       # Remove any non-numeric characters except dots and minus
                       value_str = re.sub(r'[^\d.-]', '', value_str)
                       try:
@@ -111,8 +114,8 @@ jobs:
           FAILED_REQUESTS=0
           declare -A SIMULATION_STATS
           
-          # Parse each simulation's stats.json
-          echo "Looking for stats.json files in report directory..."
+          # Parse each simulation's HTML report (index.html) to extract table statistics
+          echo "Looking for index.html files in report directory..."
           echo "Current directory: $(pwd)"
           echo "Report directory exists: $([ -d report ] && echo 'yes' || echo 'no')"
           if [ -d report ]; then
@@ -139,20 +142,20 @@ jobs:
           
           echo ""
           echo "Running find command for index.html files..."
-          stats_files=$(find report -maxdepth 2 -type f -name "index.html" 2>&1)
+          stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>&1)
           echo "Find command output:"
           echo "$stats_files"
           
           echo ""
           echo "Found index.html files:"
-          stats_files=$(find report -maxdepth 2 -type f -name "index.html" 2>/dev/null)
+          stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>/dev/null)
           echo "$stats_files"
           
           if [ -z "$stats_files" ]; then
             echo "WARNING: No index.html files found!"
           fi
           
-          for stats_file in $stats_files; do
+          printf '%s\n' "$stats_files" | while IFS= read -r stats_file; do
             if [ -f "$stats_file" ]; then
               echo "Processing $stats_file"
               
@@ -162,24 +165,26 @@ jobs:
               sim_dir=$(dirname "$stats_file")
               sim_name=$(basename "$sim_dir")
               
-              # Sanitize simulation name for use in file paths (remove special chars)
-              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_-')
+              # Sanitize simulation name for use in file paths (allow alnum, underscore, hyphen, and period)
+              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-')
               
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
               
-              # Parse stats.json using Python script (show errors for debugging)
-              # Redirect both stdout and stderr to capture debug info, then extract last line for data
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}_full.txt" 2>&1 || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}_full.txt"
+              # Parse HTML Gatling report (index.html) using Python script (show errors for debugging)
+              # Keep stdout (data) separate from stderr (debug) to avoid mixing debug lines with parsed data
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2> "/tmp/parsed_stats_${safe_sim_name}_debug.txt" || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
               
               # Show what was parsed (for debugging)
-              echo "Parsed output (full):"
-              cat "/tmp/parsed_stats_${safe_sim_name}_full.txt"
+              echo "Parsed data output:"
+              cat "/tmp/parsed_stats_${safe_sim_name}.txt" || echo "No parsed data file found"
               
-              # Extract only the last line (the actual data, not debug messages)
-              tail -1 "/tmp/parsed_stats_${safe_sim_name}_full.txt" > "/tmp/parsed_stats_${safe_sim_name}.txt"
-              
-              echo "Data line only:"
-              cat "/tmp/parsed_stats_${safe_sim_name}.txt"
+              # Show any debug or error output from the parser
+              if [ -s "/tmp/parsed_stats_${safe_sim_name}_debug.txt" ]; then
+                echo "Parser debug output (stderr):"
+                cat "/tmp/parsed_stats_${safe_sim_name}_debug.txt"
+              else
+                echo "No parser debug output"
+              fi
               
               # Read parsed stats from the data line
               if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
@@ -187,9 +192,15 @@ jobs:
                 
                 echo "Extracted values: total='$total', ok='$ok', ko='$ko', success_rate='$success_rate', mean_time='$mean_time', p95='$p95', p99='$p99'"
                 
-                # Validate that we got numeric values
+                # Validate that we got numeric values for counts
                 if [ -z "$total" ] || [ -z "$ok" ] || [ -z "$ko" ]; then
-                  echo "ERROR: Failed to extract numeric values from parsed output"
+                  echo "ERROR: Missing count values in parsed output for simulation '$sim_name'"
+                  continue
+                fi
+                
+                # Ensure count fields are numeric to avoid bash arithmetic errors
+                if ! [[ "$total" =~ ^[0-9]+$ ]] || ! [[ "$ok" =~ ^[0-9]+$ ]] || ! [[ "$ko" =~ ^[0-9]+$ ]]; then
+                  echo "ERROR: Non-numeric count values in parsed output for simulation '$sim_name': total='$total', ok='$ok', ko='$ko'"
                   continue
                 fi
                 
@@ -235,7 +246,7 @@ jobs:
           
           # Export simulation stats as JSON for the comment script
           echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
-          for sim in "${!SIMULATION_STATS[@]}"; do
+          for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
             echo "$sim:${SIMULATION_STATS[$sim]}"
           done
           echo "EOF" >> $GITHUB_OUTPUT
@@ -253,13 +264,18 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Per-Simulation Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |" >> $GITHUB_STEP_SUMMARY
-          echo "|------------|----------|--------------|-----------|----------|----------|" >> $GITHUB_STEP_SUMMARY
           
-          for sim in "${!SIMULATION_STATS[@]}"; do
-            IFS='|' read -r total ok ko success_rate mean_time p95 p99 <<< "${SIMULATION_STATS[$sim]}"
-            echo "| $sim | $total | ${success_rate}% | $mean_time | $p95 | $p99 |" >> $GITHUB_STEP_SUMMARY
-          done
+          if [ ${#SIMULATION_STATS[@]} -eq 0 ]; then
+            echo "_No per-simulation results could be generated. This usually means all simulation reports failed to parse. Please check the Gatling reports and logs for details._" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|--------------|-----------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+            
+            for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
+              IFS='|' read -r total ok ko success_rate mean_time p95 p99 <<< "${SIMULATION_STATS[$sim]}"
+              echo "| $sim | $total | ${success_rate}% | $mean_time | $p95 | $p99 |" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v6
