@@ -81,7 +81,7 @@ public class ProxyController {
 		@ApiResponse(responseCode = "416", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping("{filename:.+}")
+	@GetMapping(value = {"", "{filename:.+}"})
 	ResponseEntity<StreamingResponseBody> fetch(
 		@RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
