@@ -317,19 +317,33 @@ jobs:
             }
             
             // Parse simulation stats and evaluate against criteria
-            const simulationStats = '${{ steps.load_test_summary.outputs.simulation_stats }}';
+            const simulationStats = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
             const testResults = [];
             let allTestsPassed = true;
             
-            if (simulationStats && simulationStats !== '') {
+            console.log('DEBUG: simulationStats raw:', simulationStats);
+            
+            if (simulationStats && simulationStats.trim() !== '') {
               const simLines = simulationStats.split('\n').filter(line => line.trim() !== '');
+              console.log('DEBUG: simLines count:', simLines.length);
               for (const line of simLines) {
-                const [simName, statsStr] = line.split(':');
-                if (statsStr) {
-                  const [total, ok, ko, success_rate, mean_time, p95, p99] = statsStr.split('|');
+                console.log('DEBUG: processing line:', line);
+                const colonIndex = line.indexOf(':');
+                if (colonIndex === -1) {
+                  console.log('DEBUG: no colon found in line');
+                  continue;
+                }
+                const simName = line.substring(0, colonIndex);
+                const statsStr = line.substring(colonIndex + 1);
+                console.log('DEBUG: simName:', simName, 'statsStr:', statsStr);
+                if (statsStr && simName) {
+                  const parts = statsStr.split('|');
+                  console.log('DEBUG: parts:', parts);
+                  const [total, ok, ko, success_rate, mean_time, p95, p99] = parts;
                   const rate = parseFloat(success_rate);
                   const meanMs = parseFloat(mean_time);
                   const p99Ms = parseFloat(p99);
+                  console.log('DEBUG: parsed values - rate:', rate, 'meanMs:', meanMs, 'p99Ms:', p99Ms);
                   
                   // Determine test type and criteria
                   let testType = '';
