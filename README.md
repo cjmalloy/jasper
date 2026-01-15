@@ -454,12 +454,13 @@ According to the CAP theorem you may only provide two of these three guarantees:
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
 tolerance are guaranteed. The modified date is used as a cursor to efficiently poll for modified records.
 
-To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin/pull`. If
-either the `pull-burst` or `pull-schedule` profiles are active the jasper server will then poll that
-instance periodically to check for any new entities. The modified date of the last entity received will
-be stored and used for the next poll. When polling, the Jasper server requests a batch of entities from
-the remote instance where the modified date is after the last stored modified date, sorted by modified
-date ascending. Users with the `MOD` role may also initiate a scrape.
+To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin/pull`.
+Add the `+plugin/cron` tag to schedule pulling, or add the `+plugin/user/run` response tag to pull a
+single time.
+
+The modified date of the last entity received will be stored and used for the next poll. When polling,
+the Jasper server requests a batch of entities from the remote instance where the modified date is
+after the last stored modified date, sorted by modified date ascending.
 
 ### Duplicate Modified Date
 Jasper instances should enforce unique modified dates as the cursor for each entity type. Otherwise,
