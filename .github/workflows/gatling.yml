@@ -161,6 +161,12 @@ jobs:
             if [ -f "$stats_file" ]; then
               echo "Processing $stats_file"
               
+              # Skip the aggregated report/index.html file (only process individual simulation reports)
+              if [ "$stats_file" = "report/index.html" ]; then
+                echo "Skipping aggregated report index.html"
+                continue
+              fi
+              
               # Extract simulation name from path
               # Path structure: report/<simulation-name-timestamp>/index.html
               # Go up one level from index.html to get the simulation directory
@@ -299,136 +305,19 @@ jobs:
         with:
           # language=JavaScript
           script: |
-            const fs = require('fs');
-            const path = require('path');
-            
             const totalRequests = '${{ steps.load_test_summary.outputs.total_requests }}' || '0';
             const successfulRequests = '${{ steps.load_test_summary.outputs.successful_requests }}' || '0';
             const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
             const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
             const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
             
-            let emoji = '✅';
-            let status = 'All load tests passed!';
-            
-            if (!testsPassed) {
-              emoji = '⚠️';
-              status = 'Load tests completed with warnings!';
-            }
-            
-            // Parse simulation stats and evaluate against criteria
-            const simulationStats = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
-            const testResults = [];
-            let allTestsPassed = true;
-            
-            console.log('DEBUG: simulationStats raw:', simulationStats);
-            
-            if (simulationStats && simulationStats.trim() !== '') {
-              const simLines = simulationStats.split('\n').filter(line => line.trim() !== '');
-              console.log('DEBUG: simLines count:', simLines.length);
-              for (const line of simLines) {
-                console.log('DEBUG: processing line:', line);
-                const colonIndex = line.indexOf(':');
-                if (colonIndex === -1) {
-                  console.log('DEBUG: no colon found in line');
-                  continue;
-                }
-                const simName = line.substring(0, colonIndex);
-                const statsStr = line.substring(colonIndex + 1);
-                console.log('DEBUG: simName:', simName, 'statsStr:', statsStr);
-                if (statsStr && simName) {
-                  const parts = statsStr.split('|');
-                  console.log('DEBUG: parts:', parts);
-                  const [total, ok, ko, success_rate, mean_time, p95, p99] = parts;
-                  const rate = parseFloat(success_rate);
-                  const meanMs = parseFloat(mean_time);
-                  const p99Ms = parseFloat(p99);
-                  console.log('DEBUG: parsed values - rate:', rate, 'meanMs:', meanMs, 'p99Ms:', p99Ms);
-                  
-                  // Determine test type and criteria
-                  let testType = '';
-                  let criteria = {};
-                  let passed = false;
-                  
-                  if (simName.toLowerCase().includes('smoketest')) {
-                    testType = '🔥 Smoke Test';
-                    criteria = { successRate: 75, meanTime: 1500, maxTime: 5000 };
-                    passed = rate > 75 && meanMs < 1500 && p99Ms < 5000;
-                  } else if (simName.toLowerCase().includes('comprehensive')) {
-                    testType = '📋 Comprehensive';
-                    criteria = { successRate: 75, meanTime: 2000, maxTime: 8000 };
-                    passed = rate > 75 && meanMs < 2000 && p99Ms < 8000;
-                  } else if (simName.toLowerCase().includes('userjourney')) {
-                    testType = '👤 User Journey';
-                    criteria = { successRate: 75, meanTime: 3000, maxTime: 10000 };
-                    passed = rate > 75 && meanMs < 3000 && p99Ms < 10000;
-                  } else if (simName.toLowerCase().includes('stresstest')) {
-                    testType = '💪 Stress Test';
-                    criteria = { successRate: 70, meanTime: 5000, maxTime: 15000 };
-                    passed = rate > 70 && meanMs < 5000 && p99Ms < 15000;
-                  } else if (simName.toLowerCase().includes('inferno')) {
-                    testType = '🔥 Inferno';
-                    criteria = { successRate: 15, meanTime: null, maxTime: null };
-                    passed = rate > 15;
-                  } else {
-                    testType = simName.replace(/simulation-\d+/i, '').replace(/-/g, ' ').trim();
-                    criteria = { successRate: 75, meanTime: 2000, maxTime: 8000 };
-                    passed = rate > 75 && meanMs < 2000 && p99Ms < 8000;
-                  }
-                  
-                  if (!passed) allTestsPassed = false;
-                  
-                  testResults.push({
-                    name: testType,
-                    passed,
-                    total,
-                    successRate: rate,
-                    meanTime: meanMs,
-                    p99: p99Ms,
-                    criteria
-                  });
-                }
-              }
-            }
-            
-            // Update status based on actual test evaluation
-            emoji = allTestsPassed ? '✅' : '⚠️';
-            status = allTestsPassed ? 'All load tests passed!' : 'Some load tests did not meet criteria!';
+            const emoji = testsPassed ? '✅' : '⚠️';
+            const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
             
             let comment = `## ${emoji} Load Test Results\n\n`;
             comment += `**${status}**\n\n`;
             
-            // Show test results against criteria (only if we have test results)
-            if (testResults.length > 0) {
-              comment += `### Test Results vs Performance Criteria\n\n`;
-              comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Success ✓/✗ | Mean ✓/✗ | Max ✓/✗ |\n`;
-              comment += `|------|--------|----------|--------------|-----------|----------|------------|----------|----------|\n`;
-              
-              for (const result of testResults) {
-                const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
-                const successRateFormatted = `${result.successRate.toFixed(1)}%`;
-                const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
-                const p99Formatted = `${Math.round(result.p99)}ms`;
-                
-                // Individual criteria checks
-                const successCheck = result.successRate > result.criteria.successRate ? `✅ >${result.criteria.successRate}%` : `❌ >${result.criteria.successRate}%`;
-                const meanCheck = result.criteria.meanTime ? 
-                  (result.meanTime < result.criteria.meanTime ? `✅ <${result.criteria.meanTime}ms` : `❌ <${result.criteria.meanTime}ms`) 
-                  : 'N/A';
-                const maxCheck = result.criteria.maxTime ? 
-                  (result.p99 < result.criteria.maxTime ? `✅ <${result.criteria.maxTime}ms` : `❌ <${result.criteria.maxTime}ms`) 
-                  : 'N/A';
-                
-                comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${successCheck} | ${meanCheck} | ${maxCheck} |\n`;
-              }
-              comment += `\n`;
-            } else {
-              comment += `### Test Results vs Performance Criteria\n\n`;
-              comment += `_No test results available. This usually means the simulation reports could not be parsed._\n\n`;
-            }
-            
             // Add overall summary
-            comment += `### Overall Summary\n\n`;
             comment += `| Metric | Value |\n`;
             comment += `|--------|-------|\n`;
             comment += `| Total Requests | ${totalRequests} |\n`;
@@ -439,17 +328,6 @@ jobs:
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
             comment += `📈 [View detailed performance reports](${url})\n\n`;
-            
-            // Add performance criteria info (collapsed for reference)
-            comment += `<details>\n<summary>About Performance Criteria</summary>\n\n`;
-            comment += `Each test type has specific performance thresholds:\n\n`;
-            comment += `- **Smoke Test**: Basic functionality check with moderate load\n`;
-            comment += `- **Comprehensive**: Full feature coverage under typical load\n`;
-            comment += `- **User Journey**: Realistic user workflows with sustained load\n`;
-            comment += `- **Stress Test**: System behavior under heavy load\n`;
-            comment += `- **Inferno**: Extreme load scenario to identify breaking points\n\n`;
-            comment += `Tests pass when they meet success rate, mean response time, and max response time (P99) thresholds shown in the results table above.\n`;
-            comment += `</details>\n\n`;
             
             // Add marker to identify our comment
             comment += `<!-- gatling-results-comment -->`;
