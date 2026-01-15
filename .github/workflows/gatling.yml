@@ -327,8 +327,8 @@ jobs:
             comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
             
             // Add per-simulation results
+            comment += `### Per-Simulation Results\n\n`;
             if (simulationStatsRaw && simulationStatsRaw.trim()) {
-              comment += `### Per-Simulation Results\n\n`;
               comment += `| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |\n`;
               comment += `|------------|----------|--------------|-----------|----------|----------|\n`;
               
@@ -337,15 +337,20 @@ jobs:
                 if (line.trim()) {
                   const colonIdx = line.indexOf(':');
                   if (colonIdx > 0) {
-                    const simName = line.substring(0, colonIdx);
-                    const stats = line.substring(colonIdx + 1);
-                    const [total, ok, ko, successRate, meanTime, p95, p99] = stats.split('|');
-                    comment += `| ${simName} | ${total} | ${successRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    const simName = line.substring(0, colonIdx).trim();
+                    const stats = line.substring(colonIdx + 1).trim();
+                    const parts = stats.split('|').map(s => s.trim());
+                    if (parts.length >= 7) {
+                      const [total, ok, ko, simSuccessRate, meanTime, p95, p99] = parts;
+                      comment += `| ${simName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    }
                   }
                 }
               }
-              comment += `\n`;
+            } else {
+              comment += `_No per-simulation results could be generated. This usually means all simulation reports failed to parse. Please check the Gatling reports and logs for details._\n`;
             }
+            comment += `\n`;
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
