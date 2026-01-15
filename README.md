@@ -816,7 +816,7 @@ You can use this to mark the input Ref as completed by either:
 1. Removing the `plugin/delta` tag
 2. Adding a `+plugin/delta` Plugin response
 
-Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
+Here are examples that reply in all uppercase:
 
 #### Remove the `plugin/delta` tag:
 Use this approach when a script could be run multiple times to create multiple outputs.
@@ -952,7 +952,7 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Websocket:** Listen to websocket cursor updates to pull.  
 **Cache Prefetch:** Attempt to pull cached files while pulling Refs.  
 **Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
-**Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
+**Cache Proxy Prefetch:** Attempt to pull all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
 **Strip Invalid Plugins:** If plugin validation is enabled, strip invalid plugins instead of skipping invalid Refs.  
 **Validate Templates:** Flag to enable, disable template validation.  
