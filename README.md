@@ -192,9 +192,8 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
 ```
 Only the "url" field is required.
 
-The combination of URL (including Alternate URLs) and Origin for this Ref must be unique and may
-be used as a Primary Composite Key. Implementations may also make the modified date part of the
-composite primary key for version history.
+The combination of URL and Origin for a Ref must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **URL:** The url of the resource.  
 **Origin:** The Origin this Ref was replicated from, or the empty string for local.  
@@ -234,6 +233,9 @@ Only the "tag" field is required.
 
 An Ext allows you to customise a Tag page. For example, you could set the sidebar text or pin some links.
 
+The combination of Tag and Origin for a Ext must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
+
 **Tag:** The tag of this Ext. Must match the regex `[_+]?[a-z0-9]+([./][a-z0-9]+)*`
 **Origin:** The Origin this Ext was replicated from, or the empty string for local.
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.
@@ -263,6 +265,9 @@ Only the "tag" field is required.
 
 A User contains the access control information for the system. Access tags work in all
 sub-origins.
+
+The combination of Tag and Origin for a User must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this User. Must match the regex `[_+]user/[a-z0-9]+([./][a-z0-9]+)*`  
 **Origin:** The Origin this User was replicated from, or the empty string for local.  
@@ -302,6 +307,9 @@ Only the "tag" field is required.
 Tagging a ref with a Plugin tag applies that plugin to the Ref. The Ref plugin must contain valid
 data according to the Plugin schema.  
 
+The combination of Tag and Origin for a Plugin must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
+
 **Tag:** The tag of this Plugin. Must match the regex `[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*`  
 **Origin:** The Origin this Plugin was replicated from, or the empty string for local.  
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.  
@@ -337,6 +345,9 @@ Only the "tag" field is required (can be the empty string).
 The Tag in the case of a template is actually a Tag prefix. This Template matches all Exts
 where its tag followed by a forward slash is a prefix of the Ext tag. In the case of the empty
 string the Template matches all Exts.
+
+The combination of Tag and Origin for this Template must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this Template. Must match the regex `[_+]?[a-z0-9]+([./][a-z0-9]+)*` or the empty string.  
 **Origin:** The Origin this Template was replicated from, or the empty string for local.  
