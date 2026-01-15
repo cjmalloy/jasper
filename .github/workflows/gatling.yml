@@ -48,12 +48,15 @@ jobs:
           import sys
           import re
           
+          # Default stats returned when parsing fails (Total|OK|KO|SuccessRate|Mean|P95|P99)
+          DEFAULT_PARSED_STATS = "0|0|0|0.0|0|0|0"
+          
           try:
               with open(sys.argv[1], 'r') as f:
                   content = f.read()
               
               # Parse HTML file - extract stats from table rows
-              # Gatling 3.14.9+ embeds stats directly in HTML tables, not as JavaScript variables
+              # Gatling 3.14.4+ embeds stats directly in HTML tables, not as JavaScript variables
               # Look for the "All Requests" row in the statistics table
               # Format: <tr id="ROOT" >...<td class="value total col-2">169</td>...
               
@@ -61,7 +64,7 @@ jobs:
               root_row_match = re.search(r'<tr\s+id="ROOT"[^>]*>(.*?)</tr>', content, re.DOTALL | re.IGNORECASE)
               if not root_row_match:
                   print(f"ERROR: Could not find ROOT statistics row in HTML", file=sys.stderr)
-                  print(f"0|0|0|0.0|0|0|0")
+                  print(DEFAULT_PARSED_STATS)
                   sys.exit(0)
               
               row_content = root_row_match.group(1)
@@ -106,7 +109,7 @@ jobs:
               print(f"ERROR: {e}", file=sys.stderr)
               import traceback
               traceback.print_exc(file=sys.stderr)
-              print(f"0|0|0|0.0|0|0|0")
+              print(DEFAULT_PARSED_STATS)
           PYTHON_EOF
           
           # Initialize summary variables
@@ -114,6 +117,7 @@ jobs:
           SUCCESSFUL_REQUESTS=0
           FAILED_REQUESTS=0
           declare -A SIMULATION_STATS
+          DEFAULT_PARSED_STATS="0|0|0|0.0|0|0|0"
           
           # Parse each simulation's HTML report (index.html) to extract table statistics
           echo "Looking for index.html files in report directory..."
@@ -173,15 +177,16 @@ jobs:
               sim_dir=$(dirname "$stats_file")
               sim_name=$(basename "$sim_dir")
               
-              # Sanitize simulation name for use in file paths (allow alnum, underscore, hyphen, and period)
-              # Remove any potential path traversal sequences for security
-              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-' | sed 's/\.\.\+/./g' | sed 's/^\.*//' | sed 's/\.*$//')
+              # Sanitize simulation name for use in file paths (allow only alnum, underscore, and hyphen)
+              # This prevents path traversal by removing dots and any other potentially dangerous characters
+              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_-')
+              [ -z "$safe_sim_name" ] && safe_sim_name="simulation"
               
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
               
               # Parse HTML Gatling report (index.html) using Python script (show errors for debugging)
               # Keep stdout (data) separate from stderr (debug) to avoid mixing debug lines with parsed data
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2> "/tmp/parsed_stats_${safe_sim_name}_debug.txt" || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2> "/tmp/parsed_stats_${safe_sim_name}_debug.txt" || echo "$DEFAULT_PARSED_STATS" > "/tmp/parsed_stats_${safe_sim_name}.txt"
               
               # Show what was parsed (for debugging)
               echo "Parsed data output:"
@@ -245,7 +250,7 @@ jobs:
           echo "failed_requests=$FAILED_REQUESTS" >> $GITHUB_OUTPUT
           echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
           
-          # Determine if tests passed (>70% success for stress tests, >75% for others)
+          # Determine if tests passed (>70% overall success rate)
           # Use awk for arithmetic comparison (more portable than bc)
           if [ $(awk -v sr="$SUCCESS_RATE" 'BEGIN { print (sr >= 70.0) ? 1 : 0 }') -eq 1 ]; then
             echo "tests_passed=true" >> $GITHUB_OUTPUT
@@ -305,12 +310,27 @@ jobs:
         with:
           # language=JavaScript
           script: |
+            function escapeMarkdown(str) {
+              if (!str) return '';
+              return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/`/g, '\\`')
+                .replace(/\*/g, '\\*')
+                .replace(/_/g, '\\_')
+                .replace(/\[/g, '\\[')
+                .replace(/\]/g, '\\]')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\|/g, '\\|');
+            }
+            
             const totalRequests = '${{ steps.load_test_summary.outputs.total_requests }}' || '0';
             const successfulRequests = '${{ steps.load_test_summary.outputs.successful_requests }}' || '0';
             const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
             const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
             const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
-            const simulationStatsRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
+            const simulationStatsRawRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
+            const simulationStatsRaw = escapeMarkdown(simulationStatsRawRaw);
             
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
@@ -339,8 +359,13 @@ jobs:
                   if (colonIdx > 0) {
                     const simName = line.substring(0, colonIdx);
                     const stats = line.substring(colonIdx + 1);
-                    const [total, ok, ko, successRate, meanTime, p95, p99] = stats.split('|');
-                    comment += `| ${simName} | ${total} | ${successRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    const parts = stats.split('|').map(s => s.trim());
+                    if (parts.length !== 7) {
+                      // Skip malformed stats lines that don't have the expected number of fields
+                      continue;
+                    }
+                    const [total, ok, ko, simSuccessRate, meanTime, p95, p99] = parts;
+                    comment += `| ${simName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
                   }
                 }
               }
