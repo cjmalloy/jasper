@@ -310,6 +310,7 @@ jobs:
             const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
             const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
             const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
+            const simulationStatsRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
             
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
@@ -324,6 +325,27 @@ jobs:
             comment += `| ✅ Successful | ${successfulRequests} |\n`;
             comment += `| ❌ Failed | ${failedRequests} |\n`;
             comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
+            
+            // Add per-simulation results
+            if (simulationStatsRaw && simulationStatsRaw.trim()) {
+              comment += `### Per-Simulation Results\n\n`;
+              comment += `| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |\n`;
+              comment += `|------------|----------|--------------|-----------|----------|----------|\n`;
+              
+              const lines = simulationStatsRaw.trim().split('\n');
+              for (const line of lines) {
+                if (line.trim()) {
+                  const colonIdx = line.indexOf(':');
+                  if (colonIdx > 0) {
+                    const simName = line.substring(0, colonIdx);
+                    const stats = line.substring(colonIdx + 1);
+                    const [total, ok, ko, successRate, meanTime, p95, p99] = stats.split('|');
+                    comment += `| ${simName} | ${total} | ${successRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                  }
+                }
+              }
+              comment += `\n`;
+            }
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
