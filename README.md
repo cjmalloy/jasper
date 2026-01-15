@@ -147,6 +147,37 @@ Similarly, Ext entities may be created which extend the functionality of a tag. 
 custom data that can be stored in a ref, Templates may be created which allow custom data to be
 stored in Ext entities and similarly validated according to their schema.
 
+### Plugins compose, Templates inherit
+Plugins store data in the Ref `plugins` field. It is a map of Plugin tag to Plugin data. For example,
+the plugins `+plugin/origin` and `+plugin/origin/pull` store data like:
+```json
+{
+  "url": "https://jasperkm.info/",
+  "title": "@jasper",
+  "tags": [
+    "+plugin/origin/pull",
+  ],
+  "plugins": {
+    "+plugin/origin": {
+      "local": "@jasper",
+      "remote": "@jasper"
+    },
+    "+plugin/origin/pull": {
+      "batchSize": 500,
+      "websocket": true,
+      "validatePlugins": false,
+      "validateTemplates": false
+    }
+  }
+}
+```
+The data found under the `+plugin/origin` key is validated acording to it's schema, likewise with
+`+plugin/origin/pull`.
+
+Templates, on the other hand, store all data in the Ext `config` field. If an Ext tag matches multiple
+Templates, all template schemas are merged and then used to validate the `config`.
+
+### Examples
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
 * `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
