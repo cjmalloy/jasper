@@ -778,7 +778,8 @@ Jasper generates the following metadata in Refs:
  * List of plugin responses: A list of responses with that plugin.
  * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
-While the metadata is not transferred during replication, a simplified version is sent over the client API, with
+
+Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, and user plugin responses for the current user.
 
 ## Server Scripting
