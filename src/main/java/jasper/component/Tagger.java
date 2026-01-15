@@ -230,23 +230,24 @@ public class Tagger {
 	public Ref getResponseRef(String user, String origin, String url) {
 		var userUrl = urlForTag(url, user);
 		return refRepository.findOneByUrlAndOrigin(userUrl, origin).map(ref -> {
-				if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) ref.setSources(new ArrayList<>(List.of(url)));
-				if (ref.getTags() == null || ref.hasTag("plugin/deleted")) {
-					ref.setTags(new ArrayList<>(List.of("internal", user)));
-				}
-				return ref;
-			})
-			.orElseGet(() -> {
-				var ref = new Ref();
-				ref.setUrl(userUrl);
-				ref.setOrigin(origin);
-				if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
+			if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) {
+				ref.setSources(new ArrayList<>(List.of(url)));
+			}
+			if (ref.getTags() == null || ref.hasTag("plugin/deleted")) {
 				ref.setTags(new ArrayList<>(List.of("internal", user)));
-				ingest.create(origin, ref);
-				return ref;
-			});
+			}
+			return ref;
+		})
+		.orElseGet(() -> {
+			var ref = new Ref();
+			ref.setUrl(userUrl);
+			ref.setOrigin(origin);
+			if (isNotBlank(url)) ref.setSources(new ArrayList<>(List.of(url)));
+			ref.setTags(new ArrayList<>(List.of("internal", user)));
+			ingest.create(origin, ref);
+			return ref;
+		});
 	}
-
 
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)

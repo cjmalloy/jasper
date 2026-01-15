@@ -96,7 +96,8 @@ public class RssParser {
 			// Temporary network timeout, retry later
 			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Timeout loading feed", getMessage(e));
 		} catch (IOException e) {
-			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
+			// Temporary network timeout, retry later
+			tagger.attachLogs(ref.getUrl(), ref.getOrigin(), "Error loading feed", getMessage(e));
 		} catch (Throwable e) {
 			tagger.attachError(ref.getUrl(), ref.getOrigin(), "Unexpected error scraping feed", getMessage(e));
 		}

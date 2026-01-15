@@ -295,7 +295,7 @@ public class Auth {
 		// Mods can read anything
 		if (hasRole(MOD)) return true;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url) && isLoggedIn() && userUrl(url, getUserTag().tag)) return true;
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -331,9 +331,9 @@ public class Auth {
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url)) return hasRole(MOD) || isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
-		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
+		if (tagUrl(url)) return hasRole(MOD) || canWriteTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
 			// If we're creating, simply having the role USER is enough

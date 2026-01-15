@@ -22,6 +22,7 @@ public interface Tag extends Cursor {
 
 	static boolean userUrl(String url) {
 		return
+			userUrl(url, "user") || url.startsWith("tag:/user/") ||
 			userUrl(url, "+user") || url.startsWith("tag:/+user/") ||
 			userUrl(url, "_user") || url.startsWith("tag:/_user/");
 	}
@@ -29,12 +30,15 @@ public interface Tag extends Cursor {
 	static boolean userUrl(String url, String user) {
 		return url.equals("tag:/" + user) ||
 			url.startsWith("tag:/" + user + "?") ||
-			url.startsWith("tag:/" + user + "/");
+			url.startsWith("tag:/" + user + "/") ||
+			url.equals("tag:/" + publicTag(user)) ||
+			url.startsWith("tag:/" + publicTag(user) + "?") ||
+			url.startsWith("tag:/" + publicTag(user) + "/");
 	}
 
 	static String urlForTag(String url, String user) {
-		if (isBlank(url)) return "tag:/" + user;
-		return "tag:/" + user + "?url=" + url;
+		if (isBlank(url)) return "tag:/" + publicTag(user);
+		return "tag:/" + publicTag(user) + "?url=" + url;
 	}
 
 	static boolean tagUrl(String url) {

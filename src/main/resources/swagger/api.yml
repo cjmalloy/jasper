@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.3.5
+  version: 1.3.6
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -701,6 +701,15 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: 'https://json.schemastore.org/json-patch'
+          application/merge-patch+json:
+            schema:
+              type: object
+        required: false
       responses:
         '204':
           description: No Content
