@@ -316,60 +316,130 @@ jobs:
               status = 'Load tests completed with warnings!';
             }
             
-            let comment = `## ${emoji} Load Test Results\n\n`;
-            comment += `**${status}**\n\n`;
-            comment += `### Overall Summary\n\n`;
-            comment += `| Metric | Value |\n`;
-            comment += `|--------|-------|\n`;
-            comment += `| Total Requests | ${totalRequests} |\n`;
-            comment += `| ✅ Successful | ${successfulRequests} |\n`;
-            comment += `| ❌ Failed | ${failedRequests} |\n`;
-            comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
-            
-            // Parse simulation stats
+            // Parse simulation stats and evaluate against criteria
             const simulationStats = '${{ steps.load_test_summary.outputs.simulation_stats }}';
+            const testResults = [];
+            let allTestsPassed = true;
+            
             if (simulationStats && simulationStats !== '') {
-              comment += `### Per-Simulation Results\n\n`;
-              comment += `| Simulation | Requests | Success Rate | Mean Time | P95 | P99 |\n`;
-              comment += `|------------|----------|--------------|-----------|-----|-----|\n`;
-              
               const simLines = simulationStats.split('\n').filter(line => line.trim() !== '');
               for (const line of simLines) {
                 const [simName, statsStr] = line.split(':');
                 if (statsStr) {
                   const [total, ok, ko, success_rate, mean_time, p95, p99] = statsStr.split('|');
+                  const rate = parseFloat(success_rate);
+                  const meanMs = parseFloat(mean_time);
+                  const p99Ms = parseFloat(p99);
                   
-                  // Format simulation name (remove timestamp suffix for readability)
-                  let displayName = simName.replace(/simulation-\d+/i, '').replace(/-/g, ' ').trim();
-                  if (displayName.toLowerCase().includes('smoketest')) {
-                    displayName = '🔥 Smoke Test';
-                  } else if (displayName.toLowerCase().includes('comprehensive')) {
-                    displayName = '📋 Comprehensive';
-                  } else if (displayName.toLowerCase().includes('userjourney')) {
-                    displayName = '👤 User Journey';
-                  } else if (displayName.toLowerCase().includes('stresstest')) {
-                    displayName = '💪 Stress Test';
-                  } else if (displayName.toLowerCase().includes('inferno')) {
-                    displayName = '🔥 Inferno';
+                  // Determine test type and criteria
+                  let testType = '';
+                  let criteria = {};
+                  let passed = false;
+                  
+                  if (simName.toLowerCase().includes('smoketest')) {
+                    testType = '🔥 Smoke Test';
+                    criteria = { successRate: 75, meanTime: 1500, maxTime: 5000 };
+                    passed = rate > 75 && meanMs < 1500 && p99Ms < 5000;
+                  } else if (simName.toLowerCase().includes('comprehensive')) {
+                    testType = '📋 Comprehensive';
+                    criteria = { successRate: 75, meanTime: 2000, maxTime: 8000 };
+                    passed = rate > 75 && meanMs < 2000 && p99Ms < 8000;
+                  } else if (simName.toLowerCase().includes('userjourney')) {
+                    testType = '👤 User Journey';
+                    criteria = { successRate: 75, meanTime: 3000, maxTime: 10000 };
+                    passed = rate > 75 && meanMs < 3000 && p99Ms < 10000;
+                  } else if (simName.toLowerCase().includes('stresstest')) {
+                    testType = '💪 Stress Test';
+                    criteria = { successRate: 70, meanTime: 5000, maxTime: 15000 };
+                    passed = rate > 70 && meanMs < 5000 && p99Ms < 15000;
+                  } else if (simName.toLowerCase().includes('inferno')) {
+                    testType = '🔥 Inferno';
+                    criteria = { successRate: 15, meanTime: null, maxTime: null };
+                    passed = rate > 15;
+                  } else {
+                    testType = simName.replace(/simulation-\d+/i, '').replace(/-/g, ' ').trim();
+                    criteria = { successRate: 75, meanTime: 2000, maxTime: 8000 };
+                    passed = rate > 75 && meanMs < 2000 && p99Ms < 8000;
                   }
                   
-                  comment += `| ${displayName} | ${total} | ${success_rate}% | ${mean_time}ms | ${p95}ms | ${p99}ms |\n`;
+                  if (!passed) allTestsPassed = false;
+                  
+                  testResults.push({
+                    name: testType,
+                    passed,
+                    total,
+                    successRate: rate,
+                    meanTime: meanMs,
+                    p99: p99Ms,
+                    criteria
+                  });
                 }
               }
+            }
+            
+            // Update status based on actual test evaluation
+            emoji = allTestsPassed ? '✅' : '⚠️';
+            status = allTestsPassed ? 'All load tests passed!' : 'Some load tests did not meet criteria!';
+            
+            let comment = `## ${emoji} Load Test Results\n\n`;
+            comment += `**${status}**\n\n`;
+            
+            // Show test results against criteria
+            if (testResults.length > 0) {
+              comment += `### Test Results vs Performance Criteria\n\n`;
+              comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Criteria |\n`;
+              comment += `|------|--------|----------|--------------|-----------|----------|----------|\n`;
+              
+              for (const result of testResults) {
+                const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
+                let criteriaText = `>${result.criteria.successRate}% success`;
+                if (result.criteria.meanTime) {
+                  criteriaText += `, <${result.criteria.meanTime}ms mean`;
+                }
+                if (result.criteria.maxTime) {
+                  criteriaText += `, <${result.criteria.maxTime}ms max`;
+                }
+                
+                const successRateFormatted = `${result.successRate.toFixed(1)}%`;
+                const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
+                const p99Formatted = `${Math.round(result.p99)}ms`;
+                
+                comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${criteriaText} |\n`;
+              }
               comment += `\n`;
+              
+              // Add overall summary
+              comment += `### Overall Summary\n\n`;
+              comment += `| Metric | Value |\n`;
+              comment += `|--------|-------|\n`;
+              comment += `| Total Requests | ${totalRequests} |\n`;
+              comment += `| ✅ Successful | ${successfulRequests} |\n`;
+              comment += `| ❌ Failed | ${failedRequests} |\n`;
+              comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
+            } else {
+              // Fallback if no simulation stats
+              comment += `### Overall Summary\n\n`;
+              comment += `| Metric | Value |\n`;
+              comment += `|--------|-------|\n`;
+              comment += `| Total Requests | ${totalRequests} |\n`;
+              comment += `| ✅ Successful | ${successfulRequests} |\n`;
+              comment += `| ❌ Failed | ${failedRequests} |\n`;
+              comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
             }
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
             comment += `📈 [View detailed performance reports](${url})\n\n`;
             
-            // Add performance criteria info
-            comment += `<details>\n<summary>Performance Criteria</summary>\n\n`;
-            comment += `- **Smoke Test**: >75% success rate, <5s max response time, <1.5s mean\n`;
-            comment += `- **Comprehensive**: >75% success rate, <8s max response time, <2s mean\n`;
-            comment += `- **User Journey**: >75% success rate, <10s max response time, <3s mean\n`;
-            comment += `- **Stress Test**: >70% success rate, <15s max response time, <5s mean\n`;
-            comment += `- **Inferno**: >15% success rate (extreme load scenario)\n`;
+            // Add performance criteria info (collapsed for reference)
+            comment += `<details>\n<summary>About Performance Criteria</summary>\n\n`;
+            comment += `Each test type has specific performance thresholds:\n\n`;
+            comment += `- **Smoke Test**: Basic functionality check with moderate load\n`;
+            comment += `- **Comprehensive**: Full feature coverage under typical load\n`;
+            comment += `- **User Journey**: Realistic user workflows with sustained load\n`;
+            comment += `- **Stress Test**: System behavior under heavy load\n`;
+            comment += `- **Inferno**: Extreme load scenario to identify breaking points\n\n`;
+            comment += `Tests pass when they meet success rate, mean response time, and max response time (P99) thresholds shown in the results table above.\n`;
             comment += `</details>\n\n`;
             
             // Add marker to identify our comment
