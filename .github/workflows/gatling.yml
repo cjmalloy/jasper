@@ -256,7 +256,7 @@ jobs:
           # Export simulation stats as JSON for the comment script
           echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
           for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
-            echo "$sim:${SIMULATION_STATS[$sim]}"
+            echo "$sim:${SIMULATION_STATS[$sim]}" >> $GITHUB_OUTPUT
           done
           echo "EOF" >> $GITHUB_OUTPUT
           
