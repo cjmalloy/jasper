@@ -103,13 +103,6 @@ public class Messages {
 	}
 
 	@Async
-	public void updateResponse(Ref ref) {
-		// TODO: Debounce
-		sendAndRetry(() -> responseTxChannel.send(createMessage(ref.getUrl(), responseHeaders(ref.getOrigin(), ref.getSources().getFirst()))));
-		sendAndRetry(() -> cursorTxChannel.send(createMessage(ref.getModified(), originHeaders(ref.getOrigin()))));
-	}
-
-	@Async
 	public void updateSilentRef(Ref ref) {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);

@@ -20,6 +20,7 @@ logging:
     org.springframework.boot: INFO
     com.rometools: ERROR
     org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.orm.jdbc.error: OFF
     org.hibernate.engine.jdbc.spi: OFF
 
 management:
