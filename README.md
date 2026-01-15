@@ -221,7 +221,7 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
   "modified": "2022-06-18T12:07:04.404272Z"
 }
 ```
-Only the "url", "origin", "created", "modified", and "published" fields are required.
+Only the "url" field is required.
 
 The combination of URL (including Alternate URLs) and Origin for this Ref must be unique and may
 be used as a Primary Composite Key. Implementations may also make the modified date part of the
@@ -261,7 +261,7 @@ An Ext is a Tag-like entity representing a Tag extension.
   "modified": "2022-06-18T16:00:59.978700Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 An Ext allows you to customise a Tag page. For example, you could set the sidebar text or pin some links.
 
@@ -290,7 +290,7 @@ A User is a Tag-like entity representing a user.
   "modified": "2022-06-18T16:00:59.978700Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 A User contains the access control information for the system. Access tags work in all
 sub-origins.
@@ -328,7 +328,7 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 Tagging a ref with a Plugin tag applies that plugin to the Ref. The Ref plugin must contain valid
 data according to the Plugin schema.  
@@ -363,7 +363,7 @@ A Template is a Tag-like entity used to extend the functionality of Exts.
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required (can be the empty string).
 
 The Tag in the case of a template is actually a Tag prefix. This Template matches all Exts
 where its tag followed by a forward slash is a prefix of the Ext tag. In the case of the empty
