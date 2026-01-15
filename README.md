@@ -771,7 +771,9 @@ errors rejecting valid user input are infuriating and very common. Error correct
 if the client validation was somehow circumvented.
 
 ## Metadata
-Jasper uses metadata generation pre-compute graph connections without including it in the transmitted data model.
+Jasper uses metadata generation to pre-compute graph connections. This allows us to store derived data outside
+of the main data model and keeps our queries join free.
+
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
