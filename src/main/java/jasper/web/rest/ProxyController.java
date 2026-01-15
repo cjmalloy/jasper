@@ -61,7 +61,7 @@ public class ProxyController {
 		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping("prefetch/{filename:.+}")
+	@GetMapping({"", "prefetch/{filename:.+}"})
 	ResponseEntity<String> preFetch(
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -81,7 +81,7 @@ public class ProxyController {
 		@ApiResponse(responseCode = "416", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
-	@GetMapping("{filename:.+}")
+	@GetMapping({"", "{filename:.+}"})
 	ResponseEntity<StreamingResponseBody> fetch(
 		@RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
