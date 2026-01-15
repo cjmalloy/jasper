@@ -1,9 +1,17 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonpatch.JsonPatchException;
+import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Tagger;
+import jasper.component.Validate;
+import jasper.domain.Plugin;
 import jasper.errors.DuplicateTagException;
+import jasper.errors.InvalidPatchException;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
@@ -29,6 +37,9 @@ public class TaggingService {
 	RefRepository refRepository;
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	Ingest ingest;
 
 	@Autowired
@@ -39,6 +50,9 @@ public class TaggingService {
 
 	@Autowired
 	DtoMapper mapper;
+
+	@Autowired
+	Validate validate;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -104,7 +118,12 @@ public class TaggingService {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		if (isNotBlank(tag) && !ref.hasTag(tag)) {
 			ref.addTag(tag);
-			ingest.update(auth.getOrigin(), ref);
+			try {
+				ingest.updateResponse(auth.getOrigin(), ref);
+			} catch (ModifiedException e) {
+				// TODO: infinite retrys?
+				createResponse(tag, url);
+			}
 		}
 	}
 
@@ -113,14 +132,40 @@ public class TaggingService {
 	public void deleteResponse(String tag, String url) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
 		ref.removeTag(tag);
-		ingest.update(auth.getOrigin(), ref);
+		try {
+			ingest.updateResponse(auth.getOrigin(), ref);
+		} catch (ModifiedException e) {
+			// TODO: infinite retrys?
+			deleteResponse(tag, url);
+		}
 	}
 
 	@PreAuthorize("@auth.isLoggedIn() and @auth.hasRole('USER') and @auth.canPatchTags(#tags)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
-	public void respond(List<String> tags, String url) {
+	public void respond(List<String> tags, String url, Patch patch) {
 		var ref = tagger.getResponseRef(auth.getUserTag().tag, auth.getOrigin(), url);
-		for (var tag : tags) ref.addTag(tag);
-		ingest.update(auth.getOrigin(), ref);
+		for (var tag : tags) {
+			var newTag = !tag.startsWith("-") && !ref.hasTag(tag);
+			ref.addTag(tag);
+			if (newTag) {
+				configs.getPlugin(tag, auth.getOrigin())
+					.map(Plugin::getDefaults)
+					.ifPresent(defaults -> ref.setPlugin(tag, defaults));
+			}
+		}
+		if (patch != null) {
+			try {
+				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
+				ref.addPlugins(ref.getTags(), plugins);
+			} catch (JsonPatchException e) {
+				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
+			}
+		}
+		try {
+			ingest.updateResponse(auth.getOrigin(), ref);
+		} catch (ModifiedException e) {
+			// TODO: infinite retrys?
+			respond(tags, url, patch);
+		}
 	}
 }
