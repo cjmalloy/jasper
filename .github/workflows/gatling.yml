@@ -385,47 +385,37 @@ jobs:
             comment += `**${status}**\n\n`;
             
             // Show test results against criteria
-            if (testResults.length > 0) {
-              comment += `### Test Results vs Performance Criteria\n\n`;
-              comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Criteria |\n`;
-              comment += `|------|--------|----------|--------------|-----------|----------|----------|\n`;
+            comment += `### Test Results vs Performance Criteria\n\n`;
+            comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Success ✓/✗ | Mean ✓/✗ | Max ✓/✗ |\n`;
+            comment += `|------|--------|----------|--------------|-----------|----------|------------|----------|----------|\n`;
+            
+            for (const result of testResults) {
+              const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
+              const successRateFormatted = `${result.successRate.toFixed(1)}%`;
+              const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
+              const p99Formatted = `${Math.round(result.p99)}ms`;
               
-              for (const result of testResults) {
-                const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
-                let criteriaText = `>${result.criteria.successRate}% success`;
-                if (result.criteria.meanTime) {
-                  criteriaText += `, <${result.criteria.meanTime}ms mean`;
-                }
-                if (result.criteria.maxTime) {
-                  criteriaText += `, <${result.criteria.maxTime}ms max`;
-                }
-                
-                const successRateFormatted = `${result.successRate.toFixed(1)}%`;
-                const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
-                const p99Formatted = `${Math.round(result.p99)}ms`;
-                
-                comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${criteriaText} |\n`;
-              }
-              comment += `\n`;
+              // Individual criteria checks
+              const successCheck = result.successRate > result.criteria.successRate ? `✅ >${result.criteria.successRate}%` : `❌ >${result.criteria.successRate}%`;
+              const meanCheck = result.criteria.meanTime ? 
+                (result.meanTime < result.criteria.meanTime ? `✅ <${result.criteria.meanTime}ms` : `❌ <${result.criteria.meanTime}ms`) 
+                : 'N/A';
+              const maxCheck = result.criteria.maxTime ? 
+                (result.p99 < result.criteria.maxTime ? `✅ <${result.criteria.maxTime}ms` : `❌ <${result.criteria.maxTime}ms`) 
+                : 'N/A';
               
-              // Add overall summary
-              comment += `### Overall Summary\n\n`;
-              comment += `| Metric | Value |\n`;
-              comment += `|--------|-------|\n`;
-              comment += `| Total Requests | ${totalRequests} |\n`;
-              comment += `| ✅ Successful | ${successfulRequests} |\n`;
-              comment += `| ❌ Failed | ${failedRequests} |\n`;
-              comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
-            } else {
-              // Fallback if no simulation stats
-              comment += `### Overall Summary\n\n`;
-              comment += `| Metric | Value |\n`;
-              comment += `|--------|-------|\n`;
-              comment += `| Total Requests | ${totalRequests} |\n`;
-              comment += `| ✅ Successful | ${successfulRequests} |\n`;
-              comment += `| ❌ Failed | ${failedRequests} |\n`;
-              comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
+              comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${successCheck} | ${meanCheck} | ${maxCheck} |\n`;
             }
+            comment += `\n`;
+            
+            // Add overall summary
+            comment += `### Overall Summary\n\n`;
+            comment += `| Metric | Value |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Total Requests | ${totalRequests} |\n`;
+            comment += `| ✅ Successful | ${successfulRequests} |\n`;
+            comment += `| ❌ Failed | ${failedRequests} |\n`;
+            comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
