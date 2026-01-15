@@ -111,7 +111,7 @@ Example queries:
  * `(science|math):funny`: All Refs that have either the `science` or `math` tags, but
 also the `funny` tag. This would match a ref with `['science', 'funny']`, `['math', 'funny']`,
 but would not match `['science', 'math']`
- * `science:funny|math:funny`: Expended form of previous query. Would produce the exact same results.
+ * `science:funny|math:funny`: Extended form of previous query. Would produce the exact same results.
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
