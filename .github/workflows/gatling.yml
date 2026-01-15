@@ -329,8 +329,7 @@ jobs:
             const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
             const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
             const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
-            const simulationStatsRawRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
-            const simulationStatsRaw = escapeMarkdown(simulationStatsRawRaw);
+            const simulationStatsRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
             
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
@@ -365,7 +364,9 @@ jobs:
                       continue;
                     }
                     const [total, ok, ko, simSuccessRate, meanTime, p95, p99] = parts;
-                    comment += `| ${simName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    // Escape simulation name for markdown safety (defense-in-depth)
+                    const escapedSimName = escapeMarkdown(simName);
+                    comment += `| ${escapedSimName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
                   }
                 }
               }
