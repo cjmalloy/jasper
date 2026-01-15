@@ -384,29 +384,34 @@ jobs:
             let comment = `## ${emoji} Load Test Results\n\n`;
             comment += `**${status}**\n\n`;
             
-            // Show test results against criteria
-            comment += `### Test Results vs Performance Criteria\n\n`;
-            comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Success ✓/✗ | Mean ✓/✗ | Max ✓/✗ |\n`;
-            comment += `|------|--------|----------|--------------|-----------|----------|------------|----------|----------|\n`;
-            
-            for (const result of testResults) {
-              const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
-              const successRateFormatted = `${result.successRate.toFixed(1)}%`;
-              const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
-              const p99Formatted = `${Math.round(result.p99)}ms`;
+            // Show test results against criteria (only if we have test results)
+            if (testResults.length > 0) {
+              comment += `### Test Results vs Performance Criteria\n\n`;
+              comment += `| Test | Status | Requests | Success Rate | Mean Time | P99 Time | Success ✓/✗ | Mean ✓/✗ | Max ✓/✗ |\n`;
+              comment += `|------|--------|----------|--------------|-----------|----------|------------|----------|----------|\n`;
               
-              // Individual criteria checks
-              const successCheck = result.successRate > result.criteria.successRate ? `✅ >${result.criteria.successRate}%` : `❌ >${result.criteria.successRate}%`;
-              const meanCheck = result.criteria.meanTime ? 
-                (result.meanTime < result.criteria.meanTime ? `✅ <${result.criteria.meanTime}ms` : `❌ <${result.criteria.meanTime}ms`) 
-                : 'N/A';
-              const maxCheck = result.criteria.maxTime ? 
-                (result.p99 < result.criteria.maxTime ? `✅ <${result.criteria.maxTime}ms` : `❌ <${result.criteria.maxTime}ms`) 
-                : 'N/A';
-              
-              comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${successCheck} | ${meanCheck} | ${maxCheck} |\n`;
+              for (const result of testResults) {
+                const statusIcon = result.passed ? '✅ PASS' : '❌ FAIL';
+                const successRateFormatted = `${result.successRate.toFixed(1)}%`;
+                const meanTimeFormatted = `${Math.round(result.meanTime)}ms`;
+                const p99Formatted = `${Math.round(result.p99)}ms`;
+                
+                // Individual criteria checks
+                const successCheck = result.successRate > result.criteria.successRate ? `✅ >${result.criteria.successRate}%` : `❌ >${result.criteria.successRate}%`;
+                const meanCheck = result.criteria.meanTime ? 
+                  (result.meanTime < result.criteria.meanTime ? `✅ <${result.criteria.meanTime}ms` : `❌ <${result.criteria.meanTime}ms`) 
+                  : 'N/A';
+                const maxCheck = result.criteria.maxTime ? 
+                  (result.p99 < result.criteria.maxTime ? `✅ <${result.criteria.maxTime}ms` : `❌ <${result.criteria.maxTime}ms`) 
+                  : 'N/A';
+                
+                comment += `| ${result.name} | ${statusIcon} | ${result.total} | ${successRateFormatted} | ${meanTimeFormatted} | ${p99Formatted} | ${successCheck} | ${meanCheck} | ${maxCheck} |\n`;
+              }
+              comment += `\n`;
+            } else {
+              comment += `### Test Results vs Performance Criteria\n\n`;
+              comment += `_No test results available. This usually means the simulation reports could not be parsed._\n\n`;
             }
-            comment += `\n`;
             
             // Add overall summary
             comment += `### Overall Summary\n\n`;
