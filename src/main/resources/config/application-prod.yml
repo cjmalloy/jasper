@@ -17,15 +17,16 @@ logging:
   level:
     ROOT: WARN
     jasper: INFO
-    org:
-      springframework:
-        boot: INFO
-    com:
-      rometools: ERROR
+    org.springframework.boot: INFO
+    com.rometools: ERROR
+    org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.orm.jdbc.error: OFF
+    org.hibernate.engine.jdbc.spi: OFF
+
 management:
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
 
 spring:
@@ -47,16 +48,6 @@ spring:
   # Replace by 'prod, faker' to add the faker context and have sample data loaded in production
   liquibase:
     contexts: prod
-  thymeleaf:
-    cache: true
-  sleuth:
-    # https://github.com/spring-projects/spring-framework/issues/27844#issuescomment-1002866885
-    # https://github.com/spring-cloud/spring-cloud-sleuth/issues/2094
-    async:
-      enabled: false
-    enabled: false
-    sampler:
-      probability: 1 # report 100% of traces
   zipkin: # Use the "zipkin" Maven profile to have the Spring Cloud Zipkin dependencies
     base-url: http://localhost:9411
     enabled: false

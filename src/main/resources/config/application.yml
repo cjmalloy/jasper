@@ -21,6 +21,12 @@ springdoc:
   api-docs:
     enabled: false
 ---
+logging:
+  level:
+    com.rometools: ERROR
+    org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.orm.jdbc.error: OFF
+    org.hibernate.engine.jdbc.spi: OFF
 feign:
   circuitbreaker:
     enabled: true
@@ -223,8 +229,3 @@ jasper:
         url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
-
-logging:
-  level:
-    org.hibernate.orm.jdbc.batch: OFF
-    org.hibernate.engine.jdbc.spi: OFF
