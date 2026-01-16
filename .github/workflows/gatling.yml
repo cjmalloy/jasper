@@ -98,8 +98,6 @@ jobs:
               # Calculate success rate
               success_rate = (ok / total * 100) if total > 0 else 0
               
-              print(f"DEBUG: Extracted from HTML table - Total: {total}, OK: {ok}, KO: {ko}, Mean: {mean_time}, P95: {p95}, P99: {p99}", file=sys.stderr)
-              
               # Output in a parseable format
               print(f"{total}|{ok}|{ko}|{success_rate:.1f}|{mean_time}|{p95}|{p99}")
           except Exception as e:
@@ -117,40 +115,7 @@ jobs:
           
           # Parse each simulation's HTML report (index.html) to extract table statistics
           echo "Looking for index.html files in report directory..."
-          echo "Current directory: $(pwd)"
-          echo "Report directory exists: $([ -d report ] && echo 'yes' || echo 'no')"
-          if [ -d report ]; then
-            echo "Report directory contents:"
-            ls -la report/
-            
-            echo ""
-            echo "Exploring subdirectories..."
-            for sim_dir in report/*/; do
-              if [ -d "$sim_dir" ]; then
-                echo "Contents of $sim_dir:"
-                ls -la "$sim_dir" 2>/dev/null || echo "  Cannot list $sim_dir"
-                
-                # Check for js subdirectory
-                if [ -d "${sim_dir}js" ]; then
-                  echo "  Contents of ${sim_dir}js:"
-                  ls -la "${sim_dir}js" 2>/dev/null || echo "    Cannot list ${sim_dir}js"
-                else
-                  echo "  No js subdirectory in $sim_dir"
-                fi
-              fi
-            done
-          fi
-          
-          echo ""
-          echo "Running find command for index.html files..."
-          stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>&1)
-          echo "Find command output:"
-          echo "$stats_files"
-          
-          echo ""
-          echo "Found index.html files:"
           stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>/dev/null)
-          echo "$stats_files"
           
           if [ -z "$stats_files" ]; then
             echo "WARNING: No index.html files found!"
