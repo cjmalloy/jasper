@@ -337,7 +337,19 @@ jobs:
                 if (line.trim()) {
                   const colonIdx = line.indexOf(':');
                   if (colonIdx > 0) {
-                    const simName = line.substring(0, colonIdx).trim();
+                    let simName = line.substring(0, colonIdx).trim();
+                    // Clean up simulation name by removing timestamp suffix (e.g., -20260116034619338)
+                    simName = simName.replace(/-\d{17,}$/, '');
+                    // Format known simulation names for better readability
+                    const nameMap = {
+                      'smoketestsimulation': 'Smoke Test',
+                      'comprehensivesimulation': 'Comprehensive',
+                      'userjourneysimulation': 'User Journey',
+                      'stresstestsimulation': 'Stress Test',
+                      'infernosimulation': 'Inferno'
+                    };
+                    const displayName = nameMap[simName.toLowerCase()] || simName;
+                    simName = displayName + ' Simulation';
                     const stats = line.substring(colonIdx + 1).trim();
                     const parts = stats.split('|').map(s => s.trim());
                     if (parts.length >= 7) {
