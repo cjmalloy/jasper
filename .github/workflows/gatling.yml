@@ -79,8 +79,8 @@ jobs:
               def extract_cell_value(col_num):
                   """Extract numeric value from a table cell"""
                   # Capture inner content of the target <td> cell
-                  # Use non-greedy match and explicit class token boundaries to avoid matching across cells
-                  pattern = rf'<td[^>]*class="[^"]*(?<!\\S)col-{col_num}(?!\\S)[^"]*"[^>]*>(.*?)</td>'
+                  # Use non-greedy match and word boundaries to avoid matching across cells
+                  pattern = rf'<td[^>]*class="[^"]*\\bcol-{col_num}\\b[^"]*"[^>]*>(.*?)</td>'
                   match = re.search(pattern, row_content, re.DOTALL)
                   if match:
                       cell_html = match.group(1)
@@ -194,7 +194,7 @@ jobs:
               # Ensure sanitized simulation name is non-empty; fall back to a unique placeholder if needed
               if [ -z "$safe_sim_name" ]; then
                 echo "Warning: sanitized simulation name is empty for '$sim_name', using fallback name"
-                safe_sim_name="sim_$(date +%s%N)"
+                safe_sim_name="sim_${RANDOM}_$(date +%s)"
               fi
               
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
