@@ -256,7 +256,7 @@ jobs:
           # Export simulation stats as JSON for the comment script
           echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
           for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
-            echo "$sim:${SIMULATION_STATS[$sim]}"
+            echo "$sim:${SIMULATION_STATS[$sim]}" >> $GITHUB_OUTPUT
           done
           echo "EOF" >> $GITHUB_OUTPUT
           
@@ -310,7 +310,7 @@ jobs:
             const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
             const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
             const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
-            const simulationStatsRaw = `${{ steps.load_test_summary.outputs.simulation_stats }}`;
+            const simulationStatsRaw = ${{ toJSON(steps.load_test_summary.outputs.simulation_stats) }};
             
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
@@ -327,8 +327,8 @@ jobs:
             comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
             
             // Add per-simulation results
+            comment += `### Per-Simulation Results\n\n`;
             if (simulationStatsRaw && simulationStatsRaw.trim()) {
-              comment += `### Per-Simulation Results\n\n`;
               comment += `| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |\n`;
               comment += `|------------|----------|--------------|-----------|----------|----------|\n`;
               
@@ -337,15 +337,32 @@ jobs:
                 if (line.trim()) {
                   const colonIdx = line.indexOf(':');
                   if (colonIdx > 0) {
-                    const simName = line.substring(0, colonIdx);
-                    const stats = line.substring(colonIdx + 1);
-                    const [total, ok, ko, successRate, meanTime, p95, p99] = stats.split('|');
-                    comment += `| ${simName} | ${total} | ${successRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    let simName = line.substring(0, colonIdx).trim();
+                    // Clean up simulation name by removing timestamp suffix (e.g., -20260116034619338)
+                    simName = simName.replace(/-\d{17,}$/, '');
+                    // Format known simulation names for better readability
+                    const nameMap = {
+                      'smoketestsimulation': 'Smoke Test',
+                      'comprehensivesimulation': 'Comprehensive',
+                      'userjourneysimulation': 'User Journey',
+                      'stresstestsimulation': 'Stress Test',
+                      'infernosimulation': 'Inferno'
+                    };
+                    const displayName = nameMap[simName.toLowerCase()] || simName;
+                    simName = displayName + ' Simulation';
+                    const stats = line.substring(colonIdx + 1).trim();
+                    const parts = stats.split('|').map(s => s.trim());
+                    if (parts.length >= 7) {
+                      const [total, ok, ko, simSuccessRate, meanTime, p95, p99] = parts;
+                      comment += `| ${simName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    }
                   }
                 }
               }
-              comment += `\n`;
+            } else {
+              comment += `_No per-simulation results could be generated. This usually means all simulation reports failed to parse. Please check the Gatling reports and logs for details._\n`;
             }
+            comment += `\n`;
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
