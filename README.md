@@ -111,7 +111,7 @@ Example queries:
  * `(science|math):funny`: All Refs that have either the `science` or `math` tags, but
 also the `funny` tag. This would match a ref with `['science', 'funny']`, `['math', 'funny']`,
 but would not match `['science', 'math']`
- * `science:funny|math:funny`: Expended form of previous query. Would produce the exact same results.
+ * `science:funny|math:funny`: Extended form of previous query. Would produce the exact same results.
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 
@@ -190,11 +190,10 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
   "modified": "2022-06-18T12:07:04.404272Z"
 }
 ```
-Only the "url", "origin", "created", "modified", and "published" fields are required.
+Only the "url" field is required.
 
-The combination of URL (including Alternate URLs) and Origin for this Ref must be unique and may
-be used as a Primary Composite Key. Implementations may also make the modified date part of the
-composite primary key for version history.
+The combination of URL and Origin for a Ref must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **URL:** The url of the resource.  
 **Origin:** The Origin this Ref was replicated from, or the empty string for local.  
@@ -230,9 +229,12 @@ An Ext is a Tag-like entity representing a Tag extension.
   "modified": "2022-06-18T16:00:59.978700Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 An Ext allows you to customise a Tag page. For example, you could set the sidebar text or pin some links.
+
+The combination of Tag and Origin for a Ext must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this Ext. Must match the regex `[_+]?[a-z0-9]+([./][a-z0-9]+)*`
 **Origin:** The Origin this Ext was replicated from, or the empty string for local.
@@ -259,10 +261,13 @@ A User is a Tag-like entity representing a user.
   "modified": "2022-06-18T16:00:59.978700Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 A User contains the access control information for the system. Access tags work in all
 sub-origins.
+
+The combination of Tag and Origin for a User must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this User. Must match the regex `[_+]user/[a-z0-9]+([./][a-z0-9]+)*`  
 **Origin:** The Origin this User was replicated from, or the empty string for local.  
@@ -297,10 +302,13 @@ A Plugin is a Tag-like entity used to extend the functionality of Refs.
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required.
 
 Tagging a ref with a Plugin tag applies that plugin to the Ref. The Ref plugin must contain valid
 data according to the Plugin schema.  
+
+The combination of Tag and Origin for a Plugin must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this Plugin. Must match the regex `[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*`  
 **Origin:** The Origin this Plugin was replicated from, or the empty string for local.  
@@ -332,11 +340,14 @@ A Template is a Tag-like entity used to extend the functionality of Exts.
   "modified": "2022-06-18T16:27:13.774959Z"
 }
 ```
-Only the "tag", "origin", and "modified" fields are required.
+Only the "tag" field is required (can be the empty string).
 
 The Tag in the case of a template is actually a Tag prefix. This Template matches all Exts
 where its tag followed by a forward slash is a prefix of the Ext tag. In the case of the empty
 string the Template matches all Exts.
+
+The combination of Tag and Origin for this Template must be unique and may be used as a Primary Composite Key.
+Implementations may also make the modified date part of the composite primary key for version history.
 
 **Tag:** The tag of this Template. Must match the regex `[_+]?[a-z0-9]+([./][a-z0-9]+)*` or the empty string.  
 **Origin:** The Origin this Template was replicated from, or the empty string for local.  
@@ -454,12 +465,13 @@ According to the CAP theorem you may only provide two of these three guarantees:
 and partition tolerance. Jasper uses an eventually consistent model, where availability and partition
 tolerance are guaranteed. The modified date is used as a cursor to efficiently poll for modified records.
 
-To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin/pull`. If
-either the `pull-burst` or `pull-schedule` profiles are active the jasper server will then poll that
-instance periodically to check for any new entities. The modified date of the last entity received will
-be stored and used for the next poll. When polling, the Jasper server requests a batch of entities from
-the remote instance where the modified date is after the last stored modified date, sorted by modified
-date ascending. Users with the `MOD` role may also initiate a scrape.
+To replicate a Jasper instance simply create a Ref for that instance and tag it `+plugin/origin/pull`.
+Add the `+plugin/cron` tag to schedule pulling, or add the `+plugin/user/run` response tag to pull a
+single time.
+
+The modified date of the last entity received will be stored and used for the next poll. When polling,
+the Jasper server requests a batch of entities from the remote instance where the modified date is
+after the last stored modified date, sorted by modified date ascending.
 
 ### Duplicate Modified Date
 Jasper instances should enforce unique modified dates as the cursor for each entity type. Otherwise,
@@ -770,14 +782,17 @@ errors rejecting valid user input are infuriating and very common. Error correct
 if the client validation was somehow circumvented.
 
 ## Metadata
-Jasper uses metadata generation pre-compute graph connections without including it in the transmitted data model.
+Jasper uses metadata generation to pre-compute graph connections. This allows us to store derived data outside
+of the main data model and keeps our queries join free.
+
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
  * List of plugin responses: A list of responses with that plugin.
  * List of user plugin responses: A list of responses with that plugin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
-While the metadata is not transferred during replication, a simplified version is sent over the client API, with
+
+Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, and user plugin responses for the current user.
 
 ## Server Scripting
@@ -812,7 +827,7 @@ You can use this to mark the input Ref as completed by either:
 1. Removing the `plugin/delta` tag
 2. Adding a `+plugin/delta` Plugin response
 
-Right now only JavaScript scripts are supported. Here are examples that reply in all uppercase:
+Here are examples that reply in all uppercase:
 
 #### Remove the `plugin/delta` tag:
 Use this approach when a script could be run multiple times to create multiple outputs.
@@ -948,7 +963,7 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Websocket:** Listen to websocket cursor updates to pull.  
 **Cache Prefetch:** Attempt to pull cached files while pulling Refs.  
 **Cache Proxy:** Proxy all resources files through this origin's cache, not just cached files.
-**Cache Proxy Prefetch:** Attempt to proxy all resources files through this origin's cache while pulling Refs.
+**Cache Proxy Prefetch:** Attempt to pull all resources files through this origin's cache while pulling Refs.
 **Validate Plugins:** Flag to enable, disable plugin validation.  
 **Strip Invalid Plugins:** If plugin validation is enabled, strip invalid plugins instead of skipping invalid Refs.  
 **Validate Templates:** Flag to enable, disable template validation.  
