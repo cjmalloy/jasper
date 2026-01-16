@@ -43,8 +43,14 @@ jobs:
           # This script runs in bash (default shell for GitHub Actions run steps)
           cd gatling
           
+          # Use RUNNER_TEMP if available, otherwise fall back to /tmp
+          TEMP_DIR="${RUNNER_TEMP:-/tmp}"
+          
+          # Clean up any previous temporary files
+          rm -f "$TEMP_DIR"/parse_stats*.py "$TEMP_DIR"/parsed_stats_*.txt "$TEMP_DIR"/parsed_stats_*_debug.txt 2>/dev/null || true
+          
           # Create Python script for parsing HTML table stats
-          cat > /tmp/parse_stats.py << 'PYTHON_EOF'
+          cat > "$TEMP_DIR/parse_stats_$$.py" << 'PYTHON_EOF'
           import sys
           import re
           
@@ -73,8 +79,8 @@ jobs:
               def extract_cell_value(col_num):
                   """Extract numeric value from a table cell"""
                   # Capture inner content of the target <td> cell
-                  # Use non-greedy match and specific class boundary to avoid matching across cells
-                  pattern = rf'<td[^>]*class="[^"]*\bcol-{col_num}\b[^"]*"[^>]*>(.*?)</td>'
+                  # Use non-greedy match and explicit class token boundaries to avoid matching across cells
+                  pattern = rf'<td[^>]*class="[^"]*(?<!\\S)col-{col_num}(?!\\S)[^"]*"[^>]*>(.*?)</td>'
                   match = re.search(pattern, row_content, re.DOTALL)
                   if match:
                       cell_html = match.group(1)
@@ -117,40 +123,48 @@ jobs:
           
           # Parse each simulation's HTML report (index.html) to extract table statistics
           echo "Looking for index.html files in report directory..."
-          echo "Current directory: $(pwd)"
-          echo "Report directory exists: $([ -d report ] && echo 'yes' || echo 'no')"
-          if [ -d report ]; then
-            echo "Report directory contents:"
-            ls -la report/
+          
+          # Conditional debugging output based on ACTIONS_STEP_DEBUG
+          if [ "${ACTIONS_STEP_DEBUG}" = "true" ]; then
+            echo "Current directory: $(pwd)"
+            echo "Report directory exists: $([ -d report ] && echo 'yes' || echo 'no')"
+            if [ -d report ]; then
+              echo "Report directory contents:"
+              ls -la report/
+              
+              echo ""
+              echo "Exploring subdirectories..."
+              for sim_dir in report/*/; do
+                if [ -d "$sim_dir" ]; then
+                  echo "Contents of $sim_dir:"
+                  ls -la "$sim_dir" 2>/dev/null || echo "  Cannot list $sim_dir"
+                  
+                  # Check for js subdirectory
+                  if [ -d "${sim_dir}js" ]; then
+                    echo "  Contents of ${sim_dir}js:"
+                    ls -la "${sim_dir}js" 2>/dev/null || echo "    Cannot list ${sim_dir}js"
+                  else
+                    echo "  No js subdirectory in $sim_dir"
+                  fi
+                fi
+              done
+            fi
             
             echo ""
-            echo "Exploring subdirectories..."
-            for sim_dir in report/*/; do
-              if [ -d "$sim_dir" ]; then
-                echo "Contents of $sim_dir:"
-                ls -la "$sim_dir" 2>/dev/null || echo "  Cannot list $sim_dir"
-                
-                # Check for js subdirectory
-                if [ -d "${sim_dir}js" ]; then
-                  echo "  Contents of ${sim_dir}js:"
-                  ls -la "${sim_dir}js" 2>/dev/null || echo "    Cannot list ${sim_dir}js"
-                else
-                  echo "  No js subdirectory in $sim_dir"
-                fi
-              fi
-            done
+            echo "Running find command for index.html files (with stderr):"
+            debug_find_output=$(find report -maxdepth 3 -type f -name "index.html" 2>&1)
+            echo "Find command output:"
+            echo "$debug_find_output"
           fi
           
-          echo ""
-          echo "Running find command for index.html files..."
-          stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>&1)
-          echo "Find command output:"
-          echo "$stats_files"
-          
-          echo ""
-          echo "Found index.html files:"
+          # Find index.html files
           stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>/dev/null)
-          echo "$stats_files"
+          
+          if [ "${ACTIONS_STEP_DEBUG}" = "true" ]; then
+            echo ""
+            echo "Found index.html files:"
+            echo "$stats_files"
+          fi
           
           if [ -z "$stats_files" ]; then
             echo "WARNING: No index.html files found!"
@@ -177,27 +191,33 @@ jobs:
               # Remove any potential path traversal sequences for security
               safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-' | sed 's/\.\.\+/./g' | sed 's/^\.*//' | sed 's/\.*$//')
               
+              # Ensure sanitized simulation name is non-empty; fall back to a unique placeholder if needed
+              if [ -z "$safe_sim_name" ]; then
+                echo "Warning: sanitized simulation name is empty for '$sim_name', using fallback name"
+                safe_sim_name="sim_$(date +%s%N)"
+              fi
+              
               echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
               
               # Parse HTML Gatling report (index.html) using Python script (show errors for debugging)
               # Keep stdout (data) separate from stderr (debug) to avoid mixing debug lines with parsed data
-              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2> "/tmp/parsed_stats_${safe_sim_name}_debug.txt" || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              python3 "$TEMP_DIR/parse_stats_$$.py" "$stats_file" > "$TEMP_DIR/parsed_stats_${safe_sim_name}.txt" 2> "$TEMP_DIR/parsed_stats_${safe_sim_name}_debug.txt" || echo "0|0|0|0.0|0|0|0" > "$TEMP_DIR/parsed_stats_${safe_sim_name}.txt"
               
               # Show what was parsed (for debugging)
               echo "Parsed data output:"
-              cat "/tmp/parsed_stats_${safe_sim_name}.txt" || echo "No parsed data file found"
+              cat "$TEMP_DIR/parsed_stats_${safe_sim_name}.txt" || echo "No parsed data file found"
               
               # Show any debug or error output from the parser
-              if [ -s "/tmp/parsed_stats_${safe_sim_name}_debug.txt" ]; then
+              if [ -s "$TEMP_DIR/parsed_stats_${safe_sim_name}_debug.txt" ]; then
                 echo "Parser debug output (stderr):"
-                cat "/tmp/parsed_stats_${safe_sim_name}_debug.txt"
+                cat "$TEMP_DIR/parsed_stats_${safe_sim_name}_debug.txt"
               else
                 echo "No parser debug output"
               fi
               
               # Read parsed stats from the data line
-              if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
-                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${safe_sim_name}.txt"
+              if [ -f "$TEMP_DIR/parsed_stats_${safe_sim_name}.txt" ]; then
+                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "$TEMP_DIR/parsed_stats_${safe_sim_name}.txt"
                 
                 echo "Extracted values: total='$total', ok='$ok', ko='$ko', success_rate='$success_rate', mean_time='$mean_time', p95='$p95', p99='$p99'"
                 
@@ -210,6 +230,12 @@ jobs:
                 # Ensure count fields are numeric to avoid bash arithmetic errors (allow zero)
                 if ! [[ "$total" =~ ^[0-9]+$ ]] || ! [[ "$ok" =~ ^[0-9]+$ ]] || ! [[ "$ko" =~ ^[0-9]+$ ]]; then
                   echo "ERROR: Non-numeric count values in parsed output for simulation '$sim_name': total='$total', ok='$ok', ko='$ko'"
+                  continue
+                fi
+                
+                # Validate logical consistency: ok + ko should equal total
+                if [ $((ok + ko)) -ne $total ]; then
+                  echo "ERROR: Inconsistent count values in parsed output for simulation '$sim_name': ok ($ok) + ko ($ko) != total ($total)"
                   continue
                 fi
                 
@@ -246,7 +272,7 @@ jobs:
             HAS_SIMULATION=1
             # Match against timestamped directory names (e.g., smoketestsimulation-20260116034619338)
             case "$sim" in
-              *smoketest*|*simple*)
+              *smoketest*)
                 REQ=85.0
                 ;;
               *comprehensive*)
@@ -269,8 +295,8 @@ jobs:
             REQUIRED_SUCCESS_RATE=$(awk -v cur="$REQUIRED_SUCCESS_RATE" -v req="$REQ" 'BEGIN { printf "%.1f", (req > cur) ? req : cur }')
           done
           if [ "$HAS_SIMULATION" -eq 0 ]; then
-            # Fallback to previous behavior if no simulations are detected
-            REQUIRED_SUCCESS_RATE=70.0
+            # Fallback to default requirement (same as unknown simulations) if no simulations are detected
+            REQUIRED_SUCCESS_RATE=75.0
           fi
           
           # Set outputs
@@ -289,11 +315,11 @@ jobs:
           fi
           
           # Export simulation stats as JSON for the comment script
-          echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
+          echo "simulation_stats<<SIMULATION_STATS_EOF" >> $GITHUB_OUTPUT
           for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
             echo "$sim:${SIMULATION_STATS[$sim]}" >> $GITHUB_OUTPUT
           done
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "SIMULATION_STATS_EOF" >> $GITHUB_OUTPUT
           
           # Create workflow summary
           echo "## Load Test Results Summary" >> $GITHUB_STEP_SUMMARY
@@ -375,16 +401,19 @@ jobs:
                     let simName = line.substring(0, colonIdx).trim();
                     // Clean up simulation name by removing timestamp suffix (e.g., -20260116034619338)
                     simName = simName.replace(/-\d{17,}$/, '');
+                    // Normalize base simulation key by stripping optional "Simulation" suffix and lowercasing
+                    const baseSimKey = simName.replace(/simulation$/i, '').toLowerCase();
                     // Format known simulation names for better readability
+                    // Keys are lowercase and do not include the "simulation" suffix
                     const nameMap = {
-                      'smoketestsimulation': 'Smoke Test',
-                      'comprehensivesimulation': 'Comprehensive',
-                      'userjourneysimulation': 'User Journey',
-                      'stresstestsimulation': 'Stress Test',
-                      'infernosimulation': 'Inferno'
+                      'smoketest': 'Smoke Test',
+                      'comprehensive': 'Comprehensive',
+                      'userjourney': 'User Journey',
+                      'stresstest': 'Stress Test',
+                      'inferno': 'Inferno'
                     };
-                    const displayName = nameMap[simName.toLowerCase()] || simName;
-                    simName = displayName + ' Simulation';
+                    const displayName = nameMap[baseSimKey] || simName;
+                    simName = /simulation$/i.test(displayName) ? displayName : `${displayName} Simulation`;
                     const stats = line.substring(colonIdx + 1).trim();
                     const parts = stats.split('|').map(s => s.trim());
                     if (parts.length >= 7) {
