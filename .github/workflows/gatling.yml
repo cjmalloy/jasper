@@ -244,20 +244,21 @@ jobs:
           HAS_SIMULATION=0
           for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}"); do
             HAS_SIMULATION=1
+            # Match against timestamped directory names (e.g., smoketestsimulation-20260116034619338)
             case "$sim" in
-              Simple|SmokeTest)
+              *smoketest*|*simple*)
                 REQ=85.0
                 ;;
-              Comprehensive)
+              *comprehensive*)
                 REQ=80.0
                 ;;
-              UserJourney)
+              *userjourney*)
                 REQ=75.0
                 ;;
-              StressTest)
+              *stresstest*)
                 REQ=70.0
                 ;;
-              Inferno)
+              *inferno*)
                 REQ=15.0
                 ;;
               *)
