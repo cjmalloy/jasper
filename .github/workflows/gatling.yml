@@ -239,15 +239,49 @@ jobs:
             SUCCESS_RATE="0.0"
           fi
           
+          # Determine required success rate based on simulations run (see README)
+          REQUIRED_SUCCESS_RATE=0.0
+          HAS_SIMULATION=0
+          for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}"); do
+            HAS_SIMULATION=1
+            case "$sim" in
+              Simple|SmokeTest)
+                REQ=85.0
+                ;;
+              Comprehensive)
+                REQ=80.0
+                ;;
+              UserJourney)
+                REQ=75.0
+                ;;
+              StressTest)
+                REQ=70.0
+                ;;
+              Inferno)
+                REQ=15.0
+                ;;
+              *)
+                # Default requirement for unknown simulations
+                REQ=75.0
+                ;;
+            esac
+            REQUIRED_SUCCESS_RATE=$(awk -v cur="$REQUIRED_SUCCESS_RATE" -v req="$REQ" 'BEGIN { printf "%.1f", (req > cur) ? req : cur }')
+          done
+          if [ "$HAS_SIMULATION" -eq 0 ]; then
+            # Fallback to previous behavior if no simulations are detected
+            REQUIRED_SUCCESS_RATE=70.0
+          fi
+          
           # Set outputs
           echo "total_requests=$TOTAL_REQUESTS" >> $GITHUB_OUTPUT
           echo "successful_requests=$SUCCESSFUL_REQUESTS" >> $GITHUB_OUTPUT
           echo "failed_requests=$FAILED_REQUESTS" >> $GITHUB_OUTPUT
           echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          echo "required_success_rate=$REQUIRED_SUCCESS_RATE" >> $GITHUB_OUTPUT
           
-          # Determine if tests passed (>70% success for stress tests, >75% for others)
+          # Determine if tests passed based on required success thresholds
           # Use awk for arithmetic comparison (more portable than bc)
-          if [ $(awk -v sr="$SUCCESS_RATE" 'BEGIN { print (sr >= 70.0) ? 1 : 0 }') -eq 1 ]; then
+          if [ $(awk -v sr="$SUCCESS_RATE" -v req="$REQUIRED_SUCCESS_RATE" 'BEGIN { print (sr >= req) ? 1 : 0 }') -eq 1 ]; then
             echo "tests_passed=true" >> $GITHUB_OUTPUT
           else
             echo "tests_passed=false" >> $GITHUB_OUTPUT
