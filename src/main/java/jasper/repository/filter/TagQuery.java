@@ -1,22 +1,21 @@
 package jasper.repository.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 
 import java.util.ArrayList;
 
+import static jasper.config.JacksonConfiguration.om;
 import static jasper.repository.spec.QualifiedTag.atom;
 
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private ArrayNode ast;
 
@@ -94,8 +93,8 @@ public class TagQuery {
 			.replaceAll("\"\"", "");
 		try {
 			logger.trace(array);
-			ast = (ArrayNode) objectMapper.readTree(array);
-		} catch (JsonProcessingException e) {
+			ast = (ArrayNode) om().readTree(array);
+		} catch (JacksonException e) {
 			throw new UnsupportedOperationException(e);
 		}
 	}

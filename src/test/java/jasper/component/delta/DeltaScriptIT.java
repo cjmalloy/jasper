@@ -1,9 +1,9 @@
 package jasper.component.delta;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 import jasper.IntegrationTest;
 import jasper.config.Props;
 import jasper.domain.Plugin;
@@ -37,10 +37,12 @@ public class DeltaScriptIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
-		var mapper = new ObjectMapper();
 		try {
 			plugin.setConfig((ObjectNode) mapper.readTree("""
 			{
@@ -49,11 +51,11 @@ public class DeltaScriptIT {
 				"language": "",
 				"script": ""
 			}"""));
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException(e);
 		}
-		plugin.getConfig().set("language", TextNode.valueOf(language));
-		plugin.getConfig().set("script", TextNode.valueOf(script));
+		plugin.getConfig().set("language", StringNode.valueOf(language));
+		plugin.getConfig().set("script", StringNode.valueOf(script));
 		return plugin;
 	}
 

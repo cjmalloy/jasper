@@ -40,9 +40,6 @@ spring:
       hikari:
           poolName: Hikari
           auto-commit: false
-  http:
-    converters:
-      preferred-json-mapper: jackson2
   cache:
     type: NONE
   jpa:
