@@ -118,7 +118,7 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
-		InputStream[] inputStream = { nullInputStream() };
+		InputStream[] inputStream = { null };
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
@@ -131,6 +131,7 @@ public class Replicator {
 					if (url.startsWith("cache:")) {
 						fileCache.get().push(url, localOrigin, "".getBytes());
 					}
+					inputStream[0] = nullInputStream();
 				} else if (fileCache.isPresent()) {
 					if (url.startsWith("cache:")) {
 						try (var is = cache.getBody().getInputStream()) {
