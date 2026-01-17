@@ -142,7 +142,11 @@ public class FileCache {
 			var remote = configs.getRemote(origin);
 			var pull = getPull(remote);
 			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
-				id = url.substring("cache:".length());
+				if (url.startsWith("cache:")) {
+					id = url.substring("cache:".length());
+				} else {
+					id = cache(url, origin).getId();
+				}
 				if (storage.exists(origin, CACHE, id)) return storage.stream(origin, CACHE, id);
 				return null;
 			}
@@ -267,6 +271,18 @@ public class FileCache {
 		var cache = cache(url, origin);
 		if (cache == null) throw new NotFoundException("Overwriting cache that does not exist");
 		storage.overwrite(origin, CACHE, cache.getId(), bytes);
+	}
+
+	@Timed(value = "jasper.cache")
+	public String overwrite(String url, String origin, InputStream in, String mimeType) throws IOException {
+		var id = storage.store(origin, CACHE, in);
+		var cache = Cache.builder()
+			.id(id)
+			.mimeType(mimeType)
+			.contentLength(storage.size(origin, CACHE, id))
+			.build();
+		tagger.silentPlugin(url, "", origin, "_plugin/cache", cache);
+		return id;
 	}
 
 	@Timed(value = "jasper.cache")

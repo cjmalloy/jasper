@@ -48,6 +48,7 @@ import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
 import static jasper.util.Logging.getMessage;
+import static java.io.InputStream.nullInputStream;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -117,26 +118,34 @@ public class Replicator {
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
-		InputStream[] inputStream = { null };
+		InputStream[] inputStream = { nullInputStream() };
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
-				if (fileCache.isPresent()) {
-					if (cache.getBody() != null) {
+				if (cache.getHeaders().getContentType() != null) {
+					contentType[0] = cache.getHeaders().getContentType().toString();
+				}
+				if (cache.getBody() == null) {
+					logger.warn("{} Empty response pulling cache ({}) {}",
+						remote.getOrigin(), localOrigin, url);
+					if (url.startsWith("cache:")) {
+						fileCache.get().push(url, localOrigin, "".getBytes());
+					}
+				} else if (fileCache.isPresent()) {
+					if (url.startsWith("cache:")) {
 						try (var is = cache.getBody().getInputStream()) {
 							fileCache.get().push(url, localOrigin, is);
 						}
+						inputStream[0] = fileCache.get().fetch(url, localOrigin);
 					} else {
-						fileCache.get().push(url, localOrigin, "".getBytes());
-						logger.warn("{} Empty response pulling cache ({}) {}",
-							remote.getOrigin(), localOrigin, url);
+						String id;
+						try (var is = cache.getBody().getInputStream()) {
+							id = fileCache.get().overwrite(url, localOrigin, is, contentType[0]);
+						}
+						inputStream[0] = fileCache.get().fetch("cache:" + id, localOrigin);
 					}
-					inputStream[0] = fileCache.get().fetch(url, localOrigin);
-				} else if (cache.getBody() != null) {
+				} else {
 					inputStream[0] = cache.getBody().getInputStream();
-				}
-				if (cache.getHeaders().getContentType() != null) {
-					contentType[0] = cache.getHeaders().getContentType().toString();
 				}
 			} catch (Exception e) {
 				logger.warn("{} Failed to fetch from remote cache ({}) {}",
