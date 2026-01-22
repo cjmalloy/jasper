@@ -63,6 +63,7 @@ public class Template implements Tag {
 	private ObjectNode schema;
 
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@JsonIgnore
