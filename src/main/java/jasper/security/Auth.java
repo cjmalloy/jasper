@@ -588,7 +588,7 @@ public class Auth {
 	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
-		return isLoggedIn() && getUserTag().matchesDownwards(qt);
+		return !isPublicTag(qt.tag) && isLoggedIn() && getUserTag().matchesDownwards(qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -925,6 +925,7 @@ public class Auth {
 			}
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
+				readAccess.add(getUserTag());
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));

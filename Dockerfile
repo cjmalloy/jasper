@@ -41,7 +41,7 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp -r target/reports/* /reports/ && \
 		cp target/reports/surefire.html /reports/index.html
 
-FROM azul/zulu-openjdk-debian:25.0.1-25.30-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin

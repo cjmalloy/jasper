@@ -46,6 +46,7 @@ public class AuthUnitTest {
 		a.user = Optional.of(user);
 		a.roles = getRoles(roles);
 		a.origin = origin;
+		a.refRepository = getRefRepo();
 		return a;
 	}
 
@@ -744,6 +745,47 @@ public class AuthUnitTest {
 
 		assertThat(auth.canWriteTag("+user/test"))
 			.isTrue();
+	}
+
+	@Test
+	void testIsUser_ProtectedUserTag() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.isUser(qt("+user/test")))
+			.isTrue();
+	}
+
+	@Test
+	void testIsUser_PrivateUserTag() {
+		var user = getUser("_user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.isUser(qt("_user/test")))
+			.isTrue();
+	}
+
+	@Test
+	void testIsUser_PublicTag_NotOwned() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		// A user +user/test should NOT own the public tag user/test
+		assertThat(auth.isUser(qt("user/test")))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagMatch_Denied() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+		var ref = Ref.from("https://example.com", "", "user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		// User +user/test should NOT be able to write to a Ref
+		// just because it has the public tag 'user/test'
+		assertThat(auth.canWriteRef(ref.getUrl(), ref.getOrigin()))
+			.isFalse();
 	}
 
 	@Test
