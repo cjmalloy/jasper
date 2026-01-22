@@ -83,14 +83,15 @@ public class Ref implements HasTags {
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
-	@Column
+	@Column(nullable = false)
 	@NotNull
 	private Instant published = Instant.now();
 
 	@CreatedDate
-	@Column(updatable = false)
+	@Column(updatable = false, nullable = false)
 	private Instant created = Instant.now();
 
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@Type(PostgreSQLTSVectorType.class)
