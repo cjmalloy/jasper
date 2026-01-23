@@ -1,5 +1,6 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.domain.Ext;
@@ -49,6 +50,9 @@ public class ExtServiceIT {
 
 	@Autowired
 	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@BeforeEach
 	void init() throws Exception {
@@ -732,11 +736,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to add a new field to config
 		var patchJson = "[{\"op\":\"add\",\"path\":\"/config/newField\",\"value\":\"newValue\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		var modified = extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		var modified = extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -757,11 +760,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to replace a config value
 		var patchJson = "[{\"op\":\"replace\",\"path\":\"/config/key\",\"value\":\"value2\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -781,11 +783,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to remove config field
 		var patchJson = "[{\"op\":\"remove\",\"path\":\"/config/toRemove\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -805,11 +806,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to copy a value
 		var patchJson = "[{\"op\":\"copy\",\"from\":\"/config/source\",\"path\":\"/config/target\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -830,11 +830,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to move a value
 		var patchJson = "[{\"op\":\"move\",\"from\":\"/config/old\",\"path\":\"/config/new\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -853,11 +852,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch with test operation that should pass
 		var patchJson = "[{\"op\":\"test\",\"path\":\"/name\",\"value\":\"Test\"},{\"op\":\"replace\",\"path\":\"/name\",\"value\":\"Updated\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -875,11 +873,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch with test operation that should fail
 		var patchJson = "[{\"op\":\"test\",\"path\":\"/name\",\"value\":\"Wrong\"},{\"op\":\"replace\",\"path\":\"/name\",\"value\":\"Updated\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch - should throw exception
-		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper)))
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper)))
 			.isInstanceOf(InvalidPatchException.class);
 
 		// Verify the patch was not applied
@@ -900,11 +897,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to modify deeply nested value
 		var patchJson = "[{\"op\":\"replace\",\"path\":\"/config/nested/level1/level2\",\"value\":\"updated\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -924,11 +920,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to add to array
 		var patchJson = "[{\"op\":\"add\",\"path\":\"/config/items/-\",\"value\":\"d\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -949,11 +944,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch to replace array element
 		var patchJson = "[{\"op\":\"replace\",\"path\":\"/config/items/1\",\"value\":\"replaced\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -966,11 +960,10 @@ public class ExtServiceIT {
 	void testJsonPatch_CreateNewExt() throws Exception {
 		// Patch a non-existent ext (should create it) - add to config since name might not serialize as expected
 		var patchJson = "[{\"op\":\"add\",\"path\":\"/config\",\"value\":{\"created\":true}}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch to create new ext
-		var modified = extService.patch("+user/tester", Instant.now(), new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		var modified = extService.patch("+user/tester", Instant.now(), new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the ext was created
 		assertThat(extRepository.existsByQualifiedTag("+user/tester")).isTrue();
@@ -999,14 +992,13 @@ public class ExtServiceIT {
 			"{\"op\":\"replace\",\"path\":\"/config/nested/value\",\"value\":2}," +
 			"{\"op\":\"add\",\"path\":\"/config/new\",\"value\":\"added\"}" +
 			"]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify all operations were applied correctly
-		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		var fetched = extService.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getName()).isEqualTo("Updated");
 		assertThat(fetched.getConfig().has("oldField")).isFalse();
 		assertThat(fetched.getConfig().get("keep").asText()).isEqualTo("this");
@@ -1026,11 +1018,10 @@ public class ExtServiceIT {
 
 		// Create an invalid JSON Patch (path doesn't exist)
 		var patchJson = "[{\"op\":\"replace\",\"path\":\"/nonexistent\",\"value\":\"value\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch - should throw exception
-		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper)))
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper)))
 			.isInstanceOf(InvalidPatchException.class);
 	}
 
@@ -1045,11 +1036,10 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch with special characters
 		var patchJson = "[{\"op\":\"add\",\"path\":\"/name\",\"value\":\"Test with \\\"quotes\\\" and \\\\backslash\"}]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied with special characters preserved
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
@@ -1068,17 +1058,18 @@ public class ExtServiceIT {
 		var cursor = ext.getModified();
 
 		// Create a JSON Patch with different value types
-		var patchJson = "[" +
-			"{\"op\":\"add\",\"path\":\"/config/number\",\"value\":42}," +
-			"{\"op\":\"add\",\"path\":\"/config/float\",\"value\":3.14}," +
-			"{\"op\":\"add\",\"path\":\"/config/bool\",\"value\":true}," +
-			"{\"op\":\"add\",\"path\":\"/config/null\",\"value\":null}" +
-			"]";
-		var jackson2Mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		var patch = JsonPatch.fromJson(jackson2Mapper.readTree(patchJson));
+		var patchJson = """
+		[
+			{ "op": "add", "path": "/config/number", "value": 42 },
+			{ "op": "add", "path": "/config/float", "value": 3.14 },
+			{ "op": "add", "path": "/config/bool", "value": true },
+			{ "op": "add", "path": "/config/null", "value": null }
+		]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
 		// Apply the patch
-		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2Mapper));
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		// Verify the patch was applied with correct types
 		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();

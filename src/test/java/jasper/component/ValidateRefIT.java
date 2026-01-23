@@ -382,7 +382,6 @@ public class ValidateRefIT {
 		// Create a plugin with schema
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -415,7 +414,6 @@ public class ValidateRefIT {
 		// Create a plugin with schema
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
