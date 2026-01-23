@@ -11,7 +11,7 @@ import jasper.domain.User;
 import jasper.service.ProfileService;
 import jasper.service.dto.ProfileDto;
 import org.hibernate.validator.constraints.Length;
-import org.springdoc.api.annotations.ParameterObject;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
