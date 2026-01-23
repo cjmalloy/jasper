@@ -12,6 +12,10 @@
 logging:
   level:
     ROOT: WARN
+    org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.orm.jdbc.error: OFF
+    org.hibernate.engine.jdbc.spi: OFF
+    jasper.component.Messages: OFF
 #    org.hibernate.SQL: DEBUG
 #    org.hibernate.orm.jdbc.bind: TRACE
 #    org.hibernate.stat: DEBUG
