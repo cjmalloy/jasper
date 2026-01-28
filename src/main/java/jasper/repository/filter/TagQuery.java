@@ -34,20 +34,20 @@ public class TagQuery {
 		var ands = new ArrayList<Specification<Ref>>();
 		for (var i = 0; i < ast.size(); i++) {
 			var n = ast.get(i);
-			if (":".equals(n.textValue())) {
+			if (n.isString() && ":".equals(n.stringValue())) {
 				or = false;
-			} else if ("|".equals(n.textValue())) {
+			} else if (n.isString() && "|".equals(n.stringValue())) {
 				or = true;
 			} else {
-				var value = n.isArray() ? _refSpec(n) : atom(n.textValue()).refSpec();
-				if (or && ands.size() > 0) {
+				var value = n.isArray() ? _refSpec(n) : atom(n.stringValue()).refSpec();
+				if (or && !ands.isEmpty()) {
 					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
-		if (ands.size() > 0) {
+		if (!ands.isEmpty()) {
 			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
@@ -64,20 +64,20 @@ public class TagQuery {
 		var ands = new ArrayList<Specification<T>>();
 		for (var i = 0; i < ast.size(); i++) {
 			var n = ast.get(i);
-			if (":".equals(n.textValue())) {
+			if (n.isString() && ":".equals(n.stringValue())) {
 				or = false;
-			} else if ("|".equals(n.textValue())) {
+			} else if (n.isString() && "|".equals(n.stringValue())) {
 				or = true;
 			} else {
-				Specification<T> value = n.isArray() ? _spec(n) : atom(n.textValue()).spec();
-				if (or && ands.size() > 0) {
+				Specification<T> value = n.isArray() ? _spec(n) : atom(n.stringValue()).spec();
+				if (or && !ands.isEmpty()) {
 					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
-		if (ands.size() > 0) {
+		if (!ands.isEmpty()) {
 			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
