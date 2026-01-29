@@ -2,9 +2,12 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,7 +16,8 @@ public class ValidateExtTest {
     Validate validate = new Validate();
     ObjectMapper mapper = new ObjectMapper();
 
-    {
+    @BeforeEach
+    void setUp() {
         validate.objectMapper = mapper;
     }
 
@@ -44,9 +48,9 @@ public class ValidateExtTest {
             }
         }""");
 
-        var defaults = java.util.List.of(root, a, ab);
+        var defaults = List.of(root, a, ab);
         var finalMerged = defaults.stream()
-            .sorted(java.util.Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
+            .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
             .reduce(null, validate::merge);
         assertThat(finalMerged.get("config").get("abProp").asText()).isEqualTo("ab");
         assertThat(finalMerged.get("config").get("aProp").asText()).isEqualTo("a");
@@ -86,10 +90,10 @@ public class ValidateExtTest {
             }
         }""");
 
-        var defaults = java.util.List.of(root, a, ab);
+        var defaults = List.of(root, a, ab);
         // Ascending: "", "a", "a/b"
         var merged = defaults.stream()
-            .sorted(java.util.Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
+            .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
             .reduce(null, validate::merge);
         assertThat(merged.get("config").get("overrideMe").asText()).isEqualTo("ab");
         assertThat(merged.get("config").get("defaultSort")).hasSize(1);
@@ -117,9 +121,9 @@ public class ValidateExtTest {
             }
         }""");
 
-        var defaults = java.util.List.of(root, notes);
+        var defaults = List.of(root, notes);
         var merged = defaults.stream()
-            .sorted(java.util.Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
+            .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
             .map(t -> (ObjectNode) t.get("defaults"))
             .reduce(null, validate::merge);
         // Override arrays, NOT append
@@ -127,5 +131,12 @@ public class ValidateExtTest {
         assertThat(merged.get("defaultSort").get(0).asText()).isEqualTo("modified");
 
         assertThat(merged.get("addTags")).hasSize(0);
+    }
+
+    @Test
+    void testMergeWithBothNull() {
+        var result = validate.merge(null, null);
+        assertThat(result).isNotNull();
+        assertThat(result.isEmpty()).isTrue();
     }
 }
