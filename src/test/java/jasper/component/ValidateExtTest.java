@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -13,7 +14,8 @@ public class ValidateExtTest {
     Validate validate = new Validate();
     ObjectMapper mapper = new ObjectMapper();
 
-    {
+    @BeforeEach
+    void setUp() {
         validate.objectMapper = mapper;
     }
 
