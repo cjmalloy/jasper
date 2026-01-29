@@ -222,6 +222,7 @@ public class Validate {
 	}
 
 	ObjectNode merge(ObjectNode a, ObjectNode b) {
+		if (a == null && b == null) return objectMapper.createObjectNode();
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return b.deepCopy();
