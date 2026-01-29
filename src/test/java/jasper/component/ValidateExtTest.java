@@ -132,4 +132,11 @@ public class ValidateExtTest {
 
         assertThat(merged.get("addTags")).hasSize(0);
     }
+
+    @Test
+    void testMergeWithBothNull() {
+        var result = validate.merge(null, null);
+        assertThat(result).isNotNull();
+        assertThat(result.isEmpty()).isTrue();
+    }
 }
