@@ -53,6 +53,7 @@ public class Ext implements Tag {
 	private ObjectNode config;
 
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@JsonIgnore

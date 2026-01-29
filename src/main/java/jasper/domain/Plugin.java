@@ -65,6 +65,7 @@ public class Plugin implements Tag {
 	private ObjectNode schema;
 
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@JsonIgnore
