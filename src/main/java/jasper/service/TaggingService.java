@@ -1,8 +1,5 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
@@ -17,12 +14,14 @@ import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
+import jasper.util.Patch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
 import java.util.List;
@@ -157,7 +156,7 @@ public class TaggingService {
 			try {
 				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
 				ref.addPlugins(ref.getTags(), plugins);
-			} catch (JsonPatchException e) {
+			} catch (RuntimeException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
 		}

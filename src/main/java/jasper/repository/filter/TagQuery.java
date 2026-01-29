@@ -1,22 +1,21 @@
 package jasper.repository.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 
 import java.util.ArrayList;
 
+import static jasper.config.JacksonConfiguration.om;
 import static jasper.repository.spec.QualifiedTag.atom;
 
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
-	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private ArrayNode ast;
 
@@ -35,20 +34,20 @@ public class TagQuery {
 		var ands = new ArrayList<Specification<Ref>>();
 		for (var i = 0; i < ast.size(); i++) {
 			var n = ast.get(i);
-			if (":".equals(n.textValue())) {
+			if (n.isString() && ":".equals(n.stringValue())) {
 				or = false;
-			} else if ("|".equals(n.textValue())) {
+			} else if (n.isString() && "|".equals(n.stringValue())) {
 				or = true;
 			} else {
-				var value = n.isArray() ? _refSpec(n) : atom(n.textValue()).refSpec();
-				if (or && ands.size() > 0) {
+				var value = n.isArray() ? _refSpec(n) : atom(n.stringValue()).refSpec();
+				if (or && !ands.isEmpty()) {
 					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
-		if (ands.size() > 0) {
+		if (!ands.isEmpty()) {
 			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
@@ -65,20 +64,20 @@ public class TagQuery {
 		var ands = new ArrayList<Specification<T>>();
 		for (var i = 0; i < ast.size(); i++) {
 			var n = ast.get(i);
-			if (":".equals(n.textValue())) {
+			if (n.isString() && ":".equals(n.stringValue())) {
 				or = false;
-			} else if ("|".equals(n.textValue())) {
+			} else if (n.isString() && "|".equals(n.stringValue())) {
 				or = true;
 			} else {
-				Specification<T> value = n.isArray() ? _spec(n) : atom(n.textValue()).spec();
-				if (or && ands.size() > 0) {
+				Specification<T> value = n.isArray() ? _spec(n) : atom(n.stringValue()).spec();
+				if (or && !ands.isEmpty()) {
 					result = result.or(ands.stream().reduce(Specification::and).get());
 					ands.clear();
 				}
 				ands.add(value);
 			}
 		}
-		if (ands.size() > 0) {
+		if (!ands.isEmpty()) {
 			result = result.or(ands.stream().reduce(Specification::and).get());
 		}
 		return result;
@@ -94,8 +93,8 @@ public class TagQuery {
 			.replaceAll("\"\"", "");
 		try {
 			logger.trace(array);
-			ast = (ArrayNode) objectMapper.readTree(array);
-		} catch (JsonProcessingException e) {
+			ast = (ArrayNode) om().readTree(array);
+		} catch (JacksonException e) {
 			throw new UnsupportedOperationException(e);
 		}
 	}

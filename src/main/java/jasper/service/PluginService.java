@@ -1,10 +1,5 @@
 package jasper.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
@@ -15,6 +10,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
+import jasper.util.Patch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -23,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 
@@ -47,7 +44,7 @@ public class PluginService {
 	DtoMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -113,15 +110,14 @@ public class PluginService {
 			plugin.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var patched = patch.apply(objectMapper.convertValue(plugin, JsonNode.class));
-			var updated = objectMapper.treeToValue(patched, Plugin.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(plugin)), Plugin.class);
 			if (created) {
 				return create(updated);
 			} else {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JsonProcessingException e) {
+		} catch (RuntimeException e) {
 			throw new InvalidPatchException("Plugin " + qualifiedTag, e);
 		}
 	}

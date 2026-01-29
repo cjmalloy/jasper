@@ -1,7 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -33,6 +33,9 @@ public class ValidateRefIT {
 	@Autowired
 	PluginRepository pluginRepository;
 
+	@Autowired
+	JsonMapper mapper;
+
 	static final String URL = "https://www.example.com/";
 
 	@Test
@@ -50,7 +53,6 @@ public class ValidateRefIT {
 	void testValidateRefWithInvalidPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -72,7 +74,6 @@ public class ValidateRefIT {
 	void testValidateRefWithInvalidPluginDefaults() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -96,7 +97,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithPlugin() throws IOException {
-		var mapper = new ObjectMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
@@ -124,7 +124,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithOptionalPlugin() throws IOException {
-		var mapper = new ObjectMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setSchema((ObjectNode) mapper.readTree("""
@@ -147,9 +146,8 @@ public class ValidateRefIT {
 	void testValidateRefWithStringPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "string" },
+			{ "type": "string" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -168,9 +166,8 @@ public class ValidateRefIT {
 	void testValidateRefWithBooleanPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "boolean" },
+			{ "type": "boolean" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -189,9 +186,8 @@ public class ValidateRefIT {
 	void testValidateRefWithNumberPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "type": "uint32" },
+			{ "type": "uint32" }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -210,9 +206,8 @@ public class ValidateRefIT {
 	void testValidateRefWithArrayPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
-			{ "elements": { "type": "string" } },
+			{ "elements": { "type": "string" } }
 		"""));
 		pluginRepository.save(plugin);
 		var ref = new Ref();
@@ -231,7 +226,6 @@ public class ValidateRefIT {
 	void testValidateRefWithPluginExtraFailed() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -261,7 +255,6 @@ public class ValidateRefIT {
 
 	@Test
 	void testValidateRefWithSchemalessPluginFailed() throws IOException {
-		var mapper = new ObjectMapper();
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		pluginRepository.save(plugin);
@@ -285,7 +278,6 @@ public class ValidateRefIT {
 	void testValidateRefWithPluginDefaults() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setDefaults((ObjectNode) mapper.readTree("""
 		{
 			"name": "Alice",
@@ -390,7 +382,6 @@ public class ValidateRefIT {
 		// Create a plugin with schema
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {
@@ -423,7 +414,6 @@ public class ValidateRefIT {
 		// Create a plugin with schema
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
-		var mapper = new ObjectMapper();
 		plugin.setSchema((ObjectNode) mapper.readTree("""
 		{
 			"properties": {

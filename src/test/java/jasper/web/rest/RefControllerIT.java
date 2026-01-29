@@ -1,6 +1,5 @@
 package jasper.web.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
@@ -11,6 +10,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ class RefControllerIT {
 	private RefRepository refRepository;
 
 	@Autowired
-	private ObjectMapper objectMapper;
+	private JsonMapper mapper;
 
 	private static final String URL = "https://www.example.com/";
 
@@ -54,7 +54,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(post("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}
@@ -69,7 +69,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(post("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}
@@ -84,7 +84,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(post("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}
@@ -99,7 +99,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(post("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isCreated());
 	}
@@ -114,7 +114,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(post("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}
@@ -133,7 +133,7 @@ class RefControllerIT {
 		mockMvc
 			.perform(put("/api/v1/ref")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
+				.content(mapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}

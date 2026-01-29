@@ -1,7 +1,7 @@
 package jasper.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -63,6 +63,7 @@ public class Template implements Tag {
 	private ObjectNode schema;
 
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@JsonIgnore

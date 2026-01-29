@@ -2,16 +2,19 @@ package jasper.plugin.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.extern.jackson.Jacksonized;
 
 import java.io.Serializable;
 
 @Getter
 @Setter
-@Jacksonized @Builder
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonInclude(Include.NON_NULL)
 public class Index implements Serializable {
 	@Builder.Default
