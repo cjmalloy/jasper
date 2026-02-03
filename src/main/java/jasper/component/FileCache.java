@@ -142,7 +142,11 @@ public class FileCache {
 			var remote = configs.getRemote(origin);
 			var pull = getPull(remote);
 			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
-				id = url.substring("cache:".length());
+				if (url.startsWith("cache:")) {
+					id = url.substring("cache:".length());
+				} else {
+					id = cache(url, origin).getId();
+				}
 				if (storage.exists(origin, CACHE, id)) return storage.stream(origin, CACHE, id);
 				return null;
 			}
@@ -270,15 +274,30 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache")
+	public String overwrite(String url, String origin, InputStream in, String mimeType) throws IOException {
+		var id = storage.store(origin, CACHE, in);
+		var cache = Cache.builder()
+			.id(id)
+			.mimeType(mimeType)
+			.contentLength(storage.size(origin, CACHE, id))
+			.build();
+		tagger.silentPlugin(url, "", origin, "_plugin/cache", cache);
+		return id;
+	}
+
+	@Timed(value = "jasper.cache")
 	public void push(String url, String origin, InputStream in) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
-		storage.storeAt(origin, CACHE, url.substring("cache:".length()), in);
+		var id = url.substring("cache:".length());
+		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		storage.storeAt(origin, CACHE, id, in);
 	}
 
 	@Timed(value = "jasper.cache")
 	public void push(String url, String origin, byte[] data) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
+		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
 		if (storage.exists(origin, CACHE, id)) {
 			storage.overwrite(origin, CACHE, id, data);
 		} else {

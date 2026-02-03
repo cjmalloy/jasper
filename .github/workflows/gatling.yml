@@ -36,6 +36,254 @@ jobs:
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
+      - name: Generate Load Test Summary
+        if: always()
+        id: load_test_summary
+        run: |
+          # This script runs in bash (default shell for GitHub Actions run steps)
+          cd gatling
+          
+          # Create Python script for parsing HTML table stats
+          cat > /tmp/parse_stats.py << 'PYTHON_EOF'
+          import sys
+          import re
+          
+          try:
+              with open(sys.argv[1], 'r') as f:
+                  content = f.read()
+              
+              # Parse HTML file - extract stats from table rows
+              # Gatling 3.14.9+ embeds stats directly in HTML tables, not as JavaScript variables
+              # Look for the "All Requests" row in the statistics table
+              # Format: <tr id="ROOT" >...<td class="value total col-2">169</td>...
+              
+              # Find the ROOT table row (contains "All Requests")
+              root_row_match = re.search(r'<tr\s+id="ROOT"[^>]*>(.*?)</tr>', content, re.DOTALL | re.IGNORECASE)
+              if not root_row_match:
+                  print(f"ERROR: Could not find ROOT statistics row in HTML", file=sys.stderr)
+                  print(f"0|0|0|0.0|0|0|0")
+                  sys.exit(0)
+              
+              row_content = root_row_match.group(1)
+              
+              # Extract values from table cells
+              # col-2: Total requests, col-3: OK, col-4: KO, col-5: % KO
+              # col-13: Mean time, col-10: P95, col-11: P99
+              
+              def extract_cell_value(col_num):
+                  """Extract numeric value from a table cell"""
+                  # Capture inner content of the target <td> cell
+                  # Use non-greedy match and specific class boundary to avoid matching across cells
+                  pattern = rf'<td[^>]*class="[^"]*\bcol-{col_num}\b[^"]*"[^>]*>(.*?)</td>'
+                  match = re.search(pattern, row_content, re.DOTALL)
+                  if match:
+                      cell_html = match.group(1)
+                      # Strip any nested HTML tags before extracting the numeric value
+                      value_str = re.sub(r'<[^>]*>', '', cell_html).strip()
+                      # Remove any non-numeric characters except dots and minus
+                      value_str = re.sub(r'[^\d.-]', '', value_str)
+                      try:
+                          return float(value_str) if '.' in value_str else int(value_str)
+                      except ValueError:
+                          return 0
+                  return 0
+              
+              total = extract_cell_value(2)     # Total requests
+              ok = extract_cell_value(3)        # OK requests
+              ko = extract_cell_value(4)        # KO (failed) requests
+              mean_time = extract_cell_value(13)  # Mean response time
+              p95 = extract_cell_value(10)      # 95th percentile
+              p99 = extract_cell_value(11)      # 99th percentile
+              
+              # Calculate success rate
+              success_rate = (ok / total * 100) if total > 0 else 0
+              
+              # Output in a parseable format
+              print(f"{total}|{ok}|{ko}|{success_rate:.1f}|{mean_time}|{p95}|{p99}")
+          except Exception as e:
+              print(f"ERROR: {e}", file=sys.stderr)
+              import traceback
+              traceback.print_exc(file=sys.stderr)
+              print(f"0|0|0|0.0|0|0|0")
+          PYTHON_EOF
+          
+          # Initialize summary variables
+          TOTAL_REQUESTS=0
+          SUCCESSFUL_REQUESTS=0
+          FAILED_REQUESTS=0
+          declare -A SIMULATION_STATS
+          
+          # Parse each simulation's HTML report (index.html) to extract table statistics
+          echo "Looking for index.html files in report directory..."
+          stats_files=$(find report -maxdepth 3 -type f -name "index.html" 2>/dev/null)
+          
+          if [ -z "$stats_files" ]; then
+            echo "WARNING: No index.html files found!"
+          fi
+          
+          # Use process substitution to avoid subshell (variables need to persist)
+          while IFS= read -r stats_file; do
+            if [ -f "$stats_file" ]; then
+              echo "Processing $stats_file"
+              
+              # Skip the aggregated report/index.html file (only process individual simulation reports)
+              if [ "$stats_file" = "report/index.html" ]; then
+                echo "Skipping aggregated report index.html"
+                continue
+              fi
+              
+              # Extract simulation name from path
+              # Path structure: report/<simulation-name-timestamp>/index.html
+              # Go up one level from index.html to get the simulation directory
+              sim_dir=$(dirname "$stats_file")
+              sim_name=$(basename "$sim_dir")
+              
+              # Sanitize simulation name for use in file paths (allow alnum, underscore, hyphen, and period)
+              # Remove any potential path traversal sequences for security
+              safe_sim_name=$(echo "$sim_name" | tr -cd '[:alnum:]_.-' | sed 's/\.\.\+/./g' | sed 's/^\.*//' | sed 's/\.*$//')
+              
+              echo "Simulation name: $sim_name (sanitized: $safe_sim_name)"
+              
+              # Parse HTML Gatling report (index.html) using Python script (show errors for debugging)
+              # Keep stdout (data) separate from stderr (debug) to avoid mixing debug lines with parsed data
+              python3 /tmp/parse_stats.py "$stats_file" > "/tmp/parsed_stats_${safe_sim_name}.txt" 2> "/tmp/parsed_stats_${safe_sim_name}_debug.txt" || echo "0|0|0|0.0|0|0|0" > "/tmp/parsed_stats_${safe_sim_name}.txt"
+              
+              # Show what was parsed (for debugging)
+              echo "Parsed data output:"
+              cat "/tmp/parsed_stats_${safe_sim_name}.txt" || echo "No parsed data file found"
+              
+              # Show any debug or error output from the parser
+              if [ -s "/tmp/parsed_stats_${safe_sim_name}_debug.txt" ]; then
+                echo "Parser debug output (stderr):"
+                cat "/tmp/parsed_stats_${safe_sim_name}_debug.txt"
+              else
+                echo "No parser debug output"
+              fi
+              
+              # Read parsed stats from the data line
+              if [ -f "/tmp/parsed_stats_${safe_sim_name}.txt" ]; then
+                IFS='|' read -r total ok ko success_rate mean_time p95 p99 < "/tmp/parsed_stats_${safe_sim_name}.txt"
+                
+                echo "Extracted values: total='$total', ok='$ok', ko='$ko', success_rate='$success_rate', mean_time='$mean_time', p95='$p95', p99='$p99'"
+                
+                # Validate that we got numeric values for counts
+                if [ -z "$total" ] || [ -z "$ok" ] || [ -z "$ko" ]; then
+                  echo "ERROR: Missing count values in parsed output for simulation '$sim_name'"
+                  continue
+                fi
+                
+                # Ensure count fields are numeric to avoid bash arithmetic errors (allow zero)
+                if ! [[ "$total" =~ ^[0-9]+$ ]] || ! [[ "$ok" =~ ^[0-9]+$ ]] || ! [[ "$ko" =~ ^[0-9]+$ ]]; then
+                  echo "ERROR: Non-numeric count values in parsed output for simulation '$sim_name': total='$total', ok='$ok', ko='$ko'"
+                  continue
+                fi
+                
+                # Store simulation stats (use original name for display)
+                SIMULATION_STATS[$sim_name]="${total}|${ok}|${ko}|${success_rate}|${mean_time}|${p95}|${p99}"
+                
+                # Aggregate totals (with defaults to avoid arithmetic errors)
+                TOTAL_REQUESTS=$((TOTAL_REQUESTS + ${total:-0}))
+                SUCCESSFUL_REQUESTS=$((SUCCESSFUL_REQUESTS + ${ok:-0}))
+                FAILED_REQUESTS=$((FAILED_REQUESTS + ${ko:-0}))
+                
+                echo "Simulation: $sim_name - Total: $total, OK: $ok, KO: $ko, Success: ${success_rate}%"
+                echo "Running totals - Total: $TOTAL_REQUESTS, OK: $SUCCESSFUL_REQUESTS, KO: $FAILED_REQUESTS"
+              fi
+            fi
+          done < <(printf '%s\n' "$stats_files")
+          
+          echo "Final aggregated values:"
+          echo "TOTAL_REQUESTS=$TOTAL_REQUESTS"
+          echo "SUCCESSFUL_REQUESTS=$SUCCESSFUL_REQUESTS"
+          echo "FAILED_REQUESTS=$FAILED_REQUESTS"
+          
+          # Calculate overall success rate
+          if [ $TOTAL_REQUESTS -gt 0 ]; then
+            SUCCESS_RATE=$(awk "BEGIN {printf \"%.1f\", ($SUCCESSFUL_REQUESTS / $TOTAL_REQUESTS) * 100}")
+          else
+            SUCCESS_RATE="0.0"
+          fi
+          
+          # Determine required success rate based on simulations run (see README)
+          REQUIRED_SUCCESS_RATE=0.0
+          HAS_SIMULATION=0
+          for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}"); do
+            HAS_SIMULATION=1
+            case "$sim" in
+              Simple|SmokeTest)
+                REQ=85.0
+                ;;
+              Comprehensive)
+                REQ=80.0
+                ;;
+              UserJourney)
+                REQ=75.0
+                ;;
+              StressTest)
+                REQ=70.0
+                ;;
+              Inferno)
+                REQ=15.0
+                ;;
+              *)
+                # Default requirement for unknown simulations
+                REQ=75.0
+                ;;
+            esac
+            REQUIRED_SUCCESS_RATE=$(awk -v cur="$REQUIRED_SUCCESS_RATE" -v req="$REQ" 'BEGIN { printf "%.1f", (req > cur) ? req : cur }')
+          done
+          if [ "$HAS_SIMULATION" -eq 0 ]; then
+            # Fallback to previous behavior if no simulations are detected
+            REQUIRED_SUCCESS_RATE=70.0
+          fi
+          
+          # Set outputs
+          echo "total_requests=$TOTAL_REQUESTS" >> $GITHUB_OUTPUT
+          echo "successful_requests=$SUCCESSFUL_REQUESTS" >> $GITHUB_OUTPUT
+          echo "failed_requests=$FAILED_REQUESTS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+          echo "required_success_rate=$REQUIRED_SUCCESS_RATE" >> $GITHUB_OUTPUT
+          
+          # Determine if tests passed based on required success thresholds
+          # Use awk for arithmetic comparison (more portable than bc)
+          if [ $(awk -v sr="$SUCCESS_RATE" -v req="$REQUIRED_SUCCESS_RATE" 'BEGIN { print (sr >= req) ? 1 : 0 }') -eq 1 ]; then
+            echo "tests_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "tests_passed=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Export simulation stats as JSON for the comment script
+          echo "simulation_stats<<EOF" >> $GITHUB_OUTPUT
+          for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
+            echo "$sim:${SIMULATION_STATS[$sim]}" >> $GITHUB_OUTPUT
+          done
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Create workflow summary
+          echo "## Load Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Requests | $TOTAL_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Successful | $SUCCESSFUL_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | $FAILED_REQUESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Success Rate | ${SUCCESS_RATE}% |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Per-Simulation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ ${#SIMULATION_STATS[@]} -eq 0 ]; then
+            echo "_No per-simulation results could be generated. This usually means all simulation reports failed to parse. Please check the Gatling reports and logs for details._" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|--------------|-----------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+            
+            for sim in $(printf '%s\n' "${!SIMULATION_STATS[@]}" | sort); do
+              IFS='|' read -r total ok ko success_rate mean_time p95 p99 <<< "${SIMULATION_STATS[$sim]}"
+              echo "| $sim | $total | ${success_rate}% | $mean_time | $p95 | $p99 |" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v6
@@ -50,14 +298,77 @@ jobs:
           name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
           retention-days: 90
-      - name: Comment on PR
+      - name: Comment on PR with Load Test Summary
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v8
         with:
           # language=JavaScript
           script: |
+            const totalRequests = '${{ steps.load_test_summary.outputs.total_requests }}' || '0';
+            const successfulRequests = '${{ steps.load_test_summary.outputs.successful_requests }}' || '0';
+            const failedRequests = '${{ steps.load_test_summary.outputs.failed_requests }}' || '0';
+            const successRate = '${{ steps.load_test_summary.outputs.success_rate }}' || '0.0';
+            const testsPassed = '${{ steps.load_test_summary.outputs.tests_passed }}' === 'true';
+            const simulationStatsRaw = ${{ toJSON(steps.load_test_summary.outputs.simulation_stats) }};
+            
+            const emoji = testsPassed ? '✅' : '⚠️';
+            const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
+            
+            let comment = `## ${emoji} Load Test Results\n\n`;
+            comment += `**${status}**\n\n`;
+            
+            // Add overall summary
+            comment += `| Metric | Value |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Total Requests | ${totalRequests} |\n`;
+            comment += `| ✅ Successful | ${successfulRequests} |\n`;
+            comment += `| ❌ Failed | ${failedRequests} |\n`;
+            comment += `| 📊 Success Rate | ${successRate}% |\n\n`;
+            
+            // Add per-simulation results
+            comment += `### Per-Simulation Results\n\n`;
+            if (simulationStatsRaw && simulationStatsRaw.trim()) {
+              comment += `| Simulation | Requests | Success Rate | Mean (ms) | P95 (ms) | P99 (ms) |\n`;
+              comment += `|------------|----------|--------------|-----------|----------|----------|\n`;
+              
+              const lines = simulationStatsRaw.trim().split('\n');
+              for (const line of lines) {
+                if (line.trim()) {
+                  const colonIdx = line.indexOf(':');
+                  if (colonIdx > 0) {
+                    let simName = line.substring(0, colonIdx).trim();
+                    // Clean up simulation name by removing timestamp suffix (e.g., -20260116034619338)
+                    simName = simName.replace(/-\d{17,}$/, '');
+                    // Format known simulation names for better readability
+                    const nameMap = {
+                      'smoketestsimulation': 'Smoke Test',
+                      'comprehensivesimulation': 'Comprehensive',
+                      'userjourneysimulation': 'User Journey',
+                      'stresstestsimulation': 'Stress Test',
+                      'infernosimulation': 'Inferno'
+                    };
+                    const displayName = nameMap[simName.toLowerCase()] || simName;
+                    simName = displayName + ' Simulation';
+                    const stats = line.substring(colonIdx + 1).trim();
+                    const parts = stats.split('|').map(s => s.trim());
+                    if (parts.length >= 7) {
+                      const [total, ok, ko, simSuccessRate, meanTime, p95, p99] = parts;
+                      comment += `| ${simName} | ${total} | ${simSuccessRate}% | ${meanTime} | ${p95} | ${p99} |\n`;
+                    }
+                  }
+                }
+              }
+            } else {
+              comment += `_No per-simulation results could be generated. This usually means all simulation reports failed to parse. Please check the Gatling reports and logs for details._\n`;
+            }
+            comment += `\n`;
+            
+            // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
-            const body = `📊 Load test results available at: ${url}\n\n<!-- gatling-results-comment -->`;
+            comment += `📈 [View detailed performance reports](${url})\n\n`;
+            
+            // Add marker to identify our comment
+            comment += `<!-- gatling-results-comment -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -78,14 +389,14 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: botComment.id,
-                body: body
+                body: comment
               });
             } else {
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: body
+                body: comment
               });
             }
 

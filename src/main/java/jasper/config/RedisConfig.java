@@ -299,7 +299,7 @@ public class RedisConfig {
 			var response = new String(message.getBody(), StandardCharsets.UTF_8);
 			var parts = new String(message.getChannel(), StandardCharsets.UTF_8).split("/");
 			var origin = parts[1];
-			var source = parts[2];
+			var source = String.join("/", copyOfRange(parts, 2, parts.length));
 			responseRedisChannel().send(MessageBuilder.createMessage(response, responseHeaders(origin, source)));
 		}, of("response/*"));
 		return container;

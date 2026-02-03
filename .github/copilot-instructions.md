@@ -6,37 +6,61 @@ ALWAYS follow these instructions and only fall back to additional search and con
 
 Bootstrap, build, and test the repository:
 
-**⚠️ CRITICAL: Java 25 Requirement**
+**⚠️ CRITICAL: Java Version Requirement**
 
-This project **requires Java 25** (not earlier or later versions). Before attempting any build or test:
+This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
 
-1. **Check if Java 25 is available**: Run `java -version` to check your Java version
-2. **If Java 25 is NOT installed**: You MUST use Docker-based builds (see below). Do NOT attempt local Maven builds.
-3. **If Java 25 IS installed**: You can use either Docker or local Maven builds
+**Java 25 is now available in the build environment!**
 
-**Docker-based builds are ALWAYS the safest option** as they include Java 25, Bun, Python, and all other dependencies.
+### Recommended Approach - Use Java 25 Directly:
+
+1. **Set JAVA_HOME to Java 25**:
+   ```bash
+   export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+   export PATH=$JAVA_HOME/bin:$PATH
+   ```
+
+2. **Build and test**:
+   ```bash
+   ./mvnw clean compile  # or ./mvnw clean package
+   ```
+
+### Alternative - Docker Build:
+
+- **Docker Build**: `docker build -t jasper .`
+  - **⚠️ Known Issue**: Docker builds currently fail with certificate errors (PKIX path building failed)
+  - Workaround: Use `--network=host` flag or local build with Java 25
 
 ### Quick Decision Guide
 
-| Your Situation | Build Approach | Command |
-|----------------|----------------|---------|
-| Java 25 not available | **Use Docker** | `docker build -t jasper .` |
-| Need to run tests | **Use Docker** | `docker build --target test -t jasper-test .` |
-| Java 25 installed, quick compile | Local Maven | `./mvnw clean compile` |
-| Java 25 installed, with tests | Local Maven | `./mvnw clean package` |
-| Unsure or want reliability | **Use Docker** | `docker build -t jasper .` |
+| Your Situation | Build Approach | Steps |
+|----------------|----------------|-------|
+| **Most common (Java 25 available)** | **Use Java 25 directly (RECOMMENDED - works on first try)** | 1. `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`<br>2. `export PATH=$JAVA_HOME/bin:$PATH`<br>3. `./mvnw clean package` |
+| Docker available | Use Docker (has certificate issues) | `docker build -t jasper .` or `docker build --network=host -t jasper .` |
+| Java 21 available (fallback) | Use Java 21 | `export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64` then build |
 
-**Docker-Based Build (Recommended - use this if Java 25 is not installed):**
+**Docker-Based Build (Alternative - currently has certificate issues):**
+- **⚠️ Known Issue**: Docker builds fail with certificate errors (PKIX path building failed) when Maven downloads dependencies
 - Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
+- If certificate errors occur, try: `docker build --network=host -t jasper .`
 - Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
 - Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
+- **Recommendation**: Use local Java 25 build instead (more reliable)
 
-**Local Development (Alternative - requires Java 25 setup):**
-- Install Java 25: The project requires Java 25. Use Amazon Corretto 25, Eclipse Temurin 25, or another Java 25 distribution.
-- Configure Java: `export JAVA_HOME=/path/to/java-25` (set to your Java 25 installation path)
-- Update alternatives if needed: `sudo update-alternatives --config java` and `sudo update-alternatives --config javac` to select Java 25
+**Local Development with Java 25 (RECOMMENDED - works on first try):**
+- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`
+- Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
+- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+
+**Fallback - Use Java 21 (if Java 25 not available):**
+- Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+- Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` (or `/usr/lib/jvm/temurin-21-jdk-amd64` if using Temurin)
+- Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
 - Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 - Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
@@ -124,12 +148,27 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Troubleshooting:**
 
-**Most Common Error: "release version 25 not supported"**
-- **Cause**: Java 25 is not installed or not configured correctly
-- **Solution**: Switch to Docker-based build immediately: `docker build -t jasper .`
-- **Alternative**: Install Java 25 (Amazon Corretto 25, Eclipse Temurin 25, or another distribution)
+**Most Common Error: "release version 25 not supported" or "release version 21 not supported"**
+- **Cause**: Java 25 (or Java 21+) is not in your PATH or JAVA_HOME is not set
+- **Working Solution (tested)**: Set JAVA_HOME to Java 25:
+  1. `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`
+  2. `export PATH=$JAVA_HOME/bin:$PATH`
+  3. Verify: `java -version` (should show Java 25)
+  4. Build: `./mvnw clean package`
+- **Fallback (if Java 25 not available)**: Use Java 21:
+  1. `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
+  2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
+  3. `export PATH=$JAVA_HOME/bin:$PATH`
+  4. Build: `./mvnw clean package`
+- **Why not change to Java 17?**: Spring Boot 4.0.0 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+- **Alternative**: Use Docker build `docker build -t jasper .` (but may have certificate issues)
 
 **Other Common Issues:**
+- **Docker certificate error ("PKIX path building failed")**: The Docker build fails with SSL certificate validation errors when downloading Maven dependencies. This is a known issue with the Java Docker images.
+  - **Working Solution**: Use Java 25 locally and Maven build (see above) - bypasses Docker entirely
+  - **Workaround 2**: The certificate issue is intermittent - retry the Docker build
+  - **Workaround 3**: Use `--network=host` flag: `docker build --network=host -t jasper .`
+  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
@@ -180,7 +219,7 @@ jasper/
 - `.github/workflows/test.yml` - Main CI pipeline
 
 **Important Dependencies:**
-- Spring Boot 3.5.5 (Web, JPA, Security, WebSocket)
+- Spring Boot 4.0.0 (Web, JPA, Security, WebSocket)
 - Java 25 (required)
 - PostgreSQL (primary database)
 - Redis (caching and messaging)
