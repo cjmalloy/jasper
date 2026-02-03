@@ -201,6 +201,7 @@ public class Cron {
 			// Remove tag in case script had failed
 			logger.warn("{} Cancelled possibly stuck run {}:", origin, url);
 			tagger.removeAllResponses(url, origin, "+plugin/user/run");
+			tagger.attachLogs(url, origin, "Cancelled possibly stuck run");
 			// Skip scheduled run since we are running manually
 			return;
 		}

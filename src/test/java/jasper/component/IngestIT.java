@@ -5,6 +5,7 @@ import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -476,6 +478,84 @@ public class IngestIT {
 		List<Ref> allVersions = refRepository.findAll(isUrl(refOriginA.getUrl()));
 		long activeRefs = allVersions.stream().filter(r -> r.getMetadata() == null || !r.getMetadata().isObsolete()).count();
 		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
+	}
+
+	@Test
+	void testUpdateResponse() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testUpdateResponseWithTags() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setTags(List.of("test/tag"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setTags(List.of("test/tag", "another/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getTags())
+			.contains("test/tag", "another/tag");
+		assertThat(fetched.getMetadata())
+			.isNotNull();
+		assertThat(fetched.getMetadata().getExpandedTags())
+			.isNotNull();
+	}
+
+	@Test
+	void testUpdateResponseThrowsNotFoundExceptionWhenRefDoesNotExist() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Test");
+
+		assertThatThrownBy(() -> ingest.updateResponse("", ref))
+			.hasMessageContaining("Ref");
+	}
+
+	@Test
+	void testUpdateResponseWithRngPlugin() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setTags(new ArrayList<>(List.of("plugin/rng", "+plugin/rng/uuid1")));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setTags(new ArrayList<>(List.of("plugin/rng")));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.contains("+plugin/rng/uuid1");
 	}
 
 

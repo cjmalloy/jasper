@@ -1,6 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
@@ -81,6 +80,20 @@ public class Validate {
 		sources(rootOrigin, ref, true);
 		responses(rootOrigin, ref, false);
 		sources(rootOrigin, ref, false);
+	}
+
+	@Timed("jasper.validate")
+	public void response(String rootOrigin, Ref ref) {
+		var root = configs.root();
+		try {
+			if (!auth.hasRole(MOD)) ref.removeTags(root.getModSeals());
+			if (!auth.hasRole(EDITOR)) ref.removeTags(root.getEditorSeals());
+		} catch (ScopeNotActiveException e) {
+			ref.removeTags(root.getModSeals());
+			ref.removeTags(root.getEditorSeals());
+		}
+		tags(rootOrigin, ref);
+		plugins(rootOrigin, ref, false);
 	}
 
 	@Timed("jasper.validate")
@@ -208,15 +221,21 @@ public class Validate {
 		}
 	}
 
-	private ObjectNode merge(ObjectNode a, ObjectNode b) {
+	ObjectNode merge(ObjectNode a, ObjectNode b) {
+		if (a == null && b == null) return objectMapper.createObjectNode();
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return b.deepCopy();
-		try {
-			return objectMapper.updateValue(a, b);
-		} catch (JsonMappingException e) {
-			throw new InvalidPluginException("Merging", e);
-		}
+		b.fieldNames().forEachRemaining(field -> {
+			var aNode = a.get(field);
+			var bNode = b.get(field);
+			if (aNode != null && aNode.isObject() && bNode.isObject()) {
+				merge((ObjectNode) aNode, (ObjectNode) bNode);
+			} else {
+				a.set(field, bNode.deepCopy());
+			}
+		});
+		return a;
 	}
 
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
