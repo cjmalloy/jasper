@@ -52,6 +52,9 @@ public class IngestExt {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Autowired
+	tools.jackson.databind.json.JsonMapper jsonMapper;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
@@ -135,12 +138,18 @@ public class IngestExt {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					ext.setModified(Instant.now(ensureUniqueModifiedClock));
+					String serializedConfig = null;
+					try {
+						serializedConfig = ext.getConfig() == null ? null : jsonMapper.writeValueAsString(ext.getConfig());
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to serialize config", e);
+					}
 					var updated = extRepository.optimisticUpdate(
 						cursor,
 						ext.getTag(),
 						ext.getOrigin(),
 						ext.getName(),
-						ext.getConfig(),
+						serializedConfig,
 						ext.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Ext");

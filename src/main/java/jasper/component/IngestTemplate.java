@@ -52,6 +52,9 @@ public class IngestTemplate {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Autowired
+	tools.jackson.databind.json.JsonMapper jsonMapper;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
@@ -152,14 +155,22 @@ public class IngestTemplate {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					template.setModified(Instant.now(ensureUniqueModifiedClock));
+					String configJson = null, schemaJson = null, defaultsJson = null;
+					try {
+						configJson = template.getConfig() == null ? null : jsonMapper.writeValueAsString(template.getConfig());
+						schemaJson = template.getSchema() == null ? null : jsonMapper.writeValueAsString(template.getSchema());
+						defaultsJson = template.getDefaults() == null ? null : jsonMapper.writeValueAsString(template.getDefaults());
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to serialize JSON fields", e);
+					}
 					var updated = templateRepository.optimisticUpdate(
 						cursor,
 						template.getTag(),
 						template.getOrigin(),
 						template.getName(),
-						template.getConfig(),
-						template.getSchema(),
-						template.getDefaults(),
+						configJson,
+						schemaJson,
+						defaultsJson,
 						template.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Template");

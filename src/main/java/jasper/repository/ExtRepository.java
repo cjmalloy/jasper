@@ -1,6 +1,5 @@
 package jasper.repository;
 
-import tools.jackson.databind.JsonNode;
 import jasper.domain.Ext;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,22 +15,22 @@ import java.util.List;
 @Transactional(readOnly = true)
 public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, StreamMixin<Ext>, ModifiedCursor, OriginMixin {
 
-	@Modifying
-	@Query("""
-		UPDATE Ext SET
+	@Modifying(clearAutomatically = true)
+	@Query(value = """
+		UPDATE ext SET
 			name = :name,
-			config = :config,
+			config = CAST(:config AS jsonb),
 			modified = :modified
 		WHERE
 			tag = :tag AND
 			origin = :origin AND
-			modified = :cursor""")
+			modified = :cursor""", nativeQuery = true)
 	int optimisticUpdate(
 		Instant cursor,
 		String tag,
 		String origin,
 		String name,
-		JsonNode config,
+		String config,
 		Instant modified);
 
 	@Query("""

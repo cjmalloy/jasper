@@ -52,6 +52,9 @@ public class IngestPlugin {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Autowired
+	tools.jackson.databind.json.JsonMapper jsonMapper;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
@@ -152,14 +155,22 @@ public class IngestPlugin {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
+					String configJson = null, schemaJson = null, defaultsJson = null;
+					try {
+						configJson = plugin.getConfig() == null ? null : jsonMapper.writeValueAsString(plugin.getConfig());
+						schemaJson = plugin.getSchema() == null ? null : jsonMapper.writeValueAsString(plugin.getSchema());
+						defaultsJson = plugin.getDefaults() == null ? null : jsonMapper.writeValueAsString(plugin.getDefaults());
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to serialize JSON fields", e);
+					}
 					var updated = pluginRepository.optimisticUpdate(
 						cursor,
 						plugin.getTag(),
 						plugin.getOrigin(),
 						plugin.getName(),
-						plugin.getConfig(),
-						plugin.getSchema(),
-						plugin.getDefaults(),
+						configJson,
+						schemaJson,
+						defaultsJson,
 						plugin.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Plugin");

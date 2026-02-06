@@ -1,9 +1,9 @@
 package jasper.repository;
 
-import tools.jackson.databind.node.ObjectNode;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.RefUrl;
 import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -25,33 +25,33 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
-	@Modifying
-	@Query("""
-		UPDATE Ref SET
+	@Modifying(clearAutomatically = true)
+	@Query(value = """
+		UPDATE ref SET
 			title = :title,
 			comment = :comment,
-			tags = :tags,
-			sources = :sources,
-			alternateUrls = :alternateUrls,
-			plugins = :plugins,
-			metadata = :metadata,
+			tags = CAST(:tags AS jsonb),
+			sources = CAST(:sources AS jsonb),
+			alternate_urls = CAST(:alternateUrls AS jsonb),
+			plugins = CAST(:plugins AS jsonb),
+			metadata = CAST(:metadata AS jsonb),
 			published = :published,
 			modified = :modified
 		WHERE
 			url = :url AND
 			origin = :origin AND
-			modified = :cursor""")
+			modified = :cursor""", nativeQuery = true)
 	int optimisticUpdate(
 		Instant cursor,
 		String url,
 		String origin,
 		String title,
 		String comment,
-		List<String> tags,
-		List<String> sources,
-		List<String> alternateUrls,
-		ObjectNode plugins,
-		Metadata metadata,
+		String tags,
+		String sources,
+		String alternateUrls,
+		String plugins,
+		String metadata,
 		Instant published,
 		Instant modified);
 

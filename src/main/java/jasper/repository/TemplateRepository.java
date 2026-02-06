@@ -1,7 +1,5 @@
 package jasper.repository;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
 import jasper.domain.TagId;
 import jasper.domain.Template;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,26 +16,26 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
 
-	@Modifying
-	@Query("""
-		UPDATE Template SET
+	@Modifying(clearAutomatically = true)
+	@Query(value = """
+		UPDATE template SET
 			name = :name,
-			config = :config,
-			schema = :schema,
-			defaults = :defaults,
+			config = CAST(:config AS jsonb),
+			schema = CAST(:schema AS jsonb),
+			defaults = CAST(:defaults AS jsonb),
 			modified = :modified
 		WHERE
 			tag = :tag AND
 			origin = :origin AND
-			modified = :cursor""")
+			modified = :cursor""", nativeQuery = true)
 	int optimisticUpdate(
 		Instant cursor,
 		String tag,
 		String origin,
 		String name,
-		JsonNode config,
-		ObjectNode schema,
-		JsonNode defaults,
+		String config,
+		String schema,
+		String defaults,
 		Instant modified);
 
 	@Query("""

@@ -59,6 +59,9 @@ public class Ingest {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Autowired
+	tools.jackson.databind.json.JsonMapper jsonMapper;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
@@ -209,17 +212,27 @@ public class Ingest {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					String tagsJson = null, sourcesJson = null, alternateUrlsJson = null, pluginsJson = null, metadataJson = null;
+					try {
+						tagsJson = ref.getTags() == null ? null : jsonMapper.writeValueAsString(ref.getTags());
+						sourcesJson = ref.getSources() == null ? null : jsonMapper.writeValueAsString(ref.getSources());
+						alternateUrlsJson = ref.getAlternateUrls() == null ? null : jsonMapper.writeValueAsString(ref.getAlternateUrls());
+						pluginsJson = ref.getPlugins() == null ? null : jsonMapper.writeValueAsString(ref.getPlugins());
+						metadataJson = ref.getMetadata() == null ? null : jsonMapper.writeValueAsString(ref.getMetadata());
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to serialize JSON fields", e);
+					}
 					var updated = refRepository.optimisticUpdate(
 						cursor,
 						ref.getUrl(),
 						ref.getOrigin(),
 						ref.getTitle(),
 						ref.getComment(),
-						ref.getTags(),
-						ref.getSources(),
-						ref.getAlternateUrls(),
-						ref.getPlugins(),
-						ref.getMetadata(),
+						tagsJson,
+						sourcesJson,
+						alternateUrlsJson,
+						pluginsJson,
+						metadataJson,
 						ref.getPublished(),
 						ref.getModified());
 					if (updated == 0) {
