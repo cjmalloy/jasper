@@ -23,7 +23,7 @@
 		<lombok.version>1.18.42</lombok.version>
 		<testcontainers.version>2.0.3</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
-		<jackson-databind-nullable.version>0.2.8</jackson-databind-nullable.version>
+		<jackson-databind-nullable.version>0.2.9</jackson-databind-nullable.version>
 		<postgresql.version>42.3.9</postgresql.version>
 		<hibernate.version>7.2.0.Final</hibernate.version>
 		<hypersistence-utils-71.version>3.15.1</hypersistence-utils-71.version>
