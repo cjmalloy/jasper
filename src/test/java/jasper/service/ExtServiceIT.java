@@ -1091,7 +1091,7 @@ public class ExtServiceIT {
 
 		// Create a JSON Patch with special characters
 		var patchJson = """
-			[{ "op": "add", "path": "/name", "value": "Test with \"quotes\" and \\backslash" }]
+			[{ "op": "add", "path": "/name", "value": "Test with \\"quotes\\" and \\\\backslash" }]
 		""";
 		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
