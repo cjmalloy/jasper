@@ -155,11 +155,11 @@ public class IngestPlugin {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
-					String configJson = null, schemaJson = null, defaultsJson = null;
+					String serializedConfig = null, serializedSchema = null, serializedDefaults = null;
 					try {
-						configJson = plugin.getConfig() == null ? null : jsonMapper.writeValueAsString(plugin.getConfig());
-						schemaJson = plugin.getSchema() == null ? null : jsonMapper.writeValueAsString(plugin.getSchema());
-						defaultsJson = plugin.getDefaults() == null ? null : jsonMapper.writeValueAsString(plugin.getDefaults());
+						serializedConfig = plugin.getConfig() == null ? null : jsonMapper.writeValueAsString(plugin.getConfig());
+						serializedSchema = plugin.getSchema() == null ? null : jsonMapper.writeValueAsString(plugin.getSchema());
+						serializedDefaults = plugin.getDefaults() == null ? null : jsonMapper.writeValueAsString(plugin.getDefaults());
 					} catch (Exception e) {
 						throw new RuntimeException("Failed to serialize JSON fields", e);
 					}
@@ -168,9 +168,9 @@ public class IngestPlugin {
 						plugin.getTag(),
 						plugin.getOrigin(),
 						plugin.getName(),
-						configJson,
-						schemaJson,
-						defaultsJson,
+						serializedConfig,
+						serializedSchema,
+						serializedDefaults,
 						plugin.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Plugin");

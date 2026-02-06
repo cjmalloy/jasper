@@ -212,13 +212,13 @@ public class Ingest {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
-					String tagsJson = null, sourcesJson = null, alternateUrlsJson = null, pluginsJson = null, metadataJson = null;
+					String serializedTags = null, serializedSources = null, serializedAlternateUrls = null, serializedPlugins = null, serializedMetadata = null;
 					try {
-						tagsJson = ref.getTags() == null ? null : jsonMapper.writeValueAsString(ref.getTags());
-						sourcesJson = ref.getSources() == null ? null : jsonMapper.writeValueAsString(ref.getSources());
-						alternateUrlsJson = ref.getAlternateUrls() == null ? null : jsonMapper.writeValueAsString(ref.getAlternateUrls());
-						pluginsJson = ref.getPlugins() == null ? null : jsonMapper.writeValueAsString(ref.getPlugins());
-						metadataJson = ref.getMetadata() == null ? null : jsonMapper.writeValueAsString(ref.getMetadata());
+						serializedTags = ref.getTags() == null ? null : jsonMapper.writeValueAsString(ref.getTags());
+						serializedSources = ref.getSources() == null ? null : jsonMapper.writeValueAsString(ref.getSources());
+						serializedAlternateUrls = ref.getAlternateUrls() == null ? null : jsonMapper.writeValueAsString(ref.getAlternateUrls());
+						serializedPlugins = ref.getPlugins() == null ? null : jsonMapper.writeValueAsString(ref.getPlugins());
+						serializedMetadata = ref.getMetadata() == null ? null : jsonMapper.writeValueAsString(ref.getMetadata());
 					} catch (Exception e) {
 						throw new RuntimeException("Failed to serialize JSON fields", e);
 					}
@@ -228,11 +228,11 @@ public class Ingest {
 						ref.getOrigin(),
 						ref.getTitle(),
 						ref.getComment(),
-						tagsJson,
-						sourcesJson,
-						alternateUrlsJson,
-						pluginsJson,
-						metadataJson,
+						serializedTags,
+						serializedSources,
+						serializedAlternateUrls,
+						serializedPlugins,
+						serializedMetadata,
 						ref.getPublished(),
 						ref.getModified());
 					if (updated == 0) {

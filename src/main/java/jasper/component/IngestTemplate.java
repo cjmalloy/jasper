@@ -155,11 +155,11 @@ public class IngestTemplate {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					template.setModified(Instant.now(ensureUniqueModifiedClock));
-					String configJson = null, schemaJson = null, defaultsJson = null;
+					String serializedConfig = null, serializedSchema = null, serializedDefaults = null;
 					try {
-						configJson = template.getConfig() == null ? null : jsonMapper.writeValueAsString(template.getConfig());
-						schemaJson = template.getSchema() == null ? null : jsonMapper.writeValueAsString(template.getSchema());
-						defaultsJson = template.getDefaults() == null ? null : jsonMapper.writeValueAsString(template.getDefaults());
+						serializedConfig = template.getConfig() == null ? null : jsonMapper.writeValueAsString(template.getConfig());
+						serializedSchema = template.getSchema() == null ? null : jsonMapper.writeValueAsString(template.getSchema());
+						serializedDefaults = template.getDefaults() == null ? null : jsonMapper.writeValueAsString(template.getDefaults());
 					} catch (Exception e) {
 						throw new RuntimeException("Failed to serialize JSON fields", e);
 					}
@@ -168,9 +168,9 @@ public class IngestTemplate {
 						template.getTag(),
 						template.getOrigin(),
 						template.getName(),
-						configJson,
-						schemaJson,
-						defaultsJson,
+						serializedConfig,
+						serializedSchema,
+						serializedDefaults,
 						template.getModified());
 					if (updated == 0) {
 						throw new ModifiedException("Template");
