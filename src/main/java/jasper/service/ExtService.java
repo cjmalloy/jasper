@@ -120,7 +120,9 @@ public class ExtService {
 			ext.setOrigin(tagOrigin(qualifiedTag));
 		}
 		try {
-			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ext)), Ext.class);
+			var tree = jsonMapper.valueToTree(ext);
+			var patched = patch.apply(tree);
+			var updated = jsonMapper.treeToValue(patched, Ext.class);
 			if (created) {
 				return create(updated);
 			} else {

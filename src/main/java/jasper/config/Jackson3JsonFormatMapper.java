@@ -15,11 +15,19 @@ public class Jackson3JsonFormatMapper implements FormatMapper {
 
 	@Override
 	public <T> T fromString(CharSequence charSequence, JavaType<T> javaType, WrapperOptions wrapperOptions) {
-		return objectMapper.readValue(charSequence.toString(), javaType.getJavaTypeClass());
+		try {
+			return objectMapper.readValue(charSequence.toString(), javaType.getJavaTypeClass());
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to deserialize JSON", e);
+		}
 	}
 
 	@Override
 	public <T> String toString(T value, JavaType<T> javaType, WrapperOptions wrapperOptions) {
-		return objectMapper.writeValueAsString(value);
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to serialize to JSON", e);
+		}
 	}
 }

@@ -2,6 +2,7 @@ package jasper.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatchException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -43,10 +44,12 @@ public class Jackson3PatchAdapter implements Patch {
 	@Override
 	public JsonNode apply(JsonNode node) {
 		try {
-			var node2 = jackson2ObjectMapper.readTree(jsonMapper.writeValueAsString(node));
+			String json3String = jsonMapper.writeValueAsString(node);
+			var node2 = jackson2ObjectMapper.readTree(json3String);
 			var patched2 = jackson2Patch.apply(node2);
-			return jsonMapper.readTree(jackson2ObjectMapper.writeValueAsString(patched2));
-		} catch (JsonPatchException | JsonProcessingException e) {
+			String json2String = jackson2ObjectMapper.writeValueAsString(patched2);
+			return jsonMapper.readTree(json2String);
+		} catch (JsonPatchException | JsonProcessingException | JacksonException e) {
 			throw new RuntimeException(e);
 		}
 	}
