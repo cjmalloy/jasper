@@ -1,10 +1,5 @@
 package jasper.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
@@ -18,6 +13,7 @@ import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RefDto;
+import jasper.util.Patch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +25,7 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,9 +33,9 @@ import java.util.LinkedHashSet;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.RefSpec.sort;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
+import static jasper.repository.spec.RefSpec.sort;
 import static org.springframework.data.domain.PageRequest.of;
 import static org.springframework.data.domain.PageRequest.ofSize;
 
@@ -62,7 +59,7 @@ public class RefService {
 	DtoMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -165,8 +162,7 @@ public class RefService {
 		}
 		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
-			var updated = objectMapper.treeToValue(patched, Ref.class);
+			var updated = jsonMapper.treeToValue(patch.apply(jsonMapper.valueToTree(ref)), Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags
 				updated.setTags(new ArrayList<>(new LinkedHashSet<>(updated.getTags())));
@@ -179,7 +175,7 @@ public class RefService {
 				updated.setModified(cursor);
 				return update(updated);
 			}
-		} catch (JsonPatchException | JsonProcessingException e) {
+		} catch (RuntimeException e) {
 			throw new InvalidPatchException("Ref " + origin + " " + url, e);
 		}
 	}

@@ -1,13 +1,19 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.domain.Ext;
+import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
+import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.ExtSpec;
+import jasper.util.Jackson3PatchAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +21,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WithMockUser("+user/tester")
 @IntegrationTest
+@Transactional
 public class ExtServiceIT {
 
 	@Autowired
@@ -34,10 +45,28 @@ public class ExtServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	TemplateRepository templateRepository;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
+
 	@BeforeEach
 	void init() {
 		extRepository.deleteAll();
 		userRepository.deleteAll();
+		templateRepository.deleteAll();
+
+		// Create a Template for user/* tags (matches +user/* Exts) that allows any config structure
+		// This enables json-patch tests to modify config fields
+		// Empty schema {} allows any JSON structure
+		var template = new Template();
+		template.setTag("user");
+		template.setSchema((ObjectNode) jsonMapper.readTree("{}"));
+		templateRepository.save(template);
 	}
 
 	@Test
@@ -633,69 +662,479 @@ public class ExtServiceIT {
 	@Test
 	void testApplySortingSpec_WithConfigSort() {
 		// Create Ext entities with config->value
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		try {
-			var ext1 = new Ext();
-			ext1.setTag("+user/test1");
-			ext1.setName("Test1");
-			ext1.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"value\": \"alpha\"}"));
-			extRepository.save(ext1);
+		var mapper = JsonMapper.builder().build();
+		var ext1 = new Ext();
+		ext1.setTag("+user/test1");
+		ext1.setName("Test1");
+		ext1.setConfig((ObjectNode) mapper.readTree("""
+			{ "value": "alpha" }
+		"""));
+		extRepository.save(ext1);
 
-			var ext2 = new Ext();
-			ext2.setTag("+user/test2");
-			ext2.setName("Test2");
-			ext2.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"value\": \"beta\"}"));
-			extRepository.save(ext2);
+		var ext2 = new Ext();
+		ext2.setTag("+user/test2");
+		ext2.setName("Test2");
+		ext2.setConfig((ObjectNode) mapper.readTree("""
+			{ "value": "beta" }
+		"""));
+		extRepository.save(ext2);
 
-			var pageable = PageRequest.of(0, 10, Sort.by(
-				Sort.Order.desc("config->value")));
-			var spec = ExtSpec.sort(
-				TagFilter.builder().build().spec(),
-				pageable);
+		var pageable = PageRequest.of(0, 10, Sort.by(
+			Sort.Order.desc("config->value")));
+		var spec = ExtSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
 
-			// Execute query to verify sorting works
-			var result = extRepository.findAll(spec, PageRequest.ofSize(10));
-			assertThat(result.getContent()).hasSize(2);
-			// Verify descending order (beta before alpha)
-			assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test2");
-			assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test1");
-		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-			throw new RuntimeException(e);
-		}
+		// Execute query to verify sorting works
+		var result = extRepository.findAll(spec, PageRequest.ofSize(10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify descending order (beta before alpha)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test2");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test1");
 	}
 
 	@Test
 	void testApplySortingSpec_WithNumericSort() {
 		// Create Ext entities with numeric config->count
-		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-		try {
-			var ext1 = new Ext();
-			ext1.setTag("+user/test1");
-			ext1.setName("Test1");
-			ext1.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"count\": 2}"));
-			extRepository.save(ext1);
+		var mapper = JsonMapper.builder().build();
+		var ext1 = new Ext();
+		ext1.setTag("+user/test1");
+		ext1.setName("Test1");
+		ext1.setConfig((ObjectNode) mapper.readTree("""
+			{ "count": 2}
+		"""));
+		extRepository.save(ext1);
 
-			var ext2 = new Ext();
-			ext2.setTag("+user/test2");
-			ext2.setName("Test2");
-			ext2.setConfig((com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("{\"count\": 10}"));
-			extRepository.save(ext2);
+		var ext2 = new Ext();
+		ext2.setTag("+user/test2");
+		ext2.setName("Test2");
+		ext2.setConfig((ObjectNode) mapper.readTree("""
+			{ "count": 10}
+		"""));
+		extRepository.save(ext2);
 
-			var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
-				org.springframework.data.domain.Sort.Order.asc("config->count:num")));
-			var spec = ExtSpec.sort(
-				TagFilter.builder().build().spec(),
-				pageable);
+		var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
+			org.springframework.data.domain.Sort.Order.asc("config->count:num")));
+		var spec = ExtSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
 
-			// Execute query to verify numeric sorting (2 before 10, not string sort where "10" < "2")
-			var result = extRepository.findAll(spec, PageRequest.of(0, 10));
-			assertThat(result.getContent()).hasSize(2);
-			// Verify ascending numeric order (2 before 10)
-			assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
-			assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
-		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-			throw new RuntimeException(e);
-		}
+		// Execute query to verify numeric sorting (2 before 10, not string sort where "10" < "2")
+		var result = extRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify ascending numeric order (2 before 10)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
+	}
+
+	// JSON Patch Jackson 3 Compatibility Tests
+	// These tests verify that the json-patch library (which uses Jackson 2) works correctly
+	// with Jackson 3 through the conversion pattern in ExtService.patch()
+
+	@Test
+	void testJsonPatch_AddOperation() throws Exception {
+		// Create an existing Ext
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{}
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to add a new field to config
+		var patchJson = """
+			[{ "op": "add", "path": "/config/newField", "value": "newValue" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		var modified = extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("newField").asText()).isEqualTo("newValue");
+		assertThat(modified).isAfter(cursor);
+	}
+
+	@Test
+	void testJsonPatch_ReplaceOperation() throws Exception {
+		// Create an existing Ext with config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Original");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "key": "value1" }
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to replace a config value
+		var patchJson = """
+			[{ "op": "replace", "path": "/config/key", "value": "value2" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("key").asText()).isEqualTo("value2");
+	}
+
+	@Test
+	void testJsonPatch_RemoveOperation() throws Exception {
+		// Create an existing Ext with config field
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "toRemove": "value" }
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to remove config field
+		var patchJson = """
+			[{ "op": "remove", "path": "/config/toRemove" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().has("toRemove")).isFalse();
+	}
+
+	@Test
+	void testJsonPatch_CopyOperation() throws Exception {
+		// Create an existing Ext with config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "source": "value" }
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to copy a value
+		var patchJson = """
+			[{ "op": "copy", "from": "/config/source", "path": "/config/target" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("source").asText()).isEqualTo("value");
+		assertThat(fetched.getConfig().get("target").asText()).isEqualTo("value");
+	}
+
+	@Test
+	void testJsonPatch_MoveOperation() throws Exception {
+		// Create an existing Ext with config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "old": "value" }
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to move a value
+		var patchJson = """
+			[{ "op": "move", "from": "/config/old", "path": "/config/new" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().has("old")).isFalse();
+		assertThat(fetched.getConfig().get("new").asText()).isEqualTo("value");
+	}
+
+	@Test
+	void testJsonPatch_TestOperationSuccess() throws Exception {
+		// Create an existing Ext
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch with test operation that should pass
+		var patchJson = """
+		[
+			{ "op": "test", "path": "/name", "value": "Test" },
+			{ "op": "replace", "path": "/name", "value": "Updated" }
+		]""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getName()).isEqualTo("Updated");
+	}
+
+	@Test
+	void testJsonPatch_TestOperationFailure() throws Exception {
+		// Create an existing Ext
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch with test operation that should fail
+		var patchJson = """
+		[
+			{ "op": "test", "path": "/name", "value": "Wrong" },
+			{ "op": "replace", "path": "/name", "value": "Updated" }
+		]""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch - should throw exception
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper)))
+			.isInstanceOf(InvalidPatchException.class);
+
+		// Verify the patch was not applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getName()).isEqualTo("Test");
+	}
+
+	@Test
+	void testJsonPatch_NestedObjectPatching() throws Exception {
+		// Create an existing Ext with nested config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "nested": { "level1": { "level2": "value" }}}
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to modify deeply nested value
+		var patchJson = """
+			[{ "op": "replace", "path": "/config/nested/level1/level2", "value": "updated" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("nested").get("level1").get("level2").asText()).isEqualTo("updated");
+	}
+
+	@Test
+	void testJsonPatch_ArrayOperations() throws Exception {
+		// Create an existing Ext with array in config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "items": ["a", "b", "c"]}
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to add to array
+		var patchJson = """
+			[{ "op": "add", "path": "/config/items/-", "value": "d" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("items").size()).isEqualTo(4);
+		assertThat(fetched.getConfig().get("items").get(3).asText()).isEqualTo("d");
+	}
+
+	@Test
+	void testJsonPatch_ArrayReplace() throws Exception {
+		// Create an existing Ext with array in config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "items": ["a", "b", "c"]}
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch to replace array element
+		var patchJson = """
+			[{ "op": "replace", "path": "/config/items/1", "value": "replaced" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("items").get(0).asText()).isEqualTo("a");
+		assertThat(fetched.getConfig().get("items").get(1).asText()).isEqualTo("replaced");
+		assertThat(fetched.getConfig().get("items").get(2).asText()).isEqualTo("c");
+	}
+
+	@Test
+	void testJsonPatch_CreateNewExt() throws Exception {
+		// Patch a non-existent ext (should create it) - add to config since name might not serialize as expected
+		var patchJson = """
+			[{ "op": "add", "path": "/config", "value": { "created": true}}]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch to create new ext
+		var modified = extService.patch("+user/tester", Instant.now(), new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the ext was created
+		assertThat(extRepository.existsByQualifiedTag("+user/tester")).isTrue();
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig()).isNotNull();
+		assertThat(fetched.getConfig().get("created").asBoolean()).isTrue();
+		assertThat(modified).isNotNull();
+	}
+
+	@Test
+	void testJsonPatch_ComplexMultipleOperations() throws Exception {
+		// Create an existing Ext with complex structure
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Original");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{ "keep": "this", "remove": "that", "nested": { "value": 1}, "oldField": "toRemove" }
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a complex JSON Patch with multiple operations
+		var patchJson = """
+		[
+			{ "op": "replace", "path": "/name", "value": "Updated" },
+			{ "op": "remove", "path": "/config/oldField" },
+			{ "op": "remove", "path": "/config/remove" },
+			{ "op": "replace", "path": "/config/nested/value", "value": 2},
+			{ "op": "add", "path": "/config/new", "value": "added" }
+		]""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify all operations were applied correctly
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getName()).isEqualTo("Updated");
+		assertThat(fetched.getConfig().has("oldField")).isFalse();
+		assertThat(fetched.getConfig().get("keep").asText()).isEqualTo("this");
+		assertThat(fetched.getConfig().has("remove")).isFalse();
+		assertThat(fetched.getConfig().get("nested").get("value").asInt()).isEqualTo(2);
+		assertThat(fetched.getConfig().get("new").asText()).isEqualTo("added");
+	}
+
+	@Test
+	void testJsonPatch_InvalidPatch() throws Exception {
+		// Create an existing Ext
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create an invalid JSON Patch (path doesn't exist)
+		var patchJson = """
+			[{ "op": "replace", "path": "/nonexistent", "value": "value" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch - should throw exception
+		assertThatThrownBy(() -> extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper)))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	void testJsonPatch_SpecialCharactersInValues() throws Exception {
+		// Create an existing Ext
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch with special characters
+		var patchJson = """
+			[{ "op": "add", "path": "/name", "value": "Test with \"quotes\" and \\backslash" }]
+		""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied with special characters preserved
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getName()).isEqualTo("Test with \"quotes\" and \\backslash");
+	}
+
+	@Test
+	void testJsonPatch_NumericAndBooleanValues() throws Exception {
+		// Create an existing Ext with config
+		var mapper = JsonMapper.builder().build();
+		var ext = new Ext();
+		ext.setTag("+user/tester");
+		ext.setName("Test");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+			{}
+		"""));
+		extRepository.save(ext);
+		var cursor = ext.getModified();
+
+		// Create a JSON Patch with different value types
+		var patchJson = """
+		[
+			{ "op": "add", "path": "/config/number", "value": 42},
+			{ "op": "add", "path": "/config/float", "value": 3.14},
+			{ "op": "add", "path": "/config/bool", "value": true},
+			{ "op": "add", "path": "/config/null", "value": null}
+		]""";
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
+
+		// Apply the patch
+		extService.patch("+user/tester", cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
+
+		// Verify the patch was applied with correct types
+		var fetched = extRepository.findOneByQualifiedTag("+user/tester").get();
+		assertThat(fetched.getConfig().get("number").asInt()).isEqualTo(42);
+		assertThat(fetched.getConfig().get("float").asDouble()).isEqualTo(3.14);
+		assertThat(fetched.getConfig().get("bool").asBoolean()).isTrue();
+		assertThat(fetched.getConfig().get("null").isNull()).isTrue();
 	}
 
 }

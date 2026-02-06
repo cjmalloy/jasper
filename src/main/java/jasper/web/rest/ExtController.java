@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +16,7 @@ import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import jasper.service.dto.ExtDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 
@@ -48,6 +51,12 @@ public class ExtController {
 
 	@Autowired
 	HttpCache httpCache;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
@@ -152,7 +161,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return extService.patch(tag, cursor, patch);
+		return extService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -166,7 +175,7 @@ public class ExtController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return extService.patch(tag, cursor, patch);
+		return extService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

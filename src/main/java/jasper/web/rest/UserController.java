@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +17,7 @@ import jasper.repository.filter.TagFilter;
 import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -48,6 +51,12 @@ public class UserController {
 
 	@Autowired
 	UserService userService;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -131,7 +140,7 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return userService.patch(tag, cursor, patch);
+		return userService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -145,7 +154,7 @@ public class UserController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return userService.patch(tag, cursor, patch);
+		return userService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

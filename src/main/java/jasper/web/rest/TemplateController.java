@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,6 +15,7 @@ import jasper.domain.Template;
 import jasper.repository.filter.TagFilter;
 import jasper.service.TemplateService;
 import jasper.service.dto.TemplateDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 
@@ -42,6 +45,12 @@ public class TemplateController {
 
 	@Autowired
 	TemplateService templateService;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -124,7 +133,7 @@ public class TemplateController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return templateService.patch(tag, cursor, patch);
+		return templateService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -138,7 +147,7 @@ public class TemplateController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return templateService.patch(tag, cursor, patch);
+		return templateService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

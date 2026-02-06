@@ -1,8 +1,8 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 import com.unboundid.scim2.common.types.Email;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.ScimClient;
@@ -45,7 +45,7 @@ public class ProfileManagerScim implements ProfileManager {
 	AccessToken accessToken;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Override
 	@Timed(value = "jasper.scim", histogram = true)
@@ -68,8 +68,8 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	private ObjectNode getClaims(String[] roles) {
-		var claims = objectMapper.createObjectNode();
-		return claims.set(auth.security().getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
+		var claims = jsonMapper.createObjectNode();
+		return claims.set(auth.security().getAuthoritiesClaim(), new StringNode(String.join(",", roles)));
 	}
 
 	private String[] getRoles(ScimUserResource user) {
@@ -105,7 +105,7 @@ public class ProfileManagerScim implements ProfileManager {
 	}
 
 	private ScimUserResource _getUser(String userName) {
-		return objectMapper.convertValue(
+		return jsonMapper.convertValue(
 			scimClient.getUser(baseUri(), accessToken.getAdminToken(), userName).getResources().get(0),
 			ScimUserResource.class);
 	}
@@ -118,7 +118,7 @@ public class ProfileManagerScim implements ProfileManager {
 			users.getResources(),
 			PageRequest.of(users.getStartIndex() - 1, users.getItemsPerPage()),
 			users.getTotalResults())
-			.map(m -> objectMapper.convertValue(m, ScimUserResource.class))
+			.map(m -> jsonMapper.convertValue(m, ScimUserResource.class))
 			.map(u -> mapUser(u));
 	}
 
@@ -161,7 +161,7 @@ public class ProfileManagerScim implements ProfileManager {
 		if (claims == null || claims.isNull()) {
 			claims = getClaims(roles);
 		} else {
-			claims.set(auth.security().getAuthoritiesClaim(), new TextNode(String.join(",", roles)));
+			claims.set(auth.security().getAuthoritiesClaim(), new StringNode(String.join(",", roles)));
 		}
 		var patch = ScimPatchOp.builder().operations(List.of(
 			ScimPatchOp.Operation.builder()

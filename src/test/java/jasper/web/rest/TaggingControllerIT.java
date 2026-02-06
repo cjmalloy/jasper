@@ -1,7 +1,6 @@
 package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
@@ -9,10 +8,13 @@ import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.service.TaggingService;
+import jasper.util.Jackson3PatchAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,7 +40,10 @@ public class TaggingControllerIT {
 	PluginRepository pluginRepository;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	private static final String URL = "https://www.example.com/";
 
@@ -66,9 +71,9 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -81,9 +86,9 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to replace the color
 		// RFC 7396: {"plugin/test": {"color": "red"}} replaces color field
 		var mergePatchJson = "{\"plugin/test\": {\"color\": \"red\"}}";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -103,9 +108,9 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\"}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\"}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -118,9 +123,9 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to add a new field
 		// RFC 7396: New fields are added to the object
 		var mergePatchJson = "{\"plugin/test\": {\"newField\": \"newValue\"}}";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -138,9 +143,9 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"optionalProperties": {
 				"color": { "type": "string" },
@@ -153,9 +158,9 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to delete the size field
 		// RFC 7396: null values delete fields
 		var mergePatchJson = "{\"plugin/test\": {\"size\": null}}";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -173,7 +178,7 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("""
+		var defaults = (ObjectNode) jsonMapper.readTree("""
 		{
 			"config": {
 				"theme": "dark",
@@ -181,7 +186,7 @@ public class TaggingControllerIT {
 			}
 		}""");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"config": {
@@ -198,9 +203,9 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to update nested field
 		// RFC 7396: Nested objects are merged recursively
 		var mergePatchJson = "{\"plugin/test\": {\"config\": {\"theme\": \"light\"}}}";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -219,8 +224,8 @@ public class TaggingControllerIT {
 		var plugin1 = new Plugin();
 		plugin1.setTag("plugin/test1");
 		plugin1.setOrigin("");
-		plugin1.setDefaults((ObjectNode) objectMapper.readTree("{\"value1\": \"a\"}"));
-		plugin1.setSchema((ObjectNode) objectMapper.readTree("""
+		plugin1.setDefaults((ObjectNode) jsonMapper.readTree("{\"value1\": \"a\"}"));
+		plugin1.setSchema((ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"value1": { "type": "string" }
@@ -231,8 +236,8 @@ public class TaggingControllerIT {
 		var plugin2 = new Plugin();
 		plugin2.setTag("plugin/test2");
 		plugin2.setOrigin("");
-		plugin2.setDefaults((ObjectNode) objectMapper.readTree("{\"value2\": \"b\"}"));
-		plugin2.setSchema((ObjectNode) objectMapper.readTree("""
+		plugin2.setDefaults((ObjectNode) jsonMapper.readTree("{\"value2\": \"b\"}"));
+		plugin2.setSchema((ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"value2": { "type": "string" }
@@ -246,9 +251,9 @@ public class TaggingControllerIT {
 			"plugin/test1": {"value1": "modified_a"},
 			"plugin/test2": {"value2": "modified_b"}
 		}""";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test1", "plugin/test2"), URL, patch);
+		taggingService.respond(List.of("plugin/test1", "plugin/test2"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -267,7 +272,7 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("""
+		var defaults = (ObjectNode) jsonMapper.readTree("""
 		{
 			"config": {
 				"theme": "dark",
@@ -275,7 +280,7 @@ public class TaggingControllerIT {
 			}
 		}""");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"optionalProperties": {
 				"config": {
@@ -302,9 +307,9 @@ public class TaggingControllerIT {
 				}
 			}
 		}""";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -325,9 +330,9 @@ public class TaggingControllerIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -339,9 +344,9 @@ public class TaggingControllerIT {
 
 		// Empty merge patch should leave defaults unchanged
 		var mergePatchJson = "{}";
-		var patch = objectMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();

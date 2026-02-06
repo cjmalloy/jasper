@@ -1,6 +1,6 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
@@ -69,7 +69,7 @@ public class Messages {
 	ComponentDtoMapper mapper;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	boolean ready = false;
 
@@ -171,14 +171,14 @@ public class Messages {
 	}
 
 	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
-		return objectMapper.convertValue(Map.of(
+		return jsonMapper.convertValue(Map.of(
 			"tag", deletorTag(tag),
 			"origin", origin
 		), type);
 	}
 
 	private Ref deleteNotice(Ref ref) {
-		return objectMapper.convertValue(Map.of(
+		return jsonMapper.convertValue(Map.of(
 			"url", ref.getUrl(),
 			"origin", ref.getOrigin(),
 			"tags", List.of("internal", "plugin/delete")

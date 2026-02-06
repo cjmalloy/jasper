@@ -1,7 +1,7 @@
 package jasper.repository;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jasper.domain.Plugin;
 import jasper.domain.TagId;
 import org.springframework.data.jpa.repository.JpaRepository;

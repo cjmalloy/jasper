@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,6 +15,7 @@ import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
 import jasper.service.dto.PluginDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 
@@ -42,6 +45,12 @@ public class PluginController {
 
 	@Autowired
 	PluginService pluginService;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -124,7 +133,7 @@ public class PluginController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonPatch patch
 	) {
-		return pluginService.patch(tag, cursor, patch);
+		return pluginService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -138,7 +147,7 @@ public class PluginController {
 		@RequestParam Instant cursor,
 		@RequestBody JsonMergePatch patch
 	) {
-		return pluginService.patch(tag, cursor, patch);
+		return pluginService.patch(tag, cursor, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({

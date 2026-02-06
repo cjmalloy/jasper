@@ -1,7 +1,6 @@
 package jasper.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.domain.Plugin;
@@ -9,11 +8,14 @@ import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import jasper.util.Jackson3PatchAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,7 +38,10 @@ public class TaggingServiceIT {
 	PluginRepository pluginRepository;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	static final String URL = "https://www.example.com/";
 
@@ -158,9 +163,9 @@ public class TaggingServiceIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -196,9 +201,9 @@ public class TaggingServiceIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\", \"size\": 10}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -210,9 +215,9 @@ public class TaggingServiceIT {
 
 		// Create a JSON patch to modify the plugin data
 		var patchJson = "[{\"op\": \"replace\", \"path\": \"/plugin~1test/color\", \"value\": \"red\"}]";
-		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -236,9 +241,9 @@ public class TaggingServiceIT {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");
 		plugin.setOrigin("");
-		var defaults = (ObjectNode) objectMapper.readTree("{\"color\": \"blue\"}");
+		var defaults = (ObjectNode) jsonMapper.readTree("{\"color\": \"blue\"}");
 		plugin.setDefaults(defaults);
-		var schema = (ObjectNode) objectMapper.readTree("""
+		var schema = (ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"color": { "type": "string" },
@@ -250,9 +255,9 @@ public class TaggingServiceIT {
 
 		// Create a JSON patch to add a new field
 		var patchJson = "[{\"op\": \"add\", \"path\": \"/plugin~1test/newField\", \"value\": \"newValue\"}]";
-		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
-		taggingService.respond(List.of("plugin/test"), URL, patch);
+		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
 		var responseUrl = "tag:/user/tester?url=" + URL;
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
@@ -270,9 +275,9 @@ public class TaggingServiceIT {
 
 		// Create an invalid JSON patch that references a non-existent path
 		var patchJson = "[{\"op\": \"replace\", \"path\": \"/nonexistent/field\", \"value\": \"test\"}]";
-		var patch = objectMapper.readValue(patchJson, JsonPatch.class);
+		var patch = jackson2ObjectMapper.readValue(patchJson, JsonPatch.class);
 
-		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper)))
 			.isInstanceOf(InvalidPatchException.class);
 	}
 
@@ -316,8 +321,8 @@ public class TaggingServiceIT {
 		var plugin1 = new Plugin();
 		plugin1.setTag("plugin/test1");
 		plugin1.setOrigin("");
-		plugin1.setDefaults((ObjectNode) objectMapper.readTree("{\"value1\": \"a\"}"));
-		plugin1.setSchema((ObjectNode) objectMapper.readTree("""
+		plugin1.setDefaults((ObjectNode) jsonMapper.readTree("{\"value1\": \"a\"}"));
+		plugin1.setSchema((ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"value1": { "type": "string" }
@@ -328,8 +333,8 @@ public class TaggingServiceIT {
 		var plugin2 = new Plugin();
 		plugin2.setTag("plugin/test2");
 		plugin2.setOrigin("");
-		plugin2.setDefaults((ObjectNode) objectMapper.readTree("{\"value2\": \"b\"}"));
-		plugin2.setSchema((ObjectNode) objectMapper.readTree("""
+		plugin2.setDefaults((ObjectNode) jsonMapper.readTree("{\"value2\": \"b\"}"));
+		plugin2.setSchema((ObjectNode) jsonMapper.readTree("""
 		{
 			"properties": {
 				"value2": { "type": "string" }

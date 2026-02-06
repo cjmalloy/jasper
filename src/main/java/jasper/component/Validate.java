@@ -1,10 +1,5 @@
 package jasper.component;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jsontypedef.jtd.JacksonAdapter;
 import com.jsontypedef.jtd.MaxDepthExceededException;
 import com.jsontypedef.jtd.Schema;
 import com.jsontypedef.jtd.Validator;
@@ -23,11 +18,16 @@ import jasper.errors.PublishDateException;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.TemplateDto;
+import jasper.util.Jackson3Adapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.NullNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -54,7 +54,7 @@ public class Validate {
 	Validator validator;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	ConfigCache configs;
@@ -124,7 +124,7 @@ public class Validate {
 			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
-		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
+		var schema = jsonMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
 				template(rootOrigin, schema, ext.getTag(), mergedDefaults);
@@ -154,10 +154,10 @@ public class Validate {
 		try {
 			switch (template.getTag()) {
 				case "_config/server":
-					objectMapper.convertValue(template.getConfig(), ServerConfig.class);
+					jsonMapper.convertValue(template.getConfig(), ServerConfig.class);
 					break;
 				case "_config/security":
-					objectMapper.convertValue(template.getConfig(), SecurityConfig.class);
+					jsonMapper.convertValue(template.getConfig(), SecurityConfig.class);
 					break;
 			}
 		} catch (Exception e) {
@@ -178,13 +178,13 @@ public class Validate {
 		if (template == null || template.isNull()) {
 			// Allow null to stand in for empty config
 			if (schema.getOptionalProperties() != null) {
-				template = objectMapper.createObjectNode();
+				template = jsonMapper.createObjectNode();
 			} else if (template == null) {
 				template = NullNode.getInstance();
 			}
 		}
 		try {
-			var errors = validator.validate(schema, new JacksonAdapter(template));
+			var errors = validator.validate(schema, new Jackson3Adapter(template));
 			for (var error : errors) {
 				logger.debug("{} Error validating template {}: {}", rootOrigin, tag, error);
 			}
@@ -207,7 +207,7 @@ public class Validate {
 		if (ref.getPlugins() != null) {
 			// Plugin fields must be tagged
 			var strip = new ArrayList<String>();
-			ref.getPlugins().fieldNames().forEachRemaining(field -> {
+			ref.getPlugins().propertyNames().forEach(field -> {
 				if (!ref.hasTag(field)) {
 					logger.debug("{} Plugin missing tag: {}", rootOrigin, field);
 					if (!stripOnError) throw new InvalidPluginException(field);
@@ -222,17 +222,17 @@ public class Validate {
 	}
 
 	ObjectNode merge(ObjectNode a, ObjectNode b) {
-		if (a == null && b == null) return objectMapper.createObjectNode();
+		if (a == null && b == null) return jsonMapper.createObjectNode();
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
 		if (!a.isObject() || !b.isObject()) return b.deepCopy();
-		b.fieldNames().forEachRemaining(field -> {
-			var aNode = a.get(field);
-			var bNode = b.get(field);
+		b.forEachEntry((k, _) -> {
+			var aNode = a.get(k);
+			var bNode = b.get(k);
 			if (aNode != null && aNode.isObject() && bNode.isObject()) {
 				merge((ObjectNode) aNode, (ObjectNode) bNode);
 			} else {
-				a.set(field, bNode.deepCopy());
+				a.set(k, bNode.deepCopy());
 			}
 		});
 		return a;
@@ -255,7 +255,7 @@ public class Validate {
 			ref.setPlugin(tag, defaults);
 			stripOnError = true;
 		}
-		var schema = objectMapper.convertValue(plugin.get().getSchema(), Schema.class);
+		var schema = jsonMapper.convertValue(plugin.get().getSchema(), Schema.class);
 		if (stripOnError) {
 			try {
 				plugin(rootOrigin, schema, tag, defaults);
@@ -290,7 +290,7 @@ public class Validate {
 	}
 
 	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
-		var result = objectMapper.getNodeFactory().objectNode();
+		var result = jsonMapper.getNodeFactory().objectNode();
 		for (var tag : expandTags(ref.getTags())) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
@@ -305,15 +305,15 @@ public class Validate {
 		if (plugin == null || plugin.isNull()) {
 			// Allow null to stand in for empty objects or arrays
 			if (schema.getOptionalProperties() != null) {
-				plugin = objectMapper.createObjectNode();
+				plugin = jsonMapper.createObjectNode();
 			} else if (schema.getElements() != null) {
-				plugin = objectMapper.createArrayNode();
+				plugin = jsonMapper.createArrayNode();
 			} else if (plugin == null) {
 				plugin = NullNode.getInstance();
 			}
 		}
 		try {
-			var errors = validator.validate(schema, new JacksonAdapter(plugin));
+			var errors = validator.validate(schema, new Jackson3Adapter(plugin));
 			for (var error : errors) {
 				logger.debug("{} Error validating plugin {}: {}", rootOrigin, tag, error);
 			}

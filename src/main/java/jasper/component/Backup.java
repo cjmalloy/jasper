@@ -1,7 +1,7 @@
 package jasper.component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import jakarta.persistence.EntityManager;
@@ -69,7 +69,7 @@ public class Backup {
 	TemplateRepository templateRepository;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Autowired
 	EntityManager entityManager;
@@ -136,7 +136,7 @@ public class Backup {
 					if (firstElementProcessed.getAndSet(true)) {
 						buf.append(",\n");
 					}
-					buf.append(objectMapper.writeValueAsString(entity));
+					buf.append(jsonMapper.writeValueAsString(entity));
 					if (buf.length() > buffSize) {
 						logger.debug("Flushing buffer {} bytes", buf.length());
 						StreamUtils.copy(buf.toString().getBytes(), out);
@@ -236,7 +236,7 @@ public class Backup {
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
 		if (file == null) return; // Silently ignore missing files
 		var done = new AtomicBoolean(false);
-		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
+		var it = new JsonArrayStreamDataSupplier<>(file, type, jsonMapper);
 		int count = 0;
 		try {
 			while (!done.get()) {
@@ -256,8 +256,8 @@ public class Backup {
 							repo.save(t);
 						} catch (Exception e) {
 							try {
-								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
-							} catch (JsonProcessingException ex) {
+								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), jsonMapper.writeValueAsString(t), e);
+							} catch (JacksonException ex) {
 								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), type, e);
 							}
 						}

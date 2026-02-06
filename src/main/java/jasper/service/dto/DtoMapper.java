@@ -1,6 +1,6 @@
 package jasper.service.dto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jasper.component.Storage;
 import jasper.domain.Ext;
 import jasper.domain.External;
@@ -34,7 +34,7 @@ public abstract class DtoMapper {
 	Auth auth;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
 	@Mapping(target = "metadata.userUrls", ignore = true)
 	public abstract RefDto domainToDto(Ref ref);
@@ -65,8 +65,8 @@ public abstract class DtoMapper {
 	@AfterMapping
 	protected void filterPlugins(@MappingTarget HasTags ref) {
 		if (ref.getPlugins() == null) return;
-		var filteredPlugins = objectMapper.createObjectNode();
-		ref.getPlugins().fieldNames().forEachRemaining(tag -> {
+		var filteredPlugins = jsonMapper.createObjectNode();
+		ref.getPlugins().propertyNames().forEach(tag -> {
 			if (auth.canReadTag(tag + auth.getOrigin())) filteredPlugins.set(tag, ref.getPlugins().get(tag));
 		});
 		if (filteredPlugins.isEmpty()) {

@@ -1,5 +1,6 @@
 package jasper.web.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,6 +14,7 @@ import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.service.TaggingService;
 import jasper.service.dto.RefDto;
+import jasper.util.Jackson3PatchAdapter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.List;
@@ -48,6 +51,12 @@ public class TaggingController {
 
 	@Autowired
 	TaggingService taggingService;
+
+	@Autowired
+	JsonMapper jsonMapper;
+
+	@Autowired
+	ObjectMapper jackson2ObjectMapper;
 
 	@Autowired
 	HttpCache httpCache;
@@ -151,7 +160,7 @@ public class TaggingController {
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestBody JsonPatch patch
 	) {
-		taggingService.respond(tags, url, patch);
+		taggingService.respond(tags, url, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 
 	@ApiResponses({
@@ -165,6 +174,6 @@ public class TaggingController {
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestBody JsonMergePatch patch
 	) {
-		taggingService.respond(tags, url, patch);
+		taggingService.respond(tags, url, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 	}
 }
