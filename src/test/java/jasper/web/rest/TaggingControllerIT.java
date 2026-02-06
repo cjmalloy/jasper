@@ -86,7 +86,7 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to replace the color
 		// RFC 7396: {"plugin/test": {"color": "red"}} replaces color field
 		var mergePatchJson = "{\"plugin/test\": {\"color\": \"red\"}}";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -123,7 +123,7 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to add a new field
 		// RFC 7396: New fields are added to the object
 		var mergePatchJson = "{\"plugin/test\": {\"newField\": \"newValue\"}}";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -158,7 +158,7 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to delete the size field
 		// RFC 7396: null values delete fields
 		var mergePatchJson = "{\"plugin/test\": {\"size\": null}}";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -203,7 +203,7 @@ public class TaggingControllerIT {
 		// Create a JSON Merge Patch to update nested field
 		// RFC 7396: Nested objects are merged recursively
 		var mergePatchJson = "{\"plugin/test\": {\"config\": {\"theme\": \"light\"}}}";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -251,7 +251,7 @@ public class TaggingControllerIT {
 			"plugin/test1": {"value1": "modified_a"},
 			"plugin/test2": {"value2": "modified_b"}
 		}""";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test1", "plugin/test2"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -307,7 +307,7 @@ public class TaggingControllerIT {
 				}
 			}
 		}""";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
@@ -344,7 +344,7 @@ public class TaggingControllerIT {
 
 		// Empty merge patch should leave defaults unchanged
 		var mergePatchJson = "{}";
-		var patch = jsonMapper.readValue(mergePatchJson, JsonMergePatch.class);
+		var patch = jackson2ObjectMapper.readValue(mergePatchJson, JsonMergePatch.class);
 
 		taggingService.respond(List.of("plugin/test"), URL, new Jackson3PatchAdapter(patch, jsonMapper, jackson2ObjectMapper));
 
