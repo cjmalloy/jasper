@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -53,7 +55,7 @@ public class IngestPlugin {
 	PlatformTransactionManager transactionManager;
 
 	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
+	JsonMapper jsonMapper;
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -160,7 +162,7 @@ public class IngestPlugin {
 						serializedConfig = plugin.getConfig() == null ? null : jsonMapper.writeValueAsString(plugin.getConfig());
 						serializedSchema = plugin.getSchema() == null ? null : jsonMapper.writeValueAsString(plugin.getSchema());
 						serializedDefaults = plugin.getDefaults() == null ? null : jsonMapper.writeValueAsString(plugin.getDefaults());
-					} catch (Exception e) {
+					} catch (JacksonException e) {
 						throw new RuntimeException("Failed to serialize JSON fields", e);
 					}
 					var updated = pluginRepository.optimisticUpdate(

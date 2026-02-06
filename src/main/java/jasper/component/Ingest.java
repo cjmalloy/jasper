@@ -24,6 +24,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -60,7 +62,7 @@ public class Ingest {
 	PlatformTransactionManager transactionManager;
 
 	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
+	JsonMapper jsonMapper;
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -219,7 +221,7 @@ public class Ingest {
 						serializedAlternateUrls = ref.getAlternateUrls() == null ? null : jsonMapper.writeValueAsString(ref.getAlternateUrls());
 						serializedPlugins = ref.getPlugins() == null ? null : jsonMapper.writeValueAsString(ref.getPlugins());
 						serializedMetadata = ref.getMetadata() == null ? null : jsonMapper.writeValueAsString(ref.getMetadata());
-					} catch (Exception e) {
+					} catch (JacksonException e) {
 						throw new RuntimeException("Failed to serialize JSON fields", e);
 					}
 					var updated = refRepository.optimisticUpdate(
@@ -261,16 +263,26 @@ public class Ingest {
 
 	void pushUniqueModified(Ref ref) {
 		try {
+			String serializedTags = null, serializedSources = null, serializedAlternateUrls = null, serializedPlugins = null, serializedMetadata = null;
+			try {
+				serializedTags = ref.getTags() == null ? null : jsonMapper.writeValueAsString(ref.getTags());
+				serializedSources = ref.getSources() == null ? null : jsonMapper.writeValueAsString(ref.getSources());
+				serializedAlternateUrls = ref.getAlternateUrls() == null ? null : jsonMapper.writeValueAsString(ref.getAlternateUrls());
+				serializedPlugins = ref.getPlugins() == null ? null : jsonMapper.writeValueAsString(ref.getPlugins());
+				serializedMetadata = ref.getMetadata() == null ? null : jsonMapper.writeValueAsString(ref.getMetadata());
+			} catch (JacksonException e) {
+				throw new RuntimeException("Failed to serialize JSON fields for pushAsyncMetadata", e);
+			}
 			var updated = refRepository.pushAsyncMetadata(
 				ref.getUrl(),
 				ref.getOrigin(),
 				ref.getTitle(),
 				ref.getComment(),
-				ref.getTags(),
-				ref.getSources(),
-				ref.getAlternateUrls(),
-				ref.getPlugins(),
-				ref.getMetadata(),
+				serializedTags,
+				serializedSources,
+				serializedAlternateUrls,
+				serializedPlugins,
+				serializedMetadata,
 				ref.getPublished(),
 				ref.getModified());
 			if (updated == 0) {

@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -53,7 +55,7 @@ public class IngestExt {
 	PlatformTransactionManager transactionManager;
 
 	@Autowired
-	tools.jackson.databind.json.JsonMapper jsonMapper;
+	JsonMapper jsonMapper;
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -141,7 +143,7 @@ public class IngestExt {
 					String serializedConfig = null;
 					try {
 						serializedConfig = ext.getConfig() == null ? null : jsonMapper.writeValueAsString(ext.getConfig());
-					} catch (Exception e) {
+					} catch (JacksonException e) {
 						throw new RuntimeException("Failed to serialize config", e);
 					}
 					var updated = extRepository.optimisticUpdate(

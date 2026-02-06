@@ -56,31 +56,31 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		Instant modified);
 
 	@Transactional
-	@Modifying
-	@Query("""
-		UPDATE Ref SET
+	@Modifying(clearAutomatically = true)
+	@Query(value = """
+		UPDATE ref SET
 			title = :title,
 			comment = :comment,
-			tags = :tags,
-			sources = :sources,
-			alternateUrls = :alternateUrls,
-			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			tags = CAST(:tags AS jsonb),
+			sources = CAST(:sources AS jsonb),
+			alternate_urls = CAST(:alternateUrls AS jsonb),
+			plugins = CAST(:plugins AS jsonb),
+			metadata = jsonb_concat(COALESCE(metadata, CAST('{}' AS jsonb)), CAST(:partialMetadata AS jsonb)),
 			published = :published,
 			modified = :modified
 		WHERE
 			url = :url AND
-			origin = :origin""")
+			origin = :origin""", nativeQuery = true)
 	int pushAsyncMetadata(
 		String url,
 		String origin,
 		String title,
 		String comment,
-		List<String> tags,
-		List<String> sources,
-		List<String> alternateUrls,
-		ObjectNode plugins,
-		Metadata partialMetadata,
+		String tags,
+		String sources,
+		String alternateUrls,
+		String plugins,
+		String partialMetadata,
 		Instant published,
 		Instant modified);
 
