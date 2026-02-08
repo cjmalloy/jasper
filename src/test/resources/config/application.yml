@@ -100,6 +100,11 @@ jasper:
   storage: /tmp/jasper
   cache-api: ''
   override:
+    server:
+      web-origins:
+        - ''
+        - '@a'
+        - '@b'
     security:
       mode: 'jwt'
       clientId: ''

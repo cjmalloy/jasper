@@ -137,4 +137,59 @@ class RefControllerIT {
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
 	}
+
+	@Test
+	void testCreateRefWithLocalOriginHeaderShouldSucceed() throws Exception {
+		// Test that creating a Ref with Local-Origin header matching the ref origin succeeds
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setTags(List.of("public"));
+
+		mockMvc
+			.perform(post("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isCreated());
+	}
+
+	@Test
+	void testCreateRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// Test that creating a Ref with origin @b when Local-Origin is @a is rejected
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(List.of("public"));
+
+		mockMvc
+			.perform(post("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void testUpdateRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to update with Local-Origin @a but ref origin @b
+		ref.setTags(new ArrayList<>(List.of("public", "test")));
+
+		mockMvc
+			.perform(put("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+	}
 }
