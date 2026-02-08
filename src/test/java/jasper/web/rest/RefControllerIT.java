@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -153,6 +154,8 @@ class RefControllerIT {
 				.header("Local-Origin", "@a")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.count()).isZero();
 	}
 
 	@Test
@@ -170,6 +173,8 @@ class RefControllerIT {
 				.header("Local-Origin", "@a.b")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.count()).isZero();
 	}
 
 	@Test
@@ -191,5 +196,9 @@ class RefControllerIT {
 				.header("Local-Origin", "@a")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		var existing = refRepository.findOneByUrlAndOrigin(URL, "@b");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getTags()).containsExactly("public");
 	}
 }

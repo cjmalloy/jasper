@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -53,6 +54,8 @@ class UserControllerIT {
 				.header("Local-Origin", "@a")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		assertThat(userRepository.count()).isZero();
 	}
 
 	@Test
@@ -69,6 +72,8 @@ class UserControllerIT {
 				.header("Local-Origin", "@a.b")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		assertThat(userRepository.count()).isZero();
 	}
 
 	@Test
@@ -88,5 +93,9 @@ class UserControllerIT {
 				.header("Local-Origin", "@a")
 				.with(csrf().asHeader()))
 			.andExpect(status().isForbidden());
+
+		var existing = userRepository.findOneByQualifiedTag("+user/test@b");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getRole()).isEqualTo("ROLE_USER");
 	}
 }
