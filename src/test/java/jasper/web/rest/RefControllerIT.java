@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
+@TestPropertySource(properties = "jasper.default-role=ROLE_ADMIN")
 class RefControllerIT {
 
 	@Autowired
