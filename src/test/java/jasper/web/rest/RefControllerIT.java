@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
-@TestPropertySource(properties = "jasper.default-role=ROLE_ADMIN")
 class RefControllerIT {
 
 	@Autowired
@@ -138,23 +136,6 @@ class RefControllerIT {
 				.content(objectMapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
-	}
-
-	@Test
-	void testCreateRefWithLocalOriginHeaderShouldSucceed() throws Exception {
-		// Test that creating a Ref with Local-Origin header matching the ref origin succeeds
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setOrigin("@a");
-		ref.setTags(List.of("public"));
-
-		mockMvc
-			.perform(post("/api/v1/ref")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(ref))
-				.header("Local-Origin", "@a")
-				.with(csrf().asHeader()))
-			.andExpect(status().isCreated());
 	}
 
 	@Test

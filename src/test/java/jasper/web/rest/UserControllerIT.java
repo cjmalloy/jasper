@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -24,7 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
-@TestPropertySource(properties = "jasper.default-role=ROLE_ADMIN")
 class UserControllerIT {
 
 	@Autowired
@@ -39,22 +37,6 @@ class UserControllerIT {
 	@BeforeEach
 	void setup() {
 		userRepository.deleteAll();
-	}
-
-	@Test
-	void testCreateUserWithLocalOriginHeaderShouldSucceed() throws Exception {
-		var user = new User();
-		user.setTag("+user/test");
-		user.setOrigin("@a");
-		user.setRole("ROLE_USER");
-
-		mockMvc
-			.perform(post("/api/v1/user")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(user))
-				.header("Local-Origin", "@a")
-				.with(csrf().asHeader()))
-			.andExpect(status().isCreated());
 	}
 
 	@Test

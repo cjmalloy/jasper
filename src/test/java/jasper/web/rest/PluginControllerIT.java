@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -24,7 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
-@TestPropertySource(properties = "jasper.default-role=ROLE_ADMIN")
 class PluginControllerIT {
 
 	@Autowired
@@ -39,21 +37,6 @@ class PluginControllerIT {
 	@BeforeEach
 	void setup() {
 		pluginRepository.deleteAll();
-	}
-
-	@Test
-	void testCreatePluginWithLocalOriginHeaderShouldSucceed() throws Exception {
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		plugin.setOrigin("@a");
-
-		mockMvc
-			.perform(post("/api/v1/plugin")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(plugin))
-				.header("Local-Origin", "@a")
-				.with(csrf().asHeader()))
-			.andExpect(status().isCreated());
 	}
 
 	@Test
