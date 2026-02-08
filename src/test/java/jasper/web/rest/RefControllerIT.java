@@ -173,6 +173,23 @@ class RefControllerIT {
 	}
 
 	@Test
+	void testCreateRefWithParentOriginFromSubOriginShouldFail() throws Exception {
+		// Test that creating a Ref with origin @a when Local-Origin is @a.b is rejected
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setTags(List.of("public"));
+
+		mockMvc
+			.perform(post("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a.b")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void testUpdateRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
 		// First create a valid ref at origin @b
 		var ref = new Ref();

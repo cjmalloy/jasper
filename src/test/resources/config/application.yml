@@ -104,6 +104,7 @@ jasper:
       web-origins:
         - ''
         - '@a'
+        - '@a.b'
         - '@b'
     security:
       mode: 'jwt'
