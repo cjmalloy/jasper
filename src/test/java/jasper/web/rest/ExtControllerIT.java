@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration tests for {@link ExtController}.
  * Tests cross-origin write prevention with Local-Origin header.
  */
-@WithMockUser(value = "+user/tester", roles = {"ADMIN"})
+@WithMockUser(value = "+user/tester@a", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
 class ExtControllerIT {

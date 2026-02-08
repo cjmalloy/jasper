@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration tests for {@link RefController}.
  * Tests validation of fully qualified tags in Ref operations.
  */
-@WithMockUser(value = "+user/tester", roles = {"ADMIN"})
+@WithMockUser(value = "+user/tester@a", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
 class RefControllerIT {
