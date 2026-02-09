@@ -171,8 +171,7 @@ public class ProxyController {
 	private void streamContent(InputStream is, OutputStream outputStream, long skip, Long length) throws IOException {
 		try (is) {
 			if (skip > 0) {
-				var skipped = is.skip(skip);
-				if (skipped < skip) throw new IOException("Could not skip to range start");
+				is.skipNBytes(skip);
 			}
 			var buffer = new byte[64 * 1024];
 			int bytesRead;
