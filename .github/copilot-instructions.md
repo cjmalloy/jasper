@@ -28,16 +28,16 @@ This project uses **Spring Boot 4.0.2** which requires **Java 21 or higher**. Th
 ### Alternative - Docker Build:
 
 - **Docker Build**: `docker build -t jasper .`
-  - **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed)
-  - Workaround: Use `--network=host` flag or local build with Java 25
+  - **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed) in some environments due to the Java truststore in the Docker base image. This does not affect GitHub Actions CI.
+  - Workaround: Use local build with Java 25 instead
 
 ### Quick Decision Guide
 
 | Your Situation | Build Approach | Steps |
 |----------------|----------------|-------|
 | **Most common (Java 25 available)** | **Use Java 25 directly (RECOMMENDED)** | 1. `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`<br>2. `export PATH=$JAVA_HOME/bin:$PATH`<br>3. `./mvnw clean package` |
-| Docker available | Use Docker (may have certificate issues) | `docker build -t jasper .` or `docker build --network=host -t jasper .` |
-| Java 21 available (fallback) | Use Java 21 | `export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64` then build |
+| Docker available | Use Docker (may have PKIX cert issues locally) | `docker build -t jasper .` |
+| Java 21 available (fallback) | Use Java 21 with version override | `export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64` then build with `-Djava.version=21` |
 
 **Local Development with Java 25 (RECOMMENDED):**
 - Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`
@@ -48,18 +48,18 @@ This project uses **Spring Boot 4.0.2** which requires **Java 21 or higher**. Th
 - Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 
 **Docker-Based Build (Alternative):**
-- Build with Docker: `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
-- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
-- Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
+- Build with Docker: `docker build -t jasper .` -- takes ~2 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes ~2 minutes. Set timeout to 600+ seconds.
+- Build test stage: `docker build --target test -t jasper-test .` -- takes ~5 minutes. Set timeout to 600+ seconds.
 - Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
 - **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
-- **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed). Use `--network=host` flag or retry.
+- **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed) in some local environments. This is caused by the Java truststore in the Docker base image not trusting Maven Central certificates. The `--network=host` flag does NOT fix this. Use local Java 25 Maven build instead if this occurs.
 
 **Fallback - Use Java 21 (if Java 25 not available):**
 - Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
 - Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` (or `/usr/lib/jvm/temurin-21-jdk-amd64` if using Temurin)
 - Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
-- Build commands are the same as the local Java 25 section above.
+- **Important**: Since pom.xml targets Java 25, you must add `-Djava.version=21` to all Maven commands. Example: `./mvnw clean compile -Djava.version=21`
 
 ## Running the Application
 
@@ -76,14 +76,14 @@ ALWAYS run the bootstrapping steps first.
 - Health check: `curl http://localhost:8081/management/health`
 
 **Production Build:**
-- Build Docker image: `docker build -t jasper .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Test Docker build: `docker build --target test -t jasper-test .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
+- Build Docker image: `docker build -t jasper .` -- takes ~2 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- Test Docker build: `docker build --target test -t jasper-test .` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
 
 ## Testing
 
 **Unit and Integration Tests:**
 - **Local (Recommended)**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- **Docker-based**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 3600+ seconds.
+- **Docker-based**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
 - Note: Some tests require Bun and Python dependencies to pass completely
 - Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
 
@@ -158,12 +158,12 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
   1. `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
   2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
   3. `export PATH=$JAVA_HOME/bin:$PATH`
-  4. Build: `./mvnw clean package`
+  4. Build: `./mvnw clean package -Djava.version=21` (the `-Djava.version=21` flag is required since pom.xml targets Java 25)
 - **Why not change to Java 17?**: Spring Boot 4.0.2 requires Java 21 minimum - changing pom.xml to Java 17 will not work
-  - **Alternative**: Use Docker build `docker build -t jasper .` (but may have certificate issues)
+  - **Alternative**: Use Docker build `docker build -t jasper .` (but may have PKIX certificate issues in some environments)
 
 **Other Common Issues:**
-- **Docker certificate error ("PKIX path building failed")**: Use local Java 25 Maven build instead (see above), or retry with `--network=host` flag.
+- **Docker certificate error ("PKIX path building failed")**: This is caused by the Java truststore in the Docker base image not trusting Maven Central certificates. The `--network=host` flag does NOT fix this. Use local Java 25 Maven build instead (see above). Note: This issue does not affect GitHub Actions CI.
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
@@ -171,11 +171,11 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 - If Docker build fails: Ensure Docker has enough disk space (`docker system prune -a` to clean up)
 
 **Performance Notes:**
-- **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
-- Compilation alone: ~11 seconds (local) or ~2-5 minutes (Docker with dependencies)
-- Full test suite: ~85 seconds (local) or ~45 minutes (Docker full build)
-- Docker build (all stages): 45+ minutes
-- Docker build (builder stage only): 10-15 minutes
+- **NEVER CANCEL** builds or tests
+- Compilation alone: ~17 seconds (local, cached) or ~2 minutes (Docker)
+- Full test suite: ~85 seconds (local) or ~5 minutes (Docker)
+- Docker build (all stages): ~2 minutes
+- Docker build (builder stage only): ~2 minutes
 - Gatling load tests: ~27 seconds
 - Application startup: ~22 seconds
 
