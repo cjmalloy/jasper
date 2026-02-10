@@ -172,7 +172,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Performance Notes:**
 - **NEVER CANCEL** builds or tests
-- Compilation alone: ~17 seconds (local, cached) or ~2 minutes (Docker)
+- Compilation alone: ~11 seconds (local, cached) or ~2-5 minutes (Docker with dependencies)
 - Full test suite: ~85 seconds (local) or ~5 minutes (Docker)
 - Docker build (all stages): ~2 minutes
 - Docker build (builder stage only): ~2 minutes
