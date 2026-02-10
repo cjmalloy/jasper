@@ -365,7 +365,7 @@ jobs:
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
-            comment += `📈 [View detailed performance reports](${url})\n\n`;
+            comment += `📈 <a href="${url}" target="_blank">View detailed performance reports</a>\n\n`;
             
             // Add marker to identify our comment
             comment += `<!-- gatling-results-comment -->`;

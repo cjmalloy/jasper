@@ -125,7 +125,7 @@ jobs:
             
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/junit-reports-pr-${context.issue.number}/`;
-            comment += `📊 [View detailed test report](${url})\n\n`;
+            comment += `📊 <a href="${url}" target="_blank">View detailed test report</a>\n\n`;
             
             // If there are failures, try to extract failure details
             if (hasFailures) {

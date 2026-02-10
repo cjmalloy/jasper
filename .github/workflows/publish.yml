@@ -106,7 +106,7 @@ jobs:
         with:
           # language=JavaScript
           script: |
-            const body = 'Built docker image: https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}\n\n<!-- publish-results-comment -->';
+            const body = 'Built docker image: <a href="https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}" target="_blank">https://github.com/${{ github.repository }}/pkgs/container/jasper/pr-${{ github.event.number }}</a>\n\n<!-- publish-results-comment -->';
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
