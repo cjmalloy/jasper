@@ -8,7 +8,7 @@ Bootstrap, build, and test the repository:
 
 **⚠️ CRITICAL: Java Version Requirement**
 
-This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
+This project uses **Spring Boot 4.0.2** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
 
 **Java 25 is now available in the build environment!**
 
@@ -28,28 +28,18 @@ This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. Th
 ### Alternative - Docker Build:
 
 - **Docker Build**: `docker build -t jasper .`
-  - **⚠️ Known Issue**: Docker builds currently fail with certificate errors (PKIX path building failed)
-  - Workaround: Use `--network=host` flag or local build with Java 25
+  - **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed) in some environments due to the Java truststore in the Docker base image. This does not affect GitHub Actions CI.
+  - Workaround: Use local build with Java 25 instead
 
 ### Quick Decision Guide
 
 | Your Situation | Build Approach | Steps |
 |----------------|----------------|-------|
-| **Most common (Java 25 available)** | **Use Java 25 directly (RECOMMENDED - works on first try)** | 1. `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`<br>2. `export PATH=$JAVA_HOME/bin:$PATH`<br>3. `./mvnw clean package` |
-| Docker available | Use Docker (has certificate issues) | `docker build -t jasper .` or `docker build --network=host -t jasper .` |
-| Java 21 available (fallback) | Use Java 21 | `export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64` then build |
+| **Most common (Java 25 available)** | **Use Java 25 directly (RECOMMENDED)** | 1. `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`<br>2. `export PATH=$JAVA_HOME/bin:$PATH`<br>3. `./mvnw clean package` |
+| Docker available | Use Docker (may have PKIX cert issues locally) | `docker build -t jasper .` |
+| Java 21 available (fallback) | Use Java 21 with version override | `export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64` then build with `-Djava.version=21` |
 
-**Docker-Based Build (Alternative - currently has certificate issues):**
-- **⚠️ Known Issue**: Docker builds fail with certificate errors (PKIX path building failed) when Maven downloads dependencies
-- Build with Docker (handles Java 25 and dependencies): `docker build -t jasper .` -- takes 45+ minutes for full build. NEVER CANCEL. Set timeout to 3600+ seconds.
-- If certificate errors occur, try: `docker build --network=host -t jasper .`
-- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes 10-15 minutes. Set timeout to 1200+ seconds.
-- Build test stage: `docker build --target test -t jasper-test .` -- takes 45+ minutes. Set timeout to 3600+ seconds.
-- Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
-- **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
-- **Recommendation**: Use local Java 25 build instead (more reliable)
-
-**Local Development with Java 25 (RECOMMENDED - works on first try):**
+**Local Development with Java 25 (RECOMMENDED):**
 - Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`
 - Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
 - Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
@@ -57,14 +47,19 @@ This project uses **Spring Boot 4.0.0** which requires **Java 21 or higher**. Th
 - Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
 - Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 
+**Docker-Based Build (Alternative):**
+- Build with Docker: `docker build -t jasper .` -- takes ~2 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- Build builder stage only: `docker build --target builder -t jasper-builder .` -- takes ~2 minutes. Set timeout to 600+ seconds.
+- Build test stage: `docker build --target test -t jasper-test .` -- takes ~5 minutes. Set timeout to 600+ seconds.
+- Run tests in Docker: `docker run --rm jasper-test` -- executes test suite in container
+- **Efficient log reading**: Pipe output through `tail -100` or `tee build.log` to efficiently read Docker build logs
+- **⚠️ Known Issue**: Docker builds may fail with certificate errors (PKIX path building failed) in some local environments. This is caused by the Java truststore in the Docker base image not trusting Maven Central certificates. The `--network=host` flag does NOT fix this. Use local Java 25 Maven build instead if this occurs.
+
 **Fallback - Use Java 21 (if Java 25 not available):**
 - Install Java 21: `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
 - Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` (or `/usr/lib/jvm/temurin-21-jdk-amd64` if using Temurin)
 - Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
-- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
-- Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
-- Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
+- **Important**: Since pom.xml targets Java 25, you must add `-Djava.version=21` to all Maven commands. Example: `./mvnw clean compile -Djava.version=21`
 
 ## Running the Application
 
@@ -81,14 +76,14 @@ ALWAYS run the bootstrapping steps first.
 - Health check: `curl http://localhost:8081/management/health`
 
 **Production Build:**
-- Build Docker image: `docker build -t jasper .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
-- Test Docker build: `docker build --target test -t jasper-test .` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 90+ minutes.
+- Build Docker image: `docker build -t jasper .` -- takes ~2 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- Test Docker build: `docker build --target test -t jasper-test .` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
 
 ## Testing
 
 **Unit and Integration Tests:**
-- **Docker-based (Recommended)**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes 45+ minutes. NEVER CANCEL. Set timeout to 3600+ seconds.
-- **Local**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- **Local (Recommended)**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
+- **Docker-based**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
 - Note: Some tests require Bun and Python dependencies to pass completely
 - Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
 
@@ -96,7 +91,6 @@ ALWAYS run the bootstrapping steps first.
 When building with Docker, use these techniques to efficiently read logs:
 - Tail output: `docker build -t jasper . 2>&1 | tail -100` -- shows last 100 lines
 - Save to file: `docker build -t jasper . 2>&1 | tee build.log` -- saves full log while showing output
-- Check specific stage: `docker build --target builder -t jasper-builder . 2>&1 | tail -50` -- faster feedback on build stage
 - Progress mode: `docker build --progress=plain -t jasper .` -- shows all build output without fancy formatting
 
 **Load Testing with Gatling:**
@@ -109,9 +103,14 @@ When building with Docker, use these techniques to efficiently read logs:
 - **When adding new Gatling simulations**: ALWAYS update `.github/workflows/gatling.yml` to include the new test in the CI pipeline. Add a new step following the pattern of existing tests (e.g., `GATLING_TEST=YourNewTest`)
 
 **GitHub Actions Integration:**
-- Build workflow: `.github/workflows/test.yml` runs full Docker build and test suite
+- Build/test workflow: `.github/workflows/test.yml` runs full Docker build and test suite
 - Load test workflow: `.github/workflows/gatling.yml` runs Gatling performance tests
-- Both workflows run on push to master and pull requests
+- CodeQL analysis: `.github/workflows/codeql.yml` runs static security analysis
+- Docker publish: `.github/workflows/publish.yml` builds and publishes Docker images to GHCR
+- Release: `.github/workflows/release.yml` creates draft GitHub releases with JAR artifacts
+- GitHub Pages: `.github/workflows/pages.yml` deploys test reports and documentation
+- Cleanup: `.github/workflows/cleanup.yml` removes stale PR caches and artifacts
+- Build and test workflows run on push to master and pull requests
 
 ## Validation
 
@@ -141,10 +140,10 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Development Workflow:**
 1. Make code changes
-2. **Quick validation with Docker**: `docker build --target builder -t jasper-builder . 2>&1 | tail -30` -- validates compilation
+2. **Quick validation** (local): `./mvnw clean compile` -- validates compilation in ~11 seconds
 3. **Run specific test class** (local): `./mvnw test -Dtest=YourTestClass`
 4. **Run application for manual testing**: See "Running the Application" section
-5. **Full test suite before committing**: `docker build --target test -t jasper-test . && docker run --rm jasper-test`
+5. **Full test suite before committing**: `./mvnw clean package` -- ~85 seconds (or Docker: `docker build --target test -t jasper-test . && docker run --rm jasper-test`)
 
 **Troubleshooting:**
 
@@ -159,16 +158,12 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
   1. `sudo apt-get update && sudo apt-get install -y openjdk-21-jdk`
   2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
   3. `export PATH=$JAVA_HOME/bin:$PATH`
-  4. Build: `./mvnw clean package`
-- **Why not change to Java 17?**: Spring Boot 4.0.0 requires Java 21 minimum - changing pom.xml to Java 17 will not work
-- **Alternative**: Use Docker build `docker build -t jasper .` (but may have certificate issues)
+  4. Build: `./mvnw clean package -Djava.version=21` (the `-Djava.version=21` flag is required since pom.xml targets Java 25)
+- **Why not change to Java 17?**: Spring Boot 4.0.2 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+  - **Alternative**: Use Docker build `docker build -t jasper .` (but may have PKIX certificate issues in some environments)
 
 **Other Common Issues:**
-- **Docker certificate error ("PKIX path building failed")**: The Docker build fails with SSL certificate validation errors when downloading Maven dependencies. This is a known issue with the Java Docker images.
-  - **Working Solution**: Use Java 25 locally and Maven build (see above) - bypasses Docker entirely
-  - **Workaround 2**: The certificate issue is intermittent - retry the Docker build
-  - **Workaround 3**: Use `--network=host` flag: `docker build --network=host -t jasper .`
-  - **Root cause**: Java runtime in Docker container doesn't trust Maven Central certificates
+- **Docker certificate error ("PKIX path building failed")**: This is caused by the Java truststore in the Docker base image not trusting Maven Central certificates. The `--network=host` flag does NOT fix this. Use local Java 25 Maven build instead (see above). Note: This issue does not affect GitHub Actions CI.
 - If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
@@ -176,11 +171,11 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 - If Docker build fails: Ensure Docker has enough disk space (`docker system prune -a` to clean up)
 
 **Performance Notes:**
-- **NEVER CANCEL** builds or tests - they may take 45+ minutes for Docker builds
-- Compilation alone: ~11 seconds (local) or ~2-5 minutes (Docker with dependencies)
-- Full test suite: ~85 seconds (local) or ~45 minutes (Docker full build)
-- Docker build (all stages): 45+ minutes
-- Docker build (builder stage only): 10-15 minutes
+- **NEVER CANCEL** builds or tests
+- Compilation alone: ~11 seconds (local, cached) or ~2-5 minutes (Docker with dependencies)
+- Full test suite: ~85 seconds (local) or ~5 minutes (Docker)
+- Docker build (all stages): ~2 minutes
+- Docker build (builder stage only): ~2 minutes
 - Gatling load tests: ~27 seconds
 - Application startup: ~22 seconds
 
@@ -195,12 +190,18 @@ jasper/
 │   ├── docker-compose.yaml  # Load test environment
 │   └── src/test/java/simulations/  # Gatling test scenarios
 ├── src/main/java/jasper/ # Main application source
+│   ├── aop/              # Aspect-oriented programming
+│   ├── client/           # External service clients
 │   ├── component/        # Business logic components
 │   ├── config/           # Spring configuration
 │   ├── domain/           # JPA entities
+│   ├── errors/           # Error handling
+│   ├── management/       # Management endpoints
+│   ├── plugin/           # Plugin system
 │   ├── repository/       # Data access layer
 │   ├── security/         # Authentication and authorization
 │   ├── service/          # Service layer
+│   ├── util/             # Utility classes
 │   └── web/              # REST controllers
 ├── src/main/resources/   # Configuration and static resources
 ├── src/test/java/        # Unit and integration tests
@@ -214,19 +215,21 @@ jasper/
 - `src/main/java/jasper/domain/` - Core entities (Ref, Ext, User, Plugin, Template)
 - `src/main/java/jasper/security/Auth.java` - Tag-based access control implementation
 - `src/main/java/jasper/web/rest/` - REST API controllers
-- `application.yml` - Main application configuration
+- `src/main/resources/config/application.yml` - Main application configuration
 - `docker-compose.yaml` - Local development stack
 - `.github/workflows/test.yml` - Main CI pipeline
 
 **Important Dependencies:**
-- Spring Boot 4.0.0 (Web, JPA, Security, WebSocket)
-- Java 25 (required)
+- Spring Boot 4.0.2 (Web, JPA, Security, WebSocket, Actuator)
+- Spring Cloud 2025.1.1 (OpenFeign, Resilience4j, Kubernetes)
+- Java 25 (required, minimum Java 21)
 - PostgreSQL (primary database)
-- Redis (caching and messaging)
+- Redis (caching and messaging via Spring Integration)
 - Liquibase (database migrations)
+- Caffeine (local caching)
 - Bun (JavaScript runtime for server-side scripting)
-- Gatling 3.14.4 (load testing)
-- TestContainers (integration testing)
+- Gatling 3.14.9 (load testing)
+- TestContainers 2.0.3 (integration testing)
 
 ## Code Style Guidelines
 
