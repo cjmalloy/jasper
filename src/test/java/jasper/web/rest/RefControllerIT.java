@@ -201,4 +201,54 @@ class RefControllerIT {
 		assertThat(existing).isPresent();
 		assertThat(existing.get().getTags()).containsExactly("public");
 	}
+
+	@Test
+	void testPatchRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTitle("original");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to patch with Local-Origin @a but ref origin @b
+		var patch = "[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"hacked\"}]";
+
+		mockMvc
+			.perform(patch("/api/v1/ref")
+				.param("url", URL)
+				.param("origin", "@b")
+				.param("cursor", ref.getModified().toString())
+				.contentType("application/json-patch+json")
+				.content(patch)
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		var existing = refRepository.findOneByUrlAndOrigin(URL, "@b");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getTitle()).isEqualTo("original");
+	}
+
+	@Test
+	void testDeleteRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to delete with Local-Origin @a but ref origin @b
+		mockMvc
+			.perform(delete("/api/v1/ref")
+				.param("url", URL)
+				.param("origin", "@b")
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@b")).isPresent();
+	}
 }
