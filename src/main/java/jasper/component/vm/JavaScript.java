@@ -57,7 +57,7 @@ public class JavaScript {
 	""";
 
 	@Timed("jasper.vm")
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
+	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
