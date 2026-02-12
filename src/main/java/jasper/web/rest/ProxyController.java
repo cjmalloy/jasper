@@ -52,6 +52,10 @@ import static org.springframework.http.MediaType.parseMediaType;
 @RequestMapping("api/v1/proxy")
 @Validated
 @Tag(name = "Proxy")
+@ApiResponses({
+	@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+	@ApiResponse(responseCode = "503", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
+})
 public class ProxyController {
 
 	@Autowired
@@ -59,7 +63,6 @@ public class ProxyController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
-		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping({"prefetch", "prefetch/{filename:.+}"})
 	ResponseEntity<String> preFetch(
@@ -79,7 +82,6 @@ public class ProxyController {
 		@ApiResponse(responseCode = "206"),
 		@ApiResponse(responseCode = "404"),
 		@ApiResponse(responseCode = "416", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
-		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@GetMapping({"", "{filename:.+}"})
 	ResponseEntity<StreamingResponseBody> fetch(
@@ -185,7 +187,6 @@ public class ProxyController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "201"),
-		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping
@@ -200,7 +201,6 @@ public class ProxyController {
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
-		@ApiResponse(responseCode = "500", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@DeleteMapping
