@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-y
     && python3 --version
 ARG JASPER_PYTHON=/usr/bin/python3
 ENV JASPER_PYTHON=${JASPER_PYTHON}
+ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which jq \
     && jq --version \
