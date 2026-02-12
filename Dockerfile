@@ -42,7 +42,12 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp target/reports/surefire.html /reports/index.html
 
 FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
-RUN apt-get update && apt-get install curl -y
+ENV PYTHONUNBUFFERED=1
+RUN apt-get update && \
+    apt-get -y install curl ffmpeg libsm6 libxext6 \
+			tesseract-ocr \
+			tesseract-ocr-eng \
+			tesseract-ocr-osd
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
@@ -66,7 +71,7 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
-RUN apt-get update && apt-get install ffmpeg -y
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true
