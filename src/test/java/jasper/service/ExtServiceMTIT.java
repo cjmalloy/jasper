@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.MultiTenantIntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.Ext;
 import jasper.domain.Template;
@@ -37,6 +38,9 @@ public class ExtServiceMTIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	Ext getExt() {
 		var ext = new Ext();
 		ext.setOrigin("@other");
@@ -59,6 +63,9 @@ public class ExtServiceMTIT {
 	void init() {
 		extRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@BeforeEach

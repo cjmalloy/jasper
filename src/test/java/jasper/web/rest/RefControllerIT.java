@@ -2,6 +2,7 @@ package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,11 +39,17 @@ class RefControllerIT {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private ConfigCache configCache;
+
 	private static final String URL = "https://www.example.com/";
 
 	@BeforeEach
 	void setup() {
 		refRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

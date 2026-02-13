@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.domain.Template;
 import jasper.domain.User;
@@ -34,10 +35,16 @@ public class ValidateExtIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		templateRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

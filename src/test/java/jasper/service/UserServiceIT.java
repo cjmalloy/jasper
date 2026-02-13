@@ -2,6 +2,7 @@ package jasper.service;
 
 import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.External;
 import jasper.domain.User;
 import jasper.domain.User_;
@@ -34,9 +35,15 @@ public class UserServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

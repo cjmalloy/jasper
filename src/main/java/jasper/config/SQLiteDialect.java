@@ -25,7 +25,11 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 	@Override
 	public void contributeTypes(TypeContributions typeContributions, ServiceRegistry serviceRegistry) {
 		super.contributeTypes(typeContributions, serviceRegistry);
-		typeContributions.contributeJdbcType(NanoTimestampJdbcType.INSTANCE);
+		// Register for all timestamp type codes: Hibernate 6+ maps Instant to TIMESTAMP_UTC,
+		// not plain TIMESTAMP, so we must cover all variants to intercept Instant binding.
+		typeContributions.contributeJdbcType(new NanoTimestampJdbcType(Types.TIMESTAMP));
+		typeContributions.contributeJdbcType(new NanoTimestampJdbcType(Types.TIMESTAMP_WITH_TIMEZONE));
+		typeContributions.contributeJdbcType(new NanoTimestampJdbcType(SqlTypes.TIMESTAMP_UTC));
 	}
 
 	@Override
@@ -119,7 +123,11 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 	 * TEXT columns and correct UNIQUE constraint behavior at nanosecond granularity.
 	 */
 	static class NanoTimestampJdbcType implements JdbcType {
-		static final NanoTimestampJdbcType INSTANCE = new NanoTimestampJdbcType();
+		private final int jdbcTypeCode;
+
+		NanoTimestampJdbcType(int jdbcTypeCode) {
+			this.jdbcTypeCode = jdbcTypeCode;
+		}
 
 		static final DateTimeFormatter NANO_TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
 			.appendPattern("yyyy-MM-dd'T'HH:mm:ss")
@@ -130,12 +138,12 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 
 		@Override
 		public int getJdbcTypeCode() {
-			return Types.TIMESTAMP;
+			return jdbcTypeCode;
 		}
 
 		@Override
 		public int getDefaultSqlTypeCode() {
-			return Types.TIMESTAMP;
+			return jdbcTypeCode;
 		}
 
 		@Override
