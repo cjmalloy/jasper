@@ -121,7 +121,7 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 	static class NanoTimestampJdbcType implements JdbcType {
 		static final NanoTimestampJdbcType INSTANCE = new NanoTimestampJdbcType();
 
-		static final DateTimeFormatter FMT = new DateTimeFormatterBuilder()
+		static final DateTimeFormatter NANO_TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
 			.appendPattern("yyyy-MM-dd'T'HH:mm:ss")
 			.appendFraction(ChronoField.NANO_OF_SECOND, 9, 9, true)
 			.appendLiteral('Z')
@@ -149,13 +149,13 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 				@Override
 				protected void doBind(PreparedStatement st, X value, int index, WrapperOptions options) throws SQLException {
 					var instant = javaType.unwrap(value, Instant.class, options);
-					st.setString(index, instant == null ? null : FMT.format(instant));
+					st.setString(index, instant == null ? null : NANO_TIMESTAMP_FORMATTER.format(instant));
 				}
 
 				@Override
 				protected void doBind(CallableStatement st, X value, String name, WrapperOptions options) throws SQLException {
 					var instant = javaType.unwrap(value, Instant.class, options);
-					st.setString(name, instant == null ? null : FMT.format(instant));
+					st.setString(name, instant == null ? null : NANO_TIMESTAMP_FORMATTER.format(instant));
 				}
 			};
 		}
