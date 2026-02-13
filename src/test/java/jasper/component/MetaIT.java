@@ -5,6 +5,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,12 @@ public class MetaIT {
 	PluginRepository pluginRepository;
 
 	static final String URL = "https://www.example.com/";
+
+	@BeforeEach
+	void init() {
+		refRepository.deleteAll();
+		pluginRepository.deleteAll();
+	}
 
 	@Test
 	void testCreateMetadata() {
