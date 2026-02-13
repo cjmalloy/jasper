@@ -42,7 +42,9 @@ public class ScriptRunnerIT {
 	@BeforeEach
 	void init() {
 		props.setNode(props.getNode().replaceFirst("^~", System.getProperty("user.home")));
+		refRepository.deleteAll();
 	}
+
 
 	@Test
 	void testJavaScriptJson() throws UntrustedScriptException {
