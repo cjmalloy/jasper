@@ -156,6 +156,10 @@
 
 	</changeSet>
 
+	<changeSet author="chris" id="00000000000001a" dbms="postgresql">
+		<sql>CREATE OR REPLACE FUNCTION instr(text, text) RETURNS integer AS $$ SELECT strpos($1, $2) $$ LANGUAGE SQL IMMUTABLE;</sql>
+	</changeSet>
+
 	<changeSet author="chris" id="00000000000002" dbms="sqlite" context="sqlite">
 		<createTable tableName="ref">
 			<column name="url" type="TEXT">
