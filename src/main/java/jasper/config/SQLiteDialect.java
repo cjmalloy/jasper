@@ -1,10 +1,33 @@
 package jasper.config;
 
 import org.hibernate.boot.model.FunctionContributions;
+import org.hibernate.boot.model.TypeContributions;
+import org.hibernate.service.ServiceRegistry;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.type.StandardBasicTypes;
+import org.hibernate.type.descriptor.ValueBinder;
+import org.hibernate.type.descriptor.ValueExtractor;
+import org.hibernate.type.descriptor.WrapperOptions;
+import org.hibernate.type.descriptor.java.JavaType;
+import org.hibernate.type.descriptor.jdbc.BasicBinder;
+import org.hibernate.type.descriptor.jdbc.BasicExtractor;
+import org.hibernate.type.descriptor.jdbc.JdbcType;
+
+import java.sql.*;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 
 public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect {
+
+	@Override
+	public void contributeTypes(TypeContributions typeContributions, ServiceRegistry serviceRegistry) {
+		super.contributeTypes(typeContributions, serviceRegistry);
+		typeContributions.contributeJdbcType(NanoTimestampJdbcType.INSTANCE);
+	}
+
 	@Override
 	public void initializeFunctionRegistry(FunctionContributions functionContributions) {
 		super.initializeFunctionRegistry(functionContributions);
@@ -81,5 +104,83 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("websearch_to_tsquery", "?1", string);
 		functionRegistry.registerPattern("ts_match_vq", "EXISTS (SELECT 1 FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER))", bool);
 		functionRegistry.registerPattern("ts_rank_cd", "COALESCE((SELECT bm25(ref_fts) FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER)), 0)", doubleType);
+	}
+
+	/**
+	 * Custom JdbcType that stores {@link Instant} as TEXT with fixed 9-digit
+	 * nanosecond precision (e.g., {@code 2024-01-15T10:30:45.123456789Z}).
+	 * <p>
+	 * The SQLite JDBC driver's built-in timestamp formatting uses
+	 * {@code SimpleDateFormat} which only supports millisecond precision.
+	 * This type bypasses that by using {@code setString}/{@code getString}
+	 * with a {@code DateTimeFormatter} that preserves full nanosecond precision.
+	 * <p>
+	 * The fixed-width format ensures correct lexicographic ordering in SQLite
+	 * TEXT columns and correct UNIQUE constraint behavior at nanosecond granularity.
+	 */
+	static class NanoTimestampJdbcType implements JdbcType {
+		static final NanoTimestampJdbcType INSTANCE = new NanoTimestampJdbcType();
+
+		static final DateTimeFormatter FMT = new DateTimeFormatterBuilder()
+			.appendPattern("yyyy-MM-dd'T'HH:mm:ss")
+			.appendFraction(ChronoField.NANO_OF_SECOND, 9, 9, true)
+			.appendLiteral('Z')
+			.toFormatter()
+			.withZone(ZoneOffset.UTC);
+
+		@Override
+		public int getJdbcTypeCode() {
+			return Types.TIMESTAMP;
+		}
+
+		@Override
+		public int getDefaultSqlTypeCode() {
+			return Types.TIMESTAMP;
+		}
+
+		@Override
+		public String getFriendlyName() {
+			return "NANO_TIMESTAMP_TEXT";
+		}
+
+		@Override
+		public <X> ValueBinder<X> getBinder(JavaType<X> javaType) {
+			return new BasicBinder<>(javaType, this) {
+				@Override
+				protected void doBind(PreparedStatement st, X value, int index, WrapperOptions options) throws SQLException {
+					var instant = javaType.unwrap(value, Instant.class, options);
+					st.setString(index, instant == null ? null : FMT.format(instant));
+				}
+
+				@Override
+				protected void doBind(CallableStatement st, X value, String name, WrapperOptions options) throws SQLException {
+					var instant = javaType.unwrap(value, Instant.class, options);
+					st.setString(name, instant == null ? null : FMT.format(instant));
+				}
+			};
+		}
+
+		@Override
+		public <X> ValueExtractor<X> getExtractor(JavaType<X> javaType) {
+			return new BasicExtractor<>(javaType, this) {
+				@Override
+				protected X doExtract(ResultSet rs, int paramIndex, WrapperOptions options) throws SQLException {
+					var s = rs.getString(paramIndex);
+					return s == null ? null : javaType.wrap(Instant.parse(s), options);
+				}
+
+				@Override
+				protected X doExtract(CallableStatement cs, int paramIndex, WrapperOptions options) throws SQLException {
+					var s = cs.getString(paramIndex);
+					return s == null ? null : javaType.wrap(Instant.parse(s), options);
+				}
+
+				@Override
+				protected X doExtract(CallableStatement cs, String name, WrapperOptions options) throws SQLException {
+					var s = cs.getString(name);
+					return s == null ? null : javaType.wrap(Instant.parse(s), options);
+				}
+			};
+		}
 	}
 }
