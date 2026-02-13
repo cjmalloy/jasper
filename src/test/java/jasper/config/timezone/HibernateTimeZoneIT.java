@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.springframework.test.context.junit.jupiter.DisabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.lang.String.format;
@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Disabled on SQLite because the test depends on PostgreSQL-specific sequence generation (e.g. sequence_generator table).
  */
 @IntegrationTest
-@Profile("!sqlite")
+@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
 class HibernateTimeZoneIT {
 
 	@Autowired
