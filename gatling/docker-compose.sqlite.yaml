@@ -28,8 +28,6 @@ services:
       JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: 100
       JASPER_HEAP: 512m
       JASPER_STORAGE: /var/lib/jasper
-    volumes:
-      - jasper-data:/var/lib/jasper
   repl-web:
     build: ..
     ports:
@@ -45,8 +43,3 @@ services:
       JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@repl'
       JASPER_HEAP: 256m
       JASPER_STORAGE: /var/lib/jasper
-    volumes:
-      - repl-jasper-data:/var/lib/jasper
-volumes:
-  jasper-data:
-  repl-jasper-data:
