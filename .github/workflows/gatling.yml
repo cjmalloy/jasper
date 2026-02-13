@@ -27,7 +27,7 @@ jobs:
         id: compose
         run: |
           if [ "${{ matrix.database }}" = "sqlite" ]; then
-            echo "cmd=docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml --profile lt" >> $GITHUB_OUTPUT
+            echo "cmd=docker compose -f docker-compose.sqlite.yaml --profile lt" >> $GITHUB_OUTPUT
           else
             echo "cmd=docker compose --profile lt" >> $GITHUB_OUTPUT
           fi
