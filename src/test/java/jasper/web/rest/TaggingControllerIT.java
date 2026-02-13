@@ -9,6 +9,7 @@ import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.service.TaggingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +54,12 @@ public class TaggingControllerIT {
 
 	@BeforeEach
 	void init() {
+		refRepository.deleteAll();
+		pluginRepository.deleteAll();
+	}
+
+	@AfterEach
+	void cleanup() {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
 	}
