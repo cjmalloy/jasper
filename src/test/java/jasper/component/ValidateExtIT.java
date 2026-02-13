@@ -9,6 +9,7 @@ import jasper.domain.User;
 import jasper.errors.InvalidTemplateException;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -32,6 +33,12 @@ public class ValidateExtIT {
 
 	@Autowired
 	UserRepository userRepository;
+
+	@BeforeEach
+	void init() {
+		templateRepository.deleteAll();
+		userRepository.deleteAll();
+	}
 
 	@Test
 	void testValidateExt() {

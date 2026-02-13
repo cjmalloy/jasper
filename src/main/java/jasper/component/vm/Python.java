@@ -69,7 +69,7 @@ if process.returncode != 0:
 	""";
 
 	@Timed("jasper.vm")
-	public String runPython(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, NoSuchAlgorithmException, InterruptedException {
+	public String runPython(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, NoSuchAlgorithmException {
 		var python = props.getPython();
 		if (isNotBlank(requirements)) {
 			var requirementsHash = encodeHexString(getInstance("SHA-256").digest(requirements.getBytes(StandardCharsets.UTF_8)));
@@ -104,7 +104,7 @@ if process.returncode != 0:
 				lock.unlock();
 			}
 		}
-		var scriptProcess = new ProcessBuilder(python, "-c", pythonVmWrapperScript, ""+timeoutMs, api, props.getCacheApi()).start();
+		var scriptProcess = new ProcessBuilder(python, "-c", pythonVmWrapperScript, ""+timeoutMs, api).start();
 		try (OutputStreamWriter writer = new OutputStreamWriter(scriptProcess.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // Null byte delimiter
