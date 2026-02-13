@@ -211,19 +211,19 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 			String pluginsSql = """
 				SELECT json_extract(metadata, '$.plugins') FROM ref WHERE url = :refUrl AND origin = :refOrigin
 				""";
-			var existingPlugins = em.createNativeQuery(pluginsSql)
+			var pluginsList = em.createNativeQuery(pluginsSql)
 				.setParameter("refUrl", refUrl)
 				.setParameter("refOrigin", refOrigin)
-				.getSingleResult();
-			String pluginsJson = existingPlugins != null ? existingPlugins.toString() : "null";
+				.getResultList();
+			String pluginsJson = !pluginsList.isEmpty() && pluginsList.getFirst() != null ? pluginsList.getFirst().toString() : "null";
 			String userUrlsSql = """
 				SELECT json_extract(metadata, '$.userUrls') FROM ref WHERE url = :refUrl AND origin = :refOrigin
 				""";
-			var existingUserUrls = em.createNativeQuery(userUrlsSql)
+			var userUrlsList = em.createNativeQuery(userUrlsSql)
 				.setParameter("refUrl", refUrl)
 				.setParameter("refOrigin", refOrigin)
-				.getSingleResult();
-			String userUrlsJson = existingUserUrls != null ? existingUserUrls.toString() : "null";
+				.getResultList();
+			String userUrlsJson = !userUrlsList.isEmpty() && userUrlsList.getFirst() != null ? userUrlsList.getFirst().toString() : "null";
 			// Build metadata JSON
 			String metadata = String.format(
 				"{\"modified\":%s,\"responses\":%s,\"internalResponses\":%s,\"obsolete\":%s,\"plugins\":%s,\"userUrls\":%s}",

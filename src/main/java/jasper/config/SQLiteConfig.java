@@ -30,8 +30,7 @@ public class SQLiteConfig {
 	@Autowired
 	public void configureDataSource(DataSource dataSource) {
 		if (dataSource instanceof HikariDataSource hikari) {
-			// Set max lifetime very high to minimize connection recycling (SQLite pool-size=1)
-			// and register functions on the initial connection
+			// Set connection lifetime to infinite to prevent recycling (keeps UDFs registered)
 			hikari.setMaxLifetime(0); // 0 = infinite lifetime
 			hikari.setKeepaliveTime(0); // disable keepalive
 		}
