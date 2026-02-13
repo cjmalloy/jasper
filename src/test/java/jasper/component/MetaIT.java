@@ -247,12 +247,35 @@ public class MetaIT {
 
 	@Test
 	void testResponseSource_handlesNullRef() {
-		var existing = new Ref();
-		existing.setUrl(URL);
-		existing.setTags(List.of("tag1"));
+		// Setup: create parent ref
+		var parent = new Ref();
+		parent.setUrl(URL);
+		parent.setTags(List.of("+user/tester"));
+		refRepository.save(parent);
 
-		meta.responseSource("", null, existing);
-		// Should call sources() since ref is null
+		// Setup: create child response ref (user tag ref)
+		var child = new Ref();
+		child.setUrl("tag:/user/tester?url=" + URL);
+		child.setTags(List.of("+user/tester"));
+		child.setSources(List.of(URL));
+		refRepository.save(child);
+
+		// Establish the response link
+		meta.sources("", child, null);
+
+		// Verify link was established
+		var parentWithResponse = refRepository.findOneByUrlAndOrigin(URL, "");
+		assertThat(parentWithResponse).isNotEmpty();
+		assertThat(parentWithResponse.get().getMetadata().getResponses())
+			.containsExactly("tag:/user/tester?url=" + URL);
+
+		// Now delete the child (ref=null means deletion)
+		meta.responseSource("", null, child);
+
+		// Verify cleanup - parent's responses should be empty
+		var parentAfterDelete = refRepository.findOneByUrlAndOrigin(URL, "");
+		assertThat(parentAfterDelete).isNotEmpty();
+		assertThat(parentAfterDelete.get().getMetadata().getResponses()).isEmpty();
 	}
 
 	@Test
