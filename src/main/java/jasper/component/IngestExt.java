@@ -23,8 +23,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import static jasper.errors.DbConstraint.isPkViolation;
-import static jasper.errors.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.DbConstraint.isPkViolation;
+import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
 import java.time.Clock;
 import java.time.Instant;

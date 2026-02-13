@@ -1,4 +1,4 @@
-package jasper.errors;
+package jasper.util;
 
 import org.hibernate.exception.ConstraintViolationException;
 

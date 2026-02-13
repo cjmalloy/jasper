@@ -30,8 +30,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.component.Meta.expandTags;
-import static jasper.errors.DbConstraint.isPkViolation;
-import static jasper.errors.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.DbConstraint.isPkViolation;
+import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
 @Component
 public class Ingest {

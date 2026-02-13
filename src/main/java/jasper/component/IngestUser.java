@@ -29,8 +29,8 @@ import java.time.Instant;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
-import static jasper.errors.DbConstraint.isPkViolation;
-import static jasper.errors.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.DbConstraint.isPkViolation;
+import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
 
 @Component
