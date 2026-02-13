@@ -131,4 +131,60 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
     """)
 	int updateObsolete(String url, String rootOrigin);
 
+	@Query("""
+		FROM Ref r
+		WHERE r.url != :url
+			AND r.published <= :published
+			AND jsonb_exists(r.sources, :url) = true
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
+
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<String> findAllResponsesWithTag(String url, String origin, String tag);
+
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = false
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
+
+	@Query("""
+		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
+		WHERE r.url = :url
+			AND r.modified > :newerThan
+			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
+	boolean newerExists(String url, String rootOrigin, Instant newerThan);
+
+	@Query("""
+		FROM Ref r
+		WHERE (r.metadata IS NULL OR jsonb_exists(r.metadata, 'modified') = false OR jsonb_object_field_text(r.metadata, 'regen') = 'true')
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		ORDER BY r.modified DESC
+		FETCH FIRST 1 ROW ONLY""")
+	Optional<Ref> getRefBackfill(String origin);
+
+	@Query("""
+		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
+		WHERE jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'id') = :id
+			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'ban'), '') != 'true'
+			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'noStore'), '') != 'true'""")
+	boolean cacheExists(String id);
+
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{regen}', cast_to_jsonb('true'), true)
+		WHERE r.metadata IS NOT NULL
+			AND NOT jsonb_object_field_text(r.metadata, 'regen') = 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	void dropMetadata(String origin);
+
 }
