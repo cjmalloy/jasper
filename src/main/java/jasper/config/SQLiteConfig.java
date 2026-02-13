@@ -1,12 +1,13 @@
 package jasper.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.sqlite.Function;
 import org.sqlite.SQLiteConnection;
 
@@ -18,27 +19,46 @@ import java.sql.SQLException;
  * Registers custom SQLite functions that emulate PostgreSQL JSONB functions
  * used in native queries. Only active when the "sqlite" profile is enabled.
  *
- * Functions are registered on every new connection via HikariCP's connection
- * init SQL callback to ensure they survive connection recycling.
+ * Wraps the DataSource via BeanPostProcessor so that UDFs are registered on
+ * every connection obtained from the pool, surviving connection recycling.
  */
 @Configuration
 @Profile("sqlite")
-public class SQLiteConfig {
+public class SQLiteConfig implements BeanPostProcessor {
 	private static final Logger logger = LoggerFactory.getLogger(SQLiteConfig.class);
 	private static final ObjectMapper om = new ObjectMapper();
 
-	@Autowired
-	public void configureDataSource(DataSource dataSource) {
-		if (dataSource instanceof HikariDataSource hikari) {
-			// Set connection lifetime to infinite to prevent recycling (keeps UDFs registered)
-			hikari.setMaxLifetime(0); // 0 = infinite lifetime
-			hikari.setKeepaliveTime(0); // disable keepalive
+	@Override
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		if (bean instanceof DataSource ds && !(bean instanceof SQLiteUdfDataSource)) {
+			logger.info("Wrapping DataSource to register SQLite UDFs on every connection");
+			return new SQLiteUdfDataSource(ds);
 		}
-		try (var conn = dataSource.getConnection()) {
+		return bean;
+	}
+
+	/**
+	 * DataSource wrapper that registers custom SQLite UDFs on every connection
+	 * obtained from the pool. Function.create is idempotent, so re-registering
+	 * on reused pooled connections is safe.
+	 */
+	private static class SQLiteUdfDataSource extends DelegatingDataSource {
+		SQLiteUdfDataSource(DataSource delegate) {
+			super(delegate);
+		}
+
+		@Override
+		public Connection getConnection() throws SQLException {
+			var conn = super.getConnection();
 			registerFunctionsOnConnection(conn);
-			logger.info("Registered custom SQLite functions for JSONB compatibility");
-		} catch (SQLException e) {
-			logger.error("Failed to register custom SQLite functions", e);
+			return conn;
+		}
+
+		@Override
+		public Connection getConnection(String username, String password) throws SQLException {
+			var conn = super.getConnection(username, password);
+			registerFunctionsOnConnection(conn);
+			return conn;
 		}
 	}
 
