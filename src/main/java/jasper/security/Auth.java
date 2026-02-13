@@ -20,6 +20,8 @@ import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -604,13 +606,24 @@ public class Auth {
 	 * be read.
 	 */
 	public boolean canReadQuery(Query filter) {
+		return canReadQuery(filter, null);
+	}
+
+	/**
+	 * Check all the individual selectors of the query and sort and verify they can all
+	 * be read. Sorts that reference private plugins are included in the check.
+	 */
+	public boolean canReadQuery(Query filter, Pageable pageable) {
 		// Min Role
 		if (!minRole()) return false;
 		// Anyone can read the empty query (retrieve all Refs)
-		if (filter.getQuery() == null) return true;
+		if (filter.getQuery() == null && !hasPrivateSortTags(pageable)) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
+		var queryTags = filter.getQuery() == null
+			? Stream.<String>empty()
+			: Arrays.stream(filter.getQuery().split("[!:|()\\s]+"));
+		var tagList = Stream.concat(queryTags, sortPluginTags(pageable))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
 			.filter(qt -> !isUser(qt))
@@ -618,6 +631,32 @@ public class Auth {
 			.toList();
 		if (tagList.isEmpty()) return true;
 		return captures(getTagReadAccess(), tagList);
+	}
+
+	private static Stream<String> sortPluginTags(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return Stream.empty();
+		return pageable.getSort().stream()
+			.map(Sort.Order::getProperty)
+			.map(Auth::extractPluginTag)
+			.filter(StringUtils::isNotBlank);
+	}
+
+	private static boolean hasPrivateSortTags(Pageable pageable) {
+		return sortPluginTags(pageable).anyMatch(Auth::isPrivateTag);
+	}
+
+	static String extractPluginTag(String sortProperty) {
+		String afterPrefix;
+		if (sortProperty.startsWith("plugins->")) {
+			afterPrefix = sortProperty.substring("plugins->".length());
+		} else if (sortProperty.startsWith("metadata->plugins->")) {
+			afterPrefix = sortProperty.substring("metadata->plugins->".length());
+		} else {
+			return "";
+		}
+		int end = afterPrefix.indexOf("->");
+		if (end == -1) end = afterPrefix.indexOf(":");
+		return end == -1 ? afterPrefix : afterPrefix.substring(0, end);
 	}
 
 	/**

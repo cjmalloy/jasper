@@ -9,6 +9,8 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -832,6 +834,82 @@ public class AuthUnitTest {
 
 		assertThat(auth.canReadQuery(() -> "_custom"))
 			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_SortPrivatePlugin() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> null,
+			PageRequest.of(0, 20, Sort.by("plugins->_custom->field"))))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_SortPrivatePluginFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(() -> null,
+			PageRequest.of(0, 20, Sort.by("plugins->_custom->field"))))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_SortPublicPlugin() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> null,
+			PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"))))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_SortMetadataPrivatePlugin() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(() -> null,
+			PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"))))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_SortMetadataPrivatePluginFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(() -> null,
+			PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"))))
+			.isFalse();
+	}
+
+	@Test
+	void testExtractPluginTag_PluginsPrefix() {
+		assertThat(Auth.extractPluginTag("plugins->_custom->field"))
+			.isEqualTo("_custom");
+	}
+
+	@Test
+	void testExtractPluginTag_MetadataPluginsPrefix() {
+		assertThat(Auth.extractPluginTag("metadata->plugins->_custom->field"))
+			.isEqualTo("_custom");
+	}
+
+	@Test
+	void testExtractPluginTag_VotePattern() {
+		assertThat(Auth.extractPluginTag("plugins->plugin/user/vote:top"))
+			.isEqualTo("plugin/user/vote");
+	}
+
+	@Test
+	void testExtractPluginTag_NoPluginPrefix() {
+		assertThat(Auth.extractPluginTag("modified"))
+			.isEqualTo("");
 	}
 
 	@Test
