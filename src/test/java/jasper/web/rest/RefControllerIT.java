@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration tests for {@link RefController}.
  * Tests validation of fully qualified tags in Ref operations.
  */
-@WithMockUser(value = "+user/tester", roles = {"ADMIN"})
+@WithMockUser(value = "+user/tester@a", roles = {"ADMIN"})
 @AutoConfigureMockMvc
 @IntegrationTest
 class RefControllerIT {
@@ -136,5 +137,118 @@ class RefControllerIT {
 				.content(objectMapper.writeValueAsString(ref))
 				.with(csrf().asHeader()))
 			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void testCreateRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// Test that creating a Ref with origin @b when Local-Origin is @a is rejected
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(List.of("public"));
+
+		mockMvc
+			.perform(post("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.count()).isZero();
+	}
+
+	@Test
+	void testCreateRefWithParentOriginFromSubOriginShouldFail() throws Exception {
+		// Test that creating a Ref with origin @a when Local-Origin is @a.b is rejected
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setTags(List.of("public"));
+
+		mockMvc
+			.perform(post("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a.b")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.count()).isZero();
+	}
+
+	@Test
+	void testUpdateRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to update with Local-Origin @a but ref origin @b
+		ref.setTags(new ArrayList<>(List.of("public", "test")));
+
+		mockMvc
+			.perform(put("/api/v1/ref")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(ref))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		var existing = refRepository.findOneByUrlAndOrigin(URL, "@b");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getTags()).containsExactly("public");
+	}
+
+	@Test
+	void testPatchRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTitle("original");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to patch with Local-Origin @a but ref origin @b
+		var patch = "[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"hacked\"}]";
+
+		mockMvc
+			.perform(patch("/api/v1/ref")
+				.param("url", URL)
+				.param("origin", "@b")
+				.param("cursor", ref.getModified().toString())
+				.contentType("application/json-patch+json")
+				.content(patch)
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		var existing = refRepository.findOneByUrlAndOrigin(URL, "@b");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getTitle()).isEqualTo("original");
+	}
+
+	@Test
+	void testDeleteRefWithDifferentOriginThanLocalOriginHeaderShouldFail() throws Exception {
+		// First create a valid ref at origin @b
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@b");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		// Try to delete with Local-Origin @a but ref origin @b
+		mockMvc
+			.perform(delete("/api/v1/ref")
+				.param("url", URL)
+				.param("origin", "@b")
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isForbidden());
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@b")).isPresent();
 	}
 }
