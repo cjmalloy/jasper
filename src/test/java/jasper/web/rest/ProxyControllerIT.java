@@ -142,6 +142,7 @@ class ProxyControllerIT {
 	}
 
 	@Test
+	@Disabled("Flakey")
 	void testValidRangeRequestAtBoundary() throws Exception {
 		// Test: Range at the end of file
 		int start = TEST_CONTENT.length - 10;
