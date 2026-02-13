@@ -528,8 +528,8 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				FROM ref
 				WHERE ref.origin = :origin
 					AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), '+plugin/origin')
-					AND (plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
-						OR plugins->'+plugin/origin'->>'local' = :remote
+					AND ((plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
+						OR plugins->'+plugin/origin'->>'local' = :remote)
 				LIMIT 1
 				""";
 		}
