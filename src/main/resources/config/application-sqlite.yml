@@ -15,9 +15,14 @@ spring:
       auto-commit: false
       # SQLite only supports a single writer, so limit pool to 1 connection
       maximum-pool-size: 1
+      data-source-properties:
+        date_class: TEXT
+        date_string_format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
   jpa:
     database-platform: jasper.config.SQLiteDialect
     hibernate:
       ddl-auto: none
+    properties:
+      hibernate.hbm2ddl.auto: none
   liquibase:
     contexts: sqlite

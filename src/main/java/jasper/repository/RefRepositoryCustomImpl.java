@@ -313,6 +313,10 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 	@Transactional
 	public void buildFulltext() {
 		if (isSqlite()) {
+			// Rebuild FTS5 index from current ref data
+			em.createNativeQuery("INSERT INTO ref_fts(ref_fts) VALUES('rebuild')").executeUpdate();
+			// Update textsearch_en to store rowid for FTS5 correlation
+			em.createNativeQuery("UPDATE ref SET textsearch_en = CAST(rowid AS TEXT) WHERE textsearch_en IS NULL OR textsearch_en = ''").executeUpdate();
 			return;
 		}
 		em.createNativeQuery("CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)").executeUpdate();

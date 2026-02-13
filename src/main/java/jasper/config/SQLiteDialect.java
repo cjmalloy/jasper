@@ -26,7 +26,8 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// jsonb_object_field_text: get a JSON field as text (equivalent to PostgreSQL's ->> operator)
 		functionRegistry.registerPattern("jsonb_object_field_text", "CAST(json_extract(?1, '$.' || ?2) AS TEXT)", string);
 		// jsonb_set: set a JSON value at a path, converting PostgreSQL path {key} to SQLite $.key
-		functionRegistry.registerPattern("jsonb_set", "json_set(?1, '$.' || REPLACE(REPLACE(?2, '{', ''), '}', ''), ?3)", jsonb);
+		// 4-arg version: 4th arg (create_if_missing) is always true in SQLite's json_set, so ignored
+		functionRegistry.registerPattern("jsonb_set", "json_set(?1, '$.' || REPLACE(REPLACE(?2, '{', ''), '}', ''), CASE WHEN ?4 IS NOT NULL THEN ?3 ELSE ?3 END)", jsonb);
 		// cast_to_jsonb: cast text to JSON
 		functionRegistry.registerPattern("cast_to_jsonb", "json(?1)", jsonb);
 		// jsonb_concat: merge two JSON objects (like PostgreSQL's || operator for objects)
@@ -39,7 +40,7 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// jsonb_array_element_text: get element at index from a JSON array
 		functionRegistry.registerPattern("jsonb_array_element_text", "json_extract(?1, '$[' || ?2 || ']')", string);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)
-		functionRegistry.registerPattern("string_to_array", "?1", string);
+		functionRegistry.registerPattern("string_to_array", "(?1 || SUBSTR('', 1, 0 * LENGTH(?2)))", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
@@ -51,9 +52,9 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("vote_decay", "(3 + COALESCE(CAST(json_extract(?1, '$.plugins.plugin/user/vote/up') AS INTEGER), 0) - COALESCE(CAST(json_extract(?1, '$.plugins.plugin/user/vote/down') AS INTEGER), 0)) * 1.0 / (1 + (julianday('now') - julianday(?2)) * 6)", doubleType);
 		// Collation function for binary sorting (SQLite uses BINARY collation)
 		functionRegistry.registerPattern("collate_c", "(?1) COLLATE BINARY", string);
-		// Full-text search: SQLite doesn't have tsvector/tsquery, use LIKE-based fallback
+		// Full-text search: use FTS5 via textsearch_en (stores rowid) correlated with ref_fts virtual table
 		functionRegistry.registerPattern("websearch_to_tsquery", "?1", string);
-		functionRegistry.registerPattern("ts_match_vq", "(COALESCE(?1, '') LIKE '%' || ?2 || '%')", bool);
-		functionRegistry.registerPattern("ts_rank_cd", "0", doubleType);
+		functionRegistry.registerPattern("ts_match_vq", "EXISTS (SELECT 1 FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER))", bool);
+		functionRegistry.registerPattern("ts_rank_cd", "COALESCE((SELECT rank FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER)), 0)", doubleType);
 	}
 }
