@@ -3,11 +3,13 @@ package jasper.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.domain.Ref;
+import jasper.domain.proj.RefUrl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Custom repository implementation that provides database-specific native queries.
@@ -217,11 +219,11 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 			UPDATE ref r
 			SET metadata = jsonb_strip_nulls(jsonb_build_object(
 				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->expandedTags, 'internal') = false),
-				'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->expandedTags, 'internal') = true),
+				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal')),
+				'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal')),
 				'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
-					(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
+					(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag))
 				) FROM plugin p WHERE p.origin = :origin)),
 				'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
 			))
@@ -446,5 +448,126 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 	@Transactional
 	public void buildModified() {
 		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
+	}
+
+	@Override
+	public boolean newerExists(String url, String rootOrigin, Instant newerThan) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT COUNT(*) FROM ref
+				WHERE url = :url
+				  AND modified > :newerThan
+				  AND (:rootOrigin = '' OR origin = :rootOrigin OR origin LIKE (:rootOrigin || '.%'))
+				""";
+		} else {
+			sql = """
+				SELECT COUNT(*) FROM ref
+				WHERE url = :url
+				  AND modified > :newerThan
+				  AND (:rootOrigin = '' OR origin = :rootOrigin OR origin LIKE concat(:rootOrigin, '.%'))
+				""";
+		}
+		var result = em.createNativeQuery(sql)
+			.setParameter("url", url)
+			.setParameter("rootOrigin", rootOrigin)
+			.setParameter("newerThan", newerThan)
+			.getSingleResult();
+		return ((Number) result).longValue() > 0;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public Optional<Ref> getRefBackfill(String origin) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT *, '' as scheme
+				FROM ref
+				WHERE (metadata IS NULL OR json_extract(metadata, '$.modified') IS NULL OR json_extract(metadata, '$.regen') = 'true')
+					AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
+				ORDER BY modified DESC
+				LIMIT 1
+				""";
+		} else {
+			sql = """
+				SELECT *, '' as scheme
+				FROM ref
+				WHERE (metadata IS NULL OR NOT jsonb_exists(metadata, 'modified') OR metadata->>'regen' = 'true')
+					AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+				ORDER BY modified DESC
+				LIMIT 1
+				""";
+		}
+		List<Ref> result = em.createNativeQuery(sql, Ref.class)
+			.setParameter("origin", origin)
+			.getResultList();
+		return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public Optional<RefUrl> originUrl(String origin, String remote) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT url, json_extract(plugins, '$."+plugin/origin".proxy') as proxy
+				FROM ref
+				WHERE ref.origin = :origin
+					AND (CASE WHEN json_type(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) = 'object'
+						THEN ('+plugin/origin' IN (SELECT je.key FROM json_each(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) je))
+						ELSE ('+plugin/origin' IN (SELECT je.value FROM json_each(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) je))
+					END)
+					AND ((json_extract(plugins, '$."+plugin/origin".local') IS NULL AND '' = :remote)
+						OR json_extract(plugins, '$."+plugin/origin".local') = :remote)
+				LIMIT 1
+				""";
+		} else {
+			sql = """
+				SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
+				FROM ref
+				WHERE ref.origin = :origin
+					AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), '+plugin/origin')
+					AND (plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
+						OR plugins->'+plugin/origin'->>'local' = :remote
+				LIMIT 1
+				""";
+		}
+		var result = em.createNativeQuery(sql)
+			.setParameter("origin", origin)
+			.setParameter("remote", remote)
+			.getResultList();
+		if (result.isEmpty()) return Optional.empty();
+		Object[] row = (Object[]) result.getFirst();
+		String url = (String) row[0];
+		String proxy = (String) row[1];
+		return Optional.of(new RefUrl() {
+			@Override public String getUrl() { return url; }
+			@Override public String getProxy() { return proxy; }
+		});
+	}
+
+	@Override
+	public boolean cacheExists(String id) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT COUNT(*) FROM ref
+				WHERE json_extract(ref.plugins, '$."_plugin/cache".id') = :id
+					AND COALESCE(json_extract(ref.plugins, '$."_plugin/cache".ban'), '') != 'true'
+					AND COALESCE(json_extract(ref.plugins, '$."_plugin/cache".noStore'), '') != 'true'
+				""";
+		} else {
+			sql = """
+				SELECT COUNT(*) FROM ref
+				WHERE ref.plugins->'_plugin/cache'->>'id' = :id
+					AND ref.plugins->'_plugin/cache'->>'ban' != 'true'
+					AND ref.plugins->'_plugin/cache'->>'noStore' != 'true'
+				""";
+		}
+		var result = em.createNativeQuery(sql)
+			.setParameter("id", id)
+			.getSingleResult();
+		return ((Number) result).longValue() > 0;
 	}
 }
