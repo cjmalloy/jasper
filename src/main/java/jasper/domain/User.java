@@ -95,6 +95,7 @@ public class User implements Tag {
 	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
 
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	private byte[] key;

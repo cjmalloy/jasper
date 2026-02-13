@@ -41,7 +41,7 @@ EOF
     """;
 
 	@Timed("jasper.vm")
-	public String runShellScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, InterruptedException {
+	public String runShellScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var process = new ProcessBuilder(props.getShell(), "-c", wrapperScript, props.getShell(), String.valueOf(timeoutMs), api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
