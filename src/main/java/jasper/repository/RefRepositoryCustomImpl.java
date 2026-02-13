@@ -2,9 +2,11 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jasper.domain.Ref;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -22,6 +24,90 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 
 	private boolean isSqlite() {
 		return databasePlatform.contains("SQLite");
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT *, '' as scheme
+				FROM ref
+				WHERE ref.url != :url
+					AND ref.published <= :published
+					AND jsonb_exists(ref.sources, :url)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE (:origin || '.%'))
+				""";
+		} else {
+			sql = """
+				SELECT *, '' as scheme
+				FROM ref
+				WHERE ref.url != :url
+					AND ref.published <= :published
+					AND jsonb_exists(ref.sources, :url)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
+				""";
+		}
+		return em.createNativeQuery(sql, Ref.class)
+			.setParameter("url", url)
+			.setParameter("origin", origin)
+			.setParameter("published", published)
+			.getResultList();
+	}
+
+	@Override
+	public List<String> findAllResponsesWithTag(String url, String origin, String tag) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT url FROM ref
+				WHERE ref.url != :url
+					AND jsonb_exists(ref.sources, :url)
+					AND jsonb_exists(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags), :tag)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE (:origin || '.%'))
+				""";
+		} else {
+			sql = """
+				SELECT url FROM ref
+				WHERE ref.url != :url
+					AND jsonb_exists(ref.sources, :url)
+					AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
+				""";
+		}
+		return em.createNativeQuery(sql, String.class)
+			.setParameter("url", url)
+			.setParameter("origin", origin)
+			.setParameter("tag", tag)
+			.getResultList();
+	}
+
+	@Override
+	public List<String> findAllResponsesWithoutTag(String url, String origin, String tag) {
+		String sql;
+		if (isSqlite()) {
+			sql = """
+				SELECT url FROM ref
+				WHERE ref.url != :url
+					AND jsonb_exists(ref.sources, :url)
+					AND NOT jsonb_exists(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags), :tag)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE (:origin || '.%'))
+				""";
+		} else {
+			sql = """
+				SELECT url FROM ref
+				WHERE ref.url != :url
+					AND jsonb_exists(ref.sources, :url)
+					AND NOT jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
+					AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))
+				""";
+		}
+		return em.createNativeQuery(sql, String.class)
+			.setParameter("url", url)
+			.setParameter("origin", origin)
+			.setParameter("tag", tag)
+			.getResultList();
 	}
 
 	@Override

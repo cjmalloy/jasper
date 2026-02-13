@@ -1,5 +1,8 @@
 package jasper.repository;
 
+import jasper.domain.Ref;
+
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -8,6 +11,12 @@ import java.util.List;
  * SQLite-compatible queries are used instead.
  */
 public interface RefRepositoryCustom {
+
+	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
+
+	List<String> findAllResponsesWithTag(String url, String origin, String tag);
+
+	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
 	List<String> findAllPluginTagsInResponses(String url, String origin);
 

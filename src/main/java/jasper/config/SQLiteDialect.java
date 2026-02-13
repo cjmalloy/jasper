@@ -63,7 +63,13 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		);
 		// jsonb_extract_path: extract a JSON value at a dotted path (used with simple keys)
 		functionRegistry.registerPattern("jsonb_extract_path", "json_extract(?1, '$.' || ?2)", jsonb);
-		functionRegistry.registerPattern("jsonb_extract_path_text", "CAST(json_extract(?1, '$.' || ?2) AS TEXT)", string);
+		functionRegistry.registerPattern("jsonb_extract_path_text",
+			"(CASE " +
+				"WHEN json_type(?1, '$.' || ?2) IN ('true', 'false') " +
+					"THEN json_type(?1, '$.' || ?2) " +
+				"ELSE CAST(json_extract(?1, '$.' || ?2) AS TEXT) " +
+			"END)",
+			string);
 		// jsonb_object_field: get a JSON field by key (equivalent to PostgreSQL's -> operator)
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
 		functionRegistry.registerPattern(
@@ -72,9 +78,15 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 			jsonb
 		);
 		// jsonb_object_field_text: get a JSON field as text (equivalent to PostgreSQL's ->> operator)
+		// Uses json_type() for booleans since json_extract returns 1/0 for JSON true/false,
+		// while PostgreSQL's ->> returns "true"/"false" text.
 		functionRegistry.registerPattern(
 			"jsonb_object_field_text",
-			"CAST(json_extract(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"') AS TEXT)",
+			"(CASE " +
+				"WHEN json_type(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"') IN ('true', 'false') " +
+					"THEN json_type(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"') " +
+				"ELSE CAST(json_extract(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"') AS TEXT) " +
+			"END)",
 			string
 		);
 		// jsonb_set: set a JSON value at a path, converting PostgreSQL path {key} to SQLite $.key
