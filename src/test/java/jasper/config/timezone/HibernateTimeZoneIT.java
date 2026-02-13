@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.springframework.test.context.junit.jupiter.DisabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.lang.String.format;
@@ -20,8 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for the ZoneId Hibernate configuration.
+ * Disabled on SQLite because it uses sequence-based ID generation which is not supported.
  */
 @IntegrationTest
+@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
 class HibernateTimeZoneIT {
 
 	@Autowired
