@@ -19,7 +19,7 @@ import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
-public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
+public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin, RefRepositoryCustom {
 
 	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
@@ -132,28 +132,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
-	@Query(nativeQuery = true, value = """
-		SELECT DISTINCT t.tag
-		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url)
-			AND t.tag ~ '^[_+]?plugin(/|$)'
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
-	""")
-	List<String> findAllPluginTagsInResponses(String url, String origin);
-
-	@Query(nativeQuery = true, value = """
-		SELECT DISTINCT t.tag
-		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url)
-			AND t.tag ~ '^[_+]?plugin/user(/|$)'
-			AND r.origin = :origin
-	""")
-	List<String> findAllUserPluginTagsInResponses(String url, String origin);
-
 	@Modifying
 	@Transactional
 	@Query("""
@@ -187,39 +165,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		)""")
 	boolean newerExists(String url, String rootOrigin, Instant newerThan);
 
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
-	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref ref
-		SET metadata = jsonb_set(metadata, '{regen}', CAST('true' as jsonb), true)
-		WHERE ref.metadata IS NOT NULL
-			AND NOT ref.metadata->>'regen' = 'true'
-			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	void dropMetadata(String origin);
-
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
-	@Transactional
-	@Query(nativeQuery = true, value = """
-		WITH rows as (
-			SELECT url, origin from ref
-			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
-			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
-			LIMIT :batchSize
-		)
-		UPDATE ref r
-		SET metadata = jsonb_strip_nulls(jsonb_build_object(
-			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->expandedTags, 'internal') = false),
-			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->expandedTags, 'internal') = true),
-			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
-				p.tag,
-				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
-			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
-			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
-		))
-		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)""")
-	int backfillMetadata(String origin, int batchSize);
-
 	@Query(nativeQuery = true, value = """
 		SELECT *, '' as scheme
 		FROM ref
@@ -245,88 +190,4 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND ref.plugins->'_plugin/cache'->>'ban' != 'true'
 			AND ref.plugins->'_plugin/cache'->>'noStore' != 'true'""")
 	boolean cacheExists(String id);
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_tags_index""")
-	void dropTags();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_tags_index ON ref USING GIN(tags)""")
-	void buildTags();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_expanded_tags_index""")
-	void dropExpandedTags();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))""")
-	void buildExpandedTags();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_sources_index""")
-	void dropSources();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_sources_index ON ref USING GIN(sources)""")
-	void buildSources();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_alternate_urls_index""")
-	void dropAlts();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)""")
-	void buildAlts();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_fulltext_index""")
-	void dropFulltext();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)""")
-	void buildFulltext();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_published_index""")
-	void dropPublished();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_published_index ON ref (published)""")
-	void buildPublished();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		DROP INDEX IF EXISTS ref_modified_index""")
-	void dropModified();
-
-	@Transactional
-	@Modifying
-	@Query(nativeQuery = true, value = """
-		CREATE INDEX ref_modified_index ON ref (modified)""")
-	void buildModified();
 }

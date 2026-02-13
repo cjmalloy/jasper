@@ -15,7 +15,7 @@ import java.util.List;
 @Repository
 @Transactional(readOnly = true)
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
-	ModifiedCursor, OriginMixin {
+	ModifiedCursor, OriginMixin, UserRepositoryCustom {
 
 	@Modifying
 	@Query("""
@@ -79,19 +79,4 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
-
-	// TODO: Sync cache
-	@Modifying
-	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE users users
-		SET external = jsonb_set(
-				COALESCE(users.external, '{}'::jsonb),
-				'{ids}',
-				COALESCE(users.external->'ids', '[]'::jsonb) || to_jsonb(CAST(:externalId as text)),
-				true)
-		WHERE users.tag = :tag
-			AND users.origin = :origin
-			AND NOT COALESCE(jsonb_exists(users.external->'ids', :externalId), false)""")
-	int setExternalId(String tag, String origin, String externalId);
 }

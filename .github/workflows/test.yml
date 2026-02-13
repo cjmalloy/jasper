@@ -22,32 +22,65 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, sqlite]
     steps:
       - uses: actions/checkout@v6
+      # PostgreSQL tests: Docker-based with Testcontainers
       - name: Build the testing image
+        if: matrix.database == 'postgres'
         run: docker build . --file Dockerfile --target test --tag test
       - name: Run the test container
+        if: matrix.database == 'postgres'
         run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
       - name: Copy the tests from the container
-        if: always()
+        if: matrix.database == 'postgres' && always()
         run: docker cp test:/tests tests
+      - name: Copy the reports from the container
+        if: matrix.database == 'postgres' && always()
+        run: docker cp test:/reports reports
+      # SQLite tests: Maven-based with in-memory SQLite
+      - name: Set up Java
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+      - name: Install Bun
+        if: matrix.database == 'sqlite'
+        uses: oven-sh/setup-bun@v2
+      - name: Install Python
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run SQLite tests
+        if: matrix.database == 'sqlite'
+        run: ./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts
+      - name: Collect SQLite test results
+        if: matrix.database == 'sqlite' && always()
+        run: |
+          mkdir -p tests reports
+          cp target/surefire-reports/*.xml tests/ 2>/dev/null || true
+          cp -r target/reports/* reports/ 2>/dev/null || true
+          cp target/reports/surefire.html reports/index.html 2>/dev/null || true
+      # Common reporting steps
       - name: Publish Unit Test Results
         uses: dorny/test-reporter@v2.5.0
         if: always()
         continue-on-error: true
         with:
-          name: Test Results
+          name: Test Results (${{ matrix.database }})
           path: "tests/*.xml"
           reporter: java-junit
-      - name: Copy the reports from the container
-        if: always()
-        run: docker cp test:/reports reports
       - name: Generate Test Summary
         if: always()
         id: test_summary
         run: |
           # Count total tests, failures, errors, and skipped
-          if [ -d "tests" ]; then
+          if [ -d "tests" ] && ls tests/*.xml 1>/dev/null 2>&1; then
             TOTAL=$(grep -r "testsuite" tests/*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
             FAILURES=$(grep -r "testsuite" tests/*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
             ERRORS=$(grep -r "testsuite" tests/*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s}')
@@ -76,7 +109,7 @@ jobs:
             fi
             
             # Create workflow summary
-            echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo "## Test Results Summary (${{ matrix.database }})" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -114,7 +147,7 @@ jobs:
               status = 'Some tests failed!';
             }
             
-            let comment = `## ${emoji} Test Results\n\n`;
+            let comment = `## ${emoji} Test Results (${{ matrix.database }})\n\n`;
             comment += `**${status}**\n\n`;
             comment += `| Metric | Count |\n`;
             comment += `|--------|-------|\n`;
@@ -192,7 +225,7 @@ jobs:
             }
             
             // Add marker to identify our comment
-            comment += `\n<!-- test-results-comment -->`;
+            comment += `\n<!-- test-results-comment-${{ matrix.database }} -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -205,7 +238,7 @@ jobs:
             );
             
             const botComment = comments.find(comment => 
-              comment.body.includes('<!-- test-results-comment -->')
+              comment.body.includes('<!-- test-results-comment-${{ matrix.database }} -->')
             );
             
             if (botComment) {
@@ -227,14 +260,14 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: junit-reports-pr-${{ github.event.pull_request.number }}
+          name: junit-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
           path: reports
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
+          name: junit-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
           path: reports
           retention-days: 90
 
@@ -258,7 +291,7 @@ jobs:
               per_page: 100
             });
             const artifacts = response.data.artifacts
-              .filter(artifact => artifact.name.startsWith('junit-reports-' + '${{ github.ref_name }}'));
+              .filter(artifact => artifact.name.startsWith('junit-reports-') && artifact.name.includes('${{ github.ref_name }}'));
             if (artifacts.length > maxVersions) {
               // Sort by created_at descending
               artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));

@@ -3,11 +3,12 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.hypersistence.utils.hibernate.type.search.PostgreSQLTSVectorType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -17,9 +18,7 @@ import jasper.domain.proj.Tag;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.CreatedDate;
@@ -79,7 +78,7 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
+	@Transient
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
@@ -94,9 +93,16 @@ public class Ref implements HasTags {
 	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
-	@Type(PostgreSQLTSVectorType.class)
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
+
+	@PostLoad
+	void computeScheme() {
+		if (url != null) {
+			int idx = url.indexOf(':');
+			if (idx > 0) scheme = url.substring(0, idx);
+		}
+	}
 
 	public boolean hasPluginResponse(String tag) {
 		if (metadata == null) return false;
