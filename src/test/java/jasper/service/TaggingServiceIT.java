@@ -51,12 +51,15 @@ public class TaggingServiceIT {
 
 	@BeforeEach
 	void init() {
-		refRepository.deleteAll();
-		pluginRepository.deleteAll();
+		cleanupRepositories();
 	}
 
 	@AfterEach
 	void cleanup() {
+		cleanupRepositories();
+	}
+
+	private void cleanupRepositories() {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
 	}
