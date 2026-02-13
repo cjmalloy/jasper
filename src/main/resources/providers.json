@@ -214,6 +214,23 @@
         ]
     },
     {
+        "provider_name": "AppForceStudio",
+        "provider_url": "https://appforcestudio.com",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://appforcestudio.com/playground/*"
+                ],
+                "url": "https://us-central1-themerax-cc903.cloudfunctions.net/playgroundApi/oembed",
+                "discovery": true,
+                "formats": [
+                    "json",
+                    "xml"
+                ]
+            }
+        ]
+    },
+    {
         "provider_name": "ArcGIS StoryMaps",
         "provider_url": "https://storymaps.arcgis.com",
         "endpoints": [
@@ -343,6 +360,22 @@
                 ],
                 "url": "https://podcasts.audiomeans.fr/services/oembed",
                 "discovery": false,
+                "formats": [
+                    "json"
+                ]
+            }
+        ]
+    },
+    {
+        "provider_name": "Audius",
+        "provider_url": "https://audius.co",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://audius.co/*"
+                ],
+                "url": "https://audius.co/oembed",
+                "discovery": true,
                 "formats": [
                     "json"
                 ]
@@ -530,11 +563,18 @@
     },
     {
         "provider_name": "Box Office Buz",
-        "provider_url": "http://boxofficebuz.com",
+        "provider_url": "https://boxofficebuz.com",
         "endpoints": [
             {
-                "url": "http://boxofficebuz.com/oembed",
-                "discovery": true
+                "schemes": [
+                    "https://boxofficebuz.com/embed/video/*"
+                ],
+                "url": "https://api.boxofficebuz.com/v2/oembed",
+                "discovery": true,
+                "formats": [
+                    "json",
+                    "xml"
+                ]
             }
         ]
     },
@@ -804,6 +844,19 @@
                     "https://www.clipland.com/v/*"
                 ],
                 "url": "https://www.clipland.com/api/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Clueso",
+        "provider_url": "https://clueso.io",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://clueso.site/*"
+                ],
+                "url": "https://clueso.site/api/oembed",
                 "discovery": true
             }
         ]
@@ -1219,6 +1272,19 @@
         ]
     },
     {
+        "provider_name": "ElevenLabs",
+        "provider_url": "https://elevenlabs.io/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://elevenlabs.io/*"
+                ],
+                "url": "https://elevenlabs.io/next/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "Embedery",
         "provider_url": "https://embedery.com/",
         "endpoints": [
@@ -1390,7 +1456,13 @@
         "endpoints": [
             {
                 "schemes": [
-                    "https://www.figma.com/file/*"
+                    "https://www.figma.com/file/*",
+                    "https://www.figma.com/design/*",
+                    "https://www.figma.com/board/*",
+                    "https://www.figma.com/slides/*",
+                    "https://www.figma.com/buzz/*",
+                    "https://www.figma.com/site/*",
+                    "https://www.figma.com/make/*"
                 ],
                 "url": "https://www.figma.com/api/oembed",
                 "discovery": true
@@ -1708,6 +1780,22 @@
                     "https://app.gong.io/call?id=*"
                 ],
                 "url": "https://app.gong.io/oembed",
+                "formats": [
+                    "json"
+                ]
+            }
+        ]
+    },
+    {
+        "provider_name": "GOOD FOR JOB",
+        "provider_url": "https://www.good-for-job.jp",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://www.good-for-job.jp/slides/*"
+                ],
+                "url": "https://www.good-for-job.jp/api/oembed",
+                "discovery": true,
                 "formats": [
                     "json"
                 ]
@@ -2253,6 +2341,23 @@
         ]
     },
     {
+        "provider_name": "Juntos",
+        "provider_url": "https://juntos.live",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://play.juntos.live/solo/*",
+                    "https://play.juntos.live/host/quiz/*"
+                ],
+                "url": "https://play.juntos.live/api/oembed",
+                "formats": [
+                    "json"
+                ],
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "KakaoTv",
         "provider_url": "https://tv.kakao.com/",
         "endpoints": [
@@ -2415,6 +2520,25 @@
                     "https://kurozora.app/songs/*"
                 ],
                 "url": "https://kurozora.app/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Land of Assets",
+        "provider_url": "https://landofassets.com",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://landofassets.com/*",
+                    "https://landofassets.com/*/assets",
+                    "https://landofassets.com/*/assets/*",
+                    "https://landofassets.com/*/assets/*/embed"
+                ],
+                "url": "https://api.landofassets.com/oembed",
+                "formats": [
+                    "json"
+                ],
                 "discovery": true
             }
         ]
@@ -2702,6 +2826,13 @@
                     "https://miro.com/app/board/*"
                 ],
                 "url": "https://miro.com/api/v1/oembed",
+                "discovery": true
+            },
+            {
+                "schemes": [
+                    "https://miro.com/video-player/*"
+                ],
+                "url": "https://miro.com/video-player/oembed",
                 "discovery": true
             }
         ]
@@ -3203,6 +3334,20 @@
         ]
     },
     {
+        "provider_name": "Parta.io",
+        "provider_url": "https://parta.io/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://app.parta.io/core/embed/*",
+                    "https://*.parta.io/core/embed/*"
+                ],
+                "url": "https://app.parta.io/core/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "Pastery",
         "provider_url": "https://www.pastery.net",
         "endpoints": [
@@ -3427,6 +3572,19 @@
                     "https://*.prezi.com/v/*"
                 ],
                 "url": "https://prezi.com/v/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Programmingly.dev",
+        "provider_url": "https://programmingly.dev",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://programmingly.dev/snippets/*"
+                ],
+                "url": "https://programmingly.dev/api/oembed",
                 "discovery": true
             }
         ]
@@ -3723,6 +3881,19 @@
         ]
     },
     {
+        "provider_name": "Sato Video Player",
+        "provider_url": "http://satoplayer.com",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://api.satoplayer.com/players/embed/*"
+                ],
+                "url": "https://api.satoplayer.com/players/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "sbedit",
         "provider_url": "https://sbedit.net",
         "endpoints": [
@@ -3936,6 +4107,20 @@
                     "https://onsizzle.com/i/*"
                 ],
                 "url": "https://onsizzle.com/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
+        "provider_name": "Sketch",
+        "provider_url": "https://www.sketch.com",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://www.sketch.com/s/*",
+                    "https://www.sketch.com/preview/*"
+                ],
+                "url": "https://graphql.sketch.cloud/embed/oembed",
                 "discovery": true
             }
         ]
@@ -4272,6 +4457,8 @@
                 "schemes": [
                     "https://www.sudomemo.net/watch/*",
                     "http://www.sudomemo.net/watch/*",
+                    "https://archive.sudomemo.net/watch/*",
+                    "http://archive.sudomemo.net/watch/*",
                     "https://flipnot.es/*",
                     "http://flipnot.es/*"
                 ],
@@ -4381,6 +4568,20 @@
         ]
     },
     {
+        "provider_name": "Tella",
+        "provider_url": "https://www.tella.tv/",
+        "endpoints": [
+            {
+                "schemes": [
+                    "https://www.tella.tv/video/*",
+                    "https://tella.video/*"
+                ],
+                "url": "https://www.tella.tv/api/oembed",
+                "discovery": true
+            }
+        ]
+    },
+    {
         "provider_name": "The DAM consultants",
         "provider_url": "https://hubspot-media-bridge.thedamconsultants.com/",
         "endpoints": [
@@ -4433,12 +4634,16 @@
                     "http://www.tickcounter.com/ticker/*",
                     "http://www.tickcounter.com/clock/*",
                     "http://www.tickcounter.com/worldclock/*",
+                    "http://www.tickcounter.com/embed/*",
+                    "http://www.tickcounter.com/full/*",
                     "https://www.tickcounter.com/widget/*",
                     "https://www.tickcounter.com/countdown/*",
                     "https://www.tickcounter.com/countup/*",
                     "https://www.tickcounter.com/ticker/*",
                     "https://www.tickcounter.com/clock/*",
-                    "https://www.tickcounter.com/worldclock/*"
+                    "https://www.tickcounter.com/worldclock/*",
+                    "https://www.tickcounter.com/embed/*",
+                    "https://www.tickcounter.com/full/*"
                 ],
                 "url": "https://www.tickcounter.com/oembed",
                 "discovery": true

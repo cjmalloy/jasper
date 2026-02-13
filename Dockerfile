@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.8-slim AS bun
+FROM oven/bun:1.3.9-slim AS bun
 
 FROM maven:3.9.11-amazoncorretto-25-debian AS builder
 WORKDIR /app
@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-y
     && python3 --version
 ARG JASPER_PYTHON=/usr/bin/python3
 ENV JASPER_PYTHON=${JASPER_PYTHON}
+ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which jq \
     && jq --version \
@@ -66,7 +67,9 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
-RUN apt-get update && apt-get install ffmpeg -y
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN mkdir -p /cr && chmod 755 /cr
 COPY --from=builder /app/layers/dependencies/ ./
