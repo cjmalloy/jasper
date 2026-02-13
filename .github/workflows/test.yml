@@ -37,10 +37,20 @@ jobs:
         run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
       - name: Copy the tests from the container
         if: matrix.database == 'postgres' && always()
-        run: docker cp test:/tests tests
+        run: |
+          if docker ps -a --format '{{.Names}}' | grep -qx test; then
+            docker cp test:/tests tests
+          else
+            echo "Test container 'test' not found; skipping tests copy."
+          fi
       - name: Copy the reports from the container
         if: matrix.database == 'postgres' && always()
-        run: docker cp test:/reports reports
+        run: |
+          if docker ps -a --format '{{.Names}}' | grep -qx test; then
+            docker cp test:/reports reports
+          else
+            echo "Test container 'test' not found; skipping reports copy."
+          fi
       # SQLite tests: Maven-based with in-memory SQLite
       - name: Set up Java
         if: matrix.database == 'sqlite'

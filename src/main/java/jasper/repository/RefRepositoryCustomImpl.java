@@ -2,8 +2,6 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +13,6 @@ import java.util.List;
  * dispatches to the appropriate SQL.
  */
 public class RefRepositoryCustomImpl implements RefRepositoryCustom {
-	private static final Logger logger = LoggerFactory.getLogger(RefRepositoryCustomImpl.class);
 
 	@PersistenceContext
 	private EntityManager em;
@@ -139,7 +136,7 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
 					(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
-				) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
+				) FROM plugin p WHERE p.origin = :origin)),
 				'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
 			))
 			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
@@ -210,13 +207,32 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				.getSingleResult();
 			String modifiedTs = existingModified != null ? existingModified.toString() :
 				java.time.Instant.now().toString();
+			// Preserve existing plugins and userUrls from metadata, if any
+			String pluginsSql = """
+				SELECT json_extract(metadata, '$.plugins') FROM ref WHERE url = :refUrl AND origin = :refOrigin
+				""";
+			var existingPlugins = em.createNativeQuery(pluginsSql)
+				.setParameter("refUrl", refUrl)
+				.setParameter("refOrigin", refOrigin)
+				.getSingleResult();
+			String pluginsJson = existingPlugins != null ? existingPlugins.toString() : "null";
+			String userUrlsSql = """
+				SELECT json_extract(metadata, '$.userUrls') FROM ref WHERE url = :refUrl AND origin = :refOrigin
+				""";
+			var existingUserUrls = em.createNativeQuery(userUrlsSql)
+				.setParameter("refUrl", refUrl)
+				.setParameter("refOrigin", refOrigin)
+				.getSingleResult();
+			String userUrlsJson = existingUserUrls != null ? existingUserUrls.toString() : "null";
 			// Build metadata JSON
 			String metadata = String.format(
-				"{\"modified\":%s,\"responses\":%s,\"internalResponses\":%s,\"obsolete\":%s}",
+				"{\"modified\":%s,\"responses\":%s,\"internalResponses\":%s,\"obsolete\":%s,\"plugins\":%s,\"userUrls\":%s}",
 				escapeJson(modifiedTs),
 				"[]".equals(responses) || responses == null ? "null" : responses,
 				"[]".equals(internalResponses) || internalResponses == null ? "null" : internalResponses,
-				obsoleteCount
+				obsoleteCount,
+				pluginsJson,
+				userUrlsJson
 			);
 			// Update the ref
 			String updateSql = """

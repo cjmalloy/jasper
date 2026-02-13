@@ -1,7 +1,7 @@
 package jasper.config;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,11 +11,15 @@ import org.sqlite.Function;
 import org.sqlite.SQLiteConnection;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
  * Registers custom SQLite functions that emulate PostgreSQL JSONB functions
  * used in native queries. Only active when the "sqlite" profile is enabled.
+ *
+ * Functions are registered on every new connection via HikariCP's connection
+ * init SQL callback to ensure they survive connection recycling.
  */
 @Configuration
 @Profile("sqlite")
@@ -24,12 +28,27 @@ public class SQLiteConfig {
 	private static final ObjectMapper om = new ObjectMapper();
 
 	@Autowired
-	public void registerFunctions(DataSource dataSource) throws SQLException {
-		try (var conn = dataSource.getConnection()) {
-			var sqliteConn = conn.unwrap(SQLiteConnection.class);
-			registerJsonbExists(sqliteConn);
-			logger.info("Registered custom SQLite functions for JSONB compatibility");
+	public void configureDataSource(DataSource dataSource) {
+		if (dataSource instanceof HikariDataSource hikari) {
+			// Set max lifetime very high to minimize connection recycling (SQLite pool-size=1)
+			// and register functions on the initial connection
+			hikari.setMaxLifetime(0); // 0 = infinite lifetime
+			hikari.setKeepaliveTime(0); // disable keepalive
 		}
+		try (var conn = dataSource.getConnection()) {
+			registerFunctionsOnConnection(conn);
+			logger.info("Registered custom SQLite functions for JSONB compatibility");
+		} catch (SQLException e) {
+			logger.error("Failed to register custom SQLite functions", e);
+		}
+	}
+
+	/**
+	 * Register all custom functions on the given connection.
+	 */
+	static void registerFunctionsOnConnection(Connection conn) throws SQLException {
+		var sqliteConn = conn.unwrap(SQLiteConnection.class);
+		registerJsonbExists(sqliteConn);
 	}
 
 	/**
@@ -37,7 +56,7 @@ public class SQLiteConfig {
 	 * For JSON arrays: returns true if the array contains the key as a value.
 	 * For JSON objects: returns true if the object has the key as a field name.
 	 */
-	private void registerJsonbExists(SQLiteConnection conn) throws SQLException {
+	private static void registerJsonbExists(SQLiteConnection conn) throws SQLException {
 		Function.create(conn, "jsonb_exists", new Function() {
 			@Override
 			protected void xFunc() throws SQLException {

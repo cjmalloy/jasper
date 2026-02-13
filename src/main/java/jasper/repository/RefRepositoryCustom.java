@@ -1,10 +1,6 @@
 package jasper.repository;
 
-import jasper.domain.Ref;
-import jasper.domain.proj.RefUrl;
-
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Custom repository fragment for Ref queries that require database-specific SQL.
