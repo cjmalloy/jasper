@@ -632,8 +632,18 @@ public class Auth {
 		var orders = pageable.getSort().toList();
 		var filtered = orders.stream()
 			.filter(order -> {
-				var tag = extractPluginTag(order.getProperty());
-				if (tag.isEmpty()) return true;
+				var property = order.getProperty();
+				String afterPrefix;
+				if (property.startsWith("plugins->")) {
+					afterPrefix = property.substring("plugins->".length());
+				} else if (property.startsWith("metadata->plugins->")) {
+					afterPrefix = property.substring("metadata->plugins->".length());
+				} else {
+					return true;
+				}
+				int end = afterPrefix.indexOf("->");
+				if (end == -1) end = afterPrefix.indexOf(":");
+				var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
 				if (!isPrivateTag(tag)) return true;
 				if (isUser(tag)) return true;
 				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
@@ -644,20 +654,6 @@ public class Auth {
 			pageable.getPageNumber(),
 			pageable.getPageSize(),
 			Sort.by(filtered));
-	}
-
-	static String extractPluginTag(String sortProperty) {
-		String afterPrefix;
-		if (sortProperty.startsWith("plugins->")) {
-			afterPrefix = sortProperty.substring("plugins->".length());
-		} else if (sortProperty.startsWith("metadata->plugins->")) {
-			afterPrefix = sortProperty.substring("metadata->plugins->".length());
-		} else {
-			return "";
-		}
-		int end = afterPrefix.indexOf("->");
-		if (end == -1) end = afterPrefix.indexOf(":");
-		return end == -1 ? afterPrefix : afterPrefix.substring(0, end);
 	}
 
 	/**

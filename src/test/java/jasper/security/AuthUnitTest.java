@@ -904,30 +904,6 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testExtractPluginTag_PluginsPrefix() {
-		assertThat(Auth.extractPluginTag("plugins->_custom->field"))
-			.isEqualTo("_custom");
-	}
-
-	@Test
-	void testExtractPluginTag_MetadataPluginsPrefix() {
-		assertThat(Auth.extractPluginTag("metadata->plugins->_custom->field"))
-			.isEqualTo("_custom");
-	}
-
-	@Test
-	void testExtractPluginTag_VotePattern() {
-		assertThat(Auth.extractPluginTag("plugins->plugin/user/vote:top"))
-			.isEqualTo("plugin/user/vote");
-	}
-
-	@Test
-	void testExtractPluginTag_NoPluginPrefix() {
-		assertThat(Auth.extractPluginTag("modified"))
-			.isEqualTo("");
-	}
-
-	@Test
 	void testGetHiddenTags_Public() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
