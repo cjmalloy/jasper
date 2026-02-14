@@ -16,15 +16,20 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		var doubleType = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.DOUBLE);
 		var jsonb = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(Object.class, SqlTypes.JSON);
 		functionRegistry.register("age", new StandardSQLFunction("age", StandardBasicTypes.DURATION));
+		// JSONB access functions
 		functionRegistry.registerPattern("jsonb_exists", "jsonb_exists(?1, ?2)", bool);
 		functionRegistry.registerPattern("jsonb_extract_path", "jsonb_extract_path(?1, ?2)", jsonb);
+		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
+		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
+		// JSONB utility functions
 		functionRegistry.registerPattern("cast_to_jsonb", "?1::jsonb", jsonb);
 		functionRegistry.registerPattern("jsonb_concat", "jsonb_concat(?1, ?2)", jsonb);
-		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
-		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		functionRegistry.registerPattern("jsonb_array_length", "jsonb_array_length(?1)", integer);
 		functionRegistry.registerPattern("jsonb_array_element_text", "jsonb_array_element_text(?1, ?2)", string);
+		// Type casting functions
+		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
+		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
