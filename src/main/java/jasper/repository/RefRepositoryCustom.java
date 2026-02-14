@@ -1,9 +1,6 @@
 package jasper.repository;
 
-import jasper.domain.proj.RefUrl;
-
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Custom repository fragment for Ref queries that require database-specific native SQL
@@ -16,8 +13,6 @@ public interface RefRepositoryCustom {
 	List<String> findAllPluginTagsInResponses(String url, String origin);
 
 	List<String> findAllUserPluginTagsInResponses(String url, String origin);
-
-	Optional<RefUrl> originUrl(String origin, String remote);
 
 	int backfillMetadata(String origin, int batchSize);
 

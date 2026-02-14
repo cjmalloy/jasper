@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
+import jasper.domain.proj.RefUrl;
 import jasper.domain.proj.RefView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -185,5 +186,16 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'ban'), '') != 'true'
 			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'noStore'), '') != 'true'""")
 	boolean cacheExists(String id);
+
+	@Query("""
+		SELECT r.url AS url, jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'proxy') AS proxy
+		FROM Ref r
+		WHERE r.origin = :origin
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), '+plugin/origin') = true
+			AND ((jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'local') IS NULL AND '' = :remote)
+				OR jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'local') = :remote)
+		ORDER BY r.modified DESC
+		FETCH FIRST 1 ROW ONLY""")
+	Optional<RefUrl> originUrl(String origin, String remote);
 
 }

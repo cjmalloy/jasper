@@ -120,6 +120,8 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("websearch_to_tsquery", "?1", string);
 		functionRegistry.registerPattern("ts_match_vq", "EXISTS (SELECT 1 FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER))", bool);
 		functionRegistry.registerPattern("ts_rank_cd", "COALESCE((SELECT bm25(ref_fts) FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER)), 0)", doubleType);
+		// jsonb_array_append: append a text value to a JSON array
+		functionRegistry.registerPattern("jsonb_array_append", "json_insert(?1, '$[#]', ?2)", jsonb);
 	}
 
 	/**

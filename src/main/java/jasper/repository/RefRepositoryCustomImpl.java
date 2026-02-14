@@ -2,12 +2,10 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jasper.domain.proj.RefUrl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Custom repository implementation for queries requiring database-specific native SQL.
@@ -96,45 +94,6 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public Optional<RefUrl> originUrl(String origin, String remote) {
-		String sql;
-		if (isSqlite()) {
-			sql = """
-				SELECT url, json_extract(plugins, '$."+plugin/origin".proxy') as proxy
-				FROM ref
-				WHERE ref.origin = :origin
-					AND jsonb_exists(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags), '+plugin/origin')
-					AND ((json_extract(plugins, '$."+plugin/origin".local') IS NULL AND '' = :remote)
-						OR json_extract(plugins, '$."+plugin/origin".local') = :remote)
-				LIMIT 1
-				""";
-		} else {
-			sql = """
-				SELECT url, plugins->'+plugin/origin'->>'proxy' as proxy
-				FROM ref
-				WHERE ref.origin = :origin
-					AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), '+plugin/origin')
-					AND ((plugins->'+plugin/origin'->>'local' is NULL AND '' = :remote)
-						OR plugins->'+plugin/origin'->>'local' = :remote)
-				LIMIT 1
-				""";
-		}
-		var result = em.createNativeQuery(sql)
-			.setParameter("origin", origin)
-			.setParameter("remote", remote)
-			.getResultList();
-		if (result.isEmpty()) return Optional.empty();
-		Object[] row = (Object[]) result.getFirst();
-		String url = (String) row[0];
-		String proxy = (String) row[1];
-		return Optional.of(new RefUrl() {
-			@Override public String getUrl() { return url; }
-			@Override public String getProxy() { return proxy; }
-		});
 	}
 
 	@Override
