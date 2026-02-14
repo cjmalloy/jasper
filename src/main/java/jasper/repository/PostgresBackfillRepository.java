@@ -8,13 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @Profile("!sqlite")
+@Transactional
 public class PostgresBackfillRepository implements BackfillRepository {
 
 	@PersistenceContext
 	private EntityManager em;
 
 	@Override
-	@Transactional
 	public int backfillMetadata(String origin, int batchSize) {
 		String sql = """
 			WITH rows as (

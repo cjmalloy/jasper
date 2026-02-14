@@ -8,13 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @Profile("sqlite")
+@Transactional
 public class SqliteBackfillRepository implements BackfillRepository {
 
 	@PersistenceContext
 	private EntityManager em;
 
 	@Override
-	@Transactional
 	public int backfillMetadata(String origin, int batchSize) {
 		// Single UPDATE with correlated subqueries — eliminates the N+1 query problem.
 		// Uses json_patch to merge computed responses/internalResponses into the base object
