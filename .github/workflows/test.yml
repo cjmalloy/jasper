@@ -96,6 +96,13 @@ jobs:
         run: |
           COVERAGE_CSV="reports/coverage/jacoco.csv"
           if [ -f "$COVERAGE_CSV" ]; then
+            # Validate CSV header matches expected JaCoCo format
+            HEADER=$(head -1 "$COVERAGE_CSV")
+            EXPECTED_HEADER="GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED"
+            if [ "$HEADER" != "$EXPECTED_HEADER" ]; then
+              echo "::warning::JaCoCo CSV header format has changed. Coverage parsing may be inaccurate."
+            fi
+
             # Sum up all coverage counters from CSV (skip header line)
             INST_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$4} END {print s+0}')
             INST_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$5} END {print s+0}')
