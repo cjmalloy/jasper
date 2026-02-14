@@ -236,8 +236,18 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 			String pluginsJson = pluginsResult != null ? pluginsResult.toString() : "null";
 			// Strip null-valued plugin entries (equivalent to jsonb_strip_nulls in PostgreSQL)
 			if (pluginsJson != null && !pluginsJson.equals("null")) {
-				pluginsJson = pluginsJson.replaceAll("\"[^\"]+\":null,?", "").replaceAll(",}", "}");
-				if ("{}".equals(pluginsJson)) pluginsJson = "null";
+				try {
+					var pluginsNode = objectMapper.readTree(pluginsJson);
+					if (pluginsNode instanceof ObjectNode obj) {
+						var it = obj.fields();
+						while (it.hasNext()) {
+							if (it.next().getValue().isNull()) it.remove();
+						}
+						pluginsJson = obj.isEmpty() ? "null" : obj.toString();
+					}
+				} catch (Exception e) {
+					pluginsJson = "null";
+				}
 			}
 			// Preserve existing userUrls from metadata
 			String userUrlsSql = """
