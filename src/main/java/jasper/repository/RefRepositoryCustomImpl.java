@@ -1,7 +1,5 @@
 package jasper.repository;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.domain.proj.RefUrl;
@@ -17,8 +15,6 @@ import java.util.Optional;
  * json_each, GIN indexes, complex CTEs). All other queries use HQL @Query in RefRepository.
  */
 public class RefRepositoryCustomImpl implements RefRepositoryCustom {
-
-	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	@PersistenceContext
 	private EntityManager em;
@@ -111,10 +107,7 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				SELECT url, json_extract(plugins, '$."+plugin/origin".proxy') as proxy
 				FROM ref
 				WHERE ref.origin = :origin
-					AND (CASE WHEN json_type(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) = 'object'
-						THEN ('+plugin/origin' IN (SELECT je.key FROM json_each(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) je))
-						ELSE ('+plugin/origin' IN (SELECT je.value FROM json_each(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags)) je))
-					END)
+					AND jsonb_exists(COALESCE(json_extract(ref.metadata, '$.expandedTags'), ref.tags), '+plugin/origin')
 					AND ((json_extract(plugins, '$."+plugin/origin".local') IS NULL AND '' = :remote)
 						OR json_extract(plugins, '$."+plugin/origin".local') = :remote)
 				LIMIT 1
@@ -185,130 +178,53 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 	}
 
 	private int backfillMetadataSqlite(String origin, int batchSize) {
-		String selectSql = """
-			SELECT url, origin FROM ref
+		// Single UPDATE with correlated subqueries — eliminates the N+1 query problem.
+		// Uses json_patch to merge computed responses/internalResponses into the base object
+		// only when they are non-empty, matching PostgreSQL's jsonb_strip_nulls behavior.
+		String sql = """
+			UPDATE ref SET metadata = json_patch(
+				json_patch(
+					json_object(
+						'modified', COALESCE(json_extract(ref.metadata, '$.modified'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+						'plugins', (SELECT json_group_object(p.tag, (
+							SELECT json_group_array(pre.url) FROM ref pre
+							WHERE jsonb_exists(pre.sources, ref.url)
+								AND jsonb_exists(COALESCE(json_extract(pre.metadata, '$.expandedTags'), pre.tags), p.tag)
+						)) FROM plugin p WHERE p.origin = :origin),
+						'obsolete', (SELECT count(*) FROM ref n
+							WHERE n.url = ref.url AND n.modified > ref.modified
+								AND (:origin = '' OR n.origin = :origin OR n.origin LIKE (:origin || '.%')))
+					),
+					CASE WHEN EXISTS (SELECT 1 FROM ref re
+						WHERE jsonb_exists(re.sources, ref.url)
+							AND NOT jsonb_exists(COALESCE(json_extract(re.metadata, '$.expandedTags'), re.tags), 'internal'))
+					THEN json_object('responses', (SELECT json_group_array(re.url) FROM ref re
+						WHERE jsonb_exists(re.sources, ref.url)
+							AND NOT jsonb_exists(COALESCE(json_extract(re.metadata, '$.expandedTags'), re.tags), 'internal')))
+					ELSE '{}' END
+				),
+				CASE WHEN EXISTS (SELECT 1 FROM ref ire
+					WHERE jsonb_exists(ire.sources, ref.url)
+						AND jsonb_exists(COALESCE(json_extract(ire.metadata, '$.expandedTags'), ire.tags), 'internal'))
+				THEN json_object('internalResponses', (SELECT json_group_array(ire.url) FROM ref ire
+					WHERE jsonb_exists(ire.sources, ref.url)
+						AND jsonb_exists(COALESCE(json_extract(ire.metadata, '$.expandedTags'), ire.tags), 'internal')))
+				ELSE '{}' END
+			)
 			WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
 				AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
-			LIMIT :batchSize
+				AND rowid IN (SELECT rowid FROM ref
+					WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
+						AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
+					LIMIT :batchSize)
 			""";
-		@SuppressWarnings("unchecked")
-		var rows = (List<Object[]>) em.createNativeQuery(selectSql)
+		int updated = em.createNativeQuery(sql)
 			.setParameter("origin", origin)
 			.setParameter("batchSize", batchSize)
-			.getResultList();
-		int count = 0;
-		for (var row : rows) {
-			String refUrl = (String) row[0];
-			String refOrigin = (String) row[1];
-			String responsesSql = """
-				SELECT json_group_array(re.url) FROM ref re
-				WHERE jsonb_exists(re.sources, :refUrl)
-					AND NOT jsonb_exists(COALESCE(json_extract(re.metadata, '$.expandedTags'), re.tags), 'internal')
-				""";
-			String responses = (String) em.createNativeQuery(responsesSql)
-				.setParameter("refUrl", refUrl)
-				.getSingleResult();
-			String internalResponsesSql = """
-				SELECT json_group_array(ire.url) FROM ref ire
-				WHERE jsonb_exists(ire.sources, :refUrl)
-					AND jsonb_exists(COALESCE(json_extract(ire.metadata, '$.expandedTags'), ire.tags), 'internal')
-				""";
-			String internalResponses = (String) em.createNativeQuery(internalResponsesSql)
-				.setParameter("refUrl", refUrl)
-				.getSingleResult();
-			String obsoleteSql = """
-				SELECT count(*) FROM ref n
-				WHERE n.url = :refUrl AND n.modified > (SELECT r2.modified FROM ref r2 WHERE r2.url = :refUrl AND r2.origin = :refOrigin)
-					AND (:origin = '' OR n.origin = :origin OR n.origin LIKE (:origin || '.%'))
-				""";
-			var obsoleteCount = em.createNativeQuery(obsoleteSql)
-				.setParameter("refUrl", refUrl)
-				.setParameter("refOrigin", refOrigin)
-				.setParameter("origin", origin)
-				.getSingleResult();
-			String modifiedSql = """
-				SELECT json_extract(metadata, '$.modified') FROM ref WHERE url = :refUrl AND origin = :refOrigin
-				""";
-			var existingModified = em.createNativeQuery(modifiedSql)
-				.setParameter("refUrl", refUrl)
-				.setParameter("refOrigin", refOrigin)
-				.getSingleResult();
-			String modifiedTs = existingModified != null ? existingModified.toString() :
-				java.time.Instant.now().toString();
-			// Recompute plugins: for each plugin tag, aggregate response URLs (matching PostgreSQL CTE logic)
-			String pluginsSql = """
-				SELECT json_group_object(p.tag, (
-					SELECT json_group_array(pre.url) FROM ref pre
-					WHERE jsonb_exists(pre.sources, :refUrl)
-						AND jsonb_exists(COALESCE(json_extract(pre.metadata, '$.expandedTags'), pre.tags), p.tag)
-				)) FROM plugin p WHERE p.origin = :origin
-				""";
-			var pluginsResult = em.createNativeQuery(pluginsSql)
-				.setParameter("refUrl", refUrl)
-				.setParameter("origin", origin)
-				.getSingleResult();
-			String pluginsJson = pluginsResult != null ? pluginsResult.toString() : "null";
-			// Strip null-valued plugin entries (equivalent to jsonb_strip_nulls in PostgreSQL)
-			if (pluginsJson != null && !pluginsJson.equals("null")) {
-				try {
-					var pluginsNode = objectMapper.readTree(pluginsJson);
-					if (pluginsNode instanceof ObjectNode obj) {
-						var it = obj.fields();
-						while (it.hasNext()) {
-							if (it.next().getValue().isNull()) it.remove();
-						}
-						pluginsJson = obj.isEmpty() ? "null" : obj.toString();
-					}
-				} catch (Exception e) {
-					pluginsJson = "null";
-				}
-			}
-			// Preserve existing userUrls from metadata
-			String userUrlsSql = """
-				SELECT json_extract(metadata, '$.userUrls') FROM ref WHERE url = :refUrl AND origin = :refOrigin
-				""";
-			var userUrlsList = em.createNativeQuery(userUrlsSql)
-				.setParameter("refUrl", refUrl)
-				.setParameter("refOrigin", refOrigin)
-				.getResultList();
-			String userUrlsJson = !userUrlsList.isEmpty() && userUrlsList.getFirst() != null ? userUrlsList.getFirst().toString() : null;
-			ObjectNode metadataNode = objectMapper.createObjectNode();
-			metadataNode.put("modified", modifiedTs);
-			metadataNode.set("responses", parseJsonOrNull(responses));
-			metadataNode.set("internalResponses", parseJsonOrNull(internalResponses));
-			metadataNode.put("obsolete", ((Number) obsoleteCount).intValue());
-			metadataNode.set("plugins", parseJsonOrNull(pluginsJson));
-			metadataNode.set("userUrls", parseJsonOrNull(userUrlsJson));
-			var metadataFields = metadataNode.fields();
-			while (metadataFields.hasNext()) {
-				if (metadataFields.next().getValue().isNull()) {
-					metadataFields.remove();
-				}
-			}
-			String metadata = metadataNode.toString();
-			String updateSql = """
-				UPDATE ref SET metadata = json(:metadata)
-				WHERE url = :refUrl AND origin = :refOrigin
-				""";
-			em.createNativeQuery(updateSql)
-				.setParameter("metadata", metadata)
-				.setParameter("refUrl", refUrl)
-				.setParameter("refOrigin", refOrigin)
-				.executeUpdate();
-			count++;
-		}
+			.executeUpdate();
 		em.flush();
 		em.clear();
-		return count;
-	}
-
-	private com.fasterxml.jackson.databind.JsonNode parseJsonOrNull(String json) {
-		if (json == null || "null".equals(json) || "[]".equals(json)) return objectMapper.nullNode();
-		try {
-			return objectMapper.readTree(json);
-		} catch (Exception e) {
-			return objectMapper.nullNode();
-		}
+		return updated;
 	}
 
 	// Index management methods - PostgreSQL uses GIN indexes, SQLite uses regular indexes or no-ops

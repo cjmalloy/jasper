@@ -295,7 +295,7 @@ public class RefRepositoryCustomIT {
 			.getSingleResult();
 		assertThat(metadataJson).isNotNull();
 		assertThat(metadataJson).contains("\"modified\"");
-		assertThat(metadataJson).contains("\"responses\"");
+		assertThat(metadataJson).contains("\"obsolete\"");
 	}
 
 	@Test
