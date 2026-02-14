@@ -1,7 +1,6 @@
 services:
   gatling:
     build: .
-    image: jasper-gatling
     profiles:
       - lt
     network_mode: host
@@ -16,7 +15,6 @@ services:
       - ./report:/gatling/report
   web:
     build: ..
-    image: jasper-web
     ports:
       - 8081:80
     healthcheck:
@@ -42,7 +40,6 @@ services:
       POSTGRES_DB: jasper
   repl-web:
     build: ..
-    image: jasper-web
     ports:
       - 8083:80
     healthcheck:
