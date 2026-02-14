@@ -194,7 +194,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), '+plugin/origin') = true
 			AND ((jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'local') IS NULL AND '' = :remote)
 				OR jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'local') = :remote)
-		ORDER BY r.modified DESC
 		FETCH FIRST 1 ROW ONLY""")
 	Optional<RefUrl> originUrl(String origin, String remote);
 
