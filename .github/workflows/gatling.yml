@@ -19,21 +19,39 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+      - name: Setup Docker buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: jasper-web
+          cache-from: type=gha,scope=gatling-web
+          cache-to: type=gha,mode=max,scope=gatling-web
+      - name: Build gatling image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gatling
+          load: true
+          tags: jasper-gatling
+          cache-from: type=gha,scope=gatling-test
+          cache-to: type=gha,mode=max,scope=gatling-test
       - name: Run Smoke Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --exit-code-from gatling)
       - name: Run Comprehensive Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=Comprehensive docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=Comprehensive docker compose --profile lt up --exit-code-from gatling)
       - name: Run User Journey
         if: always()
-        run: (cd gatling; GATLING_TEST=UserJourney docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=UserJourney docker compose --profile lt up --exit-code-from gatling)
       - name: Run Stress Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=StressTest docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=StressTest docker compose --profile lt up --exit-code-from gatling)
       - name: Run Inferno Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=Inferno docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=Inferno docker compose --profile lt up --exit-code-from gatling)
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
