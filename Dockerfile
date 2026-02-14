@@ -39,7 +39,9 @@ CMD mvn -gs settings.xml test surefire-report:report; \
 		cp target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
 		cp -r target/reports/* /reports/ && \
-		cp target/reports/surefire.html /reports/index.html
+		cp target/reports/surefire.html /reports/index.html && \
+		mkdir -p /reports/coverage && \
+		cp -r target/site/jacoco/* /reports/coverage/
 
 FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
 RUN apt-get update && apt-get install curl -y
