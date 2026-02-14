@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test surefire-report:report; \
+CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
