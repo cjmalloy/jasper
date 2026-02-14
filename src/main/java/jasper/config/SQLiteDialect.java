@@ -117,7 +117,7 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// Collation function for binary sorting (SQLite uses BINARY collation)
 		functionRegistry.registerPattern("collate_c", "(?1) COLLATE BINARY", string);
 		// Full-text search: use FTS5 via textsearch_en (stores rowid) correlated with ref_fts virtual table
-		functionRegistry.registerPattern("websearch_to_tsquery", "?1", string);
+		functionRegistry.registerPattern("websearch_to_tsquery", "'\"' || REPLACE(?1, '\"', '\"\"') || '\"'", string);
 		functionRegistry.registerPattern("ts_match_vq", "EXISTS (SELECT 1 FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER))", bool);
 		functionRegistry.registerPattern("ts_rank_cd", "COALESCE((SELECT bm25(ref_fts) FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER)), 0)", doubleType);
 		// jsonb_array_append: append a text value to a JSON array
