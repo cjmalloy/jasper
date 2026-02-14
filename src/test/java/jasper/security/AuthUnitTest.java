@@ -9,6 +9,8 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -832,6 +834,73 @@ public class AuthUnitTest {
 
 		assertThat(auth.canReadQuery(() -> "_custom"))
 			.isFalse();
+	}
+
+	@Test
+	void testFilterSort_PrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PublicPlugin() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataPrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataPrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MixedSortsKeepsAuthorized() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("modified", "plugins->_custom->field"));
+		var filtered = auth.pageable(pageable);
+		assertThat(filtered.getSort().isSorted())
+			.isTrue();
+		assertThat(filtered.getSort().stream().count())
+			.isEqualTo(1);
+		assertThat(filtered.getSort().getOrderFor("modified"))
+			.isNotNull();
 	}
 
 	@Test
