@@ -20,6 +20,7 @@ import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -606,24 +607,13 @@ public class Auth {
 	 * be read.
 	 */
 	public boolean canReadQuery(Query filter) {
-		return canReadQuery(filter, null);
-	}
-
-	/**
-	 * Check all the individual selectors of the query and sort and verify they can all
-	 * be read. Sorts that reference private plugins are included in the check.
-	 */
-	public boolean canReadQuery(Query filter, Pageable pageable) {
 		// Min Role
 		if (!minRole()) return false;
 		// Anyone can read the empty query (retrieve all Refs)
-		if (filter.getQuery() == null && !hasPrivateSortTags(pageable)) return true;
+		if (filter.getQuery() == null) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		var queryTags = filter.getQuery() == null
-			? Stream.<String>empty()
-			: Arrays.stream(filter.getQuery().split("[!:|()\\s]+"));
-		var tagList = Stream.concat(queryTags, sortPluginTags(pageable))
+		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
 			.filter(qt -> !isUser(qt))
@@ -633,16 +623,26 @@ public class Auth {
 		return captures(getTagReadAccess(), tagList);
 	}
 
-	private static Stream<String> sortPluginTags(Pageable pageable) {
-		if (pageable == null || pageable.getSort().isUnsorted()) return Stream.empty();
-		return pageable.getSort().stream()
-			.map(Sort.Order::getProperty)
-			.map(Auth::extractPluginTag)
-			.filter(StringUtils::isNotBlank);
-	}
-
-	private static boolean hasPrivateSortTags(Pageable pageable) {
-		return sortPluginTags(pageable).anyMatch(Auth::isPrivateTag);
+	/**
+	 * Silently remove sorts that reference private plugins the user cannot read.
+	 */
+	public Pageable filterSort(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var filtered = pageable.getSort().stream()
+			.filter(order -> {
+				var tag = extractPluginTag(order.getProperty());
+				if (tag.isEmpty()) return true;
+				if (!isPrivateTag(tag)) return true;
+				if (isUser(tag)) return true;
+				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
+			})
+			.toList();
+		if (filtered.size() == pageable.getSort().stream().count()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
 	}
 
 	static String extractPluginTag(String sortProperty) {

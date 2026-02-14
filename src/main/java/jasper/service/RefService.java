@@ -106,9 +106,10 @@ public class RefService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.canReadQuery(#filter, #pageable)")
+	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
+		pageable = auth.filterSort(pageable);
 		return refRepository
 			.findAll(
 				sort(

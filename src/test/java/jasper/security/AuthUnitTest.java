@@ -837,55 +837,70 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testCanReadQuery_SortPrivatePlugin() {
+	void testFilterSort_PrivatePluginWithAccess() {
 		var user = getUser("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> null,
-			PageRequest.of(0, 20, Sort.by("plugins->_custom->field"))))
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.filterSort(pageable).getSort().isSorted())
 			.isTrue();
 	}
 
 	@Test
-	void testCanReadQuery_SortPrivatePluginFailed() {
+	void testFilterSort_PrivatePluginWithoutAccess() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(() -> null,
-			PageRequest.of(0, 20, Sort.by("plugins->_custom->field"))))
-			.isFalse();
-	}
-
-	@Test
-	void testCanReadQuery_SortPublicPlugin() {
-		var user = getUser("+user/test");
-		var auth = getAuth(user, VIEWER);
-
-		assertThat(auth.canReadQuery(() -> null,
-			PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"))))
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.filterSort(pageable).getSort().isUnsorted())
 			.isTrue();
 	}
 
 	@Test
-	void testCanReadQuery_SortMetadataPrivatePlugin() {
+	void testFilterSort_PublicPlugin() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"));
+		assertThat(auth.filterSort(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataPrivatePluginWithAccess() {
 		var user = getUser("+user/test");
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(() -> null,
-			PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"))))
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.filterSort(pageable).getSort().isSorted())
 			.isTrue();
 	}
 
 	@Test
-	void testCanReadQuery_SortMetadataPrivatePluginFailed() {
+	void testFilterSort_MetadataPrivatePluginWithoutAccess() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(() -> null,
-			PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"))))
-			.isFalse();
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.filterSort(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MixedSortsKeepsAuthorized() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("modified", "plugins->_custom->field"));
+		var filtered = auth.filterSort(pageable);
+		assertThat(filtered.getSort().isSorted())
+			.isTrue();
+		assertThat(filtered.getSort().stream().count())
+			.isEqualTo(1);
+		assertThat(filtered.getSort().getOrderFor("modified"))
+			.isNotNull();
 	}
 
 	@Test
