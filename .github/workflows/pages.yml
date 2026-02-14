@@ -131,6 +131,9 @@ jobs:
             <div class='report'>
               <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
             </div>
+            <div class='report'>
+              <a href='$(basename $latest_junit)/coverage/'>Latest Coverage Report</a>
+            </div>
             <h2>All Reports</h2>
             <div id="reports">
               $(for d in _site/reports/*/; do
