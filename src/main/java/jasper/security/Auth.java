@@ -629,7 +629,8 @@ public class Auth {
 	public Pageable filterSort(Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
 		if (hasRole(MOD)) return pageable;
-		var filtered = pageable.getSort().stream()
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
 			.filter(order -> {
 				var tag = extractPluginTag(order.getProperty());
 				if (tag.isEmpty()) return true;
@@ -638,7 +639,7 @@ public class Auth {
 				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
 			})
 			.toList();
-		if (filtered.size() == pageable.getSort().stream().count()) return pageable;
+		if (filtered.size() == orders.size()) return pageable;
 		return PageRequest.of(
 			pageable.getPageNumber(),
 			pageable.getPageSize(),
