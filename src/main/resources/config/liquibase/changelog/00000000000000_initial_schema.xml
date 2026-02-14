@@ -192,7 +192,7 @@
 		<createIndex tableName="ref" indexName="ref_modified_index">
 			<column name="modified"/>
 		</createIndex>
-		<sql>CREATE UNIQUE INDEX ref_modified_origin_uq ON ref (modified, origin);</sql>
+		<sql>CREATE UNIQUE INDEX ref_modified_origin_key ON ref (modified, origin);</sql>
 		<!-- FTS5 full-text search virtual table -->
 		<sql>CREATE VIRTUAL TABLE ref_fts USING fts5(title, comment, url, content=ref, content_rowid=rowid);</sql>
 		<!-- Triggers to keep FTS5 index in sync and store rowid in textsearch_en -->
@@ -231,7 +231,7 @@
 		<createIndex tableName="ext" indexName="ext_modified_index">
 			<column name="modified"/>
 		</createIndex>
-		<sql>CREATE UNIQUE INDEX ext_modified_origin_uq ON ext (modified, origin);</sql>
+		<sql>CREATE UNIQUE INDEX ext_modified_origin_key ON ext (modified, origin);</sql>
 
 		<createTable tableName="users">
 			<column name="tag" type="TEXT">
@@ -257,7 +257,7 @@
 		<createIndex tableName="users" indexName="users_modified_index">
 			<column name="modified"/>
 		</createIndex>
-		<sql>CREATE UNIQUE INDEX users_modified_origin_uq ON users (modified, origin);</sql>
+		<sql>CREATE UNIQUE INDEX users_modified_origin_key ON users (modified, origin);</sql>
 
 		<createTable tableName="plugin">
 			<column name="tag" type="TEXT">
@@ -277,7 +277,7 @@
 		<createIndex tableName="plugin" indexName="plugin_modified_index">
 			<column name="modified"/>
 		</createIndex>
-		<sql>CREATE UNIQUE INDEX plugin_modified_origin_uq ON plugin (modified, origin);</sql>
+		<sql>CREATE UNIQUE INDEX plugin_modified_origin_key ON plugin (modified, origin);</sql>
 
 		<createTable tableName="template">
 			<column name="tag" type="TEXT">
@@ -297,7 +297,7 @@
 		<createIndex tableName="template" indexName="template_modified_index">
 			<column name="modified"/>
 		</createIndex>
-		<sql>CREATE UNIQUE INDEX template_modified_origin_uq ON template (modified, origin);</sql>
+		<sql>CREATE UNIQUE INDEX template_modified_origin_key ON template (modified, origin);</sql>
 
 	</changeSet>
 </databaseChangeLog>

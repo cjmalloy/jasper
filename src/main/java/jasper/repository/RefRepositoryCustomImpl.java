@@ -217,14 +217,25 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				.getSingleResult();
 			String modifiedTs = existingModified != null ? existingModified.toString() :
 				java.time.Instant.now().toString();
+			// Recompute plugins: for each plugin tag, aggregate response URLs (matching PostgreSQL CTE logic)
 			String pluginsSql = """
-				SELECT json_extract(metadata, '$.plugins') FROM ref WHERE url = :refUrl AND origin = :refOrigin
+				SELECT json_group_object(p.tag, (
+					SELECT json_group_array(pre.url) FROM ref pre
+					WHERE jsonb_exists(pre.sources, :refUrl)
+						AND jsonb_exists(COALESCE(json_extract(pre.metadata, '$.expandedTags'), pre.tags), p.tag)
+				)) FROM plugin p WHERE (:origin = '' OR p.origin = :origin OR p.origin LIKE (:origin || '.%'))
 				""";
-			var pluginsList = em.createNativeQuery(pluginsSql)
+			var pluginsResult = em.createNativeQuery(pluginsSql)
 				.setParameter("refUrl", refUrl)
-				.setParameter("refOrigin", refOrigin)
-				.getResultList();
-			String pluginsJson = !pluginsList.isEmpty() && pluginsList.getFirst() != null ? pluginsList.getFirst().toString() : "null";
+				.setParameter("origin", origin)
+				.getSingleResult();
+			String pluginsJson = pluginsResult != null ? pluginsResult.toString() : "null";
+			// Strip null-valued plugin entries (equivalent to jsonb_strip_nulls in PostgreSQL)
+			if (pluginsJson != null && !pluginsJson.equals("null")) {
+				pluginsJson = pluginsJson.replaceAll("\"[^\"]+\":null,?", "").replaceAll(",}", "}");
+				if ("{}".equals(pluginsJson)) pluginsJson = "null";
+			}
+			// Preserve existing userUrls from metadata
 			String userUrlsSql = """
 				SELECT json_extract(metadata, '$.userUrls') FROM ref WHERE url = :refUrl AND origin = :refOrigin
 				""";
