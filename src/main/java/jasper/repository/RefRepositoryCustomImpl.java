@@ -1,5 +1,7 @@
 package jasper.repository;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.domain.proj.RefUrl;
@@ -15,6 +17,8 @@ import java.util.Optional;
  * json_each, GIN indexes, complex CTEs). All other queries use HQL @Query in RefRepository.
  */
 public class RefRepositoryCustomImpl implements RefRepositoryCustom {
+
+	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	@PersistenceContext
 	private EntityManager em;
@@ -243,16 +247,15 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				.setParameter("refUrl", refUrl)
 				.setParameter("refOrigin", refOrigin)
 				.getResultList();
-			String userUrlsJson = !userUrlsList.isEmpty() && userUrlsList.getFirst() != null ? userUrlsList.getFirst().toString() : "null";
-			String metadata = String.format(
-				"{\"modified\":%s,\"responses\":%s,\"internalResponses\":%s,\"obsolete\":%s,\"plugins\":%s,\"userUrls\":%s}",
-				escapeJson(modifiedTs),
-				"[]".equals(responses) || responses == null ? "null" : responses,
-				"[]".equals(internalResponses) || internalResponses == null ? "null" : internalResponses,
-				obsoleteCount,
-				pluginsJson,
-				userUrlsJson
-			);
+			String userUrlsJson = !userUrlsList.isEmpty() && userUrlsList.getFirst() != null ? userUrlsList.getFirst().toString() : null;
+			ObjectNode metadataNode = objectMapper.createObjectNode();
+			metadataNode.put("modified", modifiedTs);
+			metadataNode.set("responses", parseJsonOrNull(responses));
+			metadataNode.set("internalResponses", parseJsonOrNull(internalResponses));
+			metadataNode.put("obsolete", ((Number) obsoleteCount).intValue());
+			metadataNode.set("plugins", parseJsonOrNull(pluginsJson));
+			metadataNode.set("userUrls", parseJsonOrNull(userUrlsJson));
+			String metadata = metadataNode.toString();
 			String updateSql = """
 				UPDATE ref SET metadata = json(:metadata)
 				WHERE url = :refUrl AND origin = :refOrigin
@@ -269,9 +272,13 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 		return count;
 	}
 
-	private String escapeJson(String value) {
-		if (value == null) return "null";
-		return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+	private com.fasterxml.jackson.databind.JsonNode parseJsonOrNull(String json) {
+		if (json == null || "null".equals(json) || "[]".equals(json)) return objectMapper.nullNode();
+		try {
+			return objectMapper.readTree(json);
+		} catch (Exception e) {
+			return objectMapper.nullNode();
+		}
 	}
 
 	// Index management methods - PostgreSQL uses GIN indexes, SQLite uses regular indexes or no-ops
