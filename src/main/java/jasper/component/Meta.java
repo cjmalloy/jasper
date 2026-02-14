@@ -21,7 +21,6 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
-import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
@@ -40,7 +39,6 @@ public class Meta {
 	@Autowired
 	Messages messages;
 
-	private record PluginResponses(String tag, long count) { }
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -58,13 +56,9 @@ public class Meta {
 					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.plugins(refRepository.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
-				.map(tag -> new PluginResponses(
-					tag,
-					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
-				.filter(p -> p.count() > 0)
-				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
+				.collect(toMap(r -> (String) r[0], r -> (Long) r[1])))
 			.build()
 		);
 	}

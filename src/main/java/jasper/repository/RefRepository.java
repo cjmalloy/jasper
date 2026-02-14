@@ -19,7 +19,7 @@ import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
-public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin, RefRepositoryCustom {
+public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
 	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
 	void deleteByUrlAndOrigin(String url, String origin);
@@ -196,5 +196,23 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 				OR jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'local') = :remote)
 		FETCH FIRST 1 ROW ONLY""")
 	Optional<RefUrl> originUrl(String origin, String remote);
+
+	@Query("""
+		SELECT p.tag, COUNT(r) FROM Plugin p, Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		GROUP BY p.tag""")
+	List<Object[]> countPluginTagsInResponses(String url, String origin);
+
+	@Query("""
+		SELECT DISTINCT p.tag FROM Plugin p, Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
+			AND (p.tag LIKE 'plugin/user%' OR p.tag LIKE '+plugin/user%' OR p.tag LIKE '\\_plugin/user%')
+			AND r.origin = :origin""")
+	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 
 }

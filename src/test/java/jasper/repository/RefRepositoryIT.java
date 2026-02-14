@@ -5,8 +5,6 @@ import jasper.component.ConfigCache;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +15,7 @@ import static jasper.config.JacksonConfiguration.om;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
-public class RefRepositoryCustomIT {
+public class RefRepositoryIT {
 
 	@Autowired
 	RefRepository refRepository;
@@ -28,30 +26,33 @@ public class RefRepositoryCustomIT {
 	@Autowired
 	ConfigCache configCache;
 
-	@PersistenceContext
-	EntityManager em;
-
 	@BeforeEach
 	void init() {
 		refRepository.deleteAllInBatch();
 		pluginRepository.deleteAllInBatch();
-		configCache.clearUserCache();
 		configCache.clearPluginCache();
-		configCache.clearTemplateCache();
 	}
 
-	// --- findAllPluginTagsInResponses ---
+	// --- countPluginTagsInResponses ---
 
 	@Test
-	void testFindAllPluginTagsInResponses_ReturnsPluginTags() {
-		// Parent ref
+	void testCountPluginTagsInResponses_ReturnsPluginTagsWithCounts() {
+		var commentPlugin = new Plugin();
+		commentPlugin.setTag("plugin/comment");
+		commentPlugin.setOrigin("");
+		pluginRepository.save(commentPlugin);
+
+		var votePlugin = new Plugin();
+		votePlugin.setTag("+plugin/vote/up");
+		votePlugin.setOrigin("");
+		pluginRepository.save(votePlugin);
+
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
 		parent.setTags(List.of("public"));
 		refRepository.save(parent);
 
-		// Response ref with plugin tags in metadata.expandedTags and parent in sources
 		var response = new Ref();
 		response.setUrl("http://example.com/response");
 		response.setOrigin("");
@@ -61,14 +62,21 @@ public class RefRepositoryCustomIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
-		assertThat(result).containsExactlyInAnyOrder("plugin/comment", "+plugin/vote/up");
+		assertThat(result).hasSize(2);
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> (Long) r[1]));
+		assertThat(map).containsEntry("plugin/comment", 1L);
+		assertThat(map).containsEntry("+plugin/vote/up", 1L);
 	}
 
 	@Test
-	void testFindAllPluginTagsInResponses_ExcludesSelf() {
-		// A ref that references itself in sources
+	void testCountPluginTagsInResponses_ExcludesSelf() {
+		var selfPlugin = new Plugin();
+		selfPlugin.setTag("plugin/comment");
+		selfPlugin.setOrigin("");
+		pluginRepository.save(selfPlugin);
+
 		var self = new Ref();
 		self.setUrl("http://example.com/self");
 		self.setOrigin("");
@@ -78,31 +86,40 @@ public class RefRepositoryCustomIT {
 			.build());
 		refRepository.save(self);
 
-		var result = refRepository.findAllPluginTagsInResponses("http://example.com/self", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/self", "");
 
 		assertThat(result).isEmpty();
 	}
 
 	@Test
-	void testFindAllPluginTagsInResponses_NoResponses() {
+	void testCountPluginTagsInResponses_NoResponses() {
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
 		refRepository.save(parent);
 
-		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).isEmpty();
 	}
 
 	@Test
-	void testFindAllPluginTagsInResponses_FiltersByOrigin() {
+	void testCountPluginTagsInResponses_FiltersByOrigin() {
+		var commentPlugin = new Plugin();
+		commentPlugin.setTag("plugin/comment");
+		commentPlugin.setOrigin("");
+		pluginRepository.save(commentPlugin);
+
+		var votePlugin = new Plugin();
+		votePlugin.setTag("plugin/vote");
+		votePlugin.setOrigin("");
+		pluginRepository.save(votePlugin);
+
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
 		refRepository.save(parent);
 
-		// Response from matching origin
 		var resp1 = new Ref();
 		resp1.setUrl("http://example.com/resp1");
 		resp1.setOrigin("@test");
@@ -112,7 +129,6 @@ public class RefRepositoryCustomIT {
 			.build());
 		refRepository.save(resp1);
 
-		// Response from non-matching origin
 		var resp2 = new Ref();
 		resp2.setUrl("http://example.com/resp2");
 		resp2.setOrigin("@other");
@@ -122,15 +138,32 @@ public class RefRepositoryCustomIT {
 			.build());
 		refRepository.save(resp2);
 
-		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "@test");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "@test");
 
-		assertThat(result).containsExactly("plugin/comment");
+		assertThat(result).hasSize(1);
+		assertThat((String) result.get(0)[0]).isEqualTo("plugin/comment");
+		assertThat((Long) result.get(0)[1]).isEqualTo(1L);
 	}
 
 	// --- findAllUserPluginTagsInResponses ---
 
 	@Test
 	void testFindAllUserPluginTagsInResponses_ReturnsUserPluginTags() {
+		var userTesterPlugin = new Plugin();
+		userTesterPlugin.setTag("plugin/user/tester");
+		userTesterPlugin.setOrigin("");
+		pluginRepository.save(userTesterPlugin);
+
+		var userAdminPlugin = new Plugin();
+		userAdminPlugin.setTag("+plugin/user/admin");
+		userAdminPlugin.setOrigin("");
+		pluginRepository.save(userAdminPlugin);
+
+		var commentPlugin = new Plugin();
+		commentPlugin.setTag("plugin/comment");
+		commentPlugin.setOrigin("");
+		pluginRepository.save(commentPlugin);
+
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
@@ -147,12 +180,21 @@ public class RefRepositoryCustomIT {
 
 		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
-		// Should only include user plugin tags, not plugin/comment
 		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
 	}
 
 	@Test
 	void testFindAllUserPluginTagsInResponses_FiltersExactOrigin() {
+		var userLocalPlugin = new Plugin();
+		userLocalPlugin.setTag("plugin/user/local");
+		userLocalPlugin.setOrigin("@test");
+		pluginRepository.save(userLocalPlugin);
+
+		var userRemotePlugin = new Plugin();
+		userRemotePlugin.setTag("plugin/user/remote");
+		userRemotePlugin.setOrigin("@other");
+		pluginRepository.save(userRemotePlugin);
+
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
@@ -244,133 +286,11 @@ public class RefRepositoryCustomIT {
 				.put("local", "@remote")));
 		refRepository.save(originRef);
 
-		// Should not find when remote doesn't match
 		var result1 = refRepository.originUrl("@test", "");
 		assertThat(result1).isEmpty();
 
-		// Should find when remote matches
 		var result2 = refRepository.originUrl("@test", "@remote");
 		assertThat(result2).isPresent();
 		assertThat(result2.get().getUrl()).isEqualTo("http://example.com/origin");
-	}
-
-	// --- backfillMetadata ---
-
-	@Test
-	void testBackfillMetadata_BackfillsNullMetadata() {
-		// Create plugin for the aggregation
-		var plugin = new Plugin();
-		plugin.setTag("plugin/comment");
-		plugin.setOrigin("");
-		pluginRepository.save(plugin);
-
-		// Parent ref with null metadata (needs backfill)
-		var parent = new Ref();
-		parent.setUrl("http://example.com/parent");
-		parent.setOrigin("");
-		parent.setTags(List.of("public"));
-		parent.setMetadata(null);
-		refRepository.save(parent);
-
-		// Response ref
-		var response = new Ref();
-		response.setUrl("http://example.com/response");
-		response.setOrigin("");
-		response.setSources(List.of("http://example.com/parent"));
-		response.setTags(List.of("public"));
-		response.setMetadata(Metadata.builder()
-			.expandedTags(List.of("public"))
-			.build());
-		refRepository.save(response);
-
-		int updated = refRepository.backfillMetadata("", 10);
-
-		assertThat(updated).isGreaterThanOrEqualTo(1);
-
-		// Verify metadata was populated using native query (avoids Hibernate deserialization)
-		var metadataJson = (String) em.createNativeQuery(
-			"SELECT metadata FROM ref WHERE url = :url AND origin = :origin")
-			.setParameter("url", parent.getUrl())
-			.setParameter("origin", parent.getOrigin())
-			.getSingleResult();
-		assertThat(metadataJson).isNotNull();
-		assertThat(metadataJson).contains("\"modified\"");
-		assertThat(metadataJson).contains("\"obsolete\"");
-	}
-
-	@Test
-	void testBackfillMetadata_BackfillsRegenFlag() {
-		var parent = new Ref();
-		parent.setUrl("http://example.com/parent");
-		parent.setOrigin("");
-		parent.setMetadata(Metadata.builder().regen(true).build());
-		refRepository.save(parent);
-
-		int updated = refRepository.backfillMetadata("", 10);
-
-		assertThat(updated).isEqualTo(1);
-	}
-
-	@Test
-	void testBackfillMetadata_RespectsOriginFilter() {
-		var ref1 = new Ref();
-		ref1.setUrl("http://example.com/ref1");
-		ref1.setOrigin("@test");
-		ref1.setMetadata(null);
-		refRepository.save(ref1);
-
-		var ref2 = new Ref();
-		ref2.setUrl("http://example.com/ref2");
-		ref2.setOrigin("@other");
-		ref2.setMetadata(null);
-		refRepository.save(ref2);
-
-		int updated = refRepository.backfillMetadata("@test", 10);
-
-		assertThat(updated).isEqualTo(1);
-	}
-
-	@Test
-	void testBackfillMetadata_ReturnsZeroWhenNothingToBackfill() {
-		var ref = new Ref();
-		ref.setUrl("http://example.com/ref");
-		ref.setOrigin("");
-		ref.setMetadata(Metadata.builder().build());
-		refRepository.save(ref);
-
-		int updated = refRepository.backfillMetadata("", 10);
-
-		assertThat(updated).isEqualTo(0);
-	}
-
-	// --- GIN index management ---
-
-	@Test
-	void testBuildAndDropTags() {
-		refRepository.dropTags();
-		refRepository.buildTags();
-		refRepository.dropTags();
-		// No exception means success
-	}
-
-	@Test
-	void testBuildAndDropSources() {
-		refRepository.dropSources();
-		refRepository.buildSources();
-		refRepository.dropSources();
-	}
-
-	@Test
-	void testBuildAndDropPublished() {
-		refRepository.dropPublished();
-		refRepository.buildPublished();
-		refRepository.dropPublished();
-	}
-
-	@Test
-	void testBuildAndDropModified() {
-		refRepository.dropModified();
-		refRepository.buildModified();
-		refRepository.dropModified();
 	}
 }
