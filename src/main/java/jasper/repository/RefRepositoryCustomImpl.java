@@ -173,7 +173,7 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 	private int backfillMetadataSqlite(String origin, int batchSize) {
 		String selectSql = """
 			SELECT url, origin FROM ref
-			WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 'true')
+			WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
 				AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
 			LIMIT :batchSize
 			""";
