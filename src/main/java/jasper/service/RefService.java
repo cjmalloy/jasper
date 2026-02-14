@@ -114,7 +114,7 @@ public class RefService {
 				sort(
 					auth.refReadSpec()
 						.and(filter.spec(auth.getUserTag())),
-					pageable),
+					auth.pageable(pageable)),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
