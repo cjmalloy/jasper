@@ -626,7 +626,7 @@ public class Auth {
 	/**
 	 * Silently remove sorts that reference private plugins the user cannot read.
 	 */
-	public Pageable filterSort(Pageable pageable) {
+	public Pageable pageable(Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
 		if (hasRole(MOD)) return pageable;
 		var orders = pageable.getSort().toList();

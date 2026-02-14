@@ -109,13 +109,12 @@ public class RefService {
 	@PreAuthorize("@auth.canReadQuery(#filter)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Page<RefDto> page(RefFilter filter, Pageable pageable) {
-		pageable = auth.filterSort(pageable);
 		return refRepository
 			.findAll(
 				sort(
 					auth.refReadSpec()
 						.and(filter.spec(auth.getUserTag())),
-					pageable),
+					auth.pageable(pageable)),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}

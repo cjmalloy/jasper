@@ -843,7 +843,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, VIEWER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
-		assertThat(auth.filterSort(pageable).getSort().isSorted())
+		assertThat(auth.pageable(pageable).getSort().isSorted())
 			.isTrue();
 	}
 
@@ -853,7 +853,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
-		assertThat(auth.filterSort(pageable).getSort().isUnsorted())
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
 			.isTrue();
 	}
 
@@ -863,7 +863,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, VIEWER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"));
-		assertThat(auth.filterSort(pageable).getSort().isSorted())
+		assertThat(auth.pageable(pageable).getSort().isSorted())
 			.isTrue();
 	}
 
@@ -874,7 +874,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, VIEWER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
-		assertThat(auth.filterSort(pageable).getSort().isSorted())
+		assertThat(auth.pageable(pageable).getSort().isSorted())
 			.isTrue();
 	}
 
@@ -884,7 +884,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
-		assertThat(auth.filterSort(pageable).getSort().isUnsorted())
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
 			.isTrue();
 	}
 
@@ -894,7 +894,7 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		var pageable = PageRequest.of(0, 20, Sort.by("modified", "plugins->_custom->field"));
-		var filtered = auth.filterSort(pageable);
+		var filtered = auth.pageable(pageable);
 		assertThat(filtered.getSort().isSorted())
 			.isTrue();
 		assertThat(filtered.getSort().stream().count())
