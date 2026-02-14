@@ -272,6 +272,12 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 			metadataNode.put("obsolete", ((Number) obsoleteCount).intValue());
 			metadataNode.set("plugins", parseJsonOrNull(pluginsJson));
 			metadataNode.set("userUrls", parseJsonOrNull(userUrlsJson));
+			var metadataFields = metadataNode.fields();
+			while (metadataFields.hasNext()) {
+				if (metadataFields.next().getValue().isNull()) {
+					metadataFields.remove();
+				}
+			}
 			String metadata = metadataNode.toString();
 			String updateSql = """
 				UPDATE ref SET metadata = json(:metadata)
