@@ -223,6 +223,40 @@ public class RefRepositoryIT {
 		assertThat(result).containsExactly("plugin/user/local");
 	}
 
+	@Test
+	void testFindAllUserPluginTagsInResponses_UnderscorePrefixMatchesLiteralOnly() {
+		// _plugin/user/test should match (literal underscore prefix)
+		var underscorePlugin = new Plugin();
+		underscorePlugin.setTag("_plugin/user/test");
+		underscorePlugin.setOrigin("");
+		pluginRepository.save(underscorePlugin);
+
+		// +plugin/comment is a valid plugin tag but should NOT match user plugin filter
+		var otherPlugin = new Plugin();
+		otherPlugin.setTag("+plugin/comment");
+		otherPlugin.setOrigin("");
+		pluginRepository.save(otherPlugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("_plugin/user/test", "+plugin/comment"))
+			.build());
+		refRepository.save(response);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).containsExactly("_plugin/user/test");
+		assertThat(result).doesNotContain("+plugin/comment");
+	}
+
 	// --- originUrl ---
 
 	@Test
