@@ -68,7 +68,14 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 				FROM ref r, json_each(json_extract(r.metadata, '$.expandedTags')) je
 				WHERE r.url != :url
 					AND jsonb_exists(r.sources, :url)
-					AND (je.value LIKE 'plugin/user%' OR je.value LIKE '_plugin/user%' OR je.value LIKE '+plugin/user%')
+					AND (
+						je.value = 'plugin/user'
+						OR je.value = '_plugin/user'
+						OR je.value = '+plugin/user'
+						OR je.value LIKE 'plugin/user/%'
+						OR je.value LIKE '+plugin/user/%'
+						OR je.value LIKE '\_plugin/user/%' ESCAPE '\'
+					)
 					AND r.origin = :origin
 				""";
 		} else {
