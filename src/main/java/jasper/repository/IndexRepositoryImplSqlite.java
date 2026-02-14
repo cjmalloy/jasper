@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 @Profile("sqlite")
 @Transactional
-public class SqliteIndexRepository implements IndexRepository {
+public class IndexRepositoryImplSqlite implements IndexRepository {
 
 	@PersistenceContext
 	private EntityManager em;

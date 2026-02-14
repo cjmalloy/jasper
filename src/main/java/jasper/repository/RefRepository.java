@@ -131,6 +131,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
+	@Query("""
+		SELECT p.tag, COUNT(r) FROM Plugin p, Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		GROUP BY p.tag""")
+	List<Object[]> countPluginTagsInResponses(String url, String origin);
+
+	@Query("""
+		SELECT DISTINCT p.tag FROM Plugin p, Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
+			AND (p.tag LIKE 'plugin/user%' OR p.tag LIKE '+plugin/user%' OR p.tag LIKE '\\_plugin/user%')
+			AND r.origin = :origin""")
+	List<String> findAllUserPluginTagsInResponses(String url, String origin);
+
 	@Modifying
 	@Transactional
 	@Query("""
@@ -181,13 +199,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<Ref> getRefBackfill(String origin);
 
 	@Query("""
-		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
-		WHERE jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'id') = :id
-			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'ban'), '') != 'true'
-			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'noStore'), '') != 'true'""")
-	boolean cacheExists(String id);
-
-	@Query("""
 		SELECT r.url AS url, jsonb_object_field_text(jsonb_object_field(r.plugins, '+plugin/origin'), 'proxy') AS proxy
 		FROM Ref r
 		WHERE r.origin = :origin
@@ -198,21 +209,10 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	Optional<RefUrl> originUrl(String origin, String remote);
 
 	@Query("""
-		SELECT p.tag, COUNT(r) FROM Plugin p, Ref r
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
-		GROUP BY p.tag""")
-	List<Object[]> countPluginTagsInResponses(String url, String origin);
-
-	@Query("""
-		SELECT DISTINCT p.tag FROM Plugin p, Ref r
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
-			AND (p.tag LIKE 'plugin/user%' OR p.tag LIKE '+plugin/user%' OR p.tag LIKE '\\_plugin/user%')
-			AND r.origin = :origin""")
-	List<String> findAllUserPluginTagsInResponses(String url, String origin);
+		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
+		WHERE jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'id') = :id
+			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'ban'), '') != 'true'
+			AND COALESCE(jsonb_object_field_text(jsonb_object_field(r.plugins, '_plugin/cache'), 'noStore'), '') != 'true'""")
+	boolean cacheExists(String id);
 
 }

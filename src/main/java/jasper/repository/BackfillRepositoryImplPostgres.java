@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 @Profile("!sqlite")
 @Transactional
-public class PostgresBackfillRepository implements BackfillRepository {
+public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
 	@PersistenceContext
 	private EntityManager em;
