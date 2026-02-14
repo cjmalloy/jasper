@@ -152,25 +152,25 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Modifying
 	@Transactional
 	@Query("""
-    UPDATE Ref r
-    SET r.metadata = jsonb_set(
-        coalesce(r.metadata, cast_to_jsonb('{}')),
-        '{obsolete}',
-        CASE
-            WHEN r.modified = (
-                SELECT MAX(r2.modified)
-                FROM Ref r2
-                WHERE r2.url = :url
-                  AND (:rootOrigin = '' OR r2.origin = :rootOrigin OR r2.origin LIKE CONCAT(:rootOrigin, '.%'))
-            )
-            THEN cast_to_jsonb('false')
-            ELSE cast_to_jsonb('true')
-        END,
-        true
-    )
-    WHERE r.url = :url
-      AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE CONCAT(:rootOrigin, '.%'))
-    """)
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(
+			coalesce(r.metadata, cast_to_jsonb('{}')),
+			'{obsolete}',
+			CASE
+				WHEN r.modified = (
+					SELECT MAX(r2.modified)
+					FROM Ref r2
+					WHERE r2.url = :url
+						AND (:rootOrigin = '' OR r2.origin = :rootOrigin OR r2.origin LIKE CONCAT(:rootOrigin, '.%'))
+				)
+				THEN cast_to_jsonb('false')
+				ELSE cast_to_jsonb('true')
+			END,
+			true
+		)
+		WHERE r.url = :url
+			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE CONCAT(:rootOrigin, '.%'))
+		""")
 	int updateObsolete(String url, String rootOrigin);
 
 	@Query("""
