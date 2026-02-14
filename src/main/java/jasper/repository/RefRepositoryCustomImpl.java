@@ -81,7 +81,7 @@ public class RefRepositoryCustomImpl implements RefRepositoryCustom {
 						OR je.value = '+plugin/user'
 						OR je.value LIKE 'plugin/user/%'
 						OR je.value LIKE '+plugin/user/%'
-						OR je.value LIKE '\_plugin/user/%' ESCAPE '\'
+						OR je.value LIKE '\\_plugin/user/%' ESCAPE '\\'
 					)
 					AND r.origin = :origin
 				""";
