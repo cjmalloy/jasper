@@ -133,6 +133,79 @@ jobs:
             echo "has_failures=false" >> $GITHUB_OUTPUT
             echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
           fi
+      - name: Generate Coverage Summary
+        if: always()
+        id: coverage_summary
+        run: |
+          COVERAGE_CSV="reports/coverage/jacoco.csv"
+          if [ -f "$COVERAGE_CSV" ]; then
+            # Validate CSV header matches expected JaCoCo format
+            HEADER=$(head -1 "$COVERAGE_CSV")
+            EXPECTED_HEADER="GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED"
+            if [ "$HEADER" != "$EXPECTED_HEADER" ]; then
+              echo "::warning::JaCoCo CSV header format has changed. Coverage parsing may be inaccurate."
+            fi
+
+            # Sum up all coverage counters from CSV (skip header line)
+            INST_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$4} END {print s+0}')
+            INST_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$5} END {print s+0}')
+            BRANCH_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$6} END {print s+0}')
+            BRANCH_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$7} END {print s+0}')
+            LINE_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$8} END {print s+0}')
+            LINE_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$9} END {print s+0}')
+            METHOD_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$12} END {print s+0}')
+            METHOD_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$13} END {print s+0}')
+
+            # Calculate percentages
+            INST_TOTAL=$((INST_MISSED + INST_COVERED))
+            BRANCH_TOTAL=$((BRANCH_MISSED + BRANCH_COVERED))
+            LINE_TOTAL=$((LINE_MISSED + LINE_COVERED))
+            METHOD_TOTAL=$((METHOD_MISSED + METHOD_COVERED))
+
+            if [ "$INST_TOTAL" -gt 0 ]; then
+              INST_PCT=$(awk "BEGIN {printf \"%.1f\", ($INST_COVERED / $INST_TOTAL) * 100}")
+            else
+              INST_PCT="0.0"
+            fi
+            if [ "$BRANCH_TOTAL" -gt 0 ]; then
+              BRANCH_PCT=$(awk "BEGIN {printf \"%.1f\", ($BRANCH_COVERED / $BRANCH_TOTAL) * 100}")
+            else
+              BRANCH_PCT="0.0"
+            fi
+            if [ "$LINE_TOTAL" -gt 0 ]; then
+              LINE_PCT=$(awk "BEGIN {printf \"%.1f\", ($LINE_COVERED / $LINE_TOTAL) * 100}")
+            else
+              LINE_PCT="0.0"
+            fi
+            if [ "$METHOD_TOTAL" -gt 0 ]; then
+              METHOD_PCT=$(awk "BEGIN {printf \"%.1f\", ($METHOD_COVERED / $METHOD_TOTAL) * 100}")
+            else
+              METHOD_PCT="0.0"
+            fi
+
+            echo "has_coverage=true" >> $GITHUB_OUTPUT
+            echo "instruction_pct=$INST_PCT" >> $GITHUB_OUTPUT
+            echo "branch_pct=$BRANCH_PCT" >> $GITHUB_OUTPUT
+            echo "line_pct=$LINE_PCT" >> $GITHUB_OUTPUT
+            echo "line_covered=$LINE_COVERED" >> $GITHUB_OUTPUT
+            echo "line_total=$LINE_TOTAL" >> $GITHUB_OUTPUT
+            echo "method_pct=$METHOD_PCT" >> $GITHUB_OUTPUT
+
+            # Add to workflow summary
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Instructions | $INST_PCT% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | $BRANCH_PCT% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | $LINE_PCT% ($LINE_COVERED / $LINE_TOTAL) |" >> $GITHUB_STEP_SUMMARY
+            echo "| Methods | $METHOD_PCT% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No coverage report found" >> $GITHUB_STEP_SUMMARY
+          fi
       - name: Comment on PR with Test Results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v8
@@ -148,6 +221,14 @@ jobs:
             const errors = '${{ steps.test_summary.outputs.errors }}' || '0';
             const skipped = '${{ steps.test_summary.outputs.skipped }}' || '0';
             const hasFailures = '${{ steps.test_summary.outputs.has_failures }}' === 'true';
+            
+            const hasCoverage = '${{ steps.coverage_summary.outputs.has_coverage }}' === 'true';
+            const instructionPct = '${{ steps.coverage_summary.outputs.instruction_pct }}' || '0';
+            const branchPct = '${{ steps.coverage_summary.outputs.branch_pct }}' || '0';
+            const linePct = '${{ steps.coverage_summary.outputs.line_pct }}' || '0';
+            const lineCovered = '${{ steps.coverage_summary.outputs.line_covered }}' || '0';
+            const lineTotal = '${{ steps.coverage_summary.outputs.line_total }}' || '0';
+            const methodPct = '${{ steps.coverage_summary.outputs.method_pct }}' || '0';
             
             let emoji = '✅';
             let status = 'All tests passed!';
@@ -167,9 +248,24 @@ jobs:
             comment += `| 💥 Errors | ${errors} |\n`;
             comment += `| ⏭️ Skipped | ${skipped} |\n\n`;
             
+            // Add coverage section
+            if (hasCoverage) {
+              comment += `### 📊 Code Coverage\n\n`;
+              comment += `| Metric | Coverage |\n`;
+              comment += `|--------|----------|\n`;
+              comment += `| Instructions | ${instructionPct}% |\n`;
+              comment += `| Branches | ${branchPct}% |\n`;
+              comment += `| Lines | ${linePct}% (${lineCovered} / ${lineTotal}) |\n`;
+              comment += `| Methods | ${methodPct}% |\n\n`;
+            }
+            
             // Add link to detailed report
             const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/junit-reports-pr-${context.issue.number}/`;
-            comment += `📊 [View detailed test report](${url})\n\n`;
+            comment += `📋 [View detailed test report](${url})\n`;
+            if (hasCoverage) {
+              comment += `📊 [View detailed coverage report](${url}coverage/)\n`;
+            }
+            comment += `\n`;
             
             // If there are failures, try to extract failure details
             if (hasFailures) {

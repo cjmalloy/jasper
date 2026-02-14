@@ -34,12 +34,14 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test surefire-report:report; \
+CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
 		cp -r target/reports/* /reports/ && \
-		cp target/reports/surefire.html /reports/index.html
+		cp target/reports/surefire.html /reports/index.html && \
+		mkdir -p /reports/coverage && \
+		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
 FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
 RUN apt-get update && apt-get install curl -y
