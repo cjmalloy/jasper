@@ -14,8 +14,11 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Repository
 @Transactional(readOnly = true)
@@ -143,11 +146,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	default List<Object[]> countPluginTagsInResponses(String url, String origin) {
 		return countPluginTagsInResponsesCsv(url, origin)
 			.stream()
-			.flatMap(csv -> java.util.Arrays.stream(csv.split(",")))
+			.flatMap(csv -> Arrays.stream(csv.split(",")))
 			.filter(s -> !s.isEmpty())
-			.collect(java.util.stream.Collectors.groupingBy(
-				java.util.function.Function.identity(),
-				java.util.stream.Collectors.counting()))
+			.collect(Collectors.groupingBy(
+				Function.identity(),
+				Collectors.counting()))
 			.entrySet()
 			.stream()
 			.map(e -> new Object[]{e.getKey(), e.getValue()})
@@ -166,7 +169,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	default List<String> findAllUserPluginTagsInResponses(String url, String origin) {
 		return findAllUserPluginTagsInResponsesCsv(url, origin)
 			.stream()
-			.flatMap(csv -> java.util.Arrays.stream(csv.split(",")))
+			.flatMap(csv -> Arrays.stream(csv.split(",")))
 			.filter(s -> !s.isEmpty())
 			.distinct()
 			.toList();
