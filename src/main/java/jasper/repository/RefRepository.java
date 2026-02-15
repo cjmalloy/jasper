@@ -104,7 +104,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM Ref ref
 		WHERE ref.url = :url
 			AND ref.published >= :published
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query("""
