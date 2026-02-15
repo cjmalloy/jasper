@@ -141,6 +141,65 @@ public class RefRepositoryIT {
 		assertThat(result).doesNotContain("public");
 	}
 
+	// --- countPluginTagsInResponses ---
+
+	@Test
+	void testCountPluginTagsInResponses_ReturnsPluginTagsWithCounts() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var resp1 = new Ref();
+		resp1.setUrl("http://example.com/resp1");
+		resp1.setOrigin("");
+		resp1.setSources(List.of("http://example.com/parent"));
+		resp1.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "+plugin/vote/up", "public"))
+			.build());
+		refRepository.save(resp1);
+
+		var resp2 = new Ref();
+		resp2.setUrl("http://example.com/resp2");
+		resp2.setOrigin("");
+		resp2.setSources(List.of("http://example.com/parent"));
+		resp2.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "public"))
+			.build());
+		refRepository.save(resp2);
+
+		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+		assertThat(map).containsEntry("plugin/comment", 2L);
+		assertThat(map).containsEntry("+plugin/vote/up", 1L);
+		assertThat(map).doesNotContainKey("public");
+	}
+
+	@Test
+	void testCountPluginTagsInResponses_EmptyPluginTable() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "public"))
+			.build());
+		refRepository.save(response);
+
+		// Even with no plugins in the database, plugin tags in responses should still be counted
+		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+		assertThat(map).containsEntry("plugin/comment", 1L);
+		assertThat(map).doesNotContainKey("public");
+	}
+
 	// --- findAllUserPluginTagsInResponses ---
 
 	@Test

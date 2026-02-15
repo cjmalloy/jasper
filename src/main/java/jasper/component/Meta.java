@@ -60,9 +60,9 @@ public class Meta {
 					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepositoryCustom.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.plugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
-				.collect(toMap(tag -> tag, tag -> (long) refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag).size())))
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.build()
 		);
 	}

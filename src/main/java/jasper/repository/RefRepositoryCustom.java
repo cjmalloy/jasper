@@ -8,5 +8,6 @@ import java.util.List;
  */
 public interface RefRepositoryCustom {
 	List<String> findAllPluginTagsInResponses(String url, String origin);
+	List<Object[]> countPluginTagsInResponses(String url, String origin);
 	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 }
