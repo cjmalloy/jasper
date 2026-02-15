@@ -14,11 +14,11 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
-import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
@@ -30,6 +30,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.component.Meta.expandTags;
+import static jasper.util.DbConstraint.isPkViolation;
+import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
 @Component
 public class Ingest {
@@ -150,21 +152,12 @@ public class Ingest {
 					return null;
 				});
 				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
+			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-				if (e instanceof ConstraintViolationException c) {
-					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
-				}
-				if (e.getCause() instanceof ConstraintViolationException c) {
-					if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
+				if (isPkViolation(e, "ref")) throw new AlreadyExistsException();
+				if (isUniqueModifiedOriginViolation(e, "ref")) {
+					if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+					continue;
 				}
 				throw e;
 			}
@@ -182,14 +175,8 @@ public class Ingest {
 					return null;
 				});
 				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
-				if (e instanceof ConstraintViolationException c) {
-					if (!"ref_modified_origin_key".equals(c.getConstraintName())) throw e;
-				} else if (e.getCause() instanceof ConstraintViolationException c) {
-					if (!"ref_modified_origin_key".equals(c.getConstraintName())) throw e;
-				} else {
-					throw e;
-				}
+			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
+				if (!isUniqueModifiedOriginViolation(e, "ref")) throw e;
 				if (count > props.getIngestMaxRetry()) {
 					count = 0;
 					cursor = cursor.minusNanos((long) (1000 * Math.random()));
@@ -228,18 +215,10 @@ public class Ingest {
 					return null;
 				});
 				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
-				if (e instanceof ConstraintViolationException c) {
-					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
-				}
-				if (e.getCause() instanceof ConstraintViolationException c) {
-					if ("ref_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
+			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
+				if (isUniqueModifiedOriginViolation(e, "ref")) {
+					if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+					continue;
 				}
 				throw e;
 			}
@@ -263,16 +242,10 @@ public class Ingest {
 			if (updated == 0) {
 				refRepository.save(ref);
 			}
-		} catch (DataIntegrityViolationException | PersistenceException e) {
+		} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-			if (e instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			if (e.getCause() instanceof ConstraintViolationException c) {
-				if ("ref_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("ref_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
+			if (isPkViolation(e, "ref")) throw new AlreadyExistsException();
+			if (isUniqueModifiedOriginViolation(e, "ref")) throw new DuplicateModifiedDateException();
 			throw e;
 		} catch (TransactionSystemException e) {
 			if (e.getCause() instanceof RollbackException r) {

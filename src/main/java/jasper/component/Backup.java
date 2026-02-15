@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Cursor;
+import jasper.repository.BackfillRepository;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -55,6 +56,9 @@ public class Backup {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	BackfillRepository backfillRepository;
 
 	@Autowired
 	ExtRepository extRepository;
@@ -300,7 +304,7 @@ public class Backup {
 		refRepository.dropMetadata(origin);
 		logger.info("{} Cleared old metadata", origin);
 		int count = 0;
-		while (props.getBackfillBatchSize() == refRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
+		while (props.getBackfillBatchSize() == backfillRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
 			count += props.getBackfillBatchSize();
 			logger.info("{} Generating metadata... {} done", origin, count);
 		}

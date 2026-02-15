@@ -14,26 +14,38 @@ permissions:
 jobs:
   gatling:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, sqlite]
     permissions:
       contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+      - name: Set compose command
+        id: compose
+        run: |
+          if [ "${{ matrix.database }}" = "sqlite" ]; then
+            echo "cmd=docker compose -f docker-compose.sqlite.yaml --profile lt" >> $GITHUB_OUTPUT
+          else
+            echo "cmd=docker compose --profile lt" >> $GITHUB_OUTPUT
+          fi
       - name: Run Smoke Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=SmokeTest ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Run Comprehensive Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=Comprehensive docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=Comprehensive ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Run User Journey
         if: always()
-        run: (cd gatling; GATLING_TEST=UserJourney docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=UserJourney ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Run Stress Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=StressTest docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=StressTest ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Run Inferno Tests
         if: always()
-        run: (cd gatling; GATLING_TEST=Inferno docker compose --profile lt up --build --exit-code-from gatling)
+        run: (cd gatling; GATLING_TEST=Inferno ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
@@ -261,7 +273,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           
           # Create workflow summary
-          echo "## Load Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Load Test Results Summary (${{ matrix.database }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -289,14 +301,14 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: gatling-reports-pr-${{ github.event.pull_request.number }}
+          name: gatling-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
           path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: gatling-reports-${{ github.ref_name }}-${{ github.run_number }}
+          name: gatling-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
           retention-days: 90
       - name: Comment on PR with Load Test Summary
@@ -315,7 +327,7 @@ jobs:
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
             
-            let comment = `## ${emoji} Load Test Results\n\n`;
+            let comment = `## ${emoji} Load Test Results (${{ matrix.database }})\n\n`;
             comment += `**${status}**\n\n`;
             
             // Add overall summary
@@ -365,11 +377,11 @@ jobs:
             comment += `\n`;
             
             // Add link to detailed report
-            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-pr-${context.issue.number}/`;
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-${{ matrix.database }}-pr-${context.issue.number}/`;
             comment += `📈 [View detailed performance reports](${url})\n\n`;
             
             // Add marker to identify our comment
-            comment += `<!-- gatling-results-comment -->`;
+            comment += `<!-- gatling-results-comment-${{ matrix.database }} -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -382,7 +394,7 @@ jobs:
             );
             
             const botComment = comments.find(comment => 
-              comment.body.includes('<!-- gatling-results-comment -->')
+              comment.body.includes('<!-- gatling-results-comment-${{ matrix.database }} -->')
             );
             
             if (botComment) {
@@ -421,7 +433,7 @@ jobs:
               per_page: 100
             });
             const artifacts = response.data.artifacts
-              .filter(artifact => artifact.name.startsWith('gatling-reports-' + '${{ github.ref_name }}'));
+              .filter(artifact => artifact.name.startsWith('gatling-reports-') && artifact.name.includes('${{ github.ref_name }}'));
             if (artifacts.length > maxVersions) {
               // Sort by created_at descending
               artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -448,7 +460,7 @@ jobs:
               per_page: 100
             });
             const artifacts = response.data.artifacts
-              .filter(artifact => artifact.name === 'gatling-reports-pr-${{ github.event.pull_request.number }}');
+              .filter(artifact => artifact.name.startsWith('gatling-reports-') && artifact.name.includes('-pr-${{ github.event.pull_request.number }}'));
             if (artifacts.length > maxVersions) {
               // Sort by created_at descending
               artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
