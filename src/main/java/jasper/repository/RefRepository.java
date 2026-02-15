@@ -153,6 +153,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		return findAllUserPluginTagsInResponsesCsv(url, origin)
 			.stream()
 			.flatMap(csv -> java.util.Arrays.stream(csv.split(",")))
+			.filter(s -> !s.isEmpty())
 			.distinct()
 			.toList();
 	}
