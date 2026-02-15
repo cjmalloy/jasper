@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.OriginService;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/origin")
 @Validated

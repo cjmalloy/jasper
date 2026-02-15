@@ -12,6 +12,7 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.service.GraphService;
 import jasper.service.dto.RefNodeDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -26,6 +27,7 @@ import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/graph")
 @Validated

@@ -10,6 +10,7 @@ import jasper.component.Backup;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.BackupService;
+import jasper.component.ClearIdle;
 import jasper.service.dto.BackupDto;
 import jasper.service.dto.BackupOptionsDto;
 import org.hibernate.validator.constraints.Length;
@@ -41,6 +42,7 @@ import static jasper.service.dto.BackupOptionsDto.ID_LEN;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.http.MediaType.parseMediaType;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/backup")
 @Tag(name = "Backup")

@@ -14,6 +14,7 @@ import jasper.domain.Plugin;
 import jasper.repository.filter.TagFilter;
 import jasper.service.PluginService;
 import jasper.service.dto.PluginDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/plugin")
 @Validated

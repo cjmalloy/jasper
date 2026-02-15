@@ -18,6 +18,7 @@ import jasper.domain.proj.HasOrigin;
 import jasper.repository.filter.RefFilter;
 import jasper.service.RefService;
 import jasper.service.dto.RefDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/ref")
 @Validated

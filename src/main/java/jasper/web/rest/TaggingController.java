@@ -13,6 +13,7 @@ import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
 import jasper.service.TaggingService;
 import jasper.service.dto.RefDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -35,6 +36,7 @@ import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.domain.proj.Tag.TAG_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/tags")
 @Validated

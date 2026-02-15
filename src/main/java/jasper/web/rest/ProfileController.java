@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Pattern;
 import jasper.domain.User;
 import jasper.service.ProfileService;
 import jasper.service.dto.ProfileDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static jasper.domain.proj.Tag.QTAG_LEN;
 
 @Profile("scim")
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/profile")
 @Validated

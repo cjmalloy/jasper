@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jasper.service.ScrapeService;
 import jasper.service.dto.RefDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import static jasper.domain.Ref.URL_LEN;
 
 @Profile("proxy | file-cache")
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/scrape")
 @Validated

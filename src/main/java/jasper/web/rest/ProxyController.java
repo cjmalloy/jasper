@@ -11,6 +11,7 @@ import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
 import jasper.service.ProxyService;
 import jasper.service.dto.RefDto;
+import jasper.component.ClearIdle;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
@@ -48,6 +49,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.http.MediaType.APPLICATION_OCTET_STREAM;
 import static org.springframework.http.MediaType.parseMediaType;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/proxy")
 @Validated

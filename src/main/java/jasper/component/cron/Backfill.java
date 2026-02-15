@@ -1,6 +1,7 @@
 package jasper.component.cron;
 
 import jasper.component.ConfigCache;
+import jasper.component.IdleTracker;
 import jasper.component.Meta;
 import jasper.config.Props;
 import jasper.repository.RefRepository;
@@ -25,6 +26,9 @@ public class Backfill {
 	ConfigCache configs;
 
 	@Autowired
+	IdleTracker idleTracker;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -32,6 +36,7 @@ public class Backfill {
 
 	@Scheduled(fixedRate = 60, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
 	public void backfill() {
+		if (!idleTracker.isIdle()) return;
 		if (!configs.root().script("+plugin/backfill")) return;
 		for (var origin : configs.root().scriptOrigins("+plugin/backfill")) {
 			backfillOrigin(origin);
