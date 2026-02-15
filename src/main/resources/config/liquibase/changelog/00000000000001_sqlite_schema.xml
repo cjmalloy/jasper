@@ -6,7 +6,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd
                         http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
 
-	<changeSet author="chris" id="00000000000002" dbms="sqlite">
+	<changeSet author="chris" id="00000000000003" dbms="sqlite">
 		<createTable tableName="ref">
 			<column name="url" type="TEXT">
 				<constraints primaryKey="true" nullable="false"/>
