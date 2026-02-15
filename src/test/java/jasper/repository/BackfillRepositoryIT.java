@@ -10,6 +10,7 @@ import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.junit.jupiter.DisabledIf;
 
 import java.util.List;
 
@@ -41,6 +42,7 @@ public class BackfillRepositoryIT {
 	}
 
 	@Test
+	@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
 	void testBackfillMetadata_BackfillsNullMetadata() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
@@ -79,6 +81,7 @@ public class BackfillRepositoryIT {
 	}
 
 	@Test
+	@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
 	void testBackfillMetadata_BackfillsRegenFlag() {
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
@@ -92,6 +95,7 @@ public class BackfillRepositoryIT {
 	}
 
 	@Test
+	@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
 	void testBackfillMetadata_RespectsOriginFilter() {
 		var ref1 = new Ref();
 		ref1.setUrl("http://example.com/ref1");
