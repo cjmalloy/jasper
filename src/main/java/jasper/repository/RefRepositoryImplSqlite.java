@@ -52,7 +52,7 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
-				AND (j.value LIKE 'plugin/user%' OR j.value LIKE '+plugin/user%' OR j.value LIKE '\\_plugin/user%' ESCAPE '\\')
+				AND (j.value LIKE 'plugin/user/%' OR j.value LIKE '+plugin/user/%' OR j.value LIKE '\\_plugin/user/%' ESCAPE '\\' OR j.value = 'plugin/user' OR j.value = '+plugin/user' OR j.value = '_plugin/user')
 				AND r.origin = :origin
 			""", String.class)
 			.setParameter("url", url)
