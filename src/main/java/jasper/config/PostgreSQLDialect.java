@@ -44,6 +44,10 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("jsonb_user_plugin_tags",
 			"(SELECT string_agg(t, ',') FROM jsonb_array_elements_text(?1) AS t WHERE t LIKE 'plugin/user%' OR t LIKE '+plugin/user%' OR t LIKE '\\_plugin/user%' ESCAPE '\\')",
 			string);
+		// jsonb_plugin_tags: extract all plugin tags from a JSON array as comma-separated text
+		functionRegistry.registerPattern("jsonb_plugin_tags",
+			"(SELECT string_agg(t, ',') FROM jsonb_array_elements_text(?1) AS t WHERE t LIKE 'plugin/%' OR t LIKE '+plugin/%' OR t LIKE '\\_plugin/%' ESCAPE '\\')",
+			string);
 	}
 
 }

@@ -141,8 +141,8 @@ public class RefRepositoryIT {
 		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "@test");
 
 		assertThat(result).hasSize(1);
-		assertThat((String) result.get(0)[0]).isEqualTo("plugin/comment");
-		assertThat((Long) result.get(0)[1]).isEqualTo(1L);
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> (Long) r[1]));
+		assertThat(map).containsEntry("plugin/comment", 1L);
 	}
 
 	// --- findAllUserPluginTagsInResponses ---
@@ -382,10 +382,12 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		// With no plugins in the database, the cross-join produces no results
+		// Even with no plugins in the database, plugin tags in responses should still be counted
 		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
-		assertThat(result).isEmpty();
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> (Long) r[1]));
+		assertThat(map).containsEntry("plugin/comment", 1L);
+		assertThat(map).doesNotContainKey("public");
 	}
 
 	// --- originUrl ---

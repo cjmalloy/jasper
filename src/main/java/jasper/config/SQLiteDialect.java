@@ -126,6 +126,10 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("jsonb_user_plugin_tags",
 			"(SELECT group_concat(je.value) FROM json_each(?1) je WHERE je.value LIKE 'plugin/user%' OR je.value LIKE '+plugin/user%' OR je.value LIKE '\\_plugin/user%' ESCAPE '\\')",
 			string);
+		// jsonb_plugin_tags: extract all plugin tags from a JSON array as comma-separated text
+		functionRegistry.registerPattern("jsonb_plugin_tags",
+			"(SELECT group_concat(je.value) FROM json_each(?1) je WHERE je.value LIKE 'plugin/%' OR je.value LIKE '+plugin/%' OR je.value LIKE '\\_plugin/%' ESCAPE '\\')",
+			string);
 	}
 
 	/**

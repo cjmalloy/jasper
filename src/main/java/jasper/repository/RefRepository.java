@@ -132,13 +132,27 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
 	@Query("""
-		SELECT p.tag, COUNT(r) FROM Plugin p, Ref r
+		SELECT jsonb_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags))
+		FROM Ref r
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
-		GROUP BY p.tag""")
-	List<Object[]> countPluginTagsInResponses(String url, String origin);
+			AND jsonb_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags)) IS NOT NULL
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<String> countPluginTagsInResponsesCsv(String url, String origin);
+
+	default List<Object[]> countPluginTagsInResponses(String url, String origin) {
+		return countPluginTagsInResponsesCsv(url, origin)
+			.stream()
+			.flatMap(csv -> java.util.Arrays.stream(csv.split(",")))
+			.filter(s -> !s.isEmpty())
+			.collect(java.util.stream.Collectors.groupingBy(
+				java.util.function.Function.identity(),
+				java.util.stream.Collectors.counting()))
+			.entrySet()
+			.stream()
+			.map(e -> new Object[]{e.getKey(), e.getValue()})
+			.toList();
+	}
 
 	@Query("""
 		SELECT DISTINCT jsonb_user_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags))
