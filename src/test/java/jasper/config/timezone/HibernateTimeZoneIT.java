@@ -3,6 +3,7 @@ package jasper.config.timezone;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 
+import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
 import jasper.repository.timezone.DateTimeWrapper;
 import jasper.repository.timezone.DateTimeWrapperRepository;
@@ -13,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
-import org.springframework.test.context.junit.jupiter.DisabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.lang.String.format;
@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Disabled on SQLite because the test depends on PostgreSQL-specific sequence generation (e.g. sequence_generator table).
  */
 @IntegrationTest
-@DisabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
+@DisabledOnSqlite
 class HibernateTimeZoneIT {
 
 	@Autowired
