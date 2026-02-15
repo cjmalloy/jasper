@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Profile("sqlite")
 @Transactional
@@ -15,11 +17,24 @@ public class BackfillRepositoryImplSqlite implements BackfillRepository {
 	private EntityManager em;
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public int backfillMetadata(String origin, int batchSize) {
-		// Single UPDATE with correlated subqueries — eliminates the N+1 query problem.
-		// Uses json_patch to merge computed responses/internalResponses into the base object
-		// only when they are non-empty, matching PostgreSQL's jsonb_strip_nulls behavior.
-		String sql = """
+		// First, select the batch of rowids that need updating.
+		// This is fast and read-only so it doesn't hold a write lock.
+		String selectSql = """
+			SELECT rowid FROM ref
+			WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
+				AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
+			LIMIT :batchSize
+			""";
+		List<Number> rowids = em.createNativeQuery(selectSql)
+			.setParameter("origin", origin)
+			.setParameter("batchSize", batchSize)
+			.getResultList();
+		if (rowids.isEmpty()) return 0;
+		// Update each row individually so each UPDATE is small and fast,
+		// minimizing the time the write lock is held on the single connection.
+		String updateSql = """
 			UPDATE ref SET metadata = json_patch(
 				json_patch(
 					json_object(
@@ -49,19 +64,16 @@ public class BackfillRepositoryImplSqlite implements BackfillRepository {
 						AND jsonb_exists(COALESCE(json_extract(ire.metadata, '$.expandedTags'), ire.tags), 'internal')))
 				ELSE '{}' END
 			)
-			WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
-				AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
-				AND rowid IN (SELECT rowid FROM ref
-					WHERE (metadata IS NULL OR json_extract(metadata, '$.regen') = 1)
-						AND (:origin = '' OR origin = :origin OR origin LIKE (:origin || '.%'))
-					LIMIT :batchSize)
+			WHERE rowid = :rowid
 			""";
-		int updated = em.createNativeQuery(sql)
-			.setParameter("origin", origin)
-			.setParameter("batchSize", batchSize)
-			.executeUpdate();
+		for (Number rowid : rowids) {
+			em.createNativeQuery(updateSql)
+				.setParameter("origin", origin)
+				.setParameter("rowid", rowid.longValue())
+				.executeUpdate();
+		}
 		em.flush();
 		em.clear();
-		return updated;
+		return rowids.size();
 	}
 }
