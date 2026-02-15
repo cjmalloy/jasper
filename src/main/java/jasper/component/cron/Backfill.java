@@ -46,6 +46,7 @@ public class Backfill {
 	private void backfillOrigin(String origin) {
 		if (!configs.root().script("+plugin/backfill", origin)) return;
 		for (var i = 0; i < props.getBackfillBatchSize(); i++) {
+			if (!idleTracker.isIdle()) return;
 			var ref = refRepository.getRefBackfill(origin).orElse(null);
 			if (ref == null) return;
 			logger.trace("{} Backfilling ref ({}) {}: {}",
