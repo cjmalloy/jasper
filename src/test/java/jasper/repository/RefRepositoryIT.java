@@ -257,6 +257,137 @@ public class RefRepositoryIT {
 		assertThat(result).doesNotContain("+plugin/comment");
 	}
 
+	@Test
+	void testFindAllUserPluginTagsInResponses_WorksWithEmptyPluginTable() {
+		// No plugins in the database at all
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/user/tester", "+plugin/user/admin", "plugin/comment", "public"))
+			.build());
+		refRepository.save(response);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
+	}
+
+	@Test
+	void testFindAllUserPluginTagsInResponses_NoMatchingTags() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "public"))
+			.build());
+		refRepository.save(response);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).isEmpty();
+	}
+
+	@Test
+	void testFindAllUserPluginTagsInResponses_DeduplicatesAcrossResponses() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var resp1 = new Ref();
+		resp1.setUrl("http://example.com/resp1");
+		resp1.setOrigin("");
+		resp1.setSources(List.of("http://example.com/parent"));
+		resp1.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/user/tester", "public"))
+			.build());
+		refRepository.save(resp1);
+
+		var resp2 = new Ref();
+		resp2.setUrl("http://example.com/resp2");
+		resp2.setOrigin("");
+		resp2.setSources(List.of("http://example.com/parent"));
+		resp2.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/user/tester", "+plugin/user/admin"))
+			.build());
+		refRepository.save(resp2);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
+	}
+
+	@Test
+	void testFindAllUserPluginTagsInResponses_ExcludesSelf() {
+		var self = new Ref();
+		self.setUrl("http://example.com/self");
+		self.setOrigin("");
+		self.setSources(List.of("http://example.com/self"));
+		self.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/user/tester"))
+			.build());
+		refRepository.save(self);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/self", "");
+
+		assertThat(result).isEmpty();
+	}
+
+	@Test
+	void testFindAllUserPluginTagsInResponses_FallsBackToTagsWhenNoExpandedTags() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/user/tester", "public"));
+		// No metadata / expandedTags set
+		refRepository.save(response);
+
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).containsExactly("plugin/user/tester");
+	}
+
+	@Test
+	void testCountPluginTagsInResponses_EmptyPluginTable() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "public"))
+			.build());
+		refRepository.save(response);
+
+		// With no plugins in the database, the cross-join produces no results
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
+
+		assertThat(result).isEmpty();
+	}
+
 	// --- originUrl ---
 
 	@Test

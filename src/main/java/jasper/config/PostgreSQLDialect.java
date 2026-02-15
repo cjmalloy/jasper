@@ -40,6 +40,10 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("collate_c", "(?1) COLLATE \"C\"", string);
 		// jsonb_array_append: append a text value to a JSON array
 		functionRegistry.registerPattern("jsonb_array_append", "(?1 || to_jsonb(CAST(?2 AS text)))", jsonb);
+		// jsonb_user_plugin_tags: extract user plugin tags from a JSON array as comma-separated text
+		functionRegistry.registerPattern("jsonb_user_plugin_tags",
+			"(SELECT string_agg(t, ',') FROM jsonb_array_elements_text(?1) AS t WHERE t LIKE 'plugin/user%' OR t LIKE '+plugin/user%' OR t LIKE '\\_plugin/user%' ESCAPE '\\')",
+			string);
 	}
 
 }

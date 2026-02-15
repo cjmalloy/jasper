@@ -122,6 +122,10 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("ts_rank_cd", "COALESCE((SELECT bm25(ref_fts) FROM ref_fts WHERE ref_fts MATCH ?2 AND ref_fts.rowid = CAST(?1 AS INTEGER)), 0)", doubleType);
 		// jsonb_array_append: append a text value to a JSON array
 		functionRegistry.registerPattern("jsonb_array_append", "json_insert(?1, '$[#]', ?2)", jsonb);
+		// jsonb_user_plugin_tags: extract user plugin tags from a JSON array as comma-separated text
+		functionRegistry.registerPattern("jsonb_user_plugin_tags",
+			"(SELECT group_concat(je.value) FROM json_each(?1) je WHERE je.value LIKE 'plugin/user%' OR je.value LIKE '+plugin/user%' OR je.value LIKE '\\_plugin/user%' ESCAPE '\\')",
+			string);
 	}
 
 	/**

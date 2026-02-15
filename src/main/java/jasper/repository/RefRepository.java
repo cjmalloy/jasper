@@ -141,13 +141,21 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<Object[]> countPluginTagsInResponses(String url, String origin);
 
 	@Query("""
-		SELECT DISTINCT p.tag FROM Plugin p, Ref r
+		SELECT DISTINCT jsonb_user_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags))
+		FROM Ref r
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), p.tag) = true
-			AND (p.tag LIKE 'plugin/user%' OR p.tag LIKE '+plugin/user%' OR p.tag LIKE '\\_plugin/user%' ESCAPE '\\')
+			AND jsonb_user_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags)) IS NOT NULL
 			AND r.origin = :origin""")
-	List<String> findAllUserPluginTagsInResponses(String url, String origin);
+	List<String> findAllUserPluginTagsInResponsesCsv(String url, String origin);
+
+	default List<String> findAllUserPluginTagsInResponses(String url, String origin) {
+		return findAllUserPluginTagsInResponsesCsv(url, origin)
+			.stream()
+			.flatMap(csv -> java.util.Arrays.stream(csv.split(",")))
+			.distinct()
+			.toList();
+	}
 
 	@Modifying
 	@Transactional
