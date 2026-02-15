@@ -21,7 +21,7 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
-				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\')
+				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE (:origin || '.%'))
 			""", String.class)
 			.setParameter("url", url)
@@ -36,7 +36,7 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
-				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\')
+				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE (:origin || '.%'))
 			GROUP BY j.value
 			""", Object[].class)
