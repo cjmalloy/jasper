@@ -14,11 +14,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Repository
 @Transactional(readOnly = true)
@@ -133,47 +130,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = false
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
-
-	@Query("""
-		SELECT jsonb_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags))
-		FROM Ref r
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags)) IS NOT NULL
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	List<String> countPluginTagsInResponsesCsv(String url, String origin);
-
-	default List<Object[]> countPluginTagsInResponses(String url, String origin) {
-		return countPluginTagsInResponsesCsv(url, origin)
-			.stream()
-			.flatMap(csv -> Arrays.stream(csv.split(",")))
-			.filter(s -> !s.isEmpty())
-			.collect(Collectors.groupingBy(
-				Function.identity(),
-				Collectors.counting()))
-			.entrySet()
-			.stream()
-			.map(e -> new Object[]{e.getKey(), e.getValue()})
-			.toList();
-	}
-
-	@Query("""
-		SELECT DISTINCT jsonb_user_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags))
-		FROM Ref r
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_user_plugin_tags(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags)) IS NOT NULL
-			AND r.origin = :origin""")
-	List<String> findAllUserPluginTagsInResponsesCsv(String url, String origin);
-
-	default List<String> findAllUserPluginTagsInResponses(String url, String origin) {
-		return findAllUserPluginTagsInResponsesCsv(url, origin)
-			.stream()
-			.flatMap(csv -> Arrays.stream(csv.split(",")))
-			.filter(s -> !s.isEmpty())
-			.distinct()
-			.toList();
-	}
 
 	@Modifying
 	@Transactional

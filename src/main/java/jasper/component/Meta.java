@@ -5,6 +5,7 @@ import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
+import jasper.repository.RefRepositoryCustom;
 import jasper.repository.spec.OriginSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,9 @@ public class Meta {
 	RefRepository refRepository;
 
 	@Autowired
+	RefRepositoryCustom refRepositoryCustom;
+
+	@Autowired
 	Messages messages;
 
 	private record UserUrlResponse(String tag, List<String> responses) { }
@@ -49,16 +53,16 @@ public class Meta {
 			.expandedTags(expandTags(ref.getTags()))
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
-			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.userUrls(refRepositoryCustom.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
 					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepository.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.plugins(refRepositoryCustom.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
-				.collect(toMap(r -> (String) r[0], r -> (Long) r[1])))
+				.collect(toMap(tag -> tag, tag -> (long) refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag).size())))
 			.build()
 		);
 	}
