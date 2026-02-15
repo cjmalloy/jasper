@@ -23,5 +23,4 @@ spring:
       ddl-auto: none
     properties:
       hibernate.hbm2ddl.auto: none
-  liquibase:
-    contexts: sqlite
+  liquibase: {}
