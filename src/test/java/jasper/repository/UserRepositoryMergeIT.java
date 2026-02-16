@@ -1,6 +1,7 @@
 package jasper.repository;
 
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.External;
 import jasper.domain.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +19,15 @@ public class UserRepositoryMergeIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
@@ -34,10 +35,16 @@ public class ExtServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		extRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

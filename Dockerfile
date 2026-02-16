@@ -72,6 +72,7 @@ ENV JASPER_SHELL=${JASPER_SHELL}
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /var/lib/jasper
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true

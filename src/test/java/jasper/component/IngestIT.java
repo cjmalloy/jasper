@@ -5,7 +5,6 @@ import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
-import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
