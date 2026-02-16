@@ -80,7 +80,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
       - name: Install Python
         if: matrix.database == 'sqlite'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: Run SQLite tests
