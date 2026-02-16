@@ -5,6 +5,7 @@ import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
+import jasper.repository.RefRepositoryCustom;
 import jasper.repository.spec.OriginSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,6 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
-import static jasper.repository.spec.RefSpec.hasSource;
-import static jasper.repository.spec.RefSpec.hasTag;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
@@ -38,9 +37,11 @@ public class Meta {
 	RefRepository refRepository;
 
 	@Autowired
+	RefRepositoryCustom refRepositoryCustom;
+
+	@Autowired
 	Messages messages;
 
-	private record PluginResponses(String tag, long count) { }
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -51,20 +52,16 @@ public class Meta {
 			.expandedTags(expandTags(ref.getTags()))
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
-			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.userUrls(refRepositoryCustom.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
 					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepository.findAllPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.plugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
-				.map(tag -> new PluginResponses(
-					tag,
-					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
-				.filter(p -> p.count() > 0)
-				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.build()
 		);
 	}
