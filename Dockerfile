@@ -43,7 +43,7 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /reports/coverage && \
 		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
+FROM azul/zulu-openjdk:25.0.1-25.30-jdk-crac AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
@@ -74,6 +74,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/lib/jasper
 WORKDIR /app
+RUN mkdir -p /cr && chmod 755 /cr
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true
 COPY --from=builder /app/layers/spring-boot-loader/ ./
@@ -82,4 +83,4 @@ COPY --from=builder /app/layers/snapshot-dependencies/ ./
 RUN true
 COPY --from=builder /app/layers/application/ ./
 COPY docker/entrypoint.sh .
-ENTRYPOINT ["sh", "entrypoint.sh"]
+ENTRYPOINT ["bash", "entrypoint.sh"]
