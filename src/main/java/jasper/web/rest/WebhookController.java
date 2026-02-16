@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.SmtpService;
 import jasper.service.dto.SmtpWebhookDto;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/webhook")
 @Validated

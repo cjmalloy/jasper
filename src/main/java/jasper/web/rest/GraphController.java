@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
@@ -26,6 +27,7 @@ import java.util.List;
 
 import static jasper.domain.Ref.URL_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/graph")
 @Validated
