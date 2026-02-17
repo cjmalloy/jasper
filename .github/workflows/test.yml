@@ -71,7 +71,7 @@ jobs:
       # SQLite tests: Maven-based with in-memory SQLite
       - name: Set up Java
         if: matrix.database == 'sqlite'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '25'
