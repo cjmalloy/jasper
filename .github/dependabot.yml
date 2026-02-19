@@ -34,3 +34,21 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+- package-ecosystem: docker
+  target-branch: v1.3
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+- package-ecosystem: maven
+  target-branch: v1.3
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+- package-ecosystem: github-actions
+  target-branch: v1.3
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
