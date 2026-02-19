@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -45,6 +46,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/ref")
 @Validated

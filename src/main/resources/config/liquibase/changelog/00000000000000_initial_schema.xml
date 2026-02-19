@@ -155,4 +155,9 @@
 		<addUniqueConstraint tableName="template" columnNames="modified, origin" />
 
 	</changeSet>
+
+	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+		<sql>CREATE OR REPLACE FUNCTION instr(text, text) RETURNS integer AS $$ SELECT strpos($1, $2) $$ LANGUAGE SQL IMMUTABLE;</sql>
+	</changeSet>
+
 </databaseChangeLog>

@@ -17,37 +17,97 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Setup Docker buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build the Docker image
-        run: docker build . -t ${{ github.repository }}:$(date +%s)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha,scope=build
+          cache-to: type=gha,mode=max,scope=build
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, sqlite]
     steps:
       - uses: actions/checkout@v6
+      # PostgreSQL tests: Docker-based with Testcontainers
+      - name: Setup Docker buildx
+        if: matrix.database == 'postgres'
+        uses: docker/setup-buildx-action@v3
       - name: Build the testing image
-        run: docker build . --file Dockerfile --target test --tag test
+        if: matrix.database == 'postgres'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          load: true
+          tags: test
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,mode=max,scope=test
       - name: Run the test container
+        if: matrix.database == 'postgres'
         run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
       - name: Copy the tests from the container
-        if: always()
-        run: docker cp test:/tests tests
+        if: matrix.database == 'postgres' && always()
+        run: |
+          if docker ps -a --format '{{.Names}}' | grep -qx test; then
+            docker cp test:/tests tests
+          else
+            echo "Test container 'test' not found; skipping tests copy."
+          fi
+      - name: Copy the reports from the container
+        if: matrix.database == 'postgres' && always()
+        run: |
+          if docker ps -a --format '{{.Names}}' | grep -qx test; then
+            docker cp test:/reports reports
+          else
+            echo "Test container 'test' not found; skipping reports copy."
+          fi
+      # SQLite tests: Maven-based with in-memory SQLite
+      - name: Set up Java
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+      - name: Install Bun
+        if: matrix.database == 'sqlite'
+        uses: oven-sh/setup-bun@v2
+      - name: Install Python
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Run SQLite tests
+        if: matrix.database == 'sqlite'
+        run: ./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts
+      - name: Collect SQLite test results
+        if: matrix.database == 'sqlite' && always()
+        run: |
+          mkdir -p tests reports
+          cp target/surefire-reports/*.xml tests/ 2>/dev/null || true
+          cp -r target/reports/* reports/ 2>/dev/null || true
+          cp target/reports/surefire.html reports/index.html 2>/dev/null || true
+      # Common reporting steps
       - name: Publish Unit Test Results
         uses: dorny/test-reporter@v2.5.0
         if: always()
         continue-on-error: true
         with:
-          name: Test Results
+          name: Test Results (${{ matrix.database }})
           path: "tests/*.xml"
           reporter: java-junit
-      - name: Copy the reports from the container
-        if: always()
-        run: docker cp test:/reports reports
       - name: Generate Test Summary
         if: always()
         id: test_summary
         run: |
           # Count total tests, failures, errors, and skipped
-          if [ -d "tests" ]; then
+          if [ -d "tests" ] && ls tests/*.xml 1>/dev/null 2>&1; then
             TOTAL=$(grep -r "testsuite" tests/*.xml | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
             FAILURES=$(grep -r "testsuite" tests/*.xml | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
             ERRORS=$(grep -r "testsuite" tests/*.xml | grep -oP 'errors="\K[0-9]+' | awk '{s+=$1} END {print s}')
@@ -76,7 +136,7 @@ jobs:
             fi
             
             # Create workflow summary
-            echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo "## Test Results Summary (${{ matrix.database }})" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -89,6 +149,79 @@ jobs:
             echo "No test results found"
             echo "has_failures=false" >> $GITHUB_OUTPUT
             echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Generate Coverage Summary
+        if: always()
+        id: coverage_summary
+        run: |
+          COVERAGE_CSV="reports/coverage/jacoco.csv"
+          if [ -f "$COVERAGE_CSV" ]; then
+            # Validate CSV header matches expected JaCoCo format
+            HEADER=$(head -1 "$COVERAGE_CSV")
+            EXPECTED_HEADER="GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED"
+            if [ "$HEADER" != "$EXPECTED_HEADER" ]; then
+              echo "::warning::JaCoCo CSV header format has changed. Coverage parsing may be inaccurate."
+            fi
+
+            # Sum up all coverage counters from CSV (skip header line)
+            INST_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$4} END {print s+0}')
+            INST_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$5} END {print s+0}')
+            BRANCH_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$6} END {print s+0}')
+            BRANCH_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$7} END {print s+0}')
+            LINE_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$8} END {print s+0}')
+            LINE_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$9} END {print s+0}')
+            METHOD_MISSED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$12} END {print s+0}')
+            METHOD_COVERED=$(tail -n +2 "$COVERAGE_CSV" | awk -F',' '{s+=$13} END {print s+0}')
+
+            # Calculate percentages
+            INST_TOTAL=$((INST_MISSED + INST_COVERED))
+            BRANCH_TOTAL=$((BRANCH_MISSED + BRANCH_COVERED))
+            LINE_TOTAL=$((LINE_MISSED + LINE_COVERED))
+            METHOD_TOTAL=$((METHOD_MISSED + METHOD_COVERED))
+
+            if [ "$INST_TOTAL" -gt 0 ]; then
+              INST_PCT=$(awk "BEGIN {printf \"%.1f\", ($INST_COVERED / $INST_TOTAL) * 100}")
+            else
+              INST_PCT="0.0"
+            fi
+            if [ "$BRANCH_TOTAL" -gt 0 ]; then
+              BRANCH_PCT=$(awk "BEGIN {printf \"%.1f\", ($BRANCH_COVERED / $BRANCH_TOTAL) * 100}")
+            else
+              BRANCH_PCT="0.0"
+            fi
+            if [ "$LINE_TOTAL" -gt 0 ]; then
+              LINE_PCT=$(awk "BEGIN {printf \"%.1f\", ($LINE_COVERED / $LINE_TOTAL) * 100}")
+            else
+              LINE_PCT="0.0"
+            fi
+            if [ "$METHOD_TOTAL" -gt 0 ]; then
+              METHOD_PCT=$(awk "BEGIN {printf \"%.1f\", ($METHOD_COVERED / $METHOD_TOTAL) * 100}")
+            else
+              METHOD_PCT="0.0"
+            fi
+
+            echo "has_coverage=true" >> $GITHUB_OUTPUT
+            echo "instruction_pct=$INST_PCT" >> $GITHUB_OUTPUT
+            echo "branch_pct=$BRANCH_PCT" >> $GITHUB_OUTPUT
+            echo "line_pct=$LINE_PCT" >> $GITHUB_OUTPUT
+            echo "line_covered=$LINE_COVERED" >> $GITHUB_OUTPUT
+            echo "line_total=$LINE_TOTAL" >> $GITHUB_OUTPUT
+            echo "method_pct=$METHOD_PCT" >> $GITHUB_OUTPUT
+
+            # Add to workflow summary
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Instructions | $INST_PCT% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | $BRANCH_PCT% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | $LINE_PCT% ($LINE_COVERED / $LINE_TOTAL) |" >> $GITHUB_STEP_SUMMARY
+            echo "| Methods | $METHOD_PCT% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No coverage report found" >> $GITHUB_STEP_SUMMARY
           fi
       - name: Comment on PR with Test Results
         if: github.event_name == 'pull_request' && always()
@@ -106,6 +239,14 @@ jobs:
             const skipped = '${{ steps.test_summary.outputs.skipped }}' || '0';
             const hasFailures = '${{ steps.test_summary.outputs.has_failures }}' === 'true';
             
+            const hasCoverage = '${{ steps.coverage_summary.outputs.has_coverage }}' === 'true';
+            const instructionPct = '${{ steps.coverage_summary.outputs.instruction_pct }}' || '0';
+            const branchPct = '${{ steps.coverage_summary.outputs.branch_pct }}' || '0';
+            const linePct = '${{ steps.coverage_summary.outputs.line_pct }}' || '0';
+            const lineCovered = '${{ steps.coverage_summary.outputs.line_covered }}' || '0';
+            const lineTotal = '${{ steps.coverage_summary.outputs.line_total }}' || '0';
+            const methodPct = '${{ steps.coverage_summary.outputs.method_pct }}' || '0';
+            
             let emoji = '✅';
             let status = 'All tests passed!';
             
@@ -114,7 +255,7 @@ jobs:
               status = 'Some tests failed!';
             }
             
-            let comment = `## ${emoji} Test Results\n\n`;
+            let comment = `## ${emoji} Test Results (${{ matrix.database }})\n\n`;
             comment += `**${status}**\n\n`;
             comment += `| Metric | Count |\n`;
             comment += `|--------|-------|\n`;
@@ -124,9 +265,24 @@ jobs:
             comment += `| 💥 Errors | ${errors} |\n`;
             comment += `| ⏭️ Skipped | ${skipped} |\n\n`;
             
+            // Add coverage section
+            if (hasCoverage) {
+              comment += `### 📊 Code Coverage\n\n`;
+              comment += `| Metric | Coverage |\n`;
+              comment += `|--------|----------|\n`;
+              comment += `| Instructions | ${instructionPct}% |\n`;
+              comment += `| Branches | ${branchPct}% |\n`;
+              comment += `| Lines | ${linePct}% (${lineCovered} / ${lineTotal}) |\n`;
+              comment += `| Methods | ${methodPct}% |\n\n`;
+            }
+            
             // Add link to detailed report
-            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/junit-reports-pr-${context.issue.number}/`;
-            comment += `📊 [View detailed test report](${url})\n\n`;
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/junit-reports-${{ matrix.database }}-pr-${context.issue.number}/`;
+            comment += `📋 [View detailed test report](${url})\n`;
+            if (hasCoverage) {
+              comment += `📊 [View detailed coverage report](${url}coverage/)\n`;
+            }
+            comment += `\n`;
             
             // If there are failures, try to extract failure details
             if (hasFailures) {
@@ -192,7 +348,7 @@ jobs:
             }
             
             // Add marker to identify our comment
-            comment += `\n<!-- test-results-comment -->`;
+            comment += `\n<!-- test-results-comment-${{ matrix.database }} -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -205,7 +361,7 @@ jobs:
             );
             
             const botComment = comments.find(comment => 
-              comment.body.includes('<!-- test-results-comment -->')
+              comment.body.includes('<!-- test-results-comment-${{ matrix.database }} -->')
             );
             
             if (botComment) {
@@ -227,14 +383,14 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: junit-reports-pr-${{ github.event.pull_request.number }}
+          name: junit-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
           path: reports
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v6
         with:
-          name: junit-reports-${{ github.ref_name }}-${{ github.run_number }}
+          name: junit-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
           path: reports
           retention-days: 90
 
@@ -245,7 +401,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - name: Cleanup old artifacts
+      - name: Cleanup old branch artifacts
         if: github.event_name != 'pull_request'
         uses: actions/github-script@v8
         with:
@@ -258,7 +414,34 @@ jobs:
               per_page: 100
             });
             const artifacts = response.data.artifacts
-              .filter(artifact => artifact.name.startsWith('junit-reports-' + '${{ github.ref_name }}'));
+              .filter(artifact => artifact.name.startsWith('junit-reports-') && artifact.name.includes('${{ github.ref_name }}'));
+            if (artifacts.length > maxVersions) {
+              // Sort by created_at descending
+              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // Delete all but the latest maxVersions
+              for (const artifact of artifacts.slice(maxVersions)) {
+                console.log('Deleting artifact:', artifact.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+              }
+            }
+      - name: Cleanup old PR artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          # language=JavaScript
+          script: |
+            const maxVersions = 1;
+            const response = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const artifacts = response.data.artifacts
+              .filter(artifact => artifact.name.startsWith('junit-reports-') && artifact.name.includes('-pr-${{ github.event.pull_request.number }}'));
             if (artifacts.length > maxVersions) {
               // Sort by created_at descending
               artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));

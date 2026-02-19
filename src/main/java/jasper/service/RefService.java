@@ -36,9 +36,9 @@ import java.util.LinkedHashSet;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
-import static jasper.repository.spec.RefSpec.sort;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
+import static jasper.repository.spec.RefSpec.sort;
 import static org.springframework.data.domain.PageRequest.of;
 import static org.springframework.data.domain.PageRequest.ofSize;
 
@@ -114,7 +114,7 @@ public class RefService {
 				sort(
 					auth.refReadSpec()
 						.and(filter.spec(auth.getUserTag())),
-					pageable),
+					auth.pageable(pageable)),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}

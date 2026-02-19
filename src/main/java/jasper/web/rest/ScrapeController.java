@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jasper.aop.ClearIdle;
 import jasper.service.ScrapeService;
 import jasper.service.dto.RefDto;
 import org.hibernate.validator.constraints.Length;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import static jasper.domain.Ref.URL_LEN;
 
 @Profile("proxy | file-cache")
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/scrape")
 @Validated

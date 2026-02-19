@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
@@ -35,6 +36,7 @@ import static jasper.domain.Ref.URL_LEN;
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 import static jasper.domain.proj.Tag.TAG_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/tags")
 @Validated
