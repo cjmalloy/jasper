@@ -10,11 +10,13 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import jasper.component.ConfigCache;
 import jasper.component.HttpClientFactory;
 import jasper.component.Ingest;
 import jasper.component.Sanitizer;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
+import jasper.domain.proj.HasTags;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
@@ -22,6 +24,7 @@ import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
+import jasper.security.Auth;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpGet;
@@ -47,6 +50,10 @@ import java.util.Map;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
+import static jasper.repository.spec.QualifiedTag.qt;
+import static jasper.repository.spec.QualifiedTag.selectors;
+import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -54,6 +61,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
+
+	@Autowired
+	ConfigCache configCache;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -106,6 +116,8 @@ public class RssParser {
 
 	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
 		var config = getFeed(feed, scriptTag);
+
+		if (!checkTagPermissions(feed, config)) return;
 
 		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
@@ -381,6 +393,37 @@ public class RssParser {
 		if (youtubeEmbed.isPresent()) {
 			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
 		}
+	}
+
+	private boolean checkTagPermissions(Ref feed, Feed config) {
+		if (config.getAddTags() == null || config.getAddTags().isEmpty()) return true;
+		var nonPublicTags = config.getAddTags().stream()
+			.filter(t -> !t.startsWith("-") && !Auth.isPublicTag(t))
+			.toList();
+		if (nonPublicTags.isEmpty()) return true;
+		var authors = HasTags.authors(feed);
+		if (authors.isEmpty()) {
+			tagger.attachError(feed.getUrl(), feed.getOrigin(), "Non-public tags require author permission", String.join(", ", nonPublicTags));
+			return false;
+		}
+		for (var tag : nonPublicTags) {
+			if (authors.stream().noneMatch(author -> authorCanAddTag(author, feed.getOrigin(), tag))) {
+				tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tag", tag);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean authorCanAddTag(String authorTag, String origin, String tag) {
+		var qualifiedAuthorTag = authorTag + origin;
+		var user = configCache.getUser(qualifiedAuthorTag);
+		if (user == null) return false;
+		if (MOD.equals(user.getRole()) || ADMIN.equals(user.getRole())) return true;
+		var tagQt = qt(tag + origin);
+		if (qt(qualifiedAuthorTag).matchesDownwards(tagQt)) return true;
+		if (user.getTagReadAccess() == null || user.getTagReadAccess().isEmpty()) return false;
+		return selectors(origin, user.getTagReadAccess()).stream().anyMatch(s -> s.capturesDownwards(tagQt));
 	}
 
 	private void cacheLater(String url, String origin) {
