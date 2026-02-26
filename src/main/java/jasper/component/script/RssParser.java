@@ -53,6 +53,7 @@ import static jasper.plugin.Feed.getFeed;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selectors;
 import static jasper.security.AuthoritiesConstants.ADMIN;
+import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -403,11 +404,13 @@ public class RssParser {
 		if (nonPublicTags.isEmpty()) return true;
 		var authors = HasTags.authors(feed);
 		if (authors.isEmpty()) {
+			logger.warn("{} Feed scrape blocked: non-public tags require author permission. Tags: {}", feed.getOrigin(), String.join(", ", nonPublicTags));
 			tagger.attachError(feed.getUrl(), feed.getOrigin(), "Non-public tags require author permission", String.join(", ", nonPublicTags));
 			return false;
 		}
 		for (var tag : nonPublicTags) {
 			if (authors.stream().noneMatch(author -> authorCanAddTag(author, feed.getOrigin(), tag))) {
+				logger.warn("{} Feed scrape blocked: author not authorized to add tag {}", feed.getOrigin(), tag);
 				tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tag", tag);
 				return false;
 			}
@@ -419,6 +422,7 @@ public class RssParser {
 		var qualifiedAuthorTag = authorTag + origin;
 		var user = configCache.getUser(qualifiedAuthorTag);
 		if (user == null) return false;
+		if (BANNED.equals(user.getRole())) return false;
 		if (MOD.equals(user.getRole()) || ADMIN.equals(user.getRole())) return true;
 		var tagQt = qt(tag + origin);
 		if (qt(qualifiedAuthorTag).matchesDownwards(tagQt)) return true;
