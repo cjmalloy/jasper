@@ -10,7 +10,7 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
-import jasper.component.ConfigCache;
+import jasper.client.JasperClient;
 import jasper.component.HttpClientFactory;
 import jasper.component.Ingest;
 import jasper.component.Sanitizer;
@@ -32,8 +32,10 @@ import org.jdom2.input.JDOMParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import feign.FeignException;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -47,15 +49,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
-import static jasper.repository.spec.QualifiedTag.qt;
-import static jasper.repository.spec.QualifiedTag.selectors;
-import static jasper.security.AuthoritiesConstants.ADMIN;
-import static jasper.security.AuthoritiesConstants.BANNED;
-import static jasper.security.AuthoritiesConstants.BANNED;
-import static jasper.security.AuthoritiesConstants.MOD;
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -64,8 +63,11 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
 
+	@Value("http://localhost:${server.port}")
+	String api;
+
 	@Autowired
-	ConfigCache configCache;
+	JasperClient jasperClient;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -118,8 +120,6 @@ public class RssParser {
 
 	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
 		var config = getFeed(feed, scriptTag);
-
-		if (!checkTagPermissions(feed, config)) return;
 
 		try (var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
@@ -182,13 +182,20 @@ public class RssParser {
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 								ingest.update(feed.getOrigin(), feed);
 							}
-							ingest.create(feed.getOrigin(), ref);
+							jasperClient.createRef(URI.create(api), authorHeaders(feed), ref);
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (NotFoundException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (FeignException.Conflict e) {
+							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (FeignException.Forbidden | FeignException.Unauthorized e) {
+							logger.warn("{} Feed scrape blocked: author not authorized. {}", feed.getOrigin(), feed.getUrl());
+							tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tags", e.contentUTF8());
+							return; // addTags apply to all entries; if one fails, all will fail
 						} catch (Exception e) {
 							logger.error("{} Error processing entry {}: {}", feed.getOrigin(), feed.getUrl(), entry.getLink());
 							tagger.attachLogs(feed.getOrigin(), feed, "Error processing entry " + entry.getLink(), getMessage(e));
@@ -397,38 +404,11 @@ public class RssParser {
 		}
 	}
 
-	private boolean checkTagPermissions(Ref feed, Feed config) {
-		if (config.getAddTags() == null || config.getAddTags().isEmpty()) return true;
-		var nonPublicTags = config.getAddTags().stream()
-			.filter(t -> !t.startsWith("-") && !Auth.isPublicTag(t))
-			.toList();
-		if (nonPublicTags.isEmpty()) return true;
+	private Map<String, Object> authorHeaders(Ref feed) {
 		var authors = HasTags.authors(feed);
-		if (authors.isEmpty()) {
-			logger.warn("{} Feed scrape blocked: non-public tags require author permission. Tags: {}", feed.getOrigin(), String.join(", ", nonPublicTags));
-			tagger.attachError(feed.getUrl(), feed.getOrigin(), "Non-public tags require author permission", String.join(", ", nonPublicTags));
-			return false;
-		}
-		for (var tag : nonPublicTags) {
-			if (authors.stream().noneMatch(author -> authorCanAddTag(author, feed.getOrigin(), tag))) {
-				logger.warn("{} Feed scrape blocked: author not authorized to add tag {}", feed.getOrigin(), tag);
-				tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tag", tag);
-				return false;
-			}
-		}
-		return true;
-	}
-
-	private boolean authorCanAddTag(String authorTag, String origin, String tag) {
-		var qualifiedAuthorTag = authorTag + origin;
-		var user = configCache.getUser(qualifiedAuthorTag);
-		if (user == null) return false;
-		if (BANNED.equals(user.getRole())) return false;
-		if (MOD.equals(user.getRole()) || ADMIN.equals(user.getRole())) return true;
-		var tagQt = qt(tag + origin);
-		if (qt(qualifiedAuthorTag).matchesDownwards(tagQt)) return true;
-		if (user.getTagReadAccess() == null || user.getTagReadAccess().isEmpty()) return false;
-		return selectors(origin, user.getTagReadAccess()).stream().anyMatch(s -> s.capturesDownwards(tagQt));
+		return Map.of(
+			LOCAL_ORIGIN_HEADER, Objects.toString(feed.getOrigin(), ""),
+			USER_TAG_HEADER, authors.isEmpty() ? "" : authors.get(0));
 	}
 
 	private void cacheLater(String url, String origin) {

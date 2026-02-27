@@ -2,29 +2,40 @@ package jasper.component.script;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import jasper.component.ConfigCache;
+import feign.FeignException;
+import jasper.client.JasperClient;
 import jasper.component.HttpClientFactory;
+import jasper.component.Ingest;
 import jasper.component.Tagger;
 import jasper.config.JacksonConfiguration;
 import jasper.domain.Ref;
-import jasper.domain.User;
 import jasper.plugin.Feed;
+import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
+import org.apache.http.HttpEntity;
+import org.apache.http.StatusLine;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import static jasper.security.AuthoritiesConstants.*;
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.USER_TAG_HEADER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -34,7 +45,7 @@ public class RssParserTest {
 	RssParser rssParser;
 
 	@Mock
-	ConfigCache configCache;
+	JasperClient jasperClient;
 
 	@Mock
 	Tagger tagger;
@@ -48,10 +59,41 @@ public class RssParserTest {
 	@Mock
 	CloseableHttpClient httpClient;
 
+	@Mock
+	CloseableHttpResponse httpResponse;
+
+	@Mock
+	HttpEntity httpEntity;
+
+	@Mock
+	StatusLine statusLine;
+
+	@Mock
+	Ingest ingest;
+
+	@Mock
+	RefRepository refRepository;
+
 	static final String FEED_URL = "https://example.com/feed.xml";
 	static final String ORIGIN = "";
 
 	static final ObjectMapper om = new ObjectMapper();
+
+	static final String RSS_FEED = """
+		<?xml version="1.0" encoding="UTF-8"?>
+		<rss version="2.0">
+		  <channel>
+		    <title>Test Feed</title>
+		    <link>https://example.com</link>
+		    <description>Test</description>
+		    <item>
+		      <title>Test Entry</title>
+		      <link>https://example.com/entry1</link>
+		      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+		    </item>
+		  </channel>
+		</rss>
+		""";
 
 	@BeforeAll
 	static void setUpJackson() {
@@ -61,31 +103,31 @@ public class RssParserTest {
 	@BeforeEach
 	void setUp() throws Exception {
 		MockitoAnnotations.openMocks(this);
+		ReflectionTestUtils.setField(rssParser, "api", "http://localhost:8081");
 		when(httpClientFactory.getClient()).thenReturn(httpClient);
-		when(hostCheck.validHost(any(URI.class))).thenReturn(false);
 	}
 
-	Ref feedRef(String ...tags) {
+	void setUpValidHttpResponse() throws Exception {
+		when(hostCheck.validHost(any(URI.class))).thenReturn(true);
+		when(statusLine.getStatusCode()).thenReturn(200);
+		when(httpResponse.getStatusLine()).thenReturn(statusLine);
+		when(httpResponse.getEntity()).thenReturn(httpEntity);
+		when(httpResponse.getFirstHeader(anyString())).thenReturn(null);
+		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream(RSS_FEED.getBytes()));
+		when(httpClient.execute(any(HttpGet.class))).thenReturn(httpResponse);
+		when(refRepository.existsByUrlAndOrigin(anyString(), anyString())).thenReturn(false);
+	}
+
+	Ref feedRef(String... tags) {
 		var ref = new Ref();
 		ref.setUrl(FEED_URL);
 		ref.setOrigin(ORIGIN);
+		ref.setPublished(Instant.EPOCH);
 		ref.setTags(new ArrayList<>(List.of(tags)));
 		return ref;
 	}
 
-	User user(String role) {
-		var u = new User();
-		u.setRole(role);
-		return u;
-	}
-
-	User userWithTagReadAccess(String role, String ...tagReadAccess) {
-		var u = user(role);
-		u.setTagReadAccess(new ArrayList<>(List.of(tagReadAccess)));
-		return u;
-	}
-
-	Ref feedWithAddTag(String addTag, String ...authorTags) {
+	Ref feedWithAddTag(String addTag, String... authorTags) {
 		var ref = feedRef(authorTags);
 		var feed = new Feed();
 		feed.setAddTags(new ArrayList<>(List.of(addTag)));
@@ -96,9 +138,20 @@ public class RssParserTest {
 	}
 
 	@Test
-	void testPublicTagsOnly_Allowed() {
-		// Feed with only public addTags requires no author check
-		var feed = feedWithAddTag("science");
+	void testInvalidHost_NeverCallsJasperClient() {
+		when(hostCheck.validHost(any(URI.class))).thenReturn(false);
+		var feed = feedWithAddTag("_private/tag", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(jasperClient, never()).createRef(any(), any(), any());
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void testSuccessfulCreate_NoError() throws Exception {
+		setUpValidHttpResponse();
+		var feed = feedWithAddTag("science", "+user/alice");
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
@@ -106,92 +159,54 @@ public class RssParserTest {
 	}
 
 	@Test
-	void testNonPublicTag_NoAuthor_ErrorAttached() {
-		// Feed has private addTag but no author tags on the ref
+	@SuppressWarnings("unchecked")
+	void testCreateRef_AuthorHeaderIncludesFirstAuthor() throws Exception {
+		setUpValidHttpResponse();
+		var feed = feedWithAddTag("_private/tag", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		var captor = ArgumentCaptor.forClass(Map.class);
+		verify(jasperClient).createRef(any(URI.class), captor.capture(), any(Ref.class));
+		assertThat(captor.getValue()).containsEntry(USER_TAG_HEADER, "+user/alice");
+		assertThat(captor.getValue()).containsEntry(LOCAL_ORIGIN_HEADER, ORIGIN);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testCreateRef_EmptyAuthorHeader_WhenNoAuthor() throws Exception {
+		setUpValidHttpResponse();
 		var feed = feedWithAddTag("_private/tag" /* no author tags */);
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(tagger).attachError(eq(FEED_URL), eq(ORIGIN), eq("Non-public tags require author permission"), anyString());
+		var captor = ArgumentCaptor.forClass(Map.class);
+		verify(jasperClient).createRef(any(URI.class), captor.capture(), any(Ref.class));
+		assertThat(captor.getValue()).containsEntry(USER_TAG_HEADER, "");
 	}
 
 	@Test
-	void testNonPublicTag_WithAuthor_BannedUser_ErrorAttached() {
-		// Banned author should not be able to authorize non-public tags
+	void testForbiddenResponse_ErrorAttached() throws Exception {
+		setUpValidHttpResponse();
 		var feed = feedWithAddTag("_private/tag", "+user/alice");
-		when(configCache.getUser("+user/alice")).thenReturn(user(BANNED));
+		var forbiddenEx = mock(FeignException.Forbidden.class);
+		when(forbiddenEx.contentUTF8()).thenReturn("Forbidden");
+		doThrow(forbiddenEx).when(jasperClient).createRef(any(), any(), any());
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(tagger).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), eq("_private/tag"));
+		verify(tagger).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tags"), anyString());
 	}
 
 	@Test
-	void testNonPublicTag_WithModAuthor_Allowed() {
-		// MOD author can add any tag
-		var feed = feedWithAddTag("_private/tag", "+user/alice");
-		when(configCache.getUser("+user/alice")).thenReturn(user(MOD));
+	void testConflictResponse_SilentlySkipped() throws Exception {
+		setUpValidHttpResponse();
+		var feed = feedWithAddTag("science", "+user/alice");
+		var conflictEx = mock(FeignException.Conflict.class);
+		doThrow(conflictEx).when(jasperClient).createRef(any(), any(), any());
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), anyString());
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Non-public tags require author permission"), anyString());
-	}
-
-	@Test
-	void testNonPublicTag_WithAdminAuthor_Allowed() {
-		// ADMIN author can add any tag
-		var feed = feedWithAddTag("+protected/tag", "+user/alice");
-		when(configCache.getUser("+user/alice")).thenReturn(user(ADMIN));
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), anyString());
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Non-public tags require author permission"), anyString());
-	}
-
-	@Test
-	void testNonPublicTag_WithTagReadAccess_Allowed() {
-		// Author has the private tag in tagReadAccess
-		var feed = feedWithAddTag("_private/tag", "_user/alice");
-		when(configCache.getUser("_user/alice")).thenReturn(userWithTagReadAccess(USER, "_private/tag"));
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), anyString());
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Non-public tags require author permission"), anyString());
-	}
-
-	@Test
-	void testNonPublicTag_NoTagReadAccess_ErrorAttached() {
-		// Author has no tagReadAccess for the private tag
-		var feed = feedWithAddTag("_private/tag", "+user/alice");
-		when(configCache.getUser("+user/alice")).thenReturn(user(USER));
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), eq("_private/tag"));
-	}
-
-	@Test
-	void testNonPublicTag_AuthorOwnsTag_Allowed() {
-		// Tag matches the author's own user tag (_user/alice can add _user/alice)
-		var feed = feedWithAddTag("_user/alice", "_user/alice");
-		when(configCache.getUser("_user/alice")).thenReturn(user(USER));
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger, never()).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), anyString());
-	}
-
-	@Test
-	void testNullAuthorUser_ErrorAttached() {
-		// Author tag present on feed but no User entity exists for it
-		var feed = feedWithAddTag("_private/tag", "+user/unknown");
-		when(configCache.getUser("+user/unknown")).thenReturn(null);
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger).attachError(eq(FEED_URL), eq(ORIGIN), eq("Author not authorized to add tag"), eq("_private/tag"));
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
 	}
 }
