@@ -407,7 +407,7 @@ jobs:
         with:
           # language=JavaScript
           script: |
-            const maxVersions = 5;
+            const maxVersions = 10;
             const response = await github.rest.actions.listArtifactsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -434,7 +434,7 @@ jobs:
         with:
           # language=JavaScript
           script: |
-            const maxVersions = 1;
+            const maxVersionsPerName = 1;
             const response = await github.rest.actions.listArtifactsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -442,16 +442,22 @@ jobs:
             });
             const artifacts = response.data.artifacts
               .filter(artifact => artifact.name.startsWith('junit-reports-') && artifact.name.includes('-pr-${{ github.event.pull_request.number }}'));
-            if (artifacts.length > maxVersions) {
-              // Sort by created_at descending
-              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-              // Delete all but the latest maxVersions
-              for (const artifact of artifacts.slice(maxVersions)) {
-                console.log('Deleting artifact:', artifact.name);
-                await github.rest.actions.deleteArtifact({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  artifact_id: artifact.id
-                });
+            // Group artifacts by name to handle multiple database variants (postgres, sqlite)
+            const groups = {};
+            for (const artifact of artifacts) {
+              if (!groups[artifact.name]) groups[artifact.name] = [];
+              groups[artifact.name].push(artifact);
+            }
+            for (const [name, group] of Object.entries(groups)) {
+              if (group.length > maxVersionsPerName) {
+                group.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                for (const artifact of group.slice(maxVersionsPerName)) {
+                  console.log('Deleting artifact:', artifact.name);
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id
+                  });
+                }
               }
             }
