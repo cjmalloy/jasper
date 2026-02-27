@@ -48,7 +48,11 @@ jobs:
         run: |
           mkdir -p "_site/reports"
           gh auth login --with-token <<< "${{ github.token }}"
-          gh run download --pattern "*-reports-*" --dir _site/reports
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            gh run download "${{ github.event.workflow_run.id }}" --pattern "*-reports-*" --dir _site/reports
+          else
+            gh run download --pattern "*-reports-*" --dir _site/reports
+          fi
           # Create copy of latest master report
           latest_junit=$(ls -dv _site/reports/junit-reports-master-* 2>/dev/null | tail -1)
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
