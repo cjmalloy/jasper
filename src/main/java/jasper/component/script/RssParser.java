@@ -193,9 +193,6 @@ public class RssParser {
 						} catch (NotFoundException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
-						} catch (FeignException.Conflict e) {
-							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (FeignException.Forbidden | FeignException.Unauthorized e) {
 							logger.warn("{} Feed scrape blocked: author not authorized. {}", feed.getOrigin(), feed.getUrl());
 							tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tags", e.contentUTF8());

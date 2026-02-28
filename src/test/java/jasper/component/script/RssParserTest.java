@@ -205,14 +205,14 @@ public class RssParserTest {
 	}
 
 	@Test
-	void testConflictResponse_SilentlySkipped() throws Exception {
+	void testAlreadyExists_SilentlySkipped() throws Exception {
 		setUpValidHttpResponse();
 		var feed = feedWithAddTag("science", "+user/alice");
-		var conflictEx = mock(FeignException.Conflict.class);
-		doThrow(conflictEx).when(jasperClient).refPush(any(), any(), any(), any());
+		when(refRepository.existsByUrlAndOrigin(anyString(), anyString())).thenReturn(true);
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
+		verify(jasperClient, never()).refPush(any(), any(), any(), any());
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
 	}
 }
