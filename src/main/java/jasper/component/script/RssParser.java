@@ -18,7 +18,6 @@ import jasper.component.Sanitizer;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasTags;
-import jasper.errors.AlreadyExistsException;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
 import jasper.plugin.Feed;
@@ -178,7 +177,13 @@ public class RssParser {
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
 						try {
-							var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
+							var link = entryLink(feed, config, entry);
+							if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
+								logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+									feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+								continue;
+							}
+							var ref = parseEntry(feed, config, link, entry, config.getDefaultThumbnail());
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
@@ -187,9 +192,6 @@ public class RssParser {
 								ingest.update(feed.getOrigin(), feed);
 							}
 							jasperClient.refPush(URI.create(api), authorHeaders(feed), feed.getOrigin(), List.of(mapper.domainToDto(ref)));
-						} catch (AlreadyExistsException e) {
-							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
 						} catch (NotFoundException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
@@ -207,14 +209,7 @@ public class RssParser {
 		}
 	}
 
-	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
-		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
-			var title = entry.getTitle().toLowerCase();
-			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
-				throw new NotFoundException(entry.getTitle());
-			}
-		}
-		var ref = new Ref();
+	private String entryLink(Ref feed, Feed config, SyndEntry entry) {
 		var link = entry.getLink();
 		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
 			// Atom ID, RSS GUID
@@ -241,9 +236,17 @@ public class RssParser {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
-			throw new AlreadyExistsException();
+		return link;
+	}
+
+	private Ref parseEntry(Ref feed, Feed config, String link, SyndEntry entry, Thumbnail defaultThumbnail) {
+		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
+			var title = entry.getTitle().toLowerCase();
+			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
+				throw new NotFoundException(entry.getTitle());
+			}
 		}
+		var ref = new Ref();
 		if (config.isScrapeWebpage()) {
 			ref.addTag("_plugin/delta/scrape/ref");
 		}
