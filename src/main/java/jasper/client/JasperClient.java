@@ -34,9 +34,6 @@ import static jasper.security.Auth.WRITE_ACCESS_HEADER;
 @FeignClient(value = "jasper", url = "https://jasperkm.info")
 public interface JasperClient {
 
-	@RequestLine("POST /api/v1/ref")
-	void createRef(URI baseUri, @HeaderMap Map<String, Object> headers, Ref ref);
-
 	@RequestLine("GET /pub/api/v1/repl/ref")
 	List<Ref> refPull(URI baseUri, @QueryMap Map<String, Object> params);
 	@RequestLine("GET /pub/api/v1/repl/ref")

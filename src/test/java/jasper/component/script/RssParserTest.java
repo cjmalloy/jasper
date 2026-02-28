@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import feign.FeignException;
 import jasper.client.JasperClient;
+import jasper.client.dto.JasperMapper;
 import jasper.component.HttpClientFactory;
 import jasper.component.Ingest;
 import jasper.component.Tagger;
@@ -12,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.plugin.Feed;
 import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
+import jasper.service.dto.RefReplDto;
 import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -46,6 +48,9 @@ public class RssParserTest {
 
 	@Mock
 	JasperClient jasperClient;
+
+	@Mock
+	JasperMapper mapper;
 
 	@Mock
 	Tagger tagger;
@@ -105,6 +110,7 @@ public class RssParserTest {
 		MockitoAnnotations.openMocks(this);
 		ReflectionTestUtils.setField(rssParser, "api", "http://localhost:8081");
 		when(httpClientFactory.getClient()).thenReturn(httpClient);
+		when(mapper.domainToDto(any(Ref.class))).thenReturn(new RefReplDto());
 	}
 
 	void setUpValidHttpResponse() throws Exception {
@@ -144,7 +150,7 @@ public class RssParserTest {
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(jasperClient, never()).createRef(any(), any(), any());
+		verify(jasperClient, never()).refPush(any(), any(), any(), any());
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
 	}
 
@@ -167,7 +173,7 @@ public class RssParserTest {
 		rssParser.runScript(feed, "plugin/script/feed");
 
 		var captor = ArgumentCaptor.forClass(Map.class);
-		verify(jasperClient).createRef(any(URI.class), captor.capture(), any(Ref.class));
+		verify(jasperClient).refPush(any(URI.class), captor.capture(), anyString(), anyList());
 		assertThat(captor.getValue()).containsEntry(USER_TAG_HEADER, "+user/alice");
 		assertThat(captor.getValue()).containsEntry(LOCAL_ORIGIN_HEADER, ORIGIN);
 	}
@@ -181,7 +187,7 @@ public class RssParserTest {
 		rssParser.runScript(feed, "plugin/script/feed");
 
 		var captor = ArgumentCaptor.forClass(Map.class);
-		verify(jasperClient).createRef(any(URI.class), captor.capture(), any(Ref.class));
+		verify(jasperClient).refPush(any(URI.class), captor.capture(), anyString(), anyList());
 		assertThat(captor.getValue()).containsEntry(USER_TAG_HEADER, "");
 	}
 
@@ -191,7 +197,7 @@ public class RssParserTest {
 		var feed = feedWithAddTag("_private/tag", "+user/alice");
 		var forbiddenEx = mock(FeignException.Forbidden.class);
 		when(forbiddenEx.contentUTF8()).thenReturn("Forbidden");
-		doThrow(forbiddenEx).when(jasperClient).createRef(any(), any(), any());
+		doThrow(forbiddenEx).when(jasperClient).refPush(any(), any(), any(), any());
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
@@ -203,7 +209,7 @@ public class RssParserTest {
 		setUpValidHttpResponse();
 		var feed = feedWithAddTag("science", "+user/alice");
 		var conflictEx = mock(FeignException.Conflict.class);
-		doThrow(conflictEx).when(jasperClient).createRef(any(), any(), any());
+		doThrow(conflictEx).when(jasperClient).refPush(any(), any(), any(), any());
 
 		rssParser.runScript(feed, "plugin/script/feed");
 

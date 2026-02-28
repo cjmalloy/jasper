@@ -11,6 +11,7 @@ import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import jasper.client.JasperClient;
+import jasper.client.dto.JasperMapper;
 import jasper.component.HttpClientFactory;
 import jasper.component.Ingest;
 import jasper.component.Sanitizer;
@@ -68,6 +69,9 @@ public class RssParser {
 
 	@Autowired
 	JasperClient jasperClient;
+
+	@Autowired
+	JasperMapper mapper;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -182,7 +186,7 @@ public class RssParser {
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 								ingest.update(feed.getOrigin(), feed);
 							}
-							jasperClient.createRef(URI.create(api), authorHeaders(feed), ref);
+							jasperClient.refPush(URI.create(api), authorHeaders(feed), feed.getOrigin(), List.of(mapper.domainToDto(ref)));
 						} catch (AlreadyExistsException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
