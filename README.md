@@ -12,25 +12,28 @@ the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/do
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
 
-## Knowledge Management
-Jasper is an open source knowledge management (KM) system. A KM system is similar to a Content Management
-System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
-that adding a KM to your internal tools is quick and easy. It will create an overlay database, 
-which is a small and fast index of all your content sources. Extend functionality with custom plugins,
-or embed existing dashboard panels directly to create your central business intelligence dashboard.
-
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
 
-### Centralized Business Intelligence
-Dumping all department-level data into a central data lake to perform analytics on is a massive undertaking
-with dubious potential benefit. Instead, empower departments to run their own analytics and formalize the
-reporting format to allow centralized aggregation.
+## Knowledge Management
+Jasper is an open source knowledge management system. It provides a generic set of tools for dealing
+with knowledge management style problems. Knowledge management type problems include:
+* Scientific Research
+* Business Intelligence
+* Journalism
+* Web Forums
+* Wiki (Encyclopedia)
+* Task Management
+* Libraries
+* Customer Support
+* Collaborative Writing
+* Personal Knowledge Management
+* E-mail
 
-Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
-both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics, or alerts.
-Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
-to use your existing data structures and formats. Stitch together department-level resources to create
-a central overview that explicitly describes dependencies.
+Jasper can be configured to host all these products, individually or in combination.
+Run it as an app or a website and connect them together to build a networked system.
+Prevent data loss by having full or partial replication of data across the network.
+Safely ingest external data sources with one-way replication.
+Enforce conformity with a flexible data model, or simply collate unstructured reports.
 
 ### Security
 Jasper uses Tag Based Access Control (TBAC) to assign fine grained access controls to any object in the
@@ -38,7 +41,7 @@ system. This system is simple and powerful, such that the entire security specif
 in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/main/java/jasper/security/Auth.java).
 
 ### Build your own client
-Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
+Connect to Jasper with a custom client to give users a streamlined user experience. Frontend
 developers can create a bespoke interface without needing to make any server side changes. Create custom
 plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
