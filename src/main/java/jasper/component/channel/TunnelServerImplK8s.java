@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
-import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
-
-import static jasper.repository.spec.QualifiedTag.concat;
 
 @Profile("kubernetes")
 @Component

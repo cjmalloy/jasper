@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
@@ -40,6 +41,9 @@ public class TaggingControllerIT {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	ConfigCache configCache;
+
 	private static final String URL = "https://www.example.com/";
 
 	Ref refWithTags(String url, String... tags) {
@@ -55,6 +59,9 @@ public class TaggingControllerIT {
 	void init() {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
