@@ -317,7 +317,7 @@ Implementations may also make the modified date part of the composite primary ke
 **Origin:** The Origin this Plugin was replicated from, or the empty string for local.  
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.  
 **Config:** Arbitrary JSON.  
-**Defaults:** Default plugin data if creating a new Ref with empty plugin data.  
+**Defaults:** Default plugin data if creating a new Ref with empty plugin data. May be any JSON value (object, array, or scalar).  
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Modified:** Last modified date of this Plugin.  
 
