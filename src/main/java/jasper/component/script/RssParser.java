@@ -10,6 +10,7 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import feign.FeignException;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.component.HttpClientFactory;
@@ -24,7 +25,6 @@ import jasper.plugin.Feed;
 import jasper.plugin.Thumbnail;
 import jasper.plugin.Video;
 import jasper.repository.RefRepository;
-import jasper.security.Auth;
 import jasper.security.HostCheck;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpGet;
@@ -35,7 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import feign.FeignException;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -54,6 +53,7 @@ import java.util.Objects;
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -412,7 +412,9 @@ public class RssParser {
 		var authors = HasTags.authors(feed);
 		return Map.of(
 			LOCAL_ORIGIN_HEADER, Objects.toString(feed.getOrigin(), ""),
-			USER_TAG_HEADER, authors.isEmpty() ? "" : authors.get(0));
+			USER_TAG_HEADER, authors.isEmpty() ? "" : authors.getFirst(),
+			USER_ROLE_HEADER, "ROLE_USER"
+		);
 	}
 
 	private void cacheLater(String url, String origin) {
