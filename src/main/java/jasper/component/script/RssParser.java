@@ -55,6 +55,7 @@ import static jasper.plugin.Feed.getFeed;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.USER_TAG_HEADER;
+import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -413,7 +414,7 @@ public class RssParser {
 		return Map.of(
 			LOCAL_ORIGIN_HEADER, Objects.toString(feed.getOrigin(), ""),
 			USER_TAG_HEADER, authors.isEmpty() ? "" : authors.getFirst(),
-			USER_ROLE_HEADER, "ROLE_USER"
+			USER_ROLE_HEADER, USER
 		);
 	}
 
