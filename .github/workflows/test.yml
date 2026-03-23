@@ -95,7 +95,7 @@ jobs:
           cp target/reports/surefire.html reports/index.html 2>/dev/null || true
       # Common reporting steps
       - name: Publish Unit Test Results
-        uses: dorny/test-reporter@v2.6.0
+        uses: dorny/test-reporter@v3.0.0
         if: always()
         continue-on-error: true
         with:
