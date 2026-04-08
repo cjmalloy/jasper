@@ -1027,4 +1027,4 @@ Run `docker run -it jasper-tests` to execute the unit tests.
 
 ### Running end-to-end tests
 
-See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).
+See [Jasper-UI Playwright Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/playwright.yml).
