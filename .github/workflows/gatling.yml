@@ -301,7 +301,7 @@ jobs:
           retention-days: 90
       - name: Comment on PR with Load Test Summary
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
@@ -410,7 +410,7 @@ jobs:
     steps:
       - name: Cleanup old branch artifacts
         if: github.event_name != 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
@@ -437,7 +437,7 @@ jobs:
             }
       - name: Cleanup old PR artifacts
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
