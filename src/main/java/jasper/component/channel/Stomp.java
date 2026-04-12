@@ -14,6 +14,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.io.UncheckedIOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -42,9 +43,9 @@ public class Stomp {
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "refRxChannel")
-	public void handleRefUpdate(Message<RefDto> message) throws JsonProcessingException {
+	public void handleRefUpdate(Message<RefDto> message) {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
-		var payload = objectMapper.writeValueAsString(updateDto);
+		var payload = serializePayload(updateDto, "ref");
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
@@ -76,12 +77,21 @@ public class Stomp {
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "extRxChannel")
-	public void handleExtUpdate(Message<ExtDto> message) throws JsonProcessingException {
-		var payload = objectMapper.writeValueAsString(message.getPayload());
+	public void handleExtUpdate(Message<ExtDto> message) {
+		var payload = serializePayload(message.getPayload(), "ext");
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
 			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), payload);
+		}
+	}
+
+	private String serializePayload(Object payload, String topic) {
+		try {
+			return objectMapper.writeValueAsString(payload);
+		}
+		catch (JsonProcessingException e) {
+			throw new UncheckedIOException("Failed to serialize " + topic + " websocket payload", e);
 		}
 	}
 
