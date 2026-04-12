@@ -2,6 +2,7 @@ package jasper.component.channel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jasper.component.dto.RefUpdateDto;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.service.dto.ExtDto;
 import jasper.service.dto.RefDto;
@@ -14,7 +15,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.support.MessageBuilder;
 
 import java.io.UncheckedIOException;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -39,7 +39,8 @@ class StompTest {
 	@Test
 	void handleRefUpdateSerializesPayloadBeforeSending() throws Exception {
 		var ref = new RefDto();
-		var updateDto = Map.of("url", "https://example.com");
+		var updateDto = new RefUpdateDto();
+		updateDto.setUrl("https://example.com");
 		var message = MessageBuilder.withPayload(ref)
 			.setHeader("origin", "")
 			.setHeader("url", "https://example.com")
@@ -59,7 +60,7 @@ class StompTest {
 	@Test
 	void handleRefUpdatePropagatesSerializationFailure() throws Exception {
 		var ref = new RefDto();
-		var updateDto = Map.of("url", "https://example.com");
+		var updateDto = new RefUpdateDto();
 		var message = MessageBuilder.withPayload(ref)
 			.setHeader("origin", "")
 			.setHeader("url", "https://example.com")
