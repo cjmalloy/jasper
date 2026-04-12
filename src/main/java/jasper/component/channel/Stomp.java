@@ -1,5 +1,7 @@
 package jasper.component.channel;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.dto.ExtDto;
@@ -29,6 +31,9 @@ public class Stomp {
 	@Autowired
 	ComponentDtoMapper mapper;
 
+	@Autowired
+	ObjectMapper objectMapper;
+
 	@Order(0)
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
@@ -37,12 +42,13 @@ public class Stomp {
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "refRxChannel")
-	public void handleRefUpdate(Message<RefDto> message) {
+	public void handleRefUpdate(Message<RefDto> message) throws JsonProcessingException {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
+		var payload = objectMapper.writeValueAsString(updateDto);
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/ref/" + formatOrigin(o) + "/" + e(message.getHeaders().get("url")), updateDto);
+			stomp.convertAndSend("/topic/ref/" + formatOrigin(o) + "/" + e(message.getHeaders().get("url")), payload);
 		}
 	}
 
@@ -70,11 +76,12 @@ public class Stomp {
 
 	@Order(0)
 	@ServiceActivator(inputChannel = "extRxChannel")
-	public void handleExtUpdate(Message<ExtDto> message) {
+	public void handleExtUpdate(Message<ExtDto> message) throws JsonProcessingException {
+		var payload = objectMapper.writeValueAsString(message.getPayload());
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), message.getPayload());
+			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), payload);
 		}
 	}
 
