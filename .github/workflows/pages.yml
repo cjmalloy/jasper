@@ -148,7 +148,7 @@ jobs:
           EOF
 
       # Upload combined site
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
 
   deploy:
     needs: build
