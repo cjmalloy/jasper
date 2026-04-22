@@ -2,10 +2,10 @@ name: Publish Docker Image
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, 'v1.3' ]
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, 'v1.3' ]
   workflow_dispatch:
 
 env:
