@@ -15,7 +15,7 @@ FROM builder AS test
 COPY docker/entrypoint.sh .
 RUN rm /etc/apt/sources.list.d/corretto.list
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
-RUN ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version
@@ -44,7 +44,7 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 FROM eclipse-temurin:25-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
-RUN ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version
