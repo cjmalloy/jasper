@@ -2,10 +2,10 @@ name: Publish Docker Image
 
 on:
   push:
-    branches: [ master, 'v1.3' ]
+    branches: [ master ]
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ master, 'v1.3' ]
+    branches: [ master ]
   workflow_dispatch:
 
 env:
@@ -68,7 +68,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=ref,event=branch,enable=${{ github.ref == 'refs/heads/master' }}
             type=ref,event=pr
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}}
