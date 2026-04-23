@@ -15,10 +15,7 @@ FROM builder AS test
 COPY docker/entrypoint.sh .
 RUN rm /etc/apt/sources.list.d/corretto.list
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
-RUN if [ -e /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 ] && [ ! -e /lib/ld-linux-aarch64.so.1 ]; then \
-        ln -s /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1; \
-    fi \
-    && ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+RUN ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version
@@ -44,13 +41,10 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /reports/coverage && \
 		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
+FROM eclipse-temurin:25-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
-RUN if [ -e /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 ] && [ ! -e /lib/ld-linux-aarch64.so.1 ]; then \
-        ln -s /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1; \
-    fi \
-    && ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+RUN ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version
