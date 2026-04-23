@@ -1,3 +1,5 @@
+FROM oven/bun:1.3.13-slim AS bun
+
 FROM maven:3.9.13-amazoncorretto-25-debian AS builder
 WORKDIR /app
 COPY pom.xml .
@@ -12,12 +14,18 @@ RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destina
 FROM builder AS test
 COPY docker/entrypoint.sh .
 RUN rm /etc/apt/sources.list.d/corretto.list
-RUN apt-get update && apt-get install nodejs python3 python3-venv python3-pip python3-yaml -y \
-    && which node \
-    && node --version \
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
+RUN if [ -e /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 ] && [ ! -e /lib/ld-linux-aarch64.so.1 ]; then \
+        ln -s /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1; \
+    fi \
+    && ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+    && which bun \
+    && which bunx \
+    && bun --version
+RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
     && which python3 \
     && python3 --version
-ENV JASPER_NODE=/usr/bin/node
+ENV JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_PYTHON=/usr/bin/python3
 RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which jq \
@@ -38,10 +46,15 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 
 FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
 RUN apt-get update && apt-get install curl -y
-RUN apt-get update && apt-get install nodejs -y \
-    && which node \
-    && node --version
-ARG JASPER_NODE=/usr/bin/node
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/
+RUN if [ -e /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 ] && [ ! -e /lib/ld-linux-aarch64.so.1 ]; then \
+        ln -s /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1; \
+    fi \
+    && ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+    && which bun \
+    && which bunx \
+    && bun --version
+ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
 RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
     && which python3 \

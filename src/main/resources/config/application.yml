@@ -200,7 +200,7 @@ jasper:
   push-cooldown-sec: 1
   local-origin: ''
   storage: /var/lib/jasper
-  node: /usr/local/bin/node
+  node: /usr/local/bin/bun
   python: /usr/bin/python
   shell: /usr/bin/bash
   cache-api: ''

@@ -155,7 +155,7 @@ public class Props {
 	/**
 	 * Path to node binary for running javascript deltas.
 	 */
-	private String node = "/usr/local/bin/node";
+	private String node = "/usr/local/bin/bun";
 	/**
 	 * Path to python binary for running python scripts.
 	 */
