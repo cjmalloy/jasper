@@ -1,6 +1,6 @@
 FROM oven/bun:1.3.13-slim AS bun
 
-FROM maven:3.9.13-amazoncorretto-25-debian AS builder
+FROM maven:3.9.14-amazoncorretto-25-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
