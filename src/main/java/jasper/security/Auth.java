@@ -20,6 +20,9 @@ import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -618,6 +621,39 @@ public class Auth {
 			.toList();
 		if (tagList.isEmpty()) return true;
 		return captures(getTagReadAccess(), tagList);
+	}
+
+	/**
+	 * Silently remove sorts that reference private plugins the user cannot read.
+	 */
+	public Pageable pageable(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
+			.filter(order -> {
+				var property = order.getProperty();
+				String afterPrefix;
+				if (property.startsWith("plugins->")) {
+					afterPrefix = property.substring("plugins->".length());
+				} else if (property.startsWith("metadata->plugins->")) {
+					afterPrefix = property.substring("metadata->plugins->".length());
+				} else {
+					return true;
+				}
+				int end = afterPrefix.indexOf("->");
+				if (end == -1) end = afterPrefix.indexOf(":");
+				var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
+				if (!isPrivateTag(tag)) return true;
+				if (isUser(tag)) return true;
+				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
+			})
+			.toList();
+		if (filtered.size() == orders.size()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
 	}
 
 	/**

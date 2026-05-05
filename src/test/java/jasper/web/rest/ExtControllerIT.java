@@ -2,6 +2,7 @@ package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.repository.ExtRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,9 +36,15 @@ class ExtControllerIT {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private ConfigCache configCache;
+
 	@BeforeEach
 	void setup() {
 		extRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

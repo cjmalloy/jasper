@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -49,6 +50,9 @@ public class RefServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	static final String URL = "https://www.example.com/";
 
 	Plugin getPlugin(String tag) {
@@ -79,6 +83,9 @@ public class RefServiceIT {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

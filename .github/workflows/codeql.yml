@@ -13,10 +13,10 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ master, 'v1.3' ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "master" ]
+    branches: [ master, 'v1.3' ]
   schedule:
     - cron: '40 18 * * 5'
 
@@ -60,6 +60,13 @@ jobs:
       with:
         distribution: 'zulu'
         java-version: 25
+
+    - name: Cache Maven packages
+      uses: actions/cache@v5
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
 
     - name: Maven Build
       run: ./mvnw -B package -Dmaven.test.skip

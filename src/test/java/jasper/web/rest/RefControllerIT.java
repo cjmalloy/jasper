@@ -2,6 +2,7 @@ package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -38,11 +40,17 @@ class RefControllerIT {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private ConfigCache configCache;
+
 	private static final String URL = "https://www.example.com/";
 
 	@BeforeEach
 	void setup() {
 		refRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
@@ -250,5 +258,24 @@ class RefControllerIT {
 			.andExpect(status().isForbidden());
 
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@b")).isPresent();
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
+	void testSearchWithUrlAndRankSortShouldSucceed() throws Exception {
+		var ref = new Ref();
+		ref.setUrl("http://repl-web");
+		ref.setTitle("Repl Web App");
+		ref.setTags(new ArrayList<>(List.of("public")));
+		refRepository.save(ref);
+
+		mockMvc
+			.perform(get("/api/v1/ref/page")
+				.param("sort", "rank,DESC")
+				.param("search", "http://repl-web")
+				.param("size", "24")
+				.accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content[0].url").value("http://repl-web"));
 	}
 }

@@ -1,6 +1,6 @@
-FROM oven/bun:1.3.9-slim AS bun
+FROM oven/bun:1.3.13-slim AS bun
 
-FROM maven:3.9.11-amazoncorretto-25-debian AS builder
+FROM maven:3.9.13-amazoncorretto-25-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
@@ -34,14 +34,16 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test surefire-report:report; \
+CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
 		cp -r target/reports/* /reports/ && \
-		cp target/reports/surefire.html /reports/index.html
+		cp target/reports/surefire.html /reports/index.html && \
+		mkdir -p /reports/coverage && \
+		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
 RUN apt-get update && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
@@ -70,6 +72,7 @@ ENV JASPER_SHELL=${JASPER_SHELL}
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /var/lib/jasper
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true

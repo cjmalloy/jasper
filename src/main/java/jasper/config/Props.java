@@ -135,6 +135,11 @@ public class Props {
 	 */
 	private int backfillBatchSize = 100;
 	/**
+	 * Number of seconds the server must be idle (no REST API requests) before backfill runs.
+	 * Set to 0 to disable idle detection and always run backfill.
+	 */
+	private int backfillIdleSec = 0;
+	/**
 	 * Number of seconds to throttle clearing the config cache.
 	 */
 	private int clearCacheCooldownSec = 2;

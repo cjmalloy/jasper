@@ -2,6 +2,7 @@ package jasper.service;
 
 import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.External;
 import jasper.domain.User;
 import jasper.domain.User_;
@@ -34,9 +35,15 @@ public class UserServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
@@ -458,13 +465,14 @@ public class UserServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
-		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("_user/other");
-		assertThat(page.getContent().get(0).getName())
+		var otherUser = page.getContent().stream()
+			.filter(u -> "_user/other".equals(u.getTag()))
+			.findFirst().orElseThrow();
+		assertThat(otherUser.getName())
 			.isEqualTo("Secret");
-		assertThat(page.getContent().get(0).getReadAccess())
+		assertThat(otherUser.getReadAccess())
 			.containsExactly("custom");
-		assertThat(page.getContent().get(0).getWriteAccess())
+		assertThat(otherUser.getWriteAccess())
 			.containsExactly("custom");
 	}
 
@@ -488,13 +496,14 @@ public class UserServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
-		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("_user/other");
-		assertThat(page.getContent().get(0).getName())
+		var otherUser = page.getContent().stream()
+			.filter(u -> "_user/other".equals(u.getTag()))
+			.findFirst().orElseThrow();
+		assertThat(otherUser.getName())
 			.isEqualTo("Secret");
-		assertThat(page.getContent().get(0).getReadAccess())
+		assertThat(otherUser.getReadAccess())
 			.containsExactly("_secret");
-		assertThat(page.getContent().get(0).getWriteAccess())
+		assertThat(otherUser.getWriteAccess())
 			.containsExactly("_secret");
 	}
 

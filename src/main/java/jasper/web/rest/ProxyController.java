@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
@@ -48,6 +49,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.http.MediaType.APPLICATION_OCTET_STREAM;
 import static org.springframework.http.MediaType.parseMediaType;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/proxy")
 @Validated

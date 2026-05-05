@@ -158,4 +158,61 @@ public class ValidateRefTest {
         assertThat(defaults.get("plugin/test").get("overridden").asBoolean()).isTrue();
         assertThat(defaults.get("plugin/test").get("parent").asBoolean()).isTrue();
     }
+
+    @Test
+    void testPluginDefaultsWithArrayDefaults() throws Exception {
+        var ref = new Ref();
+        ref.setTags(List.of("plugin/test"));
+
+        var pluginTest = new Plugin();
+        pluginTest.setTag("plugin/test");
+        pluginTest.setDefaults(mapper.readTree("[\"a\", \"b\", \"c\"]"));
+
+        when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
+
+        var defaults = validate.pluginDefaults("", ref);
+
+        assertThat(defaults.has("plugin/test")).isTrue();
+        assertThat(defaults.get("plugin/test").isArray()).isTrue();
+        assertThat(defaults.get("plugin/test")).hasSize(3);
+        assertThat(defaults.get("plugin/test").get(0).asText()).isEqualTo("a");
+        assertThat(defaults.get("plugin/test").get(1).asText()).isEqualTo("b");
+        assertThat(defaults.get("plugin/test").get(2).asText()).isEqualTo("c");
+    }
+
+    @Test
+    void testPluginDefaultsWithScalarDefaults() throws Exception {
+        var ref = new Ref();
+        ref.setTags(List.of("plugin/test"));
+
+        var pluginTest = new Plugin();
+        pluginTest.setTag("plugin/test");
+        pluginTest.setDefaults(mapper.readTree("\"scalar-value\""));
+
+        when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
+
+        var defaults = validate.pluginDefaults("", ref);
+
+        assertThat(defaults.has("plugin/test")).isTrue();
+        assertThat(defaults.get("plugin/test").isTextual()).isTrue();
+        assertThat(defaults.get("plugin/test").asText()).isEqualTo("scalar-value");
+    }
+
+    @Test
+    void testPluginDefaultsWithNumericScalarDefaults() throws Exception {
+        var ref = new Ref();
+        ref.setTags(List.of("plugin/test"));
+
+        var pluginTest = new Plugin();
+        pluginTest.setTag("plugin/test");
+        pluginTest.setDefaults(mapper.readTree("42"));
+
+        when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
+
+        var defaults = validate.pluginDefaults("", ref);
+
+        assertThat(defaults.has("plugin/test")).isTrue();
+        assertThat(defaults.get("plugin/test").isNumber()).isTrue();
+        assertThat(defaults.get("plugin/test").asInt()).isEqualTo(42);
+    }
 }

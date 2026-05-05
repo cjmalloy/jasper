@@ -2,7 +2,7 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, 'v1.3' ]
   workflow_run:
     workflows: ["Test", "Load Test"]
     types:
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       # Create site directory
       - name: Create site directory
@@ -131,6 +131,9 @@ jobs:
             <div class='report'>
               <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
             </div>
+            <div class='report'>
+              <a href='$(basename $latest_junit)/coverage/'>Latest Coverage Report</a>
+            </div>
             <h2>All Reports</h2>
             <div id="reports">
               $(for d in _site/reports/*/; do
@@ -145,7 +148,7 @@ jobs:
           EOF
 
       # Upload combined site
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
 
   deploy:
     needs: build
@@ -154,4 +157,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5

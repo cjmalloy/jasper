@@ -142,6 +142,7 @@ spring:
       naming:
         implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
   liquibase:
+    analytics-enabled: false
     change-log: classpath:config/liquibase/master.xml
   messages:
     basename: i18n/messages
