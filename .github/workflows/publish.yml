@@ -5,7 +5,7 @@ on:
     branches: [ master ]
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, 'v1.3' ]
   workflow_dispatch:
 
 env:
@@ -103,7 +103,7 @@ jobs:
 
       - name: PR message
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |

@@ -68,10 +68,9 @@ For comments, [Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `comment
 [Wiki Page Name](https://en.wikipedia.org/wiki/Wikipedia:Page_name) (i.e. `wiki:John_Cena`).
 
 Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper's data model is defined in layers:
-1. **Identity Layer** - Structure and Persistence of entities
-2. **Indexing Layer** - Defining optional fields used to query, sort, filter, and transport
-3. **Validation Layer** - plugins and templates are validated
-4. **Modding Layer** - custom plugins, templates, and clients
+1. **Identity Layer** - persistence of individual entities
+2. **Indexing Layer** - query and transport of entities
+3. **Application Layer** - custom modifications
 
 ## Tagging
 Jasper support hierarchical tagging of Refs. Tags are not entities, they are strings with
@@ -1028,4 +1027,4 @@ Run `docker run -it jasper-tests` to execute the unit tests.
 
 ### Running end-to-end tests
 
-See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).
+See [Jasper-UI Playwright Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/playwright.yml).
