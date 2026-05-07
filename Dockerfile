@@ -45,19 +45,22 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 
 FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
 RUN apt-get update && apt-get upgrade -y \
-    && apt-get install curl -y
+    && apt-get install curl -y \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
-    && bun --version
+    && bun --version \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
 RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
     && which python3 \
-    && python3 --version
+    && python3 --version \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ARG JASPER_PYTHON=/usr/bin/python3
 ENV JASPER_PYTHON=${JASPER_PYTHON}
 ENV PYTHONUNBUFFERED=1
@@ -67,7 +70,8 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && uuidgen -r > /dev/null \
     && uuidgen --version \
     && which bash \
-    && bash --version
+    && bash --version \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
 RUN apt-get update && apt-get install -y \
