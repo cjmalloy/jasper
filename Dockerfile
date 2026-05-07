@@ -53,8 +53,7 @@ COPY --from=bun /usr/local/bin/bun /usr/local/bin/
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
-    && bun --version \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && bun --version
 ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
 RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
