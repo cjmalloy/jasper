@@ -24,7 +24,7 @@
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.10</jackson-databind-nullable.version>
-		<postgresql.version>42.3.9</postgresql.version>
+		<postgresql.version>42.7.11</postgresql.version>
 		<sqlite-jdbc.version>3.53.1.0</sqlite-jdbc.version>
 		<hibernate.version>7.2.0.Final</hibernate.version>
 		<hypersistence-utils-71.version>3.15.2</hypersistence-utils-71.version>
