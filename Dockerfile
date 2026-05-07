@@ -44,7 +44,8 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
 FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
-RUN apt-get update && apt-get install curl -y
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install curl -y
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
@@ -63,7 +64,7 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which jq \
     && jq --version \
-    && uuidgen jq \
+    && uuidgen -r > /dev/null \
     && uuidgen --version \
     && which bash \
     && bash --version
