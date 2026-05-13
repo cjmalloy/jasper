@@ -25,7 +25,7 @@
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.10</jackson-databind-nullable.version>
 		<postgresql.version>42.7.11</postgresql.version>
-		<hibernate.version>7.2.0.Final</hibernate.version>
+		<hibernate-jpamodelgen.version>7.2.12.Final</hibernate-jpamodelgen.version>
 		<hypersistence-utils-71.version>3.15.2</hypersistence-utils-71.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
@@ -163,7 +163,7 @@
 		<dependency>
 			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-jpamodelgen</artifactId>
-			<version>${hibernate.version}</version>
+			<version>${hibernate-jpamodelgen.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

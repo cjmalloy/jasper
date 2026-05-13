@@ -50,10 +50,34 @@ jobs:
           gh auth login --with-token <<< "${{ github.token }}"
           gh run download --pattern "*-reports-*" --dir _site/reports
           # Create copy of latest master report
-          latest_junit=$(ls -dv _site/reports/junit-reports-master-* 2>/dev/null | tail -1)
+          # Prefer reports with JaCoCo coverage data so README coverage links resolve.
+          # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
+          test_report_regex='.*/junit-reports(-[^-]+)?-master-[^/]+$'
+          latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" -exec test -f '{}/coverage/jacoco.csv' ';' -print 2>/dev/null | sort -V | tail -1)
+          if [ -z "$latest_junit" ]; then
+            latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" 2>/dev/null | sort -V | tail -1)
+          fi
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             mkdir -p _site/reports/latest-junit
             cp -r "$latest_junit/." _site/reports/latest-junit/
+            if [ ! -f _site/reports/latest-junit/coverage-badge.json ] && [ -f _site/reports/latest-junit/coverage/jacoco.csv ]; then
+              LINE_MISSED=$(tail -n +2 _site/reports/latest-junit/coverage/jacoco.csv | awk -F',' '{s+=$8} END {print s+0}')
+              LINE_COVERED=$(tail -n +2 _site/reports/latest-junit/coverage/jacoco.csv | awk -F',' '{s+=$9} END {print s+0}')
+              LINE_TOTAL=$((LINE_MISSED + LINE_COVERED))
+              if [ "$LINE_TOTAL" -gt 0 ]; then
+                LINE_PCT=$(awk "BEGIN {printf \"%.1f\", ($LINE_COVERED / $LINE_TOTAL) * 100}")
+              else
+                LINE_PCT="0.0"
+              fi
+              BADGE_COLOR=$(awk -v pct="$LINE_PCT" 'BEGIN {
+                if (pct >= 90) print "brightgreen";
+                else if (pct >= 75) print "yellowgreen";
+                else if (pct >= 60) print "yellow";
+                else if (pct >= 50) print "orange";
+                else print "red";
+              }')
+              printf '{\n  "schemaVersion": 1,\n  "label": "coverage",\n  "message": "%s%%",\n  "color": "%s"\n}\n' "$LINE_PCT" "$BADGE_COLOR" > _site/reports/latest-junit/coverage-badge.json
+            fi
           fi
           latest_gatling=$(ls -dv _site/reports/gatling-reports-master-* 2>/dev/null | tail -1)
           if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
