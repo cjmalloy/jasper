@@ -50,7 +50,13 @@ jobs:
           gh auth login --with-token <<< "${{ github.token }}"
           gh run download --pattern "*-reports-*" --dir _site/reports
           # Create copy of latest master report
-          latest_junit=$(ls -dv _site/reports/junit-reports-master-* 2>/dev/null | tail -1)
+          # Prefer reports with a generated coverage badge endpoint so README coverage links resolve.
+          # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
+          test_report_regex='.*/junit-reports(-[^-]+)?-master-[^/]+$'
+          latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" -exec test -f '{}/coverage-badge.json' ';' -print 2>/dev/null | sort -V | tail -1)
+          if [ -z "$latest_junit" ]; then
+            latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" 2>/dev/null | sort -V | tail -1)
+          fi
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             mkdir -p _site/reports/latest-junit
             cp -r "$latest_junit/." _site/reports/latest-junit/
