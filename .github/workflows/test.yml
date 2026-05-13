@@ -208,6 +208,40 @@ jobs:
             echo "line_total=$LINE_TOTAL" >> $GITHUB_OUTPUT
             echo "method_pct=$METHOD_PCT" >> $GITHUB_OUTPUT
 
+            # Generate a Shields-compatible SVG badge using line coverage
+            BADGE_COLOR=$(awk -v pct="$LINE_PCT" 'BEGIN {
+              if (pct >= 90) print "#4c1";
+              else if (pct >= 75) print "#97ca00";
+              else if (pct >= 60) print "#dfb317";
+              else if (pct >= 50) print "#fe7d37";
+              else print "#e05d44";
+            }')
+            mkdir -p reports/coverage
+            cat > reports/coverage-badge.svg << EOF
+            <svg xmlns="http://www.w3.org/2000/svg" width="104" height="20" role="img" aria-label="coverage: $LINE_PCT%">
+              <title>coverage: $LINE_PCT%</title>
+              <linearGradient id="s" x2="0" y2="100%">
+                <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+                <stop offset="1" stop-opacity=".1"/>
+              </linearGradient>
+              <clipPath id="r">
+                <rect width="104" height="20" rx="3" fill="#fff"/>
+              </clipPath>
+              <g clip-path="url(#r)">
+                <rect width="63" height="20" fill="#555"/>
+                <rect x="63" width="41" height="20" fill="$BADGE_COLOR"/>
+                <rect width="104" height="20" fill="url(#s)"/>
+              </g>
+              <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110">
+                <text aria-hidden="true" x="325" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="530">coverage</text>
+                <text x="325" y="140" transform="scale(.1)" fill="#fff" textLength="530">coverage</text>
+                <text aria-hidden="true" x="825" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="310">$LINE_PCT%</text>
+                <text x="825" y="140" transform="scale(.1)" fill="#fff" textLength="310">$LINE_PCT%</text>
+              </g>
+            </svg>
+            EOF
+            cp reports/coverage-badge.svg reports/coverage/badge.svg
+
             # Add to workflow summary
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
