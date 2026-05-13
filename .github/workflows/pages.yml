@@ -52,10 +52,10 @@ jobs:
           # Create copy of latest master report
           # Prefer reports with a generated coverage badge so README coverage links resolve.
           # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
-          junit_report_regex='.*/junit-reports(-[^-]+)?-master-[^/]+$'
-          latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$junit_report_regex" -exec test -f '{}/coverage-badge.svg' ';' -print 2>/dev/null | sort -V | tail -1)
+          test_report_regex='.*/junit-reports(-[^-]+)?-master-[^/]+$'
+          latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" -exec test -f '{}/coverage-badge.svg' ';' -print 2>/dev/null | sort -V | tail -1)
           if [ -z "$latest_junit" ]; then
-            latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$junit_report_regex" 2>/dev/null | sort -V | tail -1)
+            latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$test_report_regex" 2>/dev/null | sort -V | tail -1)
           fi
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             mkdir -p _site/reports/latest-junit
