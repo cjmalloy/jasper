@@ -51,13 +51,15 @@ jobs:
           gh run download --pattern "*-reports-*" --dir _site/reports
           # Create copy of latest master report
           # Prefer reports with a generated coverage badge so README coverage links resolve.
-          latest_junit=$(find _site/reports -maxdepth 1 -type d \( -name 'junit-reports-master-*' -o -name 'junit-reports-*-master-*' \) 2>/dev/null | while read -r report; do
+          # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
+          junit_report_regex='.*/junit-reports(-[^/]+)?-master-[^/]+$'
+          latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$junit_report_regex" 2>/dev/null | while read -r report; do
             if [ -f "$report/coverage-badge.svg" ]; then
               echo "$report"
             fi
           done | sort -V | tail -1)
           if [ -z "$latest_junit" ]; then
-            latest_junit=$(find _site/reports -maxdepth 1 -type d \( -name 'junit-reports-master-*' -o -name 'junit-reports-*-master-*' \) 2>/dev/null | sort -V | tail -1)
+            latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$junit_report_regex" 2>/dev/null | sort -V | tail -1)
           fi
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             mkdir -p _site/reports/latest-junit
