@@ -52,7 +52,7 @@ jobs:
           # Create copy of latest master report
           # Prefer reports with a generated coverage badge so README coverage links resolve.
           # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
-          junit_report_regex='.*/junit-reports(-[^/]+)?-master-[^/]+$'
+          junit_report_regex='.*/junit-reports.*-master-[^/]+$'
           latest_junit=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex "$junit_report_regex" 2>/dev/null | while read -r report; do
             if [ -f "$report/coverage-badge.svg" ]; then
               echo "$report"
