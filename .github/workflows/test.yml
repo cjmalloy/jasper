@@ -216,7 +216,7 @@ jobs:
               else if (pct >= 50) print "#fe7d37";
               else print "#e05d44";
             }')
-            mkdir -p reports/coverage
+            mkdir -p reports
             cat > reports/coverage-badge.svg << EOF
             <svg xmlns="http://www.w3.org/2000/svg" width="112" height="20" role="img" aria-label="coverage: $LINE_PCT%">
               <title>coverage: $LINE_PCT%</title>
@@ -240,7 +240,6 @@ jobs:
               </g>
             </svg>
             EOF
-            cp reports/coverage-badge.svg reports/coverage/badge.svg
 
             # Add to workflow summary
             echo "" >> $GITHUB_STEP_SUMMARY
