@@ -1,8 +1,7 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwsHeader;
-import io.jsonwebtoken.SigningKeyResolver;
+import io.jsonwebtoken.Header;
+import io.jsonwebtoken.Locator;
 import io.jsonwebtoken.io.Decoders;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,26 +17,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-class JwkSigningKeyResolver implements SigningKeyResolver {
+class JwkKeyLocator implements Locator<Key> {
 
 	private URI jwkUri;
 	private RestTemplate restTemplate;
 	private Object lock = new Object();
 	private volatile Map<String, Key> keyMap = new HashMap<>();
 
-	JwkSigningKeyResolver(URI jwkUri, RestTemplate restTemplate) {
+	JwkKeyLocator(URI jwkUri, RestTemplate restTemplate) {
 		this.jwkUri = jwkUri;
 		this.restTemplate = restTemplate;
 	}
 
 	@Override
-	public Key resolveSigningKey(JwsHeader header, Claims claims) {
-		return getKey(header.getKeyId());
-	}
-
-	@Override
-	public Key resolveSigningKey(JwsHeader header, byte[] content) {
-		return getKey(header.getKeyId());
+	public Key locate(Header header) {
+		String keyId = (String) header.get("kid");
+		return getKey(keyId);
 	}
 
 	private Key getKey(String keyId) {

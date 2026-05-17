@@ -15,14 +15,21 @@ import jasper.domain.User;
 import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.security.Key;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -30,7 +37,9 @@ import java.util.Map;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -407,5 +416,91 @@ class TokenProviderImplTest {
 
 		assertThat(tokenProvider.getUsername(getClaims("+user@main", "ROLE_ADMIN"), "@other"))
 			.isEqualTo("+user@other");
+	}
+
+	@Nested
+	class JwksModeTest {
+		private static final String KEY_ID = "test-rsa-key";
+		private static final String JWKS_URI = "http://localhost/jwks";
+
+		private TokenProviderImpl jwksTokenProvider;
+		private KeyPair keyPair;
+
+		@BeforeEach
+		void setup() throws Exception {
+			KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+			kpg.initialize(2048);
+			keyPair = kpg.generateKeyPair();
+
+			var security = new SecurityConfig();
+			security.setMode("jwks");
+			security.setJwksUri(JWKS_URI);
+
+			var jwksConfigCache = mock(ConfigCache.class);
+			when(jwksConfigCache.root()).thenReturn(new ServerConfig());
+			when(jwksConfigCache.security(anyString())).thenReturn(security);
+
+			var restTemplate = mock(RestTemplate.class);
+			when(restTemplate.getForObject(any(URI.class), eq(JwkKeys.class))).thenAnswer(inv -> {
+				var pubKey = (RSAPublicKey) keyPair.getPublic();
+				var jwkKey = new JwkKey();
+				jwkKey.setKeyId(KEY_ID);
+				jwkKey.setKeyType("RSA");
+				jwkKey.setPublicKeyUse("sig");
+				jwkKey.setPublicKeyModulus(Base64.getUrlEncoder().withoutPadding()
+					.encodeToString(pubKey.getModulus().toByteArray()));
+				jwkKey.setPublicKeyExponent(Base64.getUrlEncoder().withoutPadding()
+					.encodeToString(pubKey.getPublicExponent().toByteArray()));
+				var keys = new JwkKeys();
+				keys.setKeys(List.of(jwkKey));
+				return keys;
+			});
+
+			jwksTokenProvider = new TokenProviderImpl(
+				new Props(), jwksConfigCache, new SecurityMetersService(new SimpleMeterRegistry()), restTemplate);
+		}
+
+		@Test
+		void testReturnTrueWhenJwksTokenIsValid() {
+			String token = Jwts.builder()
+				.subject("alice")
+				.claim("verified_email", true)
+				.header().add("kid", KEY_ID).and()
+				.signWith(keyPair.getPrivate())
+				.expiration(new Date(new Date().getTime() + 60_000L))
+				.compact();
+
+			assertThat(jwksTokenProvider.validateToken(token, "")).isTrue();
+		}
+
+		@Test
+		void testReturnFalseWhenJwksTokenIsExpired() {
+			String token = Jwts.builder()
+				.subject("alice")
+				.claim("verified_email", true)
+				.header().add("kid", KEY_ID).and()
+				.signWith(keyPair.getPrivate())
+				.expiration(new Date(new Date().getTime() - 60_000L))
+				.compact();
+
+			assertThat(jwksTokenProvider.validateToken(token, "")).isFalse();
+		}
+
+		@Test
+		void testReturnFalseWhenJwksTokenHasWrongSignature() throws Exception {
+			KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+			kpg.initialize(2048);
+			KeyPair wrongKey = kpg.generateKeyPair();
+
+			String token = Jwts.builder()
+				.subject("alice")
+				.claim("verified_email", true)
+				.header().add("kid", KEY_ID).and()
+				.signWith(wrongKey.getPrivate())
+				.expiration(new Date(new Date().getTime() + 60_000L))
+				.compact();
+
+			assertThat(jwksTokenProvider.validateToken(token, "")).isFalse();
+		}
 	}
 }
