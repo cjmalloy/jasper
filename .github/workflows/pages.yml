@@ -135,31 +135,33 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
-          html_escape() {
-            python3 -c 'import html, sys; print(html.escape(sys.argv[1], quote=True), end="")' "$1"
-          }
           latest_gatling_link=""
           if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             latest_gatling_name=$(basename "$latest_gatling")
-            latest_gatling_name_escaped=$(html_escape "$latest_gatling_name")
             printf -v latest_gatling_link '%s\n%s\n%s' \
               "            <div class='report'>" \
-              "              <a href='${latest_gatling_name_escaped}/'>Latest Gatling Report</a>" \
+              "              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>" \
               "            </div>"
           fi
           latest_junit_link=""
           latest_coverage_link=""
           if [[ -n "$latest_junit" && -d "$latest_junit" ]]; then
             latest_junit_name=$(basename "$latest_junit")
-            latest_junit_name_escaped=$(html_escape "$latest_junit_name")
             printf -v latest_junit_link '%s\n%s\n%s' \
               "            <div class='report'>" \
-              "              <a href='${latest_junit_name_escaped}/'>Latest JUnit Report</a>" \
+              "              <a href='${latest_junit_name}/'>Latest JUnit Report</a>" \
               "            </div>"
             if [[ -d "${latest_junit}/coverage" ]]; then
+              latest_coverage_metric=""
+              if [ -f "_site/reports/latest-junit/coverage-badge.json" ]; then
+                latest_coverage_message=$(jq -r '.message // empty' _site/reports/latest-junit/coverage-badge.json)
+                if [ -n "$latest_coverage_message" ]; then
+                  latest_coverage_metric=" <span class='metric'>$latest_coverage_message</span>"
+                fi
+              fi
               printf -v latest_coverage_link '%s\n%s\n%s' \
-                "            <div class='report'>" \
-                "              <a href='${latest_junit_name_escaped}/coverage/'>Latest Coverage Report</a>" \
+                "            <div class='report latest'>" \
+                "              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>${latest_coverage_metric}" \
                 "            </div>"
             fi
           fi
@@ -224,6 +226,15 @@ jobs:
                 background: var(--latest-bg);
                 border-left: 4px solid var(--latest-border);
               }
+              .metric {
+                display: inline-block;
+                margin-left: 0.5em;
+                padding: 0.1em 0.5em;
+                border-radius: 999px;
+                background: var(--bg-color);
+                border: 1px solid var(--border-color);
+                font-size: 0.9em;
+              }
             </style>
           </head>
           <body>
@@ -236,8 +247,7 @@ jobs:
               $(for d in _site/reports/*/; do
                 name=$(basename "$d")
                 if [[ ! "$name" =~ ^latest-.*$ ]]; then
-                  safe_name=$(html_escape "$name")
-                  echo "<div class='report'><a href='$safe_name/'>$safe_name</a></div>"
+                  echo "<div class='report'><a href='$name/'>$name</a></div>"
                 fi
               done)
             </div>
