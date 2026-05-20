@@ -13,9 +13,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks major-version updates 3-7 while allowing minor/patch updates
+    # Blocks wildcard updates
     - dependency-name: "*"
-      versions: ["3", "4", "5", "6", "7"]
+      versions: ["3-amazoncorretto-25-debian"]
 - package-ecosystem: maven
   directory: /
   schedule:
@@ -49,9 +49,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks major-version updates 3-7 while allowing minor/patch updates
+    # Blocks wildcard updates
     - dependency-name: "*"
-      versions: ["3", "4", "5", "6", "7"]
+      versions: ["3-amazoncorretto-25-debian"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
