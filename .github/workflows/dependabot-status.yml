@@ -2,7 +2,7 @@ name: Dependabot Status
 
 on:
   schedule:
-    # Run after the daily Dependabot schedules to publish the current status badge.
+    # Run at 10:37 UTC, after the daily Dependabot schedules, to publish the current status badge.
     - cron: '37 10 * * *'
   workflow_dispatch:
 

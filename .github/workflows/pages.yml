@@ -84,8 +84,9 @@ jobs:
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
-          # Multiple status artifacts can exist; publish the newest one as the current badge.
-          latest_dependabot=$(ls -dv _site/reports/dependabot-reports-master-* 2>/dev/null | tail -1)
+          # Multiple status artifacts can exist; publish the newest one for the configured badge branch.
+          dependabot_badge_branch="master"
+          latest_dependabot=$(ls -dv _site/reports/dependabot-reports-${dependabot_badge_branch}-* 2>/dev/null | tail -1)
           if [ -n "$latest_dependabot" ] && [ -f "$latest_dependabot/dependabot-badge.json" ]; then
             cp "$latest_dependabot/dependabot-badge.json" _site/reports/dependabot-badge.json
           fi
