@@ -13,9 +13,11 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks wildcard updates
-    - dependency-name: "*"
-      versions: ["3-amazoncorretto-25-debian"]
+    # Docker ignores use Bundler/RubyGems requirements. Tags like
+    # 3-amazoncorretto-25-debian parse as prereleases between 3.a and 3.0,
+    # while 3.x.x tags remain allowed.
+    - dependency-name: "maven"
+      versions: [">= 3.a, < 3.0"]
 - package-ecosystem: maven
   directory: /
   schedule:
@@ -49,9 +51,11 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks wildcard updates
-    - dependency-name: "*"
-      versions: ["3-amazoncorretto-25-debian"]
+    # Docker ignores use Bundler/RubyGems requirements. Tags like
+    # 3-amazoncorretto-25-debian parse as prereleases between 3.a and 3.0,
+    # while 3.x.x tags remain allowed.
+    - dependency-name: "maven"
+      versions: [">= 3.a, < 3.0"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
