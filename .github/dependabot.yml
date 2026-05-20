@@ -10,6 +10,9 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  ignore:
+    - dependency-name: "*"
+      update-types: ["version-update:semver-major"]
 - package-ecosystem: maven
   directory: /
   schedule:
@@ -40,6 +43,9 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  ignore:
+    - dependency-name: "*"
+      update-types: ["version-update:semver-major"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
