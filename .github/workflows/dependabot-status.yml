@@ -1,0 +1,71 @@
+name: Dependabot Status
+
+on:
+  schedule:
+    - cron: '37 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate badge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_BRANCH: master
+        run: |
+          set -euo pipefail
+
+          mkdir -p reports
+
+          gh api \
+            "/repos/${GH_REPO}/actions/runs?event=dynamic&branch=${TARGET_BRANCH}&per_page=100" \
+            > reports/dependabot-runs.json
+          gh api \
+            "/repos/${GH_REPO}/pulls?state=open&base=${TARGET_BRANCH}&per_page=100" \
+            > reports/open-pulls.json
+
+          FAILED_RUN=$(jq -r '
+            [ .workflow_runs[]
+              | select(.name != "Running Copilot cloud agent")
+              | select((.name | test("(^| )(docker|maven|github_actions) in /|Automatic Dependency Submission")) and .conclusion == "failure")
+            ][0].name // empty
+          ' reports/dependabot-runs.json)
+
+          DEPENDABOT_PR_COUNT=$(jq '
+            [ .[]
+              | select(.user.login == "dependabot[bot]")
+            ] | length
+          ' reports/open-pulls.json)
+
+          if [ -n "$FAILED_RUN" ]; then
+            MESSAGE="error"
+            COLOR="red"
+          elif [ "$DEPENDABOT_PR_COUNT" -gt 0 ]; then
+            MESSAGE="updates"
+            COLOR="yellow"
+          else
+            MESSAGE="up to date"
+            COLOR="brightgreen"
+          fi
+
+          jq -n \
+            --arg message "$MESSAGE" \
+            --arg color "$COLOR" \
+            '{
+              schemaVersion: 1,
+              label: "dependabot",
+              message: $message,
+              color: $color
+            }' > reports/dependabot-badge.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dependabot-reports-master-${{ github.run_number }}
+          path: reports/dependabot-badge.json

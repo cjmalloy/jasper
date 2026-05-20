@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master, 'v1.3' ]
   workflow_run:
-    workflows: ["Test", "Load Test"]
+    workflows: ["Test", "Load Test", "Dependabot Status"]
     types:
       - completed
     branches: [ '**' ]
@@ -83,6 +83,10 @@ jobs:
           if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
+          fi
+          latest_dependabot=$(ls -dv _site/reports/dependabot-reports-master-* 2>/dev/null | tail -1)
+          if [ -n "$latest_dependabot" ] && [ -f "$latest_dependabot/dependabot-badge.json" ]; then
+            cp "$latest_dependabot/dependabot-badge.json" _site/reports/dependabot-badge.json
           fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
