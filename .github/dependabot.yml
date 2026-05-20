@@ -13,9 +13,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks the floating major tag while allowing 3.x.x updates.
+    # Blocks floating major/pre-release-like tags while allowing 3.x.x updates.
     - dependency-name: "maven"
-      versions: ["3"]
+      versions: [">= 3.a, < 3.0"]
 - package-ecosystem: maven
   directory: /
   schedule:
@@ -49,9 +49,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks the floating major tag while allowing 3.x.x updates.
+    # Blocks floating major/pre-release-like tags while allowing 3.x.x updates.
     - dependency-name: "maven"
-      versions: ["3"]
+      versions: [">= 3.a, < 3.0"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
