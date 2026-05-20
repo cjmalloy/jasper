@@ -60,7 +60,7 @@ jobs:
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             mkdir -p _site/reports/latest-junit
             cp -r "$latest_junit/." _site/reports/latest-junit/
-            if [ ! -f _site/reports/latest-junit/coverage-badge.json ] && [ -f _site/reports/latest-junit/coverage/jacoco.csv ]; then
+            if [ -f _site/reports/latest-junit/coverage/jacoco.csv ]; then
               LINE_MISSED=$(tail -n +2 _site/reports/latest-junit/coverage/jacoco.csv | awk -F',' '{s+=$8} END {print s+0}')
               LINE_COVERED=$(tail -n +2 _site/reports/latest-junit/coverage/jacoco.csv | awk -F',' '{s+=$9} END {print s+0}')
               LINE_TOTAL=$((LINE_MISSED + LINE_COVERED))
