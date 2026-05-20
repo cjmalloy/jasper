@@ -70,10 +70,11 @@ jobs:
                 LINE_PCT="0.0"
               fi
               BADGE_COLOR=$(awk -v pct="$LINE_PCT" 'BEGIN {
-                if (pct >= 90) print "brightgreen";
-                else if (pct >= 75) print "yellowgreen";
-                else if (pct >= 60) print "yellow";
-                else if (pct >= 50) print "orange";
+                if (pct >= 70) print "brightgreen";
+                else if (pct >= 60) print "green";
+                else if (pct >= 50) print "yellowgreen";
+                else if (pct >= 40) print "yellow";
+                else if (pct >= 20) print "orange";
                 else print "red";
               }')
               printf '{\n  "schemaVersion": 1,\n  "label": "coverage",\n  "message": "%s%%",\n  "color": "%s"\n}\n' "$LINE_PCT" "$BADGE_COLOR" > _site/reports/latest-junit/coverage-badge.json
