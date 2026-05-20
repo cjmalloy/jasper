@@ -11,9 +11,14 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
   pages: write
   id-token: write
+
+env:
+  DEPENDABOT_RUN_LOOKBACK_DAYS: 7
 
 concurrency:
   group: "pages"
@@ -85,6 +90,39 @@ jobs:
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
+          dependabot_message="current"
+          dependabot_color="brightgreen"
+          # Limit failed run checks to recent history so one old failure does not keep the badge red forever.
+          dependabot_runs_since=$(date -u -d "${DEPENDABOT_RUN_LOOKBACK_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)
+          if [ ! -f ".github/dependabot.yml" ]; then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif ! failed_dependabot_run_count=$( \
+            gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=completed&created=%3E%3D${dependabot_runs_since}&per_page=100" \
+              --jq '[.[] | (.workflow_runs // [])[] | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+              2>/dev/null \
+          ); then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif [ "$failed_dependabot_run_count" -gt 0 ]; then
+            dependabot_message="failed"
+            dependabot_color="red"
+          elif ! dependabot_pr_count=$(gh pr list --state open --author "dependabot[bot]" --json number --jq 'length' 2>/dev/null); then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif [ "$dependabot_pr_count" -gt 0 ]; then
+            dependabot_message="$dependabot_pr_count updates"
+            if [ "$dependabot_pr_count" -eq 1 ]; then
+              dependabot_message="1 update"
+            fi
+            dependabot_color="yellow"
+          fi
+          jq -n \
+            --arg label "dependabot" \
+            --arg message "$dependabot_message" \
+            --arg color "$dependabot_color" \
+            '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
+            > _site/reports/dependabot-badge.json
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
           <html>
