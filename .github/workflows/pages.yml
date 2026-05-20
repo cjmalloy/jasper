@@ -156,7 +156,7 @@ jobs:
               "            <div class='report'>" \
               "              <a href='${latest_junit_name_escaped}/'>Latest JUnit Report</a>" \
               "            </div>"
-            if [ -d "${latest_junit}/coverage" ]; then
+            if [[ -d "${latest_junit}/coverage" ]]; then
               printf -v latest_coverage_link '%s\n%s\n%s' \
                 "            <div class='report'>" \
                 "              <a href='${latest_junit_name_escaped}/coverage/'>Latest Coverage Report</a>" \
