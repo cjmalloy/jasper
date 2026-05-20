@@ -13,7 +13,7 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Stops Dependabot from flattening full tags into major-only updates
+    # Blocks major-version updates 3-7 while allowing minor/patch updates
     - dependency-name: "*"
       versions: ["3", "4", "5", "6", "7"]
 - package-ecosystem: maven
@@ -49,7 +49,7 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Stops Dependabot from flattening full tags into major-only updates
+    # Blocks major-version updates 3-7 while allowing minor/patch updates
     - dependency-name: "*"
       versions: ["3", "4", "5", "6", "7"]
 - package-ecosystem: maven
