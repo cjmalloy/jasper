@@ -135,26 +135,37 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
+          html_escape() {
+            local value="$1"
+            value=${value//&/&amp;}
+            value=${value//</&lt;}
+            value=${value//>/&gt;}
+            value=${value//\"/&quot;}
+            value=${value//\'/&#39;}
+            printf '%s' "$value"
+          }
           latest_gatling_link=""
-          if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
+          if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             latest_gatling_name=$(basename "$latest_gatling")
+            latest_gatling_name_escaped=$(html_escape "$latest_gatling_name")
             printf -v latest_gatling_link '%s\n%s\n%s' \
               "            <div class='report'>" \
-              "              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>" \
+              "              <a href='${latest_gatling_name_escaped}/'>Latest Gatling Report</a>" \
               "            </div>"
           fi
           latest_junit_link=""
+          latest_coverage_link=""
           if [[ -n "$latest_junit" && -d "$latest_junit" ]]; then
             latest_junit_name=$(basename "$latest_junit")
+            latest_junit_name_escaped=$(html_escape "$latest_junit_name")
             printf -v latest_junit_link '%s\n%s\n%s' \
               "            <div class='report'>" \
-              "              <a href='${latest_junit_name}/'>Latest JUnit Report</a>" \
+              "              <a href='${latest_junit_name_escaped}/'>Latest JUnit Report</a>" \
               "            </div>"
             if [ -d "${latest_junit}/coverage" ]; then
-              printf -v latest_junit_link '%s\n%s\n%s\n%s' \
-                "$latest_junit_link" \
+              printf -v latest_coverage_link '%s\n%s\n%s' \
                 "            <div class='report'>" \
-                "              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>" \
+                "              <a href='${latest_junit_name_escaped}/coverage/'>Latest Coverage Report</a>" \
                 "            </div>"
             fi
           fi
@@ -225,12 +236,14 @@ jobs:
             <h1>Test Reports</h1>
           $latest_gatling_link
           $latest_junit_link
+          $latest_coverage_link
             <h2>All Reports</h2>
             <div id="reports">
               $(for d in _site/reports/*/; do
                 name=$(basename "$d")
                 if [[ ! "$name" =~ ^latest-.*$ ]]; then
-                  echo "<div class='report'><a href='$name/'>$name</a></div>"
+                  safe_name=$(html_escape "$name")
+                  echo "<div class='report'><a href='$safe_name/'>$safe_name</a></div>"
                 fi
               done)
             </div>
