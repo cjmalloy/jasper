@@ -88,6 +88,7 @@ jobs:
           fi
           dependabot_message="current"
           dependabot_color="brightgreen"
+          # Limit failed run checks to recent history so one old failure does not keep the badge red forever.
           dependabot_runs_since=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
