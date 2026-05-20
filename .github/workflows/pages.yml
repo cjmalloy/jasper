@@ -153,9 +153,9 @@ jobs:
               "            </div>"
             if [[ -d "${latest_junit}/coverage" ]]; then
               latest_coverage_metric=""
-              if [ -f "_site/reports/latest-junit/coverage-badge.json" ]; then
+              if [[ -f "_site/reports/latest-junit/coverage-badge.json" ]]; then
                 latest_coverage_message=$(jq -r '.message // empty' _site/reports/latest-junit/coverage-badge.json)
-                if [ -n "$latest_coverage_message" ]; then
+                if [[ -n "$latest_coverage_message" ]]; then
                   latest_coverage_metric=" <span class='metric'>$latest_coverage_message</span>"
                 fi
               fi
