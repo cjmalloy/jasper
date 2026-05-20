@@ -114,10 +114,10 @@ jobs:
                       created_at
                     }
                 ]
-                | sort_by(.created_at)
-                | reverse
-                | unique_by(.key)
-                | map(select(["failure", "cancelled", "timed_out", "action_required"] | index(.conclusion)))
+                | sort_by(.key, .created_at)
+                | group_by(.key)
+                | map(max_by(.created_at))
+                | map(select(. as $run | ["failure", "cancelled", "timed_out", "action_required"] | index($run.conclusion)))
                 | length' \
            ); then
             dependabot_message="cannot run"
