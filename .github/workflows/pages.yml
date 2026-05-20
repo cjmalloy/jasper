@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
   pages: write
@@ -89,6 +90,15 @@ jobs:
           dependabot_color="brightgreen"
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
+            dependabot_color="red"
+          elif ! failed_dependabot_run_count=$( \
+            gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=completed&per_page=100" 2>/dev/null \
+              | jq -e '[.[].workflow_runs[] | select(.conclusion == "failure")] | length' \
+          ); then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif [ "$failed_dependabot_run_count" -gt 0 ]; then
+            dependabot_message="failed"
             dependabot_color="red"
           elif ! dependabot_pr_count=$(gh pr list --state open --author "dependabot[bot]" --json number --jq 'length' 2>/dev/null); then
             dependabot_message="cannot run"
