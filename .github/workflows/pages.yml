@@ -98,16 +98,28 @@ jobs:
             dependabot_message="cannot run"
             dependabot_color="red"
           elif ! failed_dependabot_run_count=$( \
-            gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=completed&created=%3E%3D${dependabot_runs_since}&per_page=100" \
-              --jq '[.[] | (.workflow_runs // [])[] | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+            set -o pipefail; \
+            gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/actions/runs" \
+              -f 'actor=dependabot[bot]' \
+              -f 'status=completed' \
+              -f "created=>=${dependabot_runs_since}" \
+              -f 'per_page=100' \
               2>/dev/null \
-          ); then
+              | jq -s '[.[] | (.workflow_runs // [])[] | select(.path == "dynamic/dependabot/dependabot-updates") | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+           ); then
             dependabot_message="cannot run"
             dependabot_color="red"
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
             dependabot_message="failed"
             dependabot_color="red"
-          elif ! dependabot_pr_count=$(gh pr list --state open --author "dependabot[bot]" --json number --jq 'length' 2>/dev/null); then
+          elif ! dependabot_pr_count=$( \
+            set -o pipefail; \
+            gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/pulls" \
+              -f 'state=open' \
+              -f 'per_page=100' \
+              2>/dev/null \
+              | jq -s '[.[][] | select(.user.login == "dependabot[bot]")] | length' \
+           ); then
             dependabot_message="cannot run"
             dependabot_color="red"
           elif [ "$dependabot_pr_count" -gt 0 ]; then
