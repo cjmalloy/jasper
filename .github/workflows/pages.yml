@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master, 'v1.3' ]
   workflow_run:
-    workflows: ["Test", "Load Test", "Dependabot Status"]
+    workflows: ["Test", "Load Test"]
     types:
       - completed
     branches: [ '**' ]
@@ -12,11 +12,9 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   pages: write
   id-token: write
-
-env:
-  DEPENDABOT_BADGE_BRANCH: ${{ vars.DEPENDABOT_BADGE_BRANCH || 'master' }}
 
 concurrency:
   group: "pages"
@@ -87,12 +85,27 @@ jobs:
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
-          # Multiple status artifacts can exist; publish the newest one for the configured badge branch.
-          dependabot_badge_branch="${DEPENDABOT_BADGE_BRANCH}"
-          latest_dependabot=$(ls -dv _site/reports/dependabot-reports-${dependabot_badge_branch}-* 2>/dev/null | tail -1)
-          if [ -n "$latest_dependabot" ] && [ -f "$latest_dependabot/dependabot-badge.json" ]; then
-            cp "$latest_dependabot/dependabot-badge.json" _site/reports/dependabot-badge.json
+          dependabot_message="current"
+          dependabot_color="brightgreen"
+          if [ ! -f ".github/dependabot.yml" ]; then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif ! dependabot_pr_count=$(gh pr list --state open --author "dependabot[bot]" --json number --jq 'length' 2>/dev/null); then
+            dependabot_message="cannot run"
+            dependabot_color="red"
+          elif [ "$dependabot_pr_count" -gt 0 ]; then
+            dependabot_message="$dependabot_pr_count updates"
+            if [ "$dependabot_pr_count" -eq 1 ]; then
+              dependabot_message="1 update"
+            fi
+            dependabot_color="yellow"
           fi
+          jq -n \
+            --arg label "dependabot" \
+            --arg message "$dependabot_message" \
+            --arg color "$dependabot_color" \
+            '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
+            > _site/reports/dependabot-badge.json
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
           <html>
