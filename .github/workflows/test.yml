@@ -164,17 +164,6 @@ jobs:
             echo "line_total=$LINE_TOTAL" >> $GITHUB_OUTPUT
             echo "method_pct=$METHOD_PCT" >> $GITHUB_OUTPUT
 
-            # Generate a Shields endpoint badge using line coverage
-            BADGE_COLOR=$(awk -v pct="$LINE_PCT" 'BEGIN {
-              if (pct >= 90) print "brightgreen";
-              else if (pct >= 75) print "yellowgreen";
-              else if (pct >= 60) print "yellow";
-              else if (pct >= 50) print "orange";
-              else print "red";
-            }')
-            mkdir -p reports
-            printf '{\n  "schemaVersion": 1,\n  "label": "coverage",\n  "message": "%s%%",\n  "color": "%s"\n}\n' "$LINE_PCT" "$BADGE_COLOR" > reports/coverage-badge.json
-
             # Add to workflow summary
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
