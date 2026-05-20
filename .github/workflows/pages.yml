@@ -109,7 +109,7 @@ jobs:
                   .[] | (.workflow_runs // [])[]
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
-                      key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "")),
+                      key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
                     }
@@ -117,7 +117,7 @@ jobs:
                 | sort_by(.key, .created_at)
                 | group_by(.key)
                 | map(max_by(.created_at))
-                | map(select(. as $run | ["failure", "cancelled", "timed_out", "action_required"] | index($run.conclusion)))
+                | map(select(.conclusion as $conclusion | ["failure", "cancelled", "timed_out", "action_required"] | any(. == $conclusion)))
                 | length' \
            ); then
             dependabot_message="cannot run"
