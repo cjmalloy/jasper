@@ -146,13 +146,17 @@ jobs:
           latest_junit_link=""
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             latest_junit_name=$(basename "$latest_junit")
-            printf -v latest_junit_link '%s\n%s\n%s\n%s\n%s\n%s' \
+            printf -v latest_junit_link '%s\n%s\n%s' \
               "            <div class='report'>" \
               "              <a href='${latest_junit_name}/'>Latest JUnit Report</a>" \
-              "            </div>" \
-              "            <div class='report'>" \
-              "              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>" \
               "            </div>"
+            if [ -d "${latest_junit}/coverage" ]; then
+              printf -v latest_junit_link '%s\n%s\n%s\n%s' \
+                "$latest_junit_link" \
+                "            <div class='report'>" \
+                "              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>" \
+                "            </div>"
+            fi
           fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
