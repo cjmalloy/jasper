@@ -2,7 +2,7 @@ name: Dependabot Status
 
 on:
   schedule:
-    # Run at a stable off-peak UTC minute to refresh the current status badge daily.
+    # Run daily at :37 to avoid common top-of-hour and half-hour cron congestion.
     - cron: '37 10 * * *'
   workflow_dispatch:
 
@@ -76,5 +76,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
+          # Include the run number so Pages can keep historical badge artifacts and publish the newest one.
           name: dependabot-reports-${{ env.DEPENDABOT_BADGE_BRANCH }}-${{ github.run_number }}
           path: reports/dependabot-badge.json
