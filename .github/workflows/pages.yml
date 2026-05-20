@@ -15,6 +15,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  DEPENDABOT_BADGE_BRANCH: ${{ vars.DEPENDABOT_BADGE_BRANCH || 'master' }}
+
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -85,7 +88,7 @@ jobs:
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
           # Multiple status artifacts can exist; publish the newest one for the configured badge branch.
-          dependabot_badge_branch="master"
+          dependabot_badge_branch="${DEPENDABOT_BADGE_BRANCH}"
           latest_dependabot=$(ls -dv _site/reports/dependabot-reports-${dependabot_badge_branch}-* 2>/dev/null | tail -1)
           if [ -n "$latest_dependabot" ] && [ -f "$latest_dependabot/dependabot-badge.json" ]; then
             cp "$latest_dependabot/dependabot-badge.json" _site/reports/dependabot-badge.json

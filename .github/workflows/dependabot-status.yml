@@ -11,6 +11,9 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  DEPENDABOT_BADGE_BRANCH: ${{ vars.DEPENDABOT_BADGE_BRANCH || 'master' }}
+
 jobs:
   badge:
     runs-on: ubuntu-latest
@@ -19,17 +22,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TARGET_BRANCH: master
+          TARGET_BRANCH: ${{ env.DEPENDABOT_BADGE_BRANCH }}
         run: |
           set -euo pipefail
 
           mkdir -p reports
 
           gh api \
+            --paginate \
+            --slurp \
             "/repos/${GH_REPO}/actions/runs?branch=${TARGET_BRANCH}&actor=dependabot%5Bbot%5D&per_page=100" \
+            | jq '{workflow_runs: [.[].workflow_runs[]]}' \
             > reports/dependabot-runs.json
           gh api \
+            --paginate \
+            --slurp \
             "/repos/${GH_REPO}/pulls?state=open&base=${TARGET_BRANCH}&per_page=100" \
+            | jq 'add' \
             > reports/open-pulls.json
 
           FAILED_RUN=$(jq -r '
@@ -67,5 +76,5 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: dependabot-reports-master-${{ github.run_number }}
+          name: dependabot-reports-${{ env.DEPENDABOT_BADGE_BRANCH }}-${{ github.run_number }}
           path: reports/dependabot-badge.json
