@@ -86,7 +86,7 @@ jobs:
             fi
           fi
           latest_gatling=$(ls -dv _site/reports/gatling-reports-master-* 2>/dev/null | tail -1)
-          if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
+          if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
@@ -135,6 +135,13 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
+          latest_coverage_metric=""
+          if [[ -f "_site/reports/latest-junit/coverage-badge.json" ]]; then
+            latest_coverage_message=$(jq -r '.message // empty' _site/reports/latest-junit/coverage-badge.json)
+            if [[ -n "$latest_coverage_message" ]]; then
+              latest_coverage_metric=" <span class='metric'>$latest_coverage_message</span>"
+            fi
+          fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
           <html>
@@ -196,18 +203,27 @@ jobs:
                 background: var(--latest-bg);
                 border-left: 4px solid var(--latest-border);
               }
+              .metric {
+                display: inline-block;
+                margin-left: 0.5em;
+                padding: 0.1em 0.5em;
+                border-radius: 999px;
+                background: var(--bg-color);
+                border: 1px solid var(--border-color);
+                font-size: 0.9em;
+              }
             </style>
           </head>
           <body>
             <h1>Test Reports</h1>
             <div class='report'>
-              <a href='$(basename $latest_gatling)/'>Latest Gatling Report</a>
+              <a href='latest-gatling/'>Latest Gatling Report</a>
             </div>
             <div class='report'>
-              <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
+              <a href='latest-junit/'>Latest JUnit Report</a>
             </div>
-            <div class='report'>
-              <a href='$(basename $latest_junit)/coverage/'>Latest Coverage Report</a>
+            <div class='report latest'>
+              <a href='latest-junit/coverage/'>Latest Coverage Report</a>$latest_coverage_metric
             </div>
             <h2>All Reports</h2>
             <div id="reports">
