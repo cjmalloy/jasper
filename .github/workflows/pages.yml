@@ -135,6 +135,23 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
+          latest_gatling_link=""
+          if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
+            latest_gatling_name=$(basename "$latest_gatling")
+            latest_gatling_link="            <div class='report'>
+              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>
+            </div>"
+          fi
+          latest_junit_link=""
+          if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
+            latest_junit_name=$(basename "$latest_junit")
+            latest_junit_link="            <div class='report'>
+              <a href='${latest_junit_name}/'>Latest JUnit Report</a>
+            </div>
+            <div class='report'>
+              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>
+            </div>"
+          fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
           <html>
@@ -200,15 +217,8 @@ jobs:
           </head>
           <body>
             <h1>Test Reports</h1>
-            <div class='report'>
-              <a href='$(basename $latest_gatling)/'>Latest Gatling Report</a>
-            </div>
-            <div class='report'>
-              <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
-            </div>
-            <div class='report'>
-              <a href='$(basename $latest_junit)/coverage/'>Latest Coverage Report</a>
-            </div>
+          $latest_gatling_link
+          $latest_junit_link
             <h2>All Reports</h2>
             <div id="reports">
               $(for d in _site/reports/*/; do
