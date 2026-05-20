@@ -105,12 +105,28 @@ jobs:
               -f "created=>=${dependabot_runs_since}" \
               -f 'per_page=100' \
               2>/dev/null \
-              | jq -s '[.[] | (.workflow_runs // [])[] | select(.path == "dynamic/dependabot/dependabot-updates") | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+              | jq -s '[
+                  .[] | (.workflow_runs // [])[]
+                  | select(.path == "dynamic/dependabot/dependabot-updates")
+                  | {
+                      key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "")),
+                      conclusion,
+                      created_at
+                    }
+                ]
+                | sort_by(.created_at)
+                | reverse
+                | unique_by(.key)
+                | map(select(["failure", "cancelled", "timed_out", "action_required"] | index(.conclusion)))
+                | length' \
            ); then
             dependabot_message="cannot run"
             dependabot_color="red"
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
-            dependabot_message="failed"
+            dependabot_message="$failed_dependabot_run_count updates failed"
+            if [ "$failed_dependabot_run_count" -eq 1 ]; then
+              dependabot_message="1 update failed"
+            fi
             dependabot_color="red"
           elif ! dependabot_pr_count=$( \
             set -o pipefail; \
