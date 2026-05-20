@@ -13,9 +13,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks wildcard updates
-    - dependency-name: "*"
-      versions: ["3-amazoncorretto-25-debian"]
+    # Blocks the floating major tag while allowing 3.x.x updates.
+    - dependency-name: "maven"
+      versions: ["3"]
 - package-ecosystem: maven
   directory: /
   schedule:
@@ -49,9 +49,9 @@ updates:
   allow:
     - dependency-name: "*"
   ignore:
-    # Blocks wildcard updates
-    - dependency-name: "*"
-      versions: ["3-amazoncorretto-25-debian"]
+    # Blocks the floating major tag while allowing 3.x.x updates.
+    - dependency-name: "maven"
+      versions: ["3"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
