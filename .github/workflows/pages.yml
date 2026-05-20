@@ -138,19 +138,21 @@ jobs:
           latest_gatling_link=""
           if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
             latest_gatling_name=$(basename "$latest_gatling")
-            latest_gatling_link="            <div class='report'>
-              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>
-            </div>"
+            printf -v latest_gatling_link '%s\n%s\n%s' \
+              "            <div class='report'>" \
+              "              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>" \
+              "            </div>"
           fi
           latest_junit_link=""
           if [ -n "$latest_junit" ] && [ -d "$latest_junit" ]; then
             latest_junit_name=$(basename "$latest_junit")
-            latest_junit_link="            <div class='report'>
-              <a href='${latest_junit_name}/'>Latest JUnit Report</a>
-            </div>
-            <div class='report'>
-              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>
-            </div>"
+            printf -v latest_junit_link '%s\n%s\n%s\n%s\n%s\n%s' \
+              "            <div class='report'>" \
+              "              <a href='${latest_junit_name}/'>Latest JUnit Report</a>" \
+              "            </div>" \
+              "            <div class='report'>" \
+              "              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>" \
+              "            </div>"
           fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
