@@ -118,7 +118,7 @@ jobs:
               -f 'state=open' \
               -f 'per_page=100' \
               2>/dev/null \
-              | jq -s '[.[][] | select(.user.login == "dependabot[bot]")] | length' \
+              | jq -s '[.[] | .[] | select(.user.login == "dependabot[bot]")] | length' \
            ); then
             dependabot_message="cannot run"
             dependabot_color="red"
