@@ -136,13 +136,7 @@ jobs:
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
           html_escape() {
-            local value="$1"
-            value=${value//&/&amp;}
-            value=${value//</&lt;}
-            value=${value//>/&gt;}
-            value=${value//\"/&quot;}
-            value=${value//\'/&#39;}
-            printf '%s' "$value"
+            python3 -c 'import html, sys; print(html.escape(sys.argv[1], quote=True), end="")' "$1"
           }
           latest_gatling_link=""
           if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
