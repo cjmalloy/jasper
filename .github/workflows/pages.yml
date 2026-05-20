@@ -88,10 +88,15 @@ jobs:
           fi
           dependabot_message="current"
           dependabot_color="brightgreen"
+          dependabot_runs_since=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
             dependabot_color="red"
-          elif ! failed_dependabot_run_count=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=failure&per_page=1" --jq '.total_count // 0' 2>/dev/null); then
+          elif ! failed_dependabot_run_count=$( \
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=completed&created=%3E%3D${dependabot_runs_since}&per_page=100" \
+              --jq '[(.workflow_runs // [])[] | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+              2>/dev/null \
+          ); then
             dependabot_message="cannot run"
             dependabot_color="red"
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
