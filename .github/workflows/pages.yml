@@ -135,10 +135,6 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
-          latest_gatling=${latest_gatling:-_site/reports/latest-gatling}
-          latest_junit=${latest_junit:-_site/reports/latest-junit}
-          latest_gatling_name=$(basename "$latest_gatling")
-          latest_junit_name=$(basename "$latest_junit")
           latest_coverage_metric=""
           if [[ -f "_site/reports/latest-junit/coverage-badge.json" ]]; then
             latest_coverage_message=$(jq -r '.message // empty' _site/reports/latest-junit/coverage-badge.json)
@@ -221,13 +217,13 @@ jobs:
           <body>
             <h1>Test Reports</h1>
             <div class='report'>
-              <a href='${latest_gatling_name}/'>Latest Gatling Report</a>
+              <a href='latest-gatling/'>Latest Gatling Report</a>
             </div>
             <div class='report'>
-              <a href='${latest_junit_name}/'>Latest JUnit Report</a>
+              <a href='latest-junit/'>Latest JUnit Report</a>
             </div>
             <div class='report latest'>
-              <a href='${latest_junit_name}/coverage/'>Latest Coverage Report</a>$latest_coverage_metric
+              <a href='latest-junit/coverage/'>Latest Coverage Report</a>$latest_coverage_metric
             </div>
             <h2>All Reports</h2>
             <div id="reports">
