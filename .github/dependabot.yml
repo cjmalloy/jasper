@@ -46,6 +46,12 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  allow:
+    - dependency-name: "*"
+  ignore:
+    # Stops Dependabot from flattening full tags into major-only updates
+    - dependency-name: "*"
+      versions: ["3", "4", "5", "6", "7"]
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
@@ -58,7 +64,3 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
-  ignore:
-    # Block any tag updates where the version part is major only
-    - dependency-name: "*"
-      versions: ["3-amazoncorretto*"] # maven
