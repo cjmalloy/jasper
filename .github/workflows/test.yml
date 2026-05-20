@@ -210,7 +210,8 @@ jobs:
 
             # Generate a Shields endpoint badge using line coverage
             BADGE_COLOR=$(awk -v pct="$LINE_PCT" 'BEGIN {
-              if (pct >= 75) print "brightgreen";
+              if (pct >= 70) print "brightgreen";
+              else if (pct >= 60) print "green";
               else if (pct >= 50) print "yellowgreen";
               else if (pct >= 40) print "yellow";
               else if (pct >= 20) print "orange";
