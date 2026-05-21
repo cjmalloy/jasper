@@ -150,8 +150,8 @@ jobs:
                   in_errors { in_errors = 0 }
                   END { print count + 0, ignored + 0 }
                 ' "$dependabot_run_log")"
-                if [ "$dependabot_error_count" -eq 0 ] && grep -q 'security_update_dependency_not_found' "$dependabot_run_log"; then
-                  # Fall back to the stable error token if Dependabot changes table spacing or prefixes.
+                if [ "$dependabot_error_count" -eq 0 ] && grep -Eq '\|[[:space:]]*security_update_dependency_not_found[[:space:]]*\|' "$dependabot_run_log"; then
+                  # Fall back to the stable error table cell if Dependabot changes table prefixes.
                   dependabot_error_count=1
                   ignored_dependabot_error_count=1
                 fi
