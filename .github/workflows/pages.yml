@@ -132,6 +132,7 @@ jobs:
               if [ "$dependabot_conclusion" = "failure" ]; then
                 dependabot_run_log=$(mktemp)
                 if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2>/dev/null; then
+                  # Ignore only the single known non-actionable miss; unreadable logs or additional errors still count.
                   if grep -Fq "| security_update_dependency_not_found |" "$dependabot_run_log" \
                     && grep -Fq "Dependabot encountered '1' error(s)" "$dependabot_run_log"; then
                     rm -f "$dependabot_run_log"
