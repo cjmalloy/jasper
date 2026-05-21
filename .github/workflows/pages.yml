@@ -97,7 +97,7 @@ jobs:
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
             dependabot_color="red"
-          elif ! failed_dependabot_run_count=$( \
+          elif ! failed_dependabot_runs=$( \
             set -o pipefail; \
             gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/actions/runs" \
               -f 'actor=dependabot[bot]' \
@@ -109,6 +109,7 @@ jobs:
                   .[] | (.workflow_runs // [])[]
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
+                      id,
                       key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
@@ -118,10 +119,51 @@ jobs:
                 | group_by(.key)
                 | map(max_by(.created_at))
                 | map(select(.conclusion as $conclusion | ["failure", "cancelled", "timed_out", "action_required"] | any(. == $conclusion)))
-                | length' \
+                | .[]
+                | [.id, .conclusion]
+                | @tsv' \
            ); then
             dependabot_message="cannot run"
             dependabot_color="red"
+          else
+            failed_dependabot_run_count=0
+            while IFS=$'\t' read -r dependabot_run_id dependabot_conclusion; do
+              [ -n "$dependabot_run_id" ] || continue
+              if [ "$dependabot_conclusion" != "failure" ]; then
+                # Cancelled, timed out, and action-required runs are real terminal failures for badge purposes.
+                failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+                continue
+              fi
+              dependabot_run_log=$(mktemp)
+              dependabot_run_error=$(mktemp)
+              if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2> "$dependabot_run_error"; then
+                # Match Dependabot's exact error table output. Ignore only this single known non-actionable miss;
+                # unreadable logs or additional errors still count as failures.
+                read -r dependabot_error_count ignored_dependabot_error_count <<< "$(awk '
+                  /\|[[:space:]]*Type[[:space:]]*\|[[:space:]]*Details[[:space:]]*\|/ { in_errors = 1; next }
+                  in_errors && /\|[[:space:]]*[a-z][a-z_]*[[:space:]]*\|/ {
+                    count++;
+                    if ($0 ~ /\| security_update_dependency_not_found[[:space:]]*\|/) ignored++;
+                    next;
+                  }
+                  in_errors && /\+[+-]+\+/ { next }
+                  in_errors { in_errors = 0 }
+                  END { print count + 0, ignored + 0 }
+                ' "$dependabot_run_log")"
+                if [ "$dependabot_error_count" -eq 1 ] && [ "$ignored_dependabot_error_count" -eq 1 ]; then
+                  rm -f "$dependabot_run_log" "$dependabot_run_error"
+                  continue
+                fi
+              else
+                echo "Unable to inspect Dependabot run ${dependabot_run_id} logs; counting it as failed." >&2
+                cat "$dependabot_run_error" >&2
+              fi
+              rm -f "$dependabot_run_log" "$dependabot_run_error"
+              failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+            done <<< "$failed_dependabot_runs"
+          fi
+          if [ "$dependabot_message" = "cannot run" ]; then
+            :
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
             dependabot_message="$failed_dependabot_run_count updates failed"
             if [ "$failed_dependabot_run_count" -eq 1 ]; then
