@@ -129,21 +129,24 @@ jobs:
             failed_dependabot_run_count=0
             while IFS=$'\t' read -r dependabot_run_id dependabot_conclusion; do
               [ -n "$dependabot_run_id" ] || continue
-              if [ "$dependabot_conclusion" = "failure" ]; then
-                dependabot_run_log=$(mktemp)
-                if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2>/dev/null; then
-                  # Match Dependabot's exact error table output. Ignore only this single known non-actionable miss;
-                  # unreadable logs or additional errors still count as failures.
-                  if grep -Fq "| security_update_dependency_not_found |" "$dependabot_run_log" \
-                    && grep -Fq "Dependabot encountered '1' error(s)" "$dependabot_run_log"; then
-                    rm -f "$dependabot_run_log"
-                    continue
-                  fi
-                else
-                  echo "Unable to inspect Dependabot run ${dependabot_run_id} logs; counting it as failed." >&2
-                fi
-                rm -f "$dependabot_run_log"
+              if [ "$dependabot_conclusion" != "failure" ]; then
+                failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+                continue
               fi
+              dependabot_run_log=$(mktemp)
+              if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2>/dev/null; then
+                # Match Dependabot's exact error table output. Ignore only this single known non-actionable miss;
+                # unreadable logs or additional errors still count as failures.
+                dependabot_error_count=$(grep -Ec '\| [[:lower:]_]+[[:space:]]*\|' "$dependabot_run_log" || true)
+                ignored_dependabot_error_count=$(grep -Fc "| security_update_dependency_not_found |" "$dependabot_run_log" || true)
+                if [ "$dependabot_error_count" -eq 1 ] && [ "$ignored_dependabot_error_count" -eq 1 ]; then
+                  rm -f "$dependabot_run_log"
+                  continue
+                fi
+              else
+                echo "Unable to inspect Dependabot run ${dependabot_run_id} logs; counting it as failed." >&2
+              fi
+              rm -f "$dependabot_run_log"
               failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
             done <<< "$failed_dependabot_runs"
           fi
