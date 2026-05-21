@@ -130,6 +130,7 @@ jobs:
             while IFS=$'\t' read -r dependabot_run_id dependabot_conclusion; do
               [ -n "$dependabot_run_id" ] || continue
               if [ "$dependabot_conclusion" != "failure" ]; then
+                # Cancelled, timed out, and action-required runs are real terminal failures for badge purposes.
                 failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
                 continue
               fi
@@ -137,7 +138,7 @@ jobs:
               if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2>/dev/null; then
                 # Match Dependabot's exact error table output. Ignore only this single known non-actionable miss;
                 # unreadable logs or additional errors still count as failures.
-                dependabot_error_count=$(grep -Ec '\| [[:lower:]_]+[[:space:]]*\|' "$dependabot_run_log" || true)
+                dependabot_error_count=$(grep -Ec '\| [a-z][a-z_]*[[:space:]]*\| .*\|' "$dependabot_run_log" || true)
                 ignored_dependabot_error_count=$(grep -Fc "| security_update_dependency_not_found |" "$dependabot_run_log" || true)
                 if [ "$dependabot_error_count" -eq 1 ] && [ "$ignored_dependabot_error_count" -eq 1 ]; then
                   rm -f "$dependabot_run_log"
