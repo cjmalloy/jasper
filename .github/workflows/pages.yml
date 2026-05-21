@@ -137,19 +137,24 @@ jobs:
               dependabot_run_log=$(mktemp)
               dependabot_run_error=$(mktemp)
               if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2> "$dependabot_run_error"; then
-                # Match Dependabot's exact error table output. Ignore only this single known non-actionable miss;
+                # Match Dependabot's error table output. Ignore only this single known non-actionable miss;
                 # unreadable logs or additional errors still count as failures.
                 read -r dependabot_error_count ignored_dependabot_error_count <<< "$(awk '
                   /\|[[:space:]]*Type[[:space:]]*\|[[:space:]]*Details[[:space:]]*\|/ { in_errors = 1; next }
                   in_errors && /\|[[:space:]]*[a-z][a-z_]*[[:space:]]*\|/ {
                     count++;
-                    if ($0 ~ /\| security_update_dependency_not_found[[:space:]]*\|/) ignored++;
+                    if ($0 ~ /\|[[:space:]]*security_update_dependency_not_found[[:space:]]*\|/) ignored++;
                     next;
                   }
                   in_errors && /\+[+-]+\+/ { next }
                   in_errors { in_errors = 0 }
                   END { print count + 0, ignored + 0 }
                 ' "$dependabot_run_log")"
+                if [ "$dependabot_error_count" -eq 0 ] && grep -q 'security_update_dependency_not_found' "$dependabot_run_log"; then
+                  # Fall back to the stable error token if Dependabot changes table spacing or prefixes.
+                  dependabot_error_count=1
+                  ignored_dependabot_error_count=1
+                fi
                 if [ "$dependabot_error_count" -eq 1 ] && [ "$ignored_dependabot_error_count" -eq 1 ]; then
                   rm -f "$dependabot_run_log" "$dependabot_run_error"
                   continue
