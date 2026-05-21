@@ -97,7 +97,7 @@ jobs:
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
             dependabot_color="red"
-          elif ! failed_dependabot_run_count=$( \
+          elif ! failed_dependabot_runs=$( \
             set -o pipefail; \
             gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/actions/runs" \
               -f 'actor=dependabot[bot]' \
@@ -109,6 +109,7 @@ jobs:
                   .[] | (.workflow_runs // [])[]
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
+                      id,
                       key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
@@ -118,10 +119,32 @@ jobs:
                 | group_by(.key)
                 | map(max_by(.created_at))
                 | map(select(.conclusion as $conclusion | ["failure", "cancelled", "timed_out", "action_required"] | any(. == $conclusion)))
-                | length' \
+                | .[]
+                | [.id, .conclusion]
+                | @tsv' \
            ); then
             dependabot_message="cannot run"
             dependabot_color="red"
+          else
+            failed_dependabot_run_count=0
+            while IFS=$'\t' read -r dependabot_run_id dependabot_conclusion; do
+              [ -n "$dependabot_run_id" ] || continue
+              if [ "$dependabot_conclusion" = "failure" ]; then
+                dependabot_run_log=$(mktemp)
+                if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2>/dev/null; then
+                  if grep -Fq "| security_update_dependency_not_found |" "$dependabot_run_log" \
+                    && grep -Fq "Dependabot encountered '1' error(s)" "$dependabot_run_log"; then
+                    rm -f "$dependabot_run_log"
+                    continue
+                  fi
+                fi
+                rm -f "$dependabot_run_log"
+              fi
+              failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+            done <<< "$failed_dependabot_runs"
+          fi
+          if [ "$dependabot_message" = "cannot run" ]; then
+            :
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
             dependabot_message="$failed_dependabot_run_count updates failed"
             if [ "$failed_dependabot_run_count" -eq 1 ]; then
