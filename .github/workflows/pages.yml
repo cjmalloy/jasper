@@ -110,6 +110,8 @@ jobs:
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
                       id,
+                      # Normalize dependency-specific security update names so a newer
+                      # scheduled run supersedes an older failure for the same updater.
                       key: (((.name // .display_title // "")
                         | sub(" - Update #[0-9]+$"; "")
                         | sub(" for .*$"; "")
