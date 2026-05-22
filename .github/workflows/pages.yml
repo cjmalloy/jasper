@@ -110,7 +110,12 @@ jobs:
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
                       id,
-                      key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "unknown")),
+                      # Normalize dependency-specific security update names so a newer
+                      # scheduled run supersedes an older failure for the same updater.
+                      key: (((.name // .display_title // "")
+                        | sub(" - Update #[0-9]+$"; "")
+                        | sub(" for .*$"; "")
+                        | if endswith(" in /.") then rtrimstr(".") else . end) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
                     }
