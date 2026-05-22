@@ -110,7 +110,10 @@ jobs:
                   | select(.path == "dynamic/dependabot/dependabot-updates")
                   | {
                       id,
-                      key: (((.name // .display_title // "") | sub(" - Update #[0-9]+$"; "")) + "@" + (.head_branch // "unknown")),
+                      key: (((.name // .display_title // "")
+                        | sub(" - Update #[0-9]+$"; "")
+                        | sub(" for .*$"; "")
+                        | sub(" in /\\.$"; " in /")) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
                     }
