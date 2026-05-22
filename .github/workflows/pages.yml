@@ -115,7 +115,7 @@ jobs:
                       key: (((.name // .display_title // "")
                         | sub(" - Update #[0-9]+$"; "")
                         | sub(" for .*$"; "")
-                        | sub(" in /[.]$"; " in /")) + "@" + (.head_branch // "unknown")),
+                        | if endswith(" in /.") then rtrimstr(".") else . end) + "@" + (.head_branch // "unknown")),
                       conclusion,
                       created_at
                     }
