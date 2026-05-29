@@ -86,7 +86,7 @@ jobs:
             fi
           fi
           latest_gatling=$(ls -dv _site/reports/gatling-reports-master-* 2>/dev/null | tail -1)
-          if [ -n "$latest_gatling" ] && [ -d "$latest_gatling" ]; then
+          if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
@@ -97,17 +97,97 @@ jobs:
           if [ ! -f ".github/dependabot.yml" ]; then
             dependabot_message="cannot run"
             dependabot_color="red"
-          elif ! failed_dependabot_run_count=$( \
-            gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/actions/runs?actor=dependabot%5Bbot%5D&status=completed&created=%3E%3D${dependabot_runs_since}&per_page=100" \
-              --jq '[.[] | (.workflow_runs // [])[] | select(.conclusion == "failure" or .conclusion == "cancelled")] | length' \
+          elif ! failed_dependabot_runs=$( \
+            set -o pipefail; \
+            gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/actions/runs" \
+              -f 'actor=dependabot[bot]' \
+              -f 'status=completed' \
+              -f "created=>=${dependabot_runs_since}" \
+              -f 'per_page=100' \
               2>/dev/null \
-          ); then
+              | jq -s '[
+                  .[] | (.workflow_runs // [])[]
+                  | select(.path == "dynamic/dependabot/dependabot-updates")
+                  | {
+                      id,
+                      # Normalize dependency-specific security update names so a newer
+                      # scheduled run supersedes an older failure for the same updater.
+                      key: (((.name // .display_title // "")
+                        | sub(" - Update #[0-9]+$"; "")
+                        | sub(" for .*$"; "")
+                        | if endswith(" in /.") then rtrimstr(".") else . end) + "@" + (.head_branch // "unknown")),
+                      conclusion,
+                      created_at
+                    }
+                ]
+                | sort_by(.key, .created_at)
+                | group_by(.key)
+                | map(max_by(.created_at))
+                | map(select(.conclusion as $conclusion | ["failure", "cancelled", "timed_out", "action_required"] | any(. == $conclusion)))
+                | .[]
+                | [.id, .conclusion]
+                | @tsv' \
+           ); then
             dependabot_message="cannot run"
             dependabot_color="red"
+          else
+            failed_dependabot_run_count=0
+            while IFS=$'\t' read -r dependabot_run_id dependabot_conclusion; do
+              [ -n "$dependabot_run_id" ] || continue
+              if [ "$dependabot_conclusion" != "failure" ]; then
+                # Cancelled, timed out, and action-required runs are real terminal failures for badge purposes.
+                failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+                continue
+              fi
+              dependabot_run_log=$(mktemp)
+              dependabot_run_error=$(mktemp)
+              if gh run view "$dependabot_run_id" --repo "$GITHUB_REPOSITORY" --log > "$dependabot_run_log" 2> "$dependabot_run_error"; then
+                # Match Dependabot's error table output. Ignore only this single known non-actionable miss;
+                # unreadable logs or additional errors still count as failures.
+                read -r dependabot_error_count ignored_dependabot_error_count <<< "$(awk '
+                  /\|[[:space:]]*Type[[:space:]]*\|[[:space:]]*Details[[:space:]]*\|/ { in_errors = 1; next }
+                  in_errors && /\|[[:space:]]*[a-z][a-z_]*[[:space:]]*\|/ {
+                    count++;
+                    if ($0 ~ /\|[[:space:]]*security_update_dependency_not_found[[:space:]]*\|/) ignored++;
+                    next;
+                  }
+                  in_errors && /\+[+-]+\+/ { next }
+                  in_errors { in_errors = 0 }
+                  END { print count + 0, ignored + 0 }
+                ' "$dependabot_run_log")"
+                if [ "$dependabot_error_count" -eq 0 ] && grep -Eq '\|[[:space:]]*security_update_dependency_not_found[[:space:]]*\|' "$dependabot_run_log"; then
+                  # Fall back to the stable error table cell if Dependabot changes table prefixes.
+                  dependabot_error_count=1
+                  ignored_dependabot_error_count=1
+                fi
+                if [ "$dependabot_error_count" -eq 1 ] && [ "$ignored_dependabot_error_count" -eq 1 ]; then
+                  rm -f "$dependabot_run_log" "$dependabot_run_error"
+                  continue
+                fi
+              else
+                echo "Unable to inspect Dependabot run ${dependabot_run_id} logs; counting it as failed." >&2
+                cat "$dependabot_run_error" >&2
+              fi
+              rm -f "$dependabot_run_log" "$dependabot_run_error"
+              failed_dependabot_run_count=$((failed_dependabot_run_count + 1))
+            done <<< "$failed_dependabot_runs"
+          fi
+          if [ "$dependabot_message" = "cannot run" ]; then
+            :
           elif [ "$failed_dependabot_run_count" -gt 0 ]; then
-            dependabot_message="failed"
+            dependabot_message="$failed_dependabot_run_count updates failed"
+            if [ "$failed_dependabot_run_count" -eq 1 ]; then
+              dependabot_message="1 update failed"
+            fi
             dependabot_color="red"
-          elif ! dependabot_pr_count=$(gh pr list --state open --author "dependabot[bot]" --json number --jq 'length' 2>/dev/null); then
+          elif ! dependabot_pr_count=$( \
+            set -o pipefail; \
+            gh api --method GET --paginate "/repos/${GITHUB_REPOSITORY}/pulls" \
+              -f 'state=open' \
+              -f 'per_page=100' \
+              2>/dev/null \
+              | jq -s '[.[] | .[] | select(.user.login == "dependabot[bot]")] | length' \
+           ); then
             dependabot_message="cannot run"
             dependabot_color="red"
           elif [ "$dependabot_pr_count" -gt 0 ]; then
@@ -123,6 +203,13 @@ jobs:
             --arg color "$dependabot_color" \
             '{schemaVersion: 1, label: $label, message: $message, color: $color}' \
             > _site/reports/dependabot-badge.json
+          latest_coverage_metric=""
+          if [[ -f "_site/reports/latest-junit/coverage-badge.json" ]]; then
+            latest_coverage_message=$(jq -r '.message // empty' _site/reports/latest-junit/coverage-badge.json)
+            if [[ -n "$latest_coverage_message" ]]; then
+              latest_coverage_metric=" <span class='metric'>$latest_coverage_message</span>"
+            fi
+          fi
           cat > _site/reports/index.html << EOF
           <!DOCTYPE html>
           <html>
@@ -184,18 +271,27 @@ jobs:
                 background: var(--latest-bg);
                 border-left: 4px solid var(--latest-border);
               }
+              .metric {
+                display: inline-block;
+                margin-left: 0.5em;
+                padding: 0.1em 0.5em;
+                border-radius: 999px;
+                background: var(--bg-color);
+                border: 1px solid var(--border-color);
+                font-size: 0.9em;
+              }
             </style>
           </head>
           <body>
             <h1>Test Reports</h1>
             <div class='report'>
-              <a href='$(basename $latest_gatling)/'>Latest Gatling Report</a>
+              <a href='latest-gatling/'>Latest Gatling Report</a>
             </div>
             <div class='report'>
-              <a href='$(basename $latest_junit)/'>Latest JUnit Report</a>
+              <a href='latest-junit/'>Latest JUnit Report</a>
             </div>
-            <div class='report'>
-              <a href='$(basename $latest_junit)/coverage/'>Latest Coverage Report</a>
+            <div class='report latest'>
+              <a href='latest-junit/coverage/'>Latest Coverage Report</a>$latest_coverage_metric
             </div>
             <h2>All Reports</h2>
             <div id="reports">
