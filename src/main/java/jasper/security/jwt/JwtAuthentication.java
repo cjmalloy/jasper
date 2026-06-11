@@ -1,6 +1,5 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
 import jasper.domain.User;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -8,11 +7,12 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
+import java.util.Map;
 
 public class JwtAuthentication extends AbstractAuthenticationToken {
 
 	private final User user;
-	private final Claims claims;
+	private final Map<String, Object> claims;
 	private final String principal;
 
 	public JwtAuthentication(String principal) {
@@ -23,7 +23,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 		setAuthenticated(false);
 	}
 
-	public JwtAuthentication(String principal, User user, Claims claims, Collection<? extends GrantedAuthority> authorities) {
+	public JwtAuthentication(String principal, User user, Map<String, Object> claims, Collection<? extends GrantedAuthority> authorities) {
 		super(authorities);
 		this.principal = principal;
 		this.user = user;
@@ -53,7 +53,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 		return user;
 	}
 
-	public Claims getClaims() {
+	public Map<String, Object> getClaims() {
 		return claims;
 	}
 }

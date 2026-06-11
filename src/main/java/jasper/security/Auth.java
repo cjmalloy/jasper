@@ -1,6 +1,5 @@
 package jasper.security;
 
-import io.jsonwebtoken.Claims;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -44,12 +43,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -162,7 +161,7 @@ public class Auth {
 	// Cache
 	protected Authentication authentication;
 	protected Set<String> roles;
-	protected Claims claims;
+	protected Map<String, Object> claims;
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
@@ -239,8 +238,8 @@ public class Auth {
 	 * Has the user logged in within 15 minutes?
 	 */
 	public boolean freshLogin() {
-		var iat = getClaims().getIssuedAt();
-		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		if (getClaims().get("iat") instanceof Instant iat &&
+			iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
@@ -1071,13 +1070,13 @@ public class Auth {
 		return authentication;
 	}
 
-	public Claims getClaims() {
+	public Map<String, Object> getClaims() {
 		if (claims == null) {
 			var auth = getAuthentication();
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = claims().build();
+				claims = Map.of();
 			}
 		}
 		return claims;
@@ -1128,8 +1127,8 @@ public class Auth {
 	}
 
 	public List<String> getClaimTags(String claim) {
-		if (!getClaims().containsKey(claim)) return List.of();
-		return List.of(getClaims().get(claim, String.class).split(","));
+		if (!(getClaims().get(claim) instanceof String tags)) return List.of();
+		return List.of(tags.split(","));
 	}
 
 	public List<QualifiedTag> getClaimQualifiedTags(String claim) {

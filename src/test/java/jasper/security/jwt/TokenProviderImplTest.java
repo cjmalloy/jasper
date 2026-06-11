@@ -1,11 +1,13 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.impl.DefaultClaims;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -16,14 +18,10 @@ import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.security.Key;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +36,7 @@ class TokenProviderImplTest {
 
     private static final int ONE_MINUTE = 60;
 
-    private Key key;
+    private byte[] secret;
     private TokenProviderImpl tokenProvider;
 
 	ConfigCache configCache = getConfigs();
@@ -56,17 +54,17 @@ class TokenProviderImplTest {
 		return getTokenProvider(getProps(localOrigin));
 	}
 
-	Claims getClaims(String sub) {
-		return new DefaultClaims(Map.of(
+	Map<String, Object> getClaims(String sub) {
+		return Map.of(
 			"sub", sub
-		));
+		);
 	}
 
-	Claims getClaims(String sub, String auth) {
-		return new DefaultClaims(Map.of(
+	Map<String, Object> getClaims(String sub, String auth) {
+		return Map.of(
 			"auth", auth,
 			"sub", sub
-		));
+		);
 	}
 
 	Props getProps(String localOrigin) {
@@ -108,7 +106,7 @@ class TokenProviderImplTest {
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
         tokenProvider = new TokenProviderImpl(props, configCache, securityMetersService, null);
-        key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
+        secret = Base64.getDecoder().decode(base64Secret);
     }
 
     @Test
@@ -119,9 +117,17 @@ class TokenProviderImplTest {
     }
 
     @Test
+    void testReturnTrueWhenJWTisValid() {
+        String token = createToken("anonymous", secret, new Date(System.currentTimeMillis() + 1800 * 1000L));
+
+        boolean isTokenValid = tokenProvider.validateToken(token, "");
+
+        assertThat(isTokenValid).isTrue();
+    }
+
+    @Test
     void testReturnFalseWhenJWTisMalformed() {
-        Authentication authentication = createAuthentication();
-        String token = tokenProvider.createToken(authentication, 1800);
+        String token = createToken("anonymous", secret, new Date(System.currentTimeMillis() + 1800 * 1000L));
         String invalidToken = token.substring(1);
         boolean isTokenValid = tokenProvider.validateToken(invalidToken, "");
 
@@ -130,8 +136,7 @@ class TokenProviderImplTest {
 
     @Test
     void testReturnFalseWhenJWTisExpired() {
-        Authentication authentication = createAuthentication();
-        String token = tokenProvider.createToken(authentication, -ONE_MINUTE);
+        String token = createToken("anonymous", secret, new Date(System.currentTimeMillis() - 10 * 60 * 1000L));
 
         boolean isTokenValid = tokenProvider.validateToken(token, "");
 
@@ -154,27 +159,38 @@ class TokenProviderImplTest {
         assertThat(isTokenValid).isFalse();
     }
 
-    private Authentication createAuthentication() {
-        Collection<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority(AuthoritiesConstants.ANONYMOUS));
-        return new UsernamePasswordAuthenticationToken("anonymous", "anonymous", authorities);
+    private String createToken(String sub, byte[] key, Date expiration) {
+        try {
+            var claims = new JWTClaimsSet.Builder()
+                .subject(sub)
+                .claim("auth", AuthoritiesConstants.ANONYMOUS)
+                .claim("verified_email", true)
+                .expirationTime(expiration)
+                .build();
+            var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS512), claims);
+            jwt.sign(new MACSigner(key));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String createUnsupportedToken() {
-        return Jwts.builder().setPayload("payload").signWith(key, SignatureAlgorithm.HS512).compact();
+        try {
+            var rsaKey = new RSAKeyGenerator(2048).generate();
+            var claims = new JWTClaimsSet.Builder().subject("anonymous").build();
+            var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
+            jwt.sign(new RSASSASigner(rsaKey));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String createTokenWithDifferentSignature() {
-        var otherKey = Keys.hmacShaKeyFor(
-            Decoders.BASE64.decode("Xfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8")
-        );
+        var otherKey = Base64.getDecoder().decode("abfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8");
 
-        return Jwts
-			.builder()
-			.subject("anonymous")
-            .signWith(otherKey, SignatureAlgorithm.HS512)
-            .expiration(new Date(new Date().getTime() + ONE_MINUTE))
-            .compact();
+        return createToken("anonymous", otherKey, new Date(new Date().getTime() + ONE_MINUTE * 1000L));
     }
 
 	@Test
