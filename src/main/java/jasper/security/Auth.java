@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -238,11 +239,19 @@ public class Auth {
 	 * Has the user logged in within 15 minutes?
 	 */
 	public boolean freshLogin() {
-		if (getClaims().get("iat") instanceof Instant iat &&
-			iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		var iat = getIssuedAt();
+		if (iat != null && iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
+	}
+
+	private Instant getIssuedAt() {
+		var iat = getClaims().get("iat");
+		if (iat instanceof Instant i) return i;
+		if (iat instanceof Date d) return d.toInstant();
+		if (iat instanceof Number n) return Instant.ofEpochSecond(n.longValue());
+		return null;
 	}
 
 	/**
