@@ -27,10 +27,10 @@ import org.springframework.web.client.RestTemplate;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -54,7 +54,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
-	Map<String, JwtDecoder> jwtDecoders = new HashMap<>();
+	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -80,31 +80,28 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	JwtDecoder getDecoder(String origin) {
-		var security = configs.security(origin);
-		if (!jwtDecoders.containsKey(origin)) {
+		return jwtDecoders.computeIfAbsent(origin, o -> {
+			var security = configs.security(o);
 			switch (security.getMode()) {
 				case "jwt":
 					var secret = security.getSecretBytes();
-					jwtDecoders.put(origin, NimbusJwtDecoder
+					return NimbusJwtDecoder
 						.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
 						.macAlgorithm(MacAlgorithm.HS512)
 						.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
 							Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
 							new ImmutableSecret<>(secret))))
-						.build());
-					break;
+						.build();
 				case "jwks":
-					jwtDecoders.put(origin, NimbusJwtDecoder
+					return NimbusJwtDecoder
 						.withJwkSetUri(security.getJwksUri())
 						.restOperations(restTemplate)
 						.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
-						.build());
-					break;
-				case "nop":
-
+						.build();
+				default:
+					return null;
 			}
-		}
-		return jwtDecoders.get(origin);
+		});
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Map<String, Object> claims, User user, String origin) {
