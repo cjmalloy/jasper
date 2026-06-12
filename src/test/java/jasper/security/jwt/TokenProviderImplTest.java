@@ -136,7 +136,7 @@ class TokenProviderImplTest {
 
     @Test
     void testReturnFalseWhenJWTisExpired() {
-        String token = createToken("anonymous", secret, new Date(System.currentTimeMillis() - 10 * 60 * 1000L));
+        String token = createToken("anonymous", secret, new Date(System.currentTimeMillis() - ONE_MINUTE * 1000L));
 
         boolean isTokenValid = tokenProvider.validateToken(token, "");
 

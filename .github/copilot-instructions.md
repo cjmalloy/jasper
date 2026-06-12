@@ -239,4 +239,10 @@ jasper/
 - Example: `logger.debug("{} Creating bulkhead with {} permits", origin, maxConcurrent)`
 - This ensures consistent log filtering and debugging in multi-tenant environments
 
+## Code Drift Check
+
+When a branch already contains more than one commit, ALWAYS check for code drift before finishing. Code drift happens when a change is made and then undone in a later commit, but an irrelevant edit remains (e.g., leftover imports, renamed variables, reordered code, whitespace changes, or stray helper code from the reverted change). To check for drift:
+- Diff the full branch against the merge base (e.g., `git diff $(git merge-base HEAD origin/master)`)
+- Review every hunk and confirm it is required by the task; remove any edits that no longer serve a purpose
+
 Always reference this documentation when working with the Jasper codebase to ensure consistency and avoid common pitfalls.

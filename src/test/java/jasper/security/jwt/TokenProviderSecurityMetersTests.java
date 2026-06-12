@@ -125,7 +125,7 @@ class TokenProviderSecurityMetersTests {
 
     private String createExpiredToken() {
         var security = configCache.security("");
-        return createToken("anonymous", security.getSecretBytes(), new Date(System.currentTimeMillis() - 10 * 60 * 1000L));
+        return createToken("anonymous", security.getSecretBytes(), new Date(System.currentTimeMillis() - ONE_MINUTE * 1000L));
     }
 
     private String createToken(String sub, byte[] key, Date expiration) {

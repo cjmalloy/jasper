@@ -20,11 +20,14 @@ import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.spec.SecretKeySpec;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -85,23 +88,28 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			switch (security.getMode()) {
 				case "jwt":
 					var secret = security.getSecretBytes();
-					return NimbusJwtDecoder
+					return noClockSkew(NimbusJwtDecoder
 						.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
 						.macAlgorithm(MacAlgorithm.HS512)
 						.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
 							Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
 							new ImmutableSecret<>(secret))))
-						.build();
+						.build());
 				case "jwks":
-					return NimbusJwtDecoder
+					return noClockSkew(NimbusJwtDecoder
 						.withJwkSetUri(security.getJwksUri())
 						.restOperations(restTemplate)
 						.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
-						.build();
+						.build());
 				default:
 					return null;
 			}
 		});
+	}
+
+	private static NimbusJwtDecoder noClockSkew(NimbusJwtDecoder decoder) {
+		decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(new JwtTimestampValidator(Duration.ZERO)));
+		return decoder;
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
