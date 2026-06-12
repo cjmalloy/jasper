@@ -1127,9 +1127,8 @@ public class Auth {
 	}
 
 	public List<String> getClaimTags(String claim) {
-		var tags = getClaims().getString(claim);
-		if (tags == null) return List.of();
-		return List.of(tags.split(","));
+		if (!getClaims().containsKey(claim)) return List.of();
+		return List.of(getClaims().get(claim, String.class).split(","));
 	}
 
 	public List<QualifiedTag> getClaimQualifiedTags(String claim) {

@@ -17,8 +17,16 @@ public class Claims {
 		this.claims = claims;
 	}
 
+	public boolean containsKey(String claim) {
+		return claims.containsKey(claim);
+	}
+
 	public Object get(String claim) {
 		return claims.get(claim);
+	}
+
+	public <T> T get(String claim, Class<T> type) {
+		return type.cast(claims.get(claim));
 	}
 
 	public String getString(String claim) {
