@@ -14,6 +14,7 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
@@ -41,10 +42,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -162,7 +161,7 @@ public class Auth {
 	// Cache
 	protected Authentication authentication;
 	protected Set<String> roles;
-	protected Map<String, Object> claims;
+	protected Claims claims;
 	protected String principal;
 	protected QualifiedTag userTag;
 	protected String origin;
@@ -239,19 +238,11 @@ public class Auth {
 	 * Has the user logged in within 15 minutes?
 	 */
 	public boolean freshLogin() {
-		var iat = getIssuedAt();
+		var iat = getClaims().getIssuedAt();
 		if (iat != null && iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
-	}
-
-	private Instant getIssuedAt() {
-		var iat = getClaims().get("iat");
-		if (iat instanceof Instant i) return i;
-		if (iat instanceof Date d) return d.toInstant();
-		if (iat instanceof Number n) return Instant.ofEpochSecond(n.longValue());
-		return null;
 	}
 
 	/**
@@ -1079,13 +1070,13 @@ public class Auth {
 		return authentication;
 	}
 
-	public Map<String, Object> getClaims() {
+	public Claims getClaims() {
 		if (claims == null) {
 			var auth = getAuthentication();
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = Map.of();
+				claims = Claims.EMPTY;
 			}
 		}
 		return claims;
@@ -1136,7 +1127,8 @@ public class Auth {
 	}
 
 	public List<String> getClaimTags(String claim) {
-		if (!(getClaims().get(claim) instanceof String tags)) return List.of();
+		var tags = getClaims().getString(claim);
+		if (tags == null) return List.of();
 		return List.of(tags.split(","));
 	}
 

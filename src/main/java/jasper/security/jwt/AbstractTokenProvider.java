@@ -12,7 +12,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import static jasper.domain.User.ROLES;
 import static jasper.security.Auth.USER_ROLE_HEADER;
@@ -31,11 +30,11 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		this.configs = configs;
 	}
 
-	User getUser(String userTag, Map<String, Object> claims, String origin) {
+	User getUser(String userTag, Claims claims, String origin) {
 		var user = configs.getUser(userTag + origin);
 		var security = configs.security(origin);
 		if (security.isExternalId()) {
-			var email = (String) claims.get(security.getUsernameClaim());
+			var email = claims.getString(security.getUsernameClaim());
 			if (user == null) return configs.createUser(userTag, origin, email);
 			if (user.hasExternalId() && configs.getUserByExternalId(origin, email).isEmpty()) {
 				// There is no explicit mapping for `email`, but `user` has an explicit mapping,

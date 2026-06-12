@@ -7,12 +7,11 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
-import java.util.Map;
 
 public class JwtAuthentication extends AbstractAuthenticationToken {
 
 	private final User user;
-	private final Map<String, Object> claims;
+	private final Claims claims;
 	private final String principal;
 
 	public JwtAuthentication(String principal) {
@@ -23,7 +22,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 		setAuthenticated(false);
 	}
 
-	public JwtAuthentication(String principal, User user, Map<String, Object> claims, Collection<? extends GrantedAuthority> authorities) {
+	public JwtAuthentication(String principal, User user, Claims claims, Collection<? extends GrantedAuthority> authorities) {
 		super(authorities);
 		this.principal = principal;
 		this.user = user;
@@ -53,7 +52,7 @@ public class JwtAuthentication extends AbstractAuthenticationToken {
 		return user;
 	}
 
-	public Map<String, Object> getClaims() {
+	public Claims getClaims() {
 		return claims;
 	}
 }

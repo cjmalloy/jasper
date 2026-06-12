@@ -54,17 +54,17 @@ class TokenProviderImplTest {
 		return getTokenProvider(getProps(localOrigin));
 	}
 
-	Map<String, Object> getClaims(String sub) {
-		return Map.of(
+	Claims getClaims(String sub) {
+		return new Claims(Map.of(
 			"sub", sub
-		);
+		));
 	}
 
-	Map<String, Object> getClaims(String sub, String auth) {
-		return Map.of(
+	Claims getClaims(String sub, String auth) {
+		return new Claims(Map.of(
 			"auth", auth,
 			"sub", sub
-		);
+		));
 	}
 
 	Props getProps(String localOrigin) {

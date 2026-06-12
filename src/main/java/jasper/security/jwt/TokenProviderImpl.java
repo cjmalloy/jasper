@@ -66,7 +66,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = getDecoder(origin).decode(token).getClaims();
+		var claims = new Claims(getDecoder(origin).decode(token).getClaims());
 		var principal = getUsername(claims, origin);
 		User user;
 		try {
@@ -104,7 +104,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		});
 	}
 
-	Collection<? extends GrantedAuthority> getAuthorities(Map<String, Object> claims, User user, String origin) {
+	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
 		var auth = getPartialAuthorities(claims, origin);
 		if (user != null && user.getRole() != null) {
 			logger.debug("{} User Roles: {}", origin, user.getRole());
@@ -117,9 +117,10 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return auth;
 	}
 
-	List<SimpleGrantedAuthority> getPartialAuthorities(Map<String, Object> claims, String origin) {
+	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims, String origin) {
 		var auth = getPartialAuthorities(origin);
-		if (claims.get(configs.security(origin).getAuthoritiesClaim()) instanceof String authClaim && isNotBlank(authClaim)) {
+		var authClaim = claims.getString(configs.security(origin).getAuthoritiesClaim());
+		if (isNotBlank(authClaim)) {
 			Arrays.stream(authClaim.split(","))
 				.filter(r -> !r.isBlank())
 				.map(String::trim)
@@ -129,7 +130,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return auth;
 	}
 
-	String getUsername(Map<String, Object> claims, String origin) {
+	String getUsername(Claims claims, String origin) {
 		var userTagHeader = getHeader(USER_TAG_HEADER);
 		if (isBlank(userTagHeader) || !userTagHeader.matches(User.REGEX)) {
 			userTagHeader = "";
@@ -137,7 +138,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			userTagHeader = userTagHeader.toLowerCase();
 		}
 		var security = configs.security(origin);
-		var principal = (String) claims.get(security.getUsernameClaim());
+		var principal = claims.getString(security.getUsernameClaim());
 		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal);
 		if (props.isAllowUserTagHeader() && isNotBlank(userTagHeader)) {
 			principal = userTagHeader;
