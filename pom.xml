@@ -19,12 +19,11 @@
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
 		<spring-boot.version>4.1.0</spring-boot.version>
-		<spring-cloud.version>2025.1.1.1</spring-cloud.version>
+		<spring-cloud.version>2025.1.2</spring-cloud.version>
 		<lombok.version>1.18.46</lombok.version>
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<jackson-databind-nullable.version>0.2.10</jackson-databind-nullable.version>
-		<postgresql.version>42.7.11</postgresql.version>
 		<sqlite-jdbc.version>3.53.2.0</sqlite-jdbc.version>
 		<hibernate-jpamodelgen.version>7.4.1.Final</hibernate-jpamodelgen.version>
 		<hypersistence-utils-71.version>3.15.3</hypersistence-utils-71.version>
@@ -46,8 +45,6 @@
 		<jsoup.version>1.22.2</jsoup.version>
 		<re2j.version>1.8</re2j.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<mockito.version>5.11.0</mockito.version>
-		<byte-buddy.version>1.14.12</byte-buddy.version>
 		<xmlunit.version>2.12.0</xmlunit.version>
 	</properties>
 
