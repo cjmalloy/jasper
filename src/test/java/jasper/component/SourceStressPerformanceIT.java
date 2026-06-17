@@ -22,10 +22,10 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
-@WithMockUser(value = "+user/source-stress@a", roles = {"ADMIN"})
+@WithMockUser(value = "+user/source-stress", roles = {"ADMIN"})
 class SourceStressPerformanceIT {
 
-	private static final String ORIGIN = "@a";
+	private static final String ORIGIN = "";
 	private static final String PARENT_URL = "https://perf.example.test/source";
 	private static final int[] RESPONSE_COUNTS = {250, 500, 1_000, 2_000, 4_000};
 	private static final int BATCH_SIZE = 250;
@@ -111,7 +111,7 @@ class SourceStressPerformanceIT {
 
 		var batch = new ArrayList<Ref>(BATCH_SIZE);
 		for (var i = 0; i < responseCount; i++) {
-			batch.add(response(i, responseCount, published, modified.plusNanos(i + 1L)));
+			batch.add(response(i, responseCount, published, modified.plusMillis(i + 1L)));
 			if (batch.size() == BATCH_SIZE) {
 				refRepository.saveAllAndFlush(batch);
 				batch.clear();
