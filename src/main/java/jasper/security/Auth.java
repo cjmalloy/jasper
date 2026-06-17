@@ -1,6 +1,5 @@
 package jasper.security;
 
-import io.jsonwebtoken.Claims;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -15,6 +14,7 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
@@ -49,7 +49,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -240,7 +239,7 @@ public class Auth {
 	 */
 	public boolean freshLogin() {
 		var iat = getClaims().getIssuedAt();
-		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		if (iat != null && iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
@@ -1077,7 +1076,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = claims().build();
+				claims = Claims.EMPTY;
 			}
 		}
 		return claims;
