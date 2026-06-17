@@ -140,6 +140,7 @@
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
 			<version>${commons-fileupload.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.drewnoakes</groupId>
@@ -150,6 +151,7 @@
 			<groupId>org.openapitools</groupId>
 			<artifactId>jackson-databind-nullable</artifactId>
 			<version>${jackson-databind-nullable.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.jsontypedef.jtd</groupId>
@@ -258,6 +260,7 @@
 			<groupId>com.google.re2j</groupId>
 			<artifactId>re2j</artifactId>
 			<version>${re2j.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.unboundid.product.scim2</groupId>
@@ -345,7 +348,7 @@
 			<groupId>org.xmlunit</groupId>
 			<artifactId>xmlunit-core</artifactId>
 			<version>${xmlunit.version}</version>
-			<scope>compile</scope>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>javax.xml.bind</groupId>
