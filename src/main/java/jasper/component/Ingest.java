@@ -82,7 +82,7 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		var existing = maybeExisting.get();
-		var generateMetadata = shouldGenerateMetadata(existing);
+		var generateMetadata = !shouldDeferMetadata(existing);
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, existing);
 		if (generateMetadata) {
@@ -124,7 +124,7 @@ public class Ingest {
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(rootOrigin, ref, maybeExisting);
-			generateMetadata = shouldGenerateMetadata(maybeExisting);
+			generateMetadata = !shouldDeferMetadata(maybeExisting);
 			if (generateMetadata) {
 				meta.ref(rootOrigin, ref);
 			} else {
@@ -138,9 +138,9 @@ public class Ingest {
 		messages.updateRef(ref);
 	}
 
-	private boolean shouldGenerateMetadata(Ref existing) {
+	private boolean shouldDeferMetadata(Ref existing) {
 		var metadata = existing == null ? null : existing.getMetadata();
-		return metadata == null || (!metadata.isRegen() && metadataResponseCount(metadata) <= DEFER_METADATA_RESPONSE_COUNT);
+		return metadata != null && (metadata.isRegen() || metadataResponseCount(metadata) > DEFER_METADATA_RESPONSE_COUNT);
 	}
 
 	private int metadataResponseCount(Metadata metadata) {
