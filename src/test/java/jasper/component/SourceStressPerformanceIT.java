@@ -28,13 +28,13 @@ class SourceStressPerformanceIT {
 	private static final String ORIGIN = "";
 	private static final String PARENT_URL = "https://perf.example.test/source";
 	private static final int[] RESPONSE_COUNTS = {4_000, 8_000, 16_000, 32_000};
+	private static final int MAX_RESPONSE_COUNT = 32_000;
 	private static final int BATCH_SIZE = 250;
 	private static final List<String> HOT_PATH_SUGGESTIONS = List.of(
+		"Existing parent metadata is used to defer metadata regeneration above 1,000 responses.",
 		"Validate.responses executes a response lookup before every parent edit.",
-		"Meta.ref recomputes responses/internalResponses with JSON source predicates on every parent edit.",
-		"Meta.ref scans response expandedTags for plugin and plugin/user metadata aggregation.",
-		"RefRepository.findAllResponsesWithTag is called once per distinct plugin/user response tag.",
-		"Metadata response lists are stored on the parent ref, so update payload size grows with response count."
+		"Meta.ref response and plugin scans should only run below the deferral threshold.",
+		"Metadata response lists are stored on the parent ref, so large parents are rewritten with a regen marker."
 	);
 
 	@Autowired
@@ -59,9 +59,10 @@ class SourceStressPerformanceIT {
 	@Disabled("Manual performance stress test; run directly to collect timing data.")
 	@Timeout(value = 10, unit = TimeUnit.MINUTES)
 	void editParentRefWithManyResponses_reportsScaling() {
+		setupRefs();
 		var results = new ArrayList<Result>();
 		for (var responseCount : RESPONSE_COUNTS) {
-			setupResponses(responseCount);
+			assignSources(responseCount);
 			var parent = refRepository.findOneByUrlAndOrigin(PARENT_URL, ORIGIN).orElseThrow();
 
 			var start = System.nanoTime();
@@ -91,7 +92,7 @@ class SourceStressPerformanceIT {
 		assertThat(results).hasSize(RESPONSE_COUNTS.length);
 	}
 
-	private void setupResponses(int responseCount) {
+	private void setupRefs() {
 		refRepository.deleteAllInBatch();
 
 		var published = Instant.parse("2026-01-01T00:00:00Z");
@@ -110,8 +111,8 @@ class SourceStressPerformanceIT {
 		refRepository.saveAndFlush(parent);
 
 		var batch = new ArrayList<Ref>(BATCH_SIZE);
-		for (var i = 0; i < responseCount; i++) {
-			batch.add(response(i, responseCount, published, modified.plusMillis(i + 1L)));
+		for (var i = 0; i < MAX_RESPONSE_COUNT; i++) {
+			batch.add(response(i, published, modified.plusMillis(i + 1L)));
 			if (batch.size() == BATCH_SIZE) {
 				refRepository.saveAllAndFlush(batch);
 				batch.clear();
@@ -122,16 +123,38 @@ class SourceStressPerformanceIT {
 		}
 	}
 
-	private Ref response(int index, int responseCount, Instant published, Instant modified) {
+	private void assignSources(int responseCount) {
+		var responseUrls = responseUrls(responseCount);
+		var published = Instant.parse("2026-01-01T00:00:00Z");
+		var modified = Instant.parse("2026-01-01T00:00:00Z");
+		var batch = new ArrayList<Ref>(BATCH_SIZE);
+		for (var i = 0; i < responseCount; i++) {
+			var ref = response(i, published, modified.plusMillis(i + 1L));
+			ref.setSources(List.of(PARENT_URL));
+			batch.add(ref);
+			if (batch.size() == BATCH_SIZE) {
+				refRepository.saveAllAndFlush(batch);
+				batch.clear();
+			}
+		}
+		if (!batch.isEmpty()) {
+			refRepository.saveAllAndFlush(batch);
+		}
+
+		var parent = refRepository.findOneByUrlAndOrigin(PARENT_URL, ORIGIN).orElseThrow();
+		parent.getMetadata().setResponses(responseUrls);
+		refRepository.saveAndFlush(parent);
+	}
+
+	private Ref response(int index, Instant published, Instant modified) {
 		var plugin = "plugin/perf/" + (index % 8);
 		var userPlugin = "plugin/user/perf/" + (index % 4);
 		var tags = List.of("public", plugin, userPlugin);
 
 		var ref = new Ref();
-		ref.setUrl("https://perf.example.test/response/" + responseCount + "/" + index);
+		ref.setUrl(responseUrl(index));
 		ref.setOrigin(ORIGIN);
 		ref.setTitle("Response " + index);
-		ref.setSources(List.of(PARENT_URL));
 		ref.setTags(tags);
 		ref.setPublished(published);
 		ref.setCreated(modified);
@@ -140,6 +163,18 @@ class SourceStressPerformanceIT {
 			.expandedTags(Meta.expandTags(tags))
 			.build());
 		return ref;
+	}
+
+	private List<String> responseUrls(int responseCount) {
+		var urls = new ArrayList<String>(responseCount);
+		for (var i = 0; i < responseCount; i++) {
+			urls.add(responseUrl(i));
+		}
+		return urls;
+	}
+
+	private String responseUrl(int index) {
+		return "https://perf.example.test/response/" + index;
 	}
 
 	private record Result(int responseCount, Duration elapsed) {

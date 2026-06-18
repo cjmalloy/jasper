@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.util.DbConstraint.isPkViolation;
@@ -36,6 +37,7 @@ import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
+	private static final int DEFER_METADATA_RESPONSE_COUNT = 1000;
 
 	@Autowired
 	Props props;
@@ -79,11 +81,17 @@ public class Ingest {
 	public void update(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
+		var existing = maybeExisting.get();
+		var generateMetadata = shouldGenerateMetadata(existing);
 		validate.ref(rootOrigin, ref);
-		rng.update(rootOrigin, ref, maybeExisting.get());
-		meta.ref(rootOrigin, ref);
+		rng.update(rootOrigin, ref, existing);
+		if (generateMetadata) {
+			meta.ref(rootOrigin, ref);
+		} else {
+			deferMetadata(ref);
+		}
 		ensureUpdateUniqueModified(ref);
-		meta.sources(rootOrigin, ref, maybeExisting.get());
+		if (generateMetadata) meta.sources(rootOrigin, ref, existing);
 		messages.updateRef(ref);
 	}
 
@@ -116,18 +124,41 @@ public class Ingest {
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(rootOrigin, ref, maybeExisting);
-			meta.ref(rootOrigin, ref);
+			generateMetadata = shouldGenerateMetadata(maybeExisting);
+			if (generateMetadata) {
+				meta.ref(rootOrigin, ref);
+			} else {
+				deferMetadata(ref);
+			}
 		} else {
-			ref.setMetadata(Metadata
-				.builder()
-				.modified(null)
-				.regen(true)
-				.expandedTags(expandTags(ref.getTags()))
-				.build());
+			deferMetadata(ref);
 		}
 		pushUniqueModified(ref);
 		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);
+	}
+
+	private boolean shouldGenerateMetadata(Ref existing) {
+		var metadata = existing == null ? null : existing.getMetadata();
+		return metadata == null || (!metadata.isRegen() && metadataResponseCount(metadata) <= DEFER_METADATA_RESPONSE_COUNT);
+	}
+
+	private int metadataResponseCount(Metadata metadata) {
+		if (metadata == null) return 0;
+		return size(metadata.getResponses()) + size(metadata.getInternalResponses());
+	}
+
+	private int size(Collection<?> values) {
+		return values == null ? 0 : values.size();
+	}
+
+	private void deferMetadata(Ref ref) {
+		ref.setMetadata(Metadata
+			.builder()
+			.modified(null)
+			.regen(true)
+			.expandedTags(expandTags(ref.getTags()))
+			.build());
 	}
 
 	@Transactional
