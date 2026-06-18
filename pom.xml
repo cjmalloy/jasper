@@ -335,6 +335,7 @@
 			<version>${xmlunit.version}</version>
 			<scope>test</scope>
 			<exclusions>
+				<!-- Avoid pulling legacy javax JAXB onto the test classpath. -->
 				<exclusion>
 					<groupId>javax.xml.bind</groupId>
 					<artifactId>jaxb-api</artifactId>
