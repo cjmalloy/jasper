@@ -36,11 +36,13 @@
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.6.1</apache-httpclient.version>
 		<commons-io.version>2.22.0</commons-io.version>
+		<commons-fileupload.version>1.6.0</commons-fileupload.version>
 		<commons-collections4.version>4.5.0</commons-collections4.version>
 		<commons-lang3.version>3.20.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<jsoup.version>1.22.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
+		<xmlunit.version>2.12.0</xmlunit.version>
 	</properties>
 
 	<dependencies>
@@ -131,6 +133,11 @@
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>${commons-fileupload.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.drewnoakes</groupId>
@@ -290,12 +297,6 @@
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>commons-fileupload</groupId>
-					<artifactId>commons-fileupload</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
@@ -322,17 +323,23 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.xmlunit</groupId>
-					<artifactId>xmlunit-core</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.xmlunit</groupId>
+			<artifactId>xmlunit-core</artifactId>
+			<version>${xmlunit.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
