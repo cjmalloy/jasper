@@ -27,7 +27,7 @@ class SourceStressPerformanceIT {
 
 	private static final String ORIGIN = "";
 	private static final String PARENT_URL = "https://perf.example.test/source";
-	private static final int[] RESPONSE_COUNTS = {250, 500, 1_000, 2_000, 4_000};
+	private static final int[] RESPONSE_COUNTS = {4_000, 8_000, 16_000, 32_000};
 	private static final int BATCH_SIZE = 250;
 	private static final List<String> HOT_PATH_SUGGESTIONS = List.of(
 		"Validate.responses executes a response lookup before every parent edit.",
