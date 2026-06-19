@@ -1,6 +1,7 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -111,6 +112,35 @@ public class IngestIT {
 	}
 
 	@Test
+	void testUpdateRefWithManyResponsesDefersMetadataGeneration() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setTags(List.of("public"));
+		existing.setMetadata(Metadata.builder()
+			.responses(responseUrls(1001))
+			.build());
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setTags(List.of("public"));
+		ref.setModified(existing.getModified());
+
+		ingest.update("", ref);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getMetadata().isRegen())
+			.isTrue();
+		assertThat(fetched.getMetadata().getExpandedTags())
+			.containsExactly("public");
+		assertThat(fetched.getMetadata().getResponses())
+			.isNull();
+	}
+
+	@Test
 	void testDuplicateCreateModifiedFails() {
 		var fixedClock = Clock.fixed(Instant.ofEpochSecond(1640000000), ZoneOffset.UTC);
 		setField(ingest, "ensureUniqueModifiedClock", fixedClock);
@@ -138,6 +168,14 @@ public class IngestIT {
 		} finally {
 			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
 		}
+	}
+
+	private List<String> responseUrls(int count) {
+		var responses = new ArrayList<String>(count);
+		for (var i = 0; i < count; i++) {
+			responses.add("https://www.example.com/response/" + i);
+		}
+		return responses;
 	}
 
 	@Test
