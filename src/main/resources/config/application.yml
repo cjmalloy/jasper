@@ -99,6 +99,12 @@ management:
 spring:
   application:
     name: jasper
+  cloud:
+    kubernetes:
+      discovery:
+        enabled: false
+        catalog-services-watch:
+          enabled: false
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file
