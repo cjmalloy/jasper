@@ -32,6 +32,14 @@ public class JavaScript {
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
 		const [targetScript, inputString] = stdin.split('\\u0000');
+		const cloneVmValue = (value) => {
+		  if (value === null || typeof value !== 'object') return value;
+		  try {
+		    return JSON.parse(JSON.stringify(value));
+		  } catch {
+		    return value;
+		  }
+		};
 		const patchedFs = {
 		  ...fs,
 		  readFileSync: (path, options) => {
@@ -48,6 +56,15 @@ public class JavaScript {
 		  },
 		  require(mod) {
 			if (mod === 'fs') return patchedFs;
+			if (mod === 'js-yaml') {
+			  const yaml = require(mod);
+			  return {
+			    ...yaml,
+			    dump(value, options) {
+			      return yaml.dump(cloneVmValue(value), options);
+			    },
+			  };
+			}
 			return require(mod);
 		  }
 		});
