@@ -28,7 +28,7 @@ public class JavaScript {
 	private final String nodeWrapperScript = """
 		const fs = require('fs');
 		const stdin = fs.readFileSync(0, 'utf-8');
-		const api = process.argv[2];
+		const api = process.argv[1];
 		const [targetScript, inputString] = stdin.split('\\u0000');
 		const patchedFs = {
 		  ...fs,
@@ -45,7 +45,7 @@ public class JavaScript {
 		  env: { JASPER_API: api },
 		  exit: (code) => process.exit(code),
 		};
-		const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+		const AsyncFunction = (async () => {}).constructor;
 		const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
 		script(patchedRequire, console, setTimeout, scriptProcess).catch(err => {
 		  console.error(err);
@@ -55,7 +55,7 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeWrapperScript, ""+timeoutMs, api).start();
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeWrapperScript, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
