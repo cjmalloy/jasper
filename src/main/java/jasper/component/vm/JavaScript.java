@@ -59,9 +59,14 @@ public class JavaScript {
 			localRequire.resolve = (childMod) => require.resolve(childMod, { paths: [dirname] });
 			const source = fs.readFileSync(resolved, 'utf-8');
 			const wrapper = '(function (exports, require, module, __filename, __dirname) {\\n' + source + '\\n})';
-			const factory = new vm.Script(wrapper, { filename: resolved }).runInContext(context, { timeout });
-			factory(module.exports, localRequire, module, resolved, dirname);
-			return module.exports;
+			try {
+			  const factory = new vm.Script(wrapper, { filename: resolved }).runInContext(context, { timeout });
+			  factory(module.exports, localRequire, module, resolved, dirname);
+			  return module.exports;
+			} catch (err) {
+			  moduleCache.delete(resolved);
+			  throw err;
+			}
 		};
 		context = vm.createContext({
 	      console,
