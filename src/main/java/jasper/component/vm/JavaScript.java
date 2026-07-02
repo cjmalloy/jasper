@@ -72,7 +72,9 @@ public class JavaScript {
 			} catch (err) {
 			  moduleCache.delete(resolved);
 			  if (err && err.name === 'SyntaxError') {
-			    // ESM-only module: fall back to the host loader for native ESM/CJS interop
+			    // Likely an ESM-only module the CJS wrapper can't compile: fall back to the
+			    // host loader for native ESM/CJS interop. A genuine syntax error in the module
+			    // will throw the same SyntaxError from the host loader, so nothing is masked.
 			    const hostModule = { exports: require(resolved) };
 			    moduleCache.set(resolved, hostModule);
 			    return hostModule.exports;

@@ -36,7 +36,7 @@ trap 'rm -rf "$SCRIPT_DIR"' EXIT
 SCRIPT_FILE="$SCRIPT_DIR/script.sh"
 printf '%s\\n' "$TARGET_SCRIPT" > "$SCRIPT_FILE"
 chmod +x "$SCRIPT_FILE"
-TIMEOUT_SECONDS=$(($1 / 1000)).$(printf '%03d' $(($1 % 1000)))
+TIMEOUT_SECONDS=$((($1 + 999) / 1000))
 timeout "$TIMEOUT_SECONDS" "$CURRENT_SHELL" -c "JASPER_API='$2' '$SCRIPT_FILE'" << EOF
 $INPUT_STRING
 EOF

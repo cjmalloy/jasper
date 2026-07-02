@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 
 public class RunProcess {
 	private static final Logger logger = LoggerFactory.getLogger(RunProcess.class);
+	// Generous timeout to allow reader threads to drain remaining output after process termination
+	private static final int READER_THREAD_JOIN_TIMEOUT_MS = 5_000;
 
 	public static String runProcess(Process process, int timeoutMs) throws ScriptException {
 		final var output = new StringBuilder();
@@ -29,8 +31,8 @@ public class RunProcess {
 		}
 		destroyTree(process);
 		try {
-			outputThread.join(5_000);
-			errorThread.join(5_000);
+			outputThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
+			errorThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
@@ -57,9 +59,11 @@ public class RunProcess {
 	}
 
 	private static void destroyTree(Process process) {
+		// Snapshot descendants before killing the parent, since they reparent once it exits
 		var descendants = process.descendants().toList();
-		descendants.forEach(ProcessHandle::destroy);
+		// Destroy the parent first so it cannot spawn new children
 		process.destroy();
+		descendants.forEach(ProcessHandle::destroy);
 		try {
 			if (!process.waitFor(1, TimeUnit.SECONDS)) {
 				process.destroyForcibly();
