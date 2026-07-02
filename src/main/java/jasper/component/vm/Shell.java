@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 
 import static jasper.component.vm.RunProcess.runProcess;
 
@@ -33,9 +34,10 @@ IFS= read -r -d '' INPUT_STRING
 SCRIPT_DIR=$(mktemp -d)
 trap 'rm -rf "$SCRIPT_DIR"' EXIT
 SCRIPT_FILE="$SCRIPT_DIR/script.sh"
-echo "$TARGET_SCRIPT" > "$SCRIPT_FILE"
+printf '%s\\n' "$TARGET_SCRIPT" > "$SCRIPT_FILE"
 chmod +x "$SCRIPT_FILE"
-timeout "$1" "$CURRENT_SHELL" -c "JASPER_API='$2' '$SCRIPT_FILE'" << EOF
+TIMEOUT_SECONDS=$((($1 + 999) / 1000))
+timeout "$TIMEOUT_SECONDS" "$CURRENT_SHELL" -c "JASPER_API='$2' '$SCRIPT_FILE'" << EOF
 $INPUT_STRING
 EOF
     """;
@@ -43,7 +45,7 @@ EOF
 	@Timed("jasper.vm")
 	public String runShellScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var process = new ProcessBuilder(props.getShell(), "-c", wrapperScript, props.getShell(), String.valueOf(timeoutMs), api).start();
-		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
+		try (var writer = new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
 			writer.write(inputString);
