@@ -29,6 +29,7 @@ public class JavaScript {
 	private final String nodeWrapperScript = """
 		const fs = require('fs');
 		const stdin = fs.readFileSync(0, 'utf-8');
+		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
 		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
