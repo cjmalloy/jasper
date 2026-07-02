@@ -16,8 +16,9 @@ public class RunProcess {
 	private static final int READER_THREAD_JOIN_TIMEOUT_MS = 5_000;
 
 	public static String runProcess(Process process, int timeoutMs) throws ScriptException {
-		final var output = new StringBuilder();
-		final var errors = new StringBuilder();
+		// StringBuffer is thread-safe, so reads stay consistent even if a reader thread outlives its join timeout
+		final var output = new StringBuffer();
+		final var errors = new StringBuffer();
 		var outputThread = Thread.ofVirtual().start(() -> readStream(process.getInputStream(), output, "output"));
 		var errorThread = Thread.ofVirtual().start(() -> readStream(process.getErrorStream(), errors, "error"));
 
@@ -26,16 +27,12 @@ public class RunProcess {
 			finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
 			destroyTree(process);
+			joinReaders(outputThread, errorThread);
 			Thread.currentThread().interrupt();
 			throw new ScriptException("Script execution interrupted", ""+errors + output);
 		}
 		destroyTree(process);
-		try {
-			outputThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
-			errorThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
+		joinReaders(outputThread, errorThread);
 		if (!finished) {
 			throw new ScriptException("Script execution timed out", ""+errors + output);
 		}
@@ -46,7 +43,16 @@ public class RunProcess {
 		return output.toString();
 	}
 
-	private static void readStream(InputStream stream, StringBuilder sink, String name) {
+	private static void joinReaders(Thread outputThread, Thread errorThread) {
+		try {
+			outputThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
+			errorThread.join(READER_THREAD_JOIN_TIMEOUT_MS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	private static void readStream(InputStream stream, StringBuffer sink, String name) {
 		try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
 			var buffer = new char[8192];
 			int read;
