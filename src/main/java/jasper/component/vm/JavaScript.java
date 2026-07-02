@@ -25,10 +25,13 @@ public class JavaScript {
 	String api;
 
 	// language=JavaScript
-	private final String nodeWrapperScript = """
+	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
+		const path = require('path');
+		const vm = require('node:vm');
 		const stdin = fs.readFileSync(0, 'utf-8');
-		const api = process.argv[1];
+		const timeout = parseInt(process.argv[1], 10) || 30_000;
+		const api = process.argv[2];
 		const [targetScript, inputString] = stdin.split('\\u0000');
 		const patchedFs = {
 		  ...fs,
@@ -37,25 +40,46 @@ public class JavaScript {
 			return fs.readFileSync(path, options);
 		  }
 		};
-		const patchedRequire = (mod) => {
+		const moduleCache = new Map();
+		let context;
+		const sandboxRequire = (mod, parentDir = process.cwd()) => {
 			if (mod === 'fs') return patchedFs;
-			return require(mod);
+			const resolved = require.resolve(mod, { paths: [parentDir] });
+			if (resolved === mod || resolved.startsWith('node:')) return require(mod);
+			if (moduleCache.has(resolved)) return moduleCache.get(resolved).exports;
+			if (resolved.endsWith('.json')) {
+			  const jsonModule = { exports: JSON.parse(fs.readFileSync(resolved, 'utf-8')) };
+			  moduleCache.set(resolved, jsonModule);
+			  return jsonModule.exports;
+			}
+			const module = { exports: {} };
+			moduleCache.set(resolved, module);
+			const dirname = path.dirname(resolved);
+			const localRequire = (childMod) => sandboxRequire(childMod, dirname);
+			localRequire.resolve = (childMod) => require.resolve(childMod, { paths: [dirname] });
+			const source = fs.readFileSync(resolved, 'utf-8');
+			const wrapper = '(function (exports, require, module, __filename, __dirname) {\\n' + source + '\\n})';
+			const factory = new vm.Script(wrapper, { filename: resolved }).runInContext(context, { timeout });
+			factory(module.exports, localRequire, module, resolved, dirname);
+			return module.exports;
 		};
-		const scriptProcess = {
-		  env: { JASPER_API: api },
-		  exit: (code) => process.exit(code),
-		};
-		const AsyncFunction = (async () => {}).constructor;
-		const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
-		script(patchedRequire, console, setTimeout, scriptProcess).catch(err => {
-		  console.error(err);
-		  process.exit(1);
+		context = vm.createContext({
+	      console,
+		  setTimeout,
+		  process: {
+		    env: { JASPER_API: api },
+		    exit: process.exit,
+		  },
+		  require: (mod) => sandboxRequire(mod),
 		});
+		const allowTopLevelAwait = 'const run = async () => {' + targetScript + '}; run().catch(err => {console.error(err);process.exit(1);});';
+		const script = new vm.Script(allowTopLevelAwait);
+		script.runInContext(context, {timeout});
 	""";
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeWrapperScript, api).start();
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
