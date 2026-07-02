@@ -37,9 +37,9 @@ SCRIPT_FILE="$SCRIPT_DIR/script.sh"
 printf '%s\\n' "$TARGET_SCRIPT" > "$SCRIPT_FILE"
 chmod +x "$SCRIPT_FILE"
 TIMEOUT_SECONDS=$((($1 + 999) / 1000))
-JASPER_API="$2" timeout "$TIMEOUT_SECONDS" "$CURRENT_SHELL" "$SCRIPT_FILE" << EOF
+JASPER_API="$2" timeout "$TIMEOUT_SECONDS" "$CURRENT_SHELL" "$SCRIPT_FILE" << "EOF"
 $INPUT_STRING
-EOF
+"EOF"
     """;
 
 	@Timed("jasper.vm")
