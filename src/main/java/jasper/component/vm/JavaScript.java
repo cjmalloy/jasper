@@ -26,7 +26,7 @@ public class JavaScript {
 	String api;
 
 	// language=JavaScript
-	private final String nodeWrapperScript = """
+	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
@@ -57,7 +57,7 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeWrapperScript, ""+timeoutMs, api).start();
+		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
 		try (var writer = new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
