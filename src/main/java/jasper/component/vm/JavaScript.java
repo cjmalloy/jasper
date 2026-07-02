@@ -43,7 +43,7 @@ public class JavaScript {
 		const moduleCache = new Map();
 		let context;
 		const sandboxRequire = (mod, parentDir = process.cwd()) => {
-			if (mod === 'fs') return patchedFs;
+			if (mod === 'fs' || mod === 'node:fs') return patchedFs;
 			const resolved = require.resolve(mod, { paths: [parentDir] });
 			if (resolved === mod || resolved.startsWith('node:')) return require(mod);
 			if (moduleCache.has(resolved)) return moduleCache.get(resolved).exports;
