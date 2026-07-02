@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 
 import static jasper.component.vm.RunProcess.runProcess;
 
@@ -34,7 +35,7 @@ public class JavaScript {
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
-		const [targetScript, inputString] = stdin.split('\\u0000');
+		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
 		  ...fs,
 		  readFileSync: (path, options) => {
@@ -70,6 +71,12 @@ public class JavaScript {
 			  return module.exports;
 			} catch (err) {
 			  moduleCache.delete(resolved);
+			  if (err && err.name === 'SyntaxError') {
+			    // ESM-only module: fall back to the host loader for native ESM/CJS interop
+			    const hostModule = { exports: require(resolved) };
+			    moduleCache.set(resolved, hostModule);
+			    return hostModule.exports;
+			  }
 			  throw err;
 			} finally {
 			  delete context.__jasperModule;
@@ -81,6 +88,16 @@ public class JavaScript {
 		context = vm.createContext({
 	      console,
 		  setTimeout,
+		  clearTimeout,
+		  setInterval,
+		  clearInterval,
+		  queueMicrotask,
+		  Buffer,
+		  URL,
+		  URLSearchParams,
+		  TextEncoder,
+		  TextDecoder,
+		  fetch,
 		  process: {
 		    env: { JASPER_API: api },
 		    exit: process.exit,
@@ -95,7 +112,7 @@ public class JavaScript {
 	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
-		try (var writer = new OutputStreamWriter(process.getOutputStream())) {
+		try (var writer = new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter
 			writer.write(inputString);
