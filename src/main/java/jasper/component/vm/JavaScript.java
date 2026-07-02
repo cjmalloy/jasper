@@ -60,14 +60,22 @@ public class JavaScript {
 			const localRequire = (childMod) => sandboxRequire(childMod, dirname);
 			localRequire.resolve = (childMod) => require.resolve(childMod, { paths: [dirname] });
 			const source = fs.readFileSync(resolved, 'utf-8');
-			const wrapper = '(function (exports, require, module, __filename, __dirname) {\\n' + source + '\\n})';
+			context.__jasperModule = module;
+			context.__jasperLocalRequire = localRequire;
+			context.__jasperFilename = resolved;
+			context.__jasperDirname = dirname;
+			const wrapper = '(function (exports, require, module, __filename, __dirname) {\\n' + source + '\\n})(__jasperModule.exports, __jasperLocalRequire, __jasperModule, __jasperFilename, __jasperDirname);';
 			try {
-			  const factory = new vm.Script(wrapper, { filename: resolved }).runInContext(context, { timeout });
-			  factory(module.exports, localRequire, module, resolved, dirname);
+			  new vm.Script(wrapper, { filename: resolved }).runInContext(context, { timeout });
 			  return module.exports;
 			} catch (err) {
 			  moduleCache.delete(resolved);
 			  throw err;
+			} finally {
+			  delete context.__jasperModule;
+			  delete context.__jasperLocalRequire;
+			  delete context.__jasperFilename;
+			  delete context.__jasperDirname;
 			}
 		};
 		context = vm.createContext({
