@@ -27,8 +27,10 @@ public class JavaScript {
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
+		const module = require('module');
 		const path = require('path');
 		const vm = require('node:vm');
+		const builtins = new Set((module.builtinModules || []).flatMap((mod) => [mod, 'node:' + mod]));
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
@@ -45,7 +47,7 @@ public class JavaScript {
 		const sandboxRequire = (mod, parentDir = process.cwd()) => {
 			if (mod === 'fs' || mod === 'node:fs') return patchedFs;
 			const resolved = require.resolve(mod, { paths: [parentDir] });
-			if (resolved === mod || resolved.startsWith('node:')) return require(mod);
+			if (builtins.has(mod)) return require(mod);
 			if (moduleCache.has(resolved)) return moduleCache.get(resolved).exports;
 			if (resolved.endsWith('.json')) {
 			  const jsonModule = { exports: JSON.parse(fs.readFileSync(resolved, 'utf-8')) };
