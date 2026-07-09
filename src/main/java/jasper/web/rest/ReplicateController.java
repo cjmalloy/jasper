@@ -154,7 +154,7 @@ public class ReplicateController {
 	@PostMapping("ref")
 	void refPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestBody @Valid List<Ref> refs
+		@RequestBody List<@Valid Ref> refs
 	) {
 		logger.debug("Receiving push of {} refs", refs.size());
 		RuntimeException first = null;
@@ -207,7 +207,7 @@ public class ReplicateController {
 	@PostMapping("ext")
 	void extPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestBody @Valid List<Ext> exts
+		@RequestBody List<@Valid Ext> exts
 	) {
 		logger.debug("Receiving push of {} exts", exts.size());
 		RuntimeException first = null;
@@ -260,7 +260,7 @@ public class ReplicateController {
 	@PostMapping("user")
 	void userPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestBody @Valid List<User> users
+		@RequestBody List<@Valid User> users
 	) {
 		logger.debug("Receiving push of {} users", users.size());
 		RuntimeException first = null;
@@ -313,7 +313,7 @@ public class ReplicateController {
 	@PostMapping("plugin")
 	void pluginPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestBody @Valid List<Plugin> plugins
+		@RequestBody List<@Valid Plugin> plugins
 	) {
 		logger.debug("Receiving push of {} plugins", plugins.size());
 		RuntimeException first = null;
@@ -366,7 +366,7 @@ public class ReplicateController {
 	@PostMapping("template")
 	void templatePush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
-		@RequestBody @Valid List<Template> templates
+		@RequestBody List<@Valid Template> templates
 	) {
 		logger.debug("Receiving push of {} templates", templates.size());
 		RuntimeException first = null;
