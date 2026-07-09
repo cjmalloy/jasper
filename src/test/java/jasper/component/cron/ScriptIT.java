@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import jasper.IntegrationTest;
+import jasper.component.IngestPlugin;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -12,12 +13,18 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
+import static java.nio.file.Files.exists;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +43,12 @@ public class ScriptIT {
 
 	@Autowired
 	PluginRepository pluginRepository;
+
+	@Autowired
+	IngestPlugin ingestPlugin;
+
+	@TempDir
+	Path tempDir;
 
 	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
@@ -100,6 +113,44 @@ public class ScriptIT {
 		assertThat(responses.size()).isEqualTo(1);
 		var output = responses.get(0);
 		assertThat(output.getComment()).isEqualTo("TEST");
+	}
+
+	@Test
+	void testUninstallCancelsScript() throws Exception {
+		var started = tempDir.resolve("script-started");
+		var completed = tempDir.resolve("script-completed");
+		// language=Shell Script
+		var slowScript = """
+			touch '%s'
+			sleep 30
+			touch '%s'
+			""".formatted(started, completed);
+		pluginRepository.save(getScriptPlugin("plugin/script/cancel", "shell", slowScript));
+		var url = "comment:" + UUID.randomUUID();
+		var input = getRef(url, "My Ref", "test", "public", "+plugin/cron", "plugin/script/cancel");
+		refRepository.save(input);
+
+		var run = CompletableFuture.runAsync(() -> {
+			try {
+				cronScript.run(input);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+		var startDeadline = System.nanoTime() + SECONDS.toNanos(30);
+		while (!exists(started) && System.nanoTime() < startDeadline) {
+			Thread.sleep(10);
+		}
+		assertThat(started).exists();
+
+		ingestPlugin.delete("plugin/script/cancel");
+
+		try {
+			run.get(15, SECONDS);
+		} catch (ExecutionException expected) {
+			// Script execution interrupted
+		}
+		assertThat(completed).doesNotExist();
 	}
 
 	@Test
