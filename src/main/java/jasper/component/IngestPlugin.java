@@ -52,9 +52,6 @@ public class IngestPlugin {
 	Messages messages;
 
 	@Autowired
-	ScriptExecutorFactory scriptExecutorFactory;
-
-	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	// Exposed for testing
@@ -105,7 +102,6 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void delete(String qualifiedTag) {
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
-		scriptExecutorFactory.cancel(qualifiedTag);
 		messages.deletePlugin(qualifiedTag);
 	}
 
