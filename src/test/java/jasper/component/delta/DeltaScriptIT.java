@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static java.nio.file.Files.exists;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -177,11 +176,8 @@ print(json.dumps({
 
 		ingestPlugin.delete("plugin/delta/cancel");
 
-		try {
-			run.get(15, SECONDS);
-		} catch (ExecutionException expected) {
-			// Script execution interrupted
-		}
+		// An uncancelled script sleeps for 30 seconds, so completing within 15 proves interruption
+		run.get(15, SECONDS);
 		assertThat(completed).doesNotExist();
 	}
 
