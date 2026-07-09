@@ -91,10 +91,10 @@ public class ScriptExecutorFactory {
 						}
 					});
 				} finally {
-					var threads = executions.get(qualifiedTag);
-					if (threads != null && threads.remove(thread) && threads.isEmpty()) {
-						executions.remove(qualifiedTag, threads);
-					}
+					executions.computeIfPresent(qualifiedTag, (key, threads) -> {
+						threads.remove(thread);
+						return threads.isEmpty() ? null : threads;
+					});
 				}
 			}, taskExecutor);
 		} catch (BulkheadFullException e) {
