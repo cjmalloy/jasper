@@ -19,8 +19,8 @@ See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the 
 ## Knowledge Management
 Jasper is an open source knowledge management system. It provides a generic set of tools for dealing
 with knowledge management style problems. Knowledge management type problems include:
-* Scientific Research
 * Business Intelligence
+* Scientific Research
 * Journalism
 * Web Forums
 * Wiki (Encyclopedia)
@@ -152,7 +152,7 @@ custom data that can be stored in a ref, Templates may be created which allow cu
 stored in Ext entities and similarly validated according to their schema.
 
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
-* `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
+* `plugin/thumbnail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
 * `user` Template: 
 [This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
