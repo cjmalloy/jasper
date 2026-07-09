@@ -7,6 +7,7 @@ import jasper.component.vm.Python;
 import jasper.component.vm.Shell;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.errors.ScriptException;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
 import jasper.repository.PluginRepository;
@@ -309,7 +310,9 @@ print(yaml.dump({
 		try {
 			future.get(2, SECONDS);
 		} catch (ExecutionException expected) {
-			// Interrupted scripts fail their execution future.
+			assertThat(expected)
+				.hasRootCauseInstanceOf(ScriptException.class)
+				.hasRootCauseMessage("Script execution interrupted");
 		}
 		assertThat(completed).doesNotExist();
 	}

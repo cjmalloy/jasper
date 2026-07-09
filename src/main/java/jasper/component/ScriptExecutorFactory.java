@@ -90,7 +90,6 @@ public class ScriptExecutorFactory {
 					if (threads != null && threads.remove(thread) && threads.isEmpty()) {
 						executions.remove(qualifiedTag, threads);
 					}
-					Thread.interrupted();
 				}
 			}), taskExecutor);
 		} catch (BulkheadFullException e) {
