@@ -77,21 +77,26 @@ public class ScriptExecutorFactory {
 	public CompletableFuture<Void> run(String tag, String origin, String url, Runnable runnable) {
 		var res = getResources(tag, origin);
 		try {
-			return runAsync(() -> res.bulkhead().executeRunnable(() -> {
+			return runAsync(() -> {
 				var qualifiedTag = defaultOrigin(tag, origin);
 				var thread = Thread.currentThread();
 				executions.computeIfAbsent(qualifiedTag, key -> newKeySet()).add(thread);
-				var sample = start(meterRegistry);
 				try {
-					runnable.run();
+					res.bulkhead().executeRunnable(() -> {
+						var sample = start(meterRegistry);
+						try {
+							runnable.run();
+						} finally {
+							sample.stop(res.timer());
+						}
+					});
 				} finally {
-					sample.stop(res.timer());
 					var threads = executions.get(qualifiedTag);
 					if (threads != null && threads.remove(thread) && threads.isEmpty()) {
 						executions.remove(qualifiedTag, threads);
 					}
 				}
-			}), taskExecutor);
+			}, taskExecutor);
 		} catch (BulkheadFullException e) {
 			var config = res.bulkhead().getBulkheadConfig();
 			logger.warn("{} Rate limited {} (max {} for {})", origin, tag, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
