@@ -19,8 +19,8 @@ See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the 
 ## Knowledge Management
 Jasper is an open source knowledge management system. It provides a generic set of tools for dealing
 with knowledge management style problems. Knowledge management type problems include:
-* Scientific Research
 * Business Intelligence
+* Scientific Research
 * Journalism
 * Web Forums
 * Wiki (Encyclopedia)
