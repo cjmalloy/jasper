@@ -80,7 +80,11 @@ public class ScriptExecutorFactory {
 			return runAsync(() -> {
 				var qualifiedTag = defaultOrigin(tag, origin);
 				var thread = Thread.currentThread();
-				executions.computeIfAbsent(qualifiedTag, key -> newKeySet()).add(thread);
+				executions.compute(qualifiedTag, (key, threads) -> {
+					if (threads == null) threads = newKeySet();
+					threads.add(thread);
+					return threads;
+				});
 				try {
 					res.bulkhead().executeRunnable(() -> {
 						var sample = start(meterRegistry);
