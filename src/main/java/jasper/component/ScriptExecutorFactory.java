@@ -22,9 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import static io.micrometer.core.instrument.Timer.start;
-import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static jasper.domain.proj.Tag.defaultOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
@@ -53,6 +53,9 @@ public class ScriptExecutorFactory {
 	Tagger tagger;
 
 	private record ScriptResources(Timer timer, Bulkhead bulkhead) { }
+	private final Map<String, ScriptResources> resources = new ConcurrentHashMap<>();
+
+	private final Map<String, Set<Thread>> executions = new ConcurrentHashMap<>();
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
@@ -67,7 +70,10 @@ public class ScriptExecutorFactory {
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
 		var plugin = message.getPayload();
-		if (isDeletorTag(plugin.getTag())) cancel(deletedTag(plugin.getQualifiedTag()));
+		if (isDeletorTag(plugin.getTag())) {
+			var threads = executions.get(deletedTag(plugin.getQualifiedTag()));
+			if (threads != null) threads.forEach(Thread::interrupt);
+		}
 	}
 
 	public CompletableFuture<Void> run(String tag, String origin, Runnable runnable) {
@@ -108,15 +114,6 @@ public class ScriptExecutorFactory {
 			return null;
 		}
 	}
-
-	private final Map<String, Set<Thread>> executions = new ConcurrentHashMap<>();
-
-	public void cancel(String qualifiedTag) {
-		var threads = executions.get(qualifiedTag);
-		if (threads != null) threads.forEach(Thread::interrupt);
-	}
-
-	private final Map<String, ScriptResources> resources = new ConcurrentHashMap<>();
 
 	private ScriptResources getResources(String tag, String origin) {
 		return resources.computeIfAbsent(tag + origin, k -> new ScriptResources(
