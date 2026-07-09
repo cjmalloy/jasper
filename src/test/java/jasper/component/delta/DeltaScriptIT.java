@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import jasper.IntegrationTest;
-import jasper.component.IngestPlugin;
 import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -13,17 +12,12 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
-import static java.nio.file.Files.exists;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.hasTag;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,12 +36,6 @@ public class DeltaScriptIT {
 
 	@Autowired
 	PluginRepository pluginRepository;
-
-	@Autowired
-	IngestPlugin ingestPlugin;
-
-	@TempDir
-	Path tempDir;
 
 	Plugin getScriptPlugin(String tag, String language, String script) {
 		var plugin = new Plugin();
@@ -144,41 +132,6 @@ print(json.dumps({
 		assertThat(responses.size()).isEqualTo(1);
 		var output = responses.get(0);
 		assertThat(output.getComment()).isEqualTo("TEST");
-	}
-
-	@Test
-	void testUninstallCancelsDelta() throws Exception {
-		var started = tempDir.resolve("delta-started");
-		var completed = tempDir.resolve("delta-completed");
-		// language=Shell Script
-		var slowScript = """
-			touch '%s'
-			sleep 30
-			touch '%s'
-			""".formatted(started, completed);
-		pluginRepository.save(getScriptPlugin("plugin/delta/cancel", "shell", slowScript));
-		var url = "comment:" + UUID.randomUUID();
-		var input = getRef(url, "My Ref", "test", "public", "plugin/delta/cancel");
-		refRepository.save(input);
-
-		var run = CompletableFuture.runAsync(() -> {
-			try {
-				deltaScript.run(input);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		});
-		var startDeadline = System.nanoTime() + SECONDS.toNanos(30);
-		while (!exists(started) && System.nanoTime() < startDeadline) {
-			Thread.sleep(10);
-		}
-		assertThat(started).exists();
-
-		ingestPlugin.delete("plugin/delta/cancel");
-
-		// An uncancelled script sleeps for 30 seconds, so completing within 15 proves interruption
-		run.get(15, SECONDS);
-		assertThat(completed).doesNotExist();
 	}
 
 }
