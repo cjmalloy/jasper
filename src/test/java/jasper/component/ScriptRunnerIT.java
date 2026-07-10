@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import static jasper.repository.spec.RefSpec.hasSource;
@@ -306,26 +305,16 @@ print(yaml.dump({
 	void testUninstallCancelsQueuedScript() throws Exception {
 		var tag = "plugin/script/queued.cancel";
 		var queuedMarker = tempDir.resolve("queued-ran");
-		var blockerStarted = new CountDownLatch(1);
-		var releaseBlocker = new CountDownLatch(1);
 		var plugin = new Plugin();
 		plugin.setTag(tag);
 		pluginRepository.save(plugin);
-		bulkheadRegistry.bulkhead(tag, BulkheadConfig.custom()
+		var bulkhead = bulkheadRegistry.bulkhead(tag, BulkheadConfig.custom()
 			.maxConcurrentCalls(1)
 			.maxWaitDuration(ofSeconds(30))
 			.build());
+		bulkhead.acquirePermission();
 
-		var blocker = scriptExecutorFactory.run(tag, "", () -> {
-			blockerStarted.countDown();
-			try {
-				releaseBlocker.await();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		});
 		try {
-			assertThat(blockerStarted.await(2, SECONDS)).isTrue();
 			var queued = scriptExecutorFactory.run(tag, "", () -> {
 				try {
 					createFile(queuedMarker);
@@ -334,10 +323,10 @@ print(yaml.dump({
 				}
 			});
 			var queuedDeadline = System.nanoTime() + SECONDS.toNanos(2);
-			while (executionCount(tag) < 2 && System.nanoTime() < queuedDeadline) {
+			while (executionCount(tag) < 1 && System.nanoTime() < queuedDeadline) {
 				Thread.sleep(10);
 			}
-			assertThat(executionCount(tag)).isEqualTo(2);
+			assertThat(executionCount(tag)).isEqualTo(1);
 
 			ingestPlugin.delete(tag);
 
@@ -345,8 +334,7 @@ print(yaml.dump({
 				.isInstanceOf(ExecutionException.class);
 			assertThat(queuedMarker).doesNotExist();
 		} finally {
-			releaseBlocker.countDown();
-			blocker.get(2, SECONDS);
+			bulkhead.releasePermission();
 		}
 	}
 
