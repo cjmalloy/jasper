@@ -379,10 +379,17 @@ print(yaml.dump({
 	}
 
 	@Test
-	void testUninstalledScriptDoesNotRun() {
+	void testUninstalledScriptDoesNotRun() throws UntrustedScriptException {
 		var input = getRef("comment:" + UUID.randomUUID(), "My Ref", "test", "public");
+		var tag = "plugin/script/uninstalled";
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		pluginRepository.save(plugin);
 
-		assertThatThrownBy(() -> scriptRunner.runScripts(input, "plugin/script/not-installed-" + UUID.randomUUID()))
+		scriptRunner.runScripts(input, tag);
+		ingestPlugin.delete(tag);
+
+		assertThatThrownBy(() -> scriptRunner.runScripts(input, tag))
 			.isInstanceOf(OperationForbiddenOnOriginException.class);
 	}
 
