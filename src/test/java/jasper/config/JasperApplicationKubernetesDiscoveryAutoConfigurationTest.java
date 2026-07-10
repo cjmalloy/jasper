@@ -9,7 +9,7 @@ import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8CatalogWatc
 import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8DiscoveryClientAutoConfiguration;
 import org.springframework.core.annotation.MergedAnnotations;
 
-class KubernetesConfigTest {
+class JasperApplicationKubernetesDiscoveryAutoConfigurationTest {
 
 	@Test
 	void applicationExcludesKubernetesDiscoveryAutoConfiguration() {
