@@ -1,5 +1,7 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.IntegrationTest;
 import jasper.config.Props;
 import jasper.component.vm.JavaScript;
@@ -18,18 +20,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.hasTag;
+import static java.nio.file.Files.createFile;
 import static java.nio.file.Files.exists;
+import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 
 @IntegrationTest
 public class ScriptRunnerIT {
@@ -51,6 +60,9 @@ public class ScriptRunnerIT {
 
 	@Autowired
 	ScriptExecutorFactory scriptExecutorFactory;
+
+	@Autowired
+	BulkheadRegistry bulkheadRegistry;
 
 	@Autowired
 	JavaScript javaScript;
@@ -288,6 +300,60 @@ print(yaml.dump({
 			sleep 10
 			touch '%s'
 			""".formatted(started, completed), "", 30_000));
+	}
+
+	@Test
+	void testUninstallCancelsQueuedScript() throws Exception {
+		var tag = "plugin/script/queued.cancel";
+		var queuedMarker = tempDir.resolve("queued-ran");
+		var blockerStarted = new CountDownLatch(1);
+		var releaseBlocker = new CountDownLatch(1);
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		pluginRepository.save(plugin);
+		bulkheadRegistry.bulkhead(tag, BulkheadConfig.custom()
+			.maxConcurrentCalls(1)
+			.maxWaitDuration(ofSeconds(30))
+			.build());
+
+		var blocker = scriptExecutorFactory.run(tag, "", () -> {
+			blockerStarted.countDown();
+			try {
+				releaseBlocker.await();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		});
+		try {
+			assertThat(blockerStarted.await(2, SECONDS)).isTrue();
+			var queued = scriptExecutorFactory.run(tag, "", () -> {
+				try {
+					createFile(queuedMarker);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			});
+			var queuedDeadline = System.nanoTime() + SECONDS.toNanos(2);
+			while (executionCount(tag) < 2 && System.nanoTime() < queuedDeadline) {
+				Thread.sleep(10);
+			}
+			assertThat(executionCount(tag)).isEqualTo(2);
+
+			ingestPlugin.delete(tag);
+
+			assertThatThrownBy(() -> queued.get(2, SECONDS))
+				.isInstanceOf(ExecutionException.class);
+			assertThat(queuedMarker).doesNotExist();
+		} finally {
+			releaseBlocker.countDown();
+			blocker.get(2, SECONDS);
+		}
+	}
+
+	private int executionCount(String tag) {
+		var executions = (Map<?, ?>) getField(scriptExecutorFactory, "executions");
+		var threads = (Set<?>) executions.get(tag);
+		return threads == null ? 0 : threads.size();
 	}
 
 	private void assertUninstallCancels(String tag, Path started, Path completed, ScriptExecution execution) throws Exception {
