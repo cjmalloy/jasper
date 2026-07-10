@@ -2,31 +2,22 @@ package jasper.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jasper.JasperApplication;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8CatalogWatchAutoConfiguration;
-import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8DiscoveryClient;
 import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8DiscoveryClientAutoConfiguration;
+import org.springframework.core.annotation.MergedAnnotations;
 
 class KubernetesConfigTest {
 
-	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-		.withPropertyValues("spring.profiles.active=kubernetes")
-		.withUserConfiguration(KubernetesConfig.class);
-
 	@Test
-	void kubernetesProfileDoesNotImportDiscoveryAutoConfiguration() {
-		contextRunner.run(context -> {
-			assertThat(context).hasSingleBean(KubernetesConfig.class);
-			assertThat(context).doesNotHaveBean(Fabric8DiscoveryClient.class);
+	void applicationExcludesKubernetesDiscoveryAutoConfiguration() {
+		var application = MergedAnnotations.from(JasperApplication.class).get(SpringBootApplication.class);
 
-			var report = ConditionEvaluationReport.get(context.getBeanFactory());
-			assertThat(report.getConditionAndOutcomesBySource())
-				.doesNotContainKeys(
-					Fabric8DiscoveryClientAutoConfiguration.class.getName(),
-					Fabric8CatalogWatchAutoConfiguration.class.getName()
-				);
-		});
+		assertThat(application.getClassArray("exclude"))
+			.contains(Fabric8DiscoveryClientAutoConfiguration.class, Fabric8CatalogWatchAutoConfiguration.class);
+		assertThat(application.getStringArray("excludeName"))
+			.contains("org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8InformerAutoConfiguration");
 	}
 }
