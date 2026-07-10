@@ -7,6 +7,7 @@ import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
+import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.UntrustedScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +69,9 @@ public class DeltaScript implements Async.AsyncRunner {
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
 					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
+				} catch (OperationForbiddenOnOriginException e) {
+					logger.error("{} Script not installed: {}", ref.getOrigin(), e.getMessage());
+					tagger.attachError(ref.getOrigin(), ref, "Script not installed", e.getMessage());
 				}
 			}).join();
 		}
