@@ -79,9 +79,14 @@ public class ScriptRunner {
 
 	@Timed("jasper.scripts")
 	public void runScripts(Ref ref, String scriptTag) throws UntrustedScriptException {
-		var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
+		var resolvedScriptTag = scriptTag;
+		var config = configs.getPluginConfig(resolvedScriptTag, ref.getOrigin(), Script.class);
+		while (config.isEmpty() && resolvedScriptTag.contains("/")) {
+			resolvedScriptTag = resolvedScriptTag.substring(0, resolvedScriptTag.lastIndexOf("/"));
+			config = configs.getPluginConfig(resolvedScriptTag, ref.getOrigin(), Script.class);
+		}
 		if (config.isEmpty()) throw new OperationForbiddenOnOriginException(ref.getOrigin());
-		runScripts(ref, scriptTag, config.get());
+		runScripts(ref, resolvedScriptTag, config.get());
 	}
 
 	void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
