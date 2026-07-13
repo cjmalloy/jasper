@@ -27,8 +27,8 @@ class SourceStressPerformanceIT {
 
 	private static final String ORIGIN = "";
 	private static final String PARENT_URL = "https://perf.example.test/source";
-	private static final int[] RESPONSE_COUNTS = {4_000, 8_000, 16_000, 32_000};
-	private static final int MAX_RESPONSE_COUNT = 32_000;
+	private static final int[] RESPONSE_COUNTS = {32_000, 48_000, 64_000, 96_000, 128_000};
+	private static final int MAX_RESPONSE_COUNT = 128_000;
 	private static final int BATCH_SIZE = 250;
 	private static final List<String> HOT_PATH_SUGGESTIONS = List.of(
 		"Existing parent metadata is used to defer metadata regeneration above 1,000 responses.",
@@ -61,8 +61,10 @@ class SourceStressPerformanceIT {
 	void editParentRefWithManyResponses_reportsScaling() {
 		setupRefs();
 		var results = new ArrayList<Result>();
+		var assignedResponseCount = 0;
 		for (var responseCount : RESPONSE_COUNTS) {
-			assignSources(responseCount);
+			assignSources(assignedResponseCount, responseCount);
+			assignedResponseCount = responseCount;
 			var parent = refRepository.findOneByUrlAndOrigin(PARENT_URL, ORIGIN).orElseThrow();
 
 			var start = System.nanoTime();
@@ -123,12 +125,12 @@ class SourceStressPerformanceIT {
 		}
 	}
 
-	private void assignSources(int responseCount) {
+	private void assignSources(int assignedResponseCount, int responseCount) {
 		var responseUrls = responseUrls(responseCount);
 		var published = Instant.parse("2026-01-01T00:00:00Z");
 		var modified = Instant.parse("2026-01-01T00:00:00Z");
 		var batch = new ArrayList<Ref>(BATCH_SIZE);
-		for (var i = 0; i < responseCount; i++) {
+		for (var i = assignedResponseCount; i < responseCount; i++) {
 			var ref = response(i, published, modified.plusMillis(i + 1L));
 			ref.setSources(List.of(PARENT_URL));
 			batch.add(ref);
