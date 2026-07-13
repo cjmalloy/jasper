@@ -8,6 +8,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigTest {
 
+	@Test
+	void testMaxMetadataResponsesOverride() {
+		var props = new Props();
+		var config = Config.ServerConfig.builder()
+			.maxMetadataResponses(21)
+			.build();
+
+		assertThat(config.wrap(props).getMaxMetadataResponses()).isEqualTo(21);
+
+		props.getOverride().getServer().setMaxMetadataResponses(42);
+		assertThat(config.wrap(props).getMaxMetadataResponses()).isEqualTo(42);
+	}
+
 	record TestHasTags(List<String> tags, String origin) implements jasper.domain.proj.HasTags {
 		@Override
 		public String getTitle() { return "test"; }

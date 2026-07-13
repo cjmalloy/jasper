@@ -37,10 +37,12 @@ import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
-	private static final int DEFER_METADATA_RESPONSE_COUNT = 1000;
 
 	@Autowired
 	Props props;
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
 	RefRepository refRepository;
@@ -140,7 +142,7 @@ public class Ingest {
 
 	private boolean shouldDeferMetadata(Ref existing) {
 		var metadata = existing == null ? null : existing.getMetadata();
-		return metadata != null && (metadata.isRegen() || metadataResponseCount(metadata) > DEFER_METADATA_RESPONSE_COUNT);
+		return metadata != null && (metadata.isRegen() || metadataResponseCount(metadata) > configs.root().getMaxMetadataResponses());
 	}
 
 	private int metadataResponseCount(Metadata metadata) {
