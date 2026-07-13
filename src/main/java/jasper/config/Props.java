@@ -215,6 +215,10 @@ public class Props {
 		 */
 		private Integer maxSources;
 		/**
+		 * Override the maximum responses to regenerate metadata synchronously for.
+		 */
+		private Integer maxMetadataResponses;
+		/**
 		 * Override the server mod seals.
 		 */
 		private List<String> modSeals;
