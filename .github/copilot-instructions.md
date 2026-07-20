@@ -8,7 +8,7 @@ Bootstrap, build, and test the repository:
 
 **⚠️ CRITICAL: Java Version Requirement**
 
-This project uses **Spring Boot 4.0.2** which requires **Java 21 or higher**. The pom.xml is configured for Java 25.
+This project uses **Spring Boot 4.1.0** and targets Java 25. Use Java 25 for all normal builds; Java 21 is the minimum supported fallback and requires overriding `java.version`.
 
 **Java 25 is now available in the build environment!**
 
@@ -159,7 +159,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
   2. `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`
   3. `export PATH=$JAVA_HOME/bin:$PATH`
   4. Build: `./mvnw clean package -Djava.version=21` (the `-Djava.version=21` flag is required since pom.xml targets Java 25)
-- **Why not change to Java 17?**: Spring Boot 4.0.2 requires Java 21 minimum - changing pom.xml to Java 17 will not work
+- **Why not change to Java 17?**: This project supports Java 21 or newer and targets Java 25 - changing pom.xml to Java 17 will not work
   - **Alternative**: Use Docker build `docker build -t jasper .` (but may have PKIX certificate issues in some environments)
 
 **Other Common Issues:**
@@ -220,16 +220,16 @@ jasper/
 - `.github/workflows/test.yml` - Main CI pipeline
 
 **Important Dependencies:**
-- Spring Boot 4.0.2 (Web, JPA, Security, WebSocket, Actuator)
-- Spring Cloud 2025.1.1 (OpenFeign, Resilience4j, Kubernetes)
-- Java 25 (required, minimum Java 21)
-- PostgreSQL (primary database)
+- Spring Boot 4.1.0 (Web MVC, JPA, Security, WebSocket, Actuator)
+- Spring Cloud 2025.1.2 (OpenFeign, Resilience4j, Kubernetes)
+- Java 25 (build target; Java 21 is the supported fallback with `-Djava.version=21`)
+- PostgreSQL 18 (primary development database)
 - Redis (caching and messaging via Spring Integration)
 - Liquibase (database migrations)
 - Caffeine (local caching)
-- Bun (JavaScript runtime for server-side scripting)
-- Gatling 3.14.9 (load testing)
-- TestContainers 2.0.3 (integration testing)
+- Bun 1.3.14 (JavaScript runtime in Docker images)
+- Gatling 3.15.1 (load testing)
+- Testcontainers 2.0.5 (integration testing)
 
 ## Code Style Guidelines
 
