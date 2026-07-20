@@ -98,4 +98,28 @@ class UserControllerIT {
 		assertThat(existing).isPresent();
 		assertThat(existing.get().getRole()).isEqualTo("ROLE_USER");
 	}
+
+	@Test
+	@WithMockUser(value = "+user/tester@a", roles = {"USER"})
+	void testUpdateOwnAuthorizedKeysWithUserRole() throws Exception {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setOrigin("@a");
+		user.setRole("ROLE_USER");
+		userRepository.save(user);
+
+		user.setAuthorizedKeys("ssh-ed25519 test-key");
+
+		mockMvc
+			.perform(put("/api/v1/user")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(user))
+				.header("Local-Origin", "@a")
+				.with(csrf().asHeader()))
+			.andExpect(status().isOk());
+
+		var existing = userRepository.findOneByQualifiedTag("+user/tester@a");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getAuthorizedKeys()).isEqualTo("ssh-ed25519 test-key");
+	}
 }
