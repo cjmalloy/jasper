@@ -747,13 +747,30 @@ public class Auth {
 	 */
 	public boolean canWriteUserTag(String qualifiedTag) {
 		// Only writing to the local origin ever permitted
-		if (!local(qt(qualifiedTag).origin)) return false;
-		if (!canWriteTag(qualifiedTag)) return false;
+		if (!local(qt(qualifiedTag).origin)) {
+			logger.debug("{} Denied writing user {}: target origin is not local", getOrigin(), qualifiedTag);
+			return false;
+		}
+		if (!canWriteTag(qualifiedTag)) {
+			logger.debug("{} Denied writing user {}: no write access to the user tag", getOrigin(), qualifiedTag);
+			return false;
+		}
 		var role = ofNullable(configs.getUser(qualifiedTag)).map(User::getRole).orElse(null);
 		// Only Mods and above can unban
-		if (BANNED.equals(role)) return hasRole(MOD);
+		if (BANNED.equals(role)) {
+			if (!hasRole(MOD)) {
+				logger.debug("{} Denied writing user {}: only moderators can update banned users", getOrigin(), qualifiedTag);
+				return false;
+			}
+			return true;
+		}
 		// Cannot edit user with higher role
-		return isBlank(role) || hasRole(role);
+		if (isNotBlank(role) && !hasRole(role)) {
+			logger.debug("{} Denied writing user {}: target role {} is higher than the writer's roles {}",
+				getOrigin(), qualifiedTag, role, getAuthoritySet());
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -764,19 +781,62 @@ public class Auth {
 	public boolean canWriteUser(User user) {
 		if (!canWriteUserTag(user.getQualifiedTag())) return false;
 		// Cannot add role higher than your own
-		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) return false;
+		if (isNotBlank(user.getRole()) && !BANNED.equals(user.getRole()) && !hasRole(user.getRole())) {
+			logger.debug("{} Denied writing user {}: requested role {} is higher than the writer's roles {}",
+				getOrigin(), user.getQualifiedTag(), user.getRole(), getAuthoritySet());
+			return false;
+		}
 		// Mods can add any tag permissions
 		if (hasRole(MOD)) return true;
 		var maybeExisting = ofNullable(configs.getUser(user.getQualifiedTag()));
 		// User role is required to create Users
-		if (maybeExisting.isEmpty() && !hasRole(USER)) return false;
+		if (maybeExisting.isEmpty() && !hasRole(USER)) {
+			logger.debug("{} Denied creating user {}: writer does not have the user role",
+				getOrigin(), user.getQualifiedTag());
+			return false;
+		}
 		// No new public tags in write access
-		if (newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).anyMatch(Auth::isPublicTag)) return false;
+		var publicWriteTag = newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess))
+			.filter(Auth::isPublicTag)
+			.findFirst();
+		if (publicWriteTag.isPresent()) {
+			logger.debug("{} Denied writing user {}: cannot add public tag {} to write access",
+				getOrigin(), user.getQualifiedTag(), publicWriteTag.get());
+			return false;
+		}
 		// The writing user must already have write access to give read or write access to another user
-		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
-		if (!newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess)).allMatch(this::writeAccessCaptures)) return false;
-		if (!newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).allMatch(this::writeAccessCaptures)) return false;
+		var deniedTagReadAccess = newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess))
+			.filter(tag -> !tagWriteAccessCaptures(tag))
+			.findFirst();
+		if (deniedTagReadAccess.isPresent()) {
+			logger.debug("{} Denied writing user {}: no tag write access to grant tag read access for {}",
+				getOrigin(), user.getQualifiedTag(), deniedTagReadAccess.get());
+			return false;
+		}
+		var deniedTagWriteAccess = newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess))
+			.filter(tag -> !tagWriteAccessCaptures(tag))
+			.findFirst();
+		if (deniedTagWriteAccess.isPresent()) {
+			logger.debug("{} Denied writing user {}: no tag write access to grant tag write access for {}",
+				getOrigin(), user.getQualifiedTag(), deniedTagWriteAccess.get());
+			return false;
+		}
+		var deniedReadAccess = newTags(user.getReadAccess(), maybeExisting.map(User::getReadAccess))
+			.filter(tag -> !writeAccessCaptures(tag))
+			.findFirst();
+		if (deniedReadAccess.isPresent()) {
+			logger.debug("{} Denied writing user {}: no write access to grant read access for {}",
+				getOrigin(), user.getQualifiedTag(), deniedReadAccess.get());
+			return false;
+		}
+		var deniedWriteAccess = newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess))
+			.filter(tag -> !writeAccessCaptures(tag))
+			.findFirst();
+		if (deniedWriteAccess.isPresent()) {
+			logger.debug("{} Denied writing user {}: no write access to grant write access for {}",
+				getOrigin(), user.getQualifiedTag(), deniedWriteAccess.get());
+			return false;
+		}
 		return true;
 	}
 

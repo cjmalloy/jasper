@@ -240,6 +240,36 @@ public class UserServiceIT {
 	}
 
 	@Test
+	void testUpdateOwnPopulatedUserName() {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setName("Old Name");
+		user.setRole("ROLE_USER");
+		user.setReadAccess(List.of("public/read", "+protected/read", "_private/read"));
+		user.setWriteAccess(List.of("public/write", "+protected/write", "_private/write"));
+		user.setTagReadAccess(List.of("public/tag/read", "+protected/tag/read", "_private/tag/read"));
+		user.setTagWriteAccess(List.of("public/tag/write", "+protected/tag/write", "_private/tag/write"));
+		userRepository.save(user);
+
+		var updated = new User();
+		updated.setTag("+user/tester");
+		updated.setName("New Name");
+		updated.setRole("ROLE_USER");
+		updated.setReadAccess(user.getReadAccess());
+		updated.setWriteAccess(user.getWriteAccess());
+		updated.setTagReadAccess(user.getTagReadAccess());
+		updated.setTagWriteAccess(user.getTagWriteAccess());
+		updated.setModified(user.getModified());
+
+		userService.update(updated);
+
+		assertThat(userRepository.findOneByQualifiedTag("+user/tester"))
+			.get()
+			.extracting(User::getName)
+			.isEqualTo("New Name");
+	}
+
+	@Test
 	void testReadNonExistentUser() {
 		assertThatThrownBy(() -> userService.get("+user/other"))
 			.isInstanceOf(NotFoundException.class);
