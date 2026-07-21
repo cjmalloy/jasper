@@ -85,6 +85,7 @@ ALWAYS run the bootstrapping steps first.
 - **Local SQLite (Recommended)**: `./mvnw test -Dspring.profiles.active=test,sqlite,scripts` -- runs without PostgreSQL or Docker. NEVER CANCEL. Set timeout to 180+ seconds.
 - **Local PostgreSQL/Testcontainers**: `./mvnw test` -- requires Docker. NEVER CANCEL. Set timeout to 180+ seconds.
 - **Docker-based PostgreSQL**: `docker build --target test -t jasper-test . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- The Docker-based test command mounts the local Docker socket so Testcontainers can start PostgreSQL; only run it with trusted images in a trusted local environment.
 - Note: Some tests require Bun and Python dependencies to pass completely
 - Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
 
@@ -122,7 +123,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 1. Start supporting services: `docker compose up -d`
 2. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
 3. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-4. Run tests with dependencies: Install Bun and Python, then test both PostgreSQL with `./mvnw test` and SQLite with `./mvnw test -Dspring.profiles.active=test,sqlite,scripts`
+4. Run tests with dependencies: Install Bun and Python, then run both PostgreSQL (`./mvnw test`) and SQLite (`./mvnw test -Dspring.profiles.active=test,sqlite,scripts`) suites for complete validation; the SQLite suite is the minimum for changes unrelated to database behavior
 5. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
