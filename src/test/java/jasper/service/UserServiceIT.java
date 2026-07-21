@@ -788,7 +788,7 @@ public class UserServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "USER")
-	void testUpdateOwnAuthorizedKeysWithUserRole() {
+	void testUpdateOwnProfileWithUserRole() {
 		var user = new User();
 		user.setTag("+user/tester");
 		user.setRole("ROLE_USER");
@@ -796,6 +796,7 @@ public class UserServiceIT {
 		var updated = new User();
 		updated.setTag("+user/tester");
 		updated.setRole("ROLE_USER");
+		updated.setName("Tester");
 		updated.setAuthorizedKeys("ssh-ed25519 test-key");
 		updated.setModified(user.getModified());
 
@@ -803,6 +804,7 @@ public class UserServiceIT {
 
 		var existing = userRepository.findOneByQualifiedTag("+user/tester");
 		assertThat(existing).isPresent();
+		assertThat(existing.get().getName()).isEqualTo("Tester");
 		assertThat(existing.get().getAuthorizedKeys()).isEqualTo("ssh-ed25519 test-key");
 	}
 
