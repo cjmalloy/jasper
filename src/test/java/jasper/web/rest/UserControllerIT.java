@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.testSecurityContext;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Tests cross-origin write prevention with Local-Origin header.
  */
 @WithMockUser(value = "+user/tester@a", roles = {"ADMIN"})
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @IntegrationTest
 class UserControllerIT {
 
@@ -116,7 +115,6 @@ class UserControllerIT {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(user))
 				.header("Local-Origin", "@a")
-				.with(testSecurityContext())
 				.with(csrf().asHeader()))
 			.andExpect(status().isOk());
 
