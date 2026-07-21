@@ -909,7 +909,7 @@ public class Auth {
 	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> a.getDetails() instanceof UserDto
+			user = auth.map(a -> a.getDetails() instanceof User
 				? (User) a.getDetails()
 				: null);
 			if (isLoggedIn() && user.isEmpty()) {

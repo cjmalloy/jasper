@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -80,6 +81,17 @@ public class AuthUnitTest {
 		u.setTagReadAccess(new ArrayList<>(List.of(tags)));
 		u.setTagWriteAccess(new ArrayList<>(List.of(tags)));
 		return u;
+	}
+
+	@Test
+	void testGetUserFromAuthenticationDetails() {
+		var expected = getUser("+user/test");
+		var authentication = mock(Authentication.class);
+		when(authentication.getDetails()).thenReturn(expected);
+		var auth = new Auth(new Props(), roleHierarchy, configCache, getRefRepo());
+		auth.authentication = authentication;
+
+		assertThat(auth.getUser()).containsSame(expected);
 	}
 
 	Ref getRef(String ...tags) {
