@@ -5,7 +5,6 @@ import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.External;
-import jasper.domain.TagId;
 import jasper.domain.User;
 import jasper.domain.User_;
 import jasper.errors.NotFoundException;
@@ -305,11 +304,13 @@ public class UserServiceIT {
 
 			userService.update(updated);
 
-			assertThat(userRepository.findOneByQualifiedTag("+user/tester"))
-				.get()
-				.extracting(User::getName)
-				.isEqualTo("New Name " + iteration);
-			userRepository.deleteById(new TagId("+user/tester", ""));
+			var stored = userRepository.findOneByQualifiedTag("+user/tester").orElseThrow();
+			assertThat(stored.getName()).isEqualTo("New Name " + iteration);
+			assertThat(stored.getReadAccess()).containsExactlyInAnyOrderElementsOf(user.getReadAccess());
+			assertThat(stored.getWriteAccess()).containsExactlyInAnyOrderElementsOf(user.getWriteAccess());
+			assertThat(stored.getTagReadAccess()).containsExactlyInAnyOrderElementsOf(user.getTagReadAccess());
+			assertThat(stored.getTagWriteAccess()).containsExactlyInAnyOrderElementsOf(user.getTagWriteAccess());
+			userRepository.delete(stored);
 		}
 	}
 
