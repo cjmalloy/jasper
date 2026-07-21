@@ -240,6 +240,7 @@ public class UserServiceIT {
 	}
 
 	@Test
+	@WithMockUser(value = "+user/tester", roles = "USER")
 	void testUpdateOwnPopulatedUserName() {
 		var user = new User();
 		user.setTag("+user/tester");
