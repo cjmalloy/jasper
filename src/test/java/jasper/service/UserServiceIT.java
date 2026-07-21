@@ -32,7 +32,7 @@ import static org.springframework.data.domain.Sort.by;
 @IntegrationTest
 public class UserServiceIT {
 
-	private static final long FUZZ_SEED = 0x4A4153504552L;
+	private static final long DETERMINISTIC_FUZZ_SEED = 0x4A4153504552L;
 	private static final int FUZZ_ITERATIONS = 100;
 	private static final int FUZZ_RANDOM_PERMISSION_BOUND = 12;
 
@@ -283,7 +283,7 @@ public class UserServiceIT {
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "USER")
 	void testFuzzUpdateOwnPopulatedUserName() throws Exception {
-		var random = new Random(FUZZ_SEED);
+		var random = new Random(DETERMINISTIC_FUZZ_SEED);
 
 		for (var iteration = 0; iteration < FUZZ_ITERATIONS; iteration++) {
 			configCache.clearUserCache();
@@ -298,6 +298,7 @@ public class UserServiceIT {
 			user.setTagWriteAccess(randomAccess(random, "tag/write"));
 			userRepository.save(user);
 
+			// Simulate the GET-to-PUT JSON round trip used for profile edits.
 			var json = objectMapper.writeValueAsBytes(userService.get("+user/tester"));
 			var updated = objectMapper.readValue(json, User.class);
 			updated.setName("New Name " + iteration);
