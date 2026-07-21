@@ -1,5 +1,6 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
@@ -19,7 +20,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,6 +40,9 @@ public class UserServiceIT {
 
 	@Autowired
 	ConfigCache configCache;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@BeforeEach
 	void init() {
@@ -268,6 +274,60 @@ public class UserServiceIT {
 			.get()
 			.extracting(User::getName)
 			.isEqualTo("New Name");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = "USER")
+	void testFuzzUpdateOwnPopulatedUserName() {
+		var random = new Random(0x4A4153504552L);
+
+		for (var iteration = 0; iteration < 100; iteration++) {
+			userRepository.deleteAll();
+			configCache.clearUserCache();
+
+			var user = new User();
+			user.setTag("+user/tester");
+			user.setName("Old Name");
+			user.setRole("ROLE_USER");
+			user.setReadAccess(randomAccess(random, "read"));
+			user.setWriteAccess(randomAccess(random, "write"));
+			user.setTagReadAccess(randomAccess(random, "tag/read"));
+			user.setTagWriteAccess(randomAccess(random, "tag/write"));
+			userRepository.save(user);
+
+			var updated = objectMapper.convertValue(userService.get("+user/tester"), User.class);
+			updated.setName("New Name " + iteration);
+			updated.setReadAccess(shuffledCopy(updated.getReadAccess(), random));
+			updated.setWriteAccess(shuffledCopy(updated.getWriteAccess(), random));
+			updated.setTagReadAccess(shuffledCopy(updated.getTagReadAccess(), random));
+			updated.setTagWriteAccess(shuffledCopy(updated.getTagWriteAccess(), random));
+
+			userService.update(updated);
+
+			assertThat(userRepository.findOneByQualifiedTag("+user/tester"))
+				.get()
+				.extracting(User::getName)
+				.isEqualTo("New Name " + iteration);
+		}
+	}
+
+	private static List<String> randomAccess(Random random, String type) {
+		var prefixes = List.of("", "+", "_");
+		var access = new ArrayList<String>();
+		for (var prefix : prefixes) {
+			access.add(prefix + "permission/" + type + "/existing");
+		}
+		for (var i = 0; i < random.nextInt(12); i++) {
+			access.add(prefixes.get(random.nextInt(prefixes.size())) + "permission/" + type + "/" + i);
+		}
+		Collections.shuffle(access, random);
+		return access;
+	}
+
+	private static List<String> shuffledCopy(List<String> access, Random random) {
+		var copy = new ArrayList<>(access);
+		Collections.shuffle(copy, random);
+		return copy;
 	}
 
 	@Test
