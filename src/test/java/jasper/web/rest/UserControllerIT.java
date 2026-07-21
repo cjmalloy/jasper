@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Tests cross-origin write prevention with Local-Origin header.
  */
 @WithMockUser(value = "+user/tester@a", roles = {"ADMIN"})
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @IntegrationTest
 class UserControllerIT {
 
@@ -98,5 +98,4 @@ class UserControllerIT {
 		assertThat(existing).isPresent();
 		assertThat(existing.get().getRole()).isEqualTo("ROLE_USER");
 	}
-
 }
