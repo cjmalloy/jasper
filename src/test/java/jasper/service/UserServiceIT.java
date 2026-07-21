@@ -32,6 +32,10 @@ import static org.springframework.data.domain.Sort.by;
 @IntegrationTest
 public class UserServiceIT {
 
+	private static final long FUZZ_SEED = 0x4A4153504552L;
+	private static final int FUZZ_ITERATIONS = 100;
+	private static final int FUZZ_RANDOM_PERMISSION_BOUND = 12;
+
 	@Autowired
 	UserService userService;
 
@@ -279,9 +283,9 @@ public class UserServiceIT {
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "USER")
 	void testFuzzUpdateOwnPopulatedUserName() throws Exception {
-		var random = new Random(0x4A4153504552L);
+		var random = new Random(FUZZ_SEED);
 
-		for (var iteration = 0; iteration < 100; iteration++) {
+		for (var iteration = 0; iteration < FUZZ_ITERATIONS; iteration++) {
 			configCache.clearUserCache();
 
 			var user = new User();
@@ -320,7 +324,7 @@ public class UserServiceIT {
 		for (var prefix : prefixes) {
 			access.add(prefix + "permission/" + type + "/existing");
 		}
-		for (var i = 0; i < random.nextInt(12); i++) {
+		for (var i = 0; i < random.nextInt(FUZZ_RANDOM_PERMISSION_BOUND); i++) {
 			access.add(prefixes.get(random.nextInt(prefixes.size())) + "permission/" + type + "/" + i);
 		}
 		Collections.shuffle(access, random);
