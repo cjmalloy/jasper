@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.External;
+import jasper.domain.TagId;
 import jasper.domain.User;
 import jasper.domain.User_;
 import jasper.errors.NotFoundException;
@@ -278,11 +279,10 @@ public class UserServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "USER")
-	void testFuzzUpdateOwnPopulatedUserName() {
+	void testFuzzUpdateOwnPopulatedUserName() throws Exception {
 		var random = new Random(0x4A4153504552L);
 
 		for (var iteration = 0; iteration < 100; iteration++) {
-			userRepository.deleteAll();
 			configCache.clearUserCache();
 
 			var user = new User();
@@ -295,7 +295,8 @@ public class UserServiceIT {
 			user.setTagWriteAccess(randomAccess(random, "tag/write"));
 			userRepository.save(user);
 
-			var updated = objectMapper.convertValue(userService.get("+user/tester"), User.class);
+			var json = objectMapper.writeValueAsBytes(userService.get("+user/tester"));
+			var updated = objectMapper.readValue(json, User.class);
 			updated.setName("New Name " + iteration);
 			updated.setReadAccess(shuffledCopy(updated.getReadAccess(), random));
 			updated.setWriteAccess(shuffledCopy(updated.getWriteAccess(), random));
@@ -308,6 +309,7 @@ public class UserServiceIT {
 				.get()
 				.extracting(User::getName)
 				.isEqualTo("New Name " + iteration);
+			userRepository.deleteById(new TagId("+user/tester", ""));
 		}
 	}
 
