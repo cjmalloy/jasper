@@ -1031,6 +1031,21 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanWriteUser_KeepPublicWriteAccess() {
+		var user = getUser("+user/test");
+		user.getTagWriteAccess().add("+user/alice");
+		var auth = getAuth(user, USER);
+		var alice = getUser("+user/alice");
+		alice.getWriteAccess().add("custom");
+		auth.configs = getConfigCache(alice);
+
+		var aliceMod = getUser("+user/alice");
+		aliceMod.getWriteAccess().add("custom");
+		assertThat(auth.canWriteUser(aliceMod))
+			.isTrue();
+	}
+
+	@Test
 	void testCanWriteUser_AddProtectedReadAccess() {
 		var user = getUser("+user/test");
 		user.getTagWriteAccess().add("+user/alice");

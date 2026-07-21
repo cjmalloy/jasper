@@ -770,8 +770,8 @@ public class Auth {
 		var maybeExisting = ofNullable(configs.getUser(user.getQualifiedTag()));
 		// User role is required to create Users
 		if (maybeExisting.isEmpty() && !hasRole(USER)) return false;
-		// No public tags in write access
-		if (user.getWriteAccess() != null && user.getWriteAccess().stream().anyMatch(Auth::isPublicTag)) return false;
+		// No new public tags in write access
+		if (newTags(user.getWriteAccess(), maybeExisting.map(User::getWriteAccess)).anyMatch(Auth::isPublicTag)) return false;
 		// The writing user must already have write access to give read or write access to another user
 		if (!newTags(user.getTagReadAccess(), maybeExisting.map(User::getTagReadAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
 		if (!newTags(user.getTagWriteAccess(), maybeExisting.map(User::getTagWriteAccess)).allMatch(this::tagWriteAccessCaptures)) return false;
