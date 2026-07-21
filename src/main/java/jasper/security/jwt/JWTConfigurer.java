@@ -5,7 +5,7 @@ import jasper.config.Props;
 import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 public class JWTConfigurer extends SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity> {
 
@@ -23,6 +23,6 @@ public class JWTConfigurer extends SecurityConfigurerAdapter<DefaultSecurityFilt
 
 	@Override
 	public void configure(HttpSecurity http) {
-		http.addFilterAfter(new JWTFilter(props, tokenProvider, defaultTokenProvider, configs), SecurityContextHolderFilter.class);
+		http.addFilterBefore(new JWTFilter(props, tokenProvider, defaultTokenProvider, configs), UsernamePasswordAuthenticationFilter.class);
 	}
 }
