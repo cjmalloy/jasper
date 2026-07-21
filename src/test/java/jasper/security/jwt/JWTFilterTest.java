@@ -134,7 +134,7 @@ class JWTFilterTest {
     }
 
 	@Test
-	void testJWTFilterPreservesExistingAuthenticationWithoutAuthorization() throws Exception {
+	void testJWTFilterPreservesExistingAuthenticationWithoutBearerToken() throws Exception {
 		var authentication = new UsernamePasswordAuthenticationToken("mock-user", null);
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		var request = new MockHttpServletRequest();

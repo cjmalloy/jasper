@@ -52,7 +52,9 @@ public class JWTFilter extends GenericFilterBean {
 				if (configs.root().web(origin)) {
 					if (tokenProvider.validateToken(jwt, origin)) {
 						SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
-					} else if (StringUtils.hasText(jwt) || SecurityContextHolder.getContext().getAuthentication() == null) {
+					} else if (StringUtils.hasText(jwt)) {
+						SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+					} else if (SecurityContextHolder.getContext().getAuthentication() == null) {
 						SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
 					}
 				} else {
