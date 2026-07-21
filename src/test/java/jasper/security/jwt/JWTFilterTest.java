@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
@@ -131,6 +132,18 @@ class JWTFilterTest {
 		assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
 		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
     }
+
+	@Test
+	void testJWTFilterPreservesExistingAuthenticationWithoutAuthorization() throws Exception {
+		var authentication = new UsernamePasswordAuthenticationToken("mock-user", null);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		var request = new MockHttpServletRequest();
+		request.setRequestURI("/api/test");
+
+		jwtFilter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+		assertThat(SecurityContextHolder.getContext().getAuthentication()).isSameAs(authentication);
+	}
 
     @Test
     void testJWTFilterMissingToken() throws Exception {
