@@ -470,7 +470,7 @@ public class Auth {
 	}
 
 	/**
-	 * Can the user remove this tag to an existing ref?
+	 * Can the user remove this tag from an existing ref?
 	 */
 	public boolean canUntag(String tag, String url, String origin) {
 		return canChangeTag(tag, url, origin, this::canDeleteTag, false);
