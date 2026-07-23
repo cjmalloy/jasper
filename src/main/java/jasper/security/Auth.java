@@ -1011,7 +1011,8 @@ public class Auth {
 		access.addAll(getClaimQualifiedTags(claim));
 		if (isLoggedIn()) {
 			if (includeUserTag) access.add(getUserTag());
-			access.addAll(selectors(getSubOrigins(), getUser().map(userAccess).orElse(List.of())));
+			var userTags = getUser().map(userAccess).orElse(List.of());
+			access.addAll(selectors(getSubOrigins(), userTags));
 		}
 		return access;
 	}
