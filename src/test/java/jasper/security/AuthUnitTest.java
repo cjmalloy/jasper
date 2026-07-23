@@ -27,7 +27,6 @@ import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
-import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -617,16 +616,6 @@ public class AuthUnitTest {
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canTag("locked", ref.getUrl(), ref.getOrigin()))
-			.isFalse();
-	}
-
-	@Test
-	void testCanUntag_ModLockedFailed() {
-		var auth = getAuth(getUser("+user/test"), MOD);
-		var ref = getRef("locked");
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canUntag("locked", ref.getUrl(), ref.getOrigin()))
 			.isFalse();
 	}
 

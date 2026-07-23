@@ -46,8 +46,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -401,23 +399,27 @@ public class Auth {
 	 * Does the user have permission to use a tag when tagging Refs?
 	 */
 	public boolean canAddTag(String tag) {
-		return canChangeTag(tag, isPublicTag(tag));
+		// Min Role
+		if (!minRole()) return false;
+		// Minimum role for writing
+		if (!minWriteRole()) return false;
+		if (hasRole(MOD)) return true;
+		if (isPublicTag(tag)) return true;
+		var qt = qt(tag + getOrigin());
+		if (isUser(qt)) return true;
+		return captures(getTagReadAccess(), qt);
 	}
 
 	/**
 	 * Does the user have permission to remove a tag when tagging Refs?
 	 */
 	public boolean canDeleteTag(String tag) {
-		return canChangeTag(tag, !isPrivateTag(tag));
-	}
-
-	private boolean canChangeTag(String tag, boolean unrestricted) {
 		// Min Role
 		if (!minRole()) return false;
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		if (hasRole(MOD)) return true;
-		if (unrestricted) return true;
+		if (!isPrivateTag(tag)) return true;
 		var qt = qt(tag + getOrigin());
 		if (isUser(qt)) return true;
 		return captures(getTagReadAccess(), qt);
@@ -466,29 +468,12 @@ public class Auth {
 	 * Can the user add this tag to an existing ref?
 	 */
 	public boolean canTag(String tag, String url, String origin) {
-		return canChangeTag(tag, url, origin, this::canAddTag, true);
-	}
-
-	/**
-	 * Can the user remove this tag from an existing ref?
-	 */
-	public boolean canUntag(String tag, String url, String origin) {
-		return canChangeTag(tag, url, origin, this::canDeleteTag, false);
-	}
-
-	private boolean canChangeTag(
-		String tag,
-		String url,
-		String origin,
-		Predicate<String> canChange,
-		boolean modOverride
-	) {
 		// Only writing to the local origin ever permitted
 		if (!local(origin)) return false;
 		// Min Role
 		if (!minRole()) return false;
-		if (modOverride && hasRole(MOD)) return true;
-		// Editors have special access to change public tags on Refs they can read
+		if (hasRole(MOD)) return true;
+		// Editor has special access to add public tags to Refs they can read
 		if (hasRole(EDITOR) &&
 			isPublicTag(tag) &&
 			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
@@ -498,8 +483,30 @@ public class Auth {
 			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
 			!matchesTag("locked", tag) &&
 			canReadRef(url, origin)) return true;
-		// You can change the tag, and you can edit the ref
-		return canChange.test(tag) && canWriteRef(url, origin);
+		// You can add the tag, and you can edit the ref
+		return canAddTag(tag) && canWriteRef(url, origin);
+	}
+
+	/**
+	 * Can the user remove this tag to an existing ref?
+	 */
+	public boolean canUntag(String tag, String url, String origin) {
+		// Only writing to the local origin ever permitted
+		if (!local(origin)) return false;
+		// Min Role
+		if (!minRole()) return false;
+		// Editor has special access to remove public tags to Refs they can read
+		if (hasRole(EDITOR) &&
+			isPublicTag(tag) &&
+			// Except for user, an Editor cannot add ownership to a Ref or vice-versa
+			!matchesTemplate("user", tag) &&
+			// Except for public, an Editor cannot make a private Ref public or vice-versa
+			!matchesTag("public", tag) &&
+			// Except for locked, an Editor cannot make a locked Ref editable or vice-versa
+			!matchesTag("locked", tag) &&
+			canReadRef(url, origin)) return true;
+		// You can delete the tag, and you can edit the ref
+		return canDeleteTag(tag) && canWriteRef(url, origin);
 	}
 
 	/**
@@ -941,79 +948,91 @@ public class Auth {
 
 	public List<QualifiedTag> getReadAccess() {
 		if (readAccess == null) {
-			readAccess = getAccess(
-				List.of(selector("public" + getSubOrigins())),
-				props.getDefaultReadAccess(),
-				security().getDefaultReadAccess(),
-				READ_ACCESS_HEADER,
-				security().getReadAccessClaim(),
-				User::getReadAccess,
-				true);
+			readAccess = new ArrayList<>(List.of(selector("public" + getSubOrigins())));
+			if (props.getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(props.getDefaultReadAccess()));
+			}
+			if (security().getDefaultReadAccess() != null) {
+				readAccess.addAll(getQualifiedTags(security().getDefaultReadAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
+				readAccess.addAll(getHeaderQualifiedTags(READ_ACCESS_HEADER));
+			}
+			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
+			if (isLoggedIn()) {
+				readAccess.add(getUserTag());
+				readAccess.addAll(selectors(getSubOrigins(), getUser()
+						.map(User::getReadAccess)
+						.orElse(List.of())));
+			}
 		}
 		return readAccess;
 	}
 
 	public List<QualifiedTag> getWriteAccess() {
 		if (writeAccess == null) {
-			writeAccess = getAccess(
-				List.of(),
-				props.getDefaultWriteAccess(),
-				security().getDefaultWriteAccess(),
-				WRITE_ACCESS_HEADER,
-				security().getWriteAccessClaim(),
-				User::getWriteAccess,
-				false);
+			writeAccess = new ArrayList<>();
+			if (props.getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(props.getDefaultWriteAccess()));
+			}
+			if (security().getDefaultWriteAccess() != null) {
+				writeAccess.addAll(getQualifiedTags(security().getDefaultWriteAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
+				writeAccess.addAll(getHeaderQualifiedTags(WRITE_ACCESS_HEADER));
+			}
+			writeAccess.addAll(getClaimQualifiedTags(security().getWriteAccessClaim()));
+			if (isLoggedIn()) {
+				writeAccess.addAll(selectors(getSubOrigins(), getUser()
+						.map(User::getWriteAccess)
+						.orElse(List.of())));
+			}
 		}
 		return writeAccess;
 	}
 
 	public List<QualifiedTag> getTagReadAccess() {
 		if (tagReadAccess == null) {
-			tagReadAccess = getAccess(
-				getReadAccess(),
-				props.getDefaultTagReadAccess(),
-				security().getDefaultTagReadAccess(),
-				TAG_READ_ACCESS_HEADER,
-				security().getTagReadAccessClaim(),
-				User::getTagReadAccess,
-				false);
+			tagReadAccess = new ArrayList<>(getReadAccess());
+			if (props.getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(props.getDefaultTagReadAccess()));
+			}
+			if (security().getDefaultTagReadAccess() != null) {
+				tagReadAccess.addAll(getQualifiedTags(security().getDefaultTagReadAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
+				tagReadAccess.addAll(getHeaderQualifiedTags(TAG_READ_ACCESS_HEADER));
+			}
+			tagReadAccess.addAll(getClaimQualifiedTags(security().getTagReadAccessClaim()));
+			if (isLoggedIn()) {
+				tagReadAccess.addAll(selectors(getSubOrigins(), getUser()
+						.map(User::getTagReadAccess)
+						.orElse(List.of())));
+			}
 		}
 		return tagReadAccess;
 	}
 
 	public List<QualifiedTag> getTagWriteAccess() {
 		if (tagWriteAccess == null) {
-			tagWriteAccess = getAccess(
-				getWriteAccess(),
-				props.getDefaultTagWriteAccess(),
-				security().getDefaultTagWriteAccess(),
-				TAG_WRITE_ACCESS_HEADER,
-				security().getTagWriteAccessClaim(),
-				User::getTagWriteAccess,
-				false);
+			tagWriteAccess = new ArrayList<>(getWriteAccess());
+			if (props.getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(props.getDefaultTagWriteAccess()));
+			}
+			if (security().getDefaultTagWriteAccess() != null) {
+				tagWriteAccess.addAll(getQualifiedTags(security().getDefaultTagWriteAccess()));
+			}
+			if (props.isAllowAuthHeaders()) {
+				tagWriteAccess.addAll(getHeaderQualifiedTags(TAG_WRITE_ACCESS_HEADER));
+			}
+			tagWriteAccess.addAll(getClaimQualifiedTags(security().getTagWriteAccessClaim()));
+			if (isLoggedIn()) {
+				tagWriteAccess.addAll(selectors(getSubOrigins(), getUser()
+						.map(User::getTagWriteAccess)
+						.orElse(List.of())));
+			}
 		}
 		return tagWriteAccess;
-	}
-
-	private List<QualifiedTag> getAccess(
-		List<QualifiedTag> inherited,
-		String[] propertyDefaults,
-		List<String> configDefaults,
-		String header,
-		String claim,
-		Function<User, List<String>> userAccess,
-		boolean includeUserTag
-	) {
-		var access = new ArrayList<>(inherited);
-		if (propertyDefaults != null) access.addAll(getQualifiedTags(propertyDefaults));
-		if (configDefaults != null) access.addAll(getQualifiedTags(configDefaults));
-		if (props.isAllowAuthHeaders()) access.addAll(getHeaderQualifiedTags(header));
-		access.addAll(getClaimQualifiedTags(claim));
-		if (isLoggedIn()) {
-			if (includeUserTag) access.add(getUserTag());
-			access.addAll(selectors(getSubOrigins(), getUser().map(userAccess).orElse(List.of())));
-		}
-		return access;
 	}
 
 	public boolean hasAuthority(String authority) {
