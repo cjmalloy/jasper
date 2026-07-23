@@ -245,6 +245,10 @@ jasper/
 - Example: `logger.debug("{} Creating bulkhead with {} permits", origin, maxConcurrent)`
 - This ensures consistent log filtering and debugging in multi-tenant environments
 
+**Locality:**
+- Keep a readable single-use expression at its call site instead of extracting it into a temporary variable
+- Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions
+
 ## Code Drift Check
 
 When a branch already contains more than one commit, ALWAYS check for code drift before finishing. Code drift happens when a change is made and then undone in a later commit, but an irrelevant edit remains (e.g., leftover imports, renamed variables, reordered code, whitespace changes, or stray helper code from the reverted change). To check for drift:
