@@ -82,8 +82,10 @@ ALWAYS run the bootstrapping steps first.
 ## Testing
 
 **Unit and Integration Tests:**
-- **Local (Recommended)**: `./mvnw test` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
-- **Docker-based**: `docker build --target test -t jasper-test . && docker run --rm jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- **Local SQLite (Recommended)**: `./mvnw test -Dspring.profiles.active=test,sqlite,scripts` -- runs without PostgreSQL or Docker. NEVER CANCEL. Set timeout to 180+ seconds.
+- **Local PostgreSQL/Testcontainers**: `./mvnw test` -- requires Docker. NEVER CANCEL. Set timeout to 180+ seconds.
+- **Docker-based PostgreSQL**: `docker build --target test -t jasper-test . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
+- The Docker-based test command mounts the local Docker socket so Testcontainers can start PostgreSQL; only run it with trusted images in a trusted local environment.
 - Note: Some tests require Bun and Python dependencies to pass completely
 - Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
 
@@ -95,7 +97,8 @@ When building with Docker, use these techniques to efficiently read logs:
 
 **Load Testing with Gatling:**
 - Navigate to gatling directory: `cd gatling`
-- Docker load tests: `docker compose --profile lt up --build --exit-code-from gatling` -- NEVER CANCEL. Set timeout to 180+ seconds.
+- PostgreSQL load tests: `docker compose --profile lt up --build --exit-code-from gatling` -- NEVER CANCEL. Set timeout to 180+ seconds.
+- SQLite load tests: `docker compose -f docker-compose.sqlite.yaml --profile lt up --build --exit-code-from gatling` -- NEVER CANCEL. Set timeout to 180+ seconds.
 - Docker supported tests: `docker compose up -d; ../mvnw gatling:test`
 - Run a specific test using the `GATLING_TEST` environment variable: `GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling`
   - Available tests: `SmokeTest`, `Comprehensive`, `UserJourney`, `StressTest`, `Inferno`
@@ -103,8 +106,8 @@ When building with Docker, use these techniques to efficiently read logs:
 - **When adding new Gatling simulations**: ALWAYS update `.github/workflows/gatling.yml` to include the new test in the CI pipeline. Add a new step following the pattern of existing tests (e.g., `GATLING_TEST=YourNewTest`)
 
 **GitHub Actions Integration:**
-- Build/test workflow: `.github/workflows/test.yml` runs full Docker build and test suite
-- Load test workflow: `.github/workflows/gatling.yml` runs Gatling performance tests
+- Build/test workflow: `.github/workflows/test.yml` builds the Docker image and runs tests against PostgreSQL and SQLite
+- Load test workflow: `.github/workflows/gatling.yml` runs every Gatling simulation against PostgreSQL and SQLite
 - CodeQL analysis: `.github/workflows/codeql.yml` runs static security analysis
 - Docker publish: `.github/workflows/publish.yml` builds and publishes Docker images to GHCR
 - Release: `.github/workflows/release.yml` creates draft GitHub releases with JAR artifacts
@@ -120,7 +123,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 1. Start supporting services: `docker compose up -d`
 2. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
 3. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-4. Run tests with dependencies: Install Bun and Python, then `./mvnw test`
+4. Run tests with dependencies: Install Bun and Python, then run both PostgreSQL (`./mvnw test`) and SQLite (`./mvnw test -Dspring.profiles.active=test,sqlite,scripts`) suites for complete validation; the SQLite suite is the minimum for changes unrelated to database behavior
 5. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
@@ -188,6 +191,7 @@ jasper/
 ├── docker/               # Docker configuration files
 ├── gatling/              # Load testing module (separate Maven project)
 │   ├── docker-compose.yaml  # Load test environment
+│   ├── docker-compose.sqlite.yaml  # SQLite load test environment
 │   └── src/test/java/simulations/  # Gatling test scenarios
 ├── src/main/java/jasper/ # Main application source
 │   ├── aop/              # Aspect-oriented programming
@@ -204,6 +208,7 @@ jasper/
 │   ├── util/             # Utility classes
 │   └── web/              # REST controllers
 ├── src/main/resources/   # Configuration and static resources
+│   └── config/application-sqlite.yml  # SQLite runtime profile
 ├── src/test/java/        # Unit and integration tests
 ├── docker-compose.yaml   # Development environment
 ├── Dockerfile           # Multi-stage production build
@@ -224,6 +229,7 @@ jasper/
 - Spring Cloud 2025.1.2 (OpenFeign, Resilience4j, Kubernetes)
 - Java 25 (build target; Java 21 is the supported fallback with `-Djava.version=21`)
 - PostgreSQL 18 (primary development database)
+- SQLite JDBC 3.53.2.0 (embedded runtime and test database)
 - Redis (caching and messaging via Spring Integration)
 - Liquibase (database migrations)
 - Caffeine (local caching)
@@ -238,6 +244,10 @@ jasper/
 - The first placeholder `{}` should always be for the origin in multi-tenant operations
 - Example: `logger.debug("{} Creating bulkhead with {} permits", origin, maxConcurrent)`
 - This ensures consistent log filtering and debugging in multi-tenant environments
+
+**Locality:**
+- Keep a readable single-use expression at its call site instead of extracting it into a temporary variable
+- Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions
 
 ## Code Drift Check
 
