@@ -7,7 +7,6 @@ import jasper.component.ScriptExecutorFactory;
 import jasper.component.ScriptRunner;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
-import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.UntrustedScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
