@@ -64,9 +64,6 @@ public class Script implements Cron.CronRunner {
 				} catch (UntrustedScriptException e) {
 					logger.error("{} Script hash not whitelisted: {}", ref.getOrigin(), e.getScriptHash());
 					tagger.attachError(ref.getOrigin(), ref, "Script hash not whitelisted", e.getScriptHash());
-				} catch (OperationForbiddenOnOriginException e) {
-					logger.error("{} Script {} not installed: {}", ref.getOrigin(), scriptTag, e.getMessage());
-					tagger.attachError(ref.getOrigin(), ref, "Script " + scriptTag + " not installed", e.getMessage());
 				}
 			}).join();
 		}
