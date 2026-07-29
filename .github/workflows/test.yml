@@ -28,7 +28,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=build
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -397,7 +397,7 @@ jobs:
   clean:
     needs: test
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       actions: write
     steps:
