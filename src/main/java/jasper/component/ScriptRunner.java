@@ -10,7 +10,6 @@ import jasper.component.vm.JavaScript;
 import jasper.component.vm.Python;
 import jasper.component.vm.Shell;
 import jasper.domain.Ref;
-import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.ScriptException;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
@@ -79,9 +78,9 @@ public class ScriptRunner {
 
 	@Timed("jasper.scripts")
 	public void runScripts(Ref ref, String scriptTag) throws UntrustedScriptException {
-		var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class);
-		if (config.isEmpty()) throw new OperationForbiddenOnOriginException(ref.getOrigin());
-		runScripts(ref, scriptTag, config.get());
+		var config = configs.getPluginConfig(scriptTag, ref.getOrigin(), Script.class)
+			.orElse(null);
+		runScripts(ref, scriptTag, config);
 	}
 
 	void runScripts(Ref ref, String scriptTag, Script config) throws UntrustedScriptException {
