@@ -51,7 +51,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=test
       - name: Run the test container
         if: matrix.database == 'postgres'
-        run: docker run --name test -v /var/run/docker.sock:/var/run/docker.sock test
+        run: docker run --name test -e JAVA_TOOL_OPTIONS=-XX:+UseParallelGC -v /var/run/docker.sock:/var/run/docker.sock test
       - name: Copy the tests from the container
         if: matrix.database == 'postgres' && always()
         run: |
@@ -85,6 +85,8 @@ jobs:
           python-version: '3.x'
       - name: Run SQLite tests
         if: matrix.database == 'sqlite'
+        env:
+          JAVA_TOOL_OPTIONS: -XX:+UseParallelGC
         run: ./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts
       - name: Collect SQLite test results
         if: matrix.database == 'sqlite' && always()
