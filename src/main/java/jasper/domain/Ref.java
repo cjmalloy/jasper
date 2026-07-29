@@ -65,13 +65,13 @@ public class Ref implements HasTags {
 	private String comment;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode plugins;

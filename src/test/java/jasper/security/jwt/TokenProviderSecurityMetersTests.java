@@ -1,9 +1,13 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -15,13 +19,7 @@ import jasper.management.SecurityMetersService;
 import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
-import java.security.Key;
-import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 
@@ -121,25 +119,41 @@ class TokenProviderSecurityMetersTests {
     }
 
     private String createValidToken() {
-        Authentication authentication = createAuthentication();
-        return tokenProvider.createToken(authentication, 1800);
+        var security = configCache.security("");
+        return createToken("anonymous", security.getSecretBytes(), new Date(System.currentTimeMillis() + 1800 * 1000L));
     }
 
     private String createExpiredToken() {
-        Authentication authentication = createAuthentication();
-        return tokenProvider.createToken(authentication, -ONE_MINUTE);
+        var security = configCache.security("");
+        return createToken("anonymous", security.getSecretBytes(), new Date(System.currentTimeMillis() - ONE_MINUTE * 1000L));
     }
 
-    private Authentication createAuthentication() {
-        Collection<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority(AuthoritiesConstants.ANONYMOUS));
-        return new UsernamePasswordAuthenticationToken("anonymous", "anonymous", authorities);
+    private String createToken(String sub, byte[] key, Date expiration) {
+        try {
+            var claims = new JWTClaimsSet.Builder()
+                .subject(sub)
+                .claim("auth", AuthoritiesConstants.ANONYMOUS)
+                .claim("verified_email", true)
+                .expirationTime(expiration)
+                .build();
+            var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS512), claims);
+            jwt.sign(new MACSigner(key));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String createUnsupportedToken() {
-		var security = configCache.security("");
-
-        return Jwts.builder().setPayload("payload").signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), SignatureAlgorithm.HS256).compact();
+        try {
+            var rsaKey = new RSAKeyGenerator(2048).generate();
+            var claims = new JWTClaimsSet.Builder().subject("anonymous").build();
+            var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
+            jwt.sign(new RSASSASigner(rsaKey));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private String createMalformedToken() {
@@ -149,16 +163,9 @@ class TokenProviderSecurityMetersTests {
     }
 
     private String createTokenWithDifferentSignature() {
-        Key otherKey = Keys.hmacShaKeyFor(
-            Decoders.BASE64.decode("abfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8")
-        );
+        var otherKey = Base64.getDecoder().decode("abfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8");
 
-        return Jwts
-            .builder()
-            .subject("anonymous")
-            .signWith(otherKey, SignatureAlgorithm.HS512)
-            .expiration(new Date(new Date().getTime() + ONE_MINUTE))
-            .compact();
+        return createToken("anonymous", otherKey, new Date(new Date().getTime() + ONE_MINUTE * 1000L));
     }
 
     private double aggregate(Collection<Counter> counters) {

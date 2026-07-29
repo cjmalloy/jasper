@@ -1,6 +1,5 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
@@ -35,7 +34,7 @@ public abstract class AbstractTokenProvider implements TokenProvider {
 		var user = configs.getUser(userTag + origin);
 		var security = configs.security(origin);
 		if (security.isExternalId()) {
-			var email = claims.get(security.getUsernameClaim(), String.class);
+			var email = claims.getString(security.getUsernameClaim());
 			if (user == null) return configs.createUser(userTag, origin, email);
 			if (user.hasExternalId() && configs.getUserByExternalId(origin, email).isEmpty()) {
 				// There is no explicit mapping for `email`, but `user` has an explicit mapping,

@@ -57,7 +57,7 @@ timeout_ms = int(sys.argv[1])
 env = os.environ.copy()
 env['JASPER_API'] = sys.argv[2]
 input_data = sys.stdin.read()
-target_script, input_string = input_data.split('\\0')
+target_script, input_string = input_data.split('\\0', 1)
 process = subprocess.Popen([sys.executable, '-c', target_script], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, env=env)
 try:
 	process.communicate(input=input_string.encode(), timeout=timeout_ms / 1000)
@@ -105,7 +105,7 @@ if process.returncode != 0:
 			}
 		}
 		var scriptProcess = new ProcessBuilder(python, "-c", pythonVmWrapperScript, ""+timeoutMs, api).start();
-		try (OutputStreamWriter writer = new OutputStreamWriter(scriptProcess.getOutputStream())) {
+		try (OutputStreamWriter writer = new OutputStreamWriter(scriptProcess.getOutputStream(), StandardCharsets.UTF_8)) {
 			writer.write(targetScript);
 			writer.write("\0"); // Null byte delimiter
 			writer.write(inputString);

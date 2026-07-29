@@ -1,6 +1,5 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
 import jasper.domain.User;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;

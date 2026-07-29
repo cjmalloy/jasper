@@ -18,37 +18,30 @@
 		<start-class>jasper.JasperApplication</start-class>
 		<argLine>-Djava.security.egd=file:/dev/./urandom -Xmx256m</argLine>
 		<resource.delimiter>@</resource.delimiter>
-		<spring-boot.version>4.0.3</spring-boot.version>
-		<spring-cloud.version>2025.1.1</spring-cloud.version>
-		<lombok.version>1.18.42</lombok.version>
-		<testcontainers.version>2.0.3</testcontainers.version>
+		<spring-boot.version>4.1.0</spring-boot.version>
+		<spring-cloud.version>2025.1.2</spring-cloud.version>
+		<lombok.version>1.18.46</lombok.version>
+		<testcontainers.version>2.0.5</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
-		<jackson-databind-nullable.version>0.2.9</jackson-databind-nullable.version>
-		<postgresql.version>42.3.9</postgresql.version>
-		<sqlite-jdbc.version>3.51.2.0</sqlite-jdbc.version>
-		<hibernate.version>7.2.0.Final</hibernate.version>
-		<hypersistence-utils-71.version>3.15.2</hypersistence-utils-71.version>
+		<sqlite-jdbc.version>3.53.2.1</sqlite-jdbc.version>
+		<hibernate-jpamodelgen.version>7.4.1.Final</hibernate-jpamodelgen.version>
+		<hypersistence-utils-71.version>3.15.4</hypersistence-utils-71.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
-		<jjwt.version>0.13.0</jjwt.version>
 		<problem-spring-web.version>0.29.1</problem-spring-web.version>
-		<springdoc-openapi.version>3.0.1</springdoc-openapi.version>
+		<springdoc-openapi.version>3.0.3</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
-		<archunit-junit5.version>1.4.1</archunit-junit5.version>
+		<archunit-junit5.version>1.4.2</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
-		<apache-httpclient.version>5.6</apache-httpclient.version>
-		<commons-io.version>2.21.0</commons-io.version>
-		<commons-fileupload.version>1.6.0</commons-fileupload.version>
+		<apache-httpclient.version>5.6.2</apache-httpclient.version>
+		<commons-io.version>2.22.0</commons-io.version>
 		<commons-collections4.version>4.5.0</commons-collections4.version>
 		<commons-lang3.version>3.20.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
-		<jsoup.version>1.22.1</jsoup.version>
-		<re2j.version>1.8</re2j.version>
+		<jsoup.version>1.22.2</jsoup.version>
 		<scim2-client.version>2.3.8</scim2-client.version>
-		<mockito.version>5.11.0</mockito.version>
-		<byte-buddy.version>1.14.12</byte-buddy.version>
-		<xmlunit.version>2.11.0</xmlunit.version>
+		<xmlunit.version>2.12.0</xmlunit.version>
 	</properties>
 
 	<dependencies>
@@ -66,6 +59,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -137,19 +134,9 @@
 			<version>${commons-io.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>commons-fileupload</groupId>
-			<artifactId>commons-fileupload</artifactId>
-			<version>${commons-fileupload.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.drewnoakes</groupId>
 			<artifactId>metadata-extractor</artifactId>
-			<version>2.19.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openapitools</groupId>
-			<artifactId>jackson-databind-nullable</artifactId>
-			<version>${jackson-databind-nullable.version}</version>
+			<version>2.21.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.jsontypedef.jtd</groupId>
@@ -164,7 +151,7 @@
 		<dependency>
 			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-jpamodelgen</artifactId>
-			<version>${hibernate.version}</version>
+			<version>${hibernate-jpamodelgen.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -235,21 +222,6 @@
 			<artifactId>spring-cloud-starter-kubernetes-fabric8</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.rometools</groupId>
 			<artifactId>rome</artifactId>
 			<version>${rome.version}</version>
@@ -270,11 +242,6 @@
 			<version>${jsoup.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.google.re2j</groupId>
-			<artifactId>re2j</artifactId>
-			<version>${re2j.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.unboundid.product.scim2</groupId>
 			<artifactId>scim2-sdk-client</artifactId>
 			<version>${scim2-client.version}</version>
@@ -286,7 +253,7 @@
 		<dependency>
 			<groupId>org.apache.sshd</groupId>
 			<artifactId>sshd-core</artifactId>
-			<version>2.17.1</version>
+			<version>2.19.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -360,8 +327,9 @@
 			<groupId>org.xmlunit</groupId>
 			<artifactId>xmlunit-core</artifactId>
 			<version>${xmlunit.version}</version>
-			<scope>compile</scope>
+			<scope>test</scope>
 			<exclusions>
+				<!-- Spring Boot 4 uses jakarta.xml.bind; avoid legacy javax JAXB classpath conflicts. -->
 				<exclusion>
 					<groupId>javax.xml.bind</groupId>
 					<artifactId>jaxb-api</artifactId>
@@ -460,7 +428,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.14</version>
+				<version>0.8.15</version>
 				<executions>
 					<execution>
 						<goals>
@@ -508,7 +476,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
-				<version>3.4.0</version>
+				<version>3.5.0</version>
 				<configuration>
 					<propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
 					<delimiters>
@@ -520,7 +488,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.5.0</version>
+				<version>3.5.1</version>
 				<configuration>
 					<archive>
 						<manifest>
@@ -533,7 +501,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.4</version>
+				<version>3.5.6</version>
 				<configuration>
 					<includes>
 						<include>**/*Test.java</include>
@@ -545,7 +513,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>3.5.4</version>
+				<version>3.5.6</version>
 				<executions>
 					<execution>
 						<goals>

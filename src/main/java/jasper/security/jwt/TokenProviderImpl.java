@@ -1,13 +1,9 @@
 package jasper.security.jwt;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
-import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.domain.User;
@@ -19,16 +15,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import javax.crypto.spec.SecretKeySpec;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -52,7 +57,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
-	Map<String, JwtParser> jwtParsers = new HashMap<>();
+	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -63,26 +68,8 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		this.restTemplate = restTemplate;
 	}
 
-	public String createToken(Authentication authentication, int validityInSeconds) {
-		var security = configs.security("");
-		var authorities = authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.joining(","));
-		var now = (new Date()).getTime();
-		var validity = new Date(now + 1000L * validityInSeconds);
-		return Jwts
-			.builder()
-			.subject(authentication.getName())
-				.audience()
-				.add(security.getClientId())
-			.and()
-			.claim(security.getAuthoritiesClaim(), authorities)
-			.claim(security.getVerifiedEmailClaim(), true)
-			.signWith(Keys.hmacShaKeyFor(security.getSecretBytes()), Jwts.SIG.HS512)
-			.expiration(validity)
-			.compact();
-	}
-
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = getParser(origin).parseSignedClaims(token).getPayload();
+		var claims = new Claims(getDecoder(origin).decode(token).getClaims());
 		var principal = getUsername(claims, origin);
 		User user;
 		try {
@@ -95,27 +82,34 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		return new JwtAuthentication(principal, user, claims, getAuthorities(claims, user, origin));
 	}
 
-	JwtParser getParser(String origin) {
-		var security = configs.security(origin);
-		if (!jwtParsers.containsKey(origin)) {
+	JwtDecoder getDecoder(String origin) {
+		return jwtDecoders.computeIfAbsent(origin, o -> {
+			var security = configs.security(o);
 			switch (security.getMode()) {
 				case "jwt":
-					var key = Keys.hmacShaKeyFor(security.getSecretBytes());
-					jwtParsers.put(origin, Jwts.parser().verifyWith(key).build());
-					break;
+					var secret = security.getSecretBytes();
+					return noClockSkew(NimbusJwtDecoder
+						.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
+						.macAlgorithm(MacAlgorithm.HS512)
+						.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
+							Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
+							new ImmutableSecret<>(secret))))
+						.build());
 				case "jwks":
-                    try {
-                        jwtParsers.put(origin, Jwts.parser().setSigningKeyResolver(new JwkSigningKeyResolver(new URI(security.getJwksUri()), restTemplate)).build());
-                    } catch (URISyntaxException e) {
-						logger.error("{} Cannot parse JWKS URI {}", origin, security.getJwksUri());
-                        throw new RuntimeException(e);
-                    }
-                    break;
-				case "nop":
-
+					return noClockSkew(NimbusJwtDecoder
+						.withJwkSetUri(security.getJwksUri())
+						.restOperations(restTemplate)
+						.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
+						.build());
+				default:
+					return null;
 			}
-		}
-		return jwtParsers.get(origin);
+		});
+	}
+
+	private static NimbusJwtDecoder noClockSkew(NimbusJwtDecoder decoder) {
+		decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(new JwtTimestampValidator(Duration.ZERO)));
+		return decoder;
 	}
 
 	Collection<? extends GrantedAuthority> getAuthorities(Claims claims, User user, String origin) {
@@ -133,7 +127,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	List<SimpleGrantedAuthority> getPartialAuthorities(Claims claims, String origin) {
 		var auth = getPartialAuthorities(origin);
-		var authClaim = claims.get(configs.security(origin).getAuthoritiesClaim(), String.class);
+		var authClaim = claims.getString(configs.security(origin).getAuthoritiesClaim());
 		if (isNotBlank(authClaim)) {
 			Arrays.stream(authClaim.split(","))
 				.filter(r -> !r.isBlank())
@@ -152,7 +146,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			userTagHeader = userTagHeader.toLowerCase();
 		}
 		var security = configs.security(origin);
-		var principal = claims.get(security.getUsernameClaim(), String.class);
+		var principal = claims.getString(security.getUsernameClaim());
 		logger.debug("{} User tag set by JWT claim {}: ({})", origin, security.getUsernameClaim(), principal);
 		if (props.isAllowUserTagHeader() && isNotBlank(userTagHeader)) {
 			principal = userTagHeader;
@@ -216,44 +210,58 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 			return false;
 		}
 		try {
-			var parser = getParser(origin);
-			if (parser == null) {
+			var decoder = getDecoder(origin);
+			if (decoder == null) {
 				logger.error("{} No client for origin {} in security settings", origin, formatOrigin(origin));
 				return false;
 			}
-			var claims = parser.parseSignedClaims(authToken).getPayload();
+			var jwt = decoder.decode(authToken);
+			var audience = jwt.getAudience();
 			if (isBlank(security.getClientId()) &&
-				claims.getAudience() != null &&
-				(!claims.getAudience().contains("") || !claims.getAudience().isEmpty())) {
+				audience != null &&
+				(!audience.contains("") || !audience.isEmpty())) {
 				securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
 			} else if (isNotBlank(security.getClientId()) &&
-				(claims.getAudience() == null || !claims.getAudience().contains(security.getClientId()) || claims.getAudience().size() != 1)) {
+				(audience == null || !audience.contains(security.getClientId()) || audience.size() != 1)) {
 				// TODO: add method to whitelist extra audiences
 				securityMetersService.trackTokenInvalidAudience();
 				logger.trace(INVALID_JWT_TOKEN + " Invalid Audience");
-			} else if (isNotBlank(security.getVerifiedEmailClaim()) && claims.getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(false)) {
+			} else if (isNotBlank(security.getVerifiedEmailClaim()) && jwt.getClaims().getOrDefault(security.getVerifiedEmailClaim(), Boolean.FALSE).equals(false)) {
 				securityMetersService.trackUnverifiedEmail();
 				logger.trace(INVALID_JWT_TOKEN + " Email is not verified");
 			} else {
 				return true;
 			}
-		} catch (ExpiredJwtException e) {
-			securityMetersService.trackTokenExpired();
+		} catch (JwtValidationException e) {
+			if (e.getErrors().stream().anyMatch(err -> err.getDescription() != null && err.getDescription().contains("expired"))) {
+				securityMetersService.trackTokenExpired();
+			}
 			logger.trace(INVALID_JWT_TOKEN, e);
-		} catch (UnsupportedJwtException e) {
-			securityMetersService.trackTokenUnsupported();
+		} catch (BadJwtException e) {
+			var message = getMessageChain(e);
+			if (message.contains("Invalid signature")) {
+				securityMetersService.trackTokenInvalidSignature();
+			} else if (message.contains("Another algorithm expected") || message.contains("Unsupported") || message.contains("not a valid JSON")) {
+				securityMetersService.trackTokenUnsupported();
+			} else {
+				securityMetersService.trackTokenMalformed();
+			}
 			logger.trace(INVALID_JWT_TOKEN, e);
-		} catch (MalformedJwtException e) {
-			securityMetersService.trackTokenMalformed();
+		} catch (JwtException e) {
 			logger.trace(INVALID_JWT_TOKEN, e);
-		} catch (SignatureException e) {
-			securityMetersService.trackTokenInvalidSignature();
-			logger.trace(INVALID_JWT_TOKEN, e);
-
 		} catch (IllegalArgumentException e) {
 			logger.error("{} Token validation error {}", origin, getMessage(e));
 		}
         return false;
+	}
+
+	private static String getMessageChain(Throwable e) {
+		var sb = new StringBuilder();
+		while (e != null) {
+			if (e.getMessage() != null) sb.append(e.getMessage()).append(" ");
+			e = e.getCause();
+		}
+		return sb.toString();
 	}
 }

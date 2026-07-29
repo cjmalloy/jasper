@@ -1,5 +1,7 @@
 package jasper.component.channel;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.dto.ExtDto;
@@ -12,6 +14,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.io.UncheckedIOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -29,6 +32,9 @@ public class Stomp {
 	@Autowired
 	ComponentDtoMapper mapper;
 
+	@Autowired
+	ObjectMapper objectMapper;
+
 	@Order(0)
 	@ServiceActivator(inputChannel = "cursorRxChannel")
 	public void handleCursorUpdate(Message<String> message) {
@@ -39,10 +45,11 @@ public class Stomp {
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
 		var updateDto = mapper.dtoToUpdateDto(message.getPayload());
+		var payload = serializePayload(updateDto, "ref");
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/ref/" + formatOrigin(o) + "/" + e(message.getHeaders().get("url")), updateDto);
+			stomp.convertAndSend("/topic/ref/" + formatOrigin(o) + "/" + e(message.getHeaders().get("url")), payload);
 		}
 	}
 
@@ -71,10 +78,20 @@ public class Stomp {
 	@Order(0)
 	@ServiceActivator(inputChannel = "extRxChannel")
 	public void handleExtUpdate(Message<ExtDto> message) {
+		var payload = serializePayload(message.getPayload(), "ext");
 		var origin = HasOrigin.origin(message.getHeaders().get("origin").toString());
 		var origins = originHierarchy(origin);
 		for (var o : origins) {
-			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), message.getPayload());
+			stomp.convertAndSend("/topic/ext/" + formatOrigin(o) + "/" + e(message.getHeaders().get("tag")), payload);
+		}
+	}
+
+	private String serializePayload(Object payload, String topic) {
+		try {
+			return objectMapper.writeValueAsString(payload);
+		}
+		catch (JsonProcessingException e) {
+			throw new UncheckedIOException("Failed to serialize " + topic + " websocket payload", e);
 		}
 	}
 

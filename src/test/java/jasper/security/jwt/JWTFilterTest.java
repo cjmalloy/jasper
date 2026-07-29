@@ -1,5 +1,11 @@
 package jasper.security.jwt;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -13,13 +19,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
-import java.util.Collections;
+import java.util.Base64;
+import java.util.Date;
 
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +36,7 @@ class JWTFilterTest {
 
     private TokenProviderImpl tokenProvider;
     private TokenProviderImplDefault defaultTokenProvider;
+    private byte[] secret;
 
     private JWTFilter jwtFilter;
 
@@ -51,19 +57,31 @@ class JWTFilterTest {
 
         tokenProvider = new TokenProviderImpl(props, configCache, securityMetersService, null);
         defaultTokenProvider = new TokenProviderImplDefault(props, configCache);
+        secret = Base64.getDecoder().decode(base64Secret);
 
         jwtFilter = new JWTFilter(props, tokenProvider, defaultTokenProvider, configCache);
         SecurityContextHolder.getContext().setAuthentication(null);
     }
 
+    private String createToken(String sub, String authorities) {
+        try {
+            var claims = new JWTClaimsSet.Builder()
+                .subject(sub)
+                .claim("auth", authorities)
+                .claim("verified_email", true)
+                .expirationTime(new Date(System.currentTimeMillis() + 1800 * 1000L))
+                .build();
+            var jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS512), claims);
+            jwt.sign(new MACSigner(secret));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     void testJWTFilter() throws Exception {
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-            "test.user",
-            "test-password",
-            Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.USER))
-        );
-        String jwt = tokenProvider.createToken(authentication, 1800);
+        String jwt = createToken("test.user", AuthoritiesConstants.USER);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(JWTFilter.AUTHORIZATION_HEADER, "Bearer " + jwt);
         request.setRequestURI("/api/test");
@@ -77,12 +95,7 @@ class JWTFilterTest {
 
     @Test
     void testJWTFilterInvalidPrincipal() throws Exception {
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-            "test-user",
-            "test-password",
-            Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.USER))
-        );
-        String jwt = tokenProvider.createToken(authentication, 1800);
+        String jwt = createToken("test-user", AuthoritiesConstants.USER);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(JWTFilter.AUTHORIZATION_HEADER, "Bearer " + jwt);
         request.setRequestURI("/api/test");
@@ -134,12 +147,7 @@ class JWTFilterTest {
 
     @Test
     void testJWTFilterWrongScheme() throws Exception {
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-            "test-user",
-            "test-password",
-            Collections.singletonList(new SimpleGrantedAuthority(AuthoritiesConstants.USER))
-        );
-        String jwt = tokenProvider.createToken(authentication, 1800);
+        String jwt = createToken("test-user", AuthoritiesConstants.USER);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(JWTFilter.AUTHORIZATION_HEADER, "Basic " + jwt);
         request.setRequestURI("/api/test");

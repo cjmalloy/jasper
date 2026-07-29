@@ -2,7 +2,7 @@ name: Test
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, 'v1.3' ]
   pull_request:
     branches: [ '**' ]
   workflow_dispatch:
@@ -14,13 +14,13 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build the Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
@@ -28,20 +28,20 @@ jobs:
           cache-to: type=gha,mode=max,scope=build
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
         database: [postgres, sqlite]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # PostgreSQL tests: Docker-based with Testcontainers
       - name: Setup Docker buildx
         if: matrix.database == 'postgres'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build the testing image
         if: matrix.database == 'postgres'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: test
@@ -80,7 +80,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
       - name: Install Python
         if: matrix.database == 'sqlite'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.x'
       - name: Run SQLite tests
@@ -95,7 +95,7 @@ jobs:
           cp target/reports/surefire.html reports/index.html 2>/dev/null || true
       # Common reporting steps
       - name: Publish Unit Test Results
-        uses: dorny/test-reporter@v2.5.0
+        uses: dorny/test-reporter@v3.0.0
         if: always()
         continue-on-error: true
         with:
@@ -225,7 +225,7 @@ jobs:
           fi
       - name: Comment on PR with Test Results
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
@@ -381,14 +381,14 @@ jobs:
             }
       - name: Upload PR Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: junit-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
           path: reports
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: junit-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
           path: reports
@@ -397,17 +397,17 @@ jobs:
   clean:
     needs: test
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       actions: write
     steps:
       - name: Cleanup old branch artifacts
         if: github.event_name != 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
-            const maxVersions = 5;
+            const maxVersions = 10;
             const response = await github.rest.actions.listArtifactsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -430,11 +430,11 @@ jobs:
             }
       - name: Cleanup old PR artifacts
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           # language=JavaScript
           script: |
-            const maxVersions = 1;
+            const maxVersionsPerName = 1;
             const response = await github.rest.actions.listArtifactsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -442,16 +442,22 @@ jobs:
             });
             const artifacts = response.data.artifacts
               .filter(artifact => artifact.name.startsWith('junit-reports-') && artifact.name.includes('-pr-${{ github.event.pull_request.number }}'));
-            if (artifacts.length > maxVersions) {
-              // Sort by created_at descending
-              artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-              // Delete all but the latest maxVersions
-              for (const artifact of artifacts.slice(maxVersions)) {
-                console.log('Deleting artifact:', artifact.name);
-                await github.rest.actions.deleteArtifact({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  artifact_id: artifact.id
-                });
+            // Group artifacts by name to handle multiple database variants (postgres, sqlite)
+            const groups = {};
+            for (const artifact of artifacts) {
+              if (!groups[artifact.name]) groups[artifact.name] = [];
+              groups[artifact.name].push(artifact);
+            }
+            for (const [name, group] of Object.entries(groups)) {
+              if (group.length > maxVersionsPerName) {
+                group.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                for (const artifact of group.slice(maxVersionsPerName)) {
+                  console.log('Deleting artifact:', artifact.name);
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id
+                  });
+                }
               }
             }

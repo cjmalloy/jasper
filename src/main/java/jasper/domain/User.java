@@ -81,16 +81,16 @@ public class User implements Tag {
 	private String name;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> readAccess;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> readAccess;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> writeAccess;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> writeAccess;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagReadAccess;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagReadAccess;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tagWriteAccess;
 
 	@LastModifiedDate
 	@Column(nullable = false)

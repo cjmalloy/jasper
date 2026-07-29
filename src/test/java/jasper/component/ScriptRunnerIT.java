@@ -1,22 +1,43 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.IntegrationTest;
 import jasper.config.Props;
+import jasper.component.vm.JavaScript;
+import jasper.component.vm.Python;
+import jasper.component.vm.Shell;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.errors.OperationForbiddenOnOriginException;
+import jasper.errors.ScriptException;
 import jasper.errors.UntrustedScriptException;
 import jasper.plugin.config.Script;
+import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import static jasper.repository.spec.RefSpec.hasSource;
 import static jasper.repository.spec.RefSpec.hasTag;
+import static java.nio.file.Files.createFile;
+import static java.nio.file.Files.exists;
+import static java.time.Duration.ofSeconds;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 
 @IntegrationTest
 public class ScriptRunnerIT {
@@ -29,6 +50,30 @@ public class ScriptRunnerIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	PluginRepository pluginRepository;
+
+	@Autowired
+	IngestPlugin ingestPlugin;
+
+	@Autowired
+	ScriptExecutorFactory scriptExecutorFactory;
+
+	@Autowired
+	BulkheadRegistry bulkheadRegistry;
+
+	@Autowired
+	JavaScript javaScript;
+
+	@Autowired
+	Python python;
+
+	@Autowired
+	Shell shell;
+
+	@TempDir
+	Path tempDir;
 
 	Ref getRef(String url, String title, String comment, String ...tags) {
 		var ref = new Ref();
@@ -43,6 +88,7 @@ public class ScriptRunnerIT {
 	void init() {
 		props.setNode(props.getNode().replaceFirst("^~", System.getProperty("user.home")));
 		refRepository.deleteAll();
+		pluginRepository.deleteAll();
 	}
 
 
@@ -218,6 +264,118 @@ print(yaml.dump({
 		assertThat(responses.size()).isEqualTo(1);
 		var output = responses.get(0);
 		assertThat(output.getComment()).isEqualTo("TEST");
+	}
+
+	@Test
+	void testUninstallCancelsBunScript() throws Exception {
+		var started = tempDir.resolve("bun-started");
+		var completed = tempDir.resolve("bun-completed");
+		assertUninstallCancels("plugin/script/bun.cancel", started, completed, () -> javaScript.runJavaScript("""
+			const fs = require('fs');
+			fs.writeFileSync('%s', '');
+			await Bun.sleep(10_000);
+			fs.writeFileSync('%s', '');
+			""".formatted(started, completed), "", 30_000));
+	}
+
+	@Test
+	void testUninstallCancelsPythonScript() throws Exception {
+		var started = tempDir.resolve("python-started");
+		var completed = tempDir.resolve("python-completed");
+		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython("", """
+			import time
+			open('%s', 'w').close()
+			time.sleep(10)
+			open('%s', 'w').close()
+			""".formatted(started, completed), "", 30_000));
+	}
+
+	@Test
+	void testUninstallCancelsBashScript() throws Exception {
+		var started = tempDir.resolve("bash-started");
+		var completed = tempDir.resolve("bash-completed");
+		assertUninstallCancels("plugin/script/bash.cancel", started, completed, () -> shell.runShellScript("""
+			touch '%s'
+			sleep 10
+			touch '%s'
+			""".formatted(started, completed), "", 30_000));
+	}
+
+	@Test
+	void testUninstallCancelsQueuedScript() throws Exception {
+		var tag = "plugin/script/queued.cancel";
+		var queuedMarker = tempDir.resolve("queued-ran");
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		pluginRepository.save(plugin);
+		var bulkhead = bulkheadRegistry.bulkhead(tag, BulkheadConfig.custom()
+			.maxConcurrentCalls(1)
+			.maxWaitDuration(ofSeconds(30))
+			.build());
+		bulkhead.acquirePermission();
+
+		try {
+			var queued = scriptExecutorFactory.run(tag, "", () -> {
+				try {
+					createFile(queuedMarker);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			});
+			var queuedDeadline = System.nanoTime() + SECONDS.toNanos(2);
+			while (executionCount(tag) < 1 && System.nanoTime() < queuedDeadline) {
+				Thread.sleep(10);
+			}
+			assertThat(executionCount(tag)).isEqualTo(1);
+
+			ingestPlugin.delete(tag);
+
+			assertThatThrownBy(() -> queued.get(2, SECONDS))
+				.isInstanceOf(ExecutionException.class);
+			assertThat(queuedMarker).doesNotExist();
+		} finally {
+			bulkhead.releasePermission();
+		}
+	}
+
+	private int executionCount(String tag) {
+		var executions = (Map<?, ?>) getField(scriptExecutorFactory, "executions");
+		var threads = (Set<?>) executions.get(tag);
+		return threads == null ? 0 : threads.size();
+	}
+
+	private void assertUninstallCancels(String tag, Path started, Path completed, ScriptExecution execution) throws Exception {
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		pluginRepository.save(plugin);
+		var future = scriptExecutorFactory.run(tag, "", () -> {
+			try {
+				execution.run();
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+		var startDeadline = System.nanoTime() + SECONDS.toNanos(5);
+		while (!exists(started) && System.nanoTime() < startDeadline) {
+			Thread.sleep(10);
+		}
+		assertThat(started).exists();
+
+		ingestPlugin.delete(tag);
+
+		try {
+			future.get(2, SECONDS);
+		} catch (ExecutionException expected) {
+			assertThat(expected)
+				.hasRootCauseInstanceOf(ScriptException.class)
+				.hasRootCauseMessage("Script execution interrupted");
+		}
+		assertThat(completed).doesNotExist();
+	}
+
+	@FunctionalInterface
+	private interface ScriptExecution {
+		void run() throws Exception;
 	}
 
 }

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
@@ -86,7 +87,7 @@ public class TaggingController {
 	})
 	@PatchMapping
 	Instant patchTags(
-		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@NotBlank @Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin
 	) {
@@ -136,7 +137,7 @@ public class TaggingController {
 	@PatchMapping("response")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void respond(
-		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@NotBlank @Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url
 	) {
 		taggingService.respond(tags, url, null);
@@ -149,7 +150,7 @@ public class TaggingController {
 	@PatchMapping(value = "response", consumes = "application/json-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void patchResponse(
-		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@NotBlank @Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestBody JsonPatch patch
 	) {
@@ -163,7 +164,7 @@ public class TaggingController {
 	@PatchMapping(value = "response", consumes = "application/merge-patch+json")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void mergeResponse(
-		@RequestParam List<@Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
+		@RequestParam List<@NotBlank @Length(max = TAG_LEN + 1) @Pattern(regexp = Tag.ADD_REMOVE_REGEX) String> tags,
 		@RequestParam(defaultValue = "") @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestBody JsonMergePatch patch
 	) {

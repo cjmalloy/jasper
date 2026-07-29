@@ -294,7 +294,7 @@ public class Validate {
 		for (var tag : expandTags(ref.getTags())) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
-				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
+				if (p.getDefaults() != null && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults());
 			});
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());

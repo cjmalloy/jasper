@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import jasper.aop.ClearIdle;
@@ -48,7 +49,7 @@ public class GraphController {
 	})
 	@GetMapping("list")
 	HttpEntity<List<RefNodeDto>> getGraphList(
-		@RequestParam @Size(max = 100) List<@Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls
+		@RequestParam @Size(max = 100) List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String> urls
 	) {
 		return httpCache.ifNotModifiedList( urls.stream().map(url -> {
 			try {

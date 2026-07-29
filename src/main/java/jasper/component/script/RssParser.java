@@ -10,12 +10,15 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.ParsingFeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import feign.FeignException;
+import jasper.client.JasperClient;
+import jasper.client.dto.JasperMapper;
 import jasper.component.HttpClientFactory;
 import jasper.component.Ingest;
 import jasper.component.Sanitizer;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
-import jasper.errors.AlreadyExistsException;
+import jasper.domain.proj.HasTags;
 import jasper.errors.NotFoundException;
 import jasper.plugin.Audio;
 import jasper.plugin.Feed;
@@ -29,6 +32,7 @@ import org.jdom2.input.JDOMParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLException;
@@ -44,9 +48,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.USER_ROLE_HEADER;
+import static jasper.security.Auth.USER_TAG_HEADER;
+import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -54,6 +63,15 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Component
 public class RssParser {
 	private static final Logger logger = LoggerFactory.getLogger(RssParser.class);
+
+	@Value("http://localhost:${server.port}")
+	String api;
+
+	@Autowired
+	JasperClient jasperClient;
+
+	@Autowired
+	JasperMapper mapper;
 
 	@Autowired
 	HostCheck hostCheck;
@@ -160,7 +178,13 @@ public class RssParser {
 					}
 					for (var entry : syndFeed.getEntries().reversed()) {
 						try {
-							var ref = parseEntry(feed, config, entry, config.getDefaultThumbnail());
+							var link = entryLink(feed, config, entry);
+							if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
+								logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
+									feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+								continue;
+							}
+							var ref = parseEntry(feed, config, link, entry, config.getDefaultThumbnail());
 							ref.setOrigin(feed.getOrigin());
 							if (ref.getPublished().isBefore(feed.getPublished())) {
 								logger.warn("{} RSS entry in feed {} which was published before feed publish date. {} {}",
@@ -168,13 +192,14 @@ public class RssParser {
 								feed.setPublished(ref.getPublished().minus(1, ChronoUnit.DAYS));
 								ingest.update(feed.getOrigin(), feed);
 							}
-							ingest.create(feed.getOrigin(), ref);
-						} catch (AlreadyExistsException e) {
-							logger.debug("{} Skipping RSS entry in feed {} which already exists. {} {}",
-								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+							jasperClient.refPush(URI.create(api), authorHeaders(feed), feed.getOrigin(), List.of(mapper.domainToDto(ref)));
 						} catch (NotFoundException e) {
 							logger.debug("{} Skipping RSS entry in feed {} which failed matching conditions. {} {}",
 								feed.getOrigin(), feed.getTitle(), entry.getTitle(), entry.getLink());
+						} catch (FeignException.Forbidden | FeignException.Unauthorized e) {
+							logger.warn("{} Feed scrape blocked: author not authorized. {}", feed.getOrigin(), feed.getUrl());
+							tagger.attachError(feed.getUrl(), feed.getOrigin(), "Author not authorized to add tags", e.contentUTF8());
+							return; // addTags apply to all entries; if one fails, all will fail
 						} catch (Exception e) {
 							logger.error("{} Error processing entry {}: {}", feed.getOrigin(), feed.getUrl(), entry.getLink());
 							tagger.attachLogs(feed.getOrigin(), feed, "Error processing entry " + entry.getLink(), getMessage(e));
@@ -185,14 +210,7 @@ public class RssParser {
 		}
 	}
 
-	private Ref parseEntry(Ref feed, Feed config, SyndEntry entry, Thumbnail defaultThumbnail) {
-		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
-			var title = entry.getTitle().toLowerCase();
-			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
-				throw new NotFoundException(entry.getTitle());
-			}
-		}
-		var ref = new Ref();
+	private String entryLink(Ref feed, Feed config, SyndEntry entry) {
 		var link = entry.getLink();
 		if (entry.getUri() != null && entry.getUri().startsWith(link)) {
 			// Atom ID, RSS GUID
@@ -219,9 +237,17 @@ public class RssParser {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
-			throw new AlreadyExistsException();
+		return link;
+	}
+
+	private Ref parseEntry(Ref feed, Feed config, String link, SyndEntry entry, Thumbnail defaultThumbnail) {
+		if (config.getMatchText() != null && !config.getMatchText().isEmpty()) {
+			var title = entry.getTitle().toLowerCase();
+			if (config.getMatchText().stream().noneMatch(t -> title.contains(t.toLowerCase()))) {
+				throw new NotFoundException(entry.getTitle());
+			}
 		}
+		var ref = new Ref();
 		if (config.isScrapeWebpage()) {
 			ref.addTag("_plugin/delta/scrape/ref");
 		}
@@ -381,6 +407,15 @@ public class RssParser {
 		if (youtubeEmbed.isPresent()) {
 			ref.setPlugin("plugin/embed", Map.of("url", "https://www.youtube.com/embed/" + youtubeEmbed.get().getValue()));
 		}
+	}
+
+	private Map<String, Object> authorHeaders(Ref feed) {
+		var authors = HasTags.authors(feed);
+		return Map.of(
+			LOCAL_ORIGIN_HEADER, Objects.toString(feed.getOrigin(), ""),
+			USER_TAG_HEADER, authors.isEmpty() ? "" : authors.getFirst(),
+			USER_ROLE_HEADER, USER
+		);
 	}
 
 	private void cacheLater(String url, String origin) {
