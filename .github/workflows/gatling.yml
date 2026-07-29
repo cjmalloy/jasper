@@ -18,6 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         database: [postgres, sqlite]
+        gc: [g1gc, parallel, zgc]
+        exclude:
+          - database: sqlite
+            gc: parallel
+          - database: sqlite
+            gc: zgc
+    env:
+      JASPER_GC: ${{ matrix.gc }}
     permissions:
       contents: write
       pull-requests: write
@@ -273,7 +281,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           
           # Create workflow summary
-          echo "## Load Test Results Summary (${{ matrix.database }})" >> $GITHUB_STEP_SUMMARY
+          echo "## Load Test Results Summary (${{ matrix.database }}, ${{ matrix.gc }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -301,14 +309,14 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/upload-artifact@v7
         with:
-          name: gatling-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
+          name: gatling-reports-${{ matrix.database }}-${{ matrix.gc }}-pr-${{ github.event.pull_request.number }}
           path: gatling/report
           retention-days: 7
       - name: Upload Reports
         if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v7
         with:
-          name: gatling-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
+          name: gatling-reports-${{ matrix.database }}-${{ matrix.gc }}-${{ github.ref_name }}-${{ github.run_number }}
           path: gatling/report
           retention-days: 90
       - name: Comment on PR with Load Test Summary
@@ -327,7 +335,7 @@ jobs:
             const emoji = testsPassed ? '✅' : '⚠️';
             const status = testsPassed ? 'All load tests passed!' : 'Load tests completed with warnings!';
             
-            let comment = `## ${emoji} Load Test Results (${{ matrix.database }})\n\n`;
+            let comment = `## ${emoji} Load Test Results (${{ matrix.database }}, ${{ matrix.gc }})\n\n`;
             comment += `**${status}**\n\n`;
             
             // Add overall summary
@@ -377,11 +385,11 @@ jobs:
             comment += `\n`;
             
             // Add link to detailed report
-            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-${{ matrix.database }}-pr-${context.issue.number}/`;
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/gatling-reports-${{ matrix.database }}-${{ matrix.gc }}-pr-${context.issue.number}/`;
             comment += `📈 [View detailed performance reports](${url})\n\n`;
             
             // Add marker to identify our comment
-            comment += `<!-- gatling-results-comment-${{ matrix.database }} -->`;
+            comment += `<!-- gatling-results-comment-${{ matrix.database }}-${{ matrix.gc }} -->`;
             
             // Find existing comment and update it, or create new one
             const comments = await github.paginate(
@@ -394,7 +402,7 @@ jobs:
             );
             
             const botComment = comments.find(comment => 
-              comment.body.includes('<!-- gatling-results-comment-${{ matrix.database }} -->')
+              comment.body.includes('<!-- gatling-results-comment-${{ matrix.database }}-${{ matrix.gc }} -->')
             );
             
             if (botComment) {
