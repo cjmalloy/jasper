@@ -3,6 +3,7 @@ package jasper.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Plugin;
@@ -268,6 +269,62 @@ public class TaggingServiceIT {
 			.isEqualTo("blue");
 		assertThat(pluginData.get("newField").asText())
 			.isEqualTo("newValue");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchWhenPluginDataDoesNotExist() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"properties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test").get("color").asText())
+			.isEqualTo("red");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonMergePatchWhenPluginDataDoesNotExist() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"properties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		{"plugin/test": {"color": "red"}}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test").get("color").asText())
+			.isEqualTo("red");
 	}
 
 	@Test
