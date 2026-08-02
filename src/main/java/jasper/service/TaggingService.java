@@ -25,6 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -155,8 +156,23 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
-				ref.addPlugins(ref.getTags(), plugins);
+				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins();
+				var initialized = new ArrayList<String>();
+				for (var tag : tags) {
+					if (!tag.startsWith("-") && !plugins.has(tag)) {
+						configs.getPlugin(tag, auth.getOrigin())
+							.filter(plugin -> plugin.getSchema() != null)
+							.ifPresent(plugin -> {
+								plugins.putObject(tag);
+								initialized.add(tag);
+							});
+					}
+				}
+				var patchedPlugins = (ObjectNode) patch.apply(plugins);
+				for (var tag : initialized) {
+					if (!patchedPlugins.has(tag) || patchedPlugins.get(tag).isEmpty()) patchedPlugins.remove(tag);
+				}
+				ref.addPlugins(ref.getTags(), patchedPlugins);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
