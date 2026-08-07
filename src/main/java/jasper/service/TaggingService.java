@@ -2,6 +2,7 @@ package jasper.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
@@ -171,7 +172,11 @@ public class TaggingService {
 						configs.getPlugin(tag, auth.getOrigin())
 							.filter(plugin -> plugin.getSchema() != null)
 							.ifPresent(plugin -> {
-								plugins.set(tag, validate.emptyPlugin(plugin.getSchema()));
+								var schema = plugin.getSchema();
+								JsonNode empty = schema.has("elements") ? objectMapper.createArrayNode()
+									: schema.has("properties") || schema.has("optionalProperties") ? objectMapper.createObjectNode()
+									: NullNode.getInstance();
+								plugins.set(tag, empty);
 								initialized.put(tag, original);
 							});
 					}
