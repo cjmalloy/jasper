@@ -27,9 +27,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
+import static jasper.component.Meta.expandTags;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
@@ -162,23 +163,28 @@ public class TaggingService {
 		if (patch != null) {
 			try {
 				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
-				var initialized = new ArrayList<String>();
-				for (var tag : tags) {
-					if (!tag.startsWith("-") && !plugins.has(tag)) {
+				var initialized = new HashMap<String, JsonNode>();
+				var expandedTags = expandTags(ref.getTags());
+				for (var tag : expandedTags) {
+					if (!plugins.hasNonNull(tag)) {
+						var original = plugins.get(tag);
 						configs.getPlugin(tag, auth.getOrigin())
 							.filter(plugin -> plugin.getSchema() != null)
 							.ifPresent(plugin -> {
 								plugins.set(tag, validate.emptyPlugin(plugin.getSchema()));
-								initialized.add(tag);
+								initialized.put(tag, original);
 							});
 					}
 				}
 				var patchedPlugins = (ObjectNode) patch.apply(plugins);
 				var patchNode = objectMapper.valueToTree(patch);
-				for (var tag : initialized) {
-					if (!patchedPlugins.has(tag) || !isTargetedByPatch(patchNode, tag)) patchedPlugins.remove(tag);
+				for (var entry : initialized.entrySet()) {
+					if (!isTargetedByPatch(patchNode, entry.getKey())) {
+						if (entry.getValue() == null) patchedPlugins.remove(entry.getKey());
+						else patchedPlugins.set(entry.getKey(), entry.getValue());
+					}
 				}
-				ref.addPlugins(ref.getTags(), patchedPlugins);
+				ref.addPlugins(expandedTags, patchedPlugins);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
