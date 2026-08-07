@@ -1,5 +1,6 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
@@ -25,8 +26,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 
+import static jasper.component.Meta.expandTags;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
@@ -53,6 +56,9 @@ public class TaggingService {
 
 	@Autowired
 	Validate validate;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -155,8 +161,23 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
-				ref.addPlugins(ref.getTags(), plugins);
+				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
+				var expandedTags = expandTags(ref.getTags());
+				var initialized = new HashSet<String>();
+				for (var tag : expandedTags) {
+					if (!plugins.hasNonNull(tag)) {
+						configs.getPlugin(tag, auth.getOrigin())
+							.filter(plugin -> plugin.getSchema() != null)
+							.ifPresent(plugin -> {
+								var schema = plugin.getSchema();
+								plugins.set(tag, schema.has("elements") ? objectMapper.createArrayNode()
+									: schema.has("properties") || schema.has("optionalProperties") ? objectMapper.createObjectNode()
+									: objectMapper.nullNode());
+								initialized.add(tag);
+							});
+					}
+				}
+				ref.addPlugins(expandedTags, (ObjectNode) patch.apply(plugins), objectMapper.valueToTree(patch), initialized);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
