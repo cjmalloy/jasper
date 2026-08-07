@@ -302,11 +302,13 @@ public class Validate {
 	}
 
 	public JsonNode emptyPlugin(ObjectNode schema) {
-		return emptyPlugin(objectMapper.convertValue(schema, Schema.class));
+		var converted = objectMapper.convertValue(schema, Schema.class);
+		if (converted.getProperties() != null) return objectMapper.createObjectNode();
+		return emptyPlugin(converted);
 	}
 
 	private JsonNode emptyPlugin(Schema schema) {
-		if (schema.getProperties() != null || schema.getOptionalProperties() != null) return objectMapper.createObjectNode();
+		if (schema.getOptionalProperties() != null) return objectMapper.createObjectNode();
 		if (schema.getElements() != null) return objectMapper.createArrayNode();
 		return NullNode.getInstance();
 	}
