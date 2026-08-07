@@ -161,7 +161,7 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins();
+				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
 				var initialized = new ArrayList<String>();
 				for (var tag : tags) {
 					if (!tag.startsWith("-") && !plugins.has(tag)) {
