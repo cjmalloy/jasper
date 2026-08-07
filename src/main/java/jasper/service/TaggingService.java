@@ -176,7 +176,7 @@ public class TaggingService {
 				var patchedPlugins = (ObjectNode) patch.apply(plugins);
 				var patchNode = objectMapper.valueToTree(patch);
 				for (var tag : initialized) {
-					if (!patchedPlugins.has(tag) || !patches(patchNode, tag)) patchedPlugins.remove(tag);
+					if (!patchedPlugins.has(tag) || !isTargetedByPatch(patchNode, tag)) patchedPlugins.remove(tag);
 				}
 				ref.addPlugins(ref.getTags(), patchedPlugins);
 			} catch (JsonPatchException e) {
@@ -191,7 +191,7 @@ public class TaggingService {
 		}
 	}
 
-	private boolean patches(JsonNode patchNode, String tag) {
+	private boolean isTargetedByPatch(JsonNode patchNode, String tag) {
 		if (!patchNode.isArray()) return patchNode.has(tag);
 		var path = "/" + tag.replace("~", "~0").replace("/", "~1");
 		for (var operation : patchNode) {
