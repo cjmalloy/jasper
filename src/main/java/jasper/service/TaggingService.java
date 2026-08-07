@@ -1,5 +1,7 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
@@ -54,6 +56,9 @@ public class TaggingService {
 
 	@Autowired
 	Validate validate;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -169,8 +174,9 @@ public class TaggingService {
 					}
 				}
 				var patchedPlugins = (ObjectNode) patch.apply(plugins);
+				var patchNode = objectMapper.valueToTree(patch);
 				for (var tag : initialized) {
-					if (!patchedPlugins.has(tag) || patchedPlugins.get(tag).isEmpty()) patchedPlugins.remove(tag);
+					if (!patchedPlugins.has(tag) || !patches(patchNode, tag)) patchedPlugins.remove(tag);
 				}
 				ref.addPlugins(ref.getTags(), patchedPlugins);
 			} catch (JsonPatchException e) {
@@ -183,5 +189,16 @@ public class TaggingService {
 			// TODO: infinite retrys?
 			respond(tags, url, patch);
 		}
+	}
+
+	private boolean patches(JsonNode patchNode, String tag) {
+		if (!patchNode.isArray()) return patchNode.has(tag);
+		var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+		for (var operation : patchNode) {
+			if (operation.path("op").asText().equals("test")) continue;
+			var operationPath = operation.path("path").asText();
+			if (operationPath.isEmpty() || operationPath.equals(path) || operationPath.startsWith(path + "/")) return true;
+		}
+		return false;
 	}
 }

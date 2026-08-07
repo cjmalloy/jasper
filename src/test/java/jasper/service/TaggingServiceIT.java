@@ -327,6 +327,46 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchReplacingInitializedPlugins() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var scalarPlugin = new Plugin();
+		scalarPlugin.setTag("plugin/scalar");
+		scalarPlugin.setOrigin("");
+		scalarPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"type": "string"
+		}"""));
+		pluginRepository.save(scalarPlugin);
+
+		var arrayPlugin = new Plugin();
+		arrayPlugin.setTag("plugin/array");
+		arrayPlugin.setOrigin("");
+		arrayPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"elements": { "type": "string" }
+		}"""));
+		pluginRepository.save(arrayPlugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "replace", "path": "/plugin~1scalar", "value": "red"},
+			{"op": "replace", "path": "/plugin~1array", "value": []}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/scalar", "plugin/array"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/scalar"))
+			.isEqualTo(objectMapper.readTree("\"red\""));
+		assertThat(fetched.getPlugins().get("plugin/array"))
+			.isEqualTo(objectMapper.readTree("[]"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonMergePatchWhenPluginDataDoesNotExist() throws IOException {
 		refWithTags(URL, "+user/tester");
 
