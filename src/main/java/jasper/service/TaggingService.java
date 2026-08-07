@@ -1,8 +1,6 @@
 package jasper.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
@@ -28,7 +26,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import static jasper.component.Meta.expandTags;
@@ -164,32 +162,22 @@ public class TaggingService {
 		if (patch != null) {
 			try {
 				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
-				var initialized = new HashMap<String, JsonNode>();
 				var expandedTags = expandTags(ref.getTags());
+				var initialized = new HashSet<String>();
 				for (var tag : expandedTags) {
 					if (!plugins.hasNonNull(tag)) {
-						var original = plugins.get(tag);
 						configs.getPlugin(tag, auth.getOrigin())
 							.filter(plugin -> plugin.getSchema() != null)
 							.ifPresent(plugin -> {
 								var schema = plugin.getSchema();
-								JsonNode empty = schema.has("elements") ? objectMapper.createArrayNode()
+								plugins.set(tag, schema.has("elements") ? objectMapper.createArrayNode()
 									: schema.has("properties") || schema.has("optionalProperties") ? objectMapper.createObjectNode()
-									: NullNode.getInstance();
-								plugins.set(tag, empty);
-								initialized.put(tag, original);
+									: objectMapper.nullNode());
+								initialized.add(tag);
 							});
 					}
 				}
-				var patchedPlugins = (ObjectNode) patch.apply(plugins);
-				var patchNode = objectMapper.valueToTree(patch);
-				for (var entry : initialized.entrySet()) {
-					if (!isTargetedByPatch(patchNode, entry.getKey())) {
-						if (entry.getValue() == null) patchedPlugins.remove(entry.getKey());
-						else patchedPlugins.set(entry.getKey(), entry.getValue());
-					}
-				}
-				ref.addPlugins(expandedTags, patchedPlugins);
+				ref.addPlugins(expandedTags, (ObjectNode) patch.apply(plugins), objectMapper.valueToTree(patch), initialized);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
@@ -200,16 +188,5 @@ public class TaggingService {
 			// TODO: infinite retrys?
 			respond(tags, url, patch);
 		}
-	}
-
-	private boolean isTargetedByPatch(JsonNode patchNode, String tag) {
-		if (!patchNode.isArray()) return patchNode.has(tag);
-		var path = "/" + tag.replace("~", "~0").replace("/", "~1");
-		for (var operation : patchNode) {
-			if (operation.path("op").asText().equals("test")) continue;
-			var operationPath = operation.path("path").asText();
-			if (operationPath.isEmpty() || operationPath.equals(path) || operationPath.startsWith(path + "/")) return true;
-		}
-		return false;
 	}
 }
