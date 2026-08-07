@@ -163,7 +163,7 @@ public class TaggingService {
 						configs.getPlugin(tag, auth.getOrigin())
 							.filter(plugin -> plugin.getSchema() != null)
 							.ifPresent(plugin -> {
-								plugins.putObject(tag);
+								plugins.set(tag, validate.emptyPlugin(plugin.getSchema()));
 								initialized.add(tag);
 							});
 					}

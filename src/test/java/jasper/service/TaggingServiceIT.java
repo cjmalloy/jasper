@@ -301,6 +301,32 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchWhenArrayPluginDataDoesNotExist() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"elements": { "type": "string" }
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1test/0", "value": "red"}]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("[\"red\"]"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonMergePatchWhenPluginDataDoesNotExist() throws IOException {
 		refWithTags(URL, "+user/tester");
 

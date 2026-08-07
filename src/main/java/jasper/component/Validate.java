@@ -301,16 +301,20 @@ public class Validate {
 		return result;
 	}
 
+	public JsonNode emptyPlugin(ObjectNode schema) {
+		return emptyPlugin(objectMapper.convertValue(schema, Schema.class));
+	}
+
+	private JsonNode emptyPlugin(Schema schema) {
+		if (schema.getProperties() != null || schema.getOptionalProperties() != null) return objectMapper.createObjectNode();
+		if (schema.getElements() != null) return objectMapper.createArrayNode();
+		return NullNode.getInstance();
+	}
+
 	private void plugin(String rootOrigin, Schema schema, String tag, JsonNode plugin) {
 		if (plugin == null || plugin.isNull()) {
 			// Allow null to stand in for empty objects or arrays
-			if (schema.getOptionalProperties() != null) {
-				plugin = objectMapper.createObjectNode();
-			} else if (schema.getElements() != null) {
-				plugin = objectMapper.createArrayNode();
-			} else if (plugin == null) {
-				plugin = NullNode.getInstance();
-			}
+			plugin = emptyPlugin(schema);
 		}
 		try {
 			var errors = validator.validate(schema, new JacksonAdapter(plugin));
