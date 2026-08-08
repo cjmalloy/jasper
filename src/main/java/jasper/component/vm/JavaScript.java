@@ -12,11 +12,14 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static jasper.component.vm.RunProcess.runProcess;
-import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static java.lang.System.getProperty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class JavaScript {
@@ -70,14 +73,25 @@ public class JavaScript {
 
 	@Timed("jasper.vm")
 	public String runJavaScript(List<String> requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
+		var packages = requirements == null ? List.<String>of() : requirements.stream()
+			.filter(Objects::nonNull)
+			.filter(requirement -> isNotBlank(requirement))
+			.toList();
 		var command = new ArrayList<String>();
-		if (isNotEmpty(requirements)) {
+		if (!packages.isEmpty()) {
 			command.addAll(List.of(props.getNpx(), "--yes"));
-			requirements.forEach(requirement -> command.addAll(List.of("--package", requirement)));
+			packages.forEach(requirement -> command.addAll(List.of("--package", requirement)));
 			command.add("--");
 		}
 		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api));
-		var scriptProcess = new ProcessBuilder(command).start();
+		var processBuilder = new ProcessBuilder(command);
+		if (!packages.isEmpty()) {
+			processBuilder.environment().put(
+				"npm_config_cache",
+				Paths.get(Objects.toString(getProperty("java.io.tmpdir"), "/tmp"), "jasper-npx").toString()
+			);
+		}
+		var scriptProcess = processBuilder.start();
 		try (var writer = new OutputStreamWriter(scriptProcess.getOutputStream(), StandardCharsets.UTF_8)) {
 			writer.write(targetScript);
 			writer.write("\0"); // null character as delimiter

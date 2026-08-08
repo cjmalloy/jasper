@@ -33,6 +33,7 @@ import static java.nio.file.Files.setAttribute;
 import static java.nio.file.Files.writeString;
 import static java.security.MessageDigest.getInstance;
 import static java.time.Instant.now;
+import static java.util.stream.Collectors.joining;
 import static org.apache.commons.codec.binary.Hex.encodeHexString;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -72,7 +73,7 @@ if process.returncode != 0:
 	@Timed("jasper.vm")
 	public String runPython(List<String> requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, NoSuchAlgorithmException {
 		var python = props.getPython();
-		var requirementsText = requirements == null ? "" : String.join("\n", requirements);
+		var requirementsText = requirements == null ? "" : requirements.stream().filter(Objects::nonNull).collect(joining("\n"));
 		if (isNotBlank(requirementsText)) {
 			var requirementsHash = encodeHexString(getInstance("SHA-256").digest(requirementsText.getBytes(StandardCharsets.UTF_8)));
 			var tmpDir = Objects.toString(getProperty("java.io.tmpdir"), "/tmp");
