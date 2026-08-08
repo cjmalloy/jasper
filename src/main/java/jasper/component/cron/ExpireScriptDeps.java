@@ -37,12 +37,16 @@ public class ExpireScriptDeps {
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 				if (dir.equals(tmpDir)) return FileVisitResult.CONTINUE;
 
-				var requirementsFile = dir.resolve("requirements.txt");
-				if (!exists(requirementsFile)) return FileVisitResult.CONTINUE;
-				if (getLastModifiedTime(requirementsFile).toInstant().isAfter(cutoff)) return FileVisitResult.CONTINUE;
+				var dependencyFile = dir.resolve("requirements.txt");
+				if (!exists(dependencyFile)) {
+					if (!dir.getFileName().toString().startsWith("jasper-node-")) return FileVisitResult.CONTINUE;
+					dependencyFile = dir.resolve("package.json");
+					if (!exists(dependencyFile)) return FileVisitResult.CONTINUE;
+				}
+				if (getLastModifiedTime(dependencyFile).toInstant().isAfter(cutoff)) return FileVisitResult.SKIP_SUBTREE;
 
 				deleteDirectoryContents(dir);
-				logger.info("Deleted expired venv: {}", dir);
+				logger.info("Deleted expired script dependencies: {}", dir);
 				return FileVisitResult.SKIP_SUBTREE;
 			}
 		});

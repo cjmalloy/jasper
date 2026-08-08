@@ -20,6 +20,7 @@ public class Script implements Serializable {
 	private String language = "javascript";
 	@Builder.Default
 	private String format = "json";
+	private String packageJson;
 	private String requirements;
 	private String script;
 }
