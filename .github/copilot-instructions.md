@@ -42,7 +42,7 @@ This project uses **Spring Boot 4.1.0** and targets Java 25. Use Java 25 for all
 **Local Development with Java 25 (RECOMMENDED):**
 - Set JAVA_HOME: `export JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64`
 - Add to PATH: `export PATH=$JAVA_HOME/bin:$PATH`
-- Install Bun for JavaScript tests: `curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH"`
+- Install Node.js 24 and npm for JavaScript tests
 - Clean build: `./mvnw clean compile` -- takes 11 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
 - Full build with tests: `./mvnw clean package` -- takes 85 seconds. NEVER CANCEL. Set timeout to 180+ seconds.
 - Skip tests build: `./mvnw clean package -DskipTests` -- takes 15 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
@@ -86,8 +86,8 @@ ALWAYS run the bootstrapping steps first.
 - **Local PostgreSQL/Testcontainers**: `./mvnw test` -- requires Docker. NEVER CANCEL. Set timeout to 180+ seconds.
 - **Docker-based PostgreSQL**: `docker build --target test -t jasper-test . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock jasper-test` -- takes ~5 minutes. NEVER CANCEL. Set timeout to 600+ seconds.
 - The Docker-based test command mounts the local Docker socket so Testcontainers can start PostgreSQL; only run it with trusted images in a trusted local environment.
-- Note: Some tests require Bun and Python dependencies to pass completely
-- Test failures related to missing `/home/runner/.bun/bin/bun` are expected without Bun installation
+- Note: Some tests require Node.js, npm, and Python dependencies to pass completely
+- JavaScript dependency tests require Node.js and npm on `PATH`
 
 **Efficient Log Reading with Docker:**
 When building with Docker, use these techniques to efficiently read logs:
@@ -123,7 +123,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 1. Start supporting services: `docker compose up -d`
 2. Test health endpoint: `curl http://localhost:8081/management/health` (should return `{"status":"UP"}`)
 3. Test API endpoint: `curl http://localhost:8081/api/v1/ref/page` (should return JSON with empty content array)
-4. Run tests with dependencies: Install Bun and Python, then run both PostgreSQL (`./mvnw test`) and SQLite (`./mvnw test -Dspring.profiles.active=test,sqlite,scripts`) suites for complete validation; the SQLite suite is the minimum for changes unrelated to database behavior
+4. Run tests with dependencies: Install Node.js, npm, and Python, then run both PostgreSQL (`./mvnw test`) and SQLite (`./mvnw test -Dspring.profiles.active=test,sqlite,scripts`) suites for complete validation; the SQLite suite is the minimum for changes unrelated to database behavior
 5. Clean up: `docker compose down`
 
 **Key Application Features to Test:**
@@ -167,7 +167,7 @@ ALWAYS manually validate any new code by running through complete end-to-end sce
 
 **Other Common Issues:**
 - **Docker certificate error ("PKIX path building failed")**: This is caused by the Java truststore in the Docker base image not trusting Maven Central certificates. The `--network=host` flag does NOT fix this. Use local Java 25 Maven build instead (see above). Note: This issue does not affect GitHub Actions CI.
-- If JavaScript tests fail: Install Bun with `curl -fsSL https://bun.sh/install | bash` OR use Docker build
+- If JavaScript tests fail: Ensure Node.js 24 and npm are installed OR use Docker build
 - If Python tests fail: Ensure Python 3 is installed (`sudo apt install python3 python3-pip`) OR use Docker build
 - If database connection fails: Ensure PostgreSQL container is running (`docker compose up db -d`)
 - If Maven hangs: Check network connectivity for dependency downloads. First Maven build downloads many dependencies which can take 5-10 minutes. Subsequent builds are faster (~11-85 seconds depending on scope).
@@ -233,7 +233,7 @@ jasper/
 - Redis (caching and messaging via Spring Integration)
 - Liquibase (database migrations)
 - Caffeine (local caching)
-- Bun 1.3.14 (JavaScript runtime in Docker images)
+- Node.js 24.19.0 and npm (JavaScript runtime and package installer in Docker images)
 - Gatling 3.15.1 (load testing)
 - Testcontainers 2.0.5 (integration testing)
 

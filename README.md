@@ -528,6 +528,7 @@ It supports the following configuration options:
 | `JASPER_PUSH_COOLDOWN_SEC`                          | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
 | `JASPER_NODE`                                       | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
+| `JASPER_NPM`                                        | Path to npm binary for installing javascript dependencies.                                                                     | `/usr/local/bin/npm`                                                                                                                                                                                          |
 | `JASPER_PYTHON`                                     | Path to python binary for running python scripts.                                                                              | `/usr/bin/python`                                                                                                                                                                                             |
 | `JASPER_SHELL`                                      | Path to shell binary for running shell scripts.                                                                                | `/usr/bin/bash`                                                                                                                                                                                               |
 | `JASPER_CACHE_API`                                  | HTTP address of an instance where storage is enabled.                                                                          |                                                                                                                                                                                                               |
@@ -807,7 +808,11 @@ When the `scripts` profile is active, scripts may be attached to Refs with eithe
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
 include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
-The script should by writing UTF-8 JSON to stdout of the form:
+JavaScript runs on Node.js. A script that needs npm dependencies can provide a complete `packageJson` string; Jasper
+installs it without creating a lockfile and reuses the installation while that exact manifest is active. Use exact
+dependency versions and `overrides` for transitive dependencies. For stricter reproducibility, compile the script and
+include the generated JavaScript instead of installing dependencies at runtime.
+The script should write UTF-8 JSON to stdout of the form:
 
 ```json
 {
@@ -906,6 +911,14 @@ const timePlugin = {
   config: {
     timeoutMs: 30_000,
     language: 'javascript',
+    packageJson: `{
+      "dependencies": {
+        "uuid": "9.0.1"
+      },
+      "overrides": {
+        "uuid": "9.0.1"
+      }
+    }`,
     // language=JavaScript
     script: `
       const uuid = require('uuid');
