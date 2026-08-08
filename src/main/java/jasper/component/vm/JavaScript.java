@@ -39,9 +39,11 @@ public class JavaScript {
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
-		const dependencyBin = process.env.PATH.split(path.delimiter).find(entry => entry.endsWith('node_modules/.bin'));
+		const dependencyBin = process.argv[3] === 'true'
+		  ? process.env.PATH.split(path.delimiter).find(entry => entry.endsWith('node_modules/.bin'))
+		  : null;
 		const dependencyRequire = dependencyBin
-		  ? createRequire(path.join(path.dirname(path.dirname(dependencyBin)), 'package.json'))
+		  ? createRequire(path.join(path.dirname(path.dirname(dependencyBin)), 'index.js'))
 		  : require;
 		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
@@ -83,7 +85,7 @@ public class JavaScript {
 			packages.forEach(requirement -> command.addAll(List.of("--package", requirement)));
 			command.add("--");
 		}
-		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api));
+		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api, Boolean.toString(!packages.isEmpty())));
 		var processBuilder = new ProcessBuilder(command);
 		if (!packages.isEmpty()) {
 			processBuilder.environment().put(

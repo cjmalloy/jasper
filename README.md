@@ -809,7 +809,7 @@ Only admin users may install scripts and they run with very few guardrails. A re
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
 include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
 Dependencies can be listed in `requirements`: use npm package specifications for JavaScript and pip requirement
-specifications for Python. JavaScript requirements are made available through npx.
+specifications for Python. JavaScript requirements are installed and made available via npx.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json
