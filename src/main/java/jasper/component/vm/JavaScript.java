@@ -3,6 +3,7 @@ package jasper.component.vm;
 import io.micrometer.core.annotation.Timed;
 import jasper.config.Props;
 import jasper.errors.ScriptException;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +75,6 @@ public class JavaScript {
 		});
 	""";
 
-	@Timed("jasper.vm")
 	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		return runJavaScript(null, targetScript, inputString, timeoutMs);
 	}
@@ -115,15 +115,24 @@ public class JavaScript {
 			createDirectories(packageDir);
 			if (!exists(installedFile)) {
 				writeString(packageFile, packageJson);
-				var installProcess = new ProcessBuilder(
-					props.getNpm(), "install", "--no-package-lock", "--no-audit", "--no-fund"
-				).directory(packageDir.toFile()).start();
-				runProcess(installProcess, INSTALL_TIMEOUT_MS);
-				writeString(installedFile, "");
+				try {
+					var installProcess = new ProcessBuilder(
+						props.getNpm(), "install", "--no-package-lock", "--no-audit", "--no-fund"
+					).directory(packageDir.toFile()).start();
+					runProcess(installProcess, INSTALL_TIMEOUT_MS);
+					writeString(installedFile, "");
+				} catch (ScriptException | IOException e) {
+					try {
+						FileUtils.deleteDirectory(packageDir.resolve("node_modules").toFile());
+					} catch (IOException cleanupException) {
+						e.addSuppressed(cleanupException);
+					}
+					throw e;
+				}
 			}
-			var now = FileTime.from(now());
-			setAttribute(packageFile, "lastAccessTime", now);
-			setAttribute(packageFile, "lastModifiedTime", now);
+			var accessTime = FileTime.from(now());
+			setAttribute(packageFile, "lastAccessTime", accessTime);
+			setAttribute(packageFile, "lastModifiedTime", accessTime);
 		} finally {
 			lock.unlock();
 		}
