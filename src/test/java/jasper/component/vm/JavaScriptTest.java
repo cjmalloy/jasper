@@ -19,6 +19,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JavaScriptTest {
 
+	private static final String PACKAGE_JSON = """
+		{
+		  "dependencies": {
+		    "js-yaml": "4.1.0",
+		    "uuid": "11.1.1"
+		  },
+		  "overrides": {
+		    "js-yaml": "4.1.0",
+		    "uuid": "11.1.1"
+		  }
+		}
+		""";
+
 	JavaScript vm = new JavaScript();
 
 	@BeforeEach
@@ -32,8 +45,14 @@ class JavaScriptTest {
 			node = props.get("node").textValue();
 		}
 		node = node.replaceFirst("^~", System.getProperty("user.home"));
+		var npm = System.getenv("JASPER_NPM");
+		if (isBlank(npm)) {
+			npm = props.get("npm").textValue();
+		}
+		npm = npm.replaceFirst("^~", System.getProperty("user.home"));
 		vm.props = new Props();
 		vm.props.setNode(node);
+		vm.props.setNpm(npm);
 		vm.api = "http://localhost:10344";
 	}
 
@@ -48,6 +67,20 @@ class JavaScriptTest {
 		var output = vm.runJavaScript(targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
+	}
+
+	@Test
+	void testRunJavaScriptWithPackages() throws IOException, ScriptException {
+		// language=JavaScript
+		var targetScript = """
+			const yaml = require('js-yaml');
+			const uuid = require('uuid');
+			console.log(yaml.dump({ id: uuid.v4() }));
+		""";
+
+		var output = vm.runJavaScript(PACKAGE_JSON, targetScript, "", 30_000);
+
+		assertThat(output).containsPattern("id: [0-9a-f-]{36}");
 	}
 
 	@Test

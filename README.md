@@ -913,10 +913,10 @@ const timePlugin = {
     language: 'javascript',
     packageJson: `{
       "dependencies": {
-        "uuid": "9.0.1"
+        "uuid": "11.1.1"
       },
       "overrides": {
-        "uuid": "9.0.1"
+        "uuid": "11.1.1"
       }
     }`,
     // language=JavaScript

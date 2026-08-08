@@ -31,6 +31,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 public class ScriptIT {
 
+	private static final String JAVASCRIPT_PACKAGE_JSON = """
+		{
+		  "dependencies": {
+		    "js-yaml": "4.1.0",
+		    "uuid": "11.1.1"
+		  },
+		  "overrides": {
+		    "js-yaml": "4.1.0",
+		    "uuid": "11.1.1"
+		  }
+		}
+		""";
+
 	@Autowired
 	Props props;
 
@@ -66,6 +79,9 @@ public class ScriptIT {
 		}
 		plugin.getConfig().set("language", TextNode.valueOf(language));
 		plugin.getConfig().set("script", TextNode.valueOf(script));
+		if ("javascript".equals(language)) {
+			plugin.getConfig().set("packageJson", TextNode.valueOf(JAVASCRIPT_PACKAGE_JSON));
+		}
 		return plugin;
 	}
 
