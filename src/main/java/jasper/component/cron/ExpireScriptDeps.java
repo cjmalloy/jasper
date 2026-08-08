@@ -39,9 +39,9 @@ public class ExpireScriptDeps {
 
 				var dependencyFile = dir.resolve("requirements.txt");
 				if (!exists(dependencyFile)) {
-					if (!dir.getFileName().toString().startsWith("jasper-node-")) return FileVisitResult.CONTINUE;
+					if (!dir.getFileName().toString().startsWith("jasper-node-")) return FileVisitResult.SKIP_SUBTREE;
 					dependencyFile = dir.resolve("package.json");
-					if (!exists(dependencyFile)) return FileVisitResult.CONTINUE;
+					if (!exists(dependencyFile)) return FileVisitResult.SKIP_SUBTREE;
 				}
 				if (getLastModifiedTime(dependencyFile).toInstant().isAfter(cutoff)) return FileVisitResult.SKIP_SUBTREE;
 
