@@ -67,8 +67,10 @@ class JavaScriptTest {
 		""";
 
 		var output = vm.runJavaScript(List.of("js-yaml@4.3.1", "uuid@11.1.1"), targetScript, "", 30_000);
+		var repeatedOutput = vm.runJavaScript(List.of("js-yaml@4.3.1", "uuid@11.1.1"), targetScript, "", 30_000);
 
 		assertThat(output).containsPattern("id: [0-9a-f-]{36}");
+		assertThat(repeatedOutput).containsPattern("id: [0-9a-f-]{36}");
 	}
 
 	@Test
