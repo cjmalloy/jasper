@@ -846,7 +846,6 @@ const whatPlugin = {
   config: {
     timeoutMs: 30_000,
     language: 'javascript',
-    requirements: ['uuid@11.1.1'],
     // language=JavaScript
     script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
@@ -910,6 +909,7 @@ const timePlugin = {
   config: {
     timeoutMs: 30_000,
     language: 'javascript',
+    requirements: ['uuid@11.1.1'],
     // language=JavaScript
     script: `
       const uuid = require('uuid');
