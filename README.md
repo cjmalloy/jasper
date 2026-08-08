@@ -528,6 +528,7 @@ It supports the following configuration options:
 | `JASPER_PUSH_COOLDOWN_SEC`                          | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
 | `JASPER_NODE`                                       | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
+| `JASPER_NPX`                                        | Path to npx binary for resolving javascript requirements.                                                                      | `/usr/local/bin/npx`                                                                                                                                                                                          |
 | `JASPER_PYTHON`                                     | Path to python binary for running python scripts.                                                                              | `/usr/bin/python`                                                                                                                                                                                             |
 | `JASPER_SHELL`                                      | Path to shell binary for running shell scripts.                                                                                | `/usr/bin/bash`                                                                                                                                                                                               |
 | `JASPER_CACHE_API`                                  | HTTP address of an instance where storage is enabled.                                                                          |                                                                                                                                                                                                               |
@@ -807,6 +808,8 @@ When the `scripts` profile is active, scripts may be attached to Refs with eithe
 Only admin users may install scripts and they run with very few guardrails. A regular user may invoke the script
 by tagging a Ref. The tagged ref will be serialized as UTF-8 JSON and passed to stdin. Environment variables will
 include the API endpoint as `JASPER_API`. Return a non-zero error code to fail the script and attach an error log.
+Dependencies can be listed in `requirements`: use npm package specifications for JavaScript and pip requirement
+specifications for Python. JavaScript requirements are made available through npx.
 The script should by writing UTF-8 JSON to stdout of the form:
 
 ```json
@@ -843,6 +846,7 @@ const whatPlugin = {
   config: {
     timeoutMs: 30_000,
     language: 'javascript',
+    requirements: ['uuid@11.1.1'],
     // language=JavaScript
     script: `
       const ref = JSON.parse(require('fs').readFileSync(0, 'utf-8'));

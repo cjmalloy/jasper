@@ -66,6 +66,9 @@ public class DeltaScriptIT {
 		}
 		plugin.getConfig().set("language", TextNode.valueOf(language));
 		plugin.getConfig().set("script", TextNode.valueOf(script));
+		if ("javascript".equals(language)) {
+			plugin.getConfig().putArray("requirements").add("uuid@11.1.1");
+		}
 		return plugin;
 	}
 

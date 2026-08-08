@@ -42,6 +42,8 @@ import static org.springframework.test.util.ReflectionTestUtils.getField;
 @IntegrationTest
 public class ScriptRunnerIT {
 
+	private static final List<String> JAVASCRIPT_REQUIREMENTS = List.of("js-yaml@4.3.1", "uuid@11.1.1");
+
 	@Autowired
 	Props props;
 
@@ -114,6 +116,7 @@ public class ScriptRunnerIT {
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("json")
+			.requirements(JAVASCRIPT_REQUIREMENTS)
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
@@ -186,6 +189,7 @@ print(json.dumps({
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("yaml")
+			.requirements(JAVASCRIPT_REQUIREMENTS)
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
@@ -267,13 +271,13 @@ print(yaml.dump({
 	}
 
 	@Test
-	void testUninstallCancelsBunScript() throws Exception {
-		var started = tempDir.resolve("bun-started");
-		var completed = tempDir.resolve("bun-completed");
-		assertUninstallCancels("plugin/script/bun.cancel", started, completed, () -> javaScript.runJavaScript("""
+	void testUninstallCancelsJavaScript() throws Exception {
+		var started = tempDir.resolve("javascript-started");
+		var completed = tempDir.resolve("javascript-completed");
+		assertUninstallCancels("plugin/script/javascript.cancel", started, completed, () -> javaScript.runJavaScript("""
 			const fs = require('fs');
 			fs.writeFileSync('%s', '');
-			await Bun.sleep(10_000);
+			await new Promise(resolve => setTimeout(resolve, 10_000));
 			fs.writeFileSync('%s', '');
 			""".formatted(started, completed), "", 30_000));
 	}
@@ -282,7 +286,7 @@ print(yaml.dump({
 	void testUninstallCancelsPythonScript() throws Exception {
 		var started = tempDir.resolve("python-started");
 		var completed = tempDir.resolve("python-completed");
-		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython("", """
+		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython(List.of(), """
 			import time
 			open('%s', 'w').close()
 			time.sleep(10)

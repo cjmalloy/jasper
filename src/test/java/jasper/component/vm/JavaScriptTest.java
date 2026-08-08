@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -32,8 +33,14 @@ class JavaScriptTest {
 			node = props.get("node").textValue();
 		}
 		node = node.replaceFirst("^~", System.getProperty("user.home"));
+		var npx = System.getenv("JASPER_NPX");
+		if (isBlank(npx)) {
+			npx = props.get("npx").textValue();
+		}
+		npx = npx.replaceFirst("^~", System.getProperty("user.home"));
 		vm.props = new Props();
 		vm.props.setNode(node);
+		vm.props.setNpx(npx);
 		vm.api = "http://localhost:10344";
 	}
 
@@ -48,6 +55,20 @@ class JavaScriptTest {
 		var output = vm.runJavaScript(targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
+	}
+
+	@Test
+	void testRunJavaScriptWithRequirements() throws IOException, ScriptException {
+		// language=JavaScript
+		var targetScript = """
+			const yaml = require('js-yaml');
+			const uuid = require('uuid');
+			console.log(yaml.dump({ id: uuid.v4() }));
+		""";
+
+		var output = vm.runJavaScript(List.of("js-yaml@4.3.1", "uuid@11.1.1"), targetScript, "", 30_000);
+
+		assertThat(output).containsPattern("id: [0-9a-f-]{36}");
 	}
 
 	@Test

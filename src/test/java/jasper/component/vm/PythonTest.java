@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -47,7 +48,7 @@ print(sys.stdin.read().upper())
 		""";
 		var input = "test";
 
-		var output = vm.runPython("", targetScript, input, 30_000);
+		var output = vm.runPython(List.of(), targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
 	}
@@ -60,7 +61,7 @@ import requests
 print(f"requests: {requests.__version__}")
 		""";
 
-		var output = vm.runPython("requests==2.31.0", targetScript, "", 30_000);
+		var output = vm.runPython(List.of("requests==2.31.0"), targetScript, "", 30_000);
 
 		assertThat(output).contains("requests: 2.31.0");
 	}
@@ -76,7 +77,7 @@ time.sleep(2)
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 1_000))
+		assertThatThrownBy(() -> vm.runPython(List.of(), targetScript, input, 1_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
@@ -89,7 +90,7 @@ open('non_existent_file')
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 30_000))
+		assertThatThrownBy(() -> vm.runPython(List.of(), targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
 	}
@@ -104,7 +105,7 @@ print("a" * 65_536)
 
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
-				return vm.runPython("", targetScript, input, 30_000);
+				return vm.runPython(List.of(), targetScript, input, 30_000);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
