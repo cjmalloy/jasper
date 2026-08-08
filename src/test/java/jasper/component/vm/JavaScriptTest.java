@@ -22,11 +22,11 @@ class JavaScriptTest {
 	private static final String PACKAGE_JSON = """
 		{
 		  "dependencies": {
-		    "js-yaml": "4.1.0",
+		    "js-yaml": "4.3.1",
 		    "uuid": "11.1.1"
 		  },
 		  "overrides": {
-		    "js-yaml": "4.1.0",
+		    "js-yaml": "4.3.1",
 		    "uuid": "11.1.1"
 		  }
 		}
