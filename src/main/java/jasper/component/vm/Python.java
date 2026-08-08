@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -69,10 +70,11 @@ if process.returncode != 0:
 	""";
 
 	@Timed("jasper.vm")
-	public String runPython(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, NoSuchAlgorithmException {
+	public String runPython(List<String> requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException, NoSuchAlgorithmException {
 		var python = props.getPython();
-		if (isNotBlank(requirements)) {
-			var requirementsHash = encodeHexString(getInstance("SHA-256").digest(requirements.getBytes(StandardCharsets.UTF_8)));
+		var requirementsText = requirements == null ? "" : String.join("\n", requirements);
+		if (isNotBlank(requirementsText)) {
+			var requirementsHash = encodeHexString(getInstance("SHA-256").digest(requirementsText.getBytes(StandardCharsets.UTF_8)));
 			var tmpDir = Objects.toString(getProperty("java.io.tmpdir"), "/tmp");
 			var venv = Paths.get(tmpDir).resolve(requirementsHash).toAbsolutePath();
 			var requirementsFile = Paths.get(venv + "/requirements.txt");
@@ -85,7 +87,7 @@ if process.returncode != 0:
 					var venvProcess = new ProcessBuilder(python, "-m", "venv", venv.toString()).start();
 					runProcess(venvProcess, 60_000);
 					createDirectories(venv);
-					writeString(requirementsFile, requirements);
+					writeString(requirementsFile, requirementsText);
 				}
 				python = venv.resolve("bin/python").toString();
 

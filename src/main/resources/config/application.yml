@@ -207,6 +207,7 @@ jasper:
   local-origin: ''
   storage: /var/lib/jasper
   node: /usr/local/bin/node
+  npx: /usr/local/bin/npx
   python: /usr/bin/python
   shell: /usr/bin/bash
   cache-api: ''
