@@ -48,17 +48,6 @@ public class JavaScript {
 		const dependencyRequire = dependencyBin
 		  ? createRequire(path.join(dependencyRoot, 'index.js'))
 		  : require;
-		if (dependencyRoot) {
-		  const dependencyUrl = pathToFileURL(path.join(dependencyRoot, 'index.js')).href;
-		  registerHooks({
-			resolve(specifier, context, nextResolve) {
-			  if (context.parentURL?.startsWith('data:') && !specifier.startsWith('.') && !path.isAbsolute(specifier)) {
-				return nextResolve(specifier, { ...context, parentURL: dependencyUrl });
-			  }
-			  return nextResolve(specifier, context);
-			}
-		  });
-		}
 		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
 		  ...fs,
@@ -68,7 +57,7 @@ public class JavaScript {
 		  }
 		};
 		const patchedRequire = (mod) => {
-			if (mod === 'fs') return patchedFs;
+			if (mod === 'fs' || mod === 'node:fs') return patchedFs;
 			return dependencyRequire(mod);
 		};
 		const scriptProcess = {
@@ -84,8 +73,32 @@ public class JavaScript {
 		  if (!(err instanceof SyntaxError) || !/(?:^|[;}\\n])\\s*import(?![\\w$])\\s*(?![.(])/.test(targetScript)) throw err;
 		  const contextKey = `__jasperEsmContext_${randomUUID()}`;
 		  globalThis[contextKey] = { require: patchedRequire, console, setTimeout, process: scriptProcess };
-		  const source = `const { require, console, setTimeout, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`;
-		  result = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
+		  const fsExports = Object.keys(fs)
+			.filter(name => /^[$A-Z_a-z][$\\w]*$/.test(name))
+			.map(name => `export const ${name} = value[${JSON.stringify(name)}];`)
+			.join('\\n');
+		  const sources = {
+			'jasper:script': `const { require, console, setTimeout, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`,
+			'jasper:fs': `const value = globalThis[${JSON.stringify(contextKey)}].require('fs');\nexport default value;\n${fsExports}`
+		  };
+		  const dependencyUrl = dependencyRoot ? pathToFileURL(path.join(dependencyRoot, 'index.js')).href : null;
+		  registerHooks({
+			resolve(specifier, context, nextResolve) {
+			  if (Object.hasOwn(sources, specifier)) return { url: specifier, shortCircuit: true };
+			  if (context.parentURL === 'jasper:script' && (specifier === 'fs' || specifier === 'node:fs')) {
+				return { url: 'jasper:fs', shortCircuit: true };
+			  }
+			  if (dependencyUrl && context.parentURL === 'jasper:script' && !specifier.startsWith('.') && !path.isAbsolute(specifier)) {
+				return nextResolve(specifier, { ...context, parentURL: dependencyUrl });
+			  }
+			  return nextResolve(specifier, context);
+			},
+			load(url, context, nextLoad) {
+			  if (Object.hasOwn(sources, url)) return { format: 'module', source: sources[url], shortCircuit: true };
+			  return nextLoad(url, context);
+			}
+		  });
+		  result = import('jasper:script')
 			.finally(() => delete globalThis[contextKey]);
 		}
 		result.catch(err => {
