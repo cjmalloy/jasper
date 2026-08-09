@@ -83,8 +83,8 @@ public class JavaScript {
 		} catch (err) {
 		  if (!(err instanceof SyntaxError) || !/(?:^|[;}\\n])\\s*import(?![\\w$])\\s*(?![.(])/.test(targetScript)) throw err;
 		  const contextKey = `__jasperEsmContext_${randomUUID()}`;
-		  globalThis[contextKey] = { require: patchedRequire, process: scriptProcess };
-		  const source = `const { require, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`;
+		  globalThis[contextKey] = { require: patchedRequire, console, setTimeout, process: scriptProcess };
+		  const source = `const { require, console, setTimeout, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`;
 		  result = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
 			.finally(() => delete globalThis[contextKey]);
 		}
