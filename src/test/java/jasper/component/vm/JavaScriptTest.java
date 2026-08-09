@@ -51,7 +51,7 @@ class JavaScriptTest {
 		""";
 		var input = "test";
 
-		var output = vm.runJavaScript(targetScript, input, 30_000);
+		var output = vm.runJavaScript("", targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
 	}
@@ -79,7 +79,7 @@ class JavaScriptTest {
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 1_000))
+		assertThatThrownBy(() -> vm.runJavaScript("", targetScript, input, 1_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
@@ -92,7 +92,7 @@ class JavaScriptTest {
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 30_000))
+		assertThatThrownBy(() -> vm.runJavaScript("", targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
 	}
@@ -107,7 +107,7 @@ class JavaScriptTest {
 
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
-				return vm.runJavaScript(targetScript, input, 30_000);
+				return vm.runJavaScript("", targetScript, input, 30_000);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
