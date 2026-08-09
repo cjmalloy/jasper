@@ -35,6 +35,7 @@ public class JavaScript {
 	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
 		const path = require('path');
+		const { randomUUID } = require('crypto');
 		const { createRequire, registerHooks } = require('module');
 		const { pathToFileURL } = require('url');
 		const stdin = fs.readFileSync(0, 'utf-8');
@@ -80,11 +81,12 @@ public class JavaScript {
 		  const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
 		  result = script(patchedRequire, console, setTimeout, scriptProcess);
 		} catch (err) {
-		  if (!(err instanceof SyntaxError) || !err.message.includes('Cannot use import statement')) throw err;
-		  globalThis.__jasperEsmContext = { require: patchedRequire, process: scriptProcess };
-		  const source = `const { require, process } = globalThis.__jasperEsmContext;\n${targetScript}`;
+		  if (!(err instanceof SyntaxError) || !/(?:^|[;}\\n])\\s*import(?![\\w$])\\s*(?![.(])/.test(targetScript)) throw err;
+		  const contextKey = `__jasperEsmContext_${randomUUID()}`;
+		  globalThis[contextKey] = { require: patchedRequire, process: scriptProcess };
+		  const source = `const { require, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`;
 		  result = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
-			.finally(() => delete globalThis.__jasperEsmContext);
+			.finally(() => delete globalThis[contextKey]);
 		}
 		result.catch(err => {
 		  console.error(err);
