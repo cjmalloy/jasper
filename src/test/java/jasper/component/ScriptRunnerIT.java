@@ -42,7 +42,7 @@ import static org.springframework.test.util.ReflectionTestUtils.getField;
 @IntegrationTest
 public class ScriptRunnerIT {
 
-	private static final List<String> JAVASCRIPT_REQUIREMENTS = List.of("js-yaml@4.3.1", "uuid@11.1.1");
+	private static final String JAVASCRIPT_REQUIREMENTS = "uuid@11.1.1";
 
 	@Autowired
 	Props props;
@@ -286,7 +286,7 @@ print(yaml.dump({
 	void testUninstallCancelsPythonScript() throws Exception {
 		var started = tempDir.resolve("python-started");
 		var completed = tempDir.resolve("python-completed");
-		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython(List.of(), """
+		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython(null, """
 			import time
 			open('%s', 'w').close()
 			time.sleep(10)

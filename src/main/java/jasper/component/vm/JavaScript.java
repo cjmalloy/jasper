@@ -74,20 +74,15 @@ public class JavaScript {
 	}
 
 	@Timed("jasper.vm")
-	public String runJavaScript(List<String> requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		var packages = requirements == null ? List.<String>of() : requirements.stream()
-			.filter(Objects::nonNull)
-			.filter(requirement -> isNotBlank(requirement))
-			.toList();
+	public String runJavaScript(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var command = new ArrayList<String>();
-		if (!packages.isEmpty()) {
-			command.addAll(List.of(props.getNpx(), "--yes"));
-			packages.forEach(requirement -> command.addAll(List.of("--package", requirement)));
+		if (isNotBlank(requirements)) {
+			command.addAll(List.of(props.getNpx(), "--yes", "--package", requirements));
 			command.add("--");
 		}
-		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api, Boolean.toString(!packages.isEmpty())));
+		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api, Boolean.toString(isNotBlank(requirements))));
 		var processBuilder = new ProcessBuilder(command);
-		if (!packages.isEmpty()) {
+		if (isNotBlank(requirements)) {
 			processBuilder.environment().put(
 				"npm_config_cache",
 				Paths.get(Objects.toString(getProperty("java.io.tmpdir"), "/tmp"), "jasper-npx").toString()

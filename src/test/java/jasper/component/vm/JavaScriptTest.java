@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -61,16 +60,15 @@ class JavaScriptTest {
 	void testRunJavaScriptWithRequirements() throws IOException, ScriptException {
 		// language=JavaScript
 		var targetScript = """
-			const yaml = require('js-yaml');
 			const uuid = require('uuid');
-			console.log(yaml.dump({ id: uuid.v4() }));
+			console.log(uuid.v4());
 		""";
 
-		var output = vm.runJavaScript(List.of("js-yaml@4.3.1", "uuid@11.1.1"), targetScript, "", 30_000);
-		var repeatedOutput = vm.runJavaScript(List.of("js-yaml@4.3.1", "uuid@11.1.1"), targetScript, "", 30_000);
+		var output = vm.runJavaScript("uuid@11.1.1", targetScript, "", 30_000);
+		var repeatedOutput = vm.runJavaScript("uuid@11.1.1", targetScript, "", 30_000);
 
-		assertThat(output).containsPattern("id: [0-9a-f-]{36}");
-		assertThat(repeatedOutput).containsPattern("id: [0-9a-f-]{36}");
+		assertThat(output).containsPattern("[0-9a-f-]{36}");
+		assertThat(repeatedOutput).containsPattern("[0-9a-f-]{36}");
 	}
 
 	@Test
