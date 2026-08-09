@@ -285,7 +285,7 @@ print(yaml.dump({
 	void testUninstallCancelsPythonScript() throws Exception {
 		var started = tempDir.resolve("python-started");
 		var completed = tempDir.resolve("python-completed");
-		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython(null, """
+		assertUninstallCancels("plugin/script/python.cancel", started, completed, () -> python.runPython("", """
 			import time
 			open('%s', 'w').close()
 			time.sleep(10)
