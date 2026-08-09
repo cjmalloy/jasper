@@ -72,6 +72,19 @@ class JavaScriptTest {
 	}
 
 	@Test
+	void testRunJavaScriptWithEsmRequirements() throws IOException, ScriptException {
+		// language=JavaScript
+		var targetScript = """
+			import { v4 } from 'uuid';
+			console.log(v4());
+		""";
+
+		var output = vm.runJavaScript("uuid@11.1.1", targetScript, "", 30_000);
+
+		assertThat(output).containsPattern("[0-9a-f-]{36}");
+	}
+
+	@Test
 	void testRunJavaScriptTimeout() {
 		// language=JavaScript
 		var targetScript = """

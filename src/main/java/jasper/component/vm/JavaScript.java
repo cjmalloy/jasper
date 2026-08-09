@@ -35,16 +35,29 @@ public class JavaScript {
 	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
 		const path = require('path');
-		const { createRequire } = require('module');
+		const { createRequire, registerHooks } = require('module');
+		const { pathToFileURL } = require('url');
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
 		const dependencyBin = process.argv[3] === 'true'
 		  ? process.env.PATH.split(path.delimiter).find(entry => entry.endsWith('node_modules/.bin'))
 		  : null;
+		const dependencyRoot = dependencyBin ? path.dirname(path.dirname(dependencyBin)) : null;
 		const dependencyRequire = dependencyBin
-		  ? createRequire(path.join(path.dirname(path.dirname(dependencyBin)), 'index.js'))
+		  ? createRequire(path.join(dependencyRoot, 'index.js'))
 		  : require;
+		if (dependencyRoot) {
+		  const dependencyUrl = pathToFileURL(path.join(dependencyRoot, 'index.js')).href;
+		  registerHooks({
+			resolve(specifier, context, nextResolve) {
+			  if (context.parentURL?.startsWith('data:') && !specifier.startsWith('.') && !path.isAbsolute(specifier)) {
+				return nextResolve(specifier, { ...context, parentURL: dependencyUrl });
+			  }
+			  return nextResolve(specifier, context);
+			}
+		  });
+		}
 		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
 		  ...fs,
@@ -62,8 +75,18 @@ public class JavaScript {
 		  exit: (code) => process.exit(code),
 		};
 		const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-		const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
-		script(patchedRequire, console, setTimeout, scriptProcess).catch(err => {
+		let result;
+		try {
+		  const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
+		  result = script(patchedRequire, console, setTimeout, scriptProcess);
+		} catch (err) {
+		  if (!(err instanceof SyntaxError)) throw err;
+		  globalThis.__jasperEsmContext = { require: patchedRequire, process: scriptProcess };
+		  const source = `const { require, process } = globalThis.__jasperEsmContext;\n${targetScript}`;
+		  result = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
+			.finally(() => delete globalThis.__jasperEsmContext);
+		}
+		result.catch(err => {
 		  console.error(err);
 		  process.exit(1);
 		});
