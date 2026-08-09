@@ -172,9 +172,10 @@ print(json.dumps({
 		var upperCaseScript = """
 			const fs = require('fs');
 			const yaml = require('js-yaml');
+			const uuid = require('uuid');
 			const ref = yaml.load(fs.readFileSync(0, 'utf-8'));
 			var output = {
-			  url: 'comment:javascript-yaml',
+			  url: 'comment:' + uuid.v4(),
 			  sources: [ref.url],
 		  	  title: 'Re: ' + ref.title,
 		  	  comment: ref.comment.toUpperCase(),
@@ -188,7 +189,10 @@ print(json.dumps({
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("yaml")
-			.requirements("js-yaml@4.3.1")
+			.requirements("""
+			    uuid@11.1.1
+				js-yaml@4.3.1
+			""")
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
