@@ -275,7 +275,7 @@ print(yaml.dump({
 	void testUninstallCancelsJavaScript() throws Exception {
 		var started = tempDir.resolve("javascript-started");
 		var completed = tempDir.resolve("javascript-completed");
-		assertUninstallCancels("plugin/script/javascript.cancel", started, completed, () -> javaScript.runJavaScript("""
+		assertUninstallCancels("plugin/script/javascript.cancel", started, completed, () -> javaScript.runJavaScript("", """
 			const fs = require('fs');
 			fs.writeFileSync('%s', '');
 			await new Promise(resolve => setTimeout(resolve, 10_000));
