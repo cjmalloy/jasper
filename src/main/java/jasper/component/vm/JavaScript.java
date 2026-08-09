@@ -69,10 +69,6 @@ public class JavaScript {
 		});
 	""";
 
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		return runJavaScript(null, targetScript, inputString, timeoutMs);
-	}
-
 	@Timed("jasper.vm")
 	public String runJavaScript(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var command = new ArrayList<String>();
