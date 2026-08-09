@@ -74,8 +74,8 @@ public class JavaScript {
 		var command = new ArrayList<String>();
 		if (isNotBlank(requirements)) {
 			command.addAll(List.of(props.getNpx(), "--yes"));
-			for (var r : requirements.split("\\s+")) {
-				command.addAll(List.of("--package", r.trim()));
+			for (var r : requirements.trim().split("\\s+")) {
+				command.addAll(List.of("--package", r));
 			}
 			command.add("--");
 		}
