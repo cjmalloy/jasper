@@ -73,7 +73,10 @@ public class JavaScript {
 	public String runJavaScript(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
 		var command = new ArrayList<String>();
 		if (isNotBlank(requirements)) {
-			command.addAll(List.of(props.getNpx(), "--yes", "--package", requirements));
+			command.addAll(List.of(props.getNpx(), "--yes"));
+			for (var r : requirements.split("\\s+")) {
+				command.addAll(List.of("--package", r));
+			}
 			command.add("--");
 		}
 		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api, Boolean.toString(isNotBlank(requirements))));
