@@ -88,14 +88,16 @@ public class JavaScript {
 			);
 		}
 		var scriptProcess = processBuilder.start();
-		try (var writer = new OutputStreamWriter(scriptProcess.getOutputStream(), StandardCharsets.UTF_8)) {
-			writer.write(targetScript);
-			writer.write("\0"); // null character as delimiter
-			writer.write(inputString);
-			writer.flush();
-		} catch (IOException e) {
-			logger.warn("Script terminated before receiving input.");
-		}
+		Thread.ofVirtual().start(() -> {
+			try (var writer = new OutputStreamWriter(scriptProcess.getOutputStream(), StandardCharsets.UTF_8)) {
+				writer.write(targetScript);
+				writer.write("\0"); // null character as delimiter
+				writer.write(inputString);
+				writer.flush();
+			} catch (IOException e) {
+				logger.warn("Script terminated before receiving input.");
+			}
+		});
 		return runProcess(scriptProcess, timeoutMs);
 	}
 }
