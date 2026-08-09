@@ -80,7 +80,7 @@ public class JavaScript {
 		  const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
 		  result = script(patchedRequire, console, setTimeout, scriptProcess);
 		} catch (err) {
-		  if (!(err instanceof SyntaxError)) throw err;
+		  if (!(err instanceof SyntaxError) || !err.message.includes('Cannot use import statement')) throw err;
 		  globalThis.__jasperEsmContext = { require: patchedRequire, process: scriptProcess };
 		  const source = `const { require, process } = globalThis.__jasperEsmContext;\n${targetScript}`;
 		  result = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
