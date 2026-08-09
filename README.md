@@ -909,7 +909,7 @@ const timePlugin = {
   config: {
     timeoutMs: 30_000,
     language: 'javascript',
-    requirements: 'uuid@11.1.1',
+    requirements: 'uuid',
     // language=JavaScript
     script: `
       const uuid = require('uuid');
