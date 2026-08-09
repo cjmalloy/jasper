@@ -42,8 +42,6 @@ import static org.springframework.test.util.ReflectionTestUtils.getField;
 @IntegrationTest
 public class ScriptRunnerIT {
 
-	private static final String JAVASCRIPT_REQUIREMENTS = "uuid@11.1.1";
-
 	@Autowired
 	Props props;
 
@@ -116,7 +114,7 @@ public class ScriptRunnerIT {
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("json")
-			.requirements(JAVASCRIPT_REQUIREMENTS)
+			.requirements("uuid@11.1.1")
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
