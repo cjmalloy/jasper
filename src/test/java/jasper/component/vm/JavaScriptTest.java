@@ -75,6 +75,7 @@ class JavaScriptTest {
 	void testRunJavaScriptWithEsmRequirements() throws IOException, ScriptException {
 		// language=JavaScript
 		var targetScript = """
+			/* ESM imports may follow comments. */
 			import { readFileSync } from 'node:fs';
 			import { v4 } from 'uuid';
 			console.log(readFileSync(0, 'utf-8'), v4());

@@ -70,7 +70,7 @@ public class JavaScript {
 		  const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
 		  result = script(patchedRequire, console, setTimeout, scriptProcess);
 		} catch (err) {
-		  if (!(err instanceof SyntaxError) || !/(?:^|[;}\\n])\\s*import(?![\\w$])\\s*(?![.(])/.test(targetScript)) throw err;
+		  if (!(err instanceof SyntaxError)) throw err;
 		  const contextKey = `__jasperEsmContext_${randomUUID()}`;
 		  globalThis[contextKey] = { require: patchedRequire, console, setTimeout, process: scriptProcess };
 		  const fsExports = Object.keys(fs)
