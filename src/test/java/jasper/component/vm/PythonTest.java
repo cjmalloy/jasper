@@ -47,7 +47,7 @@ print(sys.stdin.read().upper())
 		""";
 		var input = "test";
 
-		var output = vm.runPython(null, targetScript, input, 30_000);
+		var output = vm.runPython("", targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
 	}
@@ -76,7 +76,7 @@ time.sleep(2)
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runPython(null, targetScript, input, 1_000))
+		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 1_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
@@ -89,7 +89,7 @@ open('non_existent_file')
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runPython(null, targetScript, input, 30_000))
+		assertThatThrownBy(() -> vm.runPython("", targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
 	}
@@ -104,7 +104,7 @@ print("a" * 65_536)
 
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
-				return vm.runPython(null, targetScript, input, 30_000);
+				return vm.runPython("", targetScript, input, 30_000);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
