@@ -95,7 +95,8 @@ server:
 
 jasper:
   default-role: ROLE_USER
-  node: ~/.bun/bin/bun
+  node: node
+  npm: npm
   python: /usr/bin/python3
   shell: /usr/bin/bash
   storage: /tmp/jasper

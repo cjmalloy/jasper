@@ -113,7 +113,7 @@ public class ScriptRunner {
 		try {
 			switch (config.getLanguage().toLowerCase()) {
 			case "javascript":
-				output = jsVm.runJavaScript(config.getScript(), input, config.getTimeoutMs());
+				output = jsVm.runJavaScript(config.getPackageJson(), config.getScript(), input, config.getTimeoutMs());
 				break;
 			case "python":
 				output = pythonVm.runPython(config.getRequirements(), config.getScript(), input, config.getTimeoutMs());
