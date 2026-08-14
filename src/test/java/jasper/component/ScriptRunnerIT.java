@@ -114,6 +114,7 @@ public class ScriptRunnerIT {
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("json")
+			.requirements("uuid@11.1.1")
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
@@ -186,6 +187,10 @@ print(json.dumps({
 			.timeoutMs(30_000)
 			.language("javascript")
 			.format("yaml")
+			.requirements("""
+			    uuid@11.1.1
+				js-yaml@4.3.1
+			""")
 			.script(upperCaseScript)
 			.build();
 		var url = "comment:" + UUID.randomUUID();
@@ -267,13 +272,13 @@ print(yaml.dump({
 	}
 
 	@Test
-	void testUninstallCancelsBunScript() throws Exception {
-		var started = tempDir.resolve("bun-started");
-		var completed = tempDir.resolve("bun-completed");
-		assertUninstallCancels("plugin/script/bun.cancel", started, completed, () -> javaScript.runJavaScript("""
+	void testUninstallCancelsJavaScript() throws Exception {
+		var started = tempDir.resolve("javascript-started");
+		var completed = tempDir.resolve("javascript-completed");
+		assertUninstallCancels("plugin/script/javascript.cancel", started, completed, () -> javaScript.runJavaScript("", """
 			const fs = require('fs');
 			fs.writeFileSync('%s', '');
-			await Bun.sleep(10_000);
+			await new Promise(resolve => setTimeout(resolve, 10_000));
 			fs.writeFileSync('%s', '');
 			""".formatted(started, completed), "", 30_000));
 	}

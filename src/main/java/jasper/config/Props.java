@@ -157,6 +157,10 @@ public class Props {
 	 */
 	private String node = "/usr/local/bin/node";
 	/**
+	 * Path to npx binary for resolving javascript requirements.
+	 */
+	private String npx = "/usr/local/bin/npx";
+	/**
 	 * Path to python binary for running python scripts.
 	 */
 	private String python = "/usr/bin/python";

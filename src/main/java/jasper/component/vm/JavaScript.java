@@ -12,8 +12,14 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 import static jasper.component.vm.RunProcess.runProcess;
+import static java.lang.System.getProperty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
 public class JavaScript {
@@ -28,9 +34,20 @@ public class JavaScript {
 	// language=JavaScript
 	private final String nodeVmWrapperScript = """
 		const fs = require('fs');
+		const path = require('path');
+		const { randomUUID } = require('crypto');
+		const { createRequire, registerHooks } = require('module');
+		const { pathToFileURL } = require('url');
 		const stdin = fs.readFileSync(0, 'utf-8');
 		const timeout = parseInt(process.argv[1], 10) || 30_000;
 		const api = process.argv[2];
+		const dependencyBin = process.argv[3] === 'true'
+		  ? process.env.PATH.split(path.delimiter).find(entry => entry.endsWith('node_modules/.bin'))
+		  : null;
+		const dependencyRoot = dependencyBin ? path.dirname(path.dirname(dependencyBin)) : null;
+		const dependencyRequire = dependencyBin
+		  ? createRequire(path.join(dependencyRoot, 'index.js'))
+		  : require;
 		const [targetScript, inputString] = (i => i < 0 ? [stdin, ''] : [stdin.slice(0, i), stdin.slice(i + 1)])(stdin.indexOf('\\u0000'));
 		const patchedFs = {
 		  ...fs,
@@ -40,32 +57,85 @@ public class JavaScript {
 		  }
 		};
 		const patchedRequire = (mod) => {
-			if (mod === 'fs') return patchedFs;
-			return require(mod);
+			if (mod === 'fs' || mod === 'node:fs') return patchedFs;
+			return dependencyRequire(mod);
 		};
 		const scriptProcess = {
 		  env: { JASPER_API: api },
 		  exit: (code) => process.exit(code),
 		};
 		const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-		const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
-		script(patchedRequire, console, setTimeout, scriptProcess).catch(err => {
+		let result;
+		try {
+		  const script = new AsyncFunction('require', 'console', 'setTimeout', 'process', targetScript);
+		  result = script(patchedRequire, console, setTimeout, scriptProcess);
+		} catch (err) {
+		  if (!(err instanceof SyntaxError)) throw err;
+		  const contextKey = `__jasperEsmContext_${randomUUID()}`;
+		  globalThis[contextKey] = { require: patchedRequire, console, setTimeout, process: scriptProcess };
+		  const fsExports = Object.keys(fs)
+			.filter(name => /^[$A-Z_a-z][$\\w]*$/.test(name))
+			.map(name => `export const ${name} = value[${JSON.stringify(name)}];`)
+			.join('\\n');
+		  const sources = {
+			'jasper:script': `const { require, console, setTimeout, process } = globalThis[${JSON.stringify(contextKey)}];\n${targetScript}`,
+			'jasper:fs': `const value = globalThis[${JSON.stringify(contextKey)}].require('fs');\nexport default value;\n${fsExports}`
+		  };
+		  const dependencyUrl = dependencyRoot ? pathToFileURL(path.join(dependencyRoot, 'index.js')).href : null;
+		  registerHooks({
+			resolve(specifier, context, nextResolve) {
+			  if (Object.hasOwn(sources, specifier)) return { url: specifier, shortCircuit: true };
+			  if (context.parentURL === 'jasper:script' && (specifier === 'fs' || specifier === 'node:fs')) {
+				return { url: 'jasper:fs', shortCircuit: true };
+			  }
+			  if (dependencyUrl && context.parentURL === 'jasper:script' && !specifier.startsWith('.') && !path.isAbsolute(specifier)) {
+				return nextResolve(specifier, { ...context, parentURL: dependencyUrl });
+			  }
+			  return nextResolve(specifier, context);
+			},
+			load(url, context, nextLoad) {
+			  if (Object.hasOwn(sources, url)) return { format: 'module', source: sources[url], shortCircuit: true };
+			  return nextLoad(url, context);
+			}
+		  });
+		  result = import('jasper:script')
+			.finally(() => delete globalThis[contextKey]);
+		}
+		result.catch(err => {
 		  console.error(err);
 		  process.exit(1);
 		});
 	""";
 
 	@Timed("jasper.vm")
-	public String runJavaScript(String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
-		var process = new ProcessBuilder(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api).start();
-		try (var writer = new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)) {
-			writer.write(targetScript);
-			writer.write("\0"); // null character as delimiter
-			writer.write(inputString);
-			writer.flush();
-		} catch (IOException e) {
-			logger.warn("Script terminated before receiving input.");
+	public String runJavaScript(String requirements, String targetScript, String inputString, int timeoutMs) throws ScriptException, IOException {
+		var command = new ArrayList<String>();
+		if (isNotBlank(requirements)) {
+			command.addAll(List.of(props.getNpx(), "--yes"));
+			for (var r : requirements.trim().split("\\s+")) {
+				command.addAll(List.of("--package", r));
+			}
+			command.add("--");
 		}
-		return runProcess(process, timeoutMs);
+		command.addAll(List.of(props.getNode(), "-e", nodeVmWrapperScript, ""+timeoutMs, api, Boolean.toString(isNotBlank(requirements))));
+		var processBuilder = new ProcessBuilder(command);
+		if (isNotBlank(requirements)) {
+			processBuilder.environment().put(
+				"npm_config_cache",
+				Paths.get(Objects.toString(getProperty("java.io.tmpdir"), "/tmp"), "jasper-npx").toString()
+			);
+		}
+		var scriptProcess = processBuilder.start();
+		Thread.ofVirtual().start(() -> {
+			try (var writer = new OutputStreamWriter(scriptProcess.getOutputStream(), StandardCharsets.UTF_8)) {
+				writer.write(targetScript);
+				writer.write("\0"); // null character as delimiter
+				writer.write(inputString);
+				writer.flush();
+			} catch (IOException e) {
+				logger.warn("Script terminated before receiving input.");
+			}
+		});
+		return runProcess(scriptProcess, timeoutMs);
 	}
 }

@@ -32,8 +32,14 @@ class JavaScriptTest {
 			node = props.get("node").textValue();
 		}
 		node = node.replaceFirst("^~", System.getProperty("user.home"));
+		var npx = System.getenv("JASPER_NPX");
+		if (isBlank(npx)) {
+			npx = props.get("npx").textValue();
+		}
+		npx = npx.replaceFirst("^~", System.getProperty("user.home"));
 		vm.props = new Props();
 		vm.props.setNode(node);
+		vm.props.setNpx(npx);
 		vm.api = "http://localhost:10344";
 	}
 
@@ -45,9 +51,54 @@ class JavaScriptTest {
 		""";
 		var input = "test";
 
-		var output = vm.runJavaScript(targetScript, input, 30_000);
+		var output = vm.runJavaScript("", targetScript, input, 30_000);
 
 		assertThat(output).isEqualToIgnoringWhitespace("TEST");
+	}
+
+	@Test
+	void testRunJavaScriptWithRequirements() throws IOException, ScriptException {
+		// language=JavaScript
+		var targetScript = """
+			const uuid = require('uuid');
+			console.log(uuid.v4());
+		""";
+
+		var output = vm.runJavaScript("uuid@11.1.1", targetScript, "", 30_000);
+		var repeatedOutput = vm.runJavaScript("uuid@11.1.1", targetScript, "", 30_000);
+
+		assertThat(output).containsPattern("[0-9a-f-]{36}");
+		assertThat(repeatedOutput).containsPattern("[0-9a-f-]{36}");
+	}
+
+	@Test
+	void testRunJavaScriptWithEsmRequirements() throws IOException, ScriptException {
+		// language=JavaScript
+		var targetScript = """
+			/* ESM imports may follow comments. */
+			import { readFileSync } from 'node:fs';
+			import { v4 } from 'uuid';
+			console.log(readFileSync(0, 'utf-8'), v4());
+		""";
+
+		var output = vm.runJavaScript("uuid@11.1.1", targetScript, "test", 30_000);
+
+		assertThat(output).startsWith("test ").containsPattern("[0-9a-f-]{36}");
+	}
+
+	@Test
+	void testRunJavaScriptEsmError() {
+		// language=JavaScript
+		var targetScript = """
+			import 'node:fs';
+			throw new Error('test');
+		""";
+
+		assertThatThrownBy(() -> vm.runJavaScript("", targetScript, "", 30_000))
+			.isInstanceOfSatisfying(ScriptException.class, error ->
+				assertThat(error.getLogs())
+					.contains("jasper:script")
+					.doesNotContain("data:text/javascript"));
 	}
 
 	@Test
@@ -58,7 +109,7 @@ class JavaScriptTest {
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 1_000))
+		assertThatThrownBy(() -> vm.runJavaScript("", targetScript, input, 1_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution timed out");
 	}
@@ -71,7 +122,7 @@ class JavaScriptTest {
         """;
 		var input = "test";
 
-		assertThatThrownBy(() -> vm.runJavaScript(targetScript, input, 30_000))
+		assertThatThrownBy(() -> vm.runJavaScript("", targetScript, input, 30_000))
 			.isInstanceOf(ScriptException.class)
 			.hasMessageContaining("Script execution failed with exit code:");
 	}
@@ -86,7 +137,7 @@ class JavaScriptTest {
 
 		var future = CompletableFuture.supplyAsync(() -> {
 			try {
-				return vm.runJavaScript(targetScript, input, 30_000);
+				return vm.runJavaScript("", targetScript, input, 30_000);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
