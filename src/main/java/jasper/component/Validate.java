@@ -332,7 +332,8 @@ public class Validate {
 			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
 			for (var source : sources) {
 				if (source.getPublished().isAfter(ref.getPublished())) {
-					if (!fix) throw new PublishDateException(ref, source);
+					if (!fix) throw new PublishDateException(
+						ref.getUrl(), ref.getPublished(), source.getUrl(), source.getPublished());
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
 			}
@@ -347,7 +348,8 @@ public class Validate {
 					response.setPublished(ref.getPublished());
 					continue;
 				}
-				if (!fix) throw new PublishDateException(response, ref);
+				if (!fix) throw new PublishDateException(
+					response.getUrl(), response.getPublished(), ref.getUrl(), ref.getPublished());
 				ref.setPublished(response.getPublished().minusMillis(1));
 			}
 		}
