@@ -43,7 +43,7 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /reports/coverage && \
 		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.3-25.34-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.4.1-25.36-jre AS deploy
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install curl -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
