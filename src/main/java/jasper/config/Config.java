@@ -46,6 +46,11 @@ public interface Config {
 		private String emailHost = "jasper.local";
 		@Builder.Default
 		private int maxSources = 1000;
+		/**
+		 * Maximum responses to regenerate metadata synchronously for. Default 1,000.
+		 */
+		@Builder.Default
+		private int maxMetadataResponses = 1_000;
 		@Builder.Default
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
 		@Builder.Default
@@ -181,6 +186,7 @@ public interface Config {
 			var server = props.getOverride().getServer();
 			if (isNotBlank(server.getEmailHost())) wrapped = wrapped.withEmailHost(server.getEmailHost());
 			if (server.getMaxSources() != null) wrapped = wrapped.withMaxSources(server.getMaxSources());
+			if (server.getMaxMetadataResponses() != null) wrapped = wrapped.withMaxMetadataResponses(server.getMaxMetadataResponses());
 			if (isNotEmpty(server.getModSeals())) wrapped = wrapped.withModSeals(server.getModSeals());
 			if (isNotEmpty(server.getEditorSeals())) wrapped = wrapped.withEditorSeals(server.getEditorSeals());
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());
