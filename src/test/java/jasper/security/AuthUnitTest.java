@@ -465,6 +465,14 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanAddTag_PublicUserTag() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canAddTag("user/other"))
+			.isTrue();
+	}
+
+	@Test
 	void testCanAddTag_PrivateFailed() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);

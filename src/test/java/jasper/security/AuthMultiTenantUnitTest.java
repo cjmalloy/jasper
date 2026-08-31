@@ -439,6 +439,14 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanAddTag_PublicUserTag() {
+		var auth = getAuth(getUser("+user/test@other"), USER);
+
+		assertThat(auth.canAddTag("user/other"))
+			.isTrue();
+	}
+
+	@Test
 	void testCanAddTag_PrivateFailed() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
