@@ -11,11 +11,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class BackupTest {
+	private static final String ORIGIN = "@tenant";
 
 	@Mock
 	Storage storage;
@@ -37,13 +39,27 @@ class BackupTest {
 
 	@Test
 	void restoreClearsCaches() throws IOException {
-		when(storage.streamZip("", "backups", "test-backup.zip")).thenReturn(zipped);
+		when(storage.streamZip(ORIGIN, "backups", "test-backup.zip")).thenReturn(zipped);
 
-		backup.restore("", "test-backup", new BackupOptionsDto());
+		backup.restore(ORIGIN, "test-backup", new BackupOptionsDto());
 
-		verify(configs).clearUserCache();
-		verify(configs).clearPluginCache();
-		verify(configs).clearTemplateCache();
-		verify(configs).clearConfigCache();
+		verifyCachesCleared();
+	}
+
+	@Test
+	void restoreFailureClearsCaches() throws IOException {
+		when(storage.streamZip(ORIGIN, "backups", "test-backup.zip")).thenThrow(new IOException("restore failed"));
+
+		assertThatThrownBy(() -> backup.restore(ORIGIN, "test-backup", new BackupOptionsDto()))
+			.isInstanceOf(RuntimeException.class);
+
+		verifyCachesCleared();
+	}
+
+	private void verifyCachesCleared() {
+		verify(configs).clearUserCache(ORIGIN);
+		verify(configs).clearPluginCache(ORIGIN);
+		verify(configs).clearTemplateCache(ORIGIN);
+		verify(configs).clearConfigCache(ORIGIN);
 	}
 }

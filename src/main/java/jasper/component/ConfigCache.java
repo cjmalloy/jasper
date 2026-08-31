@@ -11,6 +11,8 @@ import jasper.domain.External;
 import jasper.domain.Plugin;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.domain.proj.HasOrigin;
+import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
 import jasper.plugin.config.Index;
 import jasper.repository.PluginRepository;
@@ -24,8 +26,10 @@ import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
@@ -57,8 +61,33 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class ConfigCache {
 	private static final Logger logger = LoggerFactory.getLogger(ConfigCache.class);
 
+	private static final String[] USER_CACHES = {
+		"user-cache",
+		"user-dto-cache",
+		"user-dto-page-cache",
+		"external-user-cache"
+	};
+	private static final String[] PLUGIN_CACHES = {
+		"plugin-cache",
+		"plugin-config-cache",
+		"plugin-dto-cache",
+		"plugin-dto-page-cache"
+	};
+	private static final String[] TEMPLATE_CACHES = {
+		"template-cache",
+		"template-config-cache",
+		"template-cache-wrapped",
+		"template-schemas-cache",
+		"template-defaults-cache",
+		"template-dto-cache",
+		"template-dto-page-cache"
+	};
+
 	@Autowired
 	Props props;
+
+	@Autowired
+	CacheManager cacheManager;
 
 	@Autowired
 	RefRepository refRepository;
@@ -127,6 +156,11 @@ public class ConfigCache {
 		logger.info("Cleared config cache.");
 	}
 
+	public void clearConfigCache(String origin) {
+		clearCaches(origin, "config-cache");
+		logger.info("{} Cleared config cache.", origin);
+	}
+
 	@CacheEvict(value = {
 		"user-cache",
 		"user-dto-cache",
@@ -137,6 +171,11 @@ public class ConfigCache {
 		logger.info("Cleared user cache.");
 	}
 
+	public void clearUserCache(String origin) {
+		clearCaches(origin, USER_CACHES);
+		logger.info("{} Cleared user cache.", origin);
+	}
+
 	@CacheEvict(value = {
 		"plugin-cache",
 		"plugin-config-cache",
@@ -145,6 +184,11 @@ public class ConfigCache {
 	}, allEntries = true)
 	public void clearPluginCache() {
 		logger.debug("Cleared plugin cache.");
+	}
+
+	public void clearPluginCache(String origin) {
+		clearCaches(origin, PLUGIN_CACHES);
+		logger.debug("{} Cleared plugin cache.", origin);
 	}
 
 	@CacheEvict(value = {
@@ -160,14 +204,57 @@ public class ConfigCache {
 		logger.debug("Cleared template cache.");
 	}
 
-	@Cacheable("user-cache")
+	public void clearTemplateCache(String origin) {
+		clearCaches(origin, TEMPLATE_CACHES);
+		logger.debug("{} Cleared template cache.", origin);
+	}
+
+	public static OriginCacheKey originKey(String origin, Object key) {
+		return new OriginCacheKey(origin, key);
+	}
+
+	public static OriginCacheKey tagKey(String qualifiedTag) {
+		return originKey(Tag.tagOrigin(qualifiedTag), qualifiedTag);
+	}
+
+	public OriginCacheKey localOriginKey(Object key) {
+		return originKey(props.getLocalOrigin(), key);
+	}
+
+	private void clearCaches(String origin, String... cacheNames) {
+		for (var cacheName : cacheNames) {
+			if (cacheManager.getCache(cacheName) instanceof CaffeineCache cache) {
+				cache.getNativeCache().asMap().keySet().removeIf(
+					key -> key instanceof OriginCacheKey originKey && originKey.invalidatedBy(origin)
+				);
+			}
+		}
+	}
+
+	public record OriginCacheKey(String origin, Object key) {
+		public OriginCacheKey {
+			origin = HasOrigin.origin(origin);
+		}
+
+		boolean invalidatedBy(String origin) {
+			origin = HasOrigin.origin(origin);
+			if ("@*".equals(this.origin)) return true;
+			if (this.origin.endsWith(".*")) {
+				var root = this.origin.substring(0, this.origin.length() - 2);
+				return HasOrigin.isSubOrigin(origin, root) || HasOrigin.isSubOrigin(root, origin);
+			}
+			return HasOrigin.isSubOrigin(origin, this.origin);
+		}
+	}
+
+	@Cacheable(value = "user-cache", key = "T(jasper.component.ConfigCache).tagKey(#qualifiedTag)")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
 		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
 			.orElse(null);
 	}
 
-	@Cacheable("external-user-cache")
+	@Cacheable(value = "external-user-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #externalId)")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
 		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
@@ -187,13 +274,13 @@ public class ConfigCache {
 		userRepository.setExternalId(tag, origin, externalId);
 	}
 
-	@Cacheable(value = "user-cache", key = "'+user'")
+	@Cacheable(value = "user-cache", key = "@configCache.localOriginKey('+user')")
 	public User user() {
 		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
-	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")
+	@Cacheable(value = "config-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag + '@' + #url)")
 	public <T> T getConfig(String url, String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
 		return refRepository.findOneByUrlAndOrigin(url, origin)
@@ -201,7 +288,7 @@ public class ConfigCache {
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
 	}
 
-	@Cacheable(value = "config-cache", key = "#tag + #origin")
+	@Cacheable(value = "config-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag)")
 	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
 		return refRepository.findAll(
@@ -212,7 +299,7 @@ public class ConfigCache {
 			.toList();
 	}
 
-	@Cacheable(value = "config-cache", key = "'+plugin/origin' + #local")
+	@Cacheable(value = "config-cache", key = "T(jasper.component.ConfigCache).originKey(#local, '+plugin/origin')")
 	public RefDto getRemote(String local) {
 		configCacheTags.add("+plugin/origin");
 		String origin = "";
@@ -240,7 +327,7 @@ public class ConfigCache {
 		return configCacheTags.contains(tag);
 	}
 
-	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
+	@Cacheable(value = "plugin-config-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag)")
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
 		if (!pluginRepository.existsByQualifiedTag(tag + origin)) return empty();
 		return pluginRepository.findByTagAndOrigin(tag, origin)
@@ -249,24 +336,24 @@ public class ConfigCache {
 			.or(() -> ofNullable(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType)));
 	}
 
-	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
+	@Cacheable(value = "plugin-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag)")
 	public Optional<Plugin> getPlugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
 	}
 
-	@Cacheable(value = "template-config-cache", key = "#template + #origin")
+	@Cacheable(value = "template-config-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #template)")
 	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
 		return templateRepository.findByTemplateAndOrigin(template, origin)
 			.map(Template::getConfig)
 			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
-	@Cacheable(value = "template-cache", key = "#template + #origin")
+	@Cacheable(value = "template-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #template)")
 	public Optional<Template> getTemplate(String template, String origin) {
 		return templateRepository.findByTemplateAndOrigin(template, origin);
 	}
 
-	@Cacheable(value = "template-cache", key = "'_config/server'")
+	@Cacheable(value = "template-cache", key = "@configCache.localOriginKey('_config/server')")
 	public ServerConfig root() {
 		return getTemplateConfig(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin(), ServerConfig.class)
 			.or(() -> getTemplateConfig("_config/server", props.getLocalOrigin(), ServerConfig.class))
@@ -290,14 +377,14 @@ public class ConfigCache {
 		}
 	}
 
-	@Cacheable(value = "template-cache", key = "'_config/index'")
+	@Cacheable(value = "template-cache", key = "T(jasper.component.ConfigCache).originKey('', '_config/index')")
 	public Index index() {
 		return getTemplateConfig(concat("_config/index", props.getWorkerOrigin()), props.getLocalOrigin(), Index.class)
 			.or(() -> getTemplateConfig("_config/index", props.getLocalOrigin(), Index.class))
 			.orElse(Index.builder().build());
 	}
 
-	@Cacheable(value = "template-cache-wrapped", key = "'_config/security' + #origin")
+	@Cacheable(value = "template-cache-wrapped", key = "T(jasper.component.ConfigCache).originKey(#origin, '_config/security')")
 	public SecurityConfig security(String origin) {
 		do {
 			var security = getTemplateConfig("_config/security", origin, SecurityConfig.class);
@@ -307,7 +394,7 @@ public class ConfigCache {
 		return new SecurityConfig().wrap(props);
 	}
 
-	@Cacheable("template-schemas-cache")
+	@Cacheable(value = "template-schemas-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag)")
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
@@ -315,7 +402,7 @@ public class ConfigCache {
 			.toList();
 	}
 
-	@Cacheable("template-defaults-cache")
+	@Cacheable(value = "template-defaults-cache", key = "T(jasper.component.ConfigCache).originKey(#origin, #tag)")
 	public List<TemplateDto> getDefaults(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()

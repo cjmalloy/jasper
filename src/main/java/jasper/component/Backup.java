@@ -231,10 +231,10 @@ public class Backup {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		} finally {
-			configs.clearUserCache();
-			configs.clearPluginCache();
-			configs.clearTemplateCache();
-			configs.clearConfigCache();
+			configs.clearUserCache(origin);
+			configs.clearPluginCache(origin);
+			configs.clearTemplateCache(origin);
+			configs.clearConfigCache(origin);
 		}
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}
