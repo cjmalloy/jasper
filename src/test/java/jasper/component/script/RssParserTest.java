@@ -100,23 +100,6 @@ public class RssParserTest {
 		</rss>
 		""";
 
-	static final String TORRENT_RSS_FEED = """
-		<?xml version="1.0" encoding="UTF-8"?>
-		<rss version="2.0">
-		  <channel>
-		    <title>Test Feed</title>
-		    <link>https://example.com</link>
-		    <description>Test</description>
-		    <item>
-		      <title>Test Entry</title>
-		      <link>https://example.com/entry1</link>
-		      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
-		      <enclosure url="https://example.com/file.torrent" type="application/x-bittorrent" length="1024"/>
-		    </item>
-		  </channel>
-		</rss>
-		""";
-
 	@BeforeAll
 	static void setUpJackson() {
 		ReflectionTestUtils.setField(JacksonConfiguration.class, "om", om);
@@ -179,17 +162,6 @@ public class RssParserTest {
 		rssParser.runScript(feed, "plugin/script/feed");
 
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
-	}
-
-	@Test
-	void testTorrentEnclosureIsCached() throws Exception {
-		setUpValidHttpResponse();
-		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream(TORRENT_RSS_FEED.getBytes()));
-		var feed = feedWithAddTag("science", "+user/alice");
-
-		rssParser.runScript(feed, "plugin/script/feed");
-
-		verify(tagger).internalTag("https://example.com/file.torrent", ORIGIN, "_plugin/delta/cache");
 	}
 
 	@Test

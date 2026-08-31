@@ -316,7 +316,6 @@ public class RssParser {
 				parseEmbed(entry, ref);
 			}
 		}
-		cacheTorrents(entry, feed.getOrigin());
 		return ref;
 	}
 
@@ -394,15 +393,6 @@ public class RssParser {
 					ref.setPlugin("plugin/video", Map.of("url", e.getUrl()));
 					return;
 				}
-			}
-		}
-	}
-
-	private void cacheTorrents(SyndEntry entry, String origin) {
-		if (entry.getEnclosures() == null) return;
-		for (var e : entry.getEnclosures()) {
-			if ("application/x-bittorrent".equalsIgnoreCase(e.getType())) {
-				cacheLater(e.getUrl(), origin);
 			}
 		}
 	}
