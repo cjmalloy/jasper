@@ -95,7 +95,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Cacheable(value = "user-dto-cache", key = "T(jasper.component.ConfigCache).tagKey(#qualifiedTag)", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "user-dto-cache", key = "@configCache.trackTagCacheKey('user-dto-cache', #qualifiedTag)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
 		return userRepository.findOneByQualifiedTag(qualifiedTag)
@@ -113,7 +113,7 @@ public class UserService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.minRole()")
-	@Cacheable(value = "user-dto-page-cache", key = "T(jasper.component.ConfigCache).originKey(#filter.origin == null ? '@*' : #filter.origin, #filter.cacheKey(#pageable))", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "user-dto-page-cache", key = "@configCache.trackCacheKey('user-dto-page-cache', #filter.origin == null ? '@*' : #filter.origin, #filter.cacheKey(#pageable))", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository

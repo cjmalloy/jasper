@@ -1,13 +1,14 @@
 package jasper.component;
 
+import jasper.config.Props;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.cache.interceptor.SimpleKeyGenerator;
 
 import java.util.function.Consumer;
 
-import static jasper.component.ConfigCache.originKey;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigCacheTest {
@@ -38,7 +39,9 @@ class ConfigCacheTest {
 	@BeforeEach
 	void setup() {
 		configs = new ConfigCache();
-		configs.cacheManager = new CaffeineCacheManager();
+		configs.props = new Props();
+		configs.props.setLocalOrigin("@tenant");
+		configs.cacheManager = new ConcurrentMapCacheManager();
 	}
 
 	@Test
@@ -54,15 +57,51 @@ class ConfigCacheTest {
 		var cache = configs.cacheManager.getCache("config-cache");
 		assertThat(cache).isNotNull();
 
-		cache.put(originKey("@tenant", "parent"), "parent");
-		cache.put(originKey("@tenant.*", "subtree"), "subtree");
-		cache.put(originKey("@other.*", "other"), "other");
+		put("config-cache", "@tenant", "parent");
+		put("config-cache", "@tenant.*", "subtree");
+		put("config-cache", "@other.*", "other");
 
 		configs.clearConfigCache("@tenant.child");
 
-		assertThat(cache.get(originKey("@tenant", "parent"))).isNotNull();
-		assertThat(cache.get(originKey("@tenant.*", "subtree"))).isNull();
-		assertThat(cache.get(originKey("@other.*", "other"))).isNotNull();
+		assertThat(cache.get("parent")).isNotNull();
+		assertThat(cache.get("subtree")).isNull();
+		assertThat(cache.get("other")).isNotNull();
+	}
+
+	@Test
+	void clearLocalOriginEvictsIndexWithoutChangingItsKey() {
+		var cache = configs.cacheManager.getCache("template-cache");
+		assertThat(cache).isNotNull();
+		var key = configs.trackLocalCacheKey("template-cache", "_config/index");
+		cache.put(key, "index");
+
+		configs.clearTemplateCache("@tenant.child");
+
+		assertThat(cache.get("_config/index")).isNotNull();
+
+		configs.clearTemplateCache("@tenant");
+
+		assertThat(cache.get("_config/index")).isNull();
+		assertThat(key).isEqualTo("_config/index");
+	}
+
+	@Test
+	void generatedKeysRemainUnchanged() {
+		var key = configs.trackGeneratedCacheKey("external-user-cache", "@tenant", "@tenant", "external-id");
+
+		assertThat(key).isEqualTo(SimpleKeyGenerator.generateKey("@tenant", "external-id"));
+	}
+
+	@Test
+	void sharedKeyIsEvictedForEveryTrackedOrigin() {
+		var cache = configs.cacheManager.getCache("user-cache");
+		assertThat(cache).isNotNull();
+		put("user-cache", "", "+user");
+		put("user-cache", "@tenant", "+user");
+
+		configs.clearUserCache("@tenant");
+
+		assertThat(cache.get("+user")).isNull();
 	}
 
 	private void assertScopedClear(Consumer<String> clear, String... cacheNames) {
@@ -70,11 +109,11 @@ class ConfigCacheTest {
 			var cache = configs.cacheManager.getCache(cacheName);
 			assertThat(cache).isNotNull();
 
-			cache.put(originKey("", "root"), "root");
-			cache.put(originKey("@tenant", "tenant"), "tenant");
-			cache.put(originKey("@tenant.child", "child"), "child");
-			cache.put(originKey("@other", "other"), "other");
-			cache.put(originKey("@*", "wildcard"), "wildcard");
+			put(cacheName, "", "root");
+			put(cacheName, "@tenant", "tenant");
+			put(cacheName, "@tenant.child", "child");
+			put(cacheName, "@other", "other");
+			put(cacheName, "@*", "wildcard");
 		}
 
 		clear.accept("@tenant");
@@ -82,12 +121,18 @@ class ConfigCacheTest {
 		for (var cacheName : cacheNames) {
 			Cache cache = configs.cacheManager.getCache(cacheName);
 			assertThat(cache).isNotNull();
-			assertThat(cache.get(originKey("", "root"))).isNotNull();
-			assertThat(cache.get(originKey("@tenant", "tenant"))).isNull();
-			assertThat(cache.get(originKey("@tenant.child", "child"))).isNull();
-			assertThat(cache.get(originKey("@other", "other"))).isNotNull();
-			assertThat(cache.get(originKey("@*", "wildcard"))).isNull();
+			assertThat(cache.get("root")).isNotNull();
+			assertThat(cache.get("tenant")).isNull();
+			assertThat(cache.get("child")).isNull();
+			assertThat(cache.get("other")).isNotNull();
+			assertThat(cache.get("wildcard")).isNull();
 			cache.clear();
 		}
+	}
+
+	private void put(String cacheName, String origin, String key) {
+		var cache = configs.cacheManager.getCache(cacheName);
+		assertThat(cache).isNotNull();
+		cache.put(configs.trackCacheKey(cacheName, origin, key), key);
 	}
 }

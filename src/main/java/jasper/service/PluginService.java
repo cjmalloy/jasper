@@ -64,7 +64,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
-	@Cacheable(value = "plugin-dto-cache", key = "T(jasper.component.ConfigCache).tagKey(#qualifiedTag)")
+	@Cacheable(value = "plugin-dto-cache", key = "@configCache.trackTagCacheKey('plugin-dto-cache', #qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public PluginDto get(String qualifiedTag) {
 		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
@@ -81,7 +81,7 @@ public class PluginService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("@auth.minRole()")
-	@Cacheable(value = "plugin-dto-page-cache", key = "T(jasper.component.ConfigCache).originKey(#filter.origin == null ? '@*' : #filter.origin, #filter.cacheKey(#pageable))", condition = "@auth.hasRole('MOD')")
+	@Cacheable(value = "plugin-dto-page-cache", key = "@configCache.trackCacheKey('plugin-dto-page-cache', #filter.origin == null ? '@*' : #filter.origin, #filter.cacheKey(#pageable))", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
