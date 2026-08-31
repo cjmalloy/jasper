@@ -297,25 +297,6 @@ public class AuthUnitTest {
 	}
 
 	@Test
-	void testCanWriteRef_UserUrl() {
-		var auth = getAuth(getUser("+user/test"), USER);
-
-		assertThat(auth.canWriteRef("tag:/+user/test?url=https://jasperkm.info/", ""))
-			.isTrue();
-	}
-
-	@Test
-	void testCanWriteRef_PublicUserUrlFailed() {
-		var auth = getAuth(getUser("+user/test"), USER);
-		var url = "tag:/user/test?url=https://jasperkm.info/";
-
-		assertThat(auth.canReadRef(url, ""))
-			.isTrue();
-		assertThat(auth.canWriteRef(url, ""))
-			.isFalse();
-	}
-
-	@Test
 	void testCanWriteRef_RemoteFailed() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);

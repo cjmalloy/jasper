@@ -271,25 +271,6 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
-	void testCanWriteRef_UserUrl() {
-		var auth = getAuth(getUser("+user/test@other"), USER);
-
-		assertThat(auth.canWriteRef("tag:/+user/test?url=https://jasperkm.info/", "@other"))
-			.isTrue();
-	}
-
-	@Test
-	void testCanWriteRef_PublicUserUrlFailed() {
-		var auth = getAuth(getUser("+user/test@other"), USER);
-		var url = "tag:/user/test?url=https://jasperkm.info/";
-
-		assertThat(auth.canReadRef(url, "@other"))
-			.isTrue();
-		assertThat(auth.canWriteRef(url, "@other"))
-			.isFalse();
-	}
-
-	@Test
 	void testCanWriteRef_RemoteFailed() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);

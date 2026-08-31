@@ -333,8 +333,7 @@ public class Auth {
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		// User URL
-		if (userUrl(url)) return hasRole(MOD) ||
-			isLoggedIn() && !isPublicTag(urlToTag(url)) && userUrl(url, getUserTag().tag);
+		if (userUrl(url)) return hasRole(MOD) || isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
 		if (tagUrl(url)) return hasRole(MOD) || canWriteTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
