@@ -294,6 +294,30 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_PublicUserTagWriteAccessFailed() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().add("_user/test");
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWithOtherWriteAccess() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().addAll(List.of("_user/test", "+custom"));
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test", "+custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
 	void testCanWriteRef_ReadAccessFailed() {
 		var user = getUser("+user/test@other");
 		user.getReadAccess().add("+custom");
