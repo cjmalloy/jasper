@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.util.Locale;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Pull.getPull;
@@ -39,6 +41,9 @@ public class FetchImplHttp implements Fetch {
 	@Autowired
 	Replicator replicator;
 
+	@Autowired
+	TorrentFetch torrentFetch;
+
 	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) throws IOException {
 		var remote = configs.getRemote(origin);
@@ -51,8 +56,11 @@ public class FetchImplHttp implements Fetch {
 			}
 			return replicator.fetch(url, remote);
 		}
+		if (url.startsWith("magnet:")) {
+			return torrentFetch.fetch(url);
+		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
-			return wrap(doWebScrape(url));
+			return wrap(url, doWebScrape(url));
 		}
 		throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
 	}
@@ -84,13 +92,21 @@ public class FetchImplHttp implements Fetch {
 		return res;
 	}
 
-	private FileRequest wrap(CloseableHttpResponse res) {
+	private FileRequest wrap(String url, CloseableHttpResponse res) throws IOException {
 		if (res == null) return null;
+		var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+		var mimeType = header == null ? null : header.getValue();
+		var path = URI.create(url).getPath();
+		if (mimeType != null && "application/x-bittorrent".equalsIgnoreCase(mimeType.split(";", 2)[0].trim())
+			|| path != null && path.toLowerCase(Locale.ROOT).endsWith(".torrent")) {
+			try (res) {
+				return torrentFetch.fetch(res.getEntity().getContent());
+			}
+		}
 		return new FileRequest() {
 			@Override
 			public String getMimeType() {
-				var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
-				return header == null ? null : header.getValue();
+				return mimeType;
 			}
 
 			@Override
