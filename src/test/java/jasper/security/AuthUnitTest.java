@@ -286,6 +286,18 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_PublicTagWriteAccessFailed() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().add("+custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteRef_UserTag() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);

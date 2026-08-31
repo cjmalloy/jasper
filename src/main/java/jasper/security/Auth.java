@@ -350,9 +350,9 @@ public class Auth {
 		var qualifiedTags = qtList(origin, existing.getTags());
 		// Check if owner
 		if (owns(qualifiedTags)) return true;
-		// Public user tags cannot grant write access
+		// Public tags cannot grant write access
 		return captures(getWriteAccess(), qualifiedTags.stream()
-			.filter(tag -> !isPublicTag(tag.tag) || !matchesTemplate("user", tag.tag))
+			.filter(tag -> !isPublicTag(tag.tag))
 			.toList());
 	}
 
