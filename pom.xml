@@ -35,6 +35,7 @@
 		<javatuples.version>1.2</javatuples.version>
 		<rome.version>2.1.0</rome.version>
 		<apache-httpclient.version>5.6.4</apache-httpclient.version>
+		<bt.version>1.10</bt.version>
 		<commons-io.version>2.22.0</commons-io.version>
 		<commons-collections4.version>4.6.0</commons-collections4.version>
 		<commons-lang3.version>3.20.0</commons-lang3.version>
@@ -235,6 +236,21 @@
 			<groupId>org.apache.httpcomponents.client5</groupId>
 			<artifactId>httpclient5</artifactId>
 			<version>${apache-httpclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.atomashpolskiy</groupId>
+			<artifactId>bt-core</artifactId>
+			<version>${bt.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.atomashpolskiy</groupId>
+			<artifactId>bt-dht</artifactId>
+			<version>${bt.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.atomashpolskiy</groupId>
+			<artifactId>bt-http-tracker-client</artifactId>
+			<version>${bt.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jsoup</groupId>
