@@ -323,11 +323,13 @@ public class FileCache {
 		var moreScrape = new ArrayList<String>();
 		if (cache == null || isBlank(cache.getId())) return moreScrape;
 		// M3U8 Manifest
-		var data = fetchExistingString(url, origin);
-		if (data == null) return moreScrape;
 		try {
 			var urlObj = URI.create(url).toURL();
-			if (data.trim().startsWith("#") && (urlObj.getPath().endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
+			var mimeType = cache.getMimeType();
+			if (!urlObj.getPath().endsWith(".m3u8") && (mimeType == null || !mimeType.equalsIgnoreCase("application/x-mpegURL") && !mimeType.equalsIgnoreCase("application/vnd.apple.mpegurl"))) return moreScrape;
+			var data = fetchExistingString(url, origin);
+			if (data == null) return moreScrape;
+			if (data.trim().startsWith("#")) {
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
