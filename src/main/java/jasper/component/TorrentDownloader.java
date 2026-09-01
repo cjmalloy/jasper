@@ -64,8 +64,7 @@ public class TorrentDownloader {
 	private void checkTrackerHosts(Collection<String> trackers) throws IOException {
 		for (var tracker : trackers) {
 			var uri = URI.create(tracker);
-			if (("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
-				&& !hostCheck.validHost(uri)) {
+if (!hostCheck.validHost(uri)) {
 				throw new IOException("Invalid torrent tracker host");
 			}
 		}
