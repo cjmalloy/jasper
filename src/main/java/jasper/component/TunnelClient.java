@@ -37,6 +37,7 @@ import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Tunnel.getTunnel;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getThrowableList;
 import static org.apache.sshd.common.NamedResource.ofName;
 import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIdentities;
 
@@ -279,7 +280,9 @@ public class TunnelClient {
 			}).tunnelPort;
 		} catch (RuntimeException e) {
 			logger.debug("{} Error creating tunnel SSH client", origin, e);
-			if (e.getCause() instanceof SshException) throw e;
+			if (e.getCause() instanceof SshException &&
+				getThrowableList(e).stream().noneMatch(cause ->
+					cause.getMessage() != null && cause.getMessage().contains("Broken pipe"))) throw e;
 			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
 		}
 	}
