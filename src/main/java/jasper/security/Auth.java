@@ -351,7 +351,10 @@ public class Auth {
 		// Check if owner
 		if (owns(qualifiedTags)) return true;
 		// Check access tags
-		return captures(getWriteAccess(), qualifiedTags);
+		return captures(getWriteAccess(), qualifiedTags.stream()
+			// Remove public tags to avoid downward matching
+			.filter(tag -> !isPublicTag(tag.tag))
+			.toList());
 	}
 
 	/**

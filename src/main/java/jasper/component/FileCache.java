@@ -164,6 +164,8 @@ public class FileCache {
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
+			for (var other : createArchive(url, origin, cache)) cacheLater(other, origin);
+			cache.setContentLength(storage.size(origin, CACHE, id));
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
 		} catch (ScrapeProtocolException e) {
@@ -179,8 +181,6 @@ public class FileCache {
 				tagger.plugin(url, origin, "_plugin/cache", cache);
 			}
 			return null;
-		} finally {
-			for (var other : createArchive(url, origin, cache(url, origin))) cacheLater(other, origin);
 		}
 	}
 
@@ -311,20 +311,12 @@ public class FileCache {
 		return storage.exists(origin, CACHE, url.substring("cache:".length()));
 	}
 
-	private String fetchExistingString(String url, String origin) {
-		var ref = stat(url, origin);
-		var cache = getCache(ref);
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		return new String(storage.get(origin, CACHE, cache.getId()));
-	}
-
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (cache == null || isBlank(cache.getId())) return moreScrape;
+		if (cache == null || bannedOrBroken(cache)) return moreScrape;
+		Thread.onSpinWait();
 		// M3U8 Manifest
-		var data = fetchExistingString(url, origin);
-		if (data == null) return moreScrape;
+		var data = new String(storage.get(origin, CACHE, cache.getId()), StandardCharsets.UTF_8);
 		try {
 			var urlObj = URI.create(url).toURL();
 			if (data.trim().startsWith("#") && (urlObj.getPath().endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
@@ -343,7 +335,7 @@ public class FileCache {
 						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
 					}
 				}
-				overwrite(url, origin, buffer.toString().getBytes());
+				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes(StandardCharsets.UTF_8));
 			}
 		} catch (Exception e) {}
 		return moreScrape;
