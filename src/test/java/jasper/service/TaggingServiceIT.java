@@ -351,7 +351,10 @@ public class TaggingServiceIT {
 		refRepository.saveAndFlush(response);
 
 		var patch = objectMapper.readValue("""
-		[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]
+		[
+			{"op": "test", "path": "/plugin~1test", "value": null},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
 		""", JsonPatch.class);
 
 		taggingService.respond(List.of("plugin/test/sub", "plugin/untouched"), URL, patch);
@@ -361,6 +364,65 @@ public class TaggingServiceIT {
 			.isEqualTo("red");
 		assertThat(fetched.getPlugins().get("plugin/untouched").isNull())
 			.isTrue();
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotExposeAbsentPluginPlaceholder() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "test", "path": "/plugin~1test", "value": {}}]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotExposePlaceholderAsCopySource() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var source = new Plugin();
+		source.setTag("plugin/source");
+		source.setOrigin("");
+		source.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"value": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(source);
+
+		var target = new Plugin();
+		target.setTag("plugin/target");
+		target.setOrigin("");
+		target.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"value": {}
+			}
+		}"""));
+		pluginRepository.save(target);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "copy", "from": "/plugin~1source", "path": "/plugin~1target/value"}]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/source", "plugin/target"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
 	}
 
 	@Test
@@ -469,7 +531,7 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondWithJsonPatchReplacingInitializedPlugins() throws IOException {
+	void testRespondWithJsonPatchAddingInitializedPlugins() throws IOException {
 		refWithTags(URL, "+user/tester");
 
 		var scalarPlugin = new Plugin();
@@ -492,8 +554,8 @@ public class TaggingServiceIT {
 
 		var patch = objectMapper.readValue("""
 		[
-			{"op": "replace", "path": "/plugin~1scalar", "value": "red"},
-			{"op": "replace", "path": "/plugin~1array", "value": []}
+			{"op": "add", "path": "/plugin~1scalar", "value": "red"},
+			{"op": "add", "path": "/plugin~1array", "value": []}
 		]
 		""", JsonPatch.class);
 

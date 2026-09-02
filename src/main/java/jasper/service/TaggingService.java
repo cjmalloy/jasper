@@ -3,6 +3,7 @@ package jasper.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
@@ -26,6 +27,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -165,19 +167,20 @@ public class TaggingService {
 				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
 				var expandedTags = expandTags(ref.getTags());
 				var initialized = new HashSet<String>();
-				for (var tag : expandedTags) {
-					if (!plugins.hasNonNull(tag)) {
-						configs.getPlugin(tag, auth.getOrigin())
-							.filter(plugin -> plugin.getSchema() != null)
-							.ifPresent(plugin -> {
-								var schema = plugin.getSchema();
-								plugins.set(tag, pluginPlaceholder(schema, schema, new HashSet<>()));
-								initialized.add(tag);
-							});
+				var patchNode = objectMapper.valueToTree(patch);
+				if (patchNode.isArray()) {
+					for (var operation : patchNode) {
+						initializePlugin(plugins, expandedTags, operation, initialized);
+						plugins = (ObjectNode) JsonPatch.fromJson(
+							objectMapper.createArrayNode().add(operation)
+						).apply(plugins);
 					}
+				} else {
+					for (var tag : expandedTags) initializePlugin(plugins, tag, initialized);
+					plugins = (ObjectNode) patch.apply(plugins);
 				}
-				ref.addPlugins(expandedTags, (ObjectNode) patch.apply(plugins), objectMapper.valueToTree(patch), initialized);
-			} catch (JsonPatchException e) {
+				ref.addPlugins(expandedTags, plugins, patchNode, initialized);
+			} catch (IOException | JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
 		}
@@ -187,6 +190,30 @@ public class TaggingService {
 			// TODO: infinite retrys?
 			respond(tags, url, patch);
 		}
+	}
+
+	private void initializePlugin(ObjectNode plugins, List<String> tags, JsonNode operation, HashSet<String> initialized) {
+		var op = operation.path("op").asText();
+		if (!op.equals("add") && !op.equals("copy") && !op.equals("move")) return;
+		for (var tag : tags) {
+			var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+			var operationPath = operation.path("path").asText();
+			var from = operation.path("from").asText();
+			if (operationPath.startsWith(path + "/") && !from.equals(path) && !from.startsWith(path + "/")) {
+				initializePlugin(plugins, tag, initialized);
+			}
+		}
+	}
+
+	private void initializePlugin(ObjectNode plugins, String tag, HashSet<String> initialized) {
+		if (plugins.hasNonNull(tag)) return;
+		configs.getPlugin(tag, auth.getOrigin())
+			.filter(plugin -> plugin.getSchema() != null)
+			.ifPresent(plugin -> {
+				var schema = plugin.getSchema();
+				plugins.set(tag, pluginPlaceholder(schema, schema, new HashSet<>()));
+				initialized.add(tag);
+			});
 	}
 
 	private JsonNode pluginPlaceholder(JsonNode schema, ObjectNode root, HashSet<String> refs) {
