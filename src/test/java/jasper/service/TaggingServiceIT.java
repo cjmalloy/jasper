@@ -391,6 +391,84 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchForOtherObjectAndReferencedSchemas() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var valuesPlugin = new Plugin();
+		valuesPlugin.setTag("plugin/values");
+		valuesPlugin.setOrigin("");
+		valuesPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"values": { "type": "string" }
+		}"""));
+		pluginRepository.save(valuesPlugin);
+
+		var discriminatorPlugin = new Plugin();
+		discriminatorPlugin.setTag("plugin/discriminator");
+		discriminatorPlugin.setOrigin("");
+		discriminatorPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"discriminator": "kind",
+			"mapping": {
+				"test": {
+					"properties": {
+						"value": { "type": "string" }
+					}
+				}
+			}
+		}"""));
+		pluginRepository.save(discriminatorPlugin);
+
+		var refObjectPlugin = new Plugin();
+		refObjectPlugin.setTag("plugin/ref.object");
+		refObjectPlugin.setOrigin("");
+		refObjectPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"definitions": {
+				"data": { "values": { "type": "string" } }
+			},
+			"ref": "data"
+		}"""));
+		pluginRepository.save(refObjectPlugin);
+
+		var refArrayPlugin = new Plugin();
+		refArrayPlugin.setTag("plugin/ref.array");
+		refArrayPlugin.setOrigin("");
+		refArrayPlugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"definitions": {
+				"data": { "elements": { "type": "string" } }
+			},
+			"ref": "data"
+		}"""));
+		pluginRepository.save(refArrayPlugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1values/key", "value": "value"},
+			{"op": "add", "path": "/plugin~1discriminator/kind", "value": "test"},
+			{"op": "add", "path": "/plugin~1discriminator/value", "value": "value"},
+			{"op": "add", "path": "/plugin~1ref.object/key", "value": "value"},
+			{"op": "add", "path": "/plugin~1ref.array/0", "value": "value"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/values", "plugin/discriminator", "plugin/ref.object", "plugin/ref.array"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/values"))
+			.isEqualTo(objectMapper.readTree("{\"key\":\"value\"}"));
+		assertThat(fetched.getPlugins().get("plugin/discriminator"))
+			.isEqualTo(objectMapper.readTree("{\"kind\":\"test\",\"value\":\"value\"}"));
+		assertThat(fetched.getPlugins().get("plugin/ref.object"))
+			.isEqualTo(objectMapper.readTree("{\"key\":\"value\"}"));
+		assertThat(fetched.getPlugins().get("plugin/ref.array"))
+			.isEqualTo(objectMapper.readTree("[\"value\"]"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonPatchReplacingInitializedPlugins() throws IOException {
 		refWithTags(URL, "+user/tester");
 
