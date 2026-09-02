@@ -8,17 +8,20 @@
 
 spring:
   datasource:
-    url: jdbc:sqlite:${jasper.storage:/var/lib/jasper}/db.sqlite
+    url: jdbc:sqlite:${jasper.storage:/var/lib/jasper}/db.sqlite?journal_mode=WAL&busy_timeout=10000&synchronous=NORMAL
     driver-class-name: org.sqlite.JDBC
     hikari:
       poolName: Hikari
       auto-commit: false
       # SQLite only supports a single writer, so limit pool to 1 connection
       maximum-pool-size: 1
+      minimum-idle: 1
+      leak-detection-threshold: 3000
       data-source-properties:
         date_class: TEXT
   jpa:
     database-platform: jasper.config.SQLiteDialect
+    open-in-view: false
     hibernate:
       ddl-auto: none
     properties:
