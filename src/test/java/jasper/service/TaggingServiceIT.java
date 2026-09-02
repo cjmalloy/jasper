@@ -427,6 +427,63 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotReinitializeRemovedPlugin() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setDefaults((ObjectNode) objectMapper.readTree("{\"color\": \"blue\"}"));
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "remove", "path": "/plugin~1test"},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchInitializesPluginOnlyOnce() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test/color", "value": "blue"},
+			{"op": "remove", "path": "/plugin~1test"},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonPatchWhenArrayPluginDataDoesNotExist() throws IOException {
 		refWithTags(URL, "+user/tester");
 

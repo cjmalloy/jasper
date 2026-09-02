@@ -169,8 +169,10 @@ public class TaggingService {
 				var initialized = new HashSet<String>();
 				var patchNode = objectMapper.valueToTree(patch);
 				if (patch instanceof JsonPatch) {
+					var missingPlugins = new HashSet<String>();
+					for (var tag : expandedTags) if (!plugins.hasNonNull(tag)) missingPlugins.add(tag);
 					for (var operation : patchNode) {
-						initializePlugin(plugins, expandedTags, operation, initialized);
+						initializePlugin(plugins, missingPlugins, operation, initialized);
 						plugins = (ObjectNode) JsonPatch.fromJson(
 							objectMapper.createArrayNode().add(operation)
 						).apply(plugins);
@@ -196,7 +198,7 @@ public class TaggingService {
 		}
 	}
 
-	private void initializePlugin(ObjectNode plugins, List<String> tags, JsonNode operation, HashSet<String> initialized) {
+	private void initializePlugin(ObjectNode plugins, HashSet<String> tags, JsonNode operation, HashSet<String> initialized) {
 		var op = operation.path("op").asText();
 		if (!op.equals("add") && !op.equals("copy") && !op.equals("move")) return;
 		for (var tag : tags) {
@@ -210,7 +212,7 @@ public class TaggingService {
 	}
 
 	private void initializePlugin(ObjectNode plugins, String tag, HashSet<String> initialized) {
-		if (plugins.hasNonNull(tag)) return;
+		if (initialized.contains(tag) || plugins.hasNonNull(tag)) return;
 		configs.getPlugin(tag, auth.getOrigin())
 			.filter(plugin -> plugin.getSchema() != null)
 			.ifPresent(plugin -> {
