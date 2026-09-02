@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.config.JacksonConfiguration.om;
@@ -191,6 +192,27 @@ public class Ref implements HasTags {
 			if (from.has(t)) setPlugin(t, from.get(t));
 		}
 		return this;
+	}
+
+	@JsonIgnore
+	public Ref addPlugins(List<String> toAdd, ObjectNode from, JsonNode patchNode, Set<String> initialized) {
+		if (toAdd == null || from == null) return this;
+		for (var t : toAdd) {
+			if (initialized.contains(t) && !isTargetedByPatch(patchNode, t)) continue;
+			if (from.has(t)) setPlugin(t, from.get(t));
+		}
+		return this;
+	}
+
+	private static boolean isTargetedByPatch(JsonNode patchNode, String tag) {
+		if (!patchNode.isArray()) return patchNode.has(tag);
+		var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+		for (var operation : patchNode) {
+			if (operation.path("op").asText().equals("test")) continue;
+			var operationPath = operation.path("path").asText();
+			if (operationPath.isEmpty() || operationPath.equals(path) || operationPath.startsWith(path + "/")) return true;
+		}
+		return false;
 	}
 
 	@Override

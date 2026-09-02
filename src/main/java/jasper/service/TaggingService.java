@@ -1,6 +1,9 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
@@ -24,9 +27,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 
+import static jasper.component.Meta.expandTags;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
@@ -53,6 +59,9 @@ public class TaggingService {
 
 	@Autowired
 	Validate validate;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -155,9 +164,29 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
-				ref.addPlugins(ref.getTags(), plugins);
-			} catch (JsonPatchException e) {
+				var plugins = ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins().deepCopy();
+				var expandedTags = expandTags(ref.getTags());
+				var initialized = new HashSet<String>();
+				var patchNode = objectMapper.valueToTree(patch);
+				if (patch instanceof JsonPatch) {
+					var missingPlugins = new HashSet<String>();
+					for (var tag : expandedTags) if (!plugins.hasNonNull(tag)) missingPlugins.add(tag);
+					for (var operation : patchNode) {
+						initializePlugin(plugins, missingPlugins, operation, initialized);
+						plugins = (ObjectNode) JsonPatch.fromJson(
+							objectMapper.createArrayNode().add(operation)
+						).apply(plugins);
+					}
+				} else {
+					for (var tag : expandedTags) initializePlugin(plugins, tag, initialized);
+					var patchedPlugins = patch.apply(plugins);
+					if (!(patchedPlugins instanceof ObjectNode)) {
+						throw new JsonPatchException("Plugin patch must produce an object");
+					}
+					plugins = (ObjectNode) patchedPlugins;
+				}
+				ref.addPlugins(expandedTags, plugins, patchNode, initialized);
+			} catch (IOException | JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
 		}
@@ -167,5 +196,39 @@ public class TaggingService {
 			// TODO: infinite retrys?
 			respond(tags, url, patch);
 		}
+	}
+
+	private void initializePlugin(ObjectNode plugins, HashSet<String> tags, JsonNode operation, HashSet<String> initialized) {
+		var op = operation.path("op").asText();
+		if (!op.equals("add") && !op.equals("copy") && !op.equals("move")) return;
+		for (var tag : tags) {
+			var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+			var operationPath = operation.path("path").asText();
+			var from = operation.path("from").asText();
+			if (operationPath.startsWith(path + "/") && !from.equals(path) && !from.startsWith(path + "/")) {
+				initializePlugin(plugins, tag, initialized);
+			}
+		}
+	}
+
+	private void initializePlugin(ObjectNode plugins, String tag, HashSet<String> initialized) {
+		if (initialized.contains(tag) || plugins.hasNonNull(tag)) return;
+		configs.getPlugin(tag, auth.getOrigin())
+			.filter(plugin -> plugin.getSchema() != null)
+			.ifPresent(plugin -> {
+				var schema = plugin.getSchema();
+				plugins.set(tag, pluginPlaceholder(schema, schema, new HashSet<>()));
+				initialized.add(tag);
+			});
+	}
+
+	private JsonNode pluginPlaceholder(JsonNode schema, ObjectNode root, HashSet<String> refs) {
+		if (schema.has("elements")) return objectMapper.createArrayNode();
+		if (schema.has("properties") || schema.has("optionalProperties") || schema.has("values") || schema.has("discriminator")) {
+			return objectMapper.createObjectNode();
+		}
+		var ref = schema.path("ref").asText();
+		if (!ref.isEmpty() && refs.add(ref)) return pluginPlaceholder(root.path("definitions").path(ref), root, refs);
+		return objectMapper.nullNode();
 	}
 }
