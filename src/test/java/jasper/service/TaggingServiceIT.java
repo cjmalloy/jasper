@@ -612,6 +612,19 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondRejectsJsonMergePatchArray() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1test", "value": {}}]
+		""", JsonMergePatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithInvalidJsonPatch() throws IOException {
 		refWithTags(URL, "+user/tester");
 

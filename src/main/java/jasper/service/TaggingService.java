@@ -168,7 +168,7 @@ public class TaggingService {
 				var expandedTags = expandTags(ref.getTags());
 				var initialized = new HashSet<String>();
 				var patchNode = objectMapper.valueToTree(patch);
-				if (patchNode.isArray()) {
+				if (patch instanceof JsonPatch) {
 					for (var operation : patchNode) {
 						initializePlugin(plugins, expandedTags, operation, initialized);
 						plugins = (ObjectNode) JsonPatch.fromJson(
@@ -177,7 +177,11 @@ public class TaggingService {
 					}
 				} else {
 					for (var tag : expandedTags) initializePlugin(plugins, tag, initialized);
-					plugins = (ObjectNode) patch.apply(plugins);
+					var patchedPlugins = patch.apply(plugins);
+					if (!(patchedPlugins instanceof ObjectNode)) {
+						throw new JsonPatchException("Plugin patch must produce an object");
+					}
+					plugins = (ObjectNode) patchedPlugins;
 				}
 				ref.addPlugins(expandedTags, plugins, patchNode, initialized);
 			} catch (IOException | JsonPatchException e) {
