@@ -21,7 +21,6 @@ spring:
         date_class: TEXT
   jpa:
     database-platform: jasper.config.SQLiteDialect
-    open-in-view: false
     hibernate:
       ddl-auto: none
     properties:
