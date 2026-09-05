@@ -79,7 +79,7 @@ public class Ingest {
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
-		meta.ref(rootOrigin, ref);
+		meta.update(rootOrigin, ref, maybeExisting.get());
 		ensureUpdateUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.get());
 		messages.updateRef(ref);
@@ -100,7 +100,11 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		meta.ref(rootOrigin, ref);
+		if (maybeExisting.isEmpty()) {
+			meta.ref(rootOrigin, ref);
+		} else {
+			meta.update(rootOrigin, ref, maybeExisting.get());
+		}
 		ensureSilentUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
@@ -114,7 +118,11 @@ public class Ingest {
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
 			rng.update(rootOrigin, ref, maybeExisting);
-			meta.ref(rootOrigin, ref);
+			if (maybeExisting != null) {
+				meta.update(rootOrigin, ref, maybeExisting);
+			} else {
+				meta.ref(rootOrigin, ref);
+			}
 		} else {
 			ref.setMetadata(Metadata
 				.builder()

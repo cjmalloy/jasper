@@ -20,7 +20,7 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(NON_EMPTY)
