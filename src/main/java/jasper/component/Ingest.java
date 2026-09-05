@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.RollbackException;
 import jasper.config.Props;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -28,6 +29,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+import static jasper.component.Meta.expandTags;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -124,7 +126,12 @@ public class Ingest {
 				meta.ref(rootOrigin, ref);
 			}
 		} else {
-			meta.update(rootOrigin, ref, null, true);
+			ref.setMetadata(Metadata
+				.builder()
+				.modified(null)
+				.regen(true)
+				.expandedTags(expandTags(ref.getTags()))
+				.build());
 		}
 		pushUniqueModified(ref);
 		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
