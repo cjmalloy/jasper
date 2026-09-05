@@ -72,6 +72,7 @@ public class Meta {
 		ref.setMetadata((existing == null ? Metadata.builder() : existing.getMetadata()
 			.toBuilder())
 			.expandedTags(expandTags(ref.getTags()))
+			.obsolete(false)
 			.build()
 		);
 	}
