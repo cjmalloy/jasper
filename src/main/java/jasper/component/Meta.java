@@ -69,8 +69,9 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void update(String rootOrigin, Ref ref, Ref existing) {
 		if (ref == null) return;
-		ref.setMetadata((existing == null ? Metadata.builder() : existing.getMetadata()
-			.toBuilder())
+		ref.setMetadata((existing == null || existing.getMetadata() == null
+			? Metadata.builder()
+			: existing.getMetadata().toBuilder())
 			.expandedTags(expandTags(ref.getTags()))
 			.obsolete(false)
 			.build()
