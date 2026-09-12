@@ -1,6 +1,7 @@
 package jasper.web.rest.errors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jasper.errors.*;
 import jasper.web.rest.errors.ProblemDetailWithCause.ProblemDetailWithCauseBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
@@ -167,15 +168,60 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 	private URI getMappedType(Throwable err) {
 		if (err instanceof MethodArgumentNotValidException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
+		if (err instanceof AccessDeniedException) return ErrorConstants.ACCESS_VIOLATION_TYPE;
+		if (err instanceof InvalidPluginException || err instanceof InvalidPluginUserUrlException) {
+			return ErrorConstants.PLUGIN_VALIDATION_TYPE;
+		}
+		if (err instanceof InvalidTemplateException) return ErrorConstants.TEMPLATE_VALIDATION_TYPE;
+		if (err instanceof DuplicateTagException || err instanceof DuplicateModifiedDateException) {
+			return ErrorConstants.DUPLICATE_KEY_TYPE;
+		}
+		if (err instanceof PublishDateException) return ErrorConstants.DATE_ERROR_TYPE;
+		if (err instanceof ScriptException || err instanceof UntrustedScriptException) {
+			return ErrorConstants.SCRIPT_ERROR_TYPE;
+		}
+		if (err instanceof InvalidUserProfileException ||
+			err instanceof DeactivateSelfException ||
+			err instanceof FreshLoginException) {
+			return ErrorConstants.USER_ERROR_TYPE;
+		}
+		if (err instanceof InvalidTunnelException || err instanceof ScrapeProtocolException) {
+			return ErrorConstants.PROTOCOL_ERROR_TYPE;
+		}
+		if (err instanceof AlreadyExistsException || 
+			err instanceof ModifiedException || 
+			err instanceof UserTagInUseException) {
+			return ErrorConstants.CONFLICT_TYPE;
+		}
+		if (err instanceof TooLargeException) return ErrorConstants.SIZE_ERROR_TYPE;
+		if (err instanceof InvalidPushException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
 		return ErrorConstants.DEFAULT_TYPE;
 	}
 
 	private String getMappedMessageKey(Throwable err) {
-		if (err instanceof MethodArgumentNotValidException) {
-			return ErrorConstants.ERR_VALIDATION;
-		} else if (err instanceof ConcurrencyFailureException || err.getCause() instanceof ConcurrencyFailureException) {
-			return ErrorConstants.ERR_CONCURRENCY_FAILURE;
-		}
+		if (err instanceof MethodArgumentNotValidException) return ErrorConstants.ERR_VALIDATION;
+		if (err instanceof ConcurrencyFailureException) return ErrorConstants.ERR_OPTIMISTIC_LOCK;
+		if (err instanceof DuplicateTagException) return ErrorConstants.ERR_DUPLICATE_TAG;
+		if (err instanceof InvalidPluginException) return ErrorConstants.ERR_INVALID_PLUGIN;
+		if (err instanceof InvalidPluginUserUrlException) return ErrorConstants.ERR_INVALID_USER_URL;
+		if (err instanceof InvalidTemplateException) return ErrorConstants.ERR_INVALID_TEMPLATE;
+		if (err instanceof InvalidPatchException) return ErrorConstants.ERR_INVALID_PATCH;
+		if (err instanceof MaxSourcesException) return ErrorConstants.ERR_MAX_SOURCES;
+		if (err instanceof NotFoundException) return ErrorConstants.ERR_NOT_FOUND;
+		if (err instanceof AccessDeniedException) return ErrorConstants.ERR_ACCESS_DENIED;
+		if (err instanceof PublishDateException) return ErrorConstants.ERR_PUBLISH_DATE;
+		if (err instanceof ScriptException) return ErrorConstants.ERR_SCRIPT;
+		if (err instanceof UntrustedScriptException) return ErrorConstants.ERR_UNTRUSTED_SCRIPT;
+		if (err instanceof FreshLoginException) return ErrorConstants.ERR_FRESH_LOGIN;
+		if (err instanceof DeactivateSelfException) return ErrorConstants.ERR_DEACTIVATE_SELF;
+		if (err instanceof InvalidTunnelException) return ErrorConstants.ERR_INVALID_TUNNEL;
+		if (err instanceof ScrapeProtocolException) return ErrorConstants.ERR_SCRAPE_PROTOCOL;
+		if (err instanceof OperationForbiddenOnOriginException) return ErrorConstants.ERR_ORIGIN_FORBIDDEN;
+		if (err instanceof AlreadyExistsException) return ErrorConstants.ERR_ALREADY_EXISTS;
+		if (err instanceof ModifiedException) return ErrorConstants.ERR_MODIFIED;
+		if (err instanceof TooLargeException) return ErrorConstants.ERR_TOO_LARGE;
+		if (err instanceof InvalidPushException) return ErrorConstants.ERR_INVALID_PUSH;
+		if (err instanceof UserTagInUseException) return ErrorConstants.ERR_USER_TAG_IN_USE;
 		return null;
 	}
 
@@ -252,6 +298,6 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 	private boolean containsPackageName(String message) {
 		// This list is for sure not complete
-		return StringUtils.containsAny(message, "org.", "java.", "net.", "jakarta.", "javax.", "com.", "io.", "de.", "com.mycompany.myapp");
+		return StringUtils.containsAny(message, "org.", "java.", "net.", "jakarta.", "javax.", "com.", "io.", "de.", "jasper.");
 	}
 }
