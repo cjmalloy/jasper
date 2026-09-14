@@ -104,13 +104,7 @@ public class Scraper {
 		removeSelectors(doc, config);
 		removeStyleSelectors(doc, config);
 		parseVideos(result, doc, config);
-		for (var v : doc.select("video")) {
-			if (v.select("source").isEmpty()) v.remove();
-		}
 		parseAudio(result, doc, config);
-		for (var a : doc.select("audio")) {
-			if (a.select("source").isEmpty()) a.remove();
-		}
 		parseOpenGraph(result, doc, config);
 		parseOembed(result, doc, config);
 		parseLinkedData(result, doc, config);
@@ -243,12 +237,12 @@ public class Scraper {
 					var src = video.absUrl("data-stream");
 					cacheLater(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
+					return;
 				} else if (video.hasAttr("src")) {
 					var src = video.absUrl("src");
 					cacheLater(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
-					addWeakThumbnail(result, getThumbnail(src));
-					video.parent().remove();
+					return;
 				}
 			}
 		}
@@ -262,7 +256,7 @@ public class Scraper {
 					var src = audio.absUrl("src");
 					cacheLater(src, result.getOrigin());
 					addPluginUrl(result, "plugin/audio", getVideo(src));
-					audio.parent().remove();
+					return;
 				}
 			}
 		}
