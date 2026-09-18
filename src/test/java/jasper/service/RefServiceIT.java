@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
+import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -18,12 +19,16 @@ import jasper.repository.filter.RefFilter;
 import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -995,6 +1000,40 @@ public class RefServiceIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = {false, true})
+	void testMoveResponsePublishedEarlier(boolean withObsoleteSource) {
+		var source = new Ref();
+		source.setUrl(URL);
+		source.setPublished(Instant.parse("2020-01-01T00:00:00Z"));
+		refService.create(source);
+
+		if (withObsoleteSource) {
+			var obsolete = new Ref();
+			obsolete.setUrl(URL);
+			obsolete.setOrigin("@archive");
+			obsolete.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+			obsolete.setMetadata(Metadata.builder().obsolete(true).build());
+			refRepository.save(obsolete);
+		}
+
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(new ArrayList<>(List.of("+user/tester")));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2024-01-01T12:00:00.001Z"));
+		refService.create(response);
+		var published = response.getPublished().minus(3, ChronoUnit.HOURS);
+		response.setPublished(published);
+
+		refService.update(response);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(response.getUrl(), "").orElseThrow().getPublished())
+			.isEqualTo(published);
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow().getPublished())
+			.isEqualTo(source.getPublished());
 	}
 
 	@Test
