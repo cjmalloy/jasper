@@ -3,6 +3,7 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
+import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPluginException;
@@ -10,13 +11,18 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,6 +57,99 @@ public class ValidateRefIT {
 		refRepository.save(ref);
 
 		validate.ref("", ref, false);
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(booleans = {false, true})
+	void testSourcePublishedDateAutofix(Boolean obsolete) {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setOrigin("@a.archive");
+		source.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+		if (obsolete != null) source.setMetadata(Metadata.builder().obsolete(obsolete).build());
+		refRepository.saveAndFlush(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setSources(List.of(source.getUrl()));
+		var published = Instant.parse("2020-01-01T00:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("@a", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(Boolean.TRUE.equals(obsolete)
+			? published : source.getPublished().plusMillis(1));
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(booleans = {false, true})
+	void testResponsePublishedDateAutofix(Boolean obsolete) {
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setOrigin("@a.archive");
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2020-01-01T00:00:00Z"));
+		if (obsolete != null) response.setMetadata(Metadata.builder().obsolete(obsolete).build());
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("@a", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(Boolean.TRUE.equals(obsolete)
+			? published : response.getPublished().minusMillis(1));
+	}
+
+	@Test
+	void testEqualPublishedDatesPreserved() {
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setPublished(published);
+		refRepository.saveAndFlush(source);
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setSources(List.of(URL));
+		response.setPublished(published);
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(source.getUrl()));
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+	}
+
+	@Test
+	void testPublishedDatesOutsideRootOriginIgnored() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setOrigin("@b");
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setOrigin("@b");
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2020-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setSources(List.of(source.getUrl()));
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("@a", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
 	}
 
 	@Test
