@@ -164,6 +164,45 @@ public class IngestIT {
 	}
 
 	@Test
+	void testUpdatePublishedDateStillConstrainedBySource() {
+		var parent = Ref.from("https:parent", "@test");
+		parent.setPublished(Instant.parse("2025-07-30T00:04:26.000Z"));
+		refRepository.save(parent);
+		var child = Ref.from("https:child", "@test");
+		child.setSources(List.of(parent.getUrl()));
+		child.setPublished(Instant.parse("2026-09-18T22:39:46.182Z"));
+		refRepository.save(child);
+		child.setPublished(parent.getPublished().minusSeconds(3600));
+
+		ingest.update("@test", child);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(child.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(parent.getPublished().plusMillis(1));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"public", "internal"})
+	void testUpdatePublishedDateStillConstrainedByRealResponse(String tag) {
+		var parent = Ref.from("https:parent", "@test");
+		parent.setPublished(Instant.parse("2025-07-30T00:04:26.000Z"));
+		refRepository.save(parent);
+		var child = Ref.from("https:child", "@test");
+		child.setSources(List.of(parent.getUrl()));
+		child.setPublished(Instant.parse("2026-09-18T22:39:46.182Z"));
+		refRepository.save(child);
+		var reply = Ref.from("https:reply", "@test", tag, "+user/tester");
+		reply.setSources(List.of(child.getUrl()));
+		reply.setPublished(Instant.parse("2026-09-18T23:00:00.000Z"));
+		refRepository.save(reply);
+		child.setPublished(Instant.parse("2026-09-19T16:39:46.000Z"));
+
+		ingest.update("@test", child);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(child.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(reply.getPublished().minusMillis(1));
+	}
+
+	@Test
 	void testDuplicateCreateModifiedFails() {
 		var fixedClock = Clock.fixed(Instant.ofEpochSecond(1640000000), ZoneOffset.UTC);
 		setField(ingest, "ensureUniqueModifiedClock", fixedClock);

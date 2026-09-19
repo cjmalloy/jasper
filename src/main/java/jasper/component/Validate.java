@@ -15,6 +15,7 @@ import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
+import jasper.domain.proj.Tag;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
@@ -344,7 +345,7 @@ public class Validate {
 		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
 		for (var response : responses) {
 			if (response.getPublished().isBefore(ref.getPublished())) {
-				if (response.hasTag("plugin/user")) {
+				if (Tag.userUrl(response.getUrl()) || response.hasTag("plugin/user")) {
 					response.setPublished(ref.getPublished());
 					continue;
 				}
