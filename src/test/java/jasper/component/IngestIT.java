@@ -9,6 +9,8 @@ import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,9 @@ public class IngestIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	Tagger tagger;
 
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
@@ -108,6 +113,54 @@ public class IngestIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
+	}
+
+	@Test
+	void testUpdatePublishedDateWithOlderSource() {
+		var parent = Ref.from("https:parent", "@test");
+		parent.setPublished(Instant.parse("2025-07-30T00:04:26.000Z"));
+		refRepository.save(parent);
+		var child = Ref.from("https:child", "@test");
+		child.setSources(List.of(parent.getUrl()));
+		child.setPublished(Instant.parse("2026-09-18T22:39:46.182Z"));
+		child.setCreated(Instant.parse("2026-09-18T22:39:42.055Z"));
+		child.setModified(Instant.parse("2026-09-18T23:44:22.151354Z"));
+		refRepository.save(child);
+		child.setPublished(Instant.parse("2026-09-19T16:39:46.000Z"));
+
+		ingest.update("@test", child);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(child.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(Instant.parse("2026-09-19T16:39:46.000Z"));
+		assertThat(refRepository.findOneByUrlAndOrigin(parent.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(parent.getPublished());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"+user/tester", "_user/tester"})
+	void testUpdatePublishedDateWithGeneratedUserResponse(String user) {
+		var parent = Ref.from("https:parent", "@test");
+		parent.setPublished(Instant.parse("2025-07-30T00:04:26.000Z"));
+		refRepository.save(parent);
+		var child = Ref.from("https:child", "@test");
+		child.setSources(List.of(parent.getUrl()));
+		child.setPublished(Instant.parse("2026-09-18T22:39:46.182Z"));
+		child.setCreated(Instant.parse("2026-09-18T22:39:42.055Z"));
+		child.setModified(Instant.parse("2026-09-18T23:44:22.151354Z"));
+		refRepository.save(child);
+		var userResponse = tagger.getResponseRef(user, "@test", child.getUrl());
+		assertThat(userResponse.getTags()).contains("internal", user).doesNotContain("plugin/user");
+		userResponse.setPublished(Instant.parse("2026-09-18T23:00:00.000Z"));
+		refRepository.save(userResponse);
+		child = refRepository.findOneByUrlAndOrigin(child.getUrl(), "@test").orElseThrow();
+		child.setPublished(Instant.parse("2026-09-19T16:39:46.000Z"));
+
+		ingest.update("@test", child);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(child.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(Instant.parse("2026-09-19T16:39:46.000Z"));
+		assertThat(refRepository.findOneByUrlAndOrigin(parent.getUrl(), "@test").orElseThrow().getPublished())
+			.isEqualTo(parent.getPublished());
 	}
 
 	@Test
