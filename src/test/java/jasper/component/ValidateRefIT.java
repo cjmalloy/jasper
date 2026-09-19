@@ -12,6 +12,7 @@ import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,26 +106,165 @@ public class ValidateRefIT {
 			? published : response.getPublished().minusMillis(1));
 	}
 
-	@Test
-	void testEqualPublishedDatesPreserved() {
-		var published = Instant.parse("2024-01-01T12:00:00Z");
+	@ParameterizedTest
+	@CsvSource({
+		"0, 0",
+		"0, 1",
+		"1, 0",
+		"1, 1",
+		"86400000, 86400000"
+	})
+	void testValidPublishedDatesPreserved(long sourceAgeMillis, long responseDelayMillis) {
+		var published = Instant.parse("2024-01-01T12:00:00.123456Z");
+		var sourcePublished = published.minusMillis(sourceAgeMillis);
+		var responsePublished = published.plusMillis(responseDelayMillis);
 		var source = new Ref();
 		source.setUrl(URL + "source");
-		source.setPublished(published);
-		refRepository.saveAndFlush(source);
+		source.setPublished(sourcePublished);
+		source = refRepository.saveAndFlush(source);
 		var response = new Ref();
 		response.setUrl(URL + "response");
 		response.setSources(List.of(URL));
-		response.setPublished(published);
-		refRepository.saveAndFlush(response);
+		response.setPublished(responsePublished);
+		response = refRepository.saveAndFlush(response);
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(source.getUrl()));
 		ref.setPublished(published);
 
+		for (var stripOnError : List.of(false, true)) {
+			validate.ref("", ref, stripOnError);
+
+			assertThat(ref.getPublished()).isEqualTo(published);
+			assertThat(source.getPublished()).isEqualTo(sourcePublished);
+			assertThat(response.getPublished()).isEqualTo(responsePublished);
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"1900-01-01T00:00:00Z",
+		"1970-01-01T00:00:00Z",
+		"2024-02-29T23:59:59.123456789Z",
+		"2100-01-01T00:00:00Z"
+	})
+	void testUnconstrainedPublishedDatesPreserved(Instant published) {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setPublished(published);
+
 		validate.ref("", ref);
 
 		assertThat(ref.getPublished()).isEqualTo(published);
+		ref.setSources(List.of());
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+		ref.setSources(List.of(URL + "missing"));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"", "@a"})
+	void testValidPublishedDateWithMultipleRelatedRefsPreserved(String rootOrigin) {
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setOrigin("@a");
+		source.setPublished(published.minusSeconds(60));
+		var archivedSource = new Ref();
+		archivedSource.setUrl(source.getUrl());
+		archivedSource.setOrigin("@a.archive");
+		archivedSource.setPublished(published);
+		var otherSource = new Ref();
+		otherSource.setUrl(URL + "other-source");
+		otherSource.setOrigin("@a");
+		otherSource.setPublished(published.minusMillis(1));
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setOrigin("@a");
+		response.setSources(List.of(URL));
+		response.setPublished(published.plusMillis(1));
+		var userResponse = new Ref();
+		userResponse.setUrl(URL + "user-response");
+		userResponse.setOrigin("@a.archive");
+		userResponse.setSources(List.of(URL));
+		userResponse.setTags(List.of("plugin/user"));
+		userResponse.setPublished(published);
+		var obsoleteSource = new Ref();
+		obsoleteSource.setUrl(source.getUrl());
+		obsoleteSource.setOrigin("@a.obsolete");
+		obsoleteSource.setPublished(published.plusSeconds(60));
+		obsoleteSource.setMetadata(Metadata.builder().obsolete(true).build());
+		var obsoleteResponse = new Ref();
+		obsoleteResponse.setUrl(URL + "obsolete-response");
+		obsoleteResponse.setOrigin("@a.archive");
+		obsoleteResponse.setSources(List.of(URL));
+		obsoleteResponse.setPublished(published.minusSeconds(60));
+		obsoleteResponse.setMetadata(Metadata.builder().obsolete(true).build());
+		var related = refRepository.saveAllAndFlush(List.of(
+			source, archivedSource, otherSource, response, userResponse, obsoleteSource, obsoleteResponse));
+		var relatedDates = related.stream().map(Ref::getPublished).toList();
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setSources(List.of(source.getUrl(), otherSource.getUrl(), URL + "missing"));
+		ref.setPublished(published);
+
+		for (var stripOnError : List.of(false, true)) {
+			validate.ref(rootOrigin, ref, stripOnError);
+
+			assertThat(ref.getPublished()).isEqualTo(published);
+			assertThat(related).extracting(Ref::getPublished).containsExactlyElementsOf(relatedDates);
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(longs = {-1, 0, 1})
+	void testSelfReferencePublishedDatePreserved(long offsetMillis) {
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		var archived = new Ref();
+		archived.setUrl(URL);
+		archived.setOrigin("@a.archive");
+		archived.setSources(List.of(URL));
+		archived.setPublished(published.plusMillis(offsetMillis));
+		archived = refRepository.saveAndFlush(archived);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setOrigin("@a");
+		ref.setSources(List.of(URL));
+		ref.setPublished(published);
+
+		validate.ref("@a", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+		assertThat(archived.getPublished()).isEqualTo(published.plusMillis(offsetMillis));
+	}
+
+	@ParameterizedTest
+	@ValueSource(longs = {-1, 0, 1})
+	void testUserResponseDoesNotChangeValidPublishedDate(long offsetMillis) {
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		var response = new Ref();
+		response.setUrl(URL + "user-response");
+		response.setSources(List.of(URL));
+		response.setTags(List.of("plugin/user"));
+		response.setPublished(published.plusMillis(offsetMillis));
+		response = refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setPublished(published);
+
+		for (var stripOnError : List.of(false, true)) {
+			validate.ref("", ref, stripOnError);
+
+			assertThat(ref.getPublished()).isEqualTo(published);
+			assertThat(response.getPublished()).isEqualTo(published.plusMillis(Math.max(0, offsetMillis)));
+		}
 	}
 
 	@Test
