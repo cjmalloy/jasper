@@ -164,7 +164,7 @@ public class FileCache {
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
-			for (var other : createArchive(url, origin, cache)) cacheLater(other, origin);
+			for (var other : createArchive(url, origin, cache)) cacheLater(url, other, origin);
 			cache.setContentLength(storage.size(origin, CACHE, id));
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
@@ -341,11 +341,12 @@ public class FileCache {
 		return moreScrape;
 	}
 
-	private void cacheLater(String url, String origin) {
+	private void cacheLater(String source, String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		ref.addSource(source);
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 
