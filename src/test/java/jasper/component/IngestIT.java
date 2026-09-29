@@ -26,6 +26,10 @@ import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -386,6 +390,25 @@ public class IngestIT {
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
 		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(c.getMetadata().isRegen()).isFalse();
+	}
+
+	@Test
+	void testDeleteCommitsWhenSourceMetadataFails() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a"));
+		ingest.create("", ref);
+		var meta = getField(ingest, "meta");
+		var failing = mock(Meta.class);
+		doThrow(new RuntimeException("Metadata failure")).when(failing).sources(any(), any(), any());
+		setField(ingest, "meta", failing);
+		try {
+			ingest.delete("", URL, "");
+		} finally {
+			setField(ingest, "meta", meta);
+		}
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, "")).isFalse();
 	}
 
 	@Test

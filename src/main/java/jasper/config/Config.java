@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jasper.domain.proj.HasTags;
 import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.With;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Base64;
@@ -42,8 +45,16 @@ public interface Config {
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class ServerConfig implements Serializable {
+		private static final Logger logger = LoggerFactory.getLogger(ServerConfig.class);
+
 		@Builder.Default
 		private String emailHost = "jasper.local";
+		/**
+		 * Deprecated and ignored. Sources are no longer limited.
+		 */
+		@Deprecated
+		@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+		private Integer maxSources;
 		@Builder.Default
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
 		@Builder.Default
@@ -173,6 +184,12 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
+
+		@Deprecated
+		public void setMaxSources(Integer maxSources) {
+			if (maxSources != null) logger.warn("maxSources in _config/server is deprecated and ignored");
+			this.maxSources = maxSources;
+		}
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;

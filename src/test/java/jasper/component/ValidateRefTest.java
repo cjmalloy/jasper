@@ -4,16 +4,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
+import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 public class ValidateRefTest {
@@ -24,12 +31,41 @@ public class ValidateRefTest {
     @Mock
     ConfigCache configs;
 
+    @Mock
+    RefRepository refRepository;
+
     ObjectMapper mapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         validate.objectMapper = mapper;
+    }
+
+    @Test
+    void testDagBatchesSources() {
+        var ref = new Ref();
+        ref.setUrl("https://www.example.com/");
+        ref.setSources(IntStream.range(0, 2500).mapToObj(i -> "https://www.example.com/" + i).toList());
+
+        validate.dag("", ref);
+
+        var batches = ArgumentCaptor.forClass(List.class);
+        verify(refRepository, times(3)).maxPublishedByUrlInAndOrigin(batches.capture(), eq(""));
+        assertThat(batches.getAllValues()).extracting(List::size).containsExactly(1000, 1000, 500);
+        verify(refRepository).minResponsePublishedByUrlAndOrigin("https://www.example.com/", "");
+    }
+
+    @Test
+    void testDagSkipsSubOrigin() {
+        var ref = new Ref();
+        ref.setUrl("https://www.example.com/");
+        ref.setOrigin("@remote");
+        ref.setSources(List.of("https://www.example.com/source"));
+
+        validate.dag("", ref);
+
+        verifyNoInteractions(refRepository);
     }
 
     @Test

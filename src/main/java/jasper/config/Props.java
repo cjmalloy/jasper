@@ -4,6 +4,8 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.servers.Server;
 import lombok.Getter;
 import lombok.Setter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 
@@ -206,10 +208,17 @@ public class Props {
 	@Getter
 	@Setter
 	public static class ServerOverrides {
+		private static final Logger logger = LoggerFactory.getLogger(ServerOverrides.class);
+
 		/**
 		 * Override the server email host.
 		 */
 		private String emailHost;
+		/**
+		 * Deprecated and ignored. Sources are no longer limited.
+		 */
+		@Deprecated
+		private Integer maxSources;
 		/**
 		 * Override the server mod seals.
 		 */
@@ -274,6 +283,12 @@ public class Props {
 		 * Override the server maximum concurrent fetch operations (scraping).
 		 */
 		private Integer maxConcurrentFetch;
+
+		@Deprecated
+		public void setMaxSources(Integer maxSources) {
+			if (maxSources != null) logger.warn("jasper.override.server.max-sources is deprecated and ignored");
+			this.maxSources = maxSources;
+		}
 	}
 
 	@Getter

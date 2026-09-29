@@ -101,21 +101,20 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	@Query("""
-		FROM Ref ref
-		WHERE ref.url = :url
-			AND ref.published >= :published
-			AND COALESCE(jsonb_object_field_text(ref.metadata, 'obsolete'), 'false') != 'true'
-			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
-	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
+		SELECT MAX(r.published) FROM Ref r
+		WHERE r.url IN :urls
+			AND r.origin = :origin
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
+	Instant maxPublishedByUrlInAndOrigin(List<String> urls, String origin);
 
 	@Query("""
-		FROM Ref r
+		SELECT MIN(r.published) FROM Ref r
 		WHERE r.url != :url
-			AND r.published <= :published
+			AND r.origin = :origin
 			AND jsonb_exists(r.sources, :url) = true
-			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/user') = false
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
+	Instant minResponsePublishedByUrlAndOrigin(String url, String origin);
 
 	@Query("""
 		SELECT r.url FROM Ref r
