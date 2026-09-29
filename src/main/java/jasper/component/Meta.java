@@ -226,7 +226,7 @@ public class Meta {
 			try {
 				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().regen(true).build());
 			} catch (DataAccessException e) {
-				logger.error("{} Error marking source metadata for regen for {}", rootOrigin, url, e);
+				logger.error("{} Error marking sources for metadata regen {}", rootOrigin, url, e);
 			}
 		}
 		return others.subList(0, SYNC_SOURCES);

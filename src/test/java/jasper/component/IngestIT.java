@@ -340,6 +340,55 @@ public class IngestIT {
 	}
 
 	@Test
+	void testCreateDefersSourceMetadataAfterFirstTwo() {
+		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
+			var source = new Ref();
+			source.setUrl(url);
+			ingest.create("", source);
+		}
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+
+		ingest.create("", ref);
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").get();
+		assertThat(a.getMetadata().getResponses()).containsExactly(URL);
+		assertThat(a.getMetadata().isRegen()).isFalse();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").get();
+		assertThat(b.getMetadata().getResponses()).containsExactly(URL);
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
+		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(c.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testDeleteDefersSourceMetadataAfterFirstTwo() {
+		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
+			var source = new Ref();
+			source.setUrl(url);
+			ingest.create("", source);
+		}
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "c", URL + "b", URL + "a"));
+		ingest.create("", ref);
+
+		ingest.delete("", URL, "");
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").get();
+		assertThat(a.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(a.getMetadata().isRegen()).isTrue();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").get();
+		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
+		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(c.getMetadata().isRegen()).isFalse();
+	}
+
+	@Test
 	void testConcurrentUpdate_shouldResultInOneCurrentRef() {
 		var refOriginA = new Ref();
 		refOriginA.setUrl(URL);

@@ -454,4 +454,81 @@ public class RefRepositoryIT {
 		assertThat(result2).isPresent();
 		assertThat(result2.get().getUrl()).isEqualTo("http://example.com/origin");
 	}
+
+	// --- mergeMetadata ---
+
+	@Test
+	void testMergeMetadata_MarksRegen() {
+		var source = new Ref();
+		source.setUrl("http://example.com/source");
+		source.setOrigin("");
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.responses(List.of("http://example.com/response"))
+			.obsolete(true)
+			.build());
+		refRepository.save(source);
+		assertThat(refRepository.getRefBackfill("")).isEmpty();
+
+		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
+			.modified("2026-02-01T00:00:00Z")
+			.regen(true)
+			.build());
+
+		assertThat(count).isEqualTo(1);
+		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
+		assertThat(result.getMetadata().isRegen()).isTrue();
+		assertThat(result.getMetadata().getModified()).isEqualTo("2026-02-01T00:00:00Z");
+		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/response");
+		assertThat(result.getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.getRefBackfill("")).get()
+			.extracting(Ref::getUrl)
+			.isEqualTo("http://example.com/source");
+	}
+
+	@Test
+	void testMergeMetadata_NullMetadata() {
+		var source = new Ref();
+		source.setUrl("http://example.com/source");
+		source.setOrigin("");
+		refRepository.save(source);
+
+		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
+			.regen(true)
+			.build());
+
+		assertThat(count).isEqualTo(1);
+		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
+		assertThat(result.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testMergeMetadata_FiltersByUrlAndOrigin() {
+		for (var origin : List.of("@test", "@test.sub", "@other")) {
+			var source = new Ref();
+			source.setUrl("http://example.com/source");
+			source.setOrigin(origin);
+			source.setMetadata(Metadata.builder().build());
+			refRepository.save(source);
+		}
+		var other = new Ref();
+		other.setUrl("http://example.com/other");
+		other.setOrigin("@test");
+		other.setMetadata(Metadata.builder().build());
+		refRepository.save(other);
+
+		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "@test", Metadata.builder()
+			.regen(true)
+			.build());
+
+		assertThat(count).isEqualTo(2);
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test").orElseThrow()
+			.getMetadata().isRegen()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test.sub").orElseThrow()
+			.getMetadata().isRegen()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@other").orElseThrow()
+			.getMetadata().isRegen()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/other", "@test").orElseThrow()
+			.getMetadata().isRegen()).isFalse();
+	}
 }

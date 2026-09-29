@@ -123,6 +123,151 @@ public class MetaIT {
 		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).isEqualTo(1);
 	}
 
+	Ref saveSource(String url, String... responses) {
+		var source = new Ref();
+		source.setUrl(url);
+		source.setTitle("Source");
+		source.setTags(List.of("+user/tester"));
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.responses(List.of(responses))
+			.build());
+		return refRepository.save(source);
+	}
+
+	@Test
+	void testCreateMetadataResponseDefersSourcesAfterFirstTwo() {
+		saveSource(URL + "a");
+		saveSource(URL + "b");
+		saveSource(URL + "c");
+		saveSource(URL + "d");
+		var child = new Ref();
+		child.setUrl(URL + "child");
+		child.setTitle("Child");
+		child.setSources(List.of(URL + "a", URL + "b", URL + "c", URL + "d"));
+		child.setTags(List.of("+user/tester"));
+
+		meta.sources("", child, null);
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
+		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(a.getMetadata().isRegen()).isFalse();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
+		assertThat(b.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
+		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(c.getMetadata().isRegen()).isTrue();
+		assertThat(c.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
+		var d = refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow();
+		assertThat(d.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(d.getMetadata().isRegen()).isTrue();
+		assertThat(d.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
+	}
+
+	@Test
+	void testCreateMetadataResponseSkipsSelfAndDuplicateSources() {
+		saveSource(URL + "a");
+		saveSource(URL + "b");
+		saveSource(URL + "c");
+		var child = new Ref();
+		child.setUrl(URL + "child");
+		child.setTitle("Child");
+		child.setSources(List.of(URL + "child", URL + "a", URL + "a", URL + "b", URL + "c"));
+		child.setTags(List.of("+user/tester"));
+
+		meta.sources("", child, null);
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
+		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(a.getMetadata().isRegen()).isFalse();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
+		assertThat(b.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
+		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(c.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testUpdateMetadataRemovedSourcesDefersAfterFirstTwo() {
+		saveSource(URL + "a", URL + "child");
+		saveSource(URL + "b", URL + "child");
+		saveSource(URL + "c", URL + "child");
+		saveSource(URL + "d", URL + "child");
+		var existing = new Ref();
+		existing.setUrl(URL + "child");
+		existing.setTitle("Child");
+		existing.setSources(List.of(URL + "a", URL + "b", URL + "c", URL + "d"));
+		existing.setTags(List.of("+user/tester"));
+		var child = new Ref();
+		child.setUrl(URL + "child");
+		child.setTitle("Child");
+		child.setSources(List.of(URL + "a"));
+		child.setTags(List.of("+user/tester"));
+
+		meta.sources("", child, existing);
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
+		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(a.getMetadata().isRegen()).isFalse();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
+		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
+		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(c.getMetadata().isRegen()).isFalse();
+		var d = refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow();
+		assertThat(d.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(d.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testDeleteMetadataResponseDefersSourcesAfterFirstTwo() {
+		saveSource(URL + "a", URL + "child");
+		saveSource(URL + "b", URL + "child");
+		saveSource(URL + "c", URL + "child");
+		var existing = new Ref();
+		existing.setUrl(URL + "child");
+		existing.setTitle("Child");
+		existing.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		existing.setTags(List.of("+user/tester"));
+
+		meta.sources("", null, existing);
+
+		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
+		assertThat(a.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(a.getMetadata().isRegen()).isFalse();
+		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
+		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
+		assertThat(b.getMetadata().isRegen()).isFalse();
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
+		assertThat(c.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(c.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testRegenDeferredSource() {
+		saveSource(URL + "a");
+		saveSource(URL + "b");
+		saveSource(URL + "c");
+		var child = new Ref();
+		child.setUrl(URL + "child");
+		child.setTitle("Child");
+		child.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		child.setTags(List.of("+user/tester"));
+		refRepository.save(child);
+
+		meta.sources("", child, null);
+		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
+		var modified = c.getMetadata().getModified();
+		meta.regen("", c);
+
+		assertThat(c.getMetadata().getResponses()).containsExactly(URL + "child");
+		assertThat(c.getMetadata().getModified()).isEqualTo(modified);
+		assertThat(c.getMetadata().isRegen()).isFalse();
+	}
+
 	@Test
 	void testExpandTags_null() {
 		var result = Meta.expandTags(null);
