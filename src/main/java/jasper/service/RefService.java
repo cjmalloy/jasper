@@ -6,12 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
-import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.Validate;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
-import jasper.errors.MaxSourcesException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
@@ -64,16 +62,9 @@ public class RefService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-	@Autowired
-	ConfigCache configs;
-
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant create(Ref ref) {
-		var root = configs.root();
-		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-		}
 		ingest.create(auth.getOrigin(), ref);
 		return ref.getModified();
 	}
@@ -81,10 +72,6 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void push(Ref ref) {
-		var root = configs.root();
-		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());
-		}
 		ingest.push(auth.getOrigin(), ref, true, false);
 	}
 
@@ -132,10 +119,6 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant update(Ref ref) {
-		var root = configs.root();
-		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
-			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
-		}
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();

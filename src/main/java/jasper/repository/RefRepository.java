@@ -174,6 +174,15 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_concat(COALESCE(r.metadata, cast_to_jsonb('{}')), :partialMetadata)
+		WHERE r.url IN :urls
+			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
+	int mergeMetadata(List<String> urls, String rootOrigin, Metadata partialMetadata);
+
 	@Query("""
 		FROM Ref r
 		WHERE (r.metadata IS NULL OR jsonb_exists(r.metadata, 'modified') = false OR jsonb_object_field_text(r.metadata, 'regen') = 'true')

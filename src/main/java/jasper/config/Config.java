@@ -45,8 +45,6 @@ public interface Config {
 		@Builder.Default
 		private String emailHost = "jasper.local";
 		@Builder.Default
-		private int maxSources = 1000;
-		@Builder.Default
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
 		@Builder.Default
 		private List<String> editorSeals = List.of("plugin/qc");
@@ -180,7 +178,6 @@ public interface Config {
 			var wrapped = this;
 			var server = props.getOverride().getServer();
 			if (isNotBlank(server.getEmailHost())) wrapped = wrapped.withEmailHost(server.getEmailHost());
-			if (server.getMaxSources() != null) wrapped = wrapped.withMaxSources(server.getMaxSources());
 			if (isNotEmpty(server.getModSeals())) wrapped = wrapped.withModSeals(server.getModSeals());
 			if (isNotEmpty(server.getEditorSeals())) wrapped = wrapped.withEditorSeals(server.getEditorSeals());
 			if (isNotEmpty(server.getWebOrigins())) wrapped = wrapped.withWebOrigins(server.getWebOrigins());

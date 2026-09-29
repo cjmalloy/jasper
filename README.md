@@ -536,7 +536,6 @@ It supports the following configuration options:
 | `JASPER_SSH_SECRET_NAME`                            | K8s secret name to write the `host_key` file to.                                                                               | `ssh-host-key`                                                                                                                                                                                                |
 | `JASPER_SECURITY_CONTENT_SECURITY_POLICY`           | Set the CSP header.                                                                                                            | `"default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"` |
 | `JASPER_OVERRIDE_SERVER_EMAIL_HOST`                 | Override the server email host.                                                                                                |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SERVER_MAX_SOURCES`                | Override the server max sources.                                                                                               |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_MOD_SEALS`                  | Override the server mod seals.                                                                                                 |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_EDITOR_SEALS`               | Override the server editor seals.                                                                                              |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_WEB_ORIGINS`                | Override the server origins with web access.                                                                                   |                                                                                                                                                                                                               |
@@ -584,7 +583,6 @@ different nodes to run different workloads.
 | Field                      | Description                                                                                     | Default Value                              |
 |----------------------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|
 | `emailHost`                | Email host used for sending emails.                                                             | `jasper.local`                             |
-| `maxSources`               | Maximum number of sources allowed per Ref.                                                      | `1000`                                     |
 | `modSeals`                 | List of tags that act as mod seals (protected tags that only mods can add/remove).              | `["seal", "+seal", "_seal", "_moderated"]` |
 | `editorSeals`              | List of tags that act as editor seals.                                                          | `["plugin/qc"]`                            |
 | `webOrigins`               | Whitelist of origins allowed web access. Supports wildcards.                                    | `[""]` (root origin only)                  |
@@ -800,6 +798,10 @@ Jasper generates the following metadata in Refs:
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, and user plugin responses for the current user.
+
+When a Ref is created, updated or deleted, the metadata of its first two sources is updated immediately.
+Any remaining sources are marked for regeneration and will be updated by the backfill cron, so Refs with
+many sources do not slow down the request.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the

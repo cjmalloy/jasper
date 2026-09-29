@@ -211,10 +211,6 @@ public class Props {
 		 */
 		private String emailHost;
 		/**
-		 * Override the server max sources.
-		 */
-		private Integer maxSources;
-		/**
 		 * Override the server mod seals.
 		 */
 		private List<String> modSeals;

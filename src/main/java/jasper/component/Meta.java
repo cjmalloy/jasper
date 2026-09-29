@@ -26,12 +26,22 @@ import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.collections4.ListUtils.partition;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
 @Component
 public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
+
+	/**
+	 * Number of sources to update metadata for synchronously.
+	 */
+	private static final int SYNC_SOURCES = 2;
+	/**
+	 * Maximum number of sources to mark for regen in each query.
+	 */
+	private static final int REGEN_BATCH_SIZE = 1000;
 
 	@Autowired
 	RefRepository refRepository;
@@ -137,7 +147,7 @@ public class Meta {
 			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 
 			// Update sources
-			List<Ref> sources = refRepository.findAll(isUrls(ref.getSources()).and(isUnderOrigin(rootOrigin)));
+			List<Ref> sources = refRepository.findAll(isUrls(syncSources(rootOrigin, ref.getUrl(), ref.getSources())).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
 				if (source.getUrl().equals(ref.getUrl())) continue;
 				var metadata = source.getMetadata();
@@ -193,13 +203,33 @@ public class Meta {
 				: existing.getSources().stream()
 					.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
 					.toList();
-			List<Ref> removed = refRepository.findAll(isUrls(removedSources).and(isUnderOrigin(rootOrigin)));
+			List<Ref> removed = refRepository.findAll(isUrls(syncSources(rootOrigin, existing.getUrl(), removedSources)).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
 				removeSource(rootOrigin, source, existing);
 				messages.updateMetadata(source);
 			}
 		}
+	}
+
+	/**
+	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
+	 * The remaining sources are marked for regen and will be updated async by the backfill cron.
+	 *
+	 * @return the source URLs to update synchronously
+	 */
+	private List<String> syncSources(String rootOrigin, String url, List<String> sources) {
+		if (sources == null) return List.of();
+		var others = sources.stream().filter(s -> !url.equals(s)).distinct().toList();
+		if (others.size() <= SYNC_SOURCES) return others;
+		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), REGEN_BATCH_SIZE)) {
+			try {
+				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().regen(true).build());
+			} catch (DataAccessException e) {
+				logger.error("{} Error marking source metadata for regen for {}", rootOrigin, url, e);
+			}
+		}
+		return others.subList(0, SYNC_SOURCES);
 	}
 
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {
