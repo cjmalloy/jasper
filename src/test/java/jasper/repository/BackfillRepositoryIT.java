@@ -126,4 +126,55 @@ public class BackfillRepositoryIT {
 
 		assertThat(updated).isEqualTo(0);
 	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_IgnoresObsoleteResponses() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var obsolete = new Ref();
+		obsolete.setUrl("http://example.com/response");
+		obsolete.setOrigin("@other");
+		obsolete.setSources(List.of("http://example.com/parent"));
+		obsolete.setTags(List.of("plugin/comment"));
+		obsolete.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.obsolete(true)
+			.build());
+		refRepository.save(obsolete);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/comment"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(response);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var counts = (Object[]) em.createNativeQuery("""
+			SELECT
+				COALESCE(jsonb_array_length(metadata->'responses'), 0) + COALESCE(jsonb_array_length(metadata->'internalResponses'), 0),
+				jsonb_array_length(metadata->'plugins'->'plugin/comment'),
+				metadata->>'obsolete'
+			FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", parent.getUrl())
+			.setParameter("origin", parent.getOrigin())
+			.getSingleResult();
+		assertThat(((Number) counts[0]).intValue()).isEqualTo(1);
+		assertThat(((Number) counts[1]).intValue()).isEqualTo(1);
+		assertThat(counts[2]).isEqualTo("false");
+	}
 }

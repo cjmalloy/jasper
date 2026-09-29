@@ -26,13 +26,13 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 			UPDATE ref r
 			SET metadata = jsonb_strip_nulls(jsonb_build_object(
 				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->'expandedTags', 'internal') = false),
-				'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->'expandedTags', 'internal') = true),
+				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND COALESCE(re.metadata->>'obsolete', 'false') != 'true' AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
+				'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND COALESCE(ire.metadata->>'obsolete', 'false') != 'true' AND jsonb_exists(ire.metadata->'expandedTags', 'internal') = true),
 				'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
-					(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->'expandedTags', p.tag) = true)
+					(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND COALESCE(pre.metadata->>'obsolete', 'false') != 'true' AND jsonb_exists(pre.metadata->'expandedTags', p.tag) = true)
 				) FROM plugin p WHERE p.origin = :origin)),
-				'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
+				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
 			))
 			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
 			""";

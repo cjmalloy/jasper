@@ -124,6 +124,43 @@ public class MetaIT {
 	}
 
 	@Test
+	void testCreateMetadataIgnoresObsoleteResponses() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(List.of("+user/tester"));
+		refRepository.save(ref);
+		var obsolete = new Ref();
+		obsolete.setUrl(URL + 2);
+		obsolete.setOrigin("@other");
+		obsolete.setTitle("Child");
+		obsolete.setSources(List.of(URL));
+		obsolete.setTags(List.of("+user/tester"));
+		obsolete.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(obsolete);
+		var obsoleteInternal = new Ref();
+		obsoleteInternal.setUrl(URL + 3);
+		obsoleteInternal.setOrigin("@other");
+		obsoleteInternal.setTitle("Internal");
+		obsoleteInternal.setSources(List.of(URL));
+		obsoleteInternal.setTags(List.of("+user/tester", "internal"));
+		obsoleteInternal.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(obsoleteInternal);
+		var child = new Ref();
+		child.setUrl(URL + 2);
+		child.setTitle("Child");
+		child.setSources(List.of(URL));
+		child.setTags(List.of("+user/tester"));
+		child.setMetadata(Metadata.builder().build());
+		refRepository.save(child);
+
+		meta.ref("", ref);
+
+		assertThat(ref.getMetadata().getResponses()).containsExactly(URL + 2);
+		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
+	}
+
+	@Test
 	void testExpandTags_null() {
 		var result = Meta.expandTags(null);
 		assertThat(result).isEmpty();
