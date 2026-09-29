@@ -54,7 +54,7 @@ public class DeltaScrape {
 			if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/alts", t))) ref.setAlternateUrls(web.getAlternateUrls());
 			if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/plugins", t))) ref.setPlugins(web.getPlugins());
 			if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/tags", t))) ref.setTags(web.getTags());
-			if (scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/published", t))) ref.setPublished(web.getPublished());
+			if ((scrapeAll || tags.stream().anyMatch(t -> matchesTag("_plugin/delta/scrape/published", t))) && web.getPublished() != null) ref.setPublished(web.getPublished());
 			ref.removeTag("_plugin/delta/scrape");
 			ingest.update(ref.getOrigin(), ref);
 		} catch (ModifiedException ignored) {

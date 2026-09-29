@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -212,10 +211,10 @@ public class Scraper {
 				return;
 			}
 			if (isBlank(date)) continue;
-			try {
-				result.setPublished(parseDate(date));
-				return;
-			} catch (DateTimeParseException ignored) {}
+			var parsed = parseDate(date);
+			if (parsed == null) continue;
+			result.setPublished(parsed);
+			return;
 		}
 	}
 
@@ -289,15 +288,15 @@ public class Scraper {
 		}
 		var metaPublished = doc.select("meta[property=article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(parseDate(metaPublished.attr("content")));
+			setPublished(result, parseDate(metaPublished.attr("content")));
 		}
 		metaPublished = doc.select("meta[property=og:article:published_time]").first();
 		if (metaPublished != null && isNotBlank(metaPublished.attr("content"))) {
-			result.setPublished(parseDate(metaPublished.attr("content")));
+			setPublished(result, parseDate(metaPublished.attr("content")));
 		}
 		var metaReleased = doc.select("meta[property=og:book:release_date]").first();
 		if (metaReleased != null && isNotBlank(metaReleased.attr("content"))) {
-			result.setPublished(parseDate(metaReleased.attr("content")));
+			setPublished(result, parseDate(metaReleased.attr("content")));
 		}
 	}
 
@@ -367,7 +366,7 @@ public class Scraper {
 		if (isNotBlank(ld.getThumbnailUrl())) addWeakThumbnail(result, ld.getThumbnailUrl());
 		if ("NewsArticle".equals(ld.getType())) {
 			if (isNotBlank(ld.getDatePublished())) {
-				result.setPublished(parseDate(ld.getDatePublished()));
+				setPublished(result, parseDate(ld.getDatePublished()));
 			}
 		}
 		if ("AudioObject".equals(ld.getType())) {
@@ -479,6 +478,10 @@ public class Scraper {
 		// TODO: Add plugin to override like oembeds
 //		return url.replaceAll("%20", "+");
 		return url.replaceAll(" ", "%20");
+	}
+
+	private void setPublished(Ref result, Instant published) {
+		if (published != null) result.setPublished(published);
 	}
 
 	private Instant parseDate(String date) {
