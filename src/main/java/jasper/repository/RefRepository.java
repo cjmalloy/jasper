@@ -104,6 +104,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SELECT MAX(r.published) FROM Ref r
 		WHERE r.url IN :urls
 			AND r.origin = :origin
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'internal') = false
 			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
 	Instant maxPublishedByUrlInAndOrigin(List<String> urls, String origin);
 
@@ -113,6 +114,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND r.origin = :origin
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/user') = false
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'internal') = false
 			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
 	Instant minResponsePublishedByUrlAndOrigin(String url, String origin);
 

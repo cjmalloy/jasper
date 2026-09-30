@@ -424,6 +424,130 @@ public class ValidateRefIT {
 	}
 
 	@Test
+	void testInternalCommentOnFutureRefPublishedDatePreserved() {
+		var event = new Ref();
+		event.setUrl(URL + "event");
+		event.setTags(List.of("public"));
+		event.setPublished(Instant.parse("2030-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(event);
+		var comment = new Ref();
+		comment.setUrl(URL + "comment");
+		comment.setTags(List.of("internal"));
+		comment.setSources(List.of(event.getUrl()));
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		comment.setPublished(published);
+
+		validate.ref("", comment);
+
+		assertThat(comment.getPublished()).isEqualTo(published);
+	}
+
+	@Test
+	void testFutureRefNotClampedToInternalResponse() {
+		var comment = new Ref();
+		comment.setUrl(URL + "comment");
+		comment.setTags(List.of("internal"));
+		comment.setSources(List.of(URL));
+		comment.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+		refRepository.saveAndFlush(comment);
+		var event = new Ref();
+		event.setUrl(URL);
+		event.setTags(List.of("public"));
+		var published = Instant.parse("2030-01-01T00:00:00Z");
+		event.setPublished(published);
+
+		validate.ref("", event);
+
+		assertThat(event.getPublished()).isEqualTo(published);
+	}
+
+	@Test
+	void testInternalRefWithNewerPublicSourceNotBumped() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("public"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("internal")));
+		ref.setSources(List.of(source.getUrl()));
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+	}
+
+	@Test
+	void testPublicRefWithNewerInternalSourceNotBumped() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("internal"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public"));
+		ref.setSources(List.of(source.getUrl()));
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+	}
+
+	@Test
+	void testInternalToPublicRefBumped() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("public"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("internal")));
+		ref.setSources(List.of(source.getUrl()));
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+		ref.setTags(new ArrayList<>(List.of("public")));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
+	}
+
+	@Test
+	void testPublicRefWithNewerPublicSourceBumped() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("public"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(List.of("public"));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2026-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("public"));
+		ref.setSources(List.of(source.getUrl()));
+		ref.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
+	}
+
+	@Test
 	void testValidateRefWithInvalidPlugin() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");

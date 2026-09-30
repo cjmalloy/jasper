@@ -332,10 +332,12 @@ public class Validate {
 	/**
 	 * Keep the local origin a DAG by published date. Sources must not be published after the Ref,
 	 * and responses must not be published before it. Equal dates are allowed.
-	 * Only applies to Refs in the local origin, sub-origins are stored as received.
+	 * Only applies to non-internal Refs in the local origin, sub-origins are stored as received.
+	 * Internal Refs may attach anywhere with any date.
 	 */
 	void dag(String rootOrigin, Ref ref) {
 		if (!rootOrigin.equals(ref.getOrigin())) return;
+		if (ref.hasTag("internal")) return;
 		Instant maxSource = null;
 		if (ref.getSources() != null) {
 			var sources = ref.getSources().stream().filter(s -> !s.equals(ref.getUrl())).distinct().toList();
