@@ -277,12 +277,46 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
-	void testBackfillMetadata_CorrectsSourceAfterResponseBackfilled() {
+	void testBackfillMetadata_IgnoresResponsesOutsideOrigin() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
-		plugin.setOrigin("");
+		plugin.setOrigin("@test");
 		pluginRepository.save(plugin);
 
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("@test");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var other = new Ref();
+		other.setUrl("http://example.com/other");
+		other.setOrigin("@other");
+		other.setSources(List.of("http://example.com/parent"));
+		other.setTags(List.of("plugin/comment"));
+		other.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(other);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("@test");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/comment"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(response);
+
+		backfillRepository.backfillMetadata("@test", 10);
+
+		assertParentCounts(parent, 1, 1);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_CascadesRefsWithSources() {
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
 		parent.setOrigin("");
@@ -293,15 +327,22 @@ public class BackfillRepositoryIT {
 		response.setUrl("http://example.com/response");
 		response.setOrigin("");
 		response.setSources(List.of("http://example.com/parent"));
-		response.setTags(List.of("plugin/comment"));
 		response.setMetadata(null);
 		refRepository.save(response);
 
 		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
-		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(1);
-		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(0);
 
-		assertParentCounts(parent, 1, 1);
+		assertThat(cascade(parent)).isNull();
+		assertThat(cascade(response)).isEqualTo("true");
+		assertThat(refRepository.findOneByUrlAndOrigin(response.getUrl(), response.getOrigin()).get().getMetadata().isCascade()).isTrue();
+	}
+
+	private Object cascade(Ref ref) {
+		return em.createNativeQuery("""
+			SELECT metadata->>'cascade' FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", ref.getUrl())
+			.setParameter("origin", ref.getOrigin())
+			.getSingleResult();
 	}
 
 	private void assertParentCounts(Ref parent, int responses, int comments) {
