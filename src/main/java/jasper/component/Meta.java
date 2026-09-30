@@ -39,9 +39,9 @@ public class Meta {
 	 */
 	private static final int SYNC_SOURCES = 2;
 	/**
-	 * Maximum number of sources to mark with newResponse in each query.
+	 * Maximum number of sources to mark with cascade in each query.
 	 */
-	private static final int NEW_RESPONSE_BATCH_SIZE = 1000;
+	private static final int CASCADE_BATCH_SIZE = 1000;
 
 	@Autowired
 	RefRepository refRepository;
@@ -141,11 +141,11 @@ public class Meta {
 	}
 
 	/**
-	 * Regenerate response metadata for a source marked with newResponse.
-	 * Keeps the obsolete and regen flags, clears newResponse and bumps modified.
+	 * Regenerate response metadata for a source marked with cascade.
+	 * Keeps the obsolete and regen flags and bumps modified.
 	 */
 	@Timed(value = "jasper.meta", histogram = true)
-	public void newResponse(String rootOrigin, Ref ref) {
+	public void cascade(String rootOrigin, Ref ref) {
 		var existing = ref.getMetadata();
 		ref(rootOrigin, ref);
 		if (existing == null) return;
@@ -227,7 +227,7 @@ public class Meta {
 
 	/**
 	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
-	 * The remaining sources are marked with newResponse and will be updated async by the
+	 * The remaining sources are marked with cascade and will be updated async by the
 	 * {@link jasper.component.cron.Cascade} cron.
 	 *
 	 * @return the source URLs to update synchronously
@@ -236,11 +236,11 @@ public class Meta {
 		if (sources == null) return List.of();
 		var others = sources.stream().filter(s -> !url.equals(s)).distinct().toList();
 		if (others.size() <= SYNC_SOURCES) return others;
-		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), NEW_RESPONSE_BATCH_SIZE)) {
+		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), CASCADE_BATCH_SIZE)) {
 			try {
-				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().newResponse(true).build());
+				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().cascade(true).build());
 			} catch (DataAccessException e) {
-				logger.error("{} Error marking sources with newResponse {}", rootOrigin, url, e);
+				logger.error("{} Error marking sources for cascade {}", rootOrigin, url, e);
 			}
 		}
 		return others.subList(0, SYNC_SOURCES);

@@ -151,17 +151,17 @@ public class MetaIT {
 
 		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
 		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(a.getMetadata().isNewResponse()).isFalse();
+		assertThat(a.getMetadata().isCascade()).isFalse();
 		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
 		assertThat(b.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(b.getMetadata().isNewResponse()).isFalse();
+		assertThat(b.getMetadata().isCascade()).isFalse();
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(c.getMetadata().isNewResponse()).isTrue();
+		assertThat(c.getMetadata().isCascade()).isTrue();
 		assertThat(c.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
 		var d = refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow();
 		assertThat(d.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(d.getMetadata().isNewResponse()).isTrue();
+		assertThat(d.getMetadata().isCascade()).isTrue();
 		assertThat(d.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
 	}
 
@@ -180,13 +180,13 @@ public class MetaIT {
 
 		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
 		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(a.getMetadata().isNewResponse()).isFalse();
+		assertThat(a.getMetadata().isCascade()).isFalse();
 		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
 		assertThat(b.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(b.getMetadata().isNewResponse()).isFalse();
+		assertThat(b.getMetadata().isCascade()).isFalse();
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(c.getMetadata().isNewResponse()).isTrue();
+		assertThat(c.getMetadata().isCascade()).isTrue();
 	}
 
 	@Test
@@ -210,16 +210,16 @@ public class MetaIT {
 
 		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
 		assertThat(a.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(a.getMetadata().isNewResponse()).isFalse();
+		assertThat(a.getMetadata().isCascade()).isFalse();
 		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
 		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(b.getMetadata().isNewResponse()).isFalse();
+		assertThat(b.getMetadata().isCascade()).isFalse();
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(c.getMetadata().isNewResponse()).isFalse();
+		assertThat(c.getMetadata().isCascade()).isFalse();
 		var d = refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow();
 		assertThat(d.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(d.getMetadata().isNewResponse()).isTrue();
+		assertThat(d.getMetadata().isCascade()).isTrue();
 	}
 
 	@Test
@@ -237,17 +237,17 @@ public class MetaIT {
 
 		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow();
 		assertThat(a.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(a.getMetadata().isNewResponse()).isFalse();
+		assertThat(a.getMetadata().isCascade()).isFalse();
 		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow();
 		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(b.getMetadata().isNewResponse()).isFalse();
+		assertThat(b.getMetadata().isCascade()).isFalse();
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		assertThat(c.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(c.getMetadata().isNewResponse()).isTrue();
+		assertThat(c.getMetadata().isCascade()).isTrue();
 	}
 
 	@Test
-	void testNewResponseDeferredSource() {
+	void testCascadeDeferredSource() {
 		saveSource(URL + "a");
 		saveSource(URL + "b");
 		saveSource(URL + "c");
@@ -261,11 +261,11 @@ public class MetaIT {
 		meta.sources("", child, null);
 		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		var modified = c.getMetadata().getModified();
-		meta.newResponse("", c);
+		meta.cascade("", c);
 
 		assertThat(c.getMetadata().getResponses()).containsExactly(URL + "child");
 		assertThat(c.getMetadata().getModified()).isNotEqualTo(modified);
-		assertThat(c.getMetadata().isNewResponse()).isFalse();
+		assertThat(c.getMetadata().isCascade()).isFalse();
 	}
 
 	@Test

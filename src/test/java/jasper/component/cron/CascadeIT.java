@@ -78,27 +78,27 @@ public class CascadeIT {
 
 		for (var url : List.of(URL + "c", URL + "d")) {
 			var source = refRepository.findOneByUrlAndOrigin(url, "").orElseThrow();
-			assertThat(source.getMetadata().isNewResponse()).isFalse();
+			assertThat(source.getMetadata().isCascade()).isFalse();
 			assertThat(source.getMetadata().getResponses()).containsExactly(URL + "child");
 			assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
 			assertThat(source.getMetadata().isObsolete()).isTrue();
 			assertThat(source.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
 			verify(cascade.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(url)));
 		}
-		assertThat(refRepository.getRefNewResponse("")).isEmpty();
+		assertThat(refRepository.getRefCascade("")).isEmpty();
 	}
 
 	@Test
 	void testCascadeRemovesDeletedResponse() {
 		var source = saveSource(URL + "c");
 		source.getMetadata().setResponses(List.of(URL + "child"));
-		source.getMetadata().setNewResponse(true);
+		source.getMetadata().setCascade(true);
 		refRepository.save(source);
 
 		cascade.cascadeOrigin("");
 
 		var result = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
-		assertThat(result.getMetadata().isNewResponse()).isFalse();
+		assertThat(result.getMetadata().isCascade()).isFalse();
 		assertThat(result.getMetadata().getResponses()).isNullOrEmpty();
 		verify(cascade.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(URL + "c")));
 	}

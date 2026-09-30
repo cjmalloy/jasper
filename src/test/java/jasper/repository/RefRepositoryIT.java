@@ -458,7 +458,7 @@ public class RefRepositoryIT {
 	// --- mergeMetadata ---
 
 	@Test
-	void testMergeMetadata_MarksNewResponse() {
+	void testMergeMetadata_MarksCascade() {
 		var source = new Ref();
 		source.setUrl("http://example.com/source");
 		source.setOrigin("");
@@ -468,20 +468,20 @@ public class RefRepositoryIT {
 			.obsolete(true)
 			.build());
 		refRepository.save(source);
-		assertThat(refRepository.getRefNewResponse("")).isEmpty();
+		assertThat(refRepository.getRefCascade("")).isEmpty();
 
 		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
 			.modified("2026-02-01T00:00:00Z")
-			.newResponse(true)
+			.cascade(true)
 			.build());
 
 		assertThat(count).isEqualTo(1);
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
-		assertThat(result.getMetadata().isNewResponse()).isTrue();
+		assertThat(result.getMetadata().isCascade()).isTrue();
 		assertThat(result.getMetadata().getModified()).isEqualTo("2026-02-01T00:00:00Z");
 		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/response");
 		assertThat(result.getMetadata().isObsolete()).isTrue();
-		assertThat(refRepository.getRefNewResponse("")).get()
+		assertThat(refRepository.getRefCascade("")).get()
 			.extracting(Ref::getUrl)
 			.isEqualTo("http://example.com/source");
 	}
@@ -494,12 +494,12 @@ public class RefRepositoryIT {
 		refRepository.save(source);
 
 		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
-			.newResponse(true)
+			.cascade(true)
 			.build());
 
 		assertThat(count).isEqualTo(1);
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
-		assertThat(result.getMetadata().isNewResponse()).isTrue();
+		assertThat(result.getMetadata().isCascade()).isTrue();
 	}
 
 	@Test
@@ -518,18 +518,18 @@ public class RefRepositoryIT {
 		refRepository.save(other);
 
 		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "@test", Metadata.builder()
-			.newResponse(true)
+			.cascade(true)
 			.build());
 
 		assertThat(count).isEqualTo(2);
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test").orElseThrow()
-			.getMetadata().isNewResponse()).isTrue();
+			.getMetadata().isCascade()).isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test.sub").orElseThrow()
-			.getMetadata().isNewResponse()).isTrue();
+			.getMetadata().isCascade()).isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@other").orElseThrow()
-			.getMetadata().isNewResponse()).isFalse();
+			.getMetadata().isCascade()).isFalse();
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/other", "@test").orElseThrow()
-			.getMetadata().isNewResponse()).isFalse();
+			.getMetadata().isCascade()).isFalse();
 	}
 
 	// --- updateMetadataIfUnmodified ---
@@ -541,7 +541,7 @@ public class RefRepositoryIT {
 		source.setOrigin("");
 		source.setMetadata(Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
-			.newResponse(true)
+			.cascade(true)
 			.build());
 		refRepository.save(source);
 
@@ -549,13 +549,13 @@ public class RefRepositoryIT {
 			.responses(List.of("http://example.com/response"))
 			.build())).isEqualTo(0);
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow()
-			.getMetadata().isNewResponse()).isTrue();
+			.getMetadata().isCascade()).isTrue();
 
 		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", "2026-01-01T00:00:00Z", Metadata.builder()
 			.responses(List.of("http://example.com/response"))
 			.build())).isEqualTo(1);
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
-		assertThat(result.getMetadata().isNewResponse()).isFalse();
+		assertThat(result.getMetadata().isCascade()).isFalse();
 		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/response");
 	}
 }

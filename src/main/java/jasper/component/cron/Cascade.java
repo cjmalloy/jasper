@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Objects.requireNonNullElse;
 
 /**
- * Updates the Metadata of sources marked with newResponse.
+ * Updates the Metadata of sources marked for cascade.
  * Only the first sources of a Ref are updated synchronously, the rest are updated here.
  */
 @Profile("!no-cascade")
@@ -51,20 +51,20 @@ public class Cascade {
 	void cascadeOrigin(String origin) {
 		if (!configs.root().script("+plugin/cascade", origin)) return;
 		for (var i = 0; i < props.getCascadeBatchSize(); i++) {
-			var ref = refRepository.getRefNewResponse(origin).orElse(null);
+			var ref = refRepository.getRefCascade(origin).orElse(null);
 			if (ref == null) return;
-			logger.trace("{} Updating new responses for ref ({}) {}: {}",
+			logger.trace("{} Updating cascaded responses for ref ({}) {}: {}",
 				origin, ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			var modified = requireNonNullElse(ref.getMetadata().getModified(), "");
-			meta.newResponse(origin, ref);
+			meta.cascade(origin, ref);
 			try {
 				if (refRepository.updateMetadataIfUnmodified(ref.getUrl(), ref.getOrigin(), modified, ref.getMetadata()) == 0) {
-					logger.debug("{} Metadata changed while updating new responses, retrying: {}", origin, ref.getUrl());
+					logger.debug("{} Metadata changed while cascading responses, retrying: {}", origin, ref.getUrl());
 					continue;
 				}
 				messages.updateMetadata(ref);
 			} catch (Exception e) {
-				logger.error("{} Error updating new responses: {}", origin, ref.getUrl(), e);
+				logger.error("{} Error cascading responses: {}", origin, ref.getUrl(), e);
 				return;
 			}
 		}

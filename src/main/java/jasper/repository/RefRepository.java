@@ -197,11 +197,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Query("""
 		FROM Ref r
-		WHERE jsonb_object_field_text(r.metadata, 'newResponse') = 'true'
+		WHERE jsonb_object_field_text(r.metadata, 'cascade') = 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 		ORDER BY r.modified DESC
 		FETCH FIRST 1 ROW ONLY""")
-	Optional<Ref> getRefNewResponse(String origin);
+	Optional<Ref> getRefCascade(String origin);
 
 	@Query("""
 		FROM Ref r
