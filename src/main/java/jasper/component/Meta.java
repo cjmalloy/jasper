@@ -40,6 +40,11 @@ public class Meta {
 	 */
 	private static final int SYNC_SOURCES = 2;
 
+	/**
+	 * Maximum number of source URLs to query at once when cascading.
+	 */
+	private static final int CASCADE_BATCH = 1000;
+
 	@Autowired
 	RefRepository refRepository;
 
@@ -150,8 +155,11 @@ public class Meta {
 	public boolean cascade(String rootOrigin, Ref ref) {
 		var cited = ref.getSources() == null ? List.<String>of() : ref.getSources();
 		var sources = otherSources(ref.getUrl(), cited);
-		var cascade = new LinkedHashSet<>(sources.size() <= SYNC_SOURCES ? List.of() : refRepository.findAll(
-			isUrls(sources.subList(SYNC_SOURCES, sources.size())).and(isUnderOrigin(rootOrigin))));
+		var cascade = new LinkedHashSet<Ref>();
+		for (var i = SYNC_SOURCES; i < sources.size(); i += CASCADE_BATCH) {
+			cascade.addAll(refRepository.findAll(
+				isUrls(sources.subList(i, Math.min(i + CASCADE_BATCH, sources.size()))).and(isUnderOrigin(rootOrigin))));
+		}
 		cascade.addAll(refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
 				.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))))
 			.stream()
