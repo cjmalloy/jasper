@@ -32,9 +32,10 @@ import static org.springframework.data.domain.Sort.by;
 @Component
 public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
+	private static final int SOURCE_BATCH_SIZE = 1000;
 
 	/**
-	 * Number of sources to update metadata for synchronously.
+	 * Number of sources already updated synchronously on cascade-queued Refs.
 	 */
 	public static final int SYNC_SOURCES = 2;
 
@@ -145,44 +146,43 @@ public class Meta {
 
 			// Update sources
 			var added = otherSources(ref.getUrl(), ref.getSources());
-			if (added.size() > SYNC_SOURCES || existing != null && otherSources(existing.getUrl(), removedSources(ref, existing)).size() > SYNC_SOURCES) {
-				ref.getMetadata().setCascade(true);
-				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
-			}
-			List<Ref> sources = refRepository.findAll(isUrls(syncSources(added)).and(isUnderOrigin(rootOrigin)));
-			for (var source : sources) {
-				if (source.getUrl().equals(ref.getUrl())) continue;
-				var metadata = source.getMetadata();
-				if (metadata == null) {
-					logger.debug("Ref missing metadata: {}", ref.getUrl());
-					metadata = Metadata
-						.builder()
-						.responses(new ArrayList<>())
-						.internalResponses(new ArrayList<>())
-						.plugins(new HashMap<>())
-						.build();
-				}
-				if (ref.hasTag("internal")) {
-					metadata.addInternalResponse(ref.getUrl());
-				} else {
-					metadata.addResponse(ref.getUrl());
-				}
-				if (existing != null) {
-					metadata.removePlugins(existing.getExpandedTags().stream()
-							.filter(tag -> matchesTemplate("plugin", tag))
-							.toList(),
+			for (var i = 0; i < added.size(); i += SOURCE_BATCH_SIZE) {
+				List<Ref> sources = refRepository.findAll(isUrls(added.subList(i, Math.min(i + SOURCE_BATCH_SIZE, added.size())))
+					.and(isUnderOrigin(rootOrigin)));
+				for (var source : sources) {
+					if (source.getUrl().equals(ref.getUrl())) continue;
+					var metadata = source.getMetadata();
+					if (metadata == null) {
+						logger.debug("Ref missing metadata: {}", ref.getUrl());
+						metadata = Metadata
+							.builder()
+							.responses(new ArrayList<>())
+							.internalResponses(new ArrayList<>())
+							.plugins(new HashMap<>())
+							.build();
+					}
+					if (ref.hasTag("internal")) {
+						metadata.addInternalResponse(ref.getUrl());
+					} else {
+						metadata.addResponse(ref.getUrl());
+					}
+					if (existing != null) {
+						metadata.removePlugins(existing.getExpandedTags().stream()
+								.filter(tag -> matchesTemplate("plugin", tag))
+								.toList(),
+							ref.getUrl());
+					}
+					metadata.addPlugins(ref.getExpandedTags().stream()
+						.filter(tag -> matchesTemplate("plugin", tag))
+						.toList(),
 						ref.getUrl());
-				}
-				metadata.addPlugins(ref.getExpandedTags().stream()
-					.filter(tag -> matchesTemplate("plugin", tag))
-					.toList(),
-					ref.getUrl());
-				source.setMetadata(metadata);
-				try {
-					refRepository.save(source);
-					messages.updateMetadata(source);
-				} catch (DataAccessException e) {
-					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
+					source.setMetadata(metadata);
+					try {
+						refRepository.save(source);
+						messages.updateMetadata(source);
+					} catch (DataAccessException e) {
+						logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
+					}
 				}
 			}
 		} else {
@@ -201,11 +201,14 @@ public class Meta {
 		if (ref != null && existing != null && existing.getSources() != null) {
 			// Updating or deleting (not new)
 			var removedSources = otherSources(existing.getUrl(), removedSources(ref, existing));
-			List<Ref> removed = refRepository.findAll(isUrls(ref == null ? removedSources : syncSources(removedSources)).and(isUnderOrigin(rootOrigin)));
-			for (var source : removed) {
-				if (source.getUrl().equals(existing.getUrl())) continue;
-				removeSource(rootOrigin, source, existing);
-				messages.updateMetadata(source);
+			for (var i = 0; i < removedSources.size(); i += SOURCE_BATCH_SIZE) {
+				List<Ref> removed = refRepository.findAll(isUrls(removedSources.subList(i, Math.min(i + SOURCE_BATCH_SIZE, removedSources.size())))
+					.and(isUnderOrigin(rootOrigin)));
+				for (var source : removed) {
+					if (source.getUrl().equals(existing.getUrl())) continue;
+					removeSource(rootOrigin, source, existing);
+					messages.updateMetadata(source);
+				}
 			}
 		}
 	}
@@ -221,14 +224,6 @@ public class Meta {
 	private static List<String> otherSources(String url, List<String> sources) {
 		if (sources == null) return List.of();
 		return sources.stream().filter(s -> !url.equals(s)).distinct().toList();
-	}
-
-	/**
-	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
-	 * The remaining sources are updated async by the {@link jasper.component.cron.Cascade} cron.
-	 */
-	private static List<String> syncSources(List<String> sources) {
-		return sources.size() <= SYNC_SOURCES ? sources : sources.subList(0, SYNC_SOURCES);
 	}
 
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {

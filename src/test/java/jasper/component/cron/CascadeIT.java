@@ -77,24 +77,22 @@ public class CascadeIT {
 	}
 
 	@Test
-	void testCascadeUpdatesDeferredSources() {
+	void testSourcesAreUpdatedSynchronouslyWithoutCascadeWork() {
 		saveSource(URL + "a");
 		saveSource(URL + "b");
 		saveSource(URL + "c");
 		saveSource(URL + "d");
 		var child = saveChild(URL + "a", URL + "b", URL + "c", URL + "d");
 		meta.sources("", child, null);
-		assertThat(refRepository.getRefCascade("")).isPresent();
+		assertThat(refRepository.getRefCascade("")).isEmpty();
 
 		cascade.cascadeOrigin("");
 
-		for (var url : List.of(URL + "c", URL + "d")) {
+		for (var url : List.of(URL + "a", URL + "b", URL + "c", URL + "d")) {
 			var source = refRepository.findOneByUrlAndOrigin(url, "").orElseThrow();
 			assertThat(source.getMetadata().getResponses()).containsExactly(URL + "child");
 			assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
 			assertThat(source.getMetadata().isObsolete()).isTrue();
-			assertThat(source.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
-			verify(mockMessages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(url)));
 		}
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "child", "").orElseThrow()
 			.getMetadata().isCascade()).isFalse();
@@ -131,6 +129,8 @@ public class CascadeIT {
 		saveSource(URL + "c");
 		var child = saveChild(URL + "a", URL + "b", URL + "c");
 		meta.sources("", child, null);
+		child.getMetadata().setCascade(true);
+		refRepository.save(child);
 		var stale = refRepository.findOneByUrlAndOrigin(URL + "child", "").orElseThrow();
 
 		assertThat(refRepository.clearCascade(URL + "child", "", stale.getModified().minusSeconds(1))).isEqualTo(0);

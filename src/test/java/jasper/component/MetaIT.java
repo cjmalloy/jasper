@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -147,7 +148,7 @@ public class MetaIT {
 	}
 
 	@Test
-	void testCreateMetadataResponseCascadesSourcesAfterFirstTwo() {
+	void testCreateMetadataResponseUpdatesAllSourcesSynchronously() {
 		saveSource(URL + "a");
 		saveSource(URL + "b");
 		saveSource(URL + "c");
@@ -156,18 +157,32 @@ public class MetaIT {
 
 		meta.sources("", child, null);
 
-		assertThat(child.getMetadata().isCascade()).isTrue();
-		assertThat(refRepository.getRefCascade("")).get()
-			.extracting(Ref::getUrl)
-			.isEqualTo(URL + "child");
-		assertThat(refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow()
+		assertThat(child.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.getRefCascade("")).isEmpty();
+		for (var suffix : List.of("a", "b", "c", "d")) {
+			assertThat(refRepository.findOneByUrlAndOrigin(URL + suffix, "").orElseThrow()
+				.getMetadata().getResponses()).containsExactly(URL + "child");
+		}
+	}
+
+	@Test
+	void testCreateMetadataResponseUpdatesSourcesInBatches() {
+		var sourceUrls = IntStream.range(0, 1001)
+			.mapToObj(i -> URL + "source/" + i)
+			.toList();
+		refRepository.saveAll(sourceUrls.stream().map(url -> {
+			var source = new Ref();
+			source.setUrl(url);
+			source.setTitle("Source");
+			source.setTags(List.of("+user/tester"));
+			return source;
+		}).toList());
+		var child = saveChild(sourceUrls.toArray(String[]::new));
+
+		meta.sources("", child, null);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(sourceUrls.get(1000), "").orElseThrow()
 			.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow()
-			.getMetadata().getResponses()).containsExactly(URL + "child");
-		assertThat(refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow()
-			.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow()
-			.getMetadata().getResponses()).isNullOrEmpty();
 	}
 
 	@Test
@@ -187,7 +202,7 @@ public class MetaIT {
 	}
 
 	@Test
-	void testUpdateMetadataRemovedSourcesCascadesAfterFirstTwo() {
+	void testUpdateMetadataRemovesAllSourcesSynchronously() {
 		saveSource(URL + "a", URL + "child");
 		saveSource(URL + "b", URL + "child");
 		saveSource(URL + "c", URL + "child");
@@ -201,7 +216,8 @@ public class MetaIT {
 
 		meta.sources("", child, existing);
 
-		assertThat(child.getMetadata().isCascade()).isTrue();
+		assertThat(child.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.getRefCascade("")).isEmpty();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow()
 			.getMetadata().getResponses()).containsExactly(URL + "child");
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "b", "").orElseThrow()
@@ -209,7 +225,7 @@ public class MetaIT {
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow()
 			.getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "d", "").orElseThrow()
-			.getMetadata().getResponses()).containsExactly(URL + "child");
+			.getMetadata().getResponses()).isNullOrEmpty();
 	}
 
 	@Test
