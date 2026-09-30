@@ -304,9 +304,8 @@ public class Backup {
 		refRepository.dropMetadata(origin);
 		logger.info("{} Cleared old metadata", origin);
 		int count = 0;
-		int updated;
-		while ((updated = backfillRepository.backfillMetadata(origin, props.getBackfillBatchSize())) > 0) {
-			count += updated;
+		while (props.getBackfillBatchSize() == backfillRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
+			count += props.getBackfillBatchSize();
 			logger.info("{} Generating metadata... {} done", origin, count);
 		}
 		logger.info("{} Finished Backfill in {}", origin, Duration.between(start, Instant.now()));
