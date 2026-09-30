@@ -37,7 +37,7 @@ public class Cascade {
 	@Autowired
 	Meta meta;
 
-	public boolean dirty = true;
+	public volatile boolean dirty = true;
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
