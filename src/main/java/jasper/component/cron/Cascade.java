@@ -1,7 +1,6 @@
 package jasper.component.cron;
 
 import jasper.component.ConfigCache;
-import jasper.component.Messages;
 import jasper.component.Meta;
 import jasper.config.Props;
 import jasper.repository.RefRepository;
@@ -14,10 +13,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-import static java.util.Objects.requireNonNullElse;
-
 /**
- * Updates the Metadata of sources marked for cascade.
+ * Updates the Metadata of the sources of Refs marked for cascade.
  * Only the first sources of a Ref are updated synchronously, the rest are updated here.
  */
 @Profile("!no-cascade")
@@ -37,9 +34,6 @@ public class Cascade {
 	@Autowired
 	Meta meta;
 
-	@Autowired
-	Messages messages;
-
 	@Scheduled(fixedDelay = 5, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
 	public void cascade() {
 		if (!configs.root().script("+plugin/cascade")) return;
@@ -53,18 +47,18 @@ public class Cascade {
 		for (var i = 0; i < props.getCascadeBatchSize(); i++) {
 			var ref = refRepository.getRefCascade(origin).orElse(null);
 			if (ref == null) return;
-			logger.trace("{} Updating cascaded responses for ref ({}) {}: {}",
+			logger.trace("{} Cascading response metadata for ref ({}) {}: {}",
 				origin, ref.getOrigin(), ref.getTitle(), ref.getUrl());
-			var modified = requireNonNullElse(ref.getMetadata().getModified(), "");
-			meta.cascade(origin, ref);
 			try {
-				if (refRepository.updateMetadataIfUnmodified(ref.getUrl(), ref.getOrigin(), modified, ref.getMetadata()) == 0) {
-					logger.debug("{} Metadata changed while cascading responses, retrying: {}", origin, ref.getUrl());
-					continue;
+				if (!meta.cascade(origin, ref)) {
+					logger.debug("{} Source metadata changed while cascading, retrying: {}", origin, ref.getUrl());
+					return;
 				}
-				messages.updateMetadata(ref);
+				if (refRepository.clearCascade(ref.getUrl(), ref.getOrigin(), ref.getModified()) == 0) {
+					logger.debug("{} Ref changed while cascading, retrying: {}", origin, ref.getUrl());
+				}
 			} catch (Exception e) {
-				logger.error("{} Error cascading responses: {}", origin, ref.getUrl(), e);
+				logger.error("{} Error cascading response metadata: {}", origin, ref.getUrl(), e);
 				return;
 			}
 		}

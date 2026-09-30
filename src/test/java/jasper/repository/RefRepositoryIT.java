@@ -455,80 +455,61 @@ public class RefRepositoryIT {
 		assertThat(result2.get().getUrl()).isEqualTo("http://example.com/origin");
 	}
 
-	// --- mergeMetadata ---
+	// --- markCascade ---
 
 	@Test
-	void testMergeMetadata_MarksCascade() {
-		var source = new Ref();
-		source.setUrl("http://example.com/source");
-		source.setOrigin("");
-		source.setMetadata(Metadata.builder()
+	void testMarkCascade() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/response");
+		ref.setOrigin("");
+		ref.setMetadata(Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
-			.responses(List.of("http://example.com/response"))
+			.responses(List.of("http://example.com/other"))
 			.obsolete(true)
 			.build());
-		refRepository.save(source);
+		refRepository.save(ref);
 		assertThat(refRepository.getRefCascade("")).isEmpty();
 
-		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
-			.modified("2026-02-01T00:00:00Z")
-			.cascade(true)
-			.build());
+		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
 
-		assertThat(count).isEqualTo(1);
-		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
+		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
-		assertThat(result.getMetadata().getModified()).isEqualTo("2026-02-01T00:00:00Z");
-		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/response");
+		assertThat(result.getMetadata().getModified()).isEqualTo("2026-01-01T00:00:00Z");
+		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/other");
 		assertThat(result.getMetadata().isObsolete()).isTrue();
 		assertThat(refRepository.getRefCascade("")).get()
 			.extracting(Ref::getUrl)
-			.isEqualTo("http://example.com/source");
+			.isEqualTo("http://example.com/response");
 	}
 
 	@Test
-	void testMergeMetadata_NullMetadata() {
-		var source = new Ref();
-		source.setUrl("http://example.com/source");
-		source.setOrigin("");
-		refRepository.save(source);
+	void testMarkCascade_NullMetadata() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/response");
+		ref.setOrigin("");
+		refRepository.save(ref);
 
-		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "", Metadata.builder()
-			.cascade(true)
-			.build());
+		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
 
-		assertThat(count).isEqualTo(1);
-		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
+		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
 	}
 
 	@Test
-	void testMergeMetadata_FiltersByUrlAndOrigin() {
-		for (var origin : List.of("@test", "@test.sub", "@other")) {
-			var source = new Ref();
-			source.setUrl("http://example.com/source");
-			source.setOrigin(origin);
-			source.setMetadata(Metadata.builder().build());
-			refRepository.save(source);
+	void testMarkCascade_FiltersByUrlAndOrigin() {
+		for (var origin : List.of("@test", "@test.sub")) {
+			var ref = new Ref();
+			ref.setUrl("http://example.com/response");
+			ref.setOrigin(origin);
+			ref.setMetadata(Metadata.builder().build());
+			refRepository.save(ref);
 		}
-		var other = new Ref();
-		other.setUrl("http://example.com/other");
-		other.setOrigin("@test");
-		other.setMetadata(Metadata.builder().build());
-		refRepository.save(other);
 
-		var count = refRepository.mergeMetadata(List.of("http://example.com/source"), "@test", Metadata.builder()
-			.cascade(true)
-			.build());
+		assertThat(refRepository.markCascade("http://example.com/response", "@test")).isEqualTo(1);
 
-		assertThat(count).isEqualTo(2);
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test").orElseThrow()
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@test.sub").orElseThrow()
-			.getMetadata().isCascade()).isTrue();
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "@other").orElseThrow()
-			.getMetadata().isCascade()).isFalse();
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/other", "@test").orElseThrow()
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test.sub").orElseThrow()
 			.getMetadata().isCascade()).isFalse();
 	}
 
@@ -541,21 +522,23 @@ public class RefRepositoryIT {
 		source.setOrigin("");
 		source.setMetadata(Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
-			.cascade(true)
 			.build());
 		refRepository.save(source);
+		var modified = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow().getModified();
 
-		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", "2025-01-01T00:00:00Z", Metadata.builder()
+		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified, "2025-01-01T00:00:00Z", Metadata.builder()
+			.responses(List.of("http://example.com/response"))
+			.build())).isEqualTo(0);
+		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified.minusSeconds(1), "2026-01-01T00:00:00Z", Metadata.builder()
 			.responses(List.of("http://example.com/response"))
 			.build())).isEqualTo(0);
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow()
-			.getMetadata().isCascade()).isTrue();
+			.getMetadata().getResponses()).isNullOrEmpty();
 
-		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", "2026-01-01T00:00:00Z", Metadata.builder()
+		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified, "2026-01-01T00:00:00Z", Metadata.builder()
 			.responses(List.of("http://example.com/response"))
 			.build())).isEqualTo(1);
-		var result = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow();
-		assertThat(result.getMetadata().isCascade()).isFalse();
-		assertThat(result.getMetadata().getResponses()).containsExactly("http://example.com/response");
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow()
+			.getMetadata().getResponses()).containsExactly("http://example.com/response");
 	}
 }

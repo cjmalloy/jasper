@@ -176,14 +176,25 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Modifying
 	@Transactional
 	@Query("""
 		UPDATE Ref r
-		SET r.metadata = jsonb_concat(COALESCE(r.metadata, cast_to_jsonb('{}')), :partialMetadata)
-		WHERE r.url IN :urls
-			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
-	int mergeMetadata(List<String> urls, String rootOrigin, Metadata partialMetadata);
+		SET r.metadata = jsonb_set(COALESCE(r.metadata, cast_to_jsonb('{}')), '{cascade}', cast_to_jsonb('true'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin""")
+	int markCascade(String url, String origin);
+
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{cascade}', cast_to_jsonb('false'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND r.modified = :modified
+			AND r.metadata IS NOT NULL""")
+	int clearCascade(String url, String origin, Instant modified);
 
 	@Modifying
 	@Transactional
@@ -192,8 +203,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		SET r.metadata = :metadata
 		WHERE r.url = :url
 			AND r.origin = :origin
-			AND COALESCE(jsonb_object_field_text(r.metadata, 'modified'), '') = :modified""")
-	int updateMetadataIfUnmodified(String url, String origin, String modified, Metadata metadata);
+			AND r.modified = :modified
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'modified'), '') = :metadataModified""")
+	int updateMetadataIfUnmodified(String url, String origin, Instant modified, String metadataModified, Metadata metadata);
 
 	@Query("""
 		FROM Ref r

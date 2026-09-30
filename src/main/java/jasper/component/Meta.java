@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.matchesTemplate;
@@ -25,8 +26,8 @@ import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.collections4.ListUtils.partition;
 import static org.springframework.data.domain.Sort.Order.desc;
 import static org.springframework.data.domain.Sort.by;
 
@@ -38,10 +39,6 @@ public class Meta {
 	 * Number of sources to update metadata for synchronously.
 	 */
 	private static final int SYNC_SOURCES = 2;
-	/**
-	 * Maximum number of sources to mark with cascade in each query.
-	 */
-	private static final int CASCADE_BATCH_SIZE = 1000;
 
 	@Autowired
 	RefRepository refRepository;
@@ -124,8 +121,10 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
+		var cascade = ref.getMetadata() != null && ref.getMetadata().isCascade();
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(originalDate);
+		ref.getMetadata().setCascade(cascade);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
@@ -141,16 +140,47 @@ public class Meta {
 	}
 
 	/**
-	 * Regenerate response metadata for a source marked with cascade.
-	 * Keeps the obsolete and regen flags and bumps modified.
+	 * Regenerate the metadata of the sources of a Ref marked with cascade that were not
+	 * updated synchronously, as well as any sources it no longer cites.
+	 * Keeps the obsolete, regen and cascade flags of each source and bumps modified.
+	 *
+	 * @return false if a source was modified concurrently and the cascade should be retried
 	 */
 	@Timed(value = "jasper.meta", histogram = true)
-	public void cascade(String rootOrigin, Ref ref) {
-		var existing = ref.getMetadata();
-		ref(rootOrigin, ref);
-		if (existing == null) return;
-		ref.getMetadata().setObsolete(existing.isObsolete());
-		ref.getMetadata().setRegen(existing.isRegen());
+	public boolean cascade(String rootOrigin, Ref ref) {
+		var cited = ref.getSources() == null ? List.<String>of() : ref.getSources();
+		var sources = otherSources(ref.getUrl(), cited);
+		var cascade = new LinkedHashSet<>(sources.size() <= SYNC_SOURCES ? List.of() : refRepository.findAll(
+			isUrls(sources.subList(SYNC_SOURCES, sources.size())).and(isUnderOrigin(rootOrigin))));
+		cascade.addAll(refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
+				.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))))
+			.stream()
+			.filter(s -> !cited.contains(s.getUrl()))
+			.filter(s -> s.getAlternateUrls() == null || s.getAlternateUrls().stream().noneMatch(cited::contains))
+			.toList());
+		var result = true;
+		for (var source : cascade) {
+			if (source.getUrl().equals(ref.getUrl())) continue;
+			var existing = source.getMetadata();
+			ref(rootOrigin, source);
+			if (existing != null) {
+				source.getMetadata().setObsolete(existing.isObsolete());
+				source.getMetadata().setRegen(existing.isRegen());
+				source.getMetadata().setCascade(existing.isCascade());
+			}
+			var updated = refRepository.updateMetadataIfUnmodified(
+				source.getUrl(),
+				source.getOrigin(),
+				source.getModified(),
+				existing == null ? "" : requireNonNullElse(existing.getModified(), ""),
+				source.getMetadata());
+			if (updated == 0) {
+				result = false;
+				continue;
+			}
+			messages.updateMetadata(source);
+		}
+		return result;
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -160,7 +190,11 @@ public class Meta {
 			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 
 			// Update sources
-			List<Ref> sources = refRepository.findAll(isUrls(syncSources(rootOrigin, ref.getUrl(), ref.getSources())).and(isUnderOrigin(rootOrigin)));
+			var added = otherSources(ref.getUrl(), ref.getSources());
+			if (added.size() > SYNC_SOURCES || existing != null && otherSources(existing.getUrl(), removedSources(ref, existing)).size() > SYNC_SOURCES) {
+				markCascade(rootOrigin, ref);
+			}
+			List<Ref> sources = refRepository.findAll(isUrls(syncSources(added)).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
 				if (source.getUrl().equals(ref.getUrl())) continue;
 				var metadata = source.getMetadata();
@@ -211,12 +245,8 @@ public class Meta {
 
 		if (existing != null && existing.getSources() != null) {
 			// Updating or deleting (not new)
-			var removedSources = ref == null
-				? existing.getSources()
-				: existing.getSources().stream()
-					.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
-					.toList();
-			List<Ref> removed = refRepository.findAll(isUrls(syncSources(rootOrigin, existing.getUrl(), removedSources)).and(isUnderOrigin(rootOrigin)));
+			var removedSources = otherSources(existing.getUrl(), removedSources(ref, existing));
+			List<Ref> removed = refRepository.findAll(isUrls(ref == null ? removedSources : syncSources(removedSources)).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				if (source.getUrl().equals(existing.getUrl())) continue;
 				removeSource(rootOrigin, source, existing);
@@ -225,25 +255,34 @@ public class Meta {
 		}
 	}
 
+	private static List<String> removedSources(Ref ref, Ref existing) {
+		if (existing.getSources() == null) return List.of();
+		if (ref == null) return existing.getSources();
+		return existing.getSources().stream()
+			.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
+			.toList();
+	}
+
+	private static List<String> otherSources(String url, List<String> sources) {
+		if (sources == null) return List.of();
+		return sources.stream().filter(s -> !url.equals(s)).distinct().toList();
+	}
+
 	/**
 	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
-	 * The remaining sources are marked with cascade and will be updated async by the
-	 * {@link jasper.component.cron.Cascade} cron.
-	 *
-	 * @return the source URLs to update synchronously
+	 * The remaining sources are updated async by the {@link jasper.component.cron.Cascade} cron.
 	 */
-	private List<String> syncSources(String rootOrigin, String url, List<String> sources) {
-		if (sources == null) return List.of();
-		var others = sources.stream().filter(s -> !url.equals(s)).distinct().toList();
-		if (others.size() <= SYNC_SOURCES) return others;
-		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), CASCADE_BATCH_SIZE)) {
-			try {
-				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().cascade(true).build());
-			} catch (DataAccessException e) {
-				logger.error("{} Error marking sources for cascade {}", rootOrigin, url, e);
-			}
+	private static List<String> syncSources(List<String> sources) {
+		return sources.size() <= SYNC_SOURCES ? sources : sources.subList(0, SYNC_SOURCES);
+	}
+
+	private void markCascade(String rootOrigin, Ref ref) {
+		try {
+			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+			if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
+		} catch (DataAccessException e) {
+			logger.error("{} Error marking ref for cascade {} {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
 		}
-		return others.subList(0, SYNC_SOURCES);
 	}
 
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {
