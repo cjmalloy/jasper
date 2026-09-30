@@ -1,6 +1,7 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.repository.PluginRepository;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -208,6 +210,52 @@ public class MetaIT {
 
 		assertThat(ref.getMetadata()).isNotNull();
 		assertThat(ref.getMetadata().getExpandedTags()).isEmpty();
+	}
+
+	@Test
+	void testUpdatePreservesMetadata() {
+		var existing = new Ref();
+		existing.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.expandedTags(List.of("old"))
+			.responses(List.of(URL + "response"))
+			.internalResponses(List.of(URL + "internal"))
+			.plugins(Map.of("plugin/comment", 2L))
+			.userUrls(Map.of("plugin/user/tester", List.of(URL + "user")))
+			.obsolete(true)
+			.regen(true)
+			.build());
+		var ref = new Ref();
+		ref.setTags(List.of("new/child"));
+
+		meta.update("", ref, existing);
+
+		assertThat(ref.getMetadata().getModified()).isEqualTo("2026-01-01T00:00:00Z");
+		assertThat(ref.getMetadata().getExpandedTags()).containsExactly("new/child", "new");
+		assertThat(ref.getMetadata().getResponses()).containsExactly(URL + "response");
+		assertThat(ref.getMetadata().getInternalResponses()).containsExactly(URL + "internal");
+		assertThat(ref.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
+		assertThat(ref.getMetadata().getUserUrls())
+			.containsEntry("plugin/user/tester", List.of(URL + "user"));
+		assertThat(ref.getMetadata().isObsolete()).isFalse();
+		assertThat(ref.getMetadata().isRegen()).isTrue();
+	}
+
+	@Test
+	void testUpdateRebuildsMissingMetadata() {
+		var existing = new Ref();
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(List.of("new/child"));
+
+		meta.update("", ref, existing);
+
+		assertThat(ref.getMetadata()).isNotNull();
+		assertThat(ref.getMetadata().getExpandedTags()).containsExactly("new/child", "new");
+		assertThat(ref.getMetadata().getResponses()).isEmpty();
+		assertThat(ref.getMetadata().getInternalResponses()).isEmpty();
+		assertThat(ref.getMetadata().getPlugins()).isEmpty();
+		assertThat(ref.getMetadata().getUserUrls()).isEmpty();
 	}
 
 	@Test
