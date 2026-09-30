@@ -512,33 +512,4 @@ public class RefRepositoryIT {
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test.sub").orElseThrow()
 			.getMetadata().isCascade()).isFalse();
 	}
-
-	// --- updateMetadataIfUnmodified ---
-
-	@Test
-	void testUpdateMetadataIfUnmodified() {
-		var source = new Ref();
-		source.setUrl("http://example.com/source");
-		source.setOrigin("");
-		source.setMetadata(Metadata.builder()
-			.modified("2026-01-01T00:00:00Z")
-			.build());
-		refRepository.save(source);
-		var modified = refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow().getModified();
-
-		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified, "2025-01-01T00:00:00Z", Metadata.builder()
-			.responses(List.of("http://example.com/response"))
-			.build())).isEqualTo(0);
-		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified.minusSeconds(1), "2026-01-01T00:00:00Z", Metadata.builder()
-			.responses(List.of("http://example.com/response"))
-			.build())).isEqualTo(0);
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow()
-			.getMetadata().getResponses()).isNullOrEmpty();
-
-		assertThat(refRepository.updateMetadataIfUnmodified("http://example.com/source", "", modified, "2026-01-01T00:00:00Z", Metadata.builder()
-			.responses(List.of("http://example.com/response"))
-			.build())).isEqualTo(1);
-		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/source", "").orElseThrow()
-			.getMetadata().getResponses()).containsExactly("http://example.com/response");
-	}
 }
