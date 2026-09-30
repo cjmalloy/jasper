@@ -525,7 +525,7 @@ It supports the following configuration options:
 | `JASPER_BACKUP_BUFFER_SIZE`                         | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                       | `1000000`                                                                                                                                                                                                     |
 | `JASPER_RESTORE_BATCH_SIZE`                         | Number of entities to restore in each transaction.                                                                             | `500`                                                                                                                                                                                                         |
 | `JASPER_BACKFILL_BATCH_SIZE`                        | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `100`                                                                                                                                                                                                         |
-| `JASPER_NEW_RESPONSE_BATCH_SIZE`                    | Number of sources marked with newResponse to update Metadata for in each run.                                                  | `100`                                                                                                                                                                                                         |
+| `JASPER_CASCADE_BATCH_SIZE`                         | Number of sources marked with newResponse to update Metadata for in each cascade run.                                           | `100`                                                                                                                                                                                                         |
 | `JASPER_CLEAR_CACHE_COOLDOWN_SEC`                   | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
 | `JASPER_PUSH_COOLDOWN_SEC`                          | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
@@ -804,10 +804,10 @@ Metadata is never transferred during replication. A simplified version is sent o
 counts for each response type, and user plugin responses for the current user.
 
 When a Ref is created, updated or deleted, the metadata of its first two sources is updated immediately.
-Any remaining sources are marked with the `newResponse` flag, and the new response cron updates them
-in the background and sends the metadata update over websockets. Like backfill, the new response cron
-runs for origins selected by `+plugin/newresponse` in the `scriptSelectors` of the server config, and can be
-disabled on a node with the `no-new-response` profile, so these updates can be delegated to a separate node.
+Any remaining sources are marked with the `newResponse` flag, and the cascade cron updates them
+in the background and sends the metadata update over websockets. Like backfill, the cascade cron
+runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
+disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the

@@ -140,9 +140,9 @@ public class Props {
 	 */
 	private int backfillIdleSec = 0;
 	/**
-	 * Number of sources marked with newResponse to update Metadata for in each run.
+	 * Number of sources marked with newResponse to update Metadata for in each cascade run.
 	 */
-	private int newResponseBatchSize = 100;
+	private int cascadeBatchSize = 100;
 	/**
 	 * Number of seconds to throttle clearing the config cache.
 	 */

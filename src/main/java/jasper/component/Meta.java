@@ -228,7 +228,7 @@ public class Meta {
 	/**
 	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
 	 * The remaining sources are marked with newResponse and will be updated async by the
-	 * {@link jasper.component.cron.NewResponse} cron.
+	 * {@link jasper.component.cron.Cascade} cron.
 	 *
 	 * @return the source URLs to update synchronously
 	 */

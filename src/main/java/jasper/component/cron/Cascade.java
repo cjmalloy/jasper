@@ -20,10 +20,10 @@ import static java.util.Objects.requireNonNullElse;
  * Updates the Metadata of sources marked with newResponse.
  * Only the first sources of a Ref are updated synchronously, the rest are updated here.
  */
-@Profile("!no-new-response")
+@Profile("!no-cascade")
 @Component
-public class NewResponse {
-	private static final Logger logger = LoggerFactory.getLogger(NewResponse.class);
+public class Cascade {
+	private static final Logger logger = LoggerFactory.getLogger(Cascade.class);
 
 	@Autowired
 	Props props;
@@ -41,16 +41,16 @@ public class NewResponse {
 	Messages messages;
 
 	@Scheduled(fixedDelay = 5, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
-	public void newResponse() {
-		if (!configs.root().script("+plugin/newresponse")) return;
-		for (var origin : configs.root().scriptOrigins("+plugin/newresponse")) {
-			newResponseOrigin(origin);
+	public void cascade() {
+		if (!configs.root().script("+plugin/cascade")) return;
+		for (var origin : configs.root().scriptOrigins("+plugin/cascade")) {
+			cascadeOrigin(origin);
 		}
 	}
 
-	void newResponseOrigin(String origin) {
-		if (!configs.root().script("+plugin/newresponse", origin)) return;
-		for (var i = 0; i < props.getNewResponseBatchSize(); i++) {
+	void cascadeOrigin(String origin) {
+		if (!configs.root().script("+plugin/cascade", origin)) return;
+		for (var i = 0; i < props.getCascadeBatchSize(); i++) {
 			var ref = refRepository.getRefNewResponse(origin).orElse(null);
 			if (ref == null) return;
 			logger.trace("{} Updating new responses for ref ({}) {}: {}",

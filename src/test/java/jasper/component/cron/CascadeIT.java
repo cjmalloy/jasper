@@ -20,10 +20,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @IntegrationTest
-public class NewResponseIT {
+public class CascadeIT {
 
 	@Autowired
-	NewResponse newResponse;
+	Cascade cascade;
 
 	@Autowired
 	Meta meta;
@@ -38,13 +38,13 @@ public class NewResponseIT {
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
-		messages = newResponse.messages;
-		newResponse.messages = mock(Messages.class);
+		messages = cascade.messages;
+		cascade.messages = mock(Messages.class);
 	}
 
 	@AfterEach
 	void cleanup() {
-		newResponse.messages = messages;
+		cascade.messages = messages;
 		refRepository.deleteAll();
 	}
 
@@ -61,7 +61,7 @@ public class NewResponseIT {
 	}
 
 	@Test
-	void testNewResponseUpdatesDeferredSources() {
+	void testCascadeUpdatesDeferredSources() {
 		saveSource(URL + "a");
 		saveSource(URL + "b");
 		saveSource(URL + "c");
@@ -74,7 +74,7 @@ public class NewResponseIT {
 		refRepository.save(child);
 		meta.sources("", child, null);
 
-		newResponse.newResponseOrigin("");
+		cascade.cascadeOrigin("");
 
 		for (var url : List.of(URL + "c", URL + "d")) {
 			var source = refRepository.findOneByUrlAndOrigin(url, "").orElseThrow();
@@ -83,23 +83,23 @@ public class NewResponseIT {
 			assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
 			assertThat(source.getMetadata().isObsolete()).isTrue();
 			assertThat(source.getMetadata().getModified()).isNotEqualTo("2026-01-01T00:00:00Z");
-			verify(newResponse.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(url)));
+			verify(cascade.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(url)));
 		}
 		assertThat(refRepository.getRefNewResponse("")).isEmpty();
 	}
 
 	@Test
-	void testNewResponseRemovesDeletedResponse() {
+	void testCascadeRemovesDeletedResponse() {
 		var source = saveSource(URL + "c");
 		source.getMetadata().setResponses(List.of(URL + "child"));
 		source.getMetadata().setNewResponse(true);
 		refRepository.save(source);
 
-		newResponse.newResponseOrigin("");
+		cascade.cascadeOrigin("");
 
 		var result = refRepository.findOneByUrlAndOrigin(URL + "c", "").orElseThrow();
 		assertThat(result.getMetadata().isNewResponse()).isFalse();
 		assertThat(result.getMetadata().getResponses()).isNullOrEmpty();
-		verify(newResponse.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(URL + "c")));
+		verify(cascade.messages, atLeastOnce()).updateMetadata(argThat(r -> r.getUrl().equals(URL + "c")));
 	}
 }
