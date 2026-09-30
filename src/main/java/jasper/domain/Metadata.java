@@ -37,6 +37,8 @@ public class Metadata implements Serializable {
 	private boolean obsolete = false;
 	@JsonInclude(NON_DEFAULT)
 	private boolean regen = false;
+	@JsonInclude(NON_DEFAULT)
+	private boolean newResponse = false;
 
 	public void addResponse(String url) {
 		if (responses == null) {

@@ -29,7 +29,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.ScopeNotActiveException;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
@@ -40,16 +39,10 @@ import static jasper.domain.proj.Tag.urlForTag;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.AuthoritiesConstants.EDITOR;
 import static jasper.security.AuthoritiesConstants.MOD;
-import static org.apache.commons.collections4.ListUtils.partition;
 
 @Component
 public class Validate {
 	private static final Logger logger = LoggerFactory.getLogger(Validate.class);
-
-	/**
-	 * Maximum number of sources to check published dates for in each query.
-	 */
-	private static final int DAG_BATCH_SIZE = 1000;
 
 	@Autowired
 	Auth auth;
@@ -83,7 +76,12 @@ public class Validate {
 		}
 		tags(rootOrigin, ref);
 		plugins(rootOrigin, ref, stripOnError);
-		dag(rootOrigin, ref);
+		// Internal Refs may attach anywhere with any published date
+		if (ref.hasTag("internal")) return;
+		responses(rootOrigin, ref, true);
+		sources(rootOrigin, ref, true);
+		responses(rootOrigin, ref, false);
+		sources(rootOrigin, ref, false);
 	}
 
 	@Timed("jasper.validate")
@@ -329,36 +327,33 @@ public class Validate {
 		}
 	}
 
-	/**
-	 * Keep the local origin a DAG by published date. Sources must not be published after the Ref,
-	 * and responses must not be published before it. Equal dates are allowed.
-	 * Only applies to non-internal Refs in the local origin, sub-origins are stored as received.
-	 * Internal Refs may attach anywhere with any date.
-	 */
-	void dag(String rootOrigin, Ref ref) {
-		if (!rootOrigin.equals(ref.getOrigin())) return;
-		if (ref.hasTag("internal")) return;
-		Instant maxSource = null;
-		if (ref.getSources() != null) {
-			var sources = ref.getSources().stream().filter(s -> !s.equals(ref.getUrl())).distinct().toList();
-			for (var batch : partition(sources, DAG_BATCH_SIZE)) {
-				var published = refRepository.maxPublishedByUrlInAndOrigin(batch, rootOrigin);
-				if (published != null && (maxSource == null || published.isAfter(maxSource))) maxSource = published;
+	private void sources(String rootOrigin, Ref ref, boolean fix) {
+		if (ref.getSources() == null) return;
+		for (var sourceUrl : ref.getSources()) {
+			if (sourceUrl.equals(ref.getUrl())) continue;
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
+			for (var source : sources) {
+				if (source.getPublished().isAfter(ref.getPublished())) {
+					if (!fix) throw new PublishDateException(
+						ref.getUrl(), ref.getPublished(), source.getUrl(), source.getPublished());
+					ref.setPublished(source.getPublished().plusMillis(1));
+				}
 			}
 		}
-		var minResponse = refRepository.minResponsePublishedByUrlAndOrigin(ref.getUrl(), rootOrigin);
-		if (maxSource != null && minResponse != null && maxSource.isAfter(minResponse)) {
-			throw new PublishDateException(ref.getUrl(), maxSource, minResponse);
-		}
-		if (maxSource != null && maxSource.isAfter(ref.getPublished())) {
-			ref.setPublished(minResponse == null || !maxSource.plusMillis(1).isAfter(minResponse)
-				? maxSource.plusMillis(1)
-				: maxSource);
-		}
-		if (minResponse != null && minResponse.isBefore(ref.getPublished())) {
-			ref.setPublished(maxSource == null || !minResponse.minusMillis(1).isBefore(maxSource)
-				? minResponse.minusMillis(1)
-				: minResponse);
+	}
+
+	private void responses(String rootOrigin, Ref ref, boolean fix) {
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
+		for (var response : responses) {
+			if (response.getPublished().isBefore(ref.getPublished())) {
+				if (response.hasTag("plugin/user")) {
+					response.setPublished(ref.getPublished());
+					continue;
+				}
+				if (!fix) throw new PublishDateException(
+					response.getUrl(), response.getPublished(), ref.getUrl(), ref.getPublished());
+				ref.setPublished(response.getPublished().minusMillis(1));
+			}
 		}
 	}
 }

@@ -101,22 +101,23 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	@Query("""
-		SELECT MAX(r.published) FROM Ref r
-		WHERE r.url IN :urls
-			AND r.origin = :origin
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'internal') = false
-			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
-	Instant maxPublishedByUrlInAndOrigin(List<String> urls, String origin);
+		FROM Ref ref
+		WHERE ref.url = :url
+			AND ref.published >= :published
+			AND jsonb_exists(COALESCE(jsonb_object_field(ref.metadata, 'expandedTags'), ref.tags, cast_to_jsonb('[]')), 'internal') = false
+			AND COALESCE(jsonb_object_field_text(ref.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
 	@Query("""
-		SELECT MIN(r.published) FROM Ref r
+		FROM Ref r
 		WHERE r.url != :url
-			AND r.origin = :origin
+			AND r.published <= :published
 			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/user') = false
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'internal') = false
-			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
-	Instant minResponsePublishedByUrlAndOrigin(String url, String origin);
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
 
 	@Query("""
 		SELECT r.url FROM Ref r
@@ -183,6 +184,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url IN :urls
 			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
 	int mergeMetadata(List<String> urls, String rootOrigin, Metadata partialMetadata);
+
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = :metadata
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'modified'), '') = :modified""")
+	int updateMetadataIfUnmodified(String url, String origin, String modified, Metadata metadata);
+
+	@Query("""
+		FROM Ref r
+		WHERE jsonb_object_field_text(r.metadata, 'newResponse') = 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		ORDER BY r.modified DESC
+		FETCH FIRST 1 ROW ONLY""")
+	Optional<Ref> getRefNewResponse(String origin);
 
 	@Query("""
 		FROM Ref r

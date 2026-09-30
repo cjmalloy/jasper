@@ -39,9 +39,9 @@ public class Meta {
 	 */
 	private static final int SYNC_SOURCES = 2;
 	/**
-	 * Maximum number of sources to mark for regen in each query.
+	 * Maximum number of sources to mark with newResponse in each query.
 	 */
-	private static final int REGEN_BATCH_SIZE = 1000;
+	private static final int NEW_RESPONSE_BATCH_SIZE = 1000;
 
 	@Autowired
 	RefRepository refRepository;
@@ -140,6 +140,19 @@ public class Meta {
 		}
 	}
 
+	/**
+	 * Regenerate response metadata for a source marked with newResponse.
+	 * Keeps the obsolete and regen flags, clears newResponse and bumps modified.
+	 */
+	@Timed(value = "jasper.meta", histogram = true)
+	public void newResponse(String rootOrigin, Ref ref) {
+		var existing = ref.getMetadata();
+		ref(rootOrigin, ref);
+		if (existing == null) return;
+		ref.getMetadata().setObsolete(existing.isObsolete());
+		ref.getMetadata().setRegen(existing.isRegen());
+	}
+
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref != null) {
@@ -214,7 +227,8 @@ public class Meta {
 
 	/**
 	 * Only the first {@link #SYNC_SOURCES} sources have their metadata updated synchronously.
-	 * The remaining sources are marked for regen and will be updated async by the backfill cron.
+	 * The remaining sources are marked with newResponse and will be updated async by the
+	 * {@link jasper.component.cron.NewResponse} cron.
 	 *
 	 * @return the source URLs to update synchronously
 	 */
@@ -222,11 +236,11 @@ public class Meta {
 		if (sources == null) return List.of();
 		var others = sources.stream().filter(s -> !url.equals(s)).distinct().toList();
 		if (others.size() <= SYNC_SOURCES) return others;
-		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), REGEN_BATCH_SIZE)) {
+		for (var batch : partition(others.subList(SYNC_SOURCES, others.size()), NEW_RESPONSE_BATCH_SIZE)) {
 			try {
-				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().regen(true).build());
+				refRepository.mergeMetadata(batch, rootOrigin, Metadata.builder().newResponse(true).build());
 			} catch (DataAccessException e) {
-				logger.error("{} Error marking sources for metadata regen {}", rootOrigin, url, e);
+				logger.error("{} Error marking sources with newResponse {}", rootOrigin, url, e);
 			}
 		}
 		return others.subList(0, SYNC_SOURCES);

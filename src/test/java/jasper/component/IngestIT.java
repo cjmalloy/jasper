@@ -26,10 +26,6 @@ import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -341,74 +337,6 @@ public class IngestIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@origin2")).isFalse();
 		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isFalse();
-	}
-
-	@Test
-	void testCreateDefersSourceMetadataAfterFirstTwo() {
-		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
-			var source = new Ref();
-			source.setUrl(url);
-			ingest.create("", source);
-		}
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
-
-		ingest.create("", ref);
-
-		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").get();
-		assertThat(a.getMetadata().getResponses()).containsExactly(URL);
-		assertThat(a.getMetadata().isRegen()).isFalse();
-		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").get();
-		assertThat(b.getMetadata().getResponses()).containsExactly(URL);
-		assertThat(b.getMetadata().isRegen()).isFalse();
-		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
-		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(c.getMetadata().isRegen()).isTrue();
-	}
-
-	@Test
-	void testDeleteDefersSourceMetadataAfterFirstTwo() {
-		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
-			var source = new Ref();
-			source.setUrl(url);
-			ingest.create("", source);
-		}
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setSources(List.of(URL + "c", URL + "b", URL + "a"));
-		ingest.create("", ref);
-
-		ingest.delete("", URL, "");
-
-		var a = refRepository.findOneByUrlAndOrigin(URL + "a", "").get();
-		assertThat(a.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(a.getMetadata().isRegen()).isTrue();
-		var b = refRepository.findOneByUrlAndOrigin(URL + "b", "").get();
-		assertThat(b.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(b.getMetadata().isRegen()).isFalse();
-		var c = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
-		assertThat(c.getMetadata().getResponses()).isNullOrEmpty();
-		assertThat(c.getMetadata().isRegen()).isFalse();
-	}
-
-	@Test
-	void testDeleteCommitsWhenSourceMetadataFails() {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setSources(List.of(URL + "a"));
-		ingest.create("", ref);
-		var meta = getField(ingest, "meta");
-		var failing = mock(Meta.class);
-		doThrow(new RuntimeException("Metadata failure")).when(failing).sources(any(), any(), any());
-		setField(ingest, "meta", failing);
-		try {
-			ingest.delete("", URL, "");
-		} finally {
-			setField(ingest, "meta", meta);
-		}
-
-		assertThat(refRepository.existsByUrlAndOrigin(URL, "")).isFalse();
 	}
 
 	@Test
