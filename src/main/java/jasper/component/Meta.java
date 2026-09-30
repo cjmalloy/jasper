@@ -146,7 +146,7 @@ public class Meta {
 			// Update sources
 			var added = otherSources(ref.getUrl(), ref.getSources());
 			if (added.size() > SYNC_SOURCES || existing != null && otherSources(existing.getUrl(), removedSources(ref, existing)).size() > SYNC_SOURCES) {
-				markCascade(rootOrigin, ref);
+				ref.getMetadata().setCascade(true);
 			}
 			List<Ref> sources = refRepository.findAll(isUrls(syncSources(added)).and(isUnderOrigin(rootOrigin)));
 			for (var source : sources) {
@@ -228,15 +228,6 @@ public class Meta {
 	 */
 	private static List<String> syncSources(List<String> sources) {
 		return sources.size() <= SYNC_SOURCES ? sources : sources.subList(0, SYNC_SOURCES);
-	}
-
-	private void markCascade(String rootOrigin, Ref ref) {
-		try {
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
-			if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
-		} catch (DataAccessException e) {
-			logger.error("{} Error marking ref for cascade {} {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
-		}
 	}
 
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {
