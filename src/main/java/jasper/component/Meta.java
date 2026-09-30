@@ -145,7 +145,7 @@ public class Meta {
 
 			// Update sources
 			var added = otherSources(ref.getUrl(), ref.getSources());
-if (added.size() > SYNC_SOURCES || existing != null && otherSources(existing.getUrl(), removedSources(ref, existing)).size() > SYNC_SOURCES) {
+			if (added.size() > SYNC_SOURCES || existing != null && otherSources(existing.getUrl(), removedSources(ref, existing)).size() > SYNC_SOURCES) {
 				ref.getMetadata().setCascade(true);
 				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 			}
