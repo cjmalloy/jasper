@@ -1037,6 +1037,28 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testMovePublishedAfterLogResponse() {
+		var source = new Ref();
+		source.setUrl(URL);
+		source.setTags(new ArrayList<>(List.of("+user/tester")));
+		source.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+		refService.create(source);
+		var log = new Ref();
+		log.setUrl("error:" + UUID.randomUUID());
+		log.setSources(List.of(URL));
+		log.setTags(new ArrayList<>(List.of("internal", "+plugin/log")));
+		log.setPublished(Instant.parse("2024-01-01T12:00:00.001Z"));
+		refRepository.save(log);
+		var published = Instant.parse("2024-01-01T14:30:00Z");
+		source.setPublished(published);
+
+		refService.update(source);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow().getPublished())
+			.isEqualTo(published);
+	}
+
+	@Test
 	void testUpdateLockedRefFailed() {
 		var ref = new Ref();
 		ref.setUrl(URL);

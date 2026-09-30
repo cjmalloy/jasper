@@ -268,6 +268,25 @@ public class ValidateRefIT {
 	}
 
 	@Test
+	void testLogResponsesIgnored() {
+		var published = Instant.parse("2024-01-01T12:00:00Z");
+		var log = new Ref();
+		log.setUrl("error:" + URL);
+		log.setSources(List.of(URL));
+		log.setTags(List.of("internal", "+plugin/log"));
+		log.setPublished(published.minusSeconds(60));
+		log = refRepository.saveAndFlush(log);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
+		assertThat(log.getPublished()).isEqualTo(published.minusSeconds(60));
+	}
+
+	@Test
 	void testPublishedDatesOutsideRootOriginIgnored() {
 		var source = new Ref();
 		source.setUrl(URL + "source");

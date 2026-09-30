@@ -343,6 +343,7 @@ public class Validate {
 	private void responses(String rootOrigin, Ref ref, boolean fix) {
 		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
 		for (var response : responses) {
+			if (response.hasTag("+plugin/log")) continue;
 			if (response.getPublished().isBefore(ref.getPublished())) {
 				if (response.hasTag("plugin/user")) {
 					response.setPublished(ref.getPublished());
