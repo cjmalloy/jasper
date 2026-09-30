@@ -42,14 +42,14 @@ public class NewResponse {
 
 	@Scheduled(fixedDelay = 5, initialDelay = 10, timeUnit = TimeUnit.SECONDS)
 	public void newResponse() {
-		if (!configs.root().script("+plugin/new-response")) return;
-		for (var origin : configs.root().scriptOrigins("+plugin/new-response")) {
+		if (!configs.root().script("+plugin/newresponse")) return;
+		for (var origin : configs.root().scriptOrigins("+plugin/newresponse")) {
 			newResponseOrigin(origin);
 		}
 	}
 
 	void newResponseOrigin(String origin) {
-		if (!configs.root().script("+plugin/new-response", origin)) return;
+		if (!configs.root().script("+plugin/newresponse", origin)) return;
 		for (var i = 0; i < props.getNewResponseBatchSize(); i++) {
 			var ref = refRepository.getRefNewResponse(origin).orElse(null);
 			if (ref == null) return;

@@ -806,7 +806,7 @@ counts for each response type, and user plugin responses for the current user.
 When a Ref is created, updated or deleted, the metadata of its first two sources is updated immediately.
 Any remaining sources are marked with the `newResponse` flag, and the new response cron updates them
 in the background and sends the metadata update over websockets. Like backfill, the new response cron
-runs for origins selected by `+plugin/new-response` in the `scriptSelectors` of the server config, and can be
+runs for origins selected by `+plugin/newresponse` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-new-response` profile, so these updates can be delegated to a separate node.
 
 ## Server Scripting
