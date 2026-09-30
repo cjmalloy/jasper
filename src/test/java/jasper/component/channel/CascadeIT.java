@@ -1,4 +1,4 @@
-package jasper.component.cron;
+package jasper.component.channel;
 
 import jasper.IntegrationTest;
 import jasper.component.Messages;

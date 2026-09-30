@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,6 +23,7 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.hasInternalResponse;
 import static jasper.repository.spec.RefSpec.hasResponse;
+import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
@@ -138,52 +140,92 @@ public class Meta {
 		}
 	}
 
+	@Transactional
+	@Timed(value = "jasper.meta", histogram = true)
+	public void cascade(String rootOrigin, Ref ref) {
+		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
+			.stream()
+			.skip(SYNC_SOURCES)
+			.filter(s -> !s.equals(ref.getUrl())).distinct().toList();
+		for (var i = 0; i < sources.size(); i += SOURCE_BATCH_SIZE) {
+			var batch = sources.subList(i, Math.min(i + SOURCE_BATCH_SIZE, sources.size()));
+			for (var source : refRepository.findAll(isUrls(batch).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+				cascadeSource(rootOrigin, ref, source);
+			}
+		}
+		try (var stream = refRepository.findRemovedSources(ref.getUrl(), rootOrigin)) {
+			stream
+				.filter(s -> ref.getSources() == null || !ref.getSources().contains(s.getUrl()))
+				.forEach(source -> cascadeSource(rootOrigin, ref, source));
+		}
+	}
+
+	private void cascadeSource(String rootOrigin, Ref ref, Ref source) {
+		var originalDate = source.getMetadata() == null ? now().toString() : source.getMetadata().getModified();
+		var regen = source.getMetadata() != null && source.getMetadata().isRegen();
+		var cascade = source.getMetadata() != null && source.getMetadata().isCascade();
+		ref(rootOrigin, source);
+		source.getMetadata().setModified(originalDate);
+		source.getMetadata().setRegen(regen);
+		source.getMetadata().setCascade(cascade);
+		try {
+			refRepository.save(source);
+			messages.updateMetadata(source);
+		} catch (DataAccessException e) {
+			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
+		}
+	}
+
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
+		var cascade = false;
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
 
 			// Update sources
-			var added = otherSources(ref.getUrl(), ref.getSources());
-			for (var i = 0; i < added.size(); i += SOURCE_BATCH_SIZE) {
-				List<Ref> sources = refRepository.findAll(isUrls(added.subList(i, Math.min(i + SOURCE_BATCH_SIZE, added.size())))
-					.and(isUnderOrigin(rootOrigin)));
-				for (var source : sources) {
-					if (source.getUrl().equals(ref.getUrl())) continue;
-					var metadata = source.getMetadata();
-					if (metadata == null) {
-						logger.debug("Ref missing metadata: {}", ref.getUrl());
-						metadata = Metadata
-							.builder()
-							.responses(new ArrayList<>())
-							.internalResponses(new ArrayList<>())
-							.plugins(new HashMap<>())
-							.build();
-					}
-					if (ref.hasTag("internal")) {
-						metadata.addInternalResponse(ref.getUrl());
-					} else {
-						metadata.addResponse(ref.getUrl());
-					}
-					if (existing != null) {
-						metadata.removePlugins(existing.getExpandedTags().stream()
-								.filter(tag -> matchesTemplate("plugin", tag))
-								.toList(),
-							ref.getUrl());
-					}
-					metadata.addPlugins(ref.getExpandedTags().stream()
-						.filter(tag -> matchesTemplate("plugin", tag))
-						.toList(),
-						ref.getUrl());
-					source.setMetadata(metadata);
-					try {
-						refRepository.save(source);
-						messages.updateMetadata(source);
-					} catch (DataAccessException e) {
-						logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
-					}
+			var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources().size() > SYNC_SOURCES ? ref.getSources().subList(0, SYNC_SOURCES) : ref.getSources())
+				.stream()
+				.filter(s -> !s.equals(ref.getUrl()))
+				.distinct()
+				.toList();
+			if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
+				var metadata = source.getMetadata();
+				if (metadata == null) {
+					logger.debug("Ref missing metadata: {}", ref.getUrl());
+					metadata = Metadata
+						.builder()
+						.responses(new ArrayList<>())
+						.internalResponses(new ArrayList<>())
+						.plugins(new HashMap<>())
+						.build();
 				}
+				if (ref.hasTag("internal")) {
+					metadata.addInternalResponse(ref.getUrl());
+				} else {
+					metadata.addResponse(ref.getUrl());
+				}
+				if (existing != null) {
+					metadata.removePlugins(existing.getExpandedTags().stream()
+							.filter(tag -> matchesTemplate("plugin", tag))
+							.toList(),
+						ref.getUrl());
+				}
+				metadata.addPlugins(ref.getExpandedTags().stream()
+					.filter(tag -> matchesTemplate("plugin", tag))
+					.toList(),
+					ref.getUrl());
+				source.setMetadata(metadata);
+				try {
+					refRepository.save(source);
+					messages.updateMetadata(source);
+				} catch (DataAccessException e) {
+					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
+				}
+			}
+			if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+				cascade = true;
 			}
 		} else {
 			// Deleting
@@ -198,32 +240,32 @@ public class Meta {
 			}
 		}
 
-		if (ref != null && existing != null && existing.getSources() != null) {
+		if (existing != null && existing.getSources() != null) {
 			// Updating or deleting (not new)
-			var removedSources = otherSources(existing.getUrl(), removedSources(ref, existing));
-			for (var i = 0; i < removedSources.size(); i += SOURCE_BATCH_SIZE) {
-				List<Ref> removed = refRepository.findAll(isUrls(removedSources.subList(i, Math.min(i + SOURCE_BATCH_SIZE, removedSources.size())))
-					.and(isUnderOrigin(rootOrigin)));
-				for (var source : removed) {
-					if (source.getUrl().equals(existing.getUrl())) continue;
-					removeSource(rootOrigin, source, existing);
-					messages.updateMetadata(source);
+			var syncRemoved = ref == null
+				? existing.getSources()
+				: existing.getSources()
+					.stream()
+					.limit(SYNC_SOURCES)
+					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
+					.toList();
+			var removed = refRepository.findAll(isUrls(syncRemoved).and(isUnderOrigin(rootOrigin)));
+			for (var source : removed) {
+				removeSource(rootOrigin, source, existing);
+				messages.updateMetadata(source);
+			}
+			if (!cascade) {
+				var removedSources = ref == null
+					? existing.getSources().size()
+					: existing.getSources()
+					.stream()
+					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
+					.count();
+				if (removedSources > syncRemoved.size()) {
+					refRepository.markCascade(existing.getUrl(), existing.getOrigin());
 				}
 			}
 		}
-	}
-
-	private static List<String> removedSources(Ref ref, Ref existing) {
-		if (existing.getSources() == null) return List.of();
-		if (ref == null) return existing.getSources();
-		return existing.getSources().stream()
-			.filter(s -> ref.getSources() == null || !ref.getSources().contains(s))
-			.toList();
-	}
-
-	private static List<String> otherSources(String url, List<String> sources) {
-		if (sources == null) return List.of();
-		return sources.stream().filter(s -> !url.equals(s)).distinct().toList();
 	}
 
 	private void removeSource(String rootOrigin, Ref source, Ref existing) {

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Repository
 @Transactional(readOnly = true)
@@ -137,6 +138,22 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
+	@Transactional
+	@Query("""
+		SELECT r FROM Ref r
+		WHERE r.url != :url
+			AND NOT EXISTS (
+				SELECT 1 FROM Ref s
+				WHERE s.url = :url
+					AND jsonb_exists(s.sources, r.url) = true
+					AND COALESCE(jsonb_object_field_text(s.metadata, 'obsolete'), 'false') != 'true'
+					AND (:origin = '' OR s.origin = :origin OR s.origin LIKE concat(:origin, '.%')))
+			AND (jsonb_exists(jsonb_object_field(r.metadata, 'responses'), :url) = true
+					OR jsonb_exists(jsonb_object_field(r.metadata, 'internalResponses'), :url) = true)
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	Stream<Ref> findRemovedSources(String url, String origin);
+
 	@Modifying
 	@Transactional
 	@Query("""
@@ -197,17 +214,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND r.modified = :modified
 			AND r.metadata IS NOT NULL""")
 	int clearCascade(String url, String origin, Instant modified);
-
-	@Modifying
-	@Transactional
-	@Query("""
-		UPDATE Ref r
-		SET r.metadata = :metadata
-		WHERE r.url = :url
-			AND r.origin = :origin
-			AND r.modified = :modified
-			AND COALESCE(jsonb_object_field_text(r.metadata, 'modified'), '') = :metadataModified""")
-	int updateMetadataIfUnmodified(String url, String origin, Instant modified, String metadataModified, Metadata metadata);
 
 	@Query("""
 		FROM Ref r
