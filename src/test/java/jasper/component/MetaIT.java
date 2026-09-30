@@ -213,7 +213,7 @@ public class MetaIT {
 	}
 
 	@Test
-	void testDeleteMetadataResponseUpdatesAllSources() {
+	void testDeleteRefLeavesSourceMetadataCountsUnchanged() {
 		saveSource(URL + "a", URL + "child");
 		saveSource(URL + "b", URL + "child");
 		saveSource(URL + "c", URL + "child");
@@ -227,8 +227,26 @@ public class MetaIT {
 
 		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
 			assertThat(refRepository.findOneByUrlAndOrigin(url, "").orElseThrow()
-				.getMetadata().getResponses()).isNullOrEmpty();
+				.getMetadata().getResponses()).containsExactly(URL + "child");
 		}
+	}
+
+	@Test
+	void testPluginDeleteNoticeUpdatesSourceMetadataCounts() {
+		saveSource(URL + "a", URL + "child");
+		var existing = new Ref();
+		existing.setUrl(URL + "child");
+		existing.setTitle("Child");
+		existing.setSources(List.of(URL + "a"));
+		existing.setTags(List.of("+user/tester"));
+		var notice = new Ref();
+		notice.setUrl(URL + "child");
+		notice.setTags(List.of("internal", "plugin/delete"));
+
+		meta.sources("", notice, existing);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + "a", "").orElseThrow()
+			.getMetadata().getResponses()).isNullOrEmpty();
 	}
 
 	@Test

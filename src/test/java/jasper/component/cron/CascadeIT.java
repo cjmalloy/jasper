@@ -42,14 +42,14 @@ public class CascadeIT {
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
-		Meta target = getTargetObject(meta);
+		Cascade target = getTargetObject(cascade);
 		messages = (Messages) getField(target, "messages");
 		setField(target, "messages", mockMessages = mock(Messages.class));
 	}
 
 	@AfterEach
 	void cleanup() {
-		Meta target = getTargetObject(meta);
+		Cascade target = getTargetObject(cascade);
 		setField(target, "messages", messages);
 		refRepository.deleteAll();
 	}
