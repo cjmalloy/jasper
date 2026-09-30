@@ -172,15 +172,15 @@ public class BackfillRepositoryIT {
 		var counts = (Object[]) em.createNativeQuery("""
 			SELECT
 				COALESCE(jsonb_array_length(metadata->'responses'), 0) + COALESCE(jsonb_array_length(metadata->'internalResponses'), 0),
-				jsonb_array_length(metadata->'plugins'->'plugin/comment'),
 				metadata->>'obsolete'
 			FROM ref WHERE url = :url AND origin = :origin""")
 			.setParameter("url", parent.getUrl())
 			.setParameter("origin", parent.getOrigin())
 			.getSingleResult();
 		assertThat(((Number) counts[0]).intValue()).isEqualTo(1);
-		assertThat(((Number) counts[1]).intValue()).isEqualTo(1);
-		assertThat(counts[2]).isEqualTo("false");
+		assertThat(counts[1]).isEqualTo("false");
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
 	}
 
 	@Test
@@ -346,15 +346,15 @@ public class BackfillRepositoryIT {
 	}
 
 	private void assertParentCounts(Ref parent, int responses, int comments) {
-		var counts = (Object[]) em.createNativeQuery("""
-			SELECT
-				COALESCE(jsonb_array_length(metadata->'responses'), 0) + COALESCE(jsonb_array_length(metadata->'internalResponses'), 0),
-				COALESCE(jsonb_array_length(metadata->'plugins'->'plugin/comment'), 0)
+		var count = (Number) em.createNativeQuery("""
+			SELECT COALESCE(jsonb_array_length(metadata->'responses'), 0) + COALESCE(jsonb_array_length(metadata->'internalResponses'), 0)
 			FROM ref WHERE url = :url AND origin = :origin""")
 			.setParameter("url", parent.getUrl())
 			.setParameter("origin", parent.getOrigin())
 			.getSingleResult();
-		assertThat(((Number) counts[0]).intValue()).isEqualTo(responses);
-		assertThat(((Number) counts[1]).intValue()).isEqualTo(comments);
+		assertThat(count.intValue()).isEqualTo(responses);
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		var pluginCount = loaded.getMetadata().getPlugins() == null ? 0 : loaded.getMetadata().getPlugins().getOrDefault("plugin/comment", 0L).intValue();
+		assertThat(pluginCount).isEqualTo(comments);
 	}
 }
