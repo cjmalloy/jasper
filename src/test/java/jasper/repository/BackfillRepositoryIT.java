@@ -11,7 +11,9 @@ import jasper.domain.Ref;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,9 @@ public class BackfillRepositoryIT {
 
 	@Autowired
 	ConfigCache configCache;
+
+	@Autowired
+	TransactionTemplate transactionTemplate;
 
 	@PersistenceContext
 	EntityManager em;
@@ -176,5 +181,139 @@ public class BackfillRepositoryIT {
 		assertThat(((Number) counts[0]).intValue()).isEqualTo(1);
 		assertThat(((Number) counts[1]).intValue()).isEqualTo(1);
 		assertThat(counts[2]).isEqualTo("false");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_AssumesUnbackfilledResponsesObsolete() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var obsolete = new Ref();
+		obsolete.setUrl("http://example.com/response");
+		obsolete.setOrigin("");
+		obsolete.setSources(List.of("http://example.com/parent"));
+		obsolete.setTags(List.of("plugin/comment"));
+		obsolete.setModified(Instant.now().minusSeconds(60));
+		obsolete.setMetadata(null);
+		refRepository.save(obsolete);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("@other");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/comment"));
+		response.setModified(Instant.now());
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(response);
+
+		while (backfillRepository.backfillMetadata("", 1) > 0);
+
+		assertParentCounts(parent, 1, 1);
+		var obsoleteFlag = em.createNativeQuery("""
+			SELECT metadata->>'obsolete' FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", obsolete.getUrl())
+			.setParameter("origin", obsolete.getOrigin())
+			.getSingleResult();
+		assertThat(obsoleteFlag).isEqualTo("true");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_AssumesLegacyObsoleteCountObsolete() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var obsolete = new Ref();
+		obsolete.setUrl("http://example.com/response");
+		obsolete.setOrigin("");
+		obsolete.setSources(List.of("http://example.com/parent"));
+		obsolete.setTags(List.of("plugin/comment"));
+		obsolete.setModified(Instant.now().minusSeconds(60));
+		obsolete.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(obsolete);
+		transactionTemplate.executeWithoutResult(status -> em.createNativeQuery("""
+			UPDATE ref SET metadata = jsonb_set(metadata, '{obsolete}', to_jsonb(1))
+			WHERE url = :url AND origin = :origin""")
+			.setParameter("url", obsolete.getUrl())
+			.setParameter("origin", obsolete.getOrigin())
+			.executeUpdate());
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("@other");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/comment"));
+		response.setModified(Instant.now());
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(response);
+
+		while (backfillRepository.backfillMetadata("", 10) > 0);
+
+		assertParentCounts(parent, 1, 1);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_CorrectsSourceAfterResponseBackfilled() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("plugin/comment"));
+		response.setMetadata(null);
+		refRepository.save(response);
+
+		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
+		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(1);
+		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(0);
+
+		assertParentCounts(parent, 1, 1);
+	}
+
+	private void assertParentCounts(Ref parent, int responses, int comments) {
+		var counts = (Object[]) em.createNativeQuery("""
+			SELECT
+				COALESCE(jsonb_array_length(metadata->'responses'), 0) + COALESCE(jsonb_array_length(metadata->'internalResponses'), 0),
+				COALESCE(jsonb_array_length(metadata->'plugins'->'plugin/comment'), 0)
+			FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", parent.getUrl())
+			.setParameter("origin", parent.getOrigin())
+			.getSingleResult();
+		assertThat(((Number) counts[0]).intValue()).isEqualTo(responses);
+		assertThat(((Number) counts[1]).intValue()).isEqualTo(comments);
 	}
 }
