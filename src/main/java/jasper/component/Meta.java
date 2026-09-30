@@ -224,7 +224,6 @@ public class Meta {
 				}
 			}
 			if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
-				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 				cascade = true;
 			}
 		} else {
@@ -254,17 +253,19 @@ public class Meta {
 				removeSource(rootOrigin, source, existing);
 				messages.updateMetadata(source);
 			}
-			if (!cascade) {
-				var removedSources = ref == null
-					? existing.getSources().size()
-					: existing.getSources()
+			if (!cascade && ref != null) {
+				var removedSources = existing.getSources()
 					.stream()
 					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
 					.count();
 				if (removedSources > syncRemoved.size()) {
-					refRepository.markCascade(existing.getUrl(), existing.getOrigin());
+					cascade = true;
 				}
 			}
+		}
+		if (cascade) {
+			ref.getMetadata().setCascade(true);
+			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 		}
 	}
 
