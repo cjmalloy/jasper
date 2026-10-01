@@ -811,7 +811,8 @@ all of its sources are updated immediately. Like backfill, the cascade
 runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
 The default `scriptSelectors` wildcard enables the cascade for every origin. If a custom `scriptSelectors` list
-leaves out `+plugin/cascade`, sources after the first two are only updated on a full regen.
+leaves out `+plugin/cascade`, sources after the first two are not updated for that origin. A regen also only updates
+the first two sources immediately and marks the Ref for cascade.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
