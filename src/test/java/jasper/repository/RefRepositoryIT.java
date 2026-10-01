@@ -653,6 +653,20 @@ public class RefRepositoryIT {
 		assertThat(findRemovedSources(CHILD, "")).containsExactly("http://example.com/a");
 	}
 
+	@Test
+	@Transactional
+	void testFindRemovedSourceUrls_ReturnsUncitedSourceUrls() {
+		saveRef(CHILD, "", List.of("http://example.com/a"), Metadata.builder().build());
+		saveSource("http://example.com/a", "", CHILD);
+		saveSource("http://example.com/b", "", CHILD);
+		saveSource("http://example.com/c", "@other", CHILD);
+
+		assertThat(refRepository.findRemovedSourceUrls(CHILD, ""))
+			.containsExactlyInAnyOrder("http://example.com/b", "http://example.com/c");
+		assertThat(refRepository.findRemovedSourceUrls(CHILD, "@other"))
+			.containsExactly("http://example.com/c");
+	}
+
 	// --- clearCascade / getRefCascade ---
 
 	@Test

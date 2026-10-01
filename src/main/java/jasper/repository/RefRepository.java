@@ -154,6 +154,21 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	Stream<Ref> findRemovedSources(String url, String origin);
 
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND NOT EXISTS (
+				SELECT 1 FROM Ref s
+				WHERE s.url = :url
+					AND jsonb_exists(s.sources, r.url) = true
+					AND COALESCE(jsonb_object_field_text(s.metadata, 'obsolete'), 'false') != 'true'
+					AND (:origin = '' OR s.origin = :origin OR s.origin LIKE concat(:origin, '.%')))
+			AND (jsonb_exists(jsonb_object_field(r.metadata, 'responses'), :url) = true
+					OR jsonb_exists(jsonb_object_field(r.metadata, 'internalResponses'), :url) = true)
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<String> findRemovedSourceUrls(String url, String origin);
+
 	@Modifying
 	@Transactional
 	@Query("""
