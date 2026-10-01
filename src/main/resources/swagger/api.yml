@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.3.6
+  version: 1.3.7
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -2697,6 +2697,12 @@ components:
             type: number
           example:
             'plugin/comment': 3
+        regen:
+          type: boolean
+          description: Metadata for this Ref is queued for regeneration.
+        cascade:
+          type: boolean
+          description: Source metadata for this Ref is queued for a deferred cascade update.
     RefNode:
       allOf:
         - $ref: '#/components/schemas/Ref'
