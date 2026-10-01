@@ -389,23 +389,42 @@ public class MetaIT {
 		meta.sources("", null, existing);
 
 		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
-		assertThat(metadata(URL + "b").getResponses()).isNullOrEmpty();
-		assertThat(metadata(URL + "c").getResponses()).isNullOrEmpty();
+		assertThat(metadata(URL + "b").getResponses()).containsExactly(URL + "child");
+		assertThat(metadata(URL + "c").getResponses()).containsExactly(URL + "child");
 		assertThat(metadata(URL + "d").getResponses()).containsExactly(URL + "child");
 		var saved = refRepository.findOneByUrlAndOrigin(URL + "child", "@sub").orElseThrow();
+		assertThat(saved.getMetadata().isCascade()).isTrue();
 		assertThat(saved.getMetadata().isRegen()).isFalse();
 		assertThat(saved.getMetadata().isObsolete()).isFalse();
 		assertThat(saved.getMetadata().getModified()).isEqualTo("2026-01-02T00:00:00Z");
 		assertThat(saved.getMetadata().getExpandedTags()).containsExactly("+user/tester", "+user");
 		verify(mockMessages).updateMetadata(argThat(r -> r.getUrl().equals(URL + "child") && r.getOrigin().equals("@sub")));
+
+		meta.cascade("", saved);
+
+		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
+		assertThat(metadata(URL + "b").getResponses()).isNullOrEmpty();
+		assertThat(metadata(URL + "c").getResponses()).isNullOrEmpty();
+		assertThat(metadata(URL + "d").getResponses()).containsExactly(URL + "child");
 	}
 
 	@Test
-	void testRegenSyncsAndCascadesInline() {
+	void testRegenSyncsFirstTwoAndFlagsCascade() {
 		for (var s : List.of("a", "b", "c", "d")) saveSource(URL + s);
 		var child = saveChild(List.of("+user/tester", "plugin/comment"), URL + "a", URL + "b", URL + "c", URL + "d");
 
 		meta.regen("", child);
+
+		assertThat(child.getMetadata().isCascade()).isTrue();
+		for (var s : List.of("a", "b")) {
+			assertThat(metadata(URL + s).getResponses()).containsExactly(URL + "child");
+			assertThat(metadata(URL + s).getPlugins()).containsEntry("plugin/comment", 1L);
+		}
+		for (var s : List.of("c", "d")) {
+			assertThat(metadata(URL + s).getResponses()).isNullOrEmpty();
+		}
+
+		meta.cascade("", child);
 
 		for (var s : List.of("a", "b", "c", "d")) {
 			assertThat(metadata(URL + s).getResponses()).containsExactly(URL + "child");
@@ -419,7 +438,9 @@ public class MetaIT {
 		var child = saveChild(List.of("+user/tester", "plugin/comment"), URL + "a", URL + "b", URL + "c");
 
 		meta.regen("", child);
+		meta.cascade("", child);
 		meta.regen("", child);
+		meta.cascade("", child);
 
 		for (var s : List.of("a", "b", "c")) {
 			assertThat(metadata(URL + s).getResponses()).containsExactly(URL + "child");
@@ -428,14 +449,19 @@ public class MetaIT {
 	}
 
 	@Test
-	void testRegenCleansUncitedSources() {
+	void testRegenCleansUncitedSourcesOnCascade() {
 		saveSource(URL + "a");
 		saveSource(URL + "x", URL + "child");
 		var child = saveChild(URL + "a");
 
 		meta.regen("", child);
 
+		assertThat(child.getMetadata().isCascade()).isTrue();
 		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
+		assertThat(metadata(URL + "x").getResponses()).containsExactly(URL + "child");
+
+		meta.cascade("", child);
+
 		assertThat(metadata(URL + "x").getResponses()).isNullOrEmpty();
 	}
 
