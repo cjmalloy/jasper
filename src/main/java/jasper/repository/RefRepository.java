@@ -104,32 +104,35 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM Ref ref
 		WHERE ref.url = :url
 			AND ref.published >= :published
+			AND COALESCE(jsonb_object_field_text(ref.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
 
-	@Query(nativeQuery = true, value = """
-		SELECT *, '' as scheme
-		FROM ref
-		WHERE ref.url != :url
-			AND ref.published <= :published
-			AND jsonb_exists(ref.sources, :url)
-			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		FROM Ref r
+		WHERE r.url != :url
+			AND r.published <= :published
+			AND jsonb_exists(r.sources, :url) = true
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
 
-	@Query(nativeQuery = true, value = """
-		SELECT url FROM ref
-		WHERE ref.url != :url
-			AND jsonb_exists(ref.sources, :url)
-			AND jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
-	@Query(nativeQuery = true, value = """
-		SELECT url FROM ref
-		WHERE ref.url != :url
-			AND jsonb_exists(ref.sources, :url)
-			AND NOT jsonb_exists(COALESCE(ref.metadata->'expandedTags', ref.tags), :tag)
-		    AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = false
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
 	@Query(nativeQuery = true, value = """
@@ -209,13 +212,14 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE ref r
 		SET metadata = jsonb_strip_nulls(jsonb_build_object(
 			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND NOT jsonb_exists(re.metadata->expandedTags, 'internal') = false),
-			'internalResponses', (SELECT jsonb_agg(ire.url) FROM Ref ire WHERE jsonb_exists(ire.sources, r.url) AND jsonb_exists(ire.metadata->expandedTags, 'internal') = true),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE jsonb_exists(re.sources, r.url) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE jsonb_exists(ire.sources, r.url) AND (:origin = '' OR ire.origin = :origin OR ire.origin LIKE concat(:origin, '.%')) AND ire.metadata IS NOT NULL AND COALESCE(ire.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal') = true),
 			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
 				p.tag,
-				(SELECT jsonb_agg(pre.url) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND jsonb_exists(pre.metadata->expandedTags, p.tag) = true)
-			) FROM plugin p WHERE p.generate_metadata = true AND p.origin = :origin)),
-			'obsolete', (SELECT count(*) from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
+				(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE jsonb_exists(pre.sources, r.url) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
+			) FROM plugin p WHERE p.origin = :origin)),
+			'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
+			'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
 		))
 		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)""")
 	int backfillMetadata(String origin, int batchSize);
