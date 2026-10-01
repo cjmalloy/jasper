@@ -133,7 +133,7 @@ public class Meta {
 			.filter(s -> !s.equals(ref.getUrl()))
 			.distinct()
 			.toList();
-		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
 			cascadeSource(rootOrigin, ref, source);
 		}
 		self.cascade(rootOrigin, ref);
@@ -211,7 +211,7 @@ public class Meta {
 			.filter(s -> !s.equals(ref.getUrl()))
 			.distinct()
 			.toList();
-		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
 			var metadata = source.getMetadata();
 			if (metadata == null) {
 				logger.debug("Ref missing metadata: {}", ref.getUrl());
@@ -253,7 +253,7 @@ public class Meta {
 					.limit(SYNC_SOURCES)
 					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
 					.toList();
-			var removed = refRepository.findAll(isUrls(syncRemoved).and(isUnderOrigin(rootOrigin)));
+			var removed = refRepository.findAll(isUrls(syncRemoved).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				removeSource(rootOrigin, existing.getUrl(), source, existing);
 				messages.updateMetadata(source);
