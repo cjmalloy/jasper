@@ -4,6 +4,7 @@ import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
+import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -723,5 +724,63 @@ public class RefRepositoryIT {
 
 		assertThat(refRepository.getRefCascade("")).get()
 			.extracting(Ref::getUrl).isEqualTo("http://example.com/newer");
+	}
+
+	// --- hasNoChildTag ---
+
+	Ref saveTagged(String url, String... tags) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setOrigin("");
+		ref.setTags(List.of(tags));
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testNoDescendents_ExcludesRefsWithChildTag() {
+		saveTagged("http://example.com/parent", "people");
+		saveTagged("http://example.com/child", "people", "people/murray");
+		saveTagged("http://example.com/none", "science");
+
+		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("people")))
+			.extracting(Ref::getUrl)
+			.containsExactlyInAnyOrder("http://example.com/parent", "http://example.com/none");
+	}
+
+	@Test
+	void testNoDescendents_KeepsParentTagItself() {
+		saveTagged("http://example.com/parent", "people");
+
+		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("people")))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/parent");
+	}
+
+	@Test
+	void testNoDescendents_DoesNotMatchPrefixOfOtherTag() {
+		// "peoples/x" is not a descendant of "people"
+		saveTagged("http://example.com/other", "peoples/x");
+
+		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("people")))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/other");
+	}
+
+	@Test
+	void testNoDescendents_PrivateTagUnderscoreIsLiteral() {
+		// Unescaped, "_secret/" would match "xsecret/" because _ is a LIKE wildcard
+		saveTagged("http://example.com/wildcard", "xsecret/a");
+		saveTagged("http://example.com/child", "_secret", "_secret/a");
+
+		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("_secret")))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/wildcard");
+	}
+
+	@Test
+	void testNoDescendents_NestedDescendant() {
+		saveTagged("http://example.com/deep", "people/murray/anne");
+
+		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("people"))).isEmpty();
 	}
 }
