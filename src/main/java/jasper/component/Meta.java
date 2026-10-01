@@ -6,7 +6,6 @@ import jasper.domain.Ref;
 import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
 import jasper.repository.RefRepositoryCustom;
-import jasper.repository.spec.OriginSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +20,6 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
-import static jasper.repository.spec.RefSpec.hasInternalResponse;
-import static jasper.repository.spec.RefSpec.hasResponse;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
@@ -129,15 +126,7 @@ public class Meta {
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
-		var cleanupSources = refRepository.findAll(OriginSpec.<Ref>isUnderOrigin(rootOrigin)
-			.and(hasResponse(ref.getUrl()).or(hasInternalResponse(ref.getUrl()))));
-		for (var source : cleanupSources) {
-			if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
-				ref(rootOrigin, source);
-			} else {
-				removeSource(rootOrigin, source, ref);
-			}
-		}
+		cleanupSources(rootOrigin, ref.getUrl(), ref);
 	}
 
 	@Transactional
@@ -178,83 +167,84 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
-		var cascade = false;
-		if (ref != null) {
-			// Creating or updating (not deleting)
-			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
-			if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
-				cascade = true;
-			}
-
-			// Update sources
-			var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
-				.stream()
-				.limit(SYNC_SOURCES)
-				.filter(s -> !s.equals(ref.getUrl()))
-				.distinct()
-				.toList();
-			if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
-				var metadata = source.getMetadata();
-				if (metadata == null) {
-					logger.debug("Ref missing metadata: {}", ref.getUrl());
-					metadata = Metadata
-						.builder()
-						.responses(new ArrayList<>())
-						.internalResponses(new ArrayList<>())
-						.plugins(new HashMap<>())
-						.build();
-				}
-				if (ref.hasTag("internal")) {
-					metadata.addInternalResponse(ref.getUrl());
-				} else {
-					metadata.addResponse(ref.getUrl());
-				}
-				if (existing != null) {
-					metadata.removePlugins(existing.getExpandedTags().stream()
-							.filter(tag -> matchesTemplate("plugin", tag))
-							.toList(),
-						ref.getUrl());
-				}
-				metadata.addPlugins(ref.getExpandedTags().stream()
-					.filter(tag -> matchesTemplate("plugin", tag))
-					.toList(),
-					ref.getUrl());
-				source.setMetadata(metadata);
-				try {
-					refRepository.save(source);
-					messages.updateMetadata(source);
-				} catch (DataAccessException e) {
-					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
-				}
-			}
-		} else {
+		if (ref == null) {
 			// Deleting
 			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
 			if (!maybeLatest.isEmpty()) {
-				var latest = maybeLatest.getContent().get(0);
-				if (latest.getMetadata() != null) {
-					latest.getMetadata().setObsolete(false);
-					refRepository.save(latest);
-					messages.updateMetadata(latest);
-				}
+				// Deleting make a shadowed Ref visible
+				var latest = maybeLatest.getContent().getFirst();
+				ref(rootOrigin, latest);
+				sources(rootOrigin, latest, null);
+				refRepository.save(latest);
+				messages.updateMetadata(latest);
+			} else {
+				cleanupSources(rootOrigin, existing.getUrl(), null);
+			}
+			return;
+		}
+
+		// Creating or updating (not deleting)
+		var cascade = false;
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+			cascade = true;
+		}
+
+		// Update sources
+		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
+			.stream()
+			.limit(SYNC_SOURCES)
+			.filter(s -> !s.equals(ref.getUrl()))
+			.distinct()
+			.toList();
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
+			var metadata = source.getMetadata();
+			if (metadata == null) {
+				logger.debug("Ref missing metadata: {}", ref.getUrl());
+				metadata = Metadata
+					.builder()
+					.responses(new ArrayList<>())
+					.internalResponses(new ArrayList<>())
+					.plugins(new HashMap<>())
+					.build();
+			}
+			if (ref.hasTag("internal")) {
+				metadata.addInternalResponse(ref.getUrl());
+			} else {
+				metadata.addResponse(ref.getUrl());
+			}
+			if (existing != null) {
+				metadata.removePlugins(existing.getExpandedTags().stream()
+						.filter(tag -> matchesTemplate("plugin", tag))
+						.toList(),
+					ref.getUrl());
+			}
+			metadata.addPlugins(ref.getExpandedTags().stream()
+				.filter(tag -> matchesTemplate("plugin", tag))
+				.toList(),
+				ref.getUrl());
+			source.setMetadata(metadata);
+			try {
+				refRepository.save(source);
+				messages.updateMetadata(source);
+			} catch (DataAccessException e) {
+				logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 			}
 		}
 
 		if (existing != null && existing.getSources() != null) {
-			// Updating or deleting (not new)
-			var syncRemoved = ref == null
-				? existing.getSources()
-				: existing.getSources()
+			// Updating
+			var syncRemoved = existing.getSources()
 					.stream()
 					.limit(SYNC_SOURCES)
 					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
 					.toList();
 			var removed = refRepository.findAll(isUrls(syncRemoved).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
-				removeSource(rootOrigin, source, existing);
+				removeSource(rootOrigin, existing.getUrl(), source, existing);
 				messages.updateMetadata(source);
 			}
-			if (!cascade && ref != null) {
+			if (!cascade) {
 				var removedSources = existing.getSources()
 					.stream()
 					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
@@ -270,14 +260,28 @@ public class Meta {
 		}
 	}
 
-	private void removeSource(String rootOrigin, Ref source, Ref existing) {
+	private void cleanupSources(String rootOrigin, String url, Ref existing) {
+		try (var stream = refRepository.findRemovedSources(url, rootOrigin)) {
+			stream.forEach(source -> {
+				if (existing != null && existing.getSources() != null && existing.getSources().contains(source.getUrl())) {
+					ref(rootOrigin, source);
+				} else {
+					removeSource(rootOrigin, url, source, existing);
+				}
+			});
+		}
+	}
+
+	private void removeSource(String rootOrigin, String url, Ref source, Ref existing) {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
-		metadata.remove(existing.getUrl());
-		metadata.removePlugins(existing.getExpandedTags().stream()
-				.filter(tag -> matchesTemplate("plugin", tag))
-				.toList(),
-			existing.getUrl());
+		metadata.remove(url);
+		if (existing != null) {
+			metadata.removePlugins(existing.getExpandedTags().stream()
+					.filter(tag -> matchesTemplate("plugin", tag))
+					.toList(),
+				url);
+		}
 		source.setMetadata(metadata);
 		try {
 			refRepository.save(source);
