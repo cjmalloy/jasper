@@ -206,7 +206,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE Ref r
 		SET r.metadata = jsonb_set(r.metadata, '{regen}', cast_to_jsonb('true'), true)
 		WHERE r.metadata IS NOT NULL
-			AND NOT jsonb_object_field_text(r.metadata, 'regen') = 'true'
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'regen'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 

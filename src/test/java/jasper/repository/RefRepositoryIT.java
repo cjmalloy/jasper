@@ -460,6 +460,20 @@ public class RefRepositoryIT {
 		assertThat(result2.get().getUrl()).isEqualTo("http://example.com/origin");
 	}
 
+	@Test
+	void testDropMetadata_MarksRefWithoutRegen() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/ref");
+		ref.setOrigin("");
+		ref.setMetadata(Metadata.builder().build());
+		refRepository.save(ref);
+
+		refRepository.dropMetadata("");
+
+		var updated = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElseThrow();
+		assertThat(updated.getMetadata().isRegen()).isTrue();
+	}
+
 	// --- markCascade ---
 
 	@Test
