@@ -150,6 +150,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	List<String> findAllPluginTagsInResponses(String url, String origin);
 
 	@Query(nativeQuery = true, value = """
+		SELECT t.tag, COUNT(DISTINCT r.url)
+		FROM ref r
+			CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
+		WHERE r.url != :url
+			AND r.sources @> jsonb_build_array(:url)
+			AND t.tag ~ '^[_+]?plugin(/|$)'
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		GROUP BY t.tag
+	""")
+	List<Object[]> countPluginTagsInResponses(String url, String origin);
+
+	@Query(nativeQuery = true, value = """
 		SELECT DISTINCT t.tag
 		FROM ref r
 			CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
