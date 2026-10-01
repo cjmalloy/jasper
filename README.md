@@ -804,9 +804,9 @@ Metadata is never transferred during replication. A simplified version is sent o
 counts for each response type, and user plugin responses for the current user.
 
 When a Ref is created or updated, the metadata of its first two added or removed sources is updated immediately.
-If there are more than two, the Ref itself is marked with the `cascade` flag, and the cascade cron updates the
+If there are more than two, the Ref itself is marked with the `cascade` flag, and the cascade updates the
 remaining sources in the background and sends the metadata updates over websockets. When a Ref is deleted,
-all of its sources are updated immediately. Like backfill, the cascade cron
+all of its sources are updated immediately. Like backfill, the cascade
 runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
 

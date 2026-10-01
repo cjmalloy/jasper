@@ -41,7 +41,9 @@ public class Cascade {
 
 	@ServiceActivator(inputChannel = "refRxChannel")
 	public void handleRefUpdate(Message<RefDto> message) {
-		if (message.getPayload().getMetadata().isCascade()) dirty = true;
+		if (message.getPayload().getMetadata() != null && message.getPayload().getMetadata().isCascade()) {
+			dirty = true;
+		}
 	}
 
 	@Scheduled(fixedDelay = 15, initialDelay = 15, timeUnit = TimeUnit.MINUTES)
