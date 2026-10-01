@@ -4,6 +4,7 @@ import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
+import jasper.repository.filter.TagQuery;
 import jasper.repository.spec.RefSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -782,5 +783,47 @@ public class RefRepositoryIT {
 		saveTagged("http://example.com/deep", "people/murray/anne");
 
 		assertThat(refRepository.findAll(RefSpec.hasNoChildTag("people"))).isEmpty();
+	}
+
+	// --- tag fallback when expandedTags is missing ---
+
+	Ref saveWithoutExpandedTags(String url, String... tags) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setOrigin("");
+		ref.setTags(List.of(tags));
+		ref.setMetadata(null); // no expandedTags → fallback to tags
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testNotTag_IncludesRefsWithoutExpandedTags() {
+		saveWithoutExpandedTags("http://example.com/public", "public");
+		saveWithoutExpandedTags("http://example.com/internal", "internal");
+
+		assertThat(refRepository.findAll(new TagQuery("!internal").refSpec()))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/public");
+	}
+
+	@Test
+	void testTag_FallsBackToTagsWithoutExpandedTags() {
+		saveWithoutExpandedTags("http://example.com/internal", "internal");
+
+		assertThat(refRepository.findAll(new TagQuery("internal").refSpec()))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/internal");
+	}
+
+	@Test
+	void testNotTag_NullTagsAndNoExpandedTags() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/bare");
+		ref.setOrigin("");
+		refRepository.save(ref); // tags and metadata both null
+
+		assertThat(refRepository.findAll(new TagQuery("!internal").refSpec()))
+			.extracting(Ref::getUrl)
+			.containsExactly("http://example.com/bare");
 	}
 }

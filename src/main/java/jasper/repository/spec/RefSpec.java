@@ -191,9 +191,12 @@ public class RefSpec {
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
 		var expanded = cb.function("jsonb_expanded_tags", Object.class, root.get(Ref_.metadata));
 		return cb.or(
-			cb.isTrue(cb.function("jsonb_exists", Boolean.class, expanded, cb.literal(tag))),
+			cb.and(
+				cb.isNotNull(expanded),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, expanded, cb.literal(tag)))),
 			cb.and(
 				cb.isNull(expanded),
+				cb.isNotNull(root.get(Ref_.tags)),
 				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
 	}
 
@@ -215,8 +218,8 @@ public class RefSpec {
 				tagExists(root, cb, tag);
 		} else if (tag.startsWith("_")) {
 			return (root, query, cb) -> cb.or(
-				tagExists(root, cb, tag), cb.or(
-				tagExists(root, cb, "+" + publicTag(tag))),
+				tagExists(root, cb, tag),
+				tagExists(root, cb, "+" + publicTag(tag)),
 				tagExists(root, cb, publicTag(tag)));
 		} else {
 			// Protected tag
