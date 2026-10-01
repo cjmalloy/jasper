@@ -162,7 +162,6 @@ public class Ref implements HasTags {
 	@JsonIgnore
 	public Ref addTag(String tag) {
 		if (isBlank(tag)) return this;
-		if (isBlank(tag)) return this;
 		if (tags == null) {
 			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
@@ -181,6 +180,14 @@ public class Ref implements HasTags {
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;
 		for (var t : toAdd) addTag(t);
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref addSource(String source) {
+		if (isBlank(source)) return this;
+		if (sources == null) sources = new ArrayList<>();
+		sources.add(source);
 		return this;
 	}
 
