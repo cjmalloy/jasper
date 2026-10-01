@@ -68,9 +68,15 @@ public class Cascade {
 			if (ref == null) return;
 			logger.trace("{} Cascading response metadata for ref ({}) {}: {}",
 				origin, ref.getOrigin(), ref.getTitle(), ref.getUrl());
-			meta.cascade(origin, ref);
-			if (refRepository.clearCascade(ref.getUrl(), ref.getOrigin(), ref.getModified()) == 0) {
-				logger.debug("{} Ref changed while cascading, retrying: {}", origin, ref.getUrl());
+			try {
+				meta.cascade(origin, ref);
+			} catch (Exception e) {
+				logger.error("{} Error: Cascading response metadata for ref ({}) {}: {}",
+					origin, ref.getOrigin(), ref.getTitle(), ref.getUrl(), e);
+			} finally {
+				if (refRepository.clearCascade(ref.getUrl(), ref.getOrigin(), ref.getModified()) == 0) {
+					logger.debug("{} Ref changed while cascading, retrying: {}", origin, ref.getUrl());
+				}
 			}
 		}
 	}
