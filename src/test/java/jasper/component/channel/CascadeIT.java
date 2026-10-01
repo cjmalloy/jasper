@@ -42,14 +42,14 @@ public class CascadeIT {
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
-		Cascade target = getTargetObject(cascade);
+		Meta target = getTargetObject(meta);
 		messages = (Messages) getField(target, "messages");
 		setField(target, "messages", mockMessages = mock(Messages.class));
 	}
 
 	@AfterEach
 	void cleanup() {
-		Cascade target = getTargetObject(cascade);
+		Meta target = getTargetObject(meta);
 		setField(target, "messages", messages);
 		refRepository.deleteAll();
 	}
@@ -61,7 +61,6 @@ public class CascadeIT {
 		source.setTags(List.of("+user/tester"));
 		source.setMetadata(Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
-			.obsolete(true)
 			.build());
 		return refRepository.save(source);
 	}
@@ -77,14 +76,18 @@ public class CascadeIT {
 	}
 
 	@Test
-	void testSourcesAreUpdatedSynchronouslyWithoutCascadeWork() {
+	void testRemainingSourcesAreUpdatedOnCascade() {
 		saveSource(URL + "a");
 		saveSource(URL + "b");
 		saveSource(URL + "c");
 		saveSource(URL + "d");
 		var child = saveChild(URL + "a", URL + "b", URL + "c", URL + "d");
 		meta.sources("", child, null);
-		assertThat(refRepository.getRefCascade("")).isEmpty();
+		assertThat(refRepository.getRefCascade("")).isPresent();
+		for (var url : List.of(URL + "c", URL + "d")) {
+			assertThat(refRepository.findOneByUrlAndOrigin(url, "").orElseThrow()
+				.getMetadata().getResponses()).isNullOrEmpty();
+		}
 
 		cascade.cascadeOrigin("");
 
@@ -92,7 +95,6 @@ public class CascadeIT {
 			var source = refRepository.findOneByUrlAndOrigin(url, "").orElseThrow();
 			assertThat(source.getMetadata().getResponses()).containsExactly(URL + "child");
 			assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
-			assertThat(source.getMetadata().isObsolete()).isTrue();
 		}
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "child", "").orElseThrow()
 			.getMetadata().isCascade()).isFalse();
