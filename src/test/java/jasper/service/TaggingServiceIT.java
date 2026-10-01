@@ -362,8 +362,8 @@ public class TaggingServiceIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
 		assertThat(fetched.getPlugins().get("plugin/test").get("color").asText())
 			.isEqualTo("red");
-		assertThat(fetched.getPlugins().get("plugin/untouched").isNull())
-			.isTrue();
+		assertThat(fetched.getPlugins().has("plugin/untouched"))
+			.isFalse();
 	}
 
 	@Test
@@ -720,6 +720,59 @@ public class TaggingServiceIT {
 		// Plugin data should not be set if plugin has no defaults
 		if (fetched.getPlugins() != null) {
 			assertThat(fetched.getPlugins().has("plugin/nonexistent"))
+				.isFalse();
+		}
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithSchemalessPluginNullDefaults() {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setDefaults(objectMapper.nullNode());
+		pluginRepository.save(plugin);
+
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+		assertThat(fetched.hasPlugin("plugin/test"))
+			.isFalse();
+		if (fetched.getPlugins() != null) {
+			assertThat(fetched.getPlugins().has("plugin/test"))
+				.isFalse();
+		}
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchAddingNullToSchemalessPlugin() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test", "value": null}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+		if (fetched.getPlugins() != null) {
+			assertThat(fetched.getPlugins().has("plugin/test"))
 				.isFalse();
 		}
 	}

@@ -528,6 +528,27 @@ public class ValidateRefIT {
 	}
 
 	@Test
+	void testValidateRefWithSchemalessPluginNullData() throws IOException {
+		var mapper = new ObjectMapper();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": null
+		}"""));
+
+		validate.ref("", ref, false);
+
+		assertThat(ref.getPlugins().has("plugin/test"))
+			.isFalse();
+	}
+
+	@Test
 	void testValidateRefWithPluginDefaults() throws IOException {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");

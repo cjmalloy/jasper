@@ -159,6 +159,7 @@ public class TaggingService {
 			if (newTag) {
 				configs.getPlugin(tag, auth.getOrigin())
 					.map(Plugin::getDefaults)
+					.filter(defaults -> !defaults.isNull())
 					.ifPresent(defaults -> ref.setPlugin(tag, defaults));
 			}
 		}
@@ -217,7 +218,9 @@ public class TaggingService {
 			.filter(plugin -> plugin.getSchema() != null)
 			.ifPresent(plugin -> {
 				var schema = plugin.getSchema();
-				plugins.set(tag, pluginPlaceholder(schema, schema, new HashSet<>()));
+				var placeholder = pluginPlaceholder(schema, schema, new HashSet<>());
+				if (placeholder == null) return;
+				plugins.set(tag, placeholder);
 				initialized.add(tag);
 			});
 	}
@@ -229,6 +232,6 @@ public class TaggingService {
 		}
 		var ref = schema.path("ref").asText();
 		if (!ref.isEmpty() && refs.add(ref)) return pluginPlaceholder(root.path("definitions").path(ref), root, refs);
-		return objectMapper.nullNode();
+		return null;
 	}
 }

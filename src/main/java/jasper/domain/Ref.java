@@ -206,7 +206,9 @@ public class Ref implements HasTags {
 		if (toAdd == null || from == null) return this;
 		for (var t : toAdd) {
 			if (initialized.contains(t) && !isTargetedByPatch(patchNode, t)) continue;
-			if (from.has(t)) {
+			if (!from.hasNonNull(t)) {
+				if (plugins != null) plugins.remove(t);
+			} else {
 				if (plugins == null) plugins = om().createObjectNode();
 				plugins.set(t, from.get(t).deepCopy());
 			}
@@ -240,21 +242,21 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
-		if (jsonNode == null) {
+		JsonNode node = jsonNode == null ? null : om().convertValue(jsonNode, JsonNode.class);
+		if (node == null || node.isNull()) {
 			if (plugins != null) plugins.remove(tag);
 			return this;
 		}
 		if (plugins == null) plugins = om().createObjectNode();
 		addTag(tag);
-		plugins.set(tag, om().convertValue(jsonNode, JsonNode.class));
+		plugins.set(tag, node);
 		return this;
 	}
 
 	@JsonIgnore
 	public boolean hasPlugin(String tag) {
 		if (plugins == null) return false;
-		if (!plugins.has(tag)) return false;
-		return plugins.get(tag) != null;
+		return plugins.hasNonNull(tag);
 	}
 
 	@JsonIgnore
