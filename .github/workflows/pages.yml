@@ -85,7 +85,7 @@ jobs:
               printf '{\n  "schemaVersion": 1,\n  "label": "coverage",\n  "message": "%s%%",\n  "color": "%s"\n}\n' "$LINE_PCT" "$BADGE_COLOR" > _site/reports/latest-junit/coverage-badge.json
             fi
           fi
-          latest_gatling=$(ls -dv _site/reports/gatling-reports-master-* 2>/dev/null | tail -1)
+          latest_gatling=$(ls -dv _site/reports/gatling-reports-postgres-g1gc-master-* 2>/dev/null | tail -1)
           if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
