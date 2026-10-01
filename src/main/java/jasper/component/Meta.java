@@ -123,8 +123,9 @@ public class Meta {
 		ref.getMetadata().setModified(originalDate);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
-		ref.getMetadata().setCascade(true);
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		ref.getMetadata().setCascade(true);
+		sources(rootOrigin, ref, null);
 	}
 
 	@Transactional
