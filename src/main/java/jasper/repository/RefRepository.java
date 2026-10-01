@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Repository
 @Transactional(readOnly = true)
@@ -104,6 +105,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		FROM Ref ref
 		WHERE ref.url = :url
 			AND ref.published >= :published
+			AND jsonb_exists(COALESCE(jsonb_object_field(ref.metadata, 'expandedTags'), ref.tags, cast_to_jsonb('[]')), 'internal') = false
 			AND COALESCE(jsonb_object_field_text(ref.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllPublishedByUrlAndPublishedGreaterThanEqual(String url, String origin, Instant published);
@@ -113,6 +115,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND r.published <= :published
 			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'internal') = false
 			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<Ref> findAllResponsesPublishedBeforeThanEqual(String url, String origin, Instant published);
@@ -122,6 +125,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithTag(String url, String origin, String tag);
 
@@ -130,8 +134,40 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = false
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
+
+	@Transactional
+	@Query("""
+		SELECT r FROM Ref r
+		WHERE r.url != :url
+			AND NOT EXISTS (
+				SELECT 1 FROM Ref s
+				WHERE s.url = :url
+					AND jsonb_exists(s.sources, r.url) = true
+					AND COALESCE(jsonb_object_field_text(s.metadata, 'obsolete'), 'false') != 'true'
+					AND (:origin = '' OR s.origin = :origin OR s.origin LIKE concat(:origin, '.%')))
+			AND (jsonb_exists(jsonb_object_field(r.metadata, 'responses'), :url) = true
+					OR jsonb_exists(jsonb_object_field(r.metadata, 'internalResponses'), :url) = true)
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	Stream<Ref> findRemovedSources(String url, String origin);
+
+	@Query("""
+		SELECT r.url FROM Ref r
+		WHERE r.url != :url
+			AND NOT EXISTS (
+				SELECT 1 FROM Ref s
+				WHERE s.url = :url
+					AND jsonb_exists(s.sources, r.url) = true
+					AND COALESCE(jsonb_object_field_text(s.metadata, 'obsolete'), 'false') != 'true'
+					AND (:origin = '' OR s.origin = :origin OR s.origin LIKE concat(:origin, '.%')))
+			AND (jsonb_exists(jsonb_object_field(r.metadata, 'responses'), :url) = true
+					OR jsonb_exists(jsonb_object_field(r.metadata, 'internalResponses'), :url) = true)
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<String> findRemovedSourceUrls(String url, String origin);
 
 	@Modifying
 	@Transactional
@@ -173,6 +209,46 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND NOT jsonb_object_field_text(r.metadata, 'regen') = 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
+
+	// Latest wins: metadata is server-generated and recomputed by cascade/regen.
+	// Concurrent delta writes (addResponse/removePlugins on a stale copy) can lose
+	// an update; the next cascade/regen recompute fixes it.
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = :metadata
+		WHERE r.url = :url
+			AND r.origin = :origin""")
+	int updateMetadata(String url, String origin, Metadata metadata);
+
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(COALESCE(r.metadata, cast_to_jsonb('{}')), '{cascade}', cast_to_jsonb('true'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin""")
+	int markCascade(String url, String origin);
+
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{cascade}', cast_to_jsonb('false'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND r.modified = :modified
+			AND r.metadata IS NOT NULL""")
+	int clearCascade(String url, String origin, Instant modified);
+
+	@Query("""
+		FROM Ref r
+		WHERE jsonb_object_field_text(r.metadata, 'cascade') = 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+		ORDER BY r.modified DESC
+		FETCH FIRST 1 ROW ONLY""")
+	Optional<Ref> getRefCascade(String origin);
 
 	@Query("""
 		FROM Ref r
