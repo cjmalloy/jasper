@@ -63,7 +63,6 @@ public class CascadeIT {
 		setField(target, "messages", mockMessages = mock(Messages.class));
 		Cascade cascadeTarget = getTargetObject(cascade);
 		configs = (ConfigCache) getField(cascadeTarget, "configs");
-		setScriptSelectors("+plugin/cascade");
 		cascadeBatchSize = props.getCascadeBatchSize();
 		cascade.dirty = false;
 	}
