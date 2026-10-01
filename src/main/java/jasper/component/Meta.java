@@ -116,6 +116,7 @@ public class Meta {
 		return result;
 	}
 
+	@Transactional
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
@@ -124,8 +125,16 @@ public class Meta {
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
-		ref.getMetadata().setCascade(true);
-		sources(rootOrigin, ref, null);
+		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
+			.stream()
+			.limit(SYNC_SOURCES)
+			.filter(s -> !s.equals(ref.getUrl()))
+			.distinct()
+			.toList();
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
+			cascadeSource(rootOrigin, ref, source);
+		}
+		cascade(rootOrigin, ref);
 	}
 
 	@Transactional
