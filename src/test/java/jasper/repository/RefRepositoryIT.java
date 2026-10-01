@@ -516,6 +516,61 @@ public class RefRepositoryIT {
 			.getMetadata().isCascade()).isFalse();
 	}
 
+	// --- updateMetadata ---
+
+	@Test
+	void testUpdateMetadata_OnlyChangesMetadata() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/ref");
+		ref.setTitle("Title");
+		ref.setComment("Comment");
+		ref.setTags(List.of("public", "+user/tester"));
+		ref.setSources(List.of("http://example.com/source"));
+		ref.setPlugins(om().createObjectNode()
+			.set("+plugin/test", om().createObjectNode().put("value", 1)));
+		ref.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		ref.setModified(Instant.parse("2025-02-01T00:00:00Z"));
+		ref.setMetadata(Metadata.builder().modified("2025-02-01T00:00:00Z").build());
+		refRepository.save(ref);
+		var before = refRepository.findOneByUrlAndOrigin("http://example.com/ref", "").orElseThrow();
+
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "", Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.responses(new ArrayList<>(List.of("http://example.com/response")))
+			.cascade(true)
+			.build())).isEqualTo(1);
+
+		var after = refRepository.findOneByUrlAndOrigin("http://example.com/ref", "").orElseThrow();
+		assertThat(after.getMetadata().getModified()).isEqualTo("2026-01-01T00:00:00Z");
+		assertThat(after.getMetadata().getResponses()).containsExactly("http://example.com/response");
+		assertThat(after.getMetadata().isCascade()).isTrue();
+		assertThat(after.getTitle()).isEqualTo(before.getTitle());
+		assertThat(after.getComment()).isEqualTo(before.getComment());
+		assertThat(after.getTags()).isEqualTo(before.getTags());
+		assertThat(after.getSources()).isEqualTo(before.getSources());
+		assertThat(after.getPlugins()).isEqualTo(before.getPlugins());
+		assertThat(after.getPublished()).isEqualTo(before.getPublished());
+		assertThat(after.getModified()).isEqualTo(before.getModified());
+	}
+
+	@Test
+	void testUpdateMetadata_FiltersByUrlAndOrigin() {
+		for (var origin : List.of("@test", "@test.sub")) {
+			var ref = new Ref();
+			ref.setUrl("http://example.com/ref");
+			ref.setOrigin(origin);
+			ref.setMetadata(Metadata.builder().build());
+			refRepository.save(ref);
+		}
+
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "@test", Metadata.builder().cascade(true).build())).isEqualTo(1);
+
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/ref", "@test").orElseThrow()
+			.getMetadata().isCascade()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/ref", "@test.sub").orElseThrow()
+			.getMetadata().isCascade()).isFalse();
+	}
+
 	// --- findRemovedSources ---
 
 	static final String CHILD = "http://example.com/child";

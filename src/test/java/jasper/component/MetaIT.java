@@ -1,6 +1,7 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.component.channel.Cascade;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -32,6 +33,9 @@ public class MetaIT {
 
 	@Autowired
 	Meta meta;
+
+	@Autowired
+	Cascade cascade;
 
 	@Autowired
 	RefRepository refRepository;
@@ -198,7 +202,7 @@ public class MetaIT {
 	}
 
 	void runCascade() {
-		meta.cascade("", refRepository.getRefCascade("").orElseThrow());
+		cascade.cascadeRef("", refRepository.getRefCascade("").orElseThrow());
 	}
 
 	@Test
@@ -400,7 +404,7 @@ public class MetaIT {
 		assertThat(saved.getMetadata().getExpandedTags()).containsExactly("+user/tester", "+user");
 		verify(mockMessages).updateMetadata(argThat(r -> r.getUrl().equals(URL + "child") && r.getOrigin().equals("@sub")));
 
-		meta.cascade("", saved);
+		cascade.cascadeRef("", saved);
 
 		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
 		assertThat(metadata(URL + "b").getResponses()).isNullOrEmpty();
@@ -424,7 +428,7 @@ public class MetaIT {
 			assertThat(metadata(URL + s).getResponses()).isNullOrEmpty();
 		}
 
-		meta.cascade("", child);
+		cascade.cascadeRef("", child);
 
 		for (var s : List.of("a", "b", "c", "d")) {
 			assertThat(metadata(URL + s).getResponses()).containsExactly(URL + "child");
@@ -438,9 +442,9 @@ public class MetaIT {
 		var child = saveChild(List.of("+user/tester", "plugin/comment"), URL + "a", URL + "b", URL + "c");
 
 		meta.regen("", child);
-		meta.cascade("", child);
+		cascade.cascadeRef("", child);
 		meta.regen("", child);
-		meta.cascade("", child);
+		cascade.cascadeRef("", child);
 
 		for (var s : List.of("a", "b", "c")) {
 			assertThat(metadata(URL + s).getResponses()).containsExactly(URL + "child");
@@ -460,7 +464,7 @@ public class MetaIT {
 		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
 		assertThat(metadata(URL + "x").getResponses()).containsExactly(URL + "child");
 
-		meta.cascade("", child);
+		cascade.cascadeRef("", child);
 
 		assertThat(metadata(URL + "x").getResponses()).isNullOrEmpty();
 	}

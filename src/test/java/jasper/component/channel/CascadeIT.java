@@ -27,7 +27,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.util.AopTestUtils.getTargetObject;
@@ -74,7 +76,6 @@ public class CascadeIT {
 		setField(target, "messages", messages);
 		Cascade cascadeTarget = getTargetObject(cascade);
 		setField(cascadeTarget, "configs", configs);
-		setField(cascadeTarget, "meta", meta);
 		props.setCascadeBatchSize(cascadeBatchSize);
 		refRepository.deleteAll();
 	}
@@ -271,38 +272,30 @@ public class CascadeIT {
 	void testCascadeFailureClearsFlag() {
 		saveFlagged(URL + "fail");
 		saveFlagged(URL + "ok");
-		var mockMeta = mock(Meta.class);
-		doAnswer(invocation -> {
-			Ref ref = invocation.getArgument(1);
-			if (ref.getUrl().equals(URL + "fail")) throw new RuntimeException("Test failure");
-			meta.cascade(invocation.getArgument(0), ref);
-			return null;
-		}).when(mockMeta).cascade(any(), any());
-		Cascade target = getTargetObject(cascade);
-		setField(target, "meta", mockMeta);
+		Cascade spy = spy((Cascade) getTargetObject(cascade));
+		doThrow(new RuntimeException("Test failure"))
+			.when(spy).cascadeRef(any(), argThat(r -> r.getUrl().equals(URL + "fail")));
 
-		assertThatCode(() -> cascade.cascadeOrigin("")).doesNotThrowAnyException();
+		assertThatCode(() -> spy.cascadeOrigin("")).doesNotThrowAnyException();
 
-		verify(mockMeta).cascade(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "fail")));
-		verify(mockMeta).cascade(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "ok")));
+		verify(spy).cascadeRef(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "fail")));
+		verify(spy).cascadeRef(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "ok")));
 		assertThat(countFlagged()).isZero();
 	}
 
 	@Test
 	void testCascadeRefModifiedDuringCascadeStaysFlagged() {
 		saveFlagged(URL + "child");
-		var mockMeta = mock(Meta.class);
+		Cascade spy = spy((Cascade) getTargetObject(cascade));
 		doAnswer(invocation -> {
 			var ref = refRepository.findOneByUrlAndOrigin(URL + "child", "").orElseThrow();
 			ref.setModified(ref.getModified().plusSeconds(60));
 			refRepository.save(ref);
 			return null;
-		}).when(mockMeta).cascade(any(), any());
-		Cascade target = getTargetObject(cascade);
-		setField(target, "meta", mockMeta);
+		}).when(spy).cascadeRef(any(), any());
 		props.setCascadeBatchSize(1);
 
-		cascade.cascadeOrigin("");
+		spy.cascadeOrigin("");
 
 		assertThat(refRepository.getRefCascade("")).isPresent();
 	}
