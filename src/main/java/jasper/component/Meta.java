@@ -119,14 +119,12 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
-		var cascade = ref.getMetadata() != null && ref.getMetadata().isCascade();
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(originalDate);
-		ref.getMetadata().setCascade(cascade);
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
+		ref.getMetadata().setCascade(true);
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
-		cleanupSources(rootOrigin, ref.getUrl(), ref);
 	}
 
 	@Transactional
@@ -178,7 +176,9 @@ public class Meta {
 				refRepository.save(latest);
 				messages.updateMetadata(latest);
 			} else {
-				cleanupSources(rootOrigin, existing.getUrl(), null);
+				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
+					stream.forEach(source -> removeSource(rootOrigin, existing.getUrl(), source, existing));
+				}
 			}
 			return;
 		}
@@ -257,18 +257,6 @@ public class Meta {
 		if (cascade) {
 			ref.getMetadata().setCascade(true);
 			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
-		}
-	}
-
-	private void cleanupSources(String rootOrigin, String url, Ref existing) {
-		try (var stream = refRepository.findRemovedSources(url, rootOrigin)) {
-			stream.forEach(source -> {
-				if (existing != null && existing.getSources() != null && existing.getSources().contains(source.getUrl())) {
-					ref(rootOrigin, source);
-				} else {
-					removeSource(rootOrigin, url, source, existing);
-				}
-			});
 		}
 	}
 
