@@ -206,7 +206,10 @@ public class Ref implements HasTags {
 		if (toAdd == null || from == null) return this;
 		for (var t : toAdd) {
 			if (initialized.contains(t) && !isTargetedByPatch(patchNode, t)) continue;
-			if (from.has(t)) setPlugin(t, from.get(t));
+			if (from.has(t)) {
+				if (plugins == null) plugins = om().createObjectNode();
+				plugins.set(t, from.get(t).deepCopy());
+			}
 		}
 		return this;
 	}
