@@ -806,8 +806,8 @@ counts for each response type, and user plugin responses for the current user.
 When a Ref is created or updated, the metadata of the first two entries in its sources list is updated immediately,
 along with any of the first two entries in its previous sources list that were removed. If the Ref has more than two
 sources, or more removed sources remain, the Ref itself is marked with the `cascade` flag, and the cascade updates the
-remaining sources in the background and sends the metadata updates over websockets. When a Ref is deleted,
-all of its sources are updated immediately. Like backfill, the cascade
+remaining sources in the background and sends the metadata updates over websockets. When a Ref is deleted without revealing a shadowed version,
+all of its sources are updated immediately; otherwise the revealed version uses the same two-source/cascade process. Like backfill, the cascade
 runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
 
