@@ -59,6 +59,9 @@ public class Validate {
 	@Autowired
 	ConfigCache configs;
 
+	@Autowired
+	PluginData pluginData;
+
 	@Timed("jasper.validate")
 	public void ref(String rootOrigin, Ref ref) {
 		ref(rootOrigin, ref, false);
@@ -116,7 +119,7 @@ public class Validate {
 			.stream()
 			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
-			.reduce(null, this::merge);
+			.reduce(null, pluginData::merge);
 		if (ext.getConfig() == null) {
 			ext.setConfig(mergedDefaults);
 			stripOnError = true;
@@ -125,7 +128,7 @@ public class Validate {
 			.stream()
 			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
-			.reduce(null, this::merge);
+			.reduce(null, pluginData::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
@@ -173,7 +176,7 @@ public class Validate {
 		return templates
 			.stream()
 			.map(TemplateDto::getDefaults)
-			.reduce(null, this::merge);
+			.reduce(null, pluginData::merge);
 	}
 
 	private void template(String rootOrigin, Schema schema, String tag, JsonNode template) {
@@ -223,23 +226,6 @@ public class Validate {
 		}
 	}
 
-	ObjectNode merge(ObjectNode a, ObjectNode b) {
-		if (a == null && b == null) return objectMapper.createObjectNode();
-		if (a == null) return b.deepCopy();
-		if (b == null) return a.deepCopy();
-		if (!a.isObject() || !b.isObject()) return b.deepCopy();
-		b.fieldNames().forEachRemaining(field -> {
-			var aNode = a.get(field);
-			var bNode = b.get(field);
-			if (aNode != null && aNode.isObject() && bNode.isObject()) {
-				merge((ObjectNode) aNode, (ObjectNode) bNode);
-			} else {
-				a.set(field, bNode.deepCopy());
-			}
-		});
-		return a;
-	}
-
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
 		userUrl(ref, tag);
 		var plugin = configs.getPlugin(tag, rootOrigin);
@@ -248,8 +234,8 @@ public class Validate {
 			if (ref.hasPlugin(tag)) {
 				logger.debug("{} Plugin data not allowed: {}", rootOrigin, tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
-				ref.getPlugins().remove(tag);
 			}
+			if (ref.getPlugins() != null) ref.getPlugins().remove(tag);
 			return;
 		}
 		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
@@ -289,18 +275,6 @@ public class Validate {
 		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
 			throw new InvalidPluginUserUrlException(plugin);
 		}
-	}
-
-	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
-		var result = objectMapper.getNodeFactory().objectNode();
-		for (var tag : expandTags(ref.getTags())) {
-			var plugin = configs.getPlugin(tag, rootOrigin);
-			plugin.ifPresent(p -> {
-				if (p.getDefaults() != null && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults());
-			});
-		}
-		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
-		return result;
 	}
 
 	private void plugin(String rootOrigin, Schema schema, String tag, JsonNode plugin) {

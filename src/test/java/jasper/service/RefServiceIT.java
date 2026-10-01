@@ -3,6 +3,7 @@ package jasper.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
@@ -11,6 +12,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -1768,4 +1770,51 @@ public class RefServiceIT {
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
+	Ref refWithSchemaPluginWithoutData() throws JsonProcessingException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setSchema((ObjectNode) new ObjectMapper().readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("+user/tester", "plugin/test")));
+		ingest.create("", ref);
+		return ref;
+	}
+
+	@Test
+	void testPatchNestedAddIntoSchemaPluginWithoutData() throws Exception {
+		var ref = refWithSchemaPluginWithoutData();
+		var mapper = new ObjectMapper();
+
+		refService.patch(URL, "", ref.getModified(), mapper.readValue("""
+			[{"op": "add", "path": "/plugins/plugin~1test/color", "value": "red"}]""", JsonPatch.class));
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getPlugin("plugin/test"))
+			.isEqualTo(mapper.readTree("{\"color\": \"red\"}"));
+	}
+
+	@Test
+	void testPatchAddNullThenNestedAddFails() throws Exception {
+		var ref = refWithSchemaPluginWithoutData();
+		var mapper = new ObjectMapper();
+		var before = refRepository.findOneByUrlAndOrigin(URL, "").get();
+
+		assertThatThrownBy(() -> refService.patch(URL, "", ref.getModified(), mapper.readValue("""
+			[
+				{"op": "add", "path": "/plugins/plugin~1test", "value": null},
+				{"op": "add", "path": "/plugins/plugin~1test/color", "value": "red"}
+			]""", JsonPatch.class)))
+			.isInstanceOf(InvalidPatchException.class);
+
+		var after = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(after.getPlugins()).isEqualTo(before.getPlugins());
+		assertThat(after.getModified()).isEqualTo(before.getModified());
+	}
 }
