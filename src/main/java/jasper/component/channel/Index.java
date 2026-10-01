@@ -67,6 +67,20 @@ public class Index {
 		} else {
 			refRepository.dropAlts();
 		}
+		if (index.isResponses()) {
+			try {
+				refRepository.buildResponses();
+			} catch (Exception ignored) {}
+		} else {
+			refRepository.dropResponses();
+		}
+		if (index.isInternalResponses()) {
+			try {
+				refRepository.buildInternalResponses();
+			} catch (Exception ignored) {}
+		} else {
+			refRepository.dropInternalResponses();
+		}
 		if (index.isFulltext()) {
 			try {
 				refRepository.buildFulltext();
