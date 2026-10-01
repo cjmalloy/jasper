@@ -69,7 +69,7 @@ public class Meta {
 				.stream()
 				.map(tag -> new PluginResponses(
 					tag,
-					refRepository.count(hasSource(ref.getUrl()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
+					refRepository.count(hasSource(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)).and(hasTag(tag)))))
 				.filter(p -> p.count() > 0)
 				.collect(toMap(PluginResponses::tag, PluginResponses::count)))
 			.build()

@@ -141,7 +141,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT DISTINCT t.tag
 		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
+			CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 		WHERE r.url != :url
 			AND r.sources @> jsonb_build_array(:url)
 			AND t.tag ~ '^[_+]?plugin(/|$)'
@@ -152,7 +152,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query(nativeQuery = true, value = """
 		SELECT DISTINCT t.tag
 		FROM ref r
-			CROSS JOIN LATERAL jsonb_array_elements_text(r.metadata->'expandedTags') AS t(tag)
+			CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 		WHERE r.url != :url
 			AND r.sources @> jsonb_build_array(:url)
 			AND t.tag ~ '^[_+]?plugin/user(/|$)'
