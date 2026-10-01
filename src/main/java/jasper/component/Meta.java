@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.persistence.EntityManager;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -12,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,7 +31,6 @@ import static org.springframework.data.domain.Sort.by;
 @Component
 public class Meta {
 	private static final Logger logger = LoggerFactory.getLogger(Meta.class);
-	private static final int SOURCE_BATCH_SIZE = 1000;
 
 	/**
 	 * Number of sources already updated synchronously on cascade-queued Refs.
@@ -46,6 +45,9 @@ public class Meta {
 
 	@Autowired
 	Messages messages;
+
+	@Autowired
+	EntityManager em;
 
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
@@ -136,27 +138,8 @@ public class Meta {
 		ref.getMetadata().setCascade(true);
 	}
 
-	@Transactional
-	@Timed(value = "jasper.meta", histogram = true)
-	public void cascade(String rootOrigin, Ref ref) {
-		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
-			.stream()
-			.skip(SYNC_SOURCES)
-			.filter(s -> !s.equals(ref.getUrl())).distinct().toList();
-		for (var i = 0; i < sources.size(); i += SOURCE_BATCH_SIZE) {
-			var batch = sources.subList(i, Math.min(i + SOURCE_BATCH_SIZE, sources.size()));
-			for (var source : refRepository.findAll(isUrls(batch).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
-				cascadeSource(rootOrigin, ref, source);
-			}
-		}
-		try (var stream = refRepository.findRemovedSources(ref.getUrl(), rootOrigin)) {
-			stream
-				.filter(s -> ref.getSources() == null || !ref.getSources().contains(s.getUrl()))
-				.forEach(source -> cascadeSource(rootOrigin, ref, source));
-		}
-	}
-
-	private void cascadeSource(String rootOrigin, Ref ref, Ref source) {
+	public void cascadeSource(String rootOrigin, Ref ref, Ref source) {
+		detach(source);
 		var originalDate = source.getMetadata() == null ? now().toString() : source.getMetadata().getModified();
 		var regen = source.getMetadata() != null && source.getMetadata().isRegen();
 		var cascade = source.getMetadata() != null && source.getMetadata().isCascade();
@@ -165,7 +148,7 @@ public class Meta {
 		source.getMetadata().setRegen(regen);
 		source.getMetadata().setCascade(cascade);
 		try {
-			refRepository.save(source);
+			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
@@ -180,11 +163,12 @@ public class Meta {
 			if (!maybeLatest.isEmpty()) {
 				// Deleting make a shadowed Ref visible
 				var latest = maybeLatest.getContent().getFirst();
+				detach(latest);
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
 				}
 				regen(rootOrigin, latest);
-				refRepository.save(latest);
+				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getMetadata());
 				messages.updateMetadata(latest);
 			} else {
 				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
@@ -209,6 +193,7 @@ public class Meta {
 			.distinct()
 			.toList();
 		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+			detach(source);
 			var metadata = source.getMetadata();
 			if (metadata == null) {
 				logger.debug("Ref missing metadata: {}", ref.getUrl());
@@ -236,7 +221,7 @@ public class Meta {
 				ref.getUrl());
 			source.setMetadata(metadata);
 			try {
-				refRepository.save(source);
+				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
 				messages.updateMetadata(source);
 			} catch (DataAccessException e) {
 				logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
@@ -273,6 +258,7 @@ public class Meta {
 	private void removeSource(String rootOrigin, String url, Ref source, Ref existing) {
 		var metadata = source.getMetadata();
 		if (metadata == null) return;
+		detach(source);
 		metadata.remove(url);
 		if (existing != null) {
 			metadata.removePlugins(existing.getExpandedTags().stream()
@@ -282,11 +268,18 @@ public class Meta {
 		}
 		source.setMetadata(metadata);
 		try {
-			refRepository.save(source);
+			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
+	}
+
+	/**
+	 * Only metadata is written, so make sure a stale copy of the content is never flushed.
+	 */
+	private void detach(Ref ref) {
+		if (em.contains(ref)) em.detach(ref);
 	}
 }

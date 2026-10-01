@@ -144,7 +144,7 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "");
 		assertThat(parent).isNotEmpty();
-		assertThat(parent.get().getMetadata().getResponses()).isEmpty();
+		assertThat(parent.get().getMetadata().getResponses()).isNullOrEmpty();
 		assertThat(parent.get().getMetadata().getInternalResponses()).containsExactly(URL+2);
 		assertThat(parent.get().getMetadata().getPlugins().get("plugin/comment")).isEqualTo(1);
 	}
@@ -306,13 +306,13 @@ public class MetaIT {
 
 		meta.sources("", child, existing);
 
-		assertThat(metadata(URL + "a").getPlugins()).doesNotContainKey("plugin/comment");
-		assertThat(metadata(URL + "b").getPlugins()).doesNotContainKey("plugin/comment");
+		assertThat(metadata(URL + "a").getPlugins()).isNullOrEmpty();
+		assertThat(metadata(URL + "b").getPlugins()).isNullOrEmpty();
 		assertThat(metadata(URL + "c").getPlugins()).containsEntry("plugin/comment", 1L);
 
 		runCascade();
 
-		assertThat(metadata(URL + "c").getPlugins()).doesNotContainKey("plugin/comment");
+		assertThat(metadata(URL + "c").getPlugins()).isNullOrEmpty();
 		assertThat(metadata(URL + "c").getResponses()).containsExactly(URL + "child");
 	}
 
@@ -373,7 +373,7 @@ public class MetaIT {
 		meta.sources("", null, existing);
 
 		for (var s : List.of("a", "b", "c")) {
-			assertThat(metadata(URL + s).getPlugins()).doesNotContainKeys("plugin/comment", "plugin");
+			assertThat(metadata(URL + s).getPlugins()).isNullOrEmpty();
 		}
 	}
 
