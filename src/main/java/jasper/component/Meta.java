@@ -173,6 +173,7 @@ public class Meta {
 		}
 	}
 
+	@Transactional
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref == null) {
@@ -181,8 +182,10 @@ public class Meta {
 			if (!maybeLatest.isEmpty()) {
 				// Deleting make a shadowed Ref visible
 				var latest = maybeLatest.getContent().getFirst();
-				ref(rootOrigin, latest);
-				sources(rootOrigin, latest, existing);
+				if (latest.getMetadata() != null && existing.getMetadata() != null) {
+					latest.getMetadata().setModified(existing.getMetadata().getModified());
+				}
+				regen(rootOrigin, latest);
 				refRepository.save(latest);
 				messages.updateMetadata(latest);
 			} else {
