@@ -21,4 +21,6 @@ public class MetadataDto implements Serializable {
 	private Map<String, Integer> plugins;
 	private List<String> userUrls;
 	private boolean obsolete;
+	private boolean regen;
+	private boolean cascade;
 }

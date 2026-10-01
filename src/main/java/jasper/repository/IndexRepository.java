@@ -13,6 +13,10 @@ public interface IndexRepository {
 	void buildSources();
 	void dropAlts();
 	void buildAlts();
+	void dropResponses();
+	void buildResponses();
+	void dropInternalResponses();
+	void buildInternalResponses();
 	void dropFulltext();
 	void buildFulltext();
 	void dropPublished();

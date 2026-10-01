@@ -252,10 +252,10 @@ public class UserRepositoryMergeIT {
 	}
 
 	@Test
-	void testFindAllByOriginAndExternalId_JpqlWithJsonbExtractPath() {
-		// This test verifies that the JPQL query using jsonb_extract_path works correctly
+	void testFindAllByOriginAndExternalId_JpqlWithJsonbObjectField() {
+		// This test verifies that the JPQL query using jsonb_object_field works correctly
 		// with the custom PostgreSQLDialect function registration. The query uses:
-		// jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+		// jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId)
 		// which requires both functions to be registered in PostgreSQLDialect.
 
 		var user1 = new User();

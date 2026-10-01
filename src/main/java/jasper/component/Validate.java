@@ -76,6 +76,8 @@ public class Validate {
 		}
 		tags(rootOrigin, ref);
 		plugins(rootOrigin, ref, stripOnError);
+		// Internal Refs may attach anywhere with any published date
+		if (ref.hasTag("internal")) return;
 		responses(rootOrigin, ref, true);
 		sources(rootOrigin, ref, true);
 		responses(rootOrigin, ref, false);
