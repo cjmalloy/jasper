@@ -256,7 +256,6 @@ public class Meta {
 			var removed = refRepository.findAll(isUrls(syncRemoved).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)));
 			for (var source : removed) {
 				removeSource(rootOrigin, existing.getUrl(), source, existing);
-				messages.updateMetadata(source);
 			}
 			if (!cascade) {
 				var removedSources = existing.getSources()
