@@ -41,6 +41,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 			))
 			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
 			""";
+		em.flush();
 		int updated = em.createNativeQuery(sql)
 			.setParameter("origin", origin)
 			.setParameter("batchSize", batchSize)
