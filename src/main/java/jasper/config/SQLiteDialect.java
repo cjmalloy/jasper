@@ -61,15 +61,6 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 			"END)",
 			bool
 		);
-		// jsonb_extract_path: extract a JSON value at a dotted path (used with simple keys)
-		functionRegistry.registerPattern("jsonb_extract_path", "json_extract(?1, '$.' || ?2)", jsonb);
-		functionRegistry.registerPattern("jsonb_extract_path_text",
-			"(CASE " +
-				"WHEN json_type(?1, '$.' || ?2) IN ('true', 'false') " +
-					"THEN json_type(?1, '$.' || ?2) " +
-				"ELSE CAST(json_extract(?1, '$.' || ?2) AS TEXT) " +
-			"END)",
-			string);
 		// jsonb_object_field: get a JSON field by key (equivalent to PostgreSQL's -> operator)
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
 		functionRegistry.registerPattern(
@@ -92,6 +83,8 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// jsonb_set: set a JSON value at a path, converting PostgreSQL path {key} to SQLite $.key
 		// 4-arg version: 4th arg (create_if_missing) is always true in SQLite's json_set, so ignored
 		functionRegistry.registerPattern("jsonb_set", "json_set(?1, '$.' || REPLACE(REPLACE(?2, '{', ''), '}', ''), CASE WHEN ?4 IS NOT NULL THEN ?3 ELSE ?3 END)", jsonb);
+		// jsonb_text: cast JSON to text
+		functionRegistry.registerPattern("jsonb_text", "(?1)", string);
 		// cast_to_jsonb: cast text to JSON
 		functionRegistry.registerPattern("cast_to_jsonb", "json(?1)", jsonb);
 		// jsonb_concat: merge two JSON objects (like PostgreSQL's || operator for objects)
