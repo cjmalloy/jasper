@@ -218,13 +218,17 @@ public class Ref implements HasTags {
 
 	private static boolean isTargetedByPatch(JsonNode patchNode, String tag) {
 		if (!patchNode.isArray()) return patchNode.has(tag);
-		var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+		var path = pluginPointer(tag);
 		for (var operation : patchNode) {
 			if (operation.path("op").asText().equals("test")) continue;
 			var operationPath = operation.path("path").asText();
 			if (operationPath.isEmpty() || operationPath.equals(path) || operationPath.startsWith(path + "/")) return true;
 		}
 		return false;
+	}
+
+	public static String pluginPointer(String tag) {
+		return "/" + tag.replace("~", "~0").replace("/", "~1");
 	}
 
 	@Override

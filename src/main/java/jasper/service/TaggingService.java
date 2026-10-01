@@ -12,6 +12,7 @@ import jasper.component.Ingest;
 import jasper.component.Tagger;
 import jasper.component.Validate;
 import jasper.domain.Plugin;
+import jasper.domain.Ref;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
@@ -29,8 +30,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import static jasper.component.Meta.expandTags;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -172,14 +175,28 @@ public class TaggingService {
 				if (patch instanceof JsonPatch) {
 					var missingPlugins = new HashSet<String>();
 					for (var tag : expandedTags) if (!plugins.hasNonNull(tag)) missingPlugins.add(tag);
+					JsonNode patchedPlugins = plugins;
+					var segment = objectMapper.createArrayNode();
 					for (var operation : patchNode) {
-						initializePlugin(plugins, missingPlugins, operation, initialized);
-						plugins = (ObjectNode) JsonPatch.fromJson(
-							objectMapper.createArrayNode().add(operation)
-						).apply(plugins);
+						var placeholders = pluginPlaceholders(missingPlugins, operation, initialized);
+						if (!placeholders.isEmpty()) {
+							if (!segment.isEmpty()) patchedPlugins = JsonPatch.fromJson(segment).apply(patchedPlugins);
+							segment = objectMapper.createArrayNode();
+							if (patchedPlugins instanceof ObjectNode objectNode) {
+								for (var placeholder : placeholders.entrySet()) {
+									initializePlugin(objectNode, placeholder.getKey(), placeholder.getValue(), initialized);
+								}
+							}
+						}
+						segment.add(operation);
 					}
+					if (!segment.isEmpty()) patchedPlugins = JsonPatch.fromJson(segment).apply(patchedPlugins);
+					if (!(patchedPlugins instanceof ObjectNode)) {
+						throw new JsonPatchException("Plugin patch must produce an object");
+					}
+					plugins = (ObjectNode) patchedPlugins;
 				} else {
-					for (var tag : expandedTags) initializePlugin(plugins, tag, initialized);
+					for (var tag : expandedTags) initializePlugin(plugins, tag, null, initialized);
 					var patchedPlugins = patch.apply(plugins);
 					if (!(patchedPlugins instanceof ObjectNode)) {
 						throw new JsonPatchException("Plugin patch must produce an object");
@@ -199,39 +216,49 @@ public class TaggingService {
 		}
 	}
 
-	private void initializePlugin(ObjectNode plugins, HashSet<String> tags, JsonNode operation, HashSet<String> initialized) {
+	private Map<String, String> pluginPlaceholders(HashSet<String> tags, JsonNode operation, HashSet<String> initialized) {
+		var result = new HashMap<String, String>();
 		var op = operation.path("op").asText();
-		if (!op.equals("add") && !op.equals("copy") && !op.equals("move")) return;
+		if (!op.equals("add") && !op.equals("copy") && !op.equals("move")) return result;
 		for (var tag : tags) {
-			var path = "/" + tag.replace("~", "~0").replace("/", "~1");
+			if (initialized.contains(tag)) continue;
+			var path = Ref.pluginPointer(tag);
 			var operationPath = operation.path("path").asText();
-			var from = operation.path("from").asText();
-			if (operationPath.startsWith(path + "/") && !from.equals(path) && !from.startsWith(path + "/")) {
-				initializePlugin(plugins, tag, initialized);
+			if (!operationPath.startsWith(path + "/")) continue;
+			if (!op.equals("add")) {
+				var from = operation.path("from").asText();
+				if (from.isEmpty() || from.equals(path) || from.startsWith(path + "/")) continue;
 			}
+			var key = operationPath.substring(path.length() + 1);
+			result.put(tag, key.contains("/") ? key.substring(0, key.indexOf("/")) : key);
 		}
+		return result;
 	}
 
-	private void initializePlugin(ObjectNode plugins, String tag, HashSet<String> initialized) {
+	private void initializePlugin(ObjectNode plugins, String tag, String key, HashSet<String> initialized) {
 		if (initialized.contains(tag) || plugins.hasNonNull(tag)) return;
 		configs.getPlugin(tag, auth.getOrigin())
 			.filter(plugin -> plugin.getSchema() != null)
 			.ifPresent(plugin -> {
 				var schema = plugin.getSchema();
-				var placeholder = pluginPlaceholder(schema, schema, new HashSet<>());
+				var placeholder = pluginPlaceholder(schema, schema, key, new HashSet<>());
 				if (placeholder == null) return;
 				plugins.set(tag, placeholder);
 				initialized.add(tag);
 			});
 	}
 
-	private JsonNode pluginPlaceholder(JsonNode schema, ObjectNode root, HashSet<String> refs) {
+	private JsonNode pluginPlaceholder(JsonNode schema, ObjectNode root, String key, HashSet<String> refs) {
+		if (!schema.isObject()) return null;
 		if (schema.has("elements")) return objectMapper.createArrayNode();
 		if (schema.has("properties") || schema.has("optionalProperties") || schema.has("values") || schema.has("discriminator")) {
 			return objectMapper.createObjectNode();
 		}
-		var ref = schema.path("ref").asText();
-		if (!ref.isEmpty() && refs.add(ref)) return pluginPlaceholder(root.path("definitions").path(ref), root, refs);
-		return null;
+		if (schema.has("ref")) {
+			var ref = schema.path("ref").asText();
+			return refs.add(ref) ? pluginPlaceholder(root.path("definitions").path(ref), root, key, refs) : null;
+		}
+		if (key == null || schema.has("type") || schema.has("enum")) return null;
+		return key.equals("-") || key.matches("\\d+") ? objectMapper.createArrayNode() : objectMapper.createObjectNode();
 	}
 }

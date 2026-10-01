@@ -429,6 +429,109 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotExposePlaceholderToRootCopySource() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"value": {}
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "copy", "from": "", "path": "/plugin~1test/value"}]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchReplacingRootWithNonObjectIntermediate() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "replace", "path": "", "value": []},
+			{"op": "replace", "path": "", "value": {"plugin/test": {}}},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchReplacingRootWithNonObject() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var patch = objectMapper.readValue("""
+		[{"op": "replace", "path": "", "value": []}]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchForEmptyFormSchemas() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var objectPlugin = new Plugin();
+		objectPlugin.setTag("plugin/object");
+		objectPlugin.setOrigin("");
+		objectPlugin.setSchema((ObjectNode) objectMapper.readTree("{}"));
+		pluginRepository.save(objectPlugin);
+
+		var arrayPlugin = new Plugin();
+		arrayPlugin.setTag("plugin/array");
+		arrayPlugin.setOrigin("");
+		arrayPlugin.setSchema((ObjectNode) objectMapper.readTree("{\"nullable\": true}"));
+		pluginRepository.save(arrayPlugin);
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1object/color", "value": "red"},
+			{"op": "add", "path": "/plugin~1array/0", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/object", "plugin/array"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/object"))
+			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+		assertThat(fetched.getPlugins().get("plugin/array"))
+			.isEqualTo(objectMapper.readTree("[\"red\"]"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonPatchDoesNotReinitializeRemovedPlugin() throws IOException {
 		refWithTags(URL, "+user/tester");
 
