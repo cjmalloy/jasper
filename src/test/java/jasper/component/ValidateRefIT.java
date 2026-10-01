@@ -527,12 +527,16 @@ public class ValidateRefIT {
 			.isInstanceOf(InvalidPluginException.class);
 	}
 
-	@Test
-	void testValidateRefWithSchemalessPluginNullData() throws IOException {
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	void testValidateRefWithSchemalessPluginNullDefaultsAndNullData(String defaults) throws IOException {
 		var mapper = new ObjectMapper();
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		pluginRepository.save(plugin);
+		if (!defaults.equals("missing")) {
+			var plugin = new Plugin();
+			plugin.setTag("plugin/test");
+			if (defaults.equals("nullNode")) plugin.setDefaults(mapper.nullNode());
+			pluginRepository.save(plugin);
+		}
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setTitle("First");
@@ -545,6 +549,34 @@ public class ValidateRefIT {
 		validate.ref("", ref, false);
 
 		assertThat(ref.getPlugins().has("plugin/test"))
+			.isFalse();
+	}
+
+	@Test
+	void testValidateRefWithSchemaPluginNullDefaultsAndNullData() throws IOException {
+		var mapper = new ObjectMapper();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setDefaults(mapper.nullNode());
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"optionalProperties": {
+				"name": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ref.setTags(Arrays.asList("+user/tester", "plugin/test"));
+		ref.setPlugins((ObjectNode) mapper.readTree("""
+		{
+			"plugin/test": null
+		}"""));
+
+		validate.ref("", ref, false);
+
+		assertThat(ref.hasPlugin("plugin/test"))
 			.isFalse();
 	}
 

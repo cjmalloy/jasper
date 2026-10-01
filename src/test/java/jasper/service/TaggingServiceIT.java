@@ -13,6 +13,8 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -726,31 +728,6 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondWithSchemalessPluginNullDefaults() {
-		refWithTags(URL, "+user/tester");
-
-		var plugin = new Plugin();
-		plugin.setTag("plugin/test");
-		plugin.setOrigin("");
-		plugin.setDefaults(objectMapper.nullNode());
-		pluginRepository.save(plugin);
-
-		taggingService.respond(List.of("plugin/test"), URL, null);
-
-		var responseUrl = "tag:/user/tester?url=" + URL;
-		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
-		assertThat(fetched.getTags())
-			.contains("plugin/test");
-		assertThat(fetched.hasPlugin("plugin/test"))
-			.isFalse();
-		if (fetched.getPlugins() != null) {
-			assertThat(fetched.getPlugins().has("plugin/test"))
-				.isFalse();
-		}
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondWithJsonPatchAddingNullToSchemalessPlugin() throws IOException {
 		refWithTags(URL, "+user/tester");
 
@@ -775,6 +752,150 @@ public class TaggingServiceIT {
 			assertThat(fetched.getPlugins().has("plugin/test"))
 				.isFalse();
 		}
+	}
+
+	void schemalessPlugin(String defaults) {
+		if (defaults.equals("missing")) return;
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		if (defaults.equals("nullNode")) plugin.setDefaults(objectMapper.nullNode());
+		pluginRepository.save(plugin);
+	}
+
+	void assertNoSchemalessPluginData() {
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getTags())
+			.contains("plugin/test");
+		if (fetched.getPlugins() != null) {
+			assertThat(fetched.getPlugins().has("plugin/test"))
+				.isFalse();
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithSchemalessPluginWithoutPatch(String defaults) {
+		refWithTags(URL, "+user/tester");
+		schemalessPlugin(defaults);
+
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		assertNoSchemalessPluginData();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithSchemalessPluginUntouchedByJsonPatch(String defaults) throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemalessPlugin(defaults);
+		var other = new Plugin();
+		other.setTag("plugin/other");
+		other.setOrigin("");
+		other.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(other);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1other/color", "value": "red"}]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test", "plugin/other"), URL, patch);
+
+		assertNoSchemalessPluginData();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithSchemalessPluginUntouchedByJsonMergePatch(String defaults) throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemalessPlugin(defaults);
+		var other = new Plugin();
+		other.setTag("plugin/other");
+		other.setOrigin("");
+		other.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(other);
+
+		var patch = objectMapper.readValue("""
+		{"plugin/other": {"color": "red"}}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test", "plugin/other"), URL, patch);
+
+		assertNoSchemalessPluginData();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonMergePatchSettingSchemalessPluginNull(String defaults) throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemalessPlugin(defaults);
+
+		var patch = objectMapper.readValue("""
+		{"plugin/test": null}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		assertNoSchemalessPluginData();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"missing", "null", "nullNode"})
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondRejectsNestedJsonPatchIntoSchemalessPlugin(String defaults) throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemalessPlugin(defaults);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchForSchemaPluginWithNullDefaults() throws IOException {
+		refWithTags(URL, "+user/tester");
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		plugin.setDefaults(objectMapper.nullNode());
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		pluginRepository.save(plugin);
+
+		var patch = objectMapper.readValue("""
+		[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test").get("color").asText())
+			.isEqualTo("red");
 	}
 
 	@Test
