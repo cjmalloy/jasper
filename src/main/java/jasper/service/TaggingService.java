@@ -236,7 +236,7 @@ public class TaggingService {
 		return result;
 	}
 
-	private boolean touchesPluginRoot(JsonNode operation, String tag) {
+	static boolean touchesPluginRoot(JsonNode operation, String tag) {
 		var op = operation.path("op").asText();
 		if (op.equals("test")) return false;
 		var path = Ref.pluginPointer(tag);

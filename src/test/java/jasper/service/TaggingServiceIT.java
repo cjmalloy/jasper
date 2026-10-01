@@ -1175,4 +1175,62 @@ public class TaggingServiceIT {
 		assertThat(fetched.getPlugins().get("plugin/test"))
 			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
 	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonMergePatchNullRemovesSchemaPlugin() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+		taggingService.respond(List.of("plugin/test"), URL, objectMapper.readValue("""
+		{"plugin/test": {"color": "blue"}}
+		""", JsonMergePatch.class));
+
+		var patch = objectMapper.readValue("""
+		{"plugin/test": null}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getTags()).contains("plugin/test");
+		assertThat(fetched.getPlugins() == null || !fetched.getPlugins().has("plugin/test")).isTrue();
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonMergePatchNullOnMissingSchemaPluginLeavesNoPlaceholder() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		{"plugin/test": null}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getTags()).contains("plugin/test");
+		assertThat(fetched.getPlugins() == null || !fetched.getPlugins().has("plugin/test")).isTrue();
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonMergePatchNestedNullOnMissingSchemaPlugin() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		{"plugin/test": {"color": null}}
+		""", JsonMergePatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		// The patch targets plugin/test, so the merged placeholder is kept as an empty object
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("{}"));
+	}
 }
