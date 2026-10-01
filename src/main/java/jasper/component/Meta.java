@@ -173,7 +173,7 @@ public class Meta {
 				// Deleting make a shadowed Ref visible
 				var latest = maybeLatest.getContent().getFirst();
 				ref(rootOrigin, latest);
-				sources(rootOrigin, latest, null);
+				sources(rootOrigin, latest, existing);
 				refRepository.save(latest);
 				messages.updateMetadata(latest);
 			} else {
