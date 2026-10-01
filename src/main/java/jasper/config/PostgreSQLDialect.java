@@ -23,6 +23,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
 		functionRegistry.registerPattern("jsonb_strip_nulls", "jsonb_strip_nulls(?1)", jsonb);
 		functionRegistry.registerPattern("jsonb_text", "(?1)::text", string);
+		functionRegistry.registerPattern("jsonb_expanded_tags", "(?1)->'expandedTags'", jsonb);
 		functionRegistry.registerPattern("cast_to_jsonb", "?1::jsonb", jsonb);
 		functionRegistry.registerPattern("jsonb_concat", "jsonb_concat(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);

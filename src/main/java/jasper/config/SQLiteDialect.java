@@ -85,6 +85,8 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("jsonb_set", "json_set(?1, '$.' || REPLACE(REPLACE(?2, '{', ''), '}', ''), CASE WHEN ?4 IS NOT NULL THEN ?3 ELSE ?3 END)", jsonb);
 		// jsonb_text: cast JSON to text
 		functionRegistry.registerPattern("jsonb_text", "(?1)", string);
+		// jsonb_expanded_tags: get expanded tags
+		functionRegistry.registerPattern("jsonb_expanded_tags", "json_extract(?1, '$.expandedTags')", jsonb);
 		// cast_to_jsonb: cast text to JSON
 		functionRegistry.registerPattern("cast_to_jsonb", "json(?1)", jsonb);
 		// jsonb_concat: merge two JSON objects (like PostgreSQL's || operator for objects)
