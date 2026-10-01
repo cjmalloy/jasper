@@ -2,8 +2,20 @@ package jasper.config;
 
 import org.hibernate.boot.model.FunctionContributions;
 import org.hibernate.dialect.function.StandardSQLFunction;
+import org.hibernate.metamodel.model.domain.ReturnableType;
+import org.hibernate.query.sqm.function.AbstractSqmSelfRenderingFunctionDescriptor;
+import org.hibernate.query.sqm.function.FunctionKind;
+import org.hibernate.sql.ast.SqlAstNodeRenderingMode;
+import org.hibernate.sql.ast.SqlAstTranslator;
+import org.hibernate.sql.ast.spi.SqlAppender;
+import org.hibernate.sql.ast.tree.SqlAstNode;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.type.StandardBasicTypes;
+
+import java.util.List;
+
+import static org.hibernate.query.sqm.produce.function.StandardArgumentsValidators.exactly;
+import static org.hibernate.query.sqm.produce.function.StandardFunctionReturnTypeResolvers.invariant;
 
 public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 	@Override
@@ -16,8 +28,38 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		var doubleType = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.DOUBLE);
 		var jsonb = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(Object.class, SqlTypes.JSON);
 		functionRegistry.register("age", new StandardSQLFunction("age", StandardBasicTypes.DURATION));
-		functionRegistry.registerPattern("jsonb_exists", "((?1) ?? (?2))", bool);
-		functionRegistry.registerPattern("jsonb_exists_any", "((?1) ??| (?2))", bool);
+		functionRegistry.register("jsonb_exists", new AbstractSqmSelfRenderingFunctionDescriptor(
+			"jsonb_exists",
+			FunctionKind.NORMAL,
+			exactly(2),
+			invariant(bool),
+			null
+		) {
+			@Override
+			public void render(SqlAppender appender, List<? extends SqlAstNode> args, ReturnableType<?> type, SqlAstTranslator<?> translator) {
+				appender.appendSql("(");
+				translator.render(args.get(0), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(" ?? "); // Triggers GIN index via literal '?' operator
+				translator.render(args.get(1), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(")");
+			}
+		});
+		functionRegistry.register("jsonb_exists_any", new AbstractSqmSelfRenderingFunctionDescriptor(
+			"jsonb_exists_any",
+			FunctionKind.NORMAL,
+			exactly(2),
+			invariant(bool),
+			null
+		) {
+			@Override
+			public void render(SqlAppender appender, List<? extends SqlAstNode> args, ReturnableType<?> type, SqlAstTranslator<?> translator) {
+				appender.appendSql("(");
+				translator.render(args.get(0), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(" ??| "); // Triggers GIN index via literal '?|' operator
+				translator.render(args.get(1), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(")");
+			}
+		});
 		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
