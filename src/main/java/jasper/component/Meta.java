@@ -274,6 +274,7 @@ public class Meta {
 		source.setMetadata(metadata);
 		try {
 			refRepository.save(source);
+			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
