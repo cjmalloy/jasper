@@ -55,6 +55,26 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropResponses() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_index").executeUpdate();
+	}
+
+	@Override
+	public void buildResponses() {
+		// SQLite does not support GIN indexes — no-op
+	}
+
+	@Override
+	public void dropInternalResponses() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_index").executeUpdate();
+	}
+
+	@Override
+	public void buildInternalResponses() {
+		// SQLite does not support GIN indexes — no-op
+	}
+
+	@Override
 	public void dropFulltext() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_fulltext_index").executeUpdate();
 	}

@@ -16,7 +16,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		var doubleType = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(StandardBasicTypes.DOUBLE);
 		var jsonb = functionContributions.getTypeConfiguration().getBasicTypeRegistry().resolve(Object.class, SqlTypes.JSON);
 		functionRegistry.register("age", new StandardSQLFunction("age", StandardBasicTypes.DURATION));
-		functionRegistry.registerPattern("jsonb_exists", "jsonb_exists(?1, ?2)", bool);
+		functionRegistry.registerPattern("jsonb_exists", "((?1) ?? (?2))", bool);
 		functionRegistry.registerPattern("jsonb_extract_path", "jsonb_extract_path(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
