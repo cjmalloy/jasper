@@ -39,6 +39,9 @@ public class Meta {
 	public static final int SYNC_SOURCES = 2;
 
 	@Autowired
+	Meta self;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -116,7 +119,6 @@ public class Meta {
 		return result;
 	}
 
-	@Transactional
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
 		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
@@ -134,7 +136,7 @@ public class Meta {
 		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isUnderOrigin(rootOrigin)))) {
 			cascadeSource(rootOrigin, ref, source);
 		}
-		cascade(rootOrigin, ref);
+		self.cascade(rootOrigin, ref);
 	}
 
 	@Transactional
@@ -173,7 +175,6 @@ public class Meta {
 		}
 	}
 
-	@Transactional
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
 		if (ref == null) {
@@ -185,7 +186,7 @@ public class Meta {
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
 				}
-				regen(rootOrigin, latest);
+				self.regen(rootOrigin, latest);
 				refRepository.save(latest);
 				messages.updateMetadata(latest);
 			} else {
