@@ -182,10 +182,14 @@ public class Meta {
 		if (ref != null) {
 			// Creating or updating (not deleting)
 			refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+			if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+				cascade = true;
+			}
 
 			// Update sources
-			var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources().size() > SYNC_SOURCES ? ref.getSources().subList(0, SYNC_SOURCES) : ref.getSources())
+			var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 				.stream()
+				.limit(SYNC_SOURCES)
 				.filter(s -> !s.equals(ref.getUrl()))
 				.distinct()
 				.toList();
@@ -222,9 +226,6 @@ public class Meta {
 				} catch (DataAccessException e) {
 					logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 				}
-			}
-			if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
-				cascade = true;
 			}
 		} else {
 			// Deleting
