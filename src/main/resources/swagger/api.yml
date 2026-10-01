@@ -2697,6 +2697,12 @@ components:
             type: number
           example:
             'plugin/comment': 3
+        regen:
+          type: boolean
+          description: Metadata for this Ref is queued for regeneration.
+        cascade:
+          type: boolean
+          description: Source metadata for this Ref is queued for a deferred cascade update.
     RefNode:
       allOf:
         - $ref: '#/components/schemas/Ref'
