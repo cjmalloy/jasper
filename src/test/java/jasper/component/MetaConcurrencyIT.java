@@ -1,6 +1,5 @@
 package jasper.component;
 
-import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
 import jasper.component.channel.Cascade;
 import jasper.domain.Metadata;
@@ -185,7 +184,6 @@ public class MetaConcurrencyIT {
 	}
 
 	@Test
-	@DisabledOnSqlite
 	void testCascadeKeepsConcurrentContentEdits() {
 		for (var s : List.of("a", "b", "c", "d")) saveSource(URL + s);
 		var child = saveChild(URL + "a", URL + "b", URL + "c", URL + "d");
@@ -255,7 +253,6 @@ public class MetaConcurrencyIT {
 	}
 
 	@Test
-	@DisabledOnSqlite
 	void testCascadeDoesNotHoldOneLongTransaction() {
 		for (var s : List.of("a", "b", "c", "d", "e")) saveSource(URL + s);
 		var child = saveChild(URL + "a", URL + "b", URL + "c", URL + "d", URL + "e");
