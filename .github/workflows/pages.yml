@@ -85,11 +85,7 @@ jobs:
               printf '{\n  "schemaVersion": 1,\n  "label": "coverage",\n  "message": "%s%%",\n  "color": "%s"\n}\n' "$LINE_PCT" "$BADGE_COLOR" > _site/reports/latest-junit/coverage-badge.json
             fi
           fi
-          # Prefer the default postgres/g1gc matrix report, then any matrix report, then legacy gatling-reports-master-*.
           latest_gatling=$(ls -dv _site/reports/gatling-reports-postgres-g1gc-master-* 2>/dev/null | tail -1)
-          if [ -z "$latest_gatling" ]; then
-            latest_gatling=$(find _site/reports -regextype posix-extended -maxdepth 1 -type d -regex '.*/gatling-reports(-[^-]+-[^-]+)?-master-[^/]+$' 2>/dev/null | sort -V | tail -1)
-          fi
           if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
