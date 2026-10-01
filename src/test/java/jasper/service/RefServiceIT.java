@@ -887,6 +887,25 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testRefSchemeIncludesColonAndSorts() {
+		var https = new Ref();
+		https.setUrl("https://example.com");
+		refRepository.save(https);
+		var wiki = new Ref();
+		wiki.setUrl("wiki:Some_Page");
+		refRepository.save(wiki);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(https.getUrl(), "").orElseThrow().getScheme())
+			.isEqualTo("https:");
+		assertThat(refRepository.findOneByUrlAndOrigin(wiki.getUrl(), "").orElseThrow().getScheme())
+			.isEqualTo("wiki:");
+
+		var page = refRepository.findAll(PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "scheme")));
+		assertThat(page.getContent()).extracting(Ref::getScheme)
+			.containsExactly("wiki:", "https:");
+	}
+
+	@Test
 	void testGetPageRefSearch() {
 		var ref1 = new Ref();
 		ref1.setUrl(URL);

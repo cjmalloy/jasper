@@ -79,7 +79,7 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
+	@Formula("SUBSTRING(url from 1 for POSITION(':' in url))")
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
