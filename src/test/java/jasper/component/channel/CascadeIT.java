@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.support.MessageBuilder;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -199,11 +200,13 @@ public class CascadeIT {
 		var sourceUrls = IntStream.range(0, 1003)
 			.mapToObj(i -> URL + "source/" + i)
 			.toList();
-		refRepository.saveAll(List.of(0, 1, 2, 999, 1000, 1002).stream().map(sourceUrls::get).map(url -> {
+		var modified = Instant.now();
+		refRepository.saveAll(List.of(0, 1, 2, 999, 1000, 1002).stream().map(i -> {
 			var source = new Ref();
-			source.setUrl(url);
+			source.setUrl(sourceUrls.get(i));
 			source.setTitle("Source");
 			source.setTags(List.of("+user/tester"));
+			source.setModified(modified.minusMillis(i));
 			return source;
 		}).toList());
 		var child = saveChild(sourceUrls.toArray(String[]::new));
