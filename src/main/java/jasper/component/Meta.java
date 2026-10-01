@@ -39,9 +39,6 @@ public class Meta {
 	public static final int SYNC_SOURCES = 2;
 
 	@Autowired
-	Meta self;
-
-	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -136,7 +133,7 @@ public class Meta {
 		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
 			cascadeSource(rootOrigin, ref, source);
 		}
-		self.cascade(rootOrigin, ref);
+		ref.getMetadata().setCascade(true);
 	}
 
 	@Transactional
@@ -186,7 +183,7 @@ public class Meta {
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
 				}
-				self.regen(rootOrigin, latest);
+				regen(rootOrigin, latest);
 				refRepository.save(latest);
 				messages.updateMetadata(latest);
 			} else {
