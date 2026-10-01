@@ -49,7 +49,7 @@ public class Cascade {
 		dirty = true;
 	}
 
-	@Scheduled(fixedDelay = 5, initialDelay = 30, timeUnit = TimeUnit.SECONDS)
+	@Scheduled(fixedDelay = 2, initialDelay = 30, timeUnit = TimeUnit.SECONDS)
 	public void cascade() {
 		if (!dirty) return;
 		dirty = false;

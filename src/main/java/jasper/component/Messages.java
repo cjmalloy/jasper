@@ -181,8 +181,7 @@ public class Messages {
 		return objectMapper.convertValue(Map.of(
 			"url", ref.getUrl(),
 			"origin", ref.getOrigin(),
-			"tags", List.of("internal", "plugin/delete"),
-			"metadata", Map.of("cascade", true)
+			"tags", List.of("internal", "plugin/delete")
 		), Ref.class);
 	}
 
