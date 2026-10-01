@@ -1,23 +1,34 @@
 package jasper.component.channel;
 
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.component.Messages;
 import jasper.component.Meta;
+import jasper.config.Config.ServerConfig;
+import jasper.config.Props;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
+import jasper.service.dto.MetadataDto;
+import jasper.service.dto.RefDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.support.MessageBuilder;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.util.AopTestUtils.getTargetObject;
 import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
@@ -34,8 +45,13 @@ public class CascadeIT {
 	@Autowired
 	RefRepository refRepository;
 
+	@Autowired
+	Props props;
+
 	Messages messages;
 	Messages mockMessages;
+	ConfigCache configs;
+	int cascadeBatchSize;
 
 	static final String URL = "https://www.example.com/";
 
@@ -45,13 +61,51 @@ public class CascadeIT {
 		Meta target = getTargetObject(meta);
 		messages = (Messages) getField(target, "messages");
 		setField(target, "messages", mockMessages = mock(Messages.class));
+		Cascade cascadeTarget = getTargetObject(cascade);
+		configs = (ConfigCache) getField(cascadeTarget, "configs");
+		setScriptSelectors("+plugin/cascade");
+		cascadeBatchSize = props.getCascadeBatchSize();
+		cascade.dirty = false;
 	}
 
 	@AfterEach
 	void cleanup() {
 		Meta target = getTargetObject(meta);
 		setField(target, "messages", messages);
+		Cascade cascadeTarget = getTargetObject(cascade);
+		setField(cascadeTarget, "configs", configs);
+		setField(cascadeTarget, "meta", meta);
+		props.setCascadeBatchSize(cascadeBatchSize);
 		refRepository.deleteAll();
+	}
+
+	void setScriptSelectors(String... selectors) {
+		var mockConfigs = mock(ConfigCache.class);
+		when(mockConfigs.root()).thenReturn(ServerConfig.builder().scriptSelectors(List.of(selectors)).build());
+		Cascade target = getTargetObject(cascade);
+		setField(target, "configs", mockConfigs);
+	}
+
+	Ref saveFlagged(String url) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTitle("Flagged");
+		ref.setTags(List.of("+user/tester"));
+		ref.setMetadata(Metadata.builder().cascade(true).build());
+		return refRepository.save(ref);
+	}
+
+	long countFlagged() {
+		return refRepository.findAll().stream()
+			.filter(r -> r.getMetadata() != null && r.getMetadata().isCascade())
+			.count();
+	}
+
+	static RefDto refDto(MetadataDto metadata) {
+		var ref = new RefDto();
+		ref.setUrl(URL);
+		ref.setMetadata(metadata);
+		return ref;
 	}
 
 	Ref saveSource(String url) {
@@ -139,5 +193,125 @@ public class CascadeIT {
 		assertThat(refRepository.getRefCascade("")).isPresent();
 		assertThat(refRepository.clearCascade(URL + "child", "", stale.getModified())).isEqualTo(1);
 		assertThat(refRepository.getRefCascade("")).isEmpty();
+	}
+
+	@Test
+	void testRemainingSourcesAreUpdatedInBatches() {
+		var sourceUrls = IntStream.range(0, 1003)
+			.mapToObj(i -> URL + "source/" + i)
+			.toList();
+		refRepository.saveAll(List.of(0, 1, 2, 999, 1000, 1002).stream().map(sourceUrls::get).map(url -> {
+			var source = new Ref();
+			source.setUrl(url);
+			source.setTitle("Source");
+			source.setTags(List.of("+user/tester"));
+			return source;
+		}).toList());
+		var child = saveChild(sourceUrls.toArray(String[]::new));
+
+		meta.sources("", child, null);
+		cascade.cascadeOrigin("");
+
+		for (var i : List.of(2, 999, 1000, 1002)) {
+			assertThat(refRepository.findOneByUrlAndOrigin(sourceUrls.get(i), "").orElseThrow()
+				.getMetadata().getResponses()).containsExactly(URL + "child");
+		}
+		assertThat(refRepository.getRefCascade("")).isEmpty();
+	}
+
+	@Test
+	void testHandleRefUpdateWithoutMetadata() {
+		assertThatCode(() -> cascade.handleRefUpdate(MessageBuilder.withPayload(refDto(null)).build()))
+			.doesNotThrowAnyException();
+
+		assertThat(cascade.dirty).isFalse();
+	}
+
+	@Test
+	void testHandleRefUpdateWithoutCascade() {
+		cascade.handleRefUpdate(MessageBuilder.withPayload(refDto(new MetadataDto())).build());
+
+		assertThat(cascade.dirty).isFalse();
+	}
+
+	@Test
+	void testHandleRefUpdateWithCascade() {
+		var metadata = new MetadataDto();
+		metadata.setCascade(true);
+
+		cascade.handleRefUpdate(MessageBuilder.withPayload(refDto(metadata)).build());
+
+		assertThat(cascade.dirty).isTrue();
+	}
+
+	@Test
+	void testCascadeResetsDirty() {
+		cascade.dirty = true;
+
+		cascade.cascade();
+
+		assertThat(cascade.dirty).isFalse();
+	}
+
+	@Test
+	void testCascadeBatchLimit() {
+		saveFlagged(URL + "1");
+		saveFlagged(URL + "2");
+		saveFlagged(URL + "3");
+		props.setCascadeBatchSize(2);
+
+		cascade.cascadeOrigin("");
+
+		assertThat(countFlagged()).isEqualTo(1);
+	}
+
+	@Test
+	void testCascadeFailureClearsFlag() {
+		saveFlagged(URL + "fail");
+		saveFlagged(URL + "ok");
+		var mockMeta = mock(Meta.class);
+		doAnswer(invocation -> {
+			Ref ref = invocation.getArgument(1);
+			if (ref.getUrl().equals(URL + "fail")) throw new RuntimeException("Test failure");
+			meta.cascade(invocation.getArgument(0), ref);
+			return null;
+		}).when(mockMeta).cascade(any(), any());
+		Cascade target = getTargetObject(cascade);
+		setField(target, "meta", mockMeta);
+
+		assertThatCode(() -> cascade.cascadeOrigin("")).doesNotThrowAnyException();
+
+		verify(mockMeta).cascade(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "fail")));
+		verify(mockMeta).cascade(argThat(""::equals), argThat(r -> r.getUrl().equals(URL + "ok")));
+		assertThat(countFlagged()).isZero();
+	}
+
+	@Test
+	void testCascadeRefModifiedDuringCascadeStaysFlagged() {
+		saveFlagged(URL + "child");
+		var mockMeta = mock(Meta.class);
+		doAnswer(invocation -> {
+			var ref = refRepository.findOneByUrlAndOrigin(URL + "child", "").orElseThrow();
+			ref.setModified(ref.getModified().plusSeconds(60));
+			refRepository.save(ref);
+			return null;
+		}).when(mockMeta).cascade(any(), any());
+		Cascade target = getTargetObject(cascade);
+		setField(target, "meta", mockMeta);
+		props.setCascadeBatchSize(1);
+
+		cascade.cascadeOrigin("");
+
+		assertThat(refRepository.getRefCascade("")).isPresent();
+	}
+
+	@Test
+	void testCascadeDisabledForOrigin() {
+		saveFlagged(URL + "child");
+		setScriptSelectors("+plugin/other");
+
+		cascade.cascadeOrigin("");
+
+		assertThat(refRepository.getRefCascade("")).isPresent();
 	}
 }

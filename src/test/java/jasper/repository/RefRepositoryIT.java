@@ -7,7 +7,10 @@ import jasper.domain.Ref;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static jasper.config.JacksonConfiguration.om;
@@ -511,5 +514,145 @@ public class RefRepositoryIT {
 			.getMetadata().isCascade()).isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test.sub").orElseThrow()
 			.getMetadata().isCascade()).isFalse();
+	}
+
+	// --- findRemovedSources ---
+
+	static final String CHILD = "http://example.com/child";
+
+	Ref saveRef(String url, String origin, List<String> sources, Metadata metadata) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setOrigin(origin);
+		ref.setSources(sources);
+		ref.setMetadata(metadata);
+		return refRepository.save(ref);
+	}
+
+	Ref saveSource(String url, String origin, String response) {
+		return saveRef(url, origin, null, Metadata.builder()
+			.responses(new ArrayList<>(List.of(response)))
+			.build());
+	}
+
+	List<String> findRemovedSources(String url, String origin) {
+		try (var stream = refRepository.findRemovedSources(url, origin)) {
+			return stream.map(r -> r.getOrigin() + r.getUrl()).toList();
+		}
+	}
+
+	@Test
+	@Transactional
+	void testFindRemovedSources_ReturnsUncitedSources() {
+		saveRef(CHILD, "", List.of("http://example.com/a"), Metadata.builder().build());
+		saveSource("http://example.com/a", "", CHILD);
+		saveSource("http://example.com/b", "", CHILD);
+		saveRef("http://example.com/c", "", null, Metadata.builder()
+			.internalResponses(new ArrayList<>(List.of(CHILD)))
+			.build());
+
+		assertThat(findRemovedSources(CHILD, ""))
+			.containsExactlyInAnyOrder("http://example.com/b", "http://example.com/c");
+	}
+
+	@Test
+	@Transactional
+	void testFindRemovedSources_ExcludesSelfAndObsolete() {
+		saveRef(CHILD, "", List.of(), Metadata.builder()
+			.responses(new ArrayList<>(List.of(CHILD)))
+			.build());
+		saveRef("http://example.com/obsolete", "", null, Metadata.builder()
+			.responses(new ArrayList<>(List.of(CHILD)))
+			.obsolete(true)
+			.build());
+
+		assertThat(findRemovedSources(CHILD, "")).isEmpty();
+	}
+
+	@Test
+	@Transactional
+	void testFindRemovedSources_DeletedRef() {
+		saveSource("http://example.com/a", "", CHILD);
+		saveSource("http://example.com/b", "", CHILD);
+
+		assertThat(findRemovedSources(CHILD, ""))
+			.containsExactlyInAnyOrder("http://example.com/a", "http://example.com/b");
+	}
+
+	@Test
+	@Transactional
+	void testFindRemovedSources_FiltersByOrigin() {
+		saveSource("http://example.com/a", "@other", CHILD);
+		saveSource("http://example.com/a", "@test.sub", CHILD);
+
+		assertThat(findRemovedSources(CHILD, "@test"))
+			.containsExactly("@test.subhttp://example.com/a");
+	}
+
+	@Test
+	@Transactional
+	void testFindRemovedSources_IgnoresObsoleteRef() {
+		saveRef(CHILD, "", List.of("http://example.com/a"), Metadata.builder().obsolete(true).build());
+		saveSource("http://example.com/a", "", CHILD);
+
+		assertThat(findRemovedSources(CHILD, "")).containsExactly("http://example.com/a");
+	}
+
+	// --- clearCascade / getRefCascade ---
+
+	@Test
+	void testClearCascade_MatchingModified() {
+		var ref = saveRef(CHILD, "", null, Metadata.builder().cascade(true).build());
+
+		assertThat(refRepository.clearCascade(CHILD, "", ref.getModified())).isEqualTo(1);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(CHILD, "").orElseThrow()
+			.getMetadata().isCascade()).isFalse();
+	}
+
+	@Test
+	void testClearCascade_MismatchedModified() {
+		var ref = saveRef(CHILD, "", null, Metadata.builder().cascade(true).build());
+
+		assertThat(refRepository.clearCascade(CHILD, "", ref.getModified().minusSeconds(1))).isEqualTo(0);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(CHILD, "").orElseThrow()
+			.getMetadata().isCascade()).isTrue();
+	}
+
+	@Test
+	void testGetRefCascade_FiltersByOrigin() {
+		saveRef(CHILD, "@test.sub", null, Metadata.builder().cascade(true).build());
+
+		assertThat(refRepository.getRefCascade("@test")).get()
+			.extracting(Ref::getOrigin).isEqualTo("@test.sub");
+		assertThat(refRepository.getRefCascade("@other")).isEmpty();
+		assertThat(refRepository.getRefCascade("")).get()
+			.extracting(Ref::getOrigin).isEqualTo("@test.sub");
+	}
+
+	@Test
+	void testGetRefCascade_AllOrigins() {
+		saveRef(CHILD, "@a", null, Metadata.builder().cascade(true).build());
+		saveRef(CHILD, "@b", null, Metadata.builder().cascade(true).build());
+
+		var first = refRepository.getRefCascade("").orElseThrow();
+		refRepository.clearCascade(first.getUrl(), first.getOrigin(), first.getModified());
+		var second = refRepository.getRefCascade("").orElseThrow();
+
+		assertThat(List.of(first.getOrigin(), second.getOrigin())).containsExactlyInAnyOrder("@a", "@b");
+	}
+
+	@Test
+	void testGetRefCascade_MostRecentlyModifiedFirst() {
+		var older = new Ref();
+		older.setUrl("http://example.com/older");
+		older.setModified(Instant.now().minusSeconds(60));
+		older.setMetadata(Metadata.builder().cascade(true).build());
+		refRepository.save(older);
+		saveRef("http://example.com/newer", "", null, Metadata.builder().cascade(true).build());
+
+		assertThat(refRepository.getRefCascade("")).get()
+			.extracting(Ref::getUrl).isEqualTo("http://example.com/newer");
 	}
 }
