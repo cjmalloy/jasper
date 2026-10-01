@@ -189,6 +189,7 @@ public class TaggingService {
 							}
 						}
 						segment.add(operation);
+						missingPlugins.removeIf(tag -> touchesPluginRoot(operation, tag));
 					}
 					if (!segment.isEmpty()) patchedPlugins = JsonPatch.fromJson(segment).apply(patchedPlugins);
 					if (!(patchedPlugins instanceof ObjectNode)) {
@@ -233,6 +234,15 @@ public class TaggingService {
 			result.put(tag, key.contains("/") ? key.substring(0, key.indexOf("/")) : key);
 		}
 		return result;
+	}
+
+	private boolean touchesPluginRoot(JsonNode operation, String tag) {
+		var op = operation.path("op").asText();
+		if (op.equals("test")) return false;
+		var path = Ref.pluginPointer(tag);
+		var operationPath = operation.path("path").asText();
+		if (operationPath.isEmpty() || operationPath.equals(path)) return true;
+		return op.equals("move") && operation.path("from").asText().equals(path);
 	}
 
 	private void initializePlugin(ObjectNode plugins, String tag, String key, HashSet<String> initialized) {

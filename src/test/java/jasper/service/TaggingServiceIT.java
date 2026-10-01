@@ -55,6 +55,19 @@ public class TaggingServiceIT {
 		return ref;
 	}
 
+	Plugin schemaPlugin(String tag) throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		plugin.setOrigin("");
+		plugin.setSchema((ObjectNode) objectMapper.readTree("""
+		{
+			"optionalProperties": {
+				"color": { "type": "string" }
+			}
+		}"""));
+		return pluginRepository.save(plugin);
+	}
+
 	@BeforeEach
 	void init() {
 		configCache.clearUserCache();
@@ -1045,4 +1058,121 @@ public class TaggingServiceIT {
 			.isEqualTo("b");
 	}
 
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotReplacePatchWrittenNull() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test", "value": null},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotInitializeAfterRootReplace() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "replace", "path": "", "value": {}},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchDoesNotInitializeAfterMoveAway() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+		schemaPlugin("plugin/other");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test", "value": null},
+			{"op": "move", "from": "/plugin~1test", "path": "/plugin~1other"},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		assertThatThrownBy(() -> taggingService.respond(List.of("plugin/test", "plugin/other"), URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchRootWriteMatchesExactTag() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+		schemaPlugin("plugin/test2");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test2", "value": null},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test", "plugin/test2"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+		assertThat(fetched.getPlugins().has("plugin/test2")).isFalse();
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchTestOperationDoesNotChangeEligibility() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "test", "path": "", "value": {}},
+			{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithJsonPatchNestedWriteDoesNotChangeEligibility() throws IOException {
+		refWithTags(URL, "+user/tester");
+		schemaPlugin("plugin/test");
+
+		var patch = objectMapper.readValue("""
+		[
+			{"op": "add", "path": "/plugin~1test/color", "value": "blue"},
+			{"op": "replace", "path": "/plugin~1test/color", "value": "red"}
+		]
+		""", JsonPatch.class);
+
+		taggingService.respond(List.of("plugin/test"), URL, patch);
+
+		var responseUrl = "tag:/user/tester?url=" + URL;
+		var fetched = refRepository.findOneByUrlAndOrigin(responseUrl, "").get();
+		assertThat(fetched.getPlugins().get("plugin/test"))
+			.isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+	}
 }
