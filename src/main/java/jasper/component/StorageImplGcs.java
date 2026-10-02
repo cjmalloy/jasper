@@ -10,6 +10,9 @@ import com.google.cloud.storage.Storage.BlobTargetOption;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.StorageException;
 import io.micrometer.core.annotation.Timed;
+import jakarta.annotation.PostConstruct;
+import jasper.config.Config.GcsRoute;
+import jasper.config.Config.ServerConfig;
 import jasper.config.GcsProps;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
@@ -46,13 +49,15 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 /**
  * {@link Storage} backed by Google Cloud Storage buckets.
  * Each tenant and namespace is routed to a bucket by the first matching
- * {@link GcsProps.Route}, or to the default bucket if no route matches.
+ * {@link GcsRoute} in the server config, or to the default bucket if no route matches.
+ * Routes are reloaded whenever the server config changes.
  * Only routes with a CDN base URL are served by a CDN, and their buckets may
  * not store any other files. Objects are keyed as {@code tenant/namespace/id}.
  */
@@ -65,34 +70,59 @@ public class StorageImplGcs implements Storage {
 	private static final int PRECONDITION_FAILED = 412;
 
 	private final com.google.cloud.storage.Storage gcsClient;
-	private final String defaultBucket;
-	private final List<Route> routes;
+	private final ConfigCache configs;
 	private final Path tmpDir;
+	private volatile Routing routing;
 
-	public StorageImplGcs(com.google.cloud.storage.Storage gcsClient, GcsProps props) {
-		if (isBlank(props.getBucket())) throw new IllegalArgumentException("GCS bucket is required");
+	public StorageImplGcs(com.google.cloud.storage.Storage gcsClient, GcsProps props, ConfigCache configs) {
+		this.gcsClient = gcsClient;
+		this.configs = configs;
+		this.tmpDir = Path.of(props.getTmpDir());
+	}
+
+	@PostConstruct
+	public void init() {
+		configs.rootUpdate(root -> {
+			try {
+				update(root);
+			} catch (IllegalArgumentException e) {
+				logger.error("Invalid GCS server config, keeping previous routes: {}", e.getMessage());
+			}
+		});
+	}
+
+	/**
+	 * Replace the bucket routes with the server config.
+	 * Throws {@link IllegalArgumentException} and keeps the existing routes if the config is invalid.
+	 */
+	void update(ServerConfig root) {
+		if (isBlank(root.getGcsBucket())) throw new IllegalArgumentException("GCS bucket is required");
+		var gcsRoutes = root.getGcsRoutes() == null ? List.<GcsRoute>of() : root.getGcsRoutes();
 		var cdnBuckets = new HashSet<String>();
-		var privateBuckets = new HashSet<>(Set.of(props.getBucket()));
-		for (var r : props.getRoutes()) {
+		var privateBuckets = new HashSet<>(Set.of(root.getGcsBucket()));
+		for (var r : gcsRoutes) {
 			if (isBlank(r.getBucket())) throw new IllegalArgumentException("GCS route bucket is required");
 			if (isBlank(r.getCdnBaseUrl())) {
 				privateBuckets.add(r.getBucket());
 			} else {
-				if (r.getNamespaces().isEmpty()) throw new IllegalArgumentException("GCS route for CDN bucket " + r.getBucket() + " must list its namespaces");
+				if (isEmpty(r.getNamespaces())) throw new IllegalArgumentException("GCS route for CDN bucket " + r.getBucket() + " must list its namespaces");
 				cdnBuckets.add(r.getBucket());
 			}
 		}
 		cdnBuckets.retainAll(privateBuckets);
 		if (!cdnBuckets.isEmpty()) throw new IllegalArgumentException("GCS buckets served by a CDN may only be used by CDN routes: " + cdnBuckets);
-		this.gcsClient = gcsClient;
-		this.defaultBucket = props.getBucket();
-		this.routes = props.getRoutes().stream().map(r -> new Route(
+		routing = new Routing(root.getGcsBucket(), gcsRoutes.stream().map(r -> new Route(
 			r.getBucket(),
-			Set.copyOf(r.getNamespaces()),
-			r.getTenants().stream().map(t -> formatOrigin(t)).collect(Collectors.toSet()),
+			r.getNamespaces() == null ? Set.of() : Set.copyOf(r.getNamespaces()),
+			r.getTenants() == null ? Set.of() : r.getTenants().stream().map(t -> formatOrigin(t)).collect(Collectors.toSet()),
 			isBlank(r.getCdnBaseUrl()) ? null : stripEnd(r.getCdnBaseUrl(), "/")
-		)).toList();
-		this.tmpDir = Path.of(props.getTmpDir());
+		)).toList());
+	}
+
+	private Routing routing() {
+		var r = routing;
+		if (r == null) throw new IllegalStateException("GCS bucket is not configured in the server config");
+		return r;
 	}
 
 	/**
@@ -100,7 +130,7 @@ public class StorageImplGcs implements Storage {
 	 */
 	@Override
 	public String getCdnUrl(String origin, String namespace, String id) {
-		var route = route(origin, namespace);
+		var route = route(routing(), origin, namespace);
 		if (route == null || route.cdnBaseUrl() == null) return null;
 		return route.cdnBaseUrl() + "/" + UriUtils.encodePath(blobId(origin, namespace, id).getName(), StandardCharsets.UTF_8);
 	}
@@ -157,8 +187,9 @@ public class StorageImplGcs implements Storage {
 	@Override
 	public List<String> listTenants() {
 		var result = new LinkedHashSet<String>();
-		var buckets = new LinkedHashSet<>(List.of(defaultBucket));
-		for (var r : routes) buckets.add(r.bucket());
+		var routing = routing();
+		var buckets = new LinkedHashSet<>(List.of(routing.bucket()));
+		for (var r : routing.routes()) buckets.add(r.bucket());
 		for (var bucket : buckets) {
 			for (var blob : gcsClient.list(bucket, BlobListOption.prefix(""), BlobListOption.currentDirectory()).iterateAll()) {
 				if (!blob.isDirectory()) continue;
@@ -291,18 +322,19 @@ public class StorageImplGcs implements Storage {
 		return blob;
 	}
 
-	private Route route(String origin, String namespace) {
+	private Route route(Routing routing, String origin, String namespace) {
 		sanitize(origin, namespace);
 		var tenant = originTenant(origin);
-		for (var r : routes) {
+		for (var r : routing.routes()) {
 			if (r.matches(tenant, namespace)) return r;
 		}
 		return null;
 	}
 
 	private String bucket(String origin, String namespace) {
-		var route = route(origin, namespace);
-		return route == null ? defaultBucket : route.bucket();
+		var routing = routing();
+		var route = route(routing, origin, namespace);
+		return route == null ? routing.bucket() : route.bucket();
 	}
 
 	private Iterable<Blob> files(String origin, String namespace, String prefix) {
@@ -325,9 +357,9 @@ public class StorageImplGcs implements Storage {
 	 */
 	private void upload(BlobId blobId, InputStream is) throws IOException {
 		try {
-			try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()))) {
-				is.transferTo(os);
-			}
+			var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()));
+			is.transferTo(os);
+			os.close();
 		} catch (StorageException e) {
 			if (e.getCode() == PRECONDITION_FAILED) throw new AlreadyExistsException();
 			throw new IOException(e);
@@ -336,6 +368,8 @@ public class StorageImplGcs implements Storage {
 			throw e;
 		}
 	}
+
+	private record Routing(String bucket, List<Route> routes) {}
 
 	private record Route(String bucket, Set<String> namespaces, Set<String> tenants, String cdnBaseUrl) {
 		boolean matches(String tenant, String namespace) {

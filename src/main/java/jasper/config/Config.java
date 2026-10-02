@@ -175,6 +175,17 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
+		/**
+		 * GCS bucket for any tenant and namespace not matched by a route. Never served by a CDN.
+		 * Required by the gcs profile.
+		 */
+		@Builder.Default
+		private String gcsBucket = "";
+		/**
+		 * GCS routes checked in order. The first route matching both the tenant and namespace is used.
+		 */
+		@Builder.Default
+		private List<GcsRoute> gcsRoutes = List.of();
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -197,6 +208,8 @@ public interface Config {
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
+			if (isNotBlank(server.getGcsBucket())) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
+			if (isNotEmpty(server.getGcsRoutes())) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
 			return wrapped;
 		}
 
@@ -206,6 +219,33 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
+	}
+
+	/**
+	 * Routes a set of tenants and namespaces to a GCS bucket.
+	 */
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	class GcsRoute implements Serializable {
+		/**
+		 * Bucket to store matching objects in.
+		 */
+		private String bucket;
+		/**
+		 * Namespaces matched by this route. Matches all namespaces when empty.
+		 */
+		private List<String> namespaces = List.of();
+		/**
+		 * Tenants matched by this route. Use "default" for the default tenant.
+		 * Matches all tenants when empty.
+		 */
+		private List<String> tenants = List.of();
+		/**
+		 * Public CDN host serving this bucket. Leave blank if the bucket is not public.
+		 */
+		private String cdnBaseUrl = "";
 	}
 
 	/**

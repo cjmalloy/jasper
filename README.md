@@ -555,6 +555,8 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_SCRIPTS`     | Override the server maximum concurrent script executions.                                                                      | `100_000`                                                                                                                                                                                                     |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REPLICATION` | Override the server maximum concurrent replication push/pull operations.                                                       | `3`                                                                                                                                                                                                           |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_FETCH`       | Override the server maximum concurrent fetch operations (scraping).                                                            | `10`                                                                                                                                                                                                          |
+| `JASPER_OVERRIDE_SERVER_GCS_BUCKET`                 | Override the server default GCS bucket.                                                                                        |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_GCS_ROUTES_0_BUCKET`        | Override the server GCS bucket routes. Set `_NAMESPACES`, `_TENANTS` and `_CDN_BASE_URL` the same way.                         |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_MODE`                     | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_CLIENT_ID`                | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`            | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
@@ -603,6 +605,8 @@ different nodes to run different workloads.
 | `maxRequests`              | Maximum HTTP requests per origin every 500 nanoseconds.                                         | `50`                                       |
 | `maxConcurrentRequests`    | Global maximum concurrent HTTP requests across all origins.                                     | `500`                                      |
 | `maxConcurrentFetch`       | Maximum concurrent fetch operations (scraping).                                                 | `10`                                       |
+| `gcsBucket`                | Default GCS bucket for the `gcs` profile. Never served by a CDN.                                | `""`                                       |
+| `gcsRoutes`                | GCS bucket routes for the `gcs` profile. The first match wins.                                  | `[]`                                       |
 
 #### Security Config (`_config/security` Template)
 The `_config/security` template is installed per-origin to configure authentication and authorization
@@ -682,23 +686,23 @@ variable to change the location of the storage folder.
 
 The `gcs` profile stores files in Google Cloud Storage buckets instead of the local storage folder, allowing
 multiple pods to share storage. It replaces the local storage implementation and may be enabled with or without the
-`storage` profile. Objects are keyed as `tenant/namespace/id`. Each tenant and namespace is stored in the bucket of the
-first matching route in `application.storage.gcs.routes`, or in the default bucket set with the
-`APPLICATION_STORAGE_GCS_BUCKET` environment variable (required). A route with no `namespaces` matches every namespace,
-and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdn-base-url` on a
+`storage` profile. Objects are keyed as `tenant/namespace/id`. Buckets are set in the `_config/server` template and
+can be changed at runtime. Each tenant and namespace is stored in the bucket of the first matching route in
+`gcsRoutes`, or in the default `gcsBucket` (required). Both can be overridden with the `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
+and `JASPER_OVERRIDE_SERVER_GCS_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
+and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
 instead of the proxy, and the segments are cached in the background. To keep private files out of public buckets, CDN
 routes must list their namespaces, and a bucket used by a CDN route can't be the default bucket or be used by a route
-without a CDN:
-```yaml
-application.storage.gcs:
-  bucket: jasper-private
-  routes:
-    - bucket: jasper-public
-      namespaces: [cache]
-      cdn-base-url: https://cdn.example.com
-    - bucket: jasper-tenant-private
-      tenants: ["@tenant"]
+without a CDN. An invalid config is logged and ignored, keeping the previous buckets:
+```json
+{
+  "gcsBucket": "jasper-private",
+  "gcsRoutes": [
+    { "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" },
+    { "bucket": "jasper-tenant-private", "tenants": ["@tenant"] }
+  ]
+}
 ```
 Credentials are resolved with Application Default Credentials, such as GKE Workload
 Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
