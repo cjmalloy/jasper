@@ -58,8 +58,8 @@ import static org.apache.commons.lang3.StringUtils.stripEnd;
  * {@link Storage} backed by Google Cloud Storage buckets.
  * Each tenant and namespace is routed to a bucket by the first matching
  * {@link GcsRoute} in the server config, or to the default bucket if no route matches.
- * A blank bucket stores the tenant and namespace in {@link StorageImplLocal} instead,
- * which requires the storage profile.
+ * A route or default with the "local" storage provider stores the tenant and namespace in
+ * {@link StorageImplLocal} instead, which requires the storage profile.
  * Routes are reloaded whenever the server config changes.
  * Only routes with a CDN base URL are served by a CDN, and their buckets may
  * not store any other files. Objects are keyed as {@code tenant/namespace/id}.
@@ -102,29 +102,42 @@ public class StorageImplGcs implements Storage {
 	 */
 	void update(ServerConfig root) {
 		var gcsRoutes = root.getGcsRoutes() == null ? List.<GcsRoute>of() : root.getGcsRoutes();
-		if (local.isEmpty() && (isBlank(root.getGcsBucket()) || gcsRoutes.stream().anyMatch(r -> isBlank(r.getBucket())))) {
-			throw new IllegalArgumentException("GCS bucket is required without the storage profile");
-		}
+		var defaultBucket = providerBucket(root.getStorage(), root.getGcsBucket());
 		var cdnBuckets = new HashSet<String>();
 		var privateBuckets = new HashSet<String>();
-		if (!isBlank(root.getGcsBucket())) privateBuckets.add(root.getGcsBucket());
+		if (defaultBucket != null) privateBuckets.add(defaultBucket);
 		for (var r : gcsRoutes) {
+			var bucket = providerBucket(r.getStorage(), r.getBucket());
 			if (isBlank(r.getCdnBaseUrl())) {
-				if (!isBlank(r.getBucket())) privateBuckets.add(r.getBucket());
+				if (bucket != null) privateBuckets.add(bucket);
 			} else {
-				if (isBlank(r.getBucket())) throw new IllegalArgumentException("GCS route with a CDN requires a bucket");
+				if (bucket == null) throw new IllegalArgumentException("GCS route with a CDN must use gcs storage");
 				if (isEmpty(r.getNamespaces())) throw new IllegalArgumentException("GCS route for CDN bucket " + r.getBucket() + " must list its namespaces");
 				cdnBuckets.add(r.getBucket());
 			}
 		}
 		cdnBuckets.retainAll(privateBuckets);
 		if (!cdnBuckets.isEmpty()) throw new IllegalArgumentException("GCS buckets served by a CDN may only be used by CDN routes: " + cdnBuckets);
-		routing = new Routing(isBlank(root.getGcsBucket()) ? null : root.getGcsBucket(), gcsRoutes.stream().map(r -> new Route(
-			isBlank(r.getBucket()) ? null : r.getBucket(),
+		routing = new Routing(defaultBucket, gcsRoutes.stream().map(r -> new Route(
+			providerBucket(r.getStorage(), r.getBucket()),
 			r.getNamespaces() == null ? Set.of() : Set.copyOf(r.getNamespaces()),
 			r.getTenants() == null ? Set.of() : r.getTenants().stream().map(t -> formatOrigin(t)).collect(Collectors.toSet()),
 			isBlank(r.getCdnBaseUrl()) ? null : stripEnd(r.getCdnBaseUrl(), "/")
 		)).toList());
+	}
+
+	/**
+	 * GCS bucket for a storage provider, or null for local storage.
+	 */
+	private String providerBucket(String storage, String bucket) {
+		if (isBlank(storage) || "gcs".equals(storage)) {
+			if (isBlank(bucket)) throw new IllegalArgumentException("GCS bucket is required for gcs storage");
+			return bucket;
+		}
+		if (!"local".equals(storage)) throw new IllegalArgumentException("Unknown storage provider " + storage);
+		if (local.isEmpty()) throw new IllegalArgumentException("Local storage requires the storage profile");
+		if (!isBlank(bucket)) throw new IllegalArgumentException("Local storage does not use a GCS bucket");
+		return null;
 	}
 
 	private Routing routing() {
@@ -134,7 +147,7 @@ public class StorageImplGcs implements Storage {
 	}
 
 	/**
-	 * Local storage if this tenant and namespace are routed to a blank bucket, otherwise null.
+	 * Local storage if this tenant and namespace are routed to local storage, otherwise null.
 	 */
 	private Storage local(String origin, String namespace) {
 		return bucket(origin, namespace) == null ? local.orElseThrow() : null;

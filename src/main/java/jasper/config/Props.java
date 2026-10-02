@@ -283,6 +283,10 @@ public class Props {
 		 */
 		private Integer maxConcurrentFetch;
 		/**
+		 * Override the server default storage provider ("gcs" or "local").
+		 */
+		private String storage;
+		/**
 		 * Override the server default GCS bucket.
 		 */
 		private String gcsBucket;

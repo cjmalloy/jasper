@@ -176,8 +176,14 @@ public interface Config {
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
 		/**
+		 * Storage provider for any tenant and namespace not matched by a GCS route: "gcs" or "local".
+		 * Local storage requires the storage profile.
+		 */
+		@Builder.Default
+		private String storage = "gcs";
+		/**
 		 * GCS bucket for any tenant and namespace not matched by a route. Never served by a CDN.
-		 * Blank uses local storage, which requires the storage profile.
+		 * Required when the storage provider is "gcs".
 		 */
 		@Builder.Default
 		private String gcsBucket = "";
@@ -208,6 +214,7 @@ public interface Config {
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
+			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
 			if (isNotBlank(server.getGcsBucket())) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
 			if (isNotEmpty(server.getGcsRoutes())) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
 			return wrapped;
@@ -230,8 +237,12 @@ public interface Config {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class GcsRoute implements Serializable {
 		/**
-		 * Bucket to store matching objects in.
-		 * Blank uses local storage, which requires the storage profile.
+		 * Storage provider for matching objects: "gcs" or "local".
+		 * Local storage requires the storage profile.
+		 */
+		private String storage = "gcs";
+		/**
+		 * Bucket to store matching objects in. Required when the storage provider is "gcs".
 		 */
 		private String bucket;
 		/**

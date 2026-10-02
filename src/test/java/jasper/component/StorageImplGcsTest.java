@@ -142,7 +142,7 @@ public class StorageImplGcsTest {
 		local.props.setStorage(tmpDir.resolve("local").toString());
 		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), Optional.of(local));
 		gcs.tmpDir = tmpDir;
-		gcs.update(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")).withGcsBucket(""));
+		gcs.update(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")).withStorage("local").withGcsBucket(""));
 
 		gcs.storeAt("", "cache", "a", "cache".getBytes());
 		try (var zipped = gcs.zipAt("", "backups", "b.zip")) {
@@ -160,10 +160,21 @@ public class StorageImplGcsTest {
 		try (var zipped = gcs.streamZip("", "backups", "b.zip")) {
 			assertThat(zipped.in("cache/a").readAllBytes()).isEqualTo("cache".getBytes());
 		}
-		assertThatThrownBy(() -> gcs.update(root(route("", List.of("cache"), List.of(), "https://cdn.example.com"))))
-			.isInstanceOf(IllegalArgumentException.class);
+		var localCdn = route("", List.of("cache"), List.of(), "https://cdn.example.com");
+		localCdn.setStorage("local");
+		assertThatThrownBy(() -> gcs.update(root(localCdn))).isInstanceOf(IllegalArgumentException.class);
+		var localBackups = route("", List.of("backups"), List.of(), "");
+		localBackups.setStorage("local");
+		gcs.update(root(localBackups));
+		assertThat(gcs.blobId("", "cache", "a").getBucket()).isEqualTo("private");
+		assertThat(gcs.exists("", "backups", "b.zip")).isTrue();
+		var localBucket = route("private", List.of("backups"), List.of(), "");
+		localBucket.setStorage("local");
+		assertThatThrownBy(() -> gcs.update(root(localBucket))).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> gcs.update(root().withStorage("s3"))).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> gcs.update(root().withStorage("local"))).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), mock(ConfigCache.class), Optional.empty())
-			.update(root(route("", List.of("backups"), List.of(), ""))))
+			.update(root(localBackups)))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
