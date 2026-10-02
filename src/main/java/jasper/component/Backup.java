@@ -59,6 +59,9 @@ public class Backup {
 	Props props;
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	RefRepository refRepository;
 
 	@Autowired
@@ -244,6 +247,11 @@ public class Backup {
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		} finally {
+			configs.clearUserCache(origin);
+			configs.clearPluginCache(origin);
+			configs.clearTemplateCache(origin);
+			configs.clearConfigCache(origin);
 		}
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
 	}

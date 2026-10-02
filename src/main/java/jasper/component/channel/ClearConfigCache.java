@@ -2,6 +2,7 @@ package jasper.component.channel;
 
 import jasper.component.ConfigCache;
 import jasper.config.Props;
+import jasper.domain.proj.HasOrigin;
 import jasper.service.dto.PluginDto;
 import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
@@ -14,6 +15,9 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
@@ -28,50 +32,52 @@ public class ClearConfigCache {
 	@Autowired
 	ConfigCache configs;
 
-	private AtomicBoolean clearingConfig = new AtomicBoolean(false);
-	private AtomicBoolean clearConfigAgain = new AtomicBoolean(false);
+	private final ConcurrentMap<String, AtomicBoolean> clearingConfig = new ConcurrentHashMap<>();
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "tagRxChannel")
 	public void handleTagUpdate(Message<String> message) {
 		if (!configs.isConfigTag((String) message.getHeaders().get("tag"))) return;
-		if (clearingConfig.compareAndSet(false, true)) {
-			clearConfig();
-		} else {
-			clearConfigAgain.set(true);
-		}
+		var origin = HasOrigin.origin(Objects.toString(message.getHeaders().get("origin"), ""));
+		var clearNow = new AtomicBoolean();
+		clearingConfig.compute(origin, (key, clearAgain) -> {
+			if (clearAgain == null) {
+				clearNow.set(true);
+				return new AtomicBoolean();
+			}
+			clearAgain.set(true);
+			return clearAgain;
+		});
+		if (clearNow.get()) clearConfig(origin);
 	}
 
-	private void checkIfClearingAgain() {
-		if (!clearingConfig.get()) return;
-		var next = clearConfigAgain.getAndSet(false);
-		clearingConfig.set(next);
-		if (next) clearConfig();
+	private void checkIfClearingAgain(String origin) {
+		var clearAgain = clearingConfig.computeIfPresent(origin, (key, state) ->
+			state.getAndSet(false) ? state : null
+		);
+		if (clearAgain != null) clearConfig(origin);
 	}
 
-	private void clearConfig() {
-		configs.clearConfigCache();
-		taskScheduler.schedule(this::checkIfClearingAgain, Instant.now().plusMillis(props.getClearCacheCooldownSec() * 1000L));
+	private void clearConfig(String origin) {
+		configs.clearConfigCache(origin);
+		taskScheduler.schedule(() -> checkIfClearingAgain(origin), Instant.now().plusMillis(props.getClearCacheCooldownSec() * 1000L));
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		// TODO: clear caches by origin
-		configs.clearUserCache();
+		configs.clearUserCache(message.getPayload().getOrigin());
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
-		// TODO: clear caches by origin
-		configs.clearPluginCache();
+		configs.clearPluginCache(message.getPayload().getOrigin());
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		// TODO: clear caches by origin
-		configs.clearTemplateCache();
+		configs.clearTemplateCache(message.getPayload().getOrigin());
 	}
 }

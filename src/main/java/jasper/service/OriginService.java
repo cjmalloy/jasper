@@ -90,10 +90,10 @@ public class OriginService {
 		}
 		logger.info("{} Finished deleting origin {} older than {} in {}", auth.getOrigin(), origin, olderThan, Duration.between(start, Instant.now()));
 		if (props.getOrigin().equals(origin)) {
-			configs.clearUserCache();
-			configs.clearPluginCache();
-			configs.clearTemplateCache();
-			configs.clearConfigCache();
+			configs.clearUserCache(origin);
+			configs.clearPluginCache(origin);
+			configs.clearTemplateCache(origin);
+			configs.clearConfigCache(origin);
 		}
 	}
 }
