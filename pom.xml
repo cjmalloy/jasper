@@ -42,6 +42,7 @@
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<google-cloud-storage.version>2.75.0</google-cloud-storage.version>
 		<google-cloud-nio.version>0.139.0</google-cloud-nio.version>
+		<awssdk.version>2.55.10</awssdk.version>
 		<jsoup.version>1.23.2</jsoup.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
@@ -137,6 +138,29 @@
 			<artifactId>google-cloud-nio</artifactId>
 			<version>${google-cloud-nio.version}</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${awssdk.version}</version>
+			<exclusions>
+				<!-- Only the synchronous client is used -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${awssdk.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
