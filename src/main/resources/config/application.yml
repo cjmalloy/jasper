@@ -222,7 +222,7 @@ jasper:
     default-include-pattern: ${server.servlet.context-path:}/api/**
     management-include-pattern: ${server.servlet.context-path:}/management/**
     title: Jasper Protocol
-    description: Jasper Knowledge Management Server API documentation
+    description: REST API for the Jasper Protocol
     version: 1.4.0
     terms-of-service-url:
     contact-name:
