@@ -6,8 +6,8 @@ import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
-import jasper.component.PluginData;
 import jasper.component.Tagger;
+import jasper.component.Validate;
 import jasper.domain.Plugin;
 import jasper.errors.DuplicateTagException;
 import jasper.errors.InvalidPatchException;
@@ -52,7 +52,7 @@ public class TaggingService {
 	DtoMapper mapper;
 
 	@Autowired
-	PluginData pluginData;
+	Validate validate;
 
 	@PreAuthorize("@auth.canTag(#tag, #url, #origin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "tag"}, histogram = true)
@@ -155,12 +155,10 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var seeded = pluginData.seed(auth.getOrigin(), ref);
-				var patched = patch.apply(seeded.data());
+				var patched = patch.apply(validate.pluginDefaults(auth.getOrigin(), ref));
 				if (!(patched instanceof ObjectNode result)) {
 					throw new JsonPatchException("Plugin patch must produce an object");
 				}
-				seeded.dropUntouchedSeeds(result);
 				ref.addPlugins(ref.getTags(), result);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);

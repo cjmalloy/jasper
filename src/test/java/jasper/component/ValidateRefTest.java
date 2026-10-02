@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 public class ValidateRefTest {
 
     @InjectMocks
-    PluginData pluginData;
+    Validate validate;
 
     @Mock
     ConfigCache configs;
@@ -29,6 +29,7 @@ public class ValidateRefTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        validate.objectMapper = mapper;
     }
 
     @Test
@@ -55,7 +56,7 @@ public class ValidateRefTest {
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
         when(configs.getPlugin("plugin/other", "")).thenReturn(Optional.of(pluginOther));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test")).isTrue();
         assertThat(defaults.get("plugin/test").get("name").asText()).isEqualTo("test");
@@ -85,7 +86,7 @@ public class ValidateRefTest {
 
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test")).isTrue();
         assertThat(defaults.get("plugin/test").get("name").asText()).isEqualTo("overridden");
@@ -112,7 +113,7 @@ public class ValidateRefTest {
         when(configs.getPlugin("plugin/test/sub", "")).thenReturn(Optional.of(pluginSub));
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginParent));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test/sub")).isTrue();
         assertThat(defaults.get("plugin/test/sub").get("sub").asBoolean()).isTrue();
@@ -149,7 +150,7 @@ public class ValidateRefTest {
         when(configs.getPlugin("plugin/test/b", "")).thenReturn(Optional.of(pluginB));
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginParent));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test/a")).isTrue();
         assertThat(defaults.has("plugin/test/b")).isTrue();
@@ -169,7 +170,7 @@ public class ValidateRefTest {
 
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test")).isTrue();
         assertThat(defaults.get("plugin/test").isArray()).isTrue();
@@ -190,7 +191,7 @@ public class ValidateRefTest {
 
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test")).isTrue();
         assertThat(defaults.get("plugin/test").isTextual()).isTrue();
@@ -208,7 +209,7 @@ public class ValidateRefTest {
 
         when(configs.getPlugin("plugin/test", "")).thenReturn(Optional.of(pluginTest));
 
-        var defaults = pluginData.defaults("", ref);
+        var defaults = validate.pluginDefaults("", ref);
 
         assertThat(defaults.has("plugin/test")).isTrue();
         assertThat(defaults.get("plugin/test").isNumber()).isTrue();

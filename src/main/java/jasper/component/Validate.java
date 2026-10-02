@@ -59,9 +59,6 @@ public class Validate {
 	@Autowired
 	ConfigCache configs;
 
-	@Autowired
-	PluginData pluginData;
-
 	@Timed("jasper.validate")
 	public void ref(String rootOrigin, Ref ref) {
 		ref(rootOrigin, ref, false);
@@ -119,7 +116,7 @@ public class Validate {
 			.stream()
 			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
-			.reduce(null, pluginData::merge);
+			.reduce(null, this::merge);
 		if (ext.getConfig() == null) {
 			ext.setConfig(mergedDefaults);
 			stripOnError = true;
@@ -128,7 +125,7 @@ public class Validate {
 			.stream()
 			.map(TemplateDto::getSchema)
 			.filter(Objects::nonNull)
-			.reduce(null, pluginData::merge);
+			.reduce(null, this::merge);
 		var schema = objectMapper.convertValue(mergedSchemas, Schema.class);
 		if (stripOnError) {
 			try {
@@ -176,7 +173,7 @@ public class Validate {
 		return templates
 			.stream()
 			.map(TemplateDto::getDefaults)
-			.reduce(null, pluginData::merge);
+			.reduce(null, this::merge);
 	}
 
 	private void template(String rootOrigin, Schema schema, String tag, JsonNode template) {
@@ -224,6 +221,23 @@ public class Validate {
 		for (var tag : expandTags(ref.getTags())) {
 			plugin(rootOrigin, ref, tag, stripOnError);
 		}
+	}
+
+	ObjectNode merge(ObjectNode a, ObjectNode b) {
+		if (a == null && b == null) return objectMapper.createObjectNode();
+		if (a == null) return b.deepCopy();
+		if (b == null) return a.deepCopy();
+		var result = a.deepCopy();
+		b.fieldNames().forEachRemaining(field -> {
+			var aNode = result.get(field);
+			var bNode = b.get(field);
+			if (aNode instanceof ObjectNode aObj && bNode instanceof ObjectNode bObj) {
+				result.set(field, merge(aObj, bObj));
+			} else {
+				result.set(field, bNode.deepCopy());
+			}
+		});
+		return result;
 	}
 
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
@@ -275,6 +289,18 @@ public class Validate {
 		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
 			throw new InvalidPluginUserUrlException(plugin);
 		}
+	}
+
+	public ObjectNode pluginDefaults(String rootOrigin, Ref ref) {
+		var result = objectMapper.getNodeFactory().objectNode();
+		for (var tag : expandTags(ref.getTags())) {
+			var plugin = configs.getPlugin(tag, rootOrigin);
+			plugin.ifPresent(p -> {
+				if (p.getDefaults() != null && !p.getDefaults().isNull() && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults().deepCopy());
+			});
+		}
+		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
+		return result;
 	}
 
 	private void plugin(String rootOrigin, Schema schema, String tag, JsonNode plugin) {

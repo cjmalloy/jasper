@@ -381,6 +381,10 @@ public class TaggingServiceIT {
 		savePlugin(tag, "{\"optionalProperties\": {\"color\": {\"type\": \"string\"}}}", null);
 	}
 
+	void saveSchemaPluginWithDefaults(String tag) throws IOException {
+		savePlugin(tag, "{\"optionalProperties\": {\"color\": {\"type\": \"string\"}}}", "{\"color\": \"blue\"}");
+	}
+
 	JsonPatch jsonPatch(String json) throws IOException {
 		return objectMapper.readValue(json, JsonPatch.class);
 	}
@@ -405,14 +409,26 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchNestedAddIntoSchemaPluginWithoutDefaults() throws IOException {
+	void testRespondPatchNestedAddIntoDefaultsParent() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"style": {"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}}}""", """
+			{"style": {"color": "blue"}}""");
+
+		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/style/size", "value": 2}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"style\": {\"color\": \"blue\", \"size\": 2}}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoSchemaPluginWithoutDefaultsFails() throws IOException {
 		refWithTags(URL, "+user/tester");
 		saveSchemaPlugin("plugin/test");
 
-		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
 			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
-
-		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
 	}
 
 	@Test
@@ -423,47 +439,6 @@ public class TaggingServiceIT {
 
 		taggingService.respond(List.of("plugin/test"), URL, objectMapper.readValue("""
 			{"plugin/test": {"color": "red"}}""", JsonMergePatch.class));
-
-		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchDoesNotStoreUntouchedSeeds() throws IOException {
-		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
-		saveSchemaPlugin("plugin/untouched");
-
-		taggingService.respond(List.of("plugin/test", "plugin/untouched"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
-
-		var fetched = refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get();
-		assertThat(fetched.getTags()).contains("plugin/test", "plugin/untouched");
-		assertThat(fetched.getPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
-		assertThat(fetched.hasPlugin("plugin/untouched")).isFalse();
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchIntoElementsSchema() throws IOException {
-		refWithTags(URL, "+user/tester");
-		savePlugin("plugin/test", "{\"elements\": {\"type\": \"string\"}}", null);
-
-		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test/0", "value": "red"}]"""));
-
-		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("[\"red\"]"));
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchIntoRefSchema() throws IOException {
-		refWithTags(URL, "+user/tester");
-		savePlugin("plugin/test", """
-			{"definitions": {"colors": {"values": {"type": "string"}}}, "ref": "colors"}""", null);
-
-		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
 
 		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
 	}
@@ -489,7 +464,7 @@ public class TaggingServiceIT {
 		savePlugin("plugin/test", """
 			{"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}""", null);
 		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test/color", "value": "blue"}]"""));
+			[{"op": "add", "path": "/plugin~1test", "value": {"color": "blue"}}]"""));
 		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"blue\"}"));
 
 		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
@@ -500,41 +475,9 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchIntoStoredNull() throws IOException {
-		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
-		var response = refWithTags(RESPONSE_URL, "internal", "+user/tester", "plugin/test");
-		response.setSources(new ArrayList<>(List.of(URL)));
-		response.setPlugins((ObjectNode) objectMapper.readTree("{\"plugin/test\": null}"));
-		refRepository.save(response);
-
-		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
-
-		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
-	void testRespondPatchWritingFillerValueIsTreatedAsAbsent() throws IOException {
-		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
-
-		// A patch that writes exactly the filler value can't be told apart from an
-		// untouched filler, so it is dropped. Validate then treats it as absent.
-		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
-			[{"op": "add", "path": "/plugin~1test", "value": {}}]"""));
-
-		var fetched = refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get();
-		assertThat(fetched.getTags()).contains("plugin/test");
-		assertThat(fetched.hasPlugin("plugin/test")).isFalse();
-	}
-
-	@Test
-	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondPatchAddNullThenNestedAddFails() throws IOException {
 		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
+		saveSchemaPluginWithDefaults("plugin/test");
 
 		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
 			[
@@ -547,7 +490,7 @@ public class TaggingServiceIT {
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondPatchRemoveThenNestedAddFails() throws IOException {
 		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
+		saveSchemaPluginWithDefaults("plugin/test");
 
 		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
 			[
@@ -560,7 +503,7 @@ public class TaggingServiceIT {
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondPatchReplaceRootThenNestedAddFails() throws IOException {
 		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
+		saveSchemaPluginWithDefaults("plugin/test");
 
 		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
 			[
@@ -573,7 +516,7 @@ public class TaggingServiceIT {
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondPatchMoveNullThenNestedAddFails() throws IOException {
 		refWithTags(URL, "+user/tester");
-		saveSchemaPlugin("plugin/test");
+		saveSchemaPluginWithDefaults("plugin/test");
 
 		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
 			[

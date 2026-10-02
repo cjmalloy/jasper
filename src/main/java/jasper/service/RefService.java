@@ -1,14 +1,14 @@
 package jasper.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
-import jasper.component.PluginData;
+import jasper.component.Validate;
 import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
@@ -56,7 +56,7 @@ public class RefService {
 	Auth auth;
 
 	@Autowired
-	PluginData pluginData;
+	Validate validate;
 
 	@Autowired
 	DtoMapper mapper;
@@ -163,12 +163,9 @@ public class RefService {
 			ref.setUrl(url);
 			ref.setOrigin(origin);
 		}
-		var seeded = pluginData.seed(auth.getOrigin(), ref);
+		ref.setPlugins(validate.pluginDefaults(auth.getOrigin(), ref));
 		try {
-			var refNode = objectMapper.convertValue(ref, ObjectNode.class);
-			refNode.set("plugins", seeded.data());
-			var patched = patch.apply(refNode);
-			if (patched.get("plugins") instanceof ObjectNode plugins) seeded.dropUntouchedSeeds(plugins);
+			var patched = patch.apply(objectMapper.convertValue(ref, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Ref.class);
 			if (updated.getTags() != null) {
 				// Tolerate duplicate tags

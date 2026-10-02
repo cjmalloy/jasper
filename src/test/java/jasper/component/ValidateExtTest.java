@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -12,8 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ValidateExtTest {
 
-    PluginData pluginData = new PluginData();
+    Validate validate = new Validate();
     ObjectMapper mapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUp() {
+        validate.objectMapper = mapper;
+    }
 
     @Test
     void testMerge() throws IOException {
@@ -45,7 +51,7 @@ public class ValidateExtTest {
         var defaults = List.of(root, a, ab);
         var finalMerged = defaults.stream()
             .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
-            .reduce(null, pluginData::merge);
+            .reduce(null, validate::merge);
         assertThat(finalMerged.get("config").get("abProp").asText()).isEqualTo("ab");
         assertThat(finalMerged.get("config").get("aProp").asText()).isEqualTo("a");
 
@@ -88,7 +94,7 @@ public class ValidateExtTest {
         // Ascending: "", "a", "a/b"
         var merged = defaults.stream()
             .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
-            .reduce(null, pluginData::merge);
+            .reduce(null, validate::merge);
         assertThat(merged.get("config").get("overrideMe").asText()).isEqualTo("ab");
         assertThat(merged.get("config").get("defaultSort")).hasSize(1);
         assertThat(merged.get("config").get("defaultSort").get(0).asText()).isEqualTo("modified");
@@ -119,7 +125,7 @@ public class ValidateExtTest {
         var merged = defaults.stream()
             .sorted(Comparator.<ObjectNode, String>comparing(t -> t.get("tag").asText()))
             .map(t -> (ObjectNode) t.get("defaults"))
-            .reduce(null, pluginData::merge);
+            .reduce(null, validate::merge);
         // Override arrays, NOT append
         assertThat(merged.get("defaultSort")).hasSize(1);
         assertThat(merged.get("defaultSort").get(0).asText()).isEqualTo("modified");
@@ -129,7 +135,7 @@ public class ValidateExtTest {
 
     @Test
     void testMergeWithBothNull() {
-        var result = pluginData.merge(null, null);
+        var result = validate.merge(null, null);
         assertThat(result).isNotNull();
         assertThat(result.isEmpty()).isTrue();
     }
