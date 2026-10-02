@@ -54,6 +54,8 @@ public class Proxy {
 		if (hasMatchingTag(stat(url, origin), "+plugin/error")) return null;
 		try (var res = fetch.doScrape(url, origin)) {
 			return new String(res.getInputStream().readAllBytes());
+		} catch (TorrentDownloader.BusyException e) {
+			return null;
 		} catch (Exception e) {
 			if (refRepository.existsByUrlAndOrigin(url, origin)) {
 				tagger.attachError(origin,
@@ -73,6 +75,8 @@ public class Proxy {
 		if (hasMatchingTag(ref, "+plugin/error") || bannedOrBroken(getCache(ref))) return null;
 		try {
 			return fetch.doScrape(url, origin).getInputStream();
+		} catch (TorrentDownloader.BusyException e) {
+			return null;
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				tagger.plugin(url, origin, "_plugin/cache", null),
@@ -104,6 +108,8 @@ public class Proxy {
 				return fetch(url, origin);
 			}
 			return new ByteArrayInputStream(data);
+		} catch (TorrentDownloader.BusyException e) {
+			return null;
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),

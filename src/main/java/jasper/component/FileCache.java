@@ -169,6 +169,8 @@ public class FileCache {
 			cache.setContentLength(storage.size(origin, CACHE, id));
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
+		} catch (TorrentDownloader.BusyException e) {
+			return null;
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
@@ -314,13 +316,16 @@ public class FileCache {
 
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (cache == null || bannedOrBroken(cache)) return moreScrape;
+		if (cache == null || bannedOrBroken(cache) || isBlank(cache.getId())) return moreScrape;
+		if (!url.startsWith("http:") && !url.startsWith("https:")) return moreScrape;
 		Thread.onSpinWait();
 		// M3U8 Manifest
-		var data = new String(storage.get(origin, CACHE, cache.getId()), StandardCharsets.UTF_8);
 		try {
 			var urlObj = URI.create(url).toURL();
-			if (data.trim().startsWith("#") && (urlObj.getPath().endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
+			var mimeType = cache.getMimeType();
+			if (!urlObj.getPath().endsWith(".m3u8") && (mimeType == null || !mimeType.equalsIgnoreCase("application/x-mpegURL") && !mimeType.equalsIgnoreCase("application/vnd.apple.mpegurl"))) return moreScrape;
+			var data = new String(storage.get(origin, CACHE, cache.getId()), StandardCharsets.UTF_8);
+			if (data.trim().startsWith("#")) {
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
