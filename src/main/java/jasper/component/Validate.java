@@ -87,7 +87,7 @@ public class Validate {
 			responses(rootOrigin, ref, true, false);
 			sources(rootOrigin, ref, true, false, root.getMaxSources());
 			responses(rootOrigin, ref, false, false);
-			sources(rootOrigin, ref, false, false, root.getMaxSources());
+			sources(rootOrigin, ref, false, false, Integer.MAX_VALUE);
 		}
 	}
 
