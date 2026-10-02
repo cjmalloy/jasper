@@ -555,9 +555,9 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_SCRIPTS`     | Override the server maximum concurrent script executions.                                                                      | `100_000`                                                                                                                                                                                                     |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REPLICATION` | Override the server maximum concurrent replication push/pull operations.                                                       | `3`                                                                                                                                                                                                           |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_FETCH`       | Override the server maximum concurrent fetch operations (scraping).                                                            | `10`                                                                                                                                                                                                          |
-| `JASPER_OVERRIDE_SERVER_STORAGE`                    | Override the server default storage provider (`gcs` or `local`). Setting `local` clears the default GCS bucket.                |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SERVER_GCS_BUCKET`                 | Override the server default GCS bucket. An empty value clears it.                                                              |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SERVER_GCS_ROUTES_0_BUCKET`        | Override the server GCS bucket routes. Set `_STORAGE`, `_NAMESPACES`, `_TENANTS` and `_CDN_BASE_URL` the same way. Any set value replaces all template routes, an empty list clears them. |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_STORAGE`                    | Override the server default storage provider (`local`, `gcs` or `s3`). Setting `local` clears the default bucket.                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_STORAGE_BUCKET`             | Override the server default storage bucket. An empty value clears it.                                                              |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_0_BUCKET`    | Override the server storage routes. Set `_STORAGE`, `_NAMESPACES`, `_TENANTS` and `_CDN_BASE_URL` the same way. Any set value replaces all template routes, an empty list clears them. |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_MODE`                     | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_CLIENT_ID`                | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`            | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
@@ -606,9 +606,9 @@ different nodes to run different workloads.
 | `maxRequests`              | Maximum HTTP requests per origin every 500 nanoseconds.                                         | `50`                                       |
 | `maxConcurrentRequests`    | Global maximum concurrent HTTP requests across all origins.                                     | `500`                                      |
 | `maxConcurrentFetch`       | Maximum concurrent fetch operations (scraping).                                                 | `10`                                       |
-| `storage`                  | Default storage provider for the `gcs` profile: `gcs` or `local`.                               | `"gcs"`                                    |
-| `gcsBucket`                | Default GCS bucket for the `gcs` profile. Never served by a CDN.                                | `""`                                       |
-| `gcsRoutes`                | GCS bucket routes for the `gcs` profile. The first match wins.                                  | `[]`                                       |
+| `storage`                  | Default storage provider: `local`, `gcs` or `s3`.                                               | `"local"`                                  |
+| `storageBucket`            | Default storage bucket. Never served by a CDN.                                                  | `""`                                       |
+| `storageRoutes`            | Storage routes by tenant and namespace. The first match wins.                                   | `[]`                                       |
 
 #### Security Config (`_config/security` Template)
 The `_config/security` template is installed per-origin to configure authentication and authorization
@@ -686,40 +686,50 @@ environment variable.
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
-The `gcs` profile stores files in Google Cloud Storage buckets, allowing multiple pods to share storage. The `storage`
-profile is the master switch: the `gcs` profile does nothing unless the `storage` profile is also active. Objects are keyed as `tenant/namespace/id`. Buckets are set in the
-`_config/server` template and can be changed at runtime. Each tenant and namespace is stored in the bucket of the
-first matching route in `gcsRoutes`, or in the default `gcsBucket`. Set `storage` to `local` on a route, or on the
-server config for unmatched tenants and namespaces, to use the local storage folder instead of a bucket. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
-and `JASPER_OVERRIDE_SERVER_GCS_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
+The `gcs` profile enables storing files in Google Cloud Storage buckets, and the `s3` profile enables storing files in
+AWS S3 (or an S3-compatible service such as MinIO or Cloudflare R2) buckets, allowing multiple pods to share storage.
+Both profiles may be active at the same time. The `storage` profile is the master switch: the `gcs` and `s3` profiles
+do nothing unless the `storage` profile is also active. Objects are keyed as `tenant/namespace/id`. Storage providers
+and buckets are set in the `_config/server` template and can be changed at runtime. Each tenant and namespace is
+stored by the first matching route in `storageRoutes`, or by the default `storage` provider and `storageBucket`.
+The storage provider is one of `local` (the local storage folder), `gcs` or `s3`. A route with no `storage` uses the
+default storage provider. The `gcs` and `s3` storage providers require a bucket and their profile, and `local` does not
+use a bucket. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_STORAGE_BUCKET`
+and `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
 and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
-instead of the proxy, and the segments are cached in the background. To keep private files out of public buckets, CDN
+instead of the proxy, and the segments are cached in the background. Objects in S3 buckets served by a CDN are stored
+with a content type and `Content-Disposition: inline`. To keep private files out of public buckets, CDN
 routes must list their namespaces, and a bucket used by a CDN route can't be the default bucket or be used by a route
 without a CDN. Segments cached before their route had a CDN stay behind the proxy. If the config is invalid at
 startup, the server still starts so the config can be fixed, but storage is unavailable until it is. Later invalid
-configs are logged and ignored, keeping the previous buckets:
+configs are logged and ignored, keeping the previous routes:
 ```json
 {
-  "gcsBucket": "jasper-private",
-  "gcsRoutes": [
+  "storage": "gcs",
+  "storageBucket": "jasper-private",
+  "storageRoutes": [
     { "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" },
-    { "bucket": "jasper-tenant-private", "tenants": ["@tenant"] }
+    { "storage": "s3", "bucket": "jasper-tenant-private", "tenants": ["@tenant"] }
   ]
 }
 ```
-For example, to keep the cache in GCS and everything else, such as backups, in local storage:
+For example, to keep the cache in S3 and everything else, such as backups, in local storage:
 ```json
 {
   "storage": "local",
-  "gcsRoutes": [
-    { "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" }
+  "storageRoutes": [
+    { "storage": "s3", "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" }
   ]
 }
 ```
-Credentials are resolved with Application Default Credentials, such as GKE Workload
-Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
-enough local disk in the `java.io.tmpdir` folder for the largest backup stored in GCS.
+GCS credentials are resolved with Application Default Credentials, such as GKE Workload Identity Federation.
+S3 credentials are resolved with the default AWS credentials provider chain, such as environment variables or EKS IAM
+roles for service accounts. Set the S3 region with `APPLICATION_STORAGE_S3_REGION` (defaults to `us-east-1`). Set
+`APPLICATION_STORAGE_S3_ENDPOINT` only for S3-compatible services; leave it blank for AWS S3.
+Zip archives are staged in a temporary file while they are read or written, so each pod needs enough local disk for
+the largest backup stored in a bucket. Set the staging folder with the `APPLICATION_STORAGE_TMP_DIR` environment
+variable (defaults to `java.io.tmpdir`).
 
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,
