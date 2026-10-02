@@ -8,6 +8,7 @@ import jasper.security.HostCheck;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
@@ -99,6 +100,22 @@ class TorrentDownloaderTest {
 		assertThatThrownBy(() -> downloader.checkSize(torrent))
 			.isInstanceOf(IOException.class)
 			.hasMessage("Torrent exceeds maximum size");
+	}
+
+	@Test
+	void rejectsOversizedMetadataBody() {
+		props.getTorrent().setMaxMetadataSizeBytes(3);
+
+		assertThatThrownBy(() -> downloader.readMetainfo(new ByteArrayInputStream("d1:a1:be".getBytes())))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Torrent metadata exceeds maximum size");
+	}
+
+	@Test
+	void rejectsMetadataWithForgedStringLength() {
+		assertThatThrownBy(() -> downloader.readMetainfo(new ByteArrayInputStream("d1:a2147483000:e".getBytes())))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Invalid torrent metadata");
 	}
 
 	@Test

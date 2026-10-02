@@ -123,7 +123,7 @@ public class TorrentDownloader {
 	private Torrent downloadMetainfo(InputStream metainfo, Path target) throws IOException {
 		checkEnabled();
 		var runtime = runtime();
-		var torrent = runtime.service(IMetadataService.class).fromInputStream(metainfo);
+		var torrent = runtime.service(IMetadataService.class).fromByteArray(readMetainfo(metainfo));
 		checkSize(torrent);
 		checkTrackerHosts(torrent.getAnnounceKey()
 			.map(key -> key.isMultiKey() ? key.getTrackerUrls().stream().flatMap(Collection::stream).toList() : java.util.List.of(key.getTrackerUrl()))
@@ -167,6 +167,51 @@ public class TorrentDownloader {
 		if (torrent.getSize() > props.getTorrent().getMaxSizeBytes()) {
 			throw new IOException("Torrent exceeds maximum size");
 		}
+	}
+
+	byte[] readMetainfo(InputStream metainfo) throws IOException {
+		var maxSize = props.getTorrent().getMaxMetadataSizeBytes();
+		if (maxSize < 1 || maxSize == Integer.MAX_VALUE) throw new IOException("Invalid maximum torrent metadata size");
+		var data = metainfo.readNBytes(maxSize + 1);
+		if (data.length > maxSize) throw new IOException("Torrent metadata exceeds maximum size");
+		if (parseBencode(data, 0, 0) != data.length) throw new IOException("Invalid torrent metadata");
+		return data;
+	}
+
+	private int parseBencode(byte[] data, int offset, int depth) throws IOException {
+		if (offset >= data.length || depth > 100) throw new IOException("Invalid torrent metadata");
+		if (data[offset] == 'i') {
+			var end = offset + 1;
+			while (end < data.length && data[end] != 'e') end++;
+			if (end == offset + 1 || end == data.length) throw new IOException("Invalid torrent metadata");
+			return end + 1;
+		}
+		if (data[offset] == 'l' || data[offset] == 'd') {
+			var dictionary = data[offset] == 'd';
+			var next = offset + 1;
+			var key = dictionary;
+			while (next < data.length && data[next] != 'e') {
+				if (key && (data[next] < '0' || data[next] > '9')) throw new IOException("Invalid torrent metadata");
+				next = parseBencode(data, next, depth + 1);
+				if (dictionary) key = !key;
+			}
+			if (next == data.length || dictionary && !key) throw new IOException("Invalid torrent metadata");
+			return next + 1;
+		}
+		if (data[offset] < '0' || data[offset] > '9') throw new IOException("Invalid torrent metadata");
+		var separator = offset;
+		var length = 0L;
+		while (separator < data.length && data[separator] >= '0' && data[separator] <= '9') {
+			var digit = data[separator] - '0';
+			if (length > (data.length - digit) / 10L) throw new IOException("Invalid torrent metadata");
+			length = length * 10 + digit;
+			if (length > data.length) throw new IOException("Invalid torrent metadata");
+			separator++;
+		}
+		if (separator == data.length || data[separator] != ':' || length > data.length - separator - 1L) {
+			throw new IOException("Invalid torrent metadata");
+		}
+		return separator + 1 + (int) length;
 	}
 
 	void run(BtClient client, CompletableFuture<Torrent> metadata, CompletableFuture<Void> rejected,

@@ -356,6 +356,7 @@ public class Props {
 		private boolean enabled = true;
 		private Duration metadataTimeout = Duration.ofMinutes(1);
 		private Duration downloadTimeout = Duration.ofMinutes(10);
+		private int maxMetadataSizeBytes = 10 * 1024 * 1024;
 		private long maxSizeBytes = 10L * 1024 * 1024 * 1024;
 		private int peerPort = 6881;
 		private int dhtPort = 49001;
