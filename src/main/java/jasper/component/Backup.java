@@ -279,7 +279,7 @@ public class Backup {
 							return null;
 						}
 						var t = it.next();
-								if (!tombstones && isTombstone(t)) continue;
+						if (!tombstones && isTombstone(t)) continue;
 						try {
 							t.setOrigin(origin);
 							repo.save(t);
