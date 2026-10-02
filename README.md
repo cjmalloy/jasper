@@ -686,12 +686,11 @@ environment variable.
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
-The `gcs` profile stores files in Google Cloud Storage buckets, allowing multiple pods to share storage. It may be
-enabled with or without the `storage` profile. Objects are keyed as `tenant/namespace/id`. Buckets are set in the
+The `gcs` profile stores files in Google Cloud Storage buckets, allowing multiple pods to share storage. The `storage`
+profile is the master switch: the `gcs` profile does nothing unless the `storage` profile is also active. Objects are keyed as `tenant/namespace/id`. Buckets are set in the
 `_config/server` template and can be changed at runtime. Each tenant and namespace is stored in the bucket of the
 first matching route in `gcsRoutes`, or in the default `gcsBucket`. Set `storage` to `local` on a route, or on the
-server config for unmatched tenants and namespaces, to use the local storage folder instead of a bucket. This requires
-the `storage` profile. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
+server config for unmatched tenants and namespaces, to use the local storage folder instead of a bucket. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
 and `JASPER_OVERRIDE_SERVER_GCS_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
 and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN

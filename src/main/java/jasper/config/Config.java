@@ -177,7 +177,6 @@ public interface Config {
 		private int maxConcurrentFetch = 10;
 		/**
 		 * Storage provider for any tenant and namespace not matched by a GCS route: "gcs" or "local".
-		 * Local storage requires the storage profile.
 		 */
 		@Builder.Default
 		private String storage = "gcs";
@@ -239,7 +238,6 @@ public interface Config {
 	class GcsRoute implements Serializable {
 		/**
 		 * Storage provider for matching objects: "gcs" or "local".
-		 * Local storage requires the storage profile.
 		 */
 		private String storage = "gcs";
 		/**

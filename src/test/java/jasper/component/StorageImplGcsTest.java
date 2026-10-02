@@ -27,7 +27,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -55,7 +54,7 @@ public class StorageImplGcsTest {
 	}
 
 	static StorageImplGcs gcs(com.google.cloud.storage.Storage client, Path tmpDir, GcsRoute... routes) {
-		var gcs = new StorageImplGcs(client, mock(ConfigCache.class), Optional.empty());
+		var gcs = new StorageImplGcs(client, mock(ConfigCache.class), mock(StorageImplLocal.class));
 		gcs.tmpDir = tmpDir;
 		gcs.update(root(routes));
 		return gcs;
@@ -140,7 +139,7 @@ public class StorageImplGcsTest {
 		var local = new StorageImplLocal();
 		local.props = new Props();
 		local.props.setStorage(tmpDir.resolve("local").toString());
-		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), Optional.of(local));
+		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), local);
 		gcs.tmpDir = tmpDir;
 		gcs.update(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")).withStorage("local").withGcsBucket(""));
 
@@ -173,9 +172,6 @@ public class StorageImplGcsTest {
 		assertThatThrownBy(() -> gcs.update(root(localBucket))).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> gcs.update(root().withStorage("s3"))).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> gcs.update(root().withStorage("local"))).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), mock(ConfigCache.class), Optional.empty())
-			.update(root(localBackups)))
-			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
@@ -188,7 +184,7 @@ public class StorageImplGcsTest {
 			listener.get().accept(initial.get());
 			return null;
 		}).when(configs).rootUpdate(any());
-		var gcs = new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), configs, Optional.empty());
+		var gcs = new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), configs, mock(StorageImplLocal.class));
 		gcs.tmpDir = tmpDir;
 		// An unconfigured server config must not prevent startup, so it can be fixed at runtime
 		gcs.init();
@@ -226,7 +222,7 @@ public class StorageImplGcsTest {
 		var local = new StorageImplLocal();
 		local.props = new Props();
 		local.props.setStorage(tmpDir.resolve("local").toString());
-		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), Optional.of(local));
+		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), local);
 		gcs.tmpDir = tmpDir;
 
 		var props = new Props();
