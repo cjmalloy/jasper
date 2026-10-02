@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Component
 @Profile("proxy")
@@ -61,12 +62,15 @@ public class TorrentDownloader {
 	@Autowired
 	Props props;
 
-	private final Object downloadLock = new Object();
+	private final ReentrantLock downloadLock = new ReentrantLock();
 	private BtRuntime runtime;
 
 	public Torrent download(String magnet, Path target) throws IOException {
-		synchronized (downloadLock) {
+		if (!downloadLock.tryLock()) throw new IOException("Another torrent download is in progress");
+		try {
 			return downloadMagnet(magnet, target);
+		} finally {
+			downloadLock.unlock();
 		}
 	}
 
@@ -77,6 +81,7 @@ public class TorrentDownloader {
 		var torrent = new AtomicReference<Torrent>();
 		var clientReference = new AtomicReference<BtClient>();
 		var metadata = new CompletableFuture<Torrent>();
+		var rejected = new CompletableFuture<Void>();
 		var downloaded = new AtomicBoolean();
 		var client = Bt.client(runtime())
 			.magnet(magnetUri)
@@ -87,10 +92,10 @@ public class TorrentDownloader {
 					torrent.set(value);
 					metadata.complete(value);
 				} catch (IOException e) {
-					metadata.completeExceptionally(e);
 					var runningClient = clientReference.get();
 					if (runningClient != null) runningClient.stop();
-					shutdown();
+					metadata.completeExceptionally(e);
+					rejected.join();
 				}
 			})
 			.afterDownloaded(value -> downloaded.set(true))
@@ -98,7 +103,7 @@ public class TorrentDownloader {
 			.build();
 		clientReference.set(client);
 		try {
-			run(client, metadata, downloaded);
+			run(client, metadata, rejected, downloaded);
 			return torrent.get();
 		} catch (IOException e) {
 			FileUtils.deleteQuietly(target.toFile());
@@ -107,8 +112,11 @@ public class TorrentDownloader {
 	}
 
 	public Torrent download(InputStream metainfo, Path target) throws IOException {
-		synchronized (downloadLock) {
+		if (!downloadLock.tryLock()) throw new IOException("Another torrent download is in progress");
+		try {
 			return downloadMetainfo(metainfo, target);
+		} finally {
+			downloadLock.unlock();
 		}
 	}
 
@@ -161,7 +169,8 @@ public class TorrentDownloader {
 		}
 	}
 
-	private void run(BtClient client, CompletableFuture<Torrent> metadata, AtomicBoolean downloaded) throws IOException {
+	void run(BtClient client, CompletableFuture<Torrent> metadata, CompletableFuture<Void> rejected,
+		AtomicBoolean downloaded) throws IOException {
 		var future = client.startAsync(state -> {}, 1000);
 		try {
 			metadata.get(props.getTorrent().getMetadataTimeout().toMillis(), TimeUnit.MILLISECONDS);
@@ -171,7 +180,14 @@ public class TorrentDownloader {
 			Thread.currentThread().interrupt();
 			throw new IOException("Torrent download interrupted", e);
 		} catch (ExecutionException e) {
-			if (e.getCause() instanceof IOException ioException) throw ioException;
+			if (e.getCause() instanceof IOException ioException) {
+				try {
+					shutdown();
+				} finally {
+					rejected.complete(null);
+				}
+				throw ioException;
+			}
 			throw new IOException("Torrent download failed", e.getCause());
 		} catch (TimeoutException e) {
 			shutdown();

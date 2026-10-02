@@ -60,6 +60,22 @@ class TorrentDownloaderTest {
 	}
 
 	@Test
+	void resetsRuntimeBeforeReleasingRejectedMetadataCallback() {
+		var client = mock(BtClient.class);
+		var metadata = new CompletableFuture<Torrent>();
+		var rejected = new CompletableFuture<Void>();
+		metadata.completeExceptionally(new IOException("Torrent exceeds maximum size"));
+		when(client.startAsync(any(), anyLong())).thenReturn(new CompletableFuture<>());
+
+		assertThatThrownBy(() -> downloader.run(client, metadata, rejected, new AtomicBoolean()))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Torrent exceeds maximum size");
+		assertThat(rejected).isCompleted();
+		verify(client).stop();
+		verify(downloader).shutdown();
+	}
+
+	@Test
 	void rejectsTorrentOverMaximumSize() {
 		var torrent = mock(Torrent.class);
 		props.getTorrent().setMaxSizeBytes(10);
