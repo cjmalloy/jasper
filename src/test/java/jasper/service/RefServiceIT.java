@@ -3,6 +3,7 @@ package jasper.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonpatch.JsonPatch;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
@@ -11,6 +12,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidPatchException;
 import jasper.errors.ModifiedException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -1768,4 +1770,71 @@ public class RefServiceIT {
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
+	Ref refWithSchemaPlugin(String defaults) throws JsonProcessingException {
+		var mapper = new ObjectMapper();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"optionalProperties": {
+				"style": {
+					"optionalProperties": {
+						"color": { "type": "string" },
+						"size": { "type": "int32" }
+					}
+				}
+			}
+		}"""));
+		if (defaults != null) plugin.setDefaults(mapper.readTree(defaults));
+		pluginRepository.save(plugin);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("+user/tester", "plugin/test")));
+		ingest.create("", ref);
+		return ref;
+	}
+
+	void assertPatchFailsUnchanged(Ref ref, String patch) throws Exception {
+		var before = refRepository.findOneByUrlAndOrigin(URL, "").get();
+
+		var jsonPatch = new ObjectMapper().readValue(patch, JsonPatch.class);
+		assertThatThrownBy(() -> refService.patch(URL, "", ref.getModified(), jsonPatch))
+			.isInstanceOf(InvalidPatchException.class);
+
+		var after = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(after.getPlugins()).isEqualTo(before.getPlugins());
+		assertThat(after.getModified()).isEqualTo(before.getModified());
+	}
+
+	@Test
+	void testPatchNestedAddIntoDefaultsParent() throws Exception {
+		var ref = refWithSchemaPlugin("{\"style\": {\"color\": \"blue\"}}");
+		var mapper = new ObjectMapper();
+
+		refService.patch(URL, "", ref.getModified(), mapper.readValue("""
+			[{"op": "add", "path": "/plugins/plugin~1test/style/size", "value": 2}]""", JsonPatch.class));
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getPlugin("plugin/test"))
+			.isEqualTo(mapper.readTree("{\"style\": {\"color\": \"blue\", \"size\": 2}}"));
+	}
+
+	@Test
+	void testPatchNestedAddIntoSchemaPluginWithoutDefaultsFails() throws Exception {
+		var ref = refWithSchemaPlugin(null);
+
+		assertPatchFailsUnchanged(ref, """
+			[{"op": "add", "path": "/plugins/plugin~1test/style/size", "value": 2}]""");
+	}
+
+	@Test
+	void testPatchAddNullThenNestedAddFails() throws Exception {
+		var ref = refWithSchemaPlugin("{\"style\": {\"color\": \"blue\"}}");
+
+		assertPatchFailsUnchanged(ref, """
+			[
+				{"op": "add", "path": "/plugins/plugin~1test", "value": null},
+				{"op": "add", "path": "/plugins/plugin~1test/style", "value": {}}
+			]""");
+	}
 }
