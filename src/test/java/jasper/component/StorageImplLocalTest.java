@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class StorageImplLocalTest {
 
@@ -48,5 +49,19 @@ public class StorageImplLocalTest {
 		try (var files = Files.list(storage.dir("", "backups"))) {
 			assertThat(files).isEmpty();
 		}
+	}
+
+	@Test
+	void testFailedCommitRemovesTemporaryZip() throws IOException {
+		try (var zipped = storage.zipAt("", "backups", "b.zip")) {
+			try (var os = zipped.out("ref.json")) {
+				os.write("[]".getBytes());
+			}
+			// Created concurrently, so publishing fails
+			storage.storeAt("", "backups", "b.zip", "other".getBytes());
+			assertThatThrownBy(zipped::commit).isInstanceOf(IOException.class);
+		}
+		assertThat(storage.get("", "backups", "b.zip")).isEqualTo("other".getBytes());
+		assertThat(storage.exists("", "backups", "_b.zip")).isFalse();
 	}
 }

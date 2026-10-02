@@ -697,7 +697,9 @@ and a route with no `tenants` matches every tenant (use `default` for the defaul
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
 instead of the proxy, and the segments are cached in the background. To keep private files out of public buckets, CDN
 routes must list their namespaces, and a bucket used by a CDN route can't be the default bucket or be used by a route
-without a CDN. An invalid config is logged and ignored, keeping the previous buckets:
+without a CDN. Segments cached before their route had a CDN stay behind the proxy. If the config is invalid at
+startup, the server still starts so the config can be fixed, but storage is unavailable until it is. Later invalid
+configs are logged and ignored, keeping the previous buckets:
 ```json
 {
   "gcsBucket": "jasper-private",

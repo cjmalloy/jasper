@@ -190,7 +190,10 @@ public class StorageImplGcsTest {
 		}).when(configs).rootUpdate(any());
 		var gcs = new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), configs, Optional.empty());
 		gcs.tmpDir = tmpDir;
-		assertThatThrownBy(gcs::init).isInstanceOf(IllegalArgumentException.class);
+		// An unconfigured server config must not prevent startup, so it can be fixed at runtime
+		gcs.init();
+		assertThatThrownBy(() -> gcs.blobId("", "cache", "a")).isInstanceOf(IllegalStateException.class);
+		listener.get().accept(root(route("private", List.of("cache"), List.of(), "https://cdn.example.com")));
 		assertThatThrownBy(() -> gcs.blobId("", "cache", "a")).isInstanceOf(IllegalStateException.class);
 
 		initial.set(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")));

@@ -34,6 +34,7 @@ public class FileCacheTest {
 
 	@BeforeEach
 	void init() throws IOException {
+		ReflectionTestUtils.setField(JacksonConfiguration.class, "om", new ObjectMapper());
 		fileCache = new FileCache();
 		fileCache.configs = mock(ConfigCache.class);
 		fileCache.refRepository = mock(RefRepository.class);
@@ -66,24 +67,53 @@ public class FileCacheTest {
 	void testManifestCdn() throws IOException {
 		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
 			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
+		when(tagger.initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
+			.thenAnswer(i -> segment(i.<Cache>getArgument(3).getId(), "_plugin/delta/cache"));
 
 		var manifest = rewrittenManifest();
 
 		var cache = ArgumentCaptor.forClass(Cache.class);
-		verify(tagger).plugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), cache.capture(), eq("_plugin/delta/cache"));
+		verify(tagger).initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), cache.capture(), eq("_plugin/delta/cache"));
 		assertThat(manifest).contains("https://cdn.example.com/default/cache/" + cache.getValue().getId() + "\n");
 		assertThat(manifest).doesNotContain("/api/v1/proxy");
 	}
 
 	@Test
+	void testManifestCdnConcurrentReservation() throws IOException {
+		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
+			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
+		// Another pod reserved the segment first
+		when(tagger.initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
+			.thenReturn(segment("winner", "_plugin/delta/cache"));
+
+		assertThat(rewrittenManifest()).contains("https://cdn.example.com/default/cache/winner\n");
+	}
+
+	@Test
 	void testManifestCdnExistingCache() throws IOException {
-		ReflectionTestUtils.setField(JacksonConfiguration.class, "om", new ObjectMapper());
-		var ref = new Ref();
-		ref.setUrl("https://example.com/video/seg0.ts");
-		ref.setPlugin("_plugin/cache", Cache.builder().id("seg").build());
-		when(fileCache.refRepository.findOneByUrlAndOrigin("https://example.com/video/seg0.ts", "")).thenReturn(Optional.of(ref));
+		when(fileCache.refRepository.findOneByUrlAndOrigin("https://example.com/video/seg0.ts", "")).thenReturn(Optional.of(segment("seg")));
+		when(storage.exists("", "cache", "seg")).thenReturn(true);
 		when(storage.getCdnUrl("", "cache", "seg")).thenReturn("https://cdn.example.com/default/cache/seg");
 
 		assertThat(rewrittenManifest()).contains("https://cdn.example.com/default/cache/seg\n");
+	}
+
+	@Test
+	void testManifestCdnExistingCacheStoredElsewhere() throws IOException {
+		// Cached before the CDN route was configured, so it is not in the CDN bucket
+		when(fileCache.refRepository.findOneByUrlAndOrigin("https://example.com/video/seg0.ts", "")).thenReturn(Optional.of(segment("seg")));
+		when(storage.getCdnUrl("", "cache", "seg")).thenReturn("https://cdn.example.com/default/cache/seg");
+
+		assertThat(rewrittenManifest())
+			.contains("/api/v1/proxy?url=https%3A%2F%2Fexample.com%2Fvideo%2Fseg0.ts")
+			.doesNotContain("https://cdn.example.com");
+	}
+
+	Ref segment(String id, String ...tags) {
+		var ref = new Ref();
+		ref.setUrl("https://example.com/video/seg0.ts");
+		ref.setPlugin("_plugin/cache", Cache.builder().id(id).build());
+		for (var tag : tags) ref.addTag(tag);
+		return ref;
 	}
 }

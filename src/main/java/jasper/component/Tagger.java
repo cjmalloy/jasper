@@ -132,6 +132,35 @@ public class Tagger {
 		}
 	}
 
+	/**
+	 * Set a plugin only if the Ref does not have it yet. Concurrent callers
+	 * never overwrite each other, so all of them get the Ref with the plugin that won.
+	 */
+	Ref initPlugin(String url, String origin, String tag, Object plugin, String ...tags) {
+		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
+		if (maybeRef.isEmpty()) {
+			var ref = from(url, origin, tags).setPlugin(tag, plugin);
+			ref.addTag("internal");
+			try {
+				ingest.create(origin, ref);
+			} catch (AlreadyExistsException e) {
+				return initPlugin(url, origin, tag, plugin, tags);
+			}
+			return ref;
+		}
+		var ref = maybeRef.get();
+		if (ref.hasPlugin(tag)) return ref;
+		ref.setPlugin(tag, plugin);
+		ref.addTags(asList(tags));
+		try {
+			ingest.update(origin, ref);
+		} catch (ModifiedException e) {
+			return initPlugin(url, origin, tag, plugin, tags);
+		}
+		return ref;
+	}
+
 	Ref plugin(boolean retry, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);

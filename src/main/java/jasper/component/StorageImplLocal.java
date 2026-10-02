@@ -301,10 +301,15 @@ public class StorageImplLocal implements Storage {
 		public void commit() throws IOException {
 			if (closed) throw new IOException("Zip already closed");
 			closed = true;
-			zipfs.close();
-			if (create) {
-				// Remove underscore to indicate writing has finished
-				Files.move(path(origin, namespace, "_" + id), path(origin, namespace, id));
+			try {
+				zipfs.close();
+				if (create) {
+					// Remove underscore to indicate writing has finished
+					Files.move(path(origin, namespace, "_" + id), path(origin, namespace, id));
+				}
+			} catch (IOException | RuntimeException e) {
+				if (create) Files.deleteIfExists(path(origin, namespace, "_" + id));
+				throw e;
 			}
 		}
 
