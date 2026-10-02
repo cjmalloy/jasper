@@ -423,6 +423,20 @@ public class TaggingServiceIT {
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoInheritedParentDefaults() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"style": {"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}}}""", """
+			{"style": {"color": "blue"}}""");
+
+		taggingService.respond(List.of("plugin/test/sub"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/style/size", "value": 2}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"style\": {\"color\": \"blue\", \"size\": 2}}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
 	void testRespondPatchNestedAddIntoSchemaPluginWithoutDefaultsFails() throws IOException {
 		refWithTags(URL, "+user/tester");
 		saveSchemaPlugin("plugin/test");
