@@ -6,12 +6,8 @@ import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.util.UriUtils;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -40,22 +36,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
+
 /**
- * {@link Storage} backed by two S3 (or S3-compatible) buckets.
- * Public namespaces (such as the file cache) are stored in the public bucket,
- * every other namespace (backups, preload, secrets, config) is stored in the
- * private bucket. Objects are keyed as {@code tenant/namespace/id}.
+ * {@link Storage} backed by an S3 (or S3-compatible) bucket.
+ * Created by {@link StorageRouter} for each bucket routed to the "s3" storage provider.
+ * Only buckets with a CDN base URL are served by a CDN, and their objects are stored with
+ * a content type and {@code Content-Disposition: inline}. Objects are keyed as {@code tenant/namespace/id}.
  */
-@Primary
-@Profile("storage & s3")
-@Component
 public class StorageImplS3 implements Storage {
 	private final Logger logger = LoggerFactory.getLogger(StorageImplS3.class);
 
@@ -67,46 +61,29 @@ public class StorageImplS3 implements Storage {
 	 */
 	private static final int PART_SIZE = 8 * 1024 * 1024;
 
-	/**
-	 * Namespaces routed to the public bucket. Any other namespace is private.
-	 */
-	private static final Set<String> PUBLIC_NAMESPACES = Set.of("cache");
-
 	private final S3Client s3Client;
-	private final String publicBucketName;
-	private final String privateBucketName;
+	private final String bucket;
 	private final String cdnBaseUrl;
 	private final Path tmpDir;
 	int partSize = PART_SIZE;
 
-	public StorageImplS3(
-		S3Client s3Client,
-		@Value("${application.storage.s3.public-bucket-name}") String publicBucketName,
-		@Value("${application.storage.s3.private-bucket-name}") String privateBucketName,
-		@Value("${application.storage.cdn.base-url:}") String cdnBaseUrl,
-		@Value("${application.storage.s3.tmp-dir:${java.io.tmpdir}}") Path tmpDir
-	) {
-		if (publicBucketName.isBlank() || privateBucketName.isBlank()) throw new IllegalArgumentException("S3 public and private bucket names are required");
-		if (publicBucketName.equals(privateBucketName)) throw new IllegalArgumentException("S3 public and private buckets must be different");
+	public StorageImplS3(S3Client s3Client, String bucket, String cdnBaseUrl, Path tmpDir) {
+		if (isBlank(bucket)) throw new IllegalArgumentException("S3 bucket is required");
 		this.s3Client = s3Client;
-		this.publicBucketName = publicBucketName;
-		this.privateBucketName = privateBucketName;
-		this.cdnBaseUrl = cdnBaseUrl.endsWith("/") ? cdnBaseUrl.substring(0, cdnBaseUrl.length() - 1) : cdnBaseUrl;
+		this.bucket = bucket;
+		this.cdnBaseUrl = isBlank(cdnBaseUrl) ? null : stripEnd(cdnBaseUrl, "/");
 		this.tmpDir = tmpDir;
 	}
 
 	record S3Location(String bucket, String key) {}
 
 	/**
-	 * Public CDN URL for an object in a public namespace, or null if no CDN base URL is configured.
-	 * @throws IllegalArgumentException if the namespace is not routed to the public bucket
+	 * Public CDN URL for an object, or null if this bucket is not served by a CDN.
 	 */
 	@Override
 	public String getCdnUrl(String origin, String namespace, String id) {
-		var location = location(origin, namespace, id);
-		if (!location.bucket().equals(publicBucketName)) throw new IllegalArgumentException("Namespace " + namespace + " is not public");
-		if (cdnBaseUrl.isBlank()) return null;
-		return cdnBaseUrl + "/" + UriUtils.encodePath(location.key(), StandardCharsets.UTF_8);
+		if (cdnBaseUrl == null) return null;
+		return cdnBaseUrl + "/" + UriUtils.encodePath(key(origin, namespace, id), StandardCharsets.UTF_8);
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
@@ -165,26 +142,24 @@ public class StorageImplS3 implements Storage {
 
 	@Override
 	public List<String> listTenants() {
-		var result = new LinkedHashSet<String>();
-		for (var bucket : List.of(publicBucketName, privateBucketName)) {
-			for (var dir : directories(bucket)) {
-				result.add(dir.prefix().substring(0, dir.prefix().length() - 1));
-			}
+		var result = new ArrayList<String>();
+		for (var dir : directories()) {
+			result.add(dir.prefix().substring(0, dir.prefix().length() - 1));
 		}
-		return new ArrayList<>(result);
+		return result;
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void visitStorage(String origin, String namespace, PathVisitor v) {
 		var prefix = prefix(origin, namespace);
-		for (var object : files(namespace, prefix)) v.visit(object.key().substring(prefix.length()));
+		for (var object : files(prefix)) v.visit(object.key().substring(prefix.length()));
 	}
 
 	@Override
 	public List<StorageRef> listStorage(String origin, String namespace) {
 		var prefix = prefix(origin, namespace);
 		var result = new ArrayList<StorageRef>();
-		for (var object : files(namespace, prefix)) {
+		for (var object : files(prefix)) {
 			result.add(new StorageRef(object.key().substring(prefix.length()), object.size() == null ? 0 : object.size()));
 		}
 		return result;
@@ -258,9 +233,8 @@ public class StorageImplS3 implements Storage {
 	@Override
 	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
 		var prefix = prefix(origin, namespace);
-		var bucket = getBucketNameForNamespace(namespace);
 		var dir = backup.get(namespace);
-		for (var object : files(namespace, prefix)) {
+		for (var object : files(prefix)) {
 			if (modifiedAfter != null && (object.lastModified() == null || !object.lastModified().isAfter(modifiedAfter))) continue;
 			Files.createDirectories(dir);
 			try (var is = s3Client.getObject(r -> r.bucket(bucket).key(object.key()))) {
@@ -290,13 +264,13 @@ public class StorageImplS3 implements Storage {
 		return originTenant(origin) + "/" + namespace + "/";
 	}
 
-	S3Location location(String origin, String namespace, String id) {
+	String key(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return new S3Location(getBucketNameForNamespace(namespace), originTenant(origin) + "/" + namespace + "/" + id);
+		return originTenant(origin) + "/" + namespace + "/" + id;
 	}
 
-	private String getBucketNameForNamespace(String namespace) {
-		return PUBLIC_NAMESPACES.contains(namespace) ? publicBucketName : privateBucketName;
+	S3Location location(String origin, String namespace, String id) {
+		return new S3Location(bucket, key(origin, namespace, id));
 	}
 
 	private HeadObjectResponse head(S3Location location) {
@@ -309,10 +283,10 @@ public class StorageImplS3 implements Storage {
 	}
 
 	/**
-	 * Public objects are served by the CDN, so set a content type and render inline in browsers.
+	 * Objects in a CDN bucket are served publicly, so set a content type and render inline in browsers.
 	 */
 	private PutObjectRequest.Builder metadata(PutObjectRequest.Builder builder, S3Location location, String id) {
-		if (location.bucket().equals(publicBucketName)) {
+		if (cdnBaseUrl != null) {
 			builder.contentType(contentType(id)).contentDisposition("inline");
 		}
 		return builder;
@@ -322,12 +296,12 @@ public class StorageImplS3 implements Storage {
 		return MediaTypeFactory.getMediaType(id).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
 	}
 
-	private Iterable<CommonPrefix> directories(String bucket) {
+	private Iterable<CommonPrefix> directories() {
 		return s3Client.listObjectsV2Paginator(r -> r.bucket(bucket).delimiter("/")).commonPrefixes();
 	}
 
-	private Iterable<S3Object> files(String namespace, String prefix) {
-		var objects = s3Client.listObjectsV2Paginator(r -> r.bucket(getBucketNameForNamespace(namespace)).prefix(prefix).delimiter("/")).contents();
+	private Iterable<S3Object> files(String prefix) {
+		var objects = s3Client.listObjectsV2Paginator(r -> r.bucket(bucket).prefix(prefix).delimiter("/")).contents();
 		return () -> objects.stream()
 			.filter(object -> object.key().length() > prefix.length())
 			.iterator();
@@ -351,7 +325,7 @@ public class StorageImplS3 implements Storage {
 			}
 			var uploadId = s3Client.createMultipartUpload(r -> {
 				r.bucket(location.bucket()).key(location.key());
-				if (location.bucket().equals(publicBucketName)) r.contentType(contentType(id)).contentDisposition("inline");
+				if (cdnBaseUrl != null) r.contentType(contentType(id)).contentDisposition("inline");
 			}).uploadId();
 			try {
 				var parts = new ArrayList<CompletedPart>();

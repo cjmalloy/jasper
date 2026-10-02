@@ -176,21 +176,21 @@ public interface Config {
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
 		/**
-		 * Storage provider for any tenant and namespace not matched by a GCS route: "gcs" or "local".
+		 * Storage provider for any tenant and namespace not matched by a storage route: "local", "gcs" or "s3".
 		 */
 		@Builder.Default
-		private String storage = "gcs";
+		private String storage = "local";
 		/**
-		 * GCS bucket for any tenant and namespace not matched by a route. Never served by a CDN.
-		 * Required when the storage provider is "gcs".
+		 * Bucket for any tenant and namespace not matched by a route. Never served by a CDN.
+		 * Required when the storage provider is "gcs" or "s3".
 		 */
 		@Builder.Default
-		private String gcsBucket = "";
+		private String storageBucket = "";
 		/**
-		 * GCS routes checked in order. The first route matching both the tenant and namespace is used.
+		 * Storage routes checked in order. The first route matching both the tenant and namespace is used.
 		 */
 		@Builder.Default
-		private List<GcsRoute> gcsRoutes = List.of();
+		private List<StorageRoute> storageRoutes = List.of();
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -214,9 +214,9 @@ public interface Config {
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
 			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
-			if ("local".equals(server.getStorage())) wrapped = wrapped.withGcsBucket("");
-			if (server.getGcsBucket() != null) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
-			if (server.getGcsRoutes() != null) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
+			if ("local".equals(server.getStorage())) wrapped = wrapped.withStorageBucket("");
+			if (server.getStorageBucket() != null) wrapped = wrapped.withStorageBucket(server.getStorageBucket());
+			if (server.getStorageRoutes() != null) wrapped = wrapped.withStorageRoutes(server.getStorageRoutes());
 			return wrapped;
 		}
 
@@ -229,19 +229,20 @@ public interface Config {
 	}
 
 	/**
-	 * Routes a set of tenants and namespaces to a GCS bucket.
+	 * Routes a set of tenants and namespaces to a storage provider and bucket.
 	 */
 	@Getter
 	@Setter
 	@NoArgsConstructor
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	class GcsRoute implements Serializable {
+	class StorageRoute implements Serializable {
 		/**
-		 * Storage provider for matching objects: "gcs" or "local".
+		 * Storage provider for matching objects: "local", "gcs" or "s3".
+		 * Uses the server default storage provider when blank.
 		 */
-		private String storage = "gcs";
+		private String storage = "";
 		/**
-		 * Bucket to store matching objects in. Required when the storage provider is "gcs".
+		 * Bucket to store matching objects in. Required when the storage provider is "gcs" or "s3".
 		 */
 		private String bucket;
 		/**

@@ -65,7 +65,7 @@ public class StorageImplS3Test {
 	@BeforeEach
 	void init() {
 		s3 = new FakeS3();
-		storage = new StorageImplS3(s3, "public", "private", "https://cdn.example.com/", tmpDir.resolve("s3"));
+		storage = new StorageImplS3(s3, "public", "https://cdn.example.com/", tmpDir.resolve("s3"));
 	}
 
 	@Test
@@ -76,29 +76,14 @@ public class StorageImplS3Test {
 		assertThat(storage.get("", "cache", "a")).isEqualTo("hello".getBytes());
 		assertThat(storage.size("", "cache", "a")).isEqualTo(5);
 		assertThat(storage.location("", "cache", "a").key()).isEqualTo("default/cache/a");
-	}
-
-	@Test
-	void testBucketRouting() throws IOException {
-		storage.storeAt("", "cache", "a", "public".getBytes());
-		storage.storeAt("", "backups", "b", "private".getBytes());
-
 		assertThat(storage.location("", "cache", "a").bucket()).isEqualTo("public");
-		assertThat(storage.location("", "backups", "b").bucket()).isEqualTo("private");
-		assertThat(storage.location("", "preload", "c").bucket()).isEqualTo("private");
-		assertThat(storage.location("", "secrets", "d").bucket()).isEqualTo("private");
-		assertThat(storage.location("", "config", "e").bucket()).isEqualTo("private");
-		assertThat(s3.objects("public")).containsOnlyKeys("default/cache/a");
-		assertThat(s3.objects("private")).containsOnlyKeys("default/backups/b");
-		assertThat(storage.listStorage("", "cache")).containsExactly(new Storage.StorageRef("a", 6));
-		assertThat(storage.listStorage("", "backups")).containsExactly(new Storage.StorageRef("b", 7));
 	}
 
 	@Test
 	void testPublicMetadata() throws IOException {
 		storage.storeAt("", "cache", "a.png", "png".getBytes());
 		storage.storeAt("", "cache", "b", new ByteArrayInputStream("bin".getBytes()));
-		storage.storeAt("", "backups", "c.zip", "zip".getBytes());
+		new StorageImplS3(s3, "private", "", tmpDir).storeAt("", "backups", "c.zip", "zip".getBytes());
 
 		assertThat(s3.objects("public").get("default/cache/a.png").contentType).isEqualTo("image/png");
 		assertThat(s3.objects("public").get("default/cache/a.png").contentDisposition).isEqualTo("inline");
@@ -108,19 +93,15 @@ public class StorageImplS3Test {
 	}
 
 	@Test
-	void testSameBucketRejected() {
-		assertThatThrownBy(() -> new StorageImplS3(s3, "bucket", "bucket", "", tmpDir))
-			.isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> new StorageImplS3(s3, "", "private", "", tmpDir))
+	void testBucketRequired() {
+		assertThatThrownBy(() -> new StorageImplS3(s3, "", "", tmpDir))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
 	void testCdnUrl() {
 		assertThat(storage.getCdnUrl("@other", "cache", "a")).isEqualTo("https://cdn.example.com/@other/cache/a");
-		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
-		assertThat(new StorageImplS3(s3, "public", "private", "", tmpDir).getCdnUrl("", "cache", "a")).isNull();
+		assertThat(new StorageImplS3(s3, "private", "", tmpDir).getCdnUrl("", "cache", "a")).isNull();
 	}
 
 	@Test
@@ -252,7 +233,7 @@ public class StorageImplS3Test {
 			assertThat(files).isEmpty();
 		}
 		assertThat(storage.exists("", "backups", "b.zip")).isTrue();
-		assertThat(s3.objects("private")).containsKey("default/backups/b.zip");
+		assertThat(s3.objects("public")).containsKey("default/backups/b.zip");
 	}
 
 	@Test

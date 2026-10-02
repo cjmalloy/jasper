@@ -283,17 +283,17 @@ public class Props {
 		 */
 		private Integer maxConcurrentFetch;
 		/**
-		 * Override the server default storage provider ("gcs" or "local").
+		 * Override the server default storage provider ("local", "gcs" or "s3").
 		 */
 		private String storage;
 		/**
-		 * Override the server default GCS bucket.
+		 * Override the server default storage bucket.
 		 */
-		private String gcsBucket;
+		private String storageBucket;
 		/**
-		 * Override the server GCS bucket routes.
+		 * Override the server storage routes.
 		 */
-		private List<Config.GcsRoute> gcsRoutes;
+		private List<Config.StorageRoute> storageRoutes;
 	}
 
 	@Getter
