@@ -2,7 +2,6 @@
 
 ## Server
 
-* Added an experimental SQLite database option. Jasper can run without PostgreSQL by enabling the `sqlite` profile.
 * Added dynamic sorting by fields in plugin, metadata, config, and external data, including numeric, length, and array-element sorting.
 * Added per-origin request and script limits, with configurable limits for individual scripts.
 * Added support for running asynchronous work and scripts on virtual threads, with backpressure to keep busy servers responsive.
