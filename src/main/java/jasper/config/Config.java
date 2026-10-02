@@ -25,7 +25,6 @@ import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static java.lang.Math.min;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -192,20 +191,9 @@ public interface Config {
 		 */
 		@Builder.Default
 		private List<StorageRoute> storageRoutes = List.of();
-		/**
-		 * Deprecated: use storageBucket. Read as the default GCS bucket when storageBucket is blank.
-		 */
-		private String gcsBucket;
-		/**
-		 * Deprecated: use storageRoutes. Read as GCS routes when storageRoutes is empty.
-		 */
-		private List<StorageRoute> gcsRoutes;
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
-			if (isNotBlank(gcsBucket) && isBlank(storageBucket)) wrapped = wrapped.withStorage("gcs").withStorageBucket(gcsBucket);
-			if (isNotEmpty(gcsRoutes) && isEmpty(storageRoutes)) wrapped = wrapped.withStorageRoutes(gcsRoutes(gcsRoutes));
-			wrapped = wrapped.withGcsBucket(null).withGcsRoutes(null);
 			var server = props.getOverride().getServer();
 			if (isNotBlank(server.getEmailHost())) wrapped = wrapped.withEmailHost(server.getEmailHost());
 			if (server.getMaxSources() != null) wrapped = wrapped.withMaxSources(server.getMaxSources());
@@ -227,22 +215,9 @@ public interface Config {
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
 			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
 			if ("local".equals(server.getStorage())) wrapped = wrapped.withStorageBucket("");
-			if (server.getGcsBucket() != null) wrapped = wrapped.withStorageBucket(server.getGcsBucket());
-			if (isNotBlank(server.getGcsBucket()) && isBlank(server.getStorage())) wrapped = wrapped.withStorage("gcs");
 			if (server.getStorageBucket() != null) wrapped = wrapped.withStorageBucket(server.getStorageBucket());
-			if (server.getGcsRoutes() != null) wrapped = wrapped.withStorageRoutes(gcsRoutes(server.getGcsRoutes()));
 			if (server.getStorageRoutes() != null) wrapped = wrapped.withStorageRoutes(server.getStorageRoutes());
 			return wrapped;
-		}
-
-		/**
-		 * Deprecated GCS routes, which used the "gcs" storage provider when blank.
-		 */
-		private static List<StorageRoute> gcsRoutes(List<StorageRoute> routes) {
-			routes.forEach(r -> {
-				if (isBlank(r.getStorage())) r.setStorage("gcs");
-			});
-			return routes;
 		}
 
 		public static ServerConfigBuilder builderFor(String origin) {

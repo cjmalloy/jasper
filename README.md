@@ -695,9 +695,7 @@ stored by the first matching route in `storageRoutes`, or by the default `storag
 The storage provider is one of `local` (the local storage folder), `gcs` or `s3`. A route with no `storage` uses the
 default storage provider. The `gcs` and `s3` storage providers require a bucket and their profile, and `local` does not
 use a bucket. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_STORAGE_BUCKET`
-and `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_*` environment variables. The deprecated `gcsBucket` and `gcsRoutes` fields,
-and the `JASPER_OVERRIDE_SERVER_GCS_BUCKET` and `JASPER_OVERRIDE_SERVER_GCS_ROUTES_*` environment variables, are still
-read as GCS storage when the new fields are not set. A route with no `namespaces` matches every namespace,
+and `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
 and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
 instead of the proxy, and the segments are cached in the background. Objects in S3 buckets served by a CDN are stored

@@ -1,7 +1,6 @@
 package jasper.component;
 
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.component.StorageImplS3Test.FakeS3;
 import jasper.config.Config.ServerConfig;
 import jasper.config.Config.StorageRoute;
@@ -290,42 +289,6 @@ public class StorageRouterTest {
 		router.update(root().wrap(props));
 
 		assertThat(bucket(router, "", "backups")).isEqualTo("s3:override");
-		assertThat(bucket(router, "", "cache")).isEqualTo("gcs:public");
-	}
-
-	@Test
-	void testLegacyGcsConfig() throws IOException {
-		var legacy = new ObjectMapper().readValue("""
-			{
-			  "gcsBucket": "private",
-			  "gcsRoutes": [{ "bucket": "public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" }]
-			}""", ServerConfig.class);
-		var wrapped = legacy.wrap(new Props());
-		assertThat(wrapped.getStorage()).isEqualTo("gcs");
-		assertThat(wrapped.getStorageBucket()).isEqualTo("private");
-		assertThat(wrapped.getGcsBucket()).isNull();
-		assertThat(wrapped.getGcsRoutes()).isNull();
-		var router = router();
-		router.update(wrapped);
-		assertThat(bucket(router, "", "backups")).isEqualTo("gcs:private");
-		assertThat(bucket(router, "", "cache")).isEqualTo("gcs:public");
-
-		var localDefault = new ObjectMapper().readValue("""
-			{ "storage": "local", "gcsRoutes": [{ "bucket": "public", "namespaces": ["cache"] }] }""", ServerConfig.class);
-		router.update(localDefault.wrap(new Props()));
-		assertThat(bucket(router, "", "backups")).isEqualTo("local");
-		assertThat(bucket(router, "", "cache")).isEqualTo("gcs:public");
-	}
-
-	@Test
-	void testLegacyGcsOverrides() {
-		var props = new Props();
-		props.getOverride().getServer().setGcsBucket("override");
-		props.getOverride().getServer().setGcsRoutes(List.of(route("public", List.of("cache"), List.of(), "https://cdn.example.com")));
-		var router = router();
-		router.update(ServerConfig.builder().build().wrap(props));
-
-		assertThat(bucket(router, "", "backups")).isEqualTo("gcs:override");
 		assertThat(bucket(router, "", "cache")).isEqualTo("gcs:public");
 	}
 
