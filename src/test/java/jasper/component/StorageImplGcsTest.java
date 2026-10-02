@@ -240,6 +240,7 @@ public class StorageImplGcsTest {
 			try (var files = Files.list(tmpDir.resolve("gcs"))) {
 				assertThat(files).singleElement().satisfies(p -> assertThat(p.getFileName().toString()).startsWith("jasper-gcs-"));
 			}
+			zipped.commit();
 		}
 		try (var files = Files.list(tmpDir.resolve("gcs"))) {
 			assertThat(files).isEmpty();
@@ -288,6 +289,7 @@ public class StorageImplGcsTest {
 			}
 			storage.backup("", "cache", zipped, null);
 			assertThat(storage.exists("", "backups", "b.zip")).isFalse();
+			zipped.commit();
 		}
 		assertThat(storage.exists("", "backups", "b.zip")).isTrue();
 		assertThatThrownBy(() -> storage.zipAt("", "backups", "b.zip")).isInstanceOf(AlreadyExistsException.class);
@@ -301,6 +303,19 @@ public class StorageImplGcsTest {
 			storage.restore("@restored", "cache", zipped);
 		}
 		assertThat(storage.get("@restored", "cache", "a")).isEqualTo("cached".getBytes());
+	}
+
+	@Test
+	void testZipNotUploadedWithoutCommit() throws IOException {
+		try (var zipped = storage.zipAt("", "backups", "b.zip")) {
+			try (var os = zipped.out("ref.json")) {
+				os.write("[]".getBytes());
+			}
+		}
+		assertThat(storage.exists("", "backups", "b.zip")).isFalse();
+		try (var files = Files.list(tmpDir.resolve("gcs"))) {
+			assertThat(files).isEmpty();
+		}
 	}
 
 	@Test

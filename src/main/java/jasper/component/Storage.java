@@ -64,6 +64,10 @@ public interface Storage {
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
 		Iterator<InputStream> list(String pattern) throws IOException;
+		/**
+		 * Publish a successfully completed archive. Closing without committing aborts it.
+		 */
+		default void commit() throws IOException {}
 	}
 
 	interface PathVisitor {

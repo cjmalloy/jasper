@@ -425,8 +425,8 @@ public class StorageImplGcs implements Storage {
 		}
 
 		@Override
-		public void close() throws IOException {
-			if (closed) return;
+		public void commit() throws IOException {
+			if (closed) throw new IOException("Zip already closed");
 			closed = true;
 			try {
 				zipfs.close();
@@ -436,6 +436,17 @@ public class StorageImplGcs implements Storage {
 						upload(blobId, is);
 					}
 				}
+			} finally {
+				FileSystemUtils.deleteRecursively(dir);
+			}
+		}
+
+		@Override
+		public void close() throws IOException {
+			if (closed) return;
+			closed = true;
+			try {
+				zipfs.close();
 			} finally {
 				FileSystemUtils.deleteRecursively(dir);
 			}
