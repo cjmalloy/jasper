@@ -67,7 +67,7 @@ public interface Storage {
 		/**
 		 * Publish a successfully completed archive. Closing without committing aborts it.
 		 */
-		default void commit() throws IOException {}
+		void commit() throws IOException;
 	}
 
 	interface PathVisitor {

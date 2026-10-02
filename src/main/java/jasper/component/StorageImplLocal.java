@@ -241,6 +241,7 @@ public class StorageImplLocal implements Storage {
 		private final String origin;
 		private final String namespace;
 		private final String id;
+		private boolean closed;
 
 		public ZippedLocal(String origin, String namespace, String id, boolean create) throws IOException {
 			this.origin = origin;
@@ -297,11 +298,24 @@ public class StorageImplLocal implements Storage {
 		}
 
 		@Override
-		public void close() throws IOException {
+		public void commit() throws IOException {
+			if (closed) throw new IOException("Zip already closed");
+			closed = true;
 			zipfs.close();
 			if (create) {
 				// Remove underscore to indicate writing has finished
 				Files.move(path(origin, namespace, "_" + id), path(origin, namespace, id));
+			}
+		}
+
+		@Override
+		public void close() throws IOException {
+			if (closed) return;
+			closed = true;
+			try {
+				zipfs.close();
+			} finally {
+				if (create) Files.deleteIfExists(path(origin, namespace, "_" + id));
 			}
 		}
 	}
