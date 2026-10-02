@@ -182,17 +182,19 @@ public class StorageImplGcsTest {
 	void testRuntimeConfig() {
 		var configs = mock(ConfigCache.class);
 		var listener = new AtomicReference<Consumer<ServerConfig>>();
+		var initial = new AtomicReference<>(ServerConfig.builder().build());
 		doAnswer(i -> {
 			listener.set(i.getArgument(0));
-			listener.get().accept(ServerConfig.builder().build());
+			listener.get().accept(initial.get());
 			return null;
 		}).when(configs).rootUpdate(any());
 		var gcs = new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), configs, Optional.empty());
 		gcs.tmpDir = tmpDir;
-		gcs.init();
+		assertThatThrownBy(gcs::init).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> gcs.blobId("", "cache", "a")).isInstanceOf(IllegalStateException.class);
 
-		listener.get().accept(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")));
+		initial.set(root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")));
+		gcs.init();
 		assertThat(gcs.blobId("", "cache", "a").getBucket()).isEqualTo("public");
 		assertThat(gcs.getCdnUrl("", "cache", "a")).isEqualTo("https://cdn.example.com/default/cache/a");
 

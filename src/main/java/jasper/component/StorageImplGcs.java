@@ -91,6 +91,7 @@ public class StorageImplGcs implements Storage {
 			try {
 				update(root);
 			} catch (IllegalArgumentException e) {
+				if (routing == null) throw e;
 				logger.error("Invalid GCS server config, keeping previous routes: {}", e.getMessage());
 			}
 		});
