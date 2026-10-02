@@ -124,6 +124,13 @@
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-storage</artifactId>
 			<version>${google-cloud-storage.version}</version>
+			<exclusions>
+				<!-- Annotation-only; keep the newer version required by the PostgreSQL driver. -->
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.google.cloud</groupId>

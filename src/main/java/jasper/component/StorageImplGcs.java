@@ -11,6 +11,7 @@ import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.StorageException;
 import io.micrometer.core.annotation.Timed;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.springframework.util.FileSystemUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.channels.Channels;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -47,25 +49,29 @@ import java.util.stream.StreamSupport;
 public class StorageImplGcs implements Storage {
 	private final Logger logger = LoggerFactory.getLogger(StorageImplGcs.class);
 
+	private static final int NOT_FOUND = 404;
 	private static final int PRECONDITION_FAILED = 412;
 
 	private final com.google.cloud.storage.Storage gcsClient;
 	private final String bucketName;
+	private final Path tmpDir;
 
 	public StorageImplGcs(
 		com.google.cloud.storage.Storage gcsClient,
-		@Value("${application.storage.gcs.bucket-name}") String bucketName
+		@Value("${application.storage.gcs.bucket-name}") String bucketName,
+		@Value("${application.storage.gcs.tmp-dir:${java.io.tmpdir}}") Path tmpDir
 	) {
 		this.gcsClient = gcsClient;
 		this.bucketName = bucketName;
+		this.tmpDir = tmpDir;
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
 		try {
 			return gcsClient.readAllBytes(blobId(origin, namespace, id));
-} catch (StorageException e) {
-			if (e.getCode() == 404) throw new NotFoundException("Cache " + id);
+		} catch (StorageException e) {
+			if (e.getCode() == NOT_FOUND) throw new NotFoundException("Cache " + id);
 			throw e;
 		}
 	}
@@ -90,8 +96,12 @@ public class StorageImplGcs implements Storage {
 	public long stream(String origin, String namespace, String id, OutputStream os) {
 		try (var is = stream(origin, namespace, id)) {
 			return is.transferTo(os);
-		} catch (IOException | StorageException e) {
-			throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
+		} catch (StorageException e) {
+			if (e.getCode() == NOT_FOUND) throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
+			throw e;
+		} catch (IOException e) {
+			if (e.getCause() instanceof StorageException se && se.getCode() == NOT_FOUND) throw new NotFoundException("Storage file (" + origin + ", " + namespace + ") " + id);
+			throw new UncheckedIOException(e);
 		}
 	}
 
@@ -135,12 +145,14 @@ public class StorageImplGcs implements Storage {
 	public void overwrite(String origin, String namespace, String id, byte[] cache) throws IOException {
 		var existing = gcsClient.get(blobId(origin, namespace, id), BlobGetOption.fields(BlobField.GENERATION));
 		if (existing == null) throw new NotFoundException("Cache " + id);
+		// Real GCS always returns a generation; only the LocalStorageHelper test fake omits it
+		if (existing.getGeneration() == null) logger.warn("{} No generation for {}, overwriting without concurrency check", origin, existing.getName());
 		try {
 			gcsClient.create(BlobInfo.newBuilder(existing.getBlobId()).build(), cache, existing.getGeneration() == null
 				? new BlobTargetOption[0]
 				: new BlobTargetOption[]{ BlobTargetOption.generationMatch(existing.getGeneration()) });
 		} catch (StorageException e) {
-			if (e.getCode() == PRECONDITION_FAILED) throw new NotFoundException("Cache " + id);
+			if (e.getCode() == PRECONDITION_FAILED) throw new ModifiedException("Cache " + id);
 			throw new IOException(e);
 		}
 	}
@@ -154,7 +166,6 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void storeAt(String origin, String namespace, String id, byte[] cache) throws IOException {
-		if (exists(origin, namespace, id)) throw new AlreadyExistsException();
 		try {
 			gcsClient.create(BlobInfo.newBuilder(blobId(origin, namespace, id)).build(), cache, BlobTargetOption.doesNotExist());
 		} catch (StorageException e) {
@@ -250,9 +261,12 @@ public class StorageImplGcs implements Storage {
 
 	/**
 	 * Streams to GCS with a resumable upload. The object only becomes visible
-	 * once the upload completes, and the write fails if it was created concurrently.
+	 * once the upload is finalized, and the write fails if it was created concurrently.
+	 * The channel is only closed (finalized) after the source has been read completely.
+	 * If reading or writing fails the resumable session is abandoned without being
+	 * finalized, so no partial object is published. GCS discards the session after it expires.
 	 */
-private void upload(BlobId blobId, InputStream is) throws IOException {
+	private void upload(BlobId blobId, InputStream is) throws IOException {
 		try {
 			var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()));
 			is.transferTo(os);
@@ -271,7 +285,7 @@ private void upload(BlobId blobId, InputStream is) throws IOException {
 	 * spooled to a private temporary file and transferred to or from GCS by streaming.
 	 */
 	private class ZippedGcs implements Zipped {
-		private final Path tmpDir;
+		private final Path dir;
 		private final FileSystem zipfs;
 		private final boolean create;
 		private final String origin;
@@ -282,9 +296,9 @@ private void upload(BlobId blobId, InputStream is) throws IOException {
 			this.origin = origin;
 			this.create = create;
 			this.blobId = blobId(origin, namespace, id);
-			tmpDir = Files.createTempDirectory("jasper-gcs-");
+			dir = Files.createTempDirectory(Files.createDirectories(tmpDir), "jasper-gcs-");
 			try {
-				var file = tmpDir.resolve("archive.zip");
+				var file = dir.resolve("archive.zip");
 				if (!create) {
 					var blob = gcsClient.get(blobId);
 					if (blob == null) throw new NoSuchFileException(blobId.getName());
@@ -295,7 +309,7 @@ private void upload(BlobId blobId, InputStream is) throws IOException {
 				}
 				zipfs = FileSystems.newFileSystem(file, Map.of("create", create ? "true" : "false"));
 			} catch (IOException | RuntimeException e) {
-				FileSystemUtils.deleteRecursively(tmpDir);
+				FileSystemUtils.deleteRecursively(dir);
 				throw e;
 			}
 		}
@@ -354,12 +368,12 @@ private void upload(BlobId blobId, InputStream is) throws IOException {
 				zipfs.close();
 				if (create) {
 					logger.debug("{} Uploading zip {}", origin, blobId.getName());
-					try (var is = Files.newInputStream(tmpDir.resolve("archive.zip"))) {
+					try (var is = Files.newInputStream(dir.resolve("archive.zip"))) {
 						upload(blobId, is);
 					}
 				}
 			} finally {
-				FileSystemUtils.deleteRecursively(tmpDir);
+				FileSystemUtils.deleteRecursively(dir);
 			}
 		}
 	}

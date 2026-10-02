@@ -684,7 +684,9 @@ The `gcs` profile stores files in a Google Cloud Storage bucket instead of the l
 multiple pods to share storage. It replaces the local storage implementation and may be enabled with or without the
 `storage` profile. Set the bucket with the `APPLICATION_STORAGE_GCS_BUCKET_NAME` environment variable. Objects are
 keyed as `tenant/namespace/id`. Credentials are resolved with Application Default Credentials, such as GKE Workload
-Identity Federation. Zip archives are staged in a temporary file while they are read or written.
+Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
+enough local disk for the largest backup. Set the staging folder with the `APPLICATION_STORAGE_GCS_TMP_DIR` environment
+variable (defaults to `java.io.tmpdir`), for example to a dedicated volume when the default temp folder is small.
 
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,

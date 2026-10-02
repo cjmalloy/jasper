@@ -1,29 +1,49 @@
 package jasper.component;
 
+import com.google.cloud.ReadChannel;
+import com.google.cloud.WriteChannel;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.time.Instant;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class StorageImplGcsTest {
 
 	StorageImplGcs storage;
 
+	@TempDir
+	Path tmpDir;
+
 	@BeforeEach
 	void init() {
-		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "bucket");
+		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "bucket", tmpDir.resolve("gcs"));
 	}
 
 	@Test
@@ -56,7 +76,6 @@ public class StorageImplGcsTest {
 	void testStoreAtExisting() throws IOException {
 		storage.storeAt("", "cache", "a", "hello".getBytes());
 
-		assertThatThrownBy(() -> storage.storeAt("", "cache", "a", "x".getBytes())).isInstanceOf(AlreadyExistsException.class);
 		assertThatThrownBy(() -> storage.storeAt("", "cache", "a", new ByteArrayInputStream("x".getBytes()))).isInstanceOf(AlreadyExistsException.class);
 	}
 
@@ -70,6 +89,85 @@ public class StorageImplGcsTest {
 		var os = new ByteArrayOutputStream();
 		assertThat(storage.stream("@other", "cache", id, os)).isEqualTo(8);
 		assertThat(os.toString(UTF_8)).isEqualTo("streamed");
+	}
+
+	@Test
+	void testStoreAtBytesConcurrentlyCreated() {
+		var client = mock(com.google.cloud.storage.Storage.class);
+		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
+			.thenThrow(new StorageException(412, "Precondition Failed"));
+		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+
+		assertThatThrownBy(() -> gcs.storeAt("", "cache", "a", "x".getBytes())).isInstanceOf(AlreadyExistsException.class);
+	}
+
+	@Test
+	void testFailedSourceIsNotFinalized() throws IOException {
+		var client = mock(com.google.cloud.storage.Storage.class);
+		var writer = mock(WriteChannel.class);
+		when(client.writer(any(BlobInfo.class), any(com.google.cloud.storage.Storage.BlobWriteOption[].class))).thenReturn(writer);
+		when(writer.isOpen()).thenReturn(true);
+		when(writer.write(any(ByteBuffer.class))).thenAnswer(i -> {
+			var buf = i.getArgument(0, ByteBuffer.class);
+			var n = buf.remaining();
+			buf.position(buf.limit());
+			return n;
+		});
+		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+		var failing = new InputStream() {
+			int count = 0;
+			@Override
+			public int read() throws IOException {
+				if (count++ < 1024) return 'x';
+				throw new IOException("source failed");
+			}
+		};
+
+		assertThatThrownBy(() -> gcs.storeAt("", "cache", "a", failing)).isInstanceOf(IOException.class);
+		verify(writer, never()).close();
+	}
+
+	@Test
+	void testStreamPropagatesServiceErrors() throws IOException {
+		var client = mock(com.google.cloud.storage.Storage.class);
+		var blob = mock(Blob.class);
+		var reader = mock(ReadChannel.class);
+		when(client.get(any(BlobId.class))).thenReturn(blob);
+		when(blob.reader()).thenReturn(reader);
+		when(reader.read(any(ByteBuffer.class))).thenThrow(new StorageException(403, "Forbidden"));
+		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+
+		assertThatThrownBy(() -> gcs.stream("", "cache", "a", new ByteArrayOutputStream()))
+			.isInstanceOf(StorageException.class)
+			.isNotInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testOverwriteConflict() {
+		var client = mock(com.google.cloud.storage.Storage.class);
+		var blob = mock(Blob.class);
+		var blobId = BlobId.of("bucket", "default/cache/a");
+		when(client.get(eq(blobId), any(com.google.cloud.storage.Storage.BlobGetOption[].class))).thenReturn(blob);
+		when(blob.getBlobId()).thenReturn(blobId);
+		when(blob.getGeneration()).thenReturn(1L);
+		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
+			.thenThrow(new StorageException(412, "Precondition Failed"));
+		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+
+		assertThatThrownBy(() -> gcs.overwrite("", "cache", "a", "x".getBytes())).isInstanceOf(ModifiedException.class);
+	}
+
+	@Test
+	void testZipUsesConfiguredTmpDir() throws IOException {
+		try (var zipped = storage.zipAt("", "backups", "b.zip")) {
+			try (var files = Files.list(tmpDir.resolve("gcs"))) {
+				assertThat(files).singleElement().satisfies(p -> assertThat(p.getFileName().toString()).startsWith("jasper-gcs-"));
+			}
+		}
+		try (var files = Files.list(tmpDir.resolve("gcs"))) {
+			assertThat(files).isEmpty();
+		}
+		assertThat(storage.exists("", "backups", "b.zip")).isTrue();
 	}
 
 	@Test
