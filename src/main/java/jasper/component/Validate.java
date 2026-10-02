@@ -85,9 +85,9 @@ public class Validate {
 		} else {
 			// Non-internal Refs are autofixed against non-internal Refs only and must end up consistent
 			responses(rootOrigin, ref, true, false);
-			sources(rootOrigin, ref, true, false, Integer.MAX_VALUE);
+			sources(rootOrigin, ref, true, false, root.getMaxSources());
 			responses(rootOrigin, ref, false, false);
-			sources(rootOrigin, ref, false, false, Integer.MAX_VALUE);
+			sources(rootOrigin, ref, false, false, root.getMaxSources());
 		}
 	}
 
