@@ -43,7 +43,7 @@ public class StorageImplGcsTest {
 
 	@BeforeEach
 	void init() {
-		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "bucket", tmpDir.resolve("gcs"));
+		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "public", "private", "https://cdn.example.com/", tmpDir.resolve("gcs"));
 	}
 
 	@Test
@@ -54,6 +54,34 @@ public class StorageImplGcsTest {
 		assertThat(storage.get("", "cache", "a")).isEqualTo("hello".getBytes());
 		assertThat(storage.size("", "cache", "a")).isEqualTo(5);
 		assertThat(storage.blobId("", "cache", "a").getName()).isEqualTo("default/cache/a");
+	}
+
+	@Test
+	void testBucketRouting() throws IOException {
+		storage.storeAt("", "cache", "a", "public".getBytes());
+		storage.storeAt("", "backups", "b", "private".getBytes());
+
+		assertThat(storage.blobId("", "cache", "a").getBucket()).isEqualTo("public");
+		assertThat(storage.blobId("", "backups", "b").getBucket()).isEqualTo("private");
+		assertThat(storage.blobId("", "preload", "c").getBucket()).isEqualTo("private");
+		assertThat(storage.blobId("", "secrets", "d").getBucket()).isEqualTo("private");
+		assertThat(storage.blobId("", "config", "e").getBucket()).isEqualTo("private");
+		assertThat(storage.exists("", "backups", "b")).isTrue();
+		assertThat(storage.listStorage("", "cache")).containsExactly(new Storage.StorageRef("a", 6));
+		assertThat(storage.listStorage("", "backups")).containsExactly(new Storage.StorageRef("b", 7));
+	}
+
+	@Test
+	void testSameBucketRejected() {
+		assertThatThrownBy(() -> new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), "bucket", "bucket", "", tmpDir))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void testCdnUrl() {
+		assertThat(storage.getCdnUrl("@other", "cache", "a")).isEqualTo("https://cdn.example.com/@other/cache/a");
+		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
@@ -96,7 +124,7 @@ public class StorageImplGcsTest {
 		var client = mock(com.google.cloud.storage.Storage.class);
 		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
 			.thenThrow(new StorageException(412, "Precondition Failed"));
-		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
 
 		assertThatThrownBy(() -> gcs.storeAt("", "cache", "a", "x".getBytes())).isInstanceOf(AlreadyExistsException.class);
 	}
@@ -113,7 +141,7 @@ public class StorageImplGcsTest {
 			buf.position(buf.limit());
 			return n;
 		});
-		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
 		var failing = new InputStream() {
 			int count = 0;
 			@Override
@@ -135,7 +163,7 @@ public class StorageImplGcsTest {
 		when(client.get(any(BlobId.class))).thenReturn(blob);
 		when(blob.reader()).thenReturn(reader);
 		when(reader.read(any(ByteBuffer.class))).thenThrow(new StorageException(403, "Forbidden"));
-		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
 
 		assertThatThrownBy(() -> gcs.stream("", "cache", "a", new ByteArrayOutputStream()))
 			.isInstanceOf(StorageException.class)
@@ -146,13 +174,13 @@ public class StorageImplGcsTest {
 	void testOverwriteConflict() {
 		var client = mock(com.google.cloud.storage.Storage.class);
 		var blob = mock(Blob.class);
-		var blobId = BlobId.of("bucket", "default/cache/a");
+		var blobId = BlobId.of("public", "default/cache/a");
 		when(client.get(eq(blobId), any(com.google.cloud.storage.Storage.BlobGetOption[].class))).thenReturn(blob);
 		when(blob.getBlobId()).thenReturn(blobId);
 		when(blob.getGeneration()).thenReturn(1L);
 		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
 			.thenThrow(new StorageException(412, "Precondition Failed"));
-		var gcs = new StorageImplGcs(client, "bucket", tmpDir);
+		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
 
 		assertThatThrownBy(() -> gcs.overwrite("", "cache", "a", "x".getBytes())).isInstanceOf(ModifiedException.class);
 	}
@@ -186,11 +214,12 @@ public class StorageImplGcsTest {
 		storage.storeAt("", "cache", "b", "22".getBytes());
 		storage.storeAt("", "backups", "c", "333".getBytes());
 		storage.storeAt("@other", "cache", "d", "4444".getBytes());
+		storage.storeAt("@private", "backups", "e", "5".getBytes());
 
-		assertThat(storage.listTenants()).containsExactlyInAnyOrder("default", "@other");
+		assertThat(storage.listTenants()).containsExactlyInAnyOrder("default", "@other", "@private");
 		var origins = new java.util.ArrayList<String>();
 		storage.visitTenants(origins::add);
-		assertThat(origins).containsExactlyInAnyOrder("", "@other");
+		assertThat(origins).containsExactlyInAnyOrder("", "@other", "@private");
 		assertThat(storage.listStorage("", "cache")).containsExactlyInAnyOrder(
 			new Storage.StorageRef("a", 1),
 			new Storage.StorageRef("b", 2));

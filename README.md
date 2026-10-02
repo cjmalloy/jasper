@@ -680,9 +680,12 @@ environment variable.
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
-The `gcs` profile stores files in a Google Cloud Storage bucket instead of the local storage folder, allowing
+The `gcs` profile stores files in Google Cloud Storage buckets instead of the local storage folder, allowing
 multiple pods to share storage. It replaces the local storage implementation and may be enabled with or without the
-`storage` profile. Set the bucket with the `APPLICATION_STORAGE_GCS_BUCKET_NAME` environment variable. Objects are
+`storage` profile. Public files (the `cache` namespace) and private files (backups, preload, secrets, and config) are
+kept in two different buckets, set with the `APPLICATION_STORAGE_GCS_PUBLIC_BUCKET_NAME` and
+`APPLICATION_STORAGE_GCS_PRIVATE_BUCKET_NAME` environment variables. Both are required and must be different. Set the
+`APPLICATION_STORAGE_CDN_BASE_URL` environment variable to the CDN host serving the public bucket. Objects are
 keyed as `tenant/namespace/id`. Credentials are resolved with Application Default Credentials, such as GKE Workload
 Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
 enough local disk for the largest backup. Set the staging folder with the `APPLICATION_STORAGE_GCS_TMP_DIR` environment
