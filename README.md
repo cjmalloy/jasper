@@ -5,7 +5,7 @@ Knowledge Management Server
 [![Coverage](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/latest-junit/coverage-badge.json)](https://cjmalloy.github.io/jasper/reports/latest-junit/coverage/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.7-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -1072,11 +1072,6 @@ be farmed, as you cannot generate a new number without cooperation from another 
 When delegating rng to a trusted server, users push their updates to that server and replicate the results.  
 When playing on mutually replicating servers, each server is trusted to generate their own rng.
 
-## Release Notes
-* [v1.2](./docs/release-notes/jasper-1.2.md)
-* [v1.1](./docs/release-notes/jasper-1.1.md)
-* [v1.0](./docs/release-notes/jasper-1.0.md)
-
 ## Developing
 Run a dev server with `docker compose up`.  
 Run a supporting dev database and cache with `docker compose up db redis -d`.
@@ -1093,3 +1088,9 @@ Run `docker run -it jasper-tests` to execute the unit tests.
 ### Running end-to-end tests
 
 See [Jasper-UI Playwright Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/playwright.yml).
+
+## Release Notes
+* [v1.4.0](./docs/release-notes/v1.4.0.md)
+* [v1.2](./docs/release-notes/jasper-1.2.md)
+* [v1.1](./docs/release-notes/jasper-1.1.md)
+* [v1.0](./docs/release-notes/jasper-1.0.md)
