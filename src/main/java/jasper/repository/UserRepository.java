@@ -14,7 +14,7 @@ import java.util.List;
 
 @Repository
 @Transactional(readOnly = true)
-public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, TagStreamMixin<User>,
+public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
 	ModifiedCursor, OriginMixin {
 
 	@Modifying

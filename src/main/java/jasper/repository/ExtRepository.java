@@ -14,7 +14,7 @@ import java.util.List;
 
 @Repository
 @Transactional(readOnly = true)
-public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, TagStreamMixin<Ext>, ModifiedCursor, OriginMixin {
+public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, StreamMixin<Ext>, ModifiedCursor, OriginMixin {
 
 	@Modifying
 	@Query("""

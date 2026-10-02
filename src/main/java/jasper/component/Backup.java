@@ -13,14 +13,13 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Cursor;
+import jasper.domain.proj.RefView;
 import jasper.domain.proj.Tag;
 import jasper.repository.BackfillRepository;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
-import jasper.repository.QualifiedTagMixin;
 import jasper.repository.RefRepository;
 import jasper.repository.StreamMixin;
-import jasper.repository.TagStreamMixin;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.service.dto.BackupOptionsDto;
@@ -48,9 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static jasper.component.FileCache.CACHE;
-import static jasper.component.Replicator.deletedTag;
-import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.matchesTag;
 
 @Component
 public class Backup {
@@ -104,7 +102,7 @@ public class Backup {
 		logger.info("{} Creating Backup", origin);
 		try (var zipped = storage.get().zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, origin, options.getNewerThan(), true, zipped.out("ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
 				backupRepo(extRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("ext.json"));
@@ -136,18 +134,16 @@ public class Backup {
 			buf.append("[");
 			var buffSize = props.getBackupBufferSize();
 			Stream<?> stream;
-			if (!tombstones && repo instanceof TagStreamMixin<?> tagRepo) {
-				if (newerThan != null) {
-					stream = tagRepo.streamAllWithoutTombstonesByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
-				} else {
-					stream = tagRepo.streamAllWithoutTombstonesByOriginOrderByModifiedDesc(origin);
-				}
-			} else if (newerThan != null) {
+			if (newerThan != null) {
 				stream = repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
 			} else {
 				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);
 			}
 			stream.forEach(entity -> {
+				if (!tombstones && isTombstone(entity)) {
+					if (evict) entityManager.detach(entity);
+					return;
+				}
 				try {
 					if (firstElementProcessed.getAndSet(true)) {
 						buf.append(",\n");
@@ -170,6 +166,13 @@ public class Backup {
 			logger.debug("Flushing buffer {} bytes", buf.length());
 			StreamUtils.copy(buf.toString().getBytes(), out);
 		}
+	}
+
+	static boolean isTombstone(Object entity) {
+		if (entity instanceof Tag tag) return isDeletorTag(tag.getTag());
+		if (entity instanceof Ref ref) return ref.hasTag("plugin/delete");
+		if (entity instanceof RefView ref) return ref.getTags() != null && ref.getTags().stream().anyMatch(t -> matchesTag("plugin/delete", t));
+		return false;
 	}
 
 	void backupCache(String origin, Instant newerThan, Zipped backup) {
@@ -276,17 +279,10 @@ public class Backup {
 							return null;
 						}
 						var t = it.next();
-						if (!tombstones && t instanceof Tag tag && isDeletorTag(tag.getTag())) continue;
+								if (!tombstones && isTombstone(t)) continue;
 						try {
 							t.setOrigin(origin);
 							repo.save(t);
-							if (t instanceof Tag tag && repo instanceof QualifiedTagMixin<?> tagRepo) {
-								if (isDeletorTag(tag.getTag())) {
-									tagRepo.deleteByQualifiedTag(deletedTag(tag.getQualifiedTag()));
-								} else {
-									tagRepo.deleteByQualifiedTag(deletorTag(tag.getQualifiedTag()));
-								}
-							}
 						} catch (Exception e) {
 							try {
 								logger.error("{} Skipping {} {} due to constraint violation", origin, type.getSimpleName(), objectMapper.writeValueAsString(t), e);
