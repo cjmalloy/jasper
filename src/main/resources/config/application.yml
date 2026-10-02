@@ -231,8 +231,5 @@ jasper:
     license:
       name: MIT
       url: https://github.com/cjmalloy/jasper/blob/master/LICENSE
-    servers:
-      - description: SwaggerHub API Auto Mocking
-        url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
