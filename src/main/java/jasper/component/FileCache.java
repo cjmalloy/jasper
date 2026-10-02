@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
@@ -164,6 +165,8 @@ public class FileCache {
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
+			for (var other : createArchive(url, origin, cache)) cacheLater(url, other, origin);
+			cache.setContentLength(storage.size(origin, CACHE, id));
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
 		} catch (TorrentDownloader.BusyException e) {
@@ -181,8 +184,6 @@ public class FileCache {
 				tagger.plugin(url, origin, "_plugin/cache", cache);
 			}
 			return null;
-		} finally {
-			for (var other : createArchive(url, origin, cache(url, origin))) cacheLater(other, origin);
 		}
 	}
 
@@ -313,30 +314,23 @@ public class FileCache {
 		return storage.exists(origin, CACHE, url.substring("cache:".length()));
 	}
 
-	private String fetchExistingString(String url, String origin) {
-		var ref = stat(url, origin);
-		var cache = getCache(ref);
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		return new String(storage.get(origin, CACHE, cache.getId()));
-	}
-
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (cache == null || isBlank(cache.getId())) return moreScrape;
+		if (cache == null || bannedOrBroken(cache) || isBlank(cache.getId())) return moreScrape;
 		if (!url.startsWith("http:") && !url.startsWith("https:")) return moreScrape;
+		Thread.onSpinWait();
 		// M3U8 Manifest
 		try {
 			var urlObj = URI.create(url).toURL();
 			var mimeType = cache.getMimeType();
 			if (!urlObj.getPath().endsWith(".m3u8") && (mimeType == null || !mimeType.equalsIgnoreCase("application/x-mpegURL") && !mimeType.equalsIgnoreCase("application/vnd.apple.mpegurl"))) return moreScrape;
-			var data = fetchExistingString(url, origin);
-			if (data == null) return moreScrape;
+			var data = new String(storage.get(origin, CACHE, cache.getId()), StandardCharsets.UTF_8);
 			if (data.trim().startsWith("#")) {
 				var hostPath = urlObj.getProtocol() + "://" + urlObj.getHost() + Path.of(urlObj.getPath()).getParent().toString();
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
 				var buffer = new StringBuilder();
+				var cdn = configs.getRemote(origin) == null && storage.getCdnUrl(origin, CACHE, "probe") != null;
 				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
@@ -345,20 +339,48 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						var cdnUrl = cdn ? cdnUrl(url, line, origin) : null;
+						if (cdnUrl != null) {
+							buffer.append(cdnUrl).append("\n");
+						} else {
+							buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						}
 					}
 				}
-				overwrite(url, origin, buffer.toString().getBytes());
+				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes(StandardCharsets.UTF_8));
 			}
 		} catch (Exception e) {}
 		return moreScrape;
 	}
 
-	private void cacheLater(String url, String origin) {
+	/**
+	 * Reserve a cache id for a manifest entry so it can be linked to the CDN
+	 * before it has been cached. Concurrent reservations agree on a single id.
+	 * The manifest is added as a source, since cacheLater skips reserved entries.
+	 * @return the CDN URL, or null if the entry should be proxied
+	 */
+	private String cdnUrl(String source, String url, String origin) {
+		url = fixUrl(url);
+		var ref = stat(url, origin);
+		var existing = getCache(ref);
+		if (existing == null) {
+			var id = UUID.randomUUID().toString();
+			if (storage.getCdnUrl(origin, CACHE, id) == null) return null;
+			ref = tagger.initPlugin(source, url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+			existing = getCache(ref);
+		}
+		if (existing == null || bannedOrBroken(existing)) return null;
+		// Only link files already stored under the current routes, or pending files that will be
+		if (!ref.hasTag("_plugin/delta/cache") && !storage.exists(origin, CACHE, existing.getId())) return null;
+		return storage.getCdnUrl(origin, CACHE, existing.getId());
+	}
+
+	private void cacheLater(String source, String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		ref.addSource(source);
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 

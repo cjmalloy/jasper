@@ -21,7 +21,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			FROM ref r
 				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 			WHERE r.url != :url
-				AND jsonb_exists(r.sources, :url)
+				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 			""", String.class)
@@ -37,8 +37,9 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			FROM ref r
 				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 			WHERE r.url != :url
-				AND jsonb_exists(r.sources, :url)
+				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
+				AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 			GROUP BY t.tag
 			""", Object[].class)
@@ -54,7 +55,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			FROM ref r
 				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 			WHERE r.url != :url
-				AND jsonb_exists(r.sources, :url)
+				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin/user(/|$)'
 				AND r.origin = :origin
 			""", String.class)

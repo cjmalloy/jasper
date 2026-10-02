@@ -3,6 +3,7 @@ package jasper.repository.spec;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -187,63 +188,44 @@ public class RefSpec {
 						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
 	}
 
-	private static Expression<Object> getTagsExpression(Root<Ref> root, CriteriaBuilder cb) {
-		return cb.function("COALESCE", Object.class,
-			cb.function("jsonb_object_field", Object.class,
-				root.get(Ref_.metadata),
-				cb.literal("expandedTags")),
-			root.get(Ref_.tags),
-			cb.literal("[]")
-		);
+	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
+		var expanded = cb.function("jsonb_expanded_tags", Object.class, root.get(Ref_.metadata));
+		return cb.or(
+			cb.and(
+				cb.isNotNull(expanded),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, expanded, cb.literal(tag)))),
+			cb.and(
+				cb.isNull(expanded),
+				cb.isNotNull(root.get(Ref_.tags)),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
-		return (root, query, cb) -> cb.isTrue(
-			cb.function("jsonb_exists", Boolean.class,
-				getTagsExpression(root, cb),
-				cb.literal(tag)));
+		return (root, query, cb) -> tagExists(root, cb, tag);
 	}
 
 	public static Specification<Ref> hasNoChildTag(String tag) {
 		return (root, query, cb) -> cb.isFalse(
 			cb.like(
-				cb.function("jsonb_extract_path_text", String.class,
-					root.get(Ref_.tags),
-					cb.literal("{}")),
-				"%\"" + tag + "/%"));
+				cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+				"%\"" + tag.replace("_", "\\_") + "/%",
+				'\\'));
 	}
 
 	public static Specification<Ref> hasDownwardTag(String tag) {
 		if (isPublicTag(tag)) {
-			return (root, query, cb) -> cb.isTrue(
-				cb.function("jsonb_exists", Boolean.class,
-					getTagsExpression(root, cb),
-					cb.literal(tag)));
+			return (root, query, cb) ->
+				tagExists(root, cb, tag);
 		} else if (tag.startsWith("_")) {
-			return (root, query, cb) -> cb.isTrue(
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(tag)),
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal("+" + publicTag(tag))),
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(publicTag(tag))))
-				));
+			return (root, query, cb) -> cb.or(
+				tagExists(root, cb, tag),
+				tagExists(root, cb, "+" + publicTag(tag)),
+				tagExists(root, cb, publicTag(tag)));
 		} else {
 			// Protected tag
-			return (root, query, cb) -> cb.isTrue(
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(tag)),
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(publicTag(tag)))
-				));
+			return (root, query, cb) -> cb.or(
+				tagExists(root, cb, tag),
+				tagExists(root, cb, publicTag(tag)));
 		}
 	}
 

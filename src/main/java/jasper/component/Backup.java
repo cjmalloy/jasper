@@ -13,6 +13,8 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.Cursor;
+import jasper.domain.proj.RefView;
+import jasper.domain.proj.Tag;
 import jasper.repository.BackfillRepository;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -45,6 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static jasper.component.FileCache.CACHE;
+import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.matchesTag;
 
 @Component
 public class Backup {
@@ -98,32 +102,33 @@ public class Backup {
 		logger.info("{} Creating Backup", origin);
 		try (var zipped = storage.get().zipAt(origin, BACKUPS, id + ".zip")) {
 			if (options.isRef()) {
-				backupRepo(refRepository, origin, options.getNewerThan(), zipped.out("ref.json"), false);
+				backupRepo(refRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("ref.json"), false);
 			}
 			if (options.isExt()) {
-				backupRepo(extRepository, origin, options.getNewerThan(), zipped.out("ext.json"));
+				backupRepo(extRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("ext.json"));
 			}
 			if (options.isUser()) {
-				backupRepo(userRepository, origin, options.getNewerThan(), zipped.out("user.json"));
+				backupRepo(userRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("user.json"));
 			}
 			if (options.isPlugin()) {
-				backupRepo(pluginRepository, origin, options.getNewerThan(), zipped.out("plugin.json"));
+				backupRepo(pluginRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("plugin.json"));
 			}
 			if (options.isTemplate()) {
-				backupRepo(templateRepository, origin, options.getNewerThan(), zipped.out("template.json"));
+				backupRepo(templateRepository, origin, options.getNewerThan(), options.isTombstones(), zipped.out("template.json"));
 			}
 			if (options.isCache()) {
 				backupCache(origin, options.getNewerThan(), zipped);
 			}
+			zipped.commit();
 		}
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
 	}
 
-	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out) throws IOException {
-		backupRepo(repo, origin, newerThan, out, true);
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, boolean tombstones, OutputStream out) throws IOException {
+		backupRepo(repo, origin, newerThan, tombstones, out, true);
 	}
 
-	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, OutputStream out, boolean evict) throws IOException {
+	void backupRepo(StreamMixin<?> repo, String origin, Instant newerThan, boolean tombstones, OutputStream out, boolean evict) throws IOException {
 		try (out) {
 			var firstElementProcessed = new AtomicBoolean(false);
 			var buf = new StringBuilder();
@@ -136,6 +141,10 @@ public class Backup {
 				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);
 			}
 			stream.forEach(entity -> {
+				if (!tombstones && isTombstone(entity)) {
+					if (evict) entityManager.detach(entity);
+					return;
+				}
 				try {
 					if (firstElementProcessed.getAndSet(true)) {
 						buf.append(",\n");
@@ -158,6 +167,13 @@ public class Backup {
 			logger.debug("Flushing buffer {} bytes", buf.length());
 			StreamUtils.copy(buf.toString().getBytes(), out);
 		}
+	}
+
+	static boolean isTombstone(Object entity) {
+		if (entity instanceof Tag tag) return tag.getTag() != null && isDeletorTag(tag.getTag());
+		if (entity instanceof Ref ref) return ref.hasTag("plugin/delete");
+		if (entity instanceof RefView ref) return ref.getTags() != null && ref.getTags().stream().anyMatch(t -> matchesTag("plugin/delete", t));
+		return false;
 	}
 
 	void backupCache(String origin, Instant newerThan, Zipped backup) {
@@ -206,21 +222,22 @@ public class Backup {
 		}
 		var start = Instant.now();
 		logger.info("{} Restoring Backup", origin);
+		var tombstones = options != null && options.isTombstones();
 		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
-				restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class);
+				restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class, tombstones);
 			}
 			if (options == null || options.isExt()) {
-				restoreRepo(extRepository, origin, zipped.list("ext.*\\.json"), Ext.class);
+				restoreRepo(extRepository, origin, zipped.list("ext.*\\.json"), Ext.class, tombstones);
 			}
 			if (options == null || options.isUser()) {
-				restoreRepo(userRepository, origin, zipped.list("user.*\\.json"), User.class);
+				restoreRepo(userRepository, origin, zipped.list("user.*\\.json"), User.class, tombstones);
 			}
 			if (options == null || options.isPlugin()) {
-				restoreRepo(pluginRepository, origin, zipped.list("plugin.*\\.json"), Plugin.class);
+				restoreRepo(pluginRepository, origin, zipped.list("plugin.*\\.json"), Plugin.class, tombstones);
 			}
 			if (options == null || options.isTemplate()) {
-				restoreRepo(templateRepository, origin, zipped.list("template.*\\.json"), Template.class);
+				restoreRepo(templateRepository, origin, zipped.list("template.*\\.json"), Template.class, tombstones);
 			}
 			if (options == null || options.isCache()) {
 				restoreCache(origin, zipped);
@@ -232,12 +249,20 @@ public class Backup {
 	}
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type) {
+		restoreRepo(repo, origin, files, type, false);
+	}
+
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type, boolean tombstones) {
 		files.forEachRemaining(file -> {
-			restoreRepo(repo, origin, file, type);
+			restoreRepo(repo, origin, file, type, tombstones);
 		});
     }
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type) {
+		restoreRepo(repo, origin, file, type, false);
+	}
+
+	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, InputStream file, Class<T> type, boolean tombstones) {
 		if (file == null) return; // Silently ignore missing files
 		var done = new AtomicBoolean(false);
 		var it = new JsonArrayStreamDataSupplier<>(file, type, objectMapper);
@@ -255,6 +280,7 @@ public class Backup {
 							return null;
 						}
 						var t = it.next();
+						if (!tombstones && isTombstone(t)) continue;
 						try {
 							t.setOrigin(origin);
 							repo.save(t);

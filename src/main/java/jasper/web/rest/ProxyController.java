@@ -97,15 +97,13 @@ public class ProxyController {
 		if (is == null) throw new NotFoundException(url);
 		var ref = proxyService.stat(url, origin, thumbnail);
 		var cache = proxyService.cache(url, origin, thumbnail);
-		if (isBlank(filename) || filename.equals(url)) {
-			filename = "file";
-			try {
-				filename
-					= isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
-					: ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
-					: filename;
-			} catch (URISyntaxException ignored) { }
-		}
+		if (isBlank(filename) || filename.equals(url)) filename = "file";
+		try {
+			filename
+				= ref != null && isNotBlank(ref.getTitle()) ? ref.getTitle()
+				: isNotBlank(getName(new URI(url).getPath())) ? getName(new URI(url).getPath())
+				: filename;
+		} catch (URISyntaxException ignored) { }
 		var contentLength = cache != null ? cache.getContentLength() : null;
 		var contentType = cache != null && isNotBlank(cache.getMimeType())
 			? parseMediaType(cache.getMimeType())

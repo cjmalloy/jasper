@@ -286,6 +286,18 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_PublicTagWriteAccessFailed() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().add("+custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteRef_UserTag() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
@@ -293,6 +305,14 @@ public class AuthUnitTest {
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserUrl() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canWriteRef("tag:/user/test?url=https://jasperkm.info/", ""))
 			.isTrue();
 	}
 
@@ -313,6 +333,30 @@ public class AuthUnitTest {
 		var user = getUser("_user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWriteAccessFailed() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().add("_user/test");
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWithOtherWriteAccess() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().addAll(List.of("_user/test", "+custom"));
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test", "+custom");
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
@@ -429,6 +473,14 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("custom"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanAddTag_PublicUserTag() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canAddTag("user/other"))
 			.isTrue();
 	}
 

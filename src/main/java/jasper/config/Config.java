@@ -175,6 +175,22 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
+		/**
+		 * Storage provider for any tenant and namespace not matched by a GCS route: "gcs" or "local".
+		 */
+		@Builder.Default
+		private String storage = "gcs";
+		/**
+		 * GCS bucket for any tenant and namespace not matched by a route. Never served by a CDN.
+		 * Required when the storage provider is "gcs".
+		 */
+		@Builder.Default
+		private String gcsBucket = "";
+		/**
+		 * GCS routes checked in order. The first route matching both the tenant and namespace is used.
+		 */
+		@Builder.Default
+		private List<GcsRoute> gcsRoutes = List.of();
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -197,6 +213,10 @@ public interface Config {
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
+			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
+			if ("local".equals(server.getStorage())) wrapped = wrapped.withGcsBucket("");
+			if (server.getGcsBucket() != null) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
+			if (server.getGcsRoutes() != null) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
 			return wrapped;
 		}
 
@@ -206,6 +226,37 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
+	}
+
+	/**
+	 * Routes a set of tenants and namespaces to a GCS bucket.
+	 */
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	class GcsRoute implements Serializable {
+		/**
+		 * Storage provider for matching objects: "gcs" or "local".
+		 */
+		private String storage = "gcs";
+		/**
+		 * Bucket to store matching objects in. Required when the storage provider is "gcs".
+		 */
+		private String bucket;
+		/**
+		 * Namespaces matched by this route. Matches all namespaces when empty.
+		 */
+		private List<String> namespaces = List.of();
+		/**
+		 * Tenants matched by this route. Use "default" for the default tenant.
+		 * Matches all tenants when empty.
+		 */
+		private List<String> tenants = List.of();
+		/**
+		 * Public CDN host serving this bucket. Leave blank if the bucket is not public.
+		 */
+		private String cdnBaseUrl = "";
 	}
 
 	/**
