@@ -107,6 +107,11 @@ public class StorageImplS3 implements Storage {
 		return cdnBaseUrl + "/" + UriUtils.encodePath(location.key(), StandardCharsets.UTF_8);
 	}
 
+	@Override
+	public boolean hasCdn() {
+		return !cdnBaseUrl.isBlank();
+	}
+
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
 		var location = location(origin, namespace, id);

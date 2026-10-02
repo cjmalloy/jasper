@@ -353,7 +353,7 @@ public class FileCache {
 	 * Returns null to fall back to the proxy URL.
 	 */
 	private String cdnUrl(String url, String origin) {
-		if (configs.getRemote(origin) != null) return null;
+		if (!storage.hasCdn() || configs.getRemote(origin) != null) return null;
 		url = fixUrl(url);
 		var existing = cache(url, origin);
 		if (existing != null && (bannedOrBroken(existing) || existing.isNoStore())) return null;

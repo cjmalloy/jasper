@@ -46,6 +46,13 @@ public interface Storage {
 		return null;
 	}
 
+	/**
+	 * Whether files are served by a CDN.
+	 */
+	default boolean hasCdn() {
+		return false;
+	}
+
 	default String originTenant(String origin) {
 		return formatOrigin(origin);
 	}

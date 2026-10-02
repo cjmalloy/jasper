@@ -121,6 +121,8 @@ public class StorageImplS3Test {
 		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
 		assertThat(new StorageImplS3(s3, "public", "private", "", tmpDir).getCdnUrl("", "cache", "a")).isNull();
+		assertThat(storage.hasCdn()).isTrue();
+		assertThat(new StorageImplS3(s3, "public", "private", "", tmpDir).hasCdn()).isFalse();
 	}
 
 	@Test
