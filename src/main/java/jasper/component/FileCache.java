@@ -356,7 +356,7 @@ public class FileCache {
 		if (configs.getRemote(origin) != null) return null;
 		url = fixUrl(url);
 		var existing = cache(url, origin);
-		if (existing != null && bannedOrBroken(existing)) return null;
+		if (existing != null && (bannedOrBroken(existing) || existing.isNoStore())) return null;
 		var id = existing != null ? existing.getId() : UUID.randomUUID().toString();
 		var cdnUrl = storage.getCdnUrl(origin, CACHE, id);
 		if (cdnUrl != null && existing == null) {
