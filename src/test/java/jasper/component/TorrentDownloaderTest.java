@@ -76,6 +76,21 @@ class TorrentDownloaderTest {
 	}
 
 	@Test
+	void releasesRejectedMetadataCallbackOnTimeout() {
+		var client = mock(BtClient.class);
+		var rejected = new CompletableFuture<Void>();
+		props.getTorrent().setMetadataTimeout(Duration.ofMillis(1));
+		when(client.startAsync(any(), anyLong())).thenReturn(new CompletableFuture<>());
+
+		assertThatThrownBy(() -> downloader.run(client, new CompletableFuture<>(), rejected, new AtomicBoolean()))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Timed out fetching torrent metadata");
+		assertThat(rejected).isCompleted();
+		verify(client).stop();
+		verify(downloader).shutdown();
+	}
+
+	@Test
 	void rejectsTorrentOverMaximumSize() {
 		var torrent = mock(Torrent.class);
 		props.getTorrent().setMaxSizeBytes(10);

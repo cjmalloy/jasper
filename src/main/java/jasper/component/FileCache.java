@@ -166,6 +166,8 @@ public class FileCache {
 				.build();
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
+		} catch (TorrentDownloader.BusyException e) {
+			return null;
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {

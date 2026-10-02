@@ -66,7 +66,7 @@ public class TorrentDownloader {
 	private BtRuntime runtime;
 
 	public Torrent download(String magnet, Path target) throws IOException {
-		if (!downloadLock.tryLock()) throw new IOException("Another torrent download is in progress");
+		if (!downloadLock.tryLock()) throw new BusyException();
 		try {
 			return downloadMagnet(magnet, target);
 		} finally {
@@ -112,7 +112,7 @@ public class TorrentDownloader {
 	}
 
 	public Torrent download(InputStream metainfo, Path target) throws IOException {
-		if (!downloadLock.tryLock()) throw new IOException("Another torrent download is in progress");
+		if (!downloadLock.tryLock()) throw new BusyException();
 		try {
 			return downloadMetainfo(metainfo, target);
 		} finally {
@@ -178,6 +178,7 @@ public class TorrentDownloader {
 			checkDownloaded(downloaded);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
+			shutdown();
 			throw new IOException("Torrent download interrupted", e);
 		} catch (ExecutionException e) {
 			if (e.getCause() instanceof IOException ioException) {
@@ -195,6 +196,7 @@ public class TorrentDownloader {
 			throw new IOException("Torrent download timed out", e);
 		} finally {
 			client.stop();
+			rejected.complete(null);
 		}
 	}
 
@@ -204,6 +206,7 @@ public class TorrentDownloader {
 			checkDownloaded(downloaded);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
+			shutdown();
 			throw new IOException("Torrent download interrupted", e);
 		} catch (ExecutionException e) {
 			throw new IOException("Torrent download failed", e.getCause());
@@ -291,6 +294,12 @@ public class TorrentDownloader {
 		@Override
 		public ConnectionResult createIncomingConnection(Peer peer, SocketChannel channel) {
 			return validPeer(peer) ? delegate.createIncomingConnection(peer, channel) : ConnectionResult.failure("Invalid peer host");
+		}
+	}
+
+	public static class BusyException extends IOException {
+		private BusyException() {
+			super("Another torrent download is in progress");
 		}
 	}
 }
