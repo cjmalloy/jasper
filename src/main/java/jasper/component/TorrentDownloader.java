@@ -48,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Component
@@ -60,15 +61,23 @@ public class TorrentDownloader {
 	@Autowired
 	Props props;
 
+	private final Object downloadLock = new Object();
 	private BtRuntime runtime;
 
 	public Torrent download(String magnet, Path target) throws IOException {
+		synchronized (downloadLock) {
+			return downloadMagnet(magnet, target);
+		}
+	}
+
+	private Torrent downloadMagnet(String magnet, Path target) throws IOException {
 		checkEnabled();
 		var magnetUri = MagnetUriParser.lenientParser().parse(magnet);
 		checkTrackerHosts(magnetUri.getTrackerUrls());
 		var torrent = new AtomicReference<Torrent>();
 		var clientReference = new AtomicReference<BtClient>();
 		var metadata = new CompletableFuture<Torrent>();
+		var downloaded = new AtomicBoolean();
 		var client = Bt.client(runtime())
 			.magnet(magnetUri)
 			.storage(new FileSystemStorage(target))
@@ -84,11 +93,12 @@ public class TorrentDownloader {
 					shutdown();
 				}
 			})
+			.afterDownloaded(value -> downloaded.set(true))
 			.stopWhenDownloaded()
 			.build();
 		clientReference.set(client);
 		try {
-			run(client, metadata);
+			run(client, metadata, downloaded);
 			return torrent.get();
 		} catch (IOException e) {
 			FileUtils.deleteQuietly(target.toFile());
@@ -97,6 +107,12 @@ public class TorrentDownloader {
 	}
 
 	public Torrent download(InputStream metainfo, Path target) throws IOException {
+		synchronized (downloadLock) {
+			return downloadMetainfo(metainfo, target);
+		}
+	}
+
+	private Torrent downloadMetainfo(InputStream metainfo, Path target) throws IOException {
 		checkEnabled();
 		var runtime = runtime();
 		var torrent = runtime.service(IMetadataService.class).fromInputStream(metainfo);
@@ -104,13 +120,15 @@ public class TorrentDownloader {
 		checkTrackerHosts(torrent.getAnnounceKey()
 			.map(key -> key.isMultiKey() ? key.getTrackerUrls().stream().flatMap(Collection::stream).toList() : java.util.List.of(key.getTrackerUrl()))
 			.orElseGet(java.util.List::of));
+		var downloaded = new AtomicBoolean();
 		var client = Bt.client(runtime)
 			.torrent(() -> torrent)
 			.storage(new FileSystemStorage(target))
+			.afterDownloaded(value -> downloaded.set(true))
 			.stopWhenDownloaded()
 			.build();
 		try {
-			run(client, props.getTorrent().getDownloadTimeout());
+			run(client, props.getTorrent().getDownloadTimeout(), downloaded);
 			return torrent;
 		} catch (IOException e) {
 			FileUtils.deleteQuietly(target.toFile());
@@ -143,11 +161,12 @@ public class TorrentDownloader {
 		}
 	}
 
-	private void run(BtClient client, CompletableFuture<Torrent> metadata) throws IOException {
+	private void run(BtClient client, CompletableFuture<Torrent> metadata, AtomicBoolean downloaded) throws IOException {
 		var future = client.startAsync(state -> {}, 1000);
 		try {
 			metadata.get(props.getTorrent().getMetadataTimeout().toMillis(), TimeUnit.MILLISECONDS);
 			future.get(props.getTorrent().getDownloadTimeout().toMillis(), TimeUnit.MILLISECONDS);
+			checkDownloaded(downloaded);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new IOException("Torrent download interrupted", e);
@@ -163,9 +182,10 @@ public class TorrentDownloader {
 		}
 	}
 
-	void run(BtClient client, Duration timeout) throws IOException {
+	void run(BtClient client, Duration timeout, AtomicBoolean downloaded) throws IOException {
 		try {
 			client.startAsync(state -> {}, 1000).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			checkDownloaded(downloaded);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new IOException("Torrent download interrupted", e);
@@ -176,6 +196,13 @@ public class TorrentDownloader {
 			throw new IOException("Torrent download timed out", e);
 		} finally {
 			client.stop();
+		}
+	}
+
+	private void checkDownloaded(AtomicBoolean downloaded) throws IOException {
+		if (!downloaded.get()) {
+			shutdown();
+			throw new IOException("Torrent download stopped before completion");
 		}
 	}
 

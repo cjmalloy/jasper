@@ -14,6 +14,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,9 +40,21 @@ class TorrentDownloaderTest {
 		var client = mock(BtClient.class);
 		when(client.startAsync(any(), anyLong())).thenReturn(new CompletableFuture<>());
 
-		assertThatThrownBy(() -> downloader.run(client, Duration.ofMillis(1)))
+		assertThatThrownBy(() -> downloader.run(client, Duration.ofMillis(1), new AtomicBoolean()))
 			.isInstanceOf(IOException.class)
 			.hasMessage("Torrent download timed out");
+		verify(client).stop();
+		verify(downloader).shutdown();
+	}
+
+	@Test
+	void rejectsClientStopBeforeDownloadCompletes() {
+		var client = mock(BtClient.class);
+		when(client.startAsync(any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+
+		assertThatThrownBy(() -> downloader.run(client, Duration.ofSeconds(1), new AtomicBoolean()))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Torrent download stopped before completion");
 		verify(client).stop();
 		verify(downloader).shutdown();
 	}
