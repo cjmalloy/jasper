@@ -81,13 +81,15 @@ public class Validate {
 			// Internal Refs are autofixed against internal and non-internal Refs using the first sources,
 			// but may keep any published date if the conflict can't be autofixed
 			responses(rootOrigin, ref, true, true);
-			sources(rootOrigin, ref, true, true, SYNC_SOURCES);
+			sources(rootOrigin, ref, true, SYNC_SOURCES, SYNC_SOURCES);
 		} else {
 			// Non-internal Refs are autofixed against non-internal Refs only and must end up consistent
+			// Sources are only autofixed up to the configured max sources, but all sources are checked
 			responses(rootOrigin, ref, true, false);
-			sources(rootOrigin, ref, true, false, root.getMaxSources());
-			responses(rootOrigin, ref, false, false);
-			sources(rootOrigin, ref, false, false, Integer.MAX_VALUE);
+			var published = ref.getPublished();
+			sources(rootOrigin, ref, false, Integer.MAX_VALUE, root.getMaxSources());
+			// Only moving the published date forward can create a new conflict with a response
+			if (!Objects.equals(published, ref.getPublished())) responses(rootOrigin, ref, false, false);
 		}
 	}
 
@@ -334,13 +336,14 @@ public class Validate {
 		}
 	}
 
-	private void sources(String rootOrigin, Ref ref, boolean fix, boolean includeInternal, int limit) {
+	private void sources(String rootOrigin, Ref ref, boolean includeInternal, int limit, int fixLimit) {
 		if (ref.getSources() == null) return;
+		var fixable = new HashSet<>(ref.getSources().stream().limit(fixLimit).toList());
 		for (var sourceUrl : ref.getSources().stream().limit(limit).filter(s -> !s.equals(ref.getUrl())).distinct().toList()) {
 			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished(), includeInternal);
 			for (var source : sources) {
 				if (source.getPublished().isAfter(ref.getPublished())) {
-					if (!fix) throw new PublishDateException(
+					if (!fixable.contains(sourceUrl)) throw new PublishDateException(
 						ref.getUrl(), ref.getPublished(), source.getUrl(), source.getPublished());
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
