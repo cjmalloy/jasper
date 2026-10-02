@@ -15,8 +15,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
@@ -28,7 +28,7 @@ class TorrentDownloaderTest {
 
 	@BeforeEach
 	void setUp() {
-		downloader = new TorrentDownloader();
+		downloader = spy(new TorrentDownloader());
 		props = new Props();
 		downloader.props = props;
 		downloader.hostCheck = mock(HostCheck.class);
@@ -43,6 +43,7 @@ class TorrentDownloaderTest {
 			.isInstanceOf(IOException.class)
 			.hasMessage("Torrent download timed out");
 		verify(client).stop();
+		verify(downloader).shutdown();
 	}
 
 	@Test

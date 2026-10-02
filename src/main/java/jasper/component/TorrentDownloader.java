@@ -81,6 +81,7 @@ public class TorrentDownloader {
 					metadata.completeExceptionally(e);
 					var runningClient = clientReference.get();
 					if (runningClient != null) runningClient.stop();
+					shutdown();
 				}
 			})
 			.stopWhenDownloaded()
@@ -154,6 +155,7 @@ public class TorrentDownloader {
 			if (e.getCause() instanceof IOException ioException) throw ioException;
 			throw new IOException("Torrent download failed", e.getCause());
 		} catch (TimeoutException e) {
+			shutdown();
 			if (!metadata.isDone()) throw new IOException("Timed out fetching torrent metadata", e);
 			throw new IOException("Torrent download timed out", e);
 		} finally {
@@ -170,6 +172,7 @@ public class TorrentDownloader {
 		} catch (ExecutionException e) {
 			throw new IOException("Torrent download failed", e.getCause());
 		} catch (TimeoutException e) {
+			shutdown();
 			throw new IOException("Torrent download timed out", e);
 		} finally {
 			client.stop();
