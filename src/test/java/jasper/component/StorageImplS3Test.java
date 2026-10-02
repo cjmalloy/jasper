@@ -121,8 +121,6 @@ public class StorageImplS3Test {
 		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
 		assertThat(new StorageImplS3(s3, "public", "private", "", tmpDir).getCdnUrl("", "cache", "a")).isNull();
-		assertThat(storage.hasCdn()).isTrue();
-		assertThat(new StorageImplS3(s3, "public", "private", "", tmpDir).hasCdn()).isFalse();
 	}
 
 	@Test
@@ -248,6 +246,7 @@ public class StorageImplS3Test {
 			try (var files = Files.list(tmpDir.resolve("s3"))) {
 				assertThat(files).singleElement().satisfies(p -> assertThat(p.getFileName().toString()).startsWith("jasper-s3-"));
 			}
+			zipped.commit();
 		}
 		try (var files = Files.list(tmpDir.resolve("s3"))) {
 			assertThat(files).isEmpty();
@@ -266,6 +265,7 @@ public class StorageImplS3Test {
 			}
 			storage.backup("", "cache", zipped, null);
 			assertThat(storage.exists("", "backups", "b.zip")).isFalse();
+			zipped.commit();
 		}
 		assertThat(storage.exists("", "backups", "b.zip")).isTrue();
 		assertThatThrownBy(() -> storage.zipAt("", "backups", "b.zip")).isInstanceOf(AlreadyExistsException.class);
@@ -279,6 +279,19 @@ public class StorageImplS3Test {
 			storage.restore("@restored", "cache", zipped);
 		}
 		assertThat(storage.get("@restored", "cache", "a")).isEqualTo("cached".getBytes());
+	}
+
+	@Test
+	void testZipClosedWithoutCommitIsDiscarded() throws IOException {
+		try (var zipped = storage.zipAt("", "backups", "b.zip")) {
+			try (var os = zipped.out("ref.json")) {
+				os.write("[]".getBytes());
+			}
+		}
+		assertThat(storage.exists("", "backups", "b.zip")).isFalse();
+		try (var files = Files.list(tmpDir.resolve("s3"))) {
+			assertThat(files).isEmpty();
+		}
 	}
 
 	@Test

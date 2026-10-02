@@ -39,18 +39,10 @@ public interface Storage {
 	void restore(String origin, String namespace, Zipped backup) throws IOException;
 
 	/**
-	 * Public CDN URL for a stored file, or null if files are not served by a CDN.
-	 * @throws IllegalArgumentException if the namespace is private
+	 * Public CDN URL for an object, or null if no CDN serves this storage.
 	 */
 	default String getCdnUrl(String origin, String namespace, String id) {
 		return null;
-	}
-
-	/**
-	 * Whether files are served by a CDN.
-	 */
-	default boolean hasCdn() {
-		return false;
 	}
 
 	default String originTenant(String origin) {
@@ -72,6 +64,10 @@ public interface Storage {
 		InputStream in(String filename);
 		OutputStream out(String filename) throws IOException;
 		Iterator<InputStream> list(String pattern) throws IOException;
+		/**
+		 * Publish a successfully completed archive. Closing without committing aborts it.
+		 */
+		void commit() throws IOException;
 	}
 
 	interface PathVisitor {

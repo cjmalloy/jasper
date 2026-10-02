@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static jasper.component.Meta.SYNC_SOURCES;
 import static jasper.component.Meta.expandTags;
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.urlForTag;
@@ -76,12 +77,20 @@ public class Validate {
 		}
 		tags(rootOrigin, ref);
 		plugins(rootOrigin, ref, stripOnError);
-		// Internal Refs may attach anywhere with any published date
-		if (ref.hasTag("internal")) return;
-		responses(rootOrigin, ref, true);
-		sources(rootOrigin, ref, true);
-		responses(rootOrigin, ref, false);
-		sources(rootOrigin, ref, false);
+		if (ref.hasTag("internal")) {
+			// Internal Refs are autofixed against internal and non-internal Refs using the first sources,
+			// but may keep any published date if the conflict can't be autofixed
+			responses(rootOrigin, ref, true, true);
+			sources(rootOrigin, ref, true, SYNC_SOURCES, SYNC_SOURCES);
+		} else {
+			// Non-internal Refs are autofixed against non-internal Refs only and must end up consistent
+			// Sources are only autofixed up to the configured max sources, but all sources are checked
+			responses(rootOrigin, ref, true, false);
+			var published = ref.getPublished();
+			sources(rootOrigin, ref, false, Integer.MAX_VALUE, root.getMaxSources());
+			// Only moving the published date forward can create a new conflict with a response
+			if (!Objects.equals(published, ref.getPublished())) responses(rootOrigin, ref, false, false);
+		}
 	}
 
 	@Timed("jasper.validate")
@@ -327,14 +336,14 @@ public class Validate {
 		}
 	}
 
-	private void sources(String rootOrigin, Ref ref, boolean fix) {
+	private void sources(String rootOrigin, Ref ref, boolean includeInternal, int limit, int fixLimit) {
 		if (ref.getSources() == null) return;
-		for (var sourceUrl : ref.getSources()) {
-			if (sourceUrl.equals(ref.getUrl())) continue;
-			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
+		var fixable = new HashSet<>(ref.getSources().stream().limit(fixLimit).toList());
+		for (var sourceUrl : ref.getSources().stream().limit(limit).filter(s -> !s.equals(ref.getUrl())).distinct().toList()) {
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished(), includeInternal);
 			for (var source : sources) {
 				if (source.getPublished().isAfter(ref.getPublished())) {
-					if (!fix) throw new PublishDateException(
+					if (!fixable.contains(sourceUrl)) throw new PublishDateException(
 						ref.getUrl(), ref.getPublished(), source.getUrl(), source.getPublished());
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
@@ -342,8 +351,8 @@ public class Validate {
 		}
 	}
 
-	private void responses(String rootOrigin, Ref ref, boolean fix) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
+	private void responses(String rootOrigin, Ref ref, boolean fix, boolean includeInternal) {
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished(), includeInternal);
 		for (var response : responses) {
 			if (response.getPublished().isBefore(ref.getPublished())) {
 				if (response.hasTag("plugin/user")) {

@@ -23,6 +23,10 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
   groups:
     spring-boot:
       patterns:
@@ -33,6 +37,10 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
   groups:
     gatling:
       patterns:
@@ -62,6 +70,10 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
 - package-ecosystem: github-actions
   target-branch: v1.3
   directory: /

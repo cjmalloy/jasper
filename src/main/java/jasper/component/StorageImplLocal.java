@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Profile("storage & !s3")
+@Profile("storage & !gcs & !s3")
 @Component
 public class StorageImplLocal implements Storage {
 	private final Logger logger = LoggerFactory.getLogger(StorageImplLocal.class);
@@ -241,6 +241,7 @@ public class StorageImplLocal implements Storage {
 		private final String origin;
 		private final String namespace;
 		private final String id;
+		private boolean closed;
 
 		public ZippedLocal(String origin, String namespace, String id, boolean create) throws IOException {
 			this.origin = origin;
@@ -297,11 +298,29 @@ public class StorageImplLocal implements Storage {
 		}
 
 		@Override
+		public void commit() throws IOException {
+			if (closed) throw new IOException("Zip already closed");
+			closed = true;
+			try {
+				zipfs.close();
+				if (create) {
+					// Remove underscore to indicate writing has finished
+					Files.move(path(origin, namespace, "_" + id), path(origin, namespace, id));
+				}
+			} catch (IOException | RuntimeException e) {
+				if (create) Files.deleteIfExists(path(origin, namespace, "_" + id));
+				throw e;
+			}
+		}
+
+		@Override
 		public void close() throws IOException {
-			zipfs.close();
-			if (create) {
-				// Remove underscore to indicate writing has finished
-				Files.move(path(origin, namespace, "_" + id), path(origin, namespace, id));
+			if (closed) return;
+			closed = true;
+			try {
+				zipfs.close();
+			} finally {
+				if (create) Files.deleteIfExists(path(origin, namespace, "_" + id));
 			}
 		}
 	}

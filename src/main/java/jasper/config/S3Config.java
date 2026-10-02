@@ -11,7 +11,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
 
-@Profile("s3")
+@Profile("storage & s3")
 @Configuration
 public class S3Config {
 

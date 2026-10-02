@@ -325,6 +325,7 @@ public class FileCache {
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
 				var buffer = new StringBuilder();
+				var cdn = configs.getRemote(origin) == null && storage.getCdnUrl(origin, CACHE, "probe") != null;
 				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
@@ -333,7 +334,7 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						var cdnUrl = cdnUrl(line, origin);
+						var cdnUrl = cdn ? cdnUrl(url, line, origin) : null;
 						if (cdnUrl != null) {
 							buffer.append(cdnUrl).append("\n");
 						} else {
@@ -348,22 +349,25 @@ public class FileCache {
 	}
 
 	/**
-	 * Link a manifest entry directly to the CDN by reserving its cache id now.
-	 * The entry is cached later into the reserved id by the _plugin/delta/cache script.
-	 * Returns null to fall back to the proxy URL.
+	 * Reserve a cache id for a manifest entry so it can be linked to the CDN
+	 * before it has been cached. Concurrent reservations agree on a single id.
+	 * The manifest is added as a source, since cacheLater skips reserved entries.
+	 * @return the CDN URL, or null if the entry should be proxied
 	 */
-	private String cdnUrl(String url, String origin) {
-		if (!storage.hasCdn() || configs.getRemote(origin) != null) return null;
+	private String cdnUrl(String source, String url, String origin) {
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		var existing = getCache(ref);
-		if (hasMatchingTag(ref, "+plugin/error") || existing != null && (bannedOrBroken(existing) || existing.isNoStore())) return null;
-		var id = existing != null ? existing.getId() : UUID.randomUUID().toString();
-		var cdnUrl = storage.getCdnUrl(origin, CACHE, id);
-		if (cdnUrl != null && existing == null) {
-			tagger.plugin(url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+		if (existing == null) {
+			var id = UUID.randomUUID().toString();
+			if (storage.getCdnUrl(origin, CACHE, id) == null) return null;
+			ref = tagger.initPlugin(source, url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+			existing = getCache(ref);
 		}
-		return cdnUrl;
+		if (existing == null || bannedOrBroken(existing)) return null;
+		// Only link files already stored under the current routes, or pending files that will be
+		if (!ref.hasTag("_plugin/delta/cache") && !storage.exists(origin, CACHE, existing.getId())) return null;
+		return storage.getCdnUrl(origin, CACHE, existing.getId());
 	}
 
 	private void cacheLater(String source, String url, String origin) {

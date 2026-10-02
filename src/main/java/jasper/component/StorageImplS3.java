@@ -52,7 +52,7 @@ import java.util.stream.Collectors;
  * every other namespace (backups, preload, secrets, config) is stored in the
  * private bucket. Objects are keyed as {@code tenant/namespace/id}.
  */
-@Profile("s3")
+@Profile("storage & s3")
 @Component
 public class StorageImplS3 implements Storage {
 	private final Logger logger = LoggerFactory.getLogger(StorageImplS3.class);
@@ -105,11 +105,6 @@ public class StorageImplS3 implements Storage {
 		if (!location.bucket().equals(publicBucketName)) throw new IllegalArgumentException("Namespace " + namespace + " is not public");
 		if (cdnBaseUrl.isBlank()) return null;
 		return cdnBaseUrl + "/" + UriUtils.encodePath(location.key(), StandardCharsets.UTF_8);
-	}
-
-	@Override
-	public boolean hasCdn() {
-		return !cdnBaseUrl.isBlank();
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
@@ -467,8 +462,8 @@ public class StorageImplS3 implements Storage {
 		}
 
 		@Override
-		public void close() throws IOException {
-			if (closed) return;
+		public void commit() throws IOException {
+			if (closed) throw new IOException("Zip already closed");
 			closed = true;
 			try {
 				zipfs.close();
@@ -478,6 +473,17 @@ public class StorageImplS3 implements Storage {
 						upload(location, id, is);
 					}
 				}
+			} finally {
+				FileSystemUtils.deleteRecursively(dir);
+			}
+		}
+
+		@Override
+		public void close() throws IOException {
+			if (closed) return;
+			closed = true;
+			try {
+				zipfs.close();
 			} finally {
 				FileSystemUtils.deleteRecursively(dir);
 			}
