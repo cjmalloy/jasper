@@ -40,7 +40,6 @@
 		<commons-lang3.version>3.21.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<jsoup.version>1.23.2</jsoup.version>
-		<scim2-client.version>2.3.8</scim2-client.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
 
@@ -240,11 +239,6 @@
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>${jsoup.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.unboundid.product.scim2</groupId>
-			<artifactId>scim2-sdk-client</artifactId>
-			<version>${scim2-client.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.github.openfeign</groupId>
