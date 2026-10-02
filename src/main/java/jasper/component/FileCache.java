@@ -333,7 +333,7 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						var cdnUrl = cdnUrl(line, origin);
+						var cdnUrl = cdnUrl(url, line, origin);
 						if (cdnUrl != null) {
 							buffer.append(cdnUrl).append("\n");
 						} else {
@@ -350,9 +350,10 @@ public class FileCache {
 	/**
 	 * Reserve a cache id for a manifest entry so it can be linked to the CDN
 	 * before it has been cached. Concurrent reservations agree on a single id.
+	 * The manifest is added as a source, since cacheLater skips reserved entries.
 	 * @return the CDN URL, or null if the entry should be proxied
 	 */
-	private String cdnUrl(String url, String origin) {
+	private String cdnUrl(String source, String url, String origin) {
 		if (configs.getRemote(origin) != null) return null;
 		url = fixUrl(url);
 		var ref = stat(url, origin);
@@ -360,7 +361,7 @@ public class FileCache {
 		if (existing == null) {
 			var id = UUID.randomUUID().toString();
 			if (storage.getCdnUrl(origin, CACHE, id) == null) return null;
-			ref = tagger.initPlugin(url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+			ref = tagger.initPlugin(source, url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
 			existing = getCache(ref);
 		}
 		if (existing == null || bannedOrBroken(existing)) return null;

@@ -67,13 +67,13 @@ public class FileCacheTest {
 	void testManifestCdn() throws IOException {
 		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
 			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
-		when(tagger.initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
-			.thenAnswer(i -> segment(i.<Cache>getArgument(3).getId(), "_plugin/delta/cache"));
+		when(tagger.initPlugin(eq("https://example.com/video/index.m3u8"), eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
+			.thenAnswer(i -> segment(i.<Cache>getArgument(4).getId(), "_plugin/delta/cache"));
 
 		var manifest = rewrittenManifest();
 
 		var cache = ArgumentCaptor.forClass(Cache.class);
-		verify(tagger).initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), cache.capture(), eq("_plugin/delta/cache"));
+		verify(tagger).initPlugin(eq("https://example.com/video/index.m3u8"), eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), cache.capture(), eq("_plugin/delta/cache"));
 		assertThat(manifest).contains("https://cdn.example.com/default/cache/" + cache.getValue().getId() + "\n");
 		assertThat(manifest).doesNotContain("/api/v1/proxy");
 	}
@@ -83,7 +83,7 @@ public class FileCacheTest {
 		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
 			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
 		// Another pod reserved the segment first
-		when(tagger.initPlugin(eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
+		when(tagger.initPlugin(eq("https://example.com/video/index.m3u8"), eq("https://example.com/video/seg0.ts"), eq(""), eq("_plugin/cache"), any(), eq("_plugin/delta/cache")))
 			.thenReturn(segment("winner", "_plugin/delta/cache"));
 
 		assertThat(rewrittenManifest()).contains("https://cdn.example.com/default/cache/winner\n");

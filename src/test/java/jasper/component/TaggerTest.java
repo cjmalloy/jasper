@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 public class TaggerTest {
 
 	static final String URL = "https://example.com/video/seg0.ts";
+	static final String SOURCE = "https://example.com/video/index.m3u8";
 
 	Tagger tagger;
 	RefRepository refRepository;
@@ -43,7 +44,8 @@ public class TaggerTest {
 
 	Ref winner() {
 		return from(URL, "", "internal", "_plugin/delta/cache")
-			.setPlugin("_plugin/cache", Cache.builder().id("winner").build());
+			.setPlugin("_plugin/cache", Cache.builder().id("winner").build())
+			.addSource(SOURCE);
 	}
 
 	String cacheId(Ref ref) {
@@ -57,8 +59,8 @@ public class TaggerTest {
 			.thenReturn(Optional.of(winner()));
 		doThrow(new AlreadyExistsException()).when(ingest).create(eq(""), any(Ref.class));
 
-		var loser = tagger.initPlugin(URL, "", "_plugin/cache", Cache.builder().id("loser").build(), "_plugin/delta/cache");
-		var other = tagger.initPlugin(URL, "", "_plugin/cache", Cache.builder().id("other").build(), "_plugin/delta/cache");
+		var loser = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("loser").build(), "_plugin/delta/cache");
+		var other = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("other").build(), "_plugin/delta/cache");
 
 		assertThat(cacheId(loser)).isEqualTo("winner");
 		assertThat(cacheId(other)).isEqualTo("winner");
@@ -73,12 +75,35 @@ public class TaggerTest {
 			.thenReturn(Optional.of(winner()));
 		doThrow(new ModifiedException("Ref")).when(ingest).update(eq(""), any(Ref.class));
 
-		var loser = tagger.initPlugin(URL, "", "_plugin/cache", Cache.builder().id("loser").build(), "_plugin/delta/cache");
-		var other = tagger.initPlugin(URL, "", "_plugin/cache", Cache.builder().id("other").build(), "_plugin/delta/cache");
+		var loser = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("loser").build(), "_plugin/delta/cache");
+		var other = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("other").build(), "_plugin/delta/cache");
 
 		assertThat(cacheId(loser)).isEqualTo("winner");
 		assertThat(cacheId(other)).isEqualTo("winner");
 		verify(ingest, times(1)).update(eq(""), any(Ref.class));
 		verify(ingest, never()).create(eq(""), any(Ref.class));
+	}
+
+	@Test
+	void testInitPluginCreateAddsSource() {
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.empty());
+
+		var ref = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("id").build(), "_plugin/delta/cache");
+
+		assertThat(ref.getSources()).containsExactly(SOURCE);
+		verify(ingest).create(eq(""), any(Ref.class));
+	}
+
+	@Test
+	void testInitPluginExistingReservationAddsSource() {
+		when(refRepository.findOneByUrlAndOrigin(URL, ""))
+			.thenReturn(Optional.of(from(URL, "", "internal", "_plugin/delta/cache")
+				.setPlugin("_plugin/cache", Cache.builder().id("winner").build())));
+
+		var ref = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("other").build(), "_plugin/delta/cache");
+
+		assertThat(cacheId(ref)).isEqualTo("winner");
+		assertThat(ref.getSources()).containsExactly(SOURCE);
+		verify(ingest).update(eq(""), any(Ref.class));
 	}
 }
