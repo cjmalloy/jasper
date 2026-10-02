@@ -169,7 +169,7 @@ public class Backup {
 	}
 
 	static boolean isTombstone(Object entity) {
-		if (entity instanceof Tag tag) return isDeletorTag(tag.getTag());
+		if (entity instanceof Tag tag) return tag.getTag() != null && isDeletorTag(tag.getTag());
 		if (entity instanceof Ref ref) return ref.hasTag("plugin/delete");
 		if (entity instanceof RefView ref) return ref.getTags() != null && ref.getTags().stream().anyMatch(t -> matchesTag("plugin/delete", t));
 		return false;
