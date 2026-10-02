@@ -215,7 +215,8 @@ public interface Config {
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
 			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
-			if (isNotBlank(server.getGcsBucket())) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
+			if ("local".equals(server.getStorage())) wrapped = wrapped.withGcsBucket("");
+			if (server.getGcsBucket() != null) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
 			if (isNotEmpty(server.getGcsRoutes())) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
 			return wrapped;
 		}

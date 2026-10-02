@@ -222,6 +222,29 @@ public class StorageImplGcsTest {
 	}
 
 	@Test
+	void testServerOverrideLocalStorage() throws IOException {
+		var local = new StorageImplLocal();
+		local.props = new Props();
+		local.props.setStorage(tmpDir.resolve("local").toString());
+		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), mock(ConfigCache.class), Optional.of(local));
+		gcs.tmpDir = tmpDir;
+
+		var props = new Props();
+		props.getOverride().getServer().setStorage("local");
+		var wrapped = root().wrap(props);
+		assertThat(wrapped.getStorage()).isEqualTo("local");
+		assertThat(wrapped.getGcsBucket()).isEmpty();
+		gcs.update(wrapped);
+		gcs.storeAt("", "backups", "b", "backup".getBytes());
+		assertThat(local.exists("", "backups", "b")).isTrue();
+
+		var blank = new Props();
+		blank.getOverride().getServer().setGcsBucket("");
+		assertThat(root().withStorage("local").wrap(blank).getGcsBucket()).isEmpty();
+		assertThat(root().wrap(new Props()).getGcsBucket()).isEqualTo("private");
+	}
+
+	@Test
 	void testCdnUrl() {
 		assertThat(storage.getCdnUrl("@other", "cache", "a")).isEqualTo("https://cdn.example.com/@other/cache/a");
 		assertThat(storage.getCdnUrl("", "backups", "b.zip")).isNull();
