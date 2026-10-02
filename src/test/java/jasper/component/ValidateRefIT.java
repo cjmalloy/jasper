@@ -825,6 +825,8 @@ public class ValidateRefIT {
 		ref.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
 
 		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
 	}
 
 	@Test
