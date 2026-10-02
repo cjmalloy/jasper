@@ -76,12 +76,17 @@ public class Validate {
 		}
 		tags(rootOrigin, ref);
 		plugins(rootOrigin, ref, stripOnError);
-		// Internal Refs may attach anywhere with any published date
-		if (ref.hasTag("internal")) return;
+		// Only autofix internal Refs based on the first two sources
+		var internal = ref.hasTag("internal");
 		responses(rootOrigin, ref, true);
-		sources(rootOrigin, ref, true);
-		responses(rootOrigin, ref, false);
-		sources(rootOrigin, ref, false);
+		sources(rootOrigin, ref, true, internal ? 2 : Integer.MAX_VALUE);
+		try {
+			responses(rootOrigin, ref, false);
+			sources(rootOrigin, ref, false, Integer.MAX_VALUE);
+		} catch (PublishDateException e) {
+			// Internal Refs may attach anywhere with any published date if it can't be autofixed
+			if (!internal) throw e;
+		}
 	}
 
 	@Timed("jasper.validate")
@@ -327,9 +332,9 @@ public class Validate {
 		}
 	}
 
-	private void sources(String rootOrigin, Ref ref, boolean fix) {
+	private void sources(String rootOrigin, Ref ref, boolean fix, int limit) {
 		if (ref.getSources() == null) return;
-		for (var sourceUrl : ref.getSources()) {
+		for (var sourceUrl : ref.getSources().stream().limit(limit).toList()) {
 			if (sourceUrl.equals(ref.getUrl())) continue;
 			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
 			for (var source : sources) {
