@@ -305,9 +305,9 @@ public class StorageImplGcs implements Storage {
 	 */
 	private void upload(BlobId blobId, InputStream is) throws IOException {
 		try {
-			var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()));
-			is.transferTo(os);
-			os.close();
+try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()))) {
+				is.transferTo(os);
+			}
 		} catch (StorageException e) {
 			if (e.getCode() == PRECONDITION_FAILED) throw new AlreadyExistsException();
 			throw new IOException(e);
