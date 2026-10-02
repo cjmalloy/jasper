@@ -159,7 +159,7 @@ public class TaggingService {
 				if (!(patched instanceof ObjectNode result)) {
 					throw new JsonPatchException("Plugin patch must produce an object");
 				}
-				ref.addPlugins(ref.getTags(), result);
+ref.addPlugins(jasper.component.Meta.expandTags(ref.getTags()), result);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}
