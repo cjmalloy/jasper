@@ -221,7 +221,7 @@ jasper:
   api-docs:
     default-include-pattern: ${server.servlet.context-path:}/api/**
     management-include-pattern: ${server.servlet.context-path:}/management/**
-    title: Jasper KMS API
+    title: Jasper Protocol
     description: Jasper Knowledge Management Server API documentation
     version: 1.4.0
     terms-of-service-url:
