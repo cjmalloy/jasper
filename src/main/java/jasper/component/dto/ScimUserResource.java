@@ -1,7 +1,6 @@
 package jasper.component.dto;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.unboundid.scim2.common.types.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,5 +23,5 @@ public class ScimUserResource {
 	private String userName;
 	private String password;
 	private ObjectNode customClaims;
-	private List<Email> emails;
+	private List<ScimEmail> emails;
 }
