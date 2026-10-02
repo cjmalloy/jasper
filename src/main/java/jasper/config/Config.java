@@ -177,7 +177,7 @@ public interface Config {
 		private int maxConcurrentFetch = 10;
 		/**
 		 * GCS bucket for any tenant and namespace not matched by a route. Never served by a CDN.
-		 * Required by the gcs profile.
+		 * Blank uses local storage, which requires the storage profile.
 		 */
 		@Builder.Default
 		private String gcsBucket = "";
@@ -231,6 +231,7 @@ public interface Config {
 	class GcsRoute implements Serializable {
 		/**
 		 * Bucket to store matching objects in.
+		 * Blank uses local storage, which requires the storage profile.
 		 */
 		private String bucket;
 		/**

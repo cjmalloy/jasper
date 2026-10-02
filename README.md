@@ -605,7 +605,7 @@ different nodes to run different workloads.
 | `maxRequests`              | Maximum HTTP requests per origin every 500 nanoseconds.                                         | `50`                                       |
 | `maxConcurrentRequests`    | Global maximum concurrent HTTP requests across all origins.                                     | `500`                                      |
 | `maxConcurrentFetch`       | Maximum concurrent fetch operations (scraping).                                                 | `10`                                       |
-| `gcsBucket`                | Default GCS bucket for the `gcs` profile. Never served by a CDN.                                | `""`                                       |
+| `gcsBucket`                | Default GCS bucket for the `gcs` profile. Blank uses local storage. Never served by a CDN.      | `""`                                       |
 | `gcsRoutes`                | GCS bucket routes for the `gcs` profile. The first match wins.                                  | `[]`                                       |
 
 #### Security Config (`_config/security` Template)
@@ -684,11 +684,11 @@ environment variable.
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
-The `gcs` profile stores files in Google Cloud Storage buckets instead of the local storage folder, allowing
-multiple pods to share storage. It replaces the local storage implementation and may be enabled with or without the
-`storage` profile. Objects are keyed as `tenant/namespace/id`. Buckets are set in the `_config/server` template and
-can be changed at runtime. Each tenant and namespace is stored in the bucket of the first matching route in
-`gcsRoutes`, or in the default `gcsBucket` (required). Both can be overridden with the `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
+The `gcs` profile stores files in Google Cloud Storage buckets, allowing multiple pods to share storage. It may be
+enabled with or without the `storage` profile. Objects are keyed as `tenant/namespace/id`. Buckets are set in the
+`_config/server` template and can be changed at runtime. Each tenant and namespace is stored in the bucket of the
+first matching route in `gcsRoutes`, or in the default `gcsBucket`. A blank bucket stores the tenant and namespace
+in the local storage folder instead, which requires the `storage` profile. Both can be overridden with the `JASPER_OVERRIDE_SERVER_GCS_BUCKET`
 and `JASPER_OVERRIDE_SERVER_GCS_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
 and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
 route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
@@ -704,10 +704,18 @@ without a CDN. An invalid config is logged and ignored, keeping the previous buc
   ]
 }
 ```
+For example, to keep the cache in GCS and everything else, such as backups, in local storage:
+```json
+{
+  "gcsBucket": "",
+  "gcsRoutes": [
+    { "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" }
+  ]
+}
+```
 Credentials are resolved with Application Default Credentials, such as GKE Workload
 Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
-enough local disk for the largest backup. Set the staging folder with the `APPLICATION_STORAGE_GCS_TMP_DIR` environment
-variable (defaults to `java.io.tmpdir`), for example to a dedicated volume when the default temp folder is small.
+enough local disk in the `java.io.tmpdir` folder for the largest backup stored in GCS.
 
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,

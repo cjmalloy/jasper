@@ -2,7 +2,6 @@ package jasper.config;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -18,11 +17,5 @@ public class GcsConfig {
 @Bean
 	public Storage gcsClient() {
 		return StorageOptions.getDefaultInstance().getService();
-	}
-
-	@Bean
-	@ConfigurationProperties(prefix = "application.storage.gcs")
-	public GcsProps gcsProps() {
-		return new GcsProps();
 	}
 }

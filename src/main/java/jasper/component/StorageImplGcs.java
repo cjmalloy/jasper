@@ -13,12 +13,12 @@ import io.micrometer.core.annotation.Timed;
 import jakarta.annotation.PostConstruct;
 import jasper.config.Config.GcsRoute;
 import jasper.config.Config.ServerConfig;
-import jasper.config.GcsProps;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
@@ -43,6 +43,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -57,10 +58,13 @@ import static org.apache.commons.lang3.StringUtils.stripEnd;
  * {@link Storage} backed by Google Cloud Storage buckets.
  * Each tenant and namespace is routed to a bucket by the first matching
  * {@link GcsRoute} in the server config, or to the default bucket if no route matches.
+ * A blank bucket stores the tenant and namespace in {@link StorageImplLocal} instead,
+ * which requires the storage profile.
  * Routes are reloaded whenever the server config changes.
  * Only routes with a CDN base URL are served by a CDN, and their buckets may
  * not store any other files. Objects are keyed as {@code tenant/namespace/id}.
  */
+@Primary
 @Profile("gcs")
 @Component
 public class StorageImplGcs implements Storage {
@@ -71,13 +75,14 @@ public class StorageImplGcs implements Storage {
 
 	private final com.google.cloud.storage.Storage gcsClient;
 	private final ConfigCache configs;
-	private final Path tmpDir;
+	private final Optional<StorageImplLocal> local;
+	Path tmpDir = Path.of(System.getProperty("java.io.tmpdir"));
 	private volatile Routing routing;
 
-	public StorageImplGcs(com.google.cloud.storage.Storage gcsClient, GcsProps props, ConfigCache configs) {
+	public StorageImplGcs(com.google.cloud.storage.Storage gcsClient, ConfigCache configs, Optional<StorageImplLocal> local) {
 		this.gcsClient = gcsClient;
 		this.configs = configs;
-		this.tmpDir = Path.of(props.getTmpDir());
+		this.local = local;
 	}
 
 	@PostConstruct
@@ -96,23 +101,26 @@ public class StorageImplGcs implements Storage {
 	 * Throws {@link IllegalArgumentException} and keeps the existing routes if the config is invalid.
 	 */
 	void update(ServerConfig root) {
-		if (isBlank(root.getGcsBucket())) throw new IllegalArgumentException("GCS bucket is required");
 		var gcsRoutes = root.getGcsRoutes() == null ? List.<GcsRoute>of() : root.getGcsRoutes();
+		if (local.isEmpty() && (isBlank(root.getGcsBucket()) || gcsRoutes.stream().anyMatch(r -> isBlank(r.getBucket())))) {
+			throw new IllegalArgumentException("GCS bucket is required without the storage profile");
+		}
 		var cdnBuckets = new HashSet<String>();
-		var privateBuckets = new HashSet<>(Set.of(root.getGcsBucket()));
+		var privateBuckets = new HashSet<String>();
+		if (!isBlank(root.getGcsBucket())) privateBuckets.add(root.getGcsBucket());
 		for (var r : gcsRoutes) {
-			if (isBlank(r.getBucket())) throw new IllegalArgumentException("GCS route bucket is required");
 			if (isBlank(r.getCdnBaseUrl())) {
-				privateBuckets.add(r.getBucket());
+				if (!isBlank(r.getBucket())) privateBuckets.add(r.getBucket());
 			} else {
+				if (isBlank(r.getBucket())) throw new IllegalArgumentException("GCS route with a CDN requires a bucket");
 				if (isEmpty(r.getNamespaces())) throw new IllegalArgumentException("GCS route for CDN bucket " + r.getBucket() + " must list its namespaces");
 				cdnBuckets.add(r.getBucket());
 			}
 		}
 		cdnBuckets.retainAll(privateBuckets);
 		if (!cdnBuckets.isEmpty()) throw new IllegalArgumentException("GCS buckets served by a CDN may only be used by CDN routes: " + cdnBuckets);
-		routing = new Routing(root.getGcsBucket(), gcsRoutes.stream().map(r -> new Route(
-			r.getBucket(),
+		routing = new Routing(isBlank(root.getGcsBucket()) ? null : root.getGcsBucket(), gcsRoutes.stream().map(r -> new Route(
+			isBlank(r.getBucket()) ? null : r.getBucket(),
 			r.getNamespaces() == null ? Set.of() : Set.copyOf(r.getNamespaces()),
 			r.getTenants() == null ? Set.of() : r.getTenants().stream().map(t -> formatOrigin(t)).collect(Collectors.toSet()),
 			isBlank(r.getCdnBaseUrl()) ? null : stripEnd(r.getCdnBaseUrl(), "/")
@@ -123,6 +131,13 @@ public class StorageImplGcs implements Storage {
 		var r = routing;
 		if (r == null) throw new IllegalStateException("GCS bucket is not configured in the server config");
 		return r;
+	}
+
+	/**
+	 * Local storage if this tenant and namespace are routed to a blank bucket, otherwise null.
+	 */
+	private Storage local(String origin, String namespace) {
+		return bucket(origin, namespace) == null ? local.orElseThrow() : null;
 	}
 
 	/**
@@ -137,6 +152,8 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
+		var l = local(origin, namespace);
+		if (l != null) return l.get(origin, namespace, id);
 		try {
 			return gcsClient.readAllBytes(blobId(origin, namespace, id));
 		} catch (StorageException e) {
@@ -147,22 +164,30 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public boolean exists(String origin, String namespace, String id) {
+		var l = local(origin, namespace);
+		if (l != null) return l.exists(origin, namespace, id);
 		return gcsClient.get(blobId(origin, namespace, id), BlobGetOption.fields(BlobField.NAME)) != null;
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public long size(String origin, String namespace, String id) {
+		var l = local(origin, namespace);
+		if (l != null) return l.size(origin, namespace, id);
 		var blob = gcsClient.get(blobId(origin, namespace, id), BlobGetOption.fields(BlobField.SIZE));
 		return blob == null || blob.getSize() == null ? 0 : blob.getSize();
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public InputStream stream(String origin, String namespace, String id) {
+		var l = local(origin, namespace);
+		if (l != null) return l.stream(origin, namespace, id);
 		return Channels.newInputStream(blob(origin, namespace, id).reader());
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public long stream(String origin, String namespace, String id, OutputStream os) {
+		var l = local(origin, namespace);
+		if (l != null) return l.stream(origin, namespace, id, os);
 		try (var is = stream(origin, namespace, id)) {
 			return is.transferTo(os);
 		} catch (StorageException e) {
@@ -176,6 +201,8 @@ public class StorageImplGcs implements Storage {
 
 	@Override
 	public Zipped streamZip(String origin, String namespace, String id) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) return l.streamZip(origin, namespace, id);
 		return new ZippedGcs(origin, namespace, id, false);
 	}
 
@@ -188,8 +215,10 @@ public class StorageImplGcs implements Storage {
 	public List<String> listTenants() {
 		var result = new LinkedHashSet<String>();
 		var routing = routing();
-		var buckets = new LinkedHashSet<>(List.of(routing.bucket()));
+		var buckets = new LinkedHashSet<String>();
+		buckets.add(routing.bucket());
 		for (var r : routing.routes()) buckets.add(r.bucket());
+		if (buckets.remove(null)) result.addAll(local.orElseThrow().listTenants());
 		for (var bucket : buckets) {
 			for (var blob : gcsClient.list(bucket, BlobListOption.prefix(""), BlobListOption.currentDirectory()).iterateAll()) {
 				if (!blob.isDirectory()) continue;
@@ -201,12 +230,16 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void visitStorage(String origin, String namespace, PathVisitor v) {
+		var l = local(origin, namespace);
+		if (l != null) { l.visitStorage(origin, namespace, v); return; }
 		var prefix = prefix(origin, namespace);
 		for (var blob : files(origin, namespace, prefix)) v.visit(childName(blob, prefix));
 	}
 
 	@Override
 	public List<StorageRef> listStorage(String origin, String namespace) {
+		var l = local(origin, namespace);
+		if (l != null) return l.listStorage(origin, namespace);
 		var prefix = prefix(origin, namespace);
 		var result = new ArrayList<StorageRef>();
 		for (var blob : files(origin, namespace, prefix)) {
@@ -217,6 +250,8 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void overwrite(String origin, String namespace, String id, byte[] cache) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.overwrite(origin, namespace, id, cache); return; }
 		var existing = gcsClient.get(blobId(origin, namespace, id), BlobGetOption.fields(BlobField.GENERATION));
 		if (existing == null) throw new NotFoundException("Cache " + id);
 		// Real GCS always returns a generation; only the LocalStorageHelper test fake omits it
@@ -240,6 +275,8 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void storeAt(String origin, String namespace, String id, byte[] cache) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.storeAt(origin, namespace, id, cache); return; }
 		try {
 			gcsClient.create(BlobInfo.newBuilder(blobId(origin, namespace, id)).build(), cache, BlobTargetOption.doesNotExist());
 		} catch (StorageException e) {
@@ -250,6 +287,8 @@ public class StorageImplGcs implements Storage {
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void storeAt(String origin, String namespace, String id, InputStream is) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.storeAt(origin, namespace, id, is); return; }
 		if (exists(origin, namespace, id)) throw new AlreadyExistsException();
 		upload(blobId(origin, namespace, id), is);
 	}
@@ -263,12 +302,16 @@ public class StorageImplGcs implements Storage {
 
 	@Override
 	public Zipped zipAt(String origin, String namespace, String id) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) return l.zipAt(origin, namespace, id);
 		if (exists(origin, namespace, id)) throw new AlreadyExistsException();
 		return new ZippedGcs(origin, namespace, id, true);
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public void delete(String origin, String namespace, String id) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.delete(origin, namespace, id); return; }
 		var blobId = blobId(origin, namespace, id);
 		try {
 			if (!gcsClient.delete(blobId)) throw new NoSuchFileException(blobId.getName());
@@ -279,6 +322,8 @@ public class StorageImplGcs implements Storage {
 
 	@Override
 	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.backup(origin, namespace, backup, modifiedAfter); return; }
 		var prefix = prefix(origin, namespace);
 		var dir = backup.get(namespace);
 		for (var blob : files(origin, namespace, prefix)) {
@@ -292,6 +337,8 @@ public class StorageImplGcs implements Storage {
 
 	@Override
 	public void restore(String origin, String namespace, Zipped backup) throws IOException {
+		var l = local(origin, namespace);
+		if (l != null) { l.restore(origin, namespace, backup); return; }
 		if (!Files.exists(backup.get(namespace))) return;
 		List<Path> files;
 		try (var w = Files.walk(backup.get(namespace))) {
@@ -313,7 +360,7 @@ public class StorageImplGcs implements Storage {
 
 	BlobId blobId(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return BlobId.of(bucket(origin, namespace), originTenant(origin) + "/" + namespace + "/" + id);
+		return BlobId.of(gcsBucket(origin, namespace), originTenant(origin) + "/" + namespace + "/" + id);
 	}
 
 	private Blob blob(String origin, String namespace, String id) {
@@ -337,8 +384,14 @@ public class StorageImplGcs implements Storage {
 		return route == null ? routing.bucket() : route.bucket();
 	}
 
+	private String gcsBucket(String origin, String namespace) {
+		var bucket = bucket(origin, namespace);
+		if (bucket == null) throw new IllegalStateException("Tenant and namespace are stored locally");
+		return bucket;
+	}
+
 	private Iterable<Blob> files(String origin, String namespace, String prefix) {
-		return () -> StreamSupport.stream(gcsClient.list(bucket(origin, namespace), BlobListOption.prefix(prefix), BlobListOption.currentDirectory()).iterateAll().spliterator(), false)
+		return () -> StreamSupport.stream(gcsClient.list(gcsBucket(origin, namespace), BlobListOption.prefix(prefix), BlobListOption.currentDirectory()).iterateAll().spliterator(), false)
 			.filter(blob -> !blob.isDirectory() && blob.getName().length() > prefix.length())
 			.iterator();
 	}
