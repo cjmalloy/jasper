@@ -39,8 +39,10 @@
 		<commons-collections4.version>4.6.0</commons-collections4.version>
 		<commons-lang3.version>3.21.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
+		<google-cloud-storage.version>2.75.0</google-cloud-storage.version>
+		<google-cloud-nio.version>0.139.0</google-cloud-nio.version>
+		<awssdk.version>2.55.10</awssdk.version>
 		<jsoup.version>1.23.2</jsoup.version>
-		<scim2-client.version>2.3.8</scim2-client.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
 
@@ -117,6 +119,47 @@
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
 			<version>${commons-compress.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+			<version>${google-cloud-storage.version}</version>
+			<exclusions>
+				<!-- Annotation-only; keep the newer version required by the PostgreSQL driver. -->
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-nio</artifactId>
+			<version>${google-cloud-nio.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${awssdk.version}</version>
+			<exclusions>
+				<!-- Only the synchronous client is used -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${awssdk.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -240,11 +283,6 @@
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>${jsoup.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.unboundid.product.scim2</groupId>
-			<artifactId>scim2-sdk-client</artifactId>
-			<version>${scim2-client.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.github.openfeign</groupId>

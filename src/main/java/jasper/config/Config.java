@@ -175,6 +175,22 @@ public interface Config {
 		 */
 		@Builder.Default
 		private int maxConcurrentFetch = 10;
+		/**
+		 * Storage provider for any tenant and namespace not matched by a storage route: "local", "gcs" or "s3".
+		 */
+		@Builder.Default
+		private String storage = "local";
+		/**
+		 * Bucket for any tenant and namespace not matched by a route. Never served by a CDN.
+		 * Required when the storage provider is "gcs" or "s3".
+		 */
+		@Builder.Default
+		private String storageBucket = "";
+		/**
+		 * Storage routes checked in order. The first route matching both the tenant and namespace is used.
+		 */
+		@Builder.Default
+		private List<StorageRoute> storageRoutes = List.of();
 
 		public ServerConfig wrap(Props props) {
 			var wrapped = this;
@@ -197,6 +213,10 @@ public interface Config {
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
 			if (server.getMaxConcurrentFetch() != null) wrapped = wrapped.withMaxConcurrentFetch(server.getMaxConcurrentFetch());
+			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
+			if ("local".equals(server.getStorage())) wrapped = wrapped.withStorageBucket("");
+			if (server.getStorageBucket() != null) wrapped = wrapped.withStorageBucket(server.getStorageBucket());
+			if (server.getStorageRoutes() != null) wrapped = wrapped.withStorageRoutes(server.getStorageRoutes());
 			return wrapped;
 		}
 
@@ -206,6 +226,38 @@ public interface Config {
 				.sshOrigins(List.of(origin))
 				.scriptSelectors(List.of(isBlank(origin) ? "" : origin));
 		}
+	}
+
+	/**
+	 * Routes a set of tenants and namespaces to a storage provider and bucket.
+	 */
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	class StorageRoute implements Serializable {
+		/**
+		 * Storage provider for matching objects: "local", "gcs" or "s3".
+		 * Uses the server default storage provider when blank.
+		 */
+		private String storage = "";
+		/**
+		 * Bucket to store matching objects in. Required when the storage provider is "gcs" or "s3".
+		 */
+		private String bucket;
+		/**
+		 * Namespaces matched by this route. Matches all namespaces when empty.
+		 */
+		private List<String> namespaces = List.of();
+		/**
+		 * Tenants matched by this route. Use "default" for the default tenant.
+		 * Matches all tenants when empty.
+		 */
+		private List<String> tenants = List.of();
+		/**
+		 * Public CDN host serving this bucket. Leave blank if the bucket is not public.
+		 */
+		private String cdnBaseUrl = "";
 	}
 
 	/**
