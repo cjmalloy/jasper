@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Profile("storage")
+@Profile("storage & !s3")
 @Component
 public class StorageImplLocal implements Storage {
 	private final Logger logger = LoggerFactory.getLogger(StorageImplLocal.class);

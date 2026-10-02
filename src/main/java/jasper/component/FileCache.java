@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
@@ -332,13 +333,36 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						var cdnUrl = cdnUrl(line, origin);
+						if (cdnUrl != null) {
+							buffer.append(cdnUrl).append("\n");
+						} else {
+							buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						}
 					}
 				}
 				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes(StandardCharsets.UTF_8));
 			}
 		} catch (Exception e) {}
 		return moreScrape;
+	}
+
+	/**
+	 * Link a manifest entry directly to the CDN by reserving its cache id now.
+	 * The entry is cached later into the reserved id by the _plugin/delta/cache script.
+	 * Returns null to fall back to the proxy URL.
+	 */
+	private String cdnUrl(String url, String origin) {
+		if (configs.getRemote(origin) != null) return null;
+		url = fixUrl(url);
+		var existing = cache(url, origin);
+		if (existing != null && bannedOrBroken(existing)) return null;
+		var id = existing != null ? existing.getId() : UUID.randomUUID().toString();
+		var cdnUrl = storage.getCdnUrl(origin, CACHE, id);
+		if (cdnUrl != null && existing == null) {
+			tagger.plugin(url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+		}
+		return cdnUrl;
 	}
 
 	private void cacheLater(String source, String url, String origin) {

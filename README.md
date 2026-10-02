@@ -680,6 +680,21 @@ environment variable.
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
 
+The `s3` profile stores files in AWS S3 (or an S3-compatible service such as MinIO or Cloudflare R2) instead of the
+local storage folder, allowing multiple pods to share storage. It replaces the local storage implementation and may be
+enabled with or without the `storage` profile. Public files (the `cache` namespace) and private files (backups,
+preload, secrets, and config) are kept in two different buckets, set with the
+`APPLICATION_STORAGE_S3_PUBLIC_BUCKET_NAME` and `APPLICATION_STORAGE_S3_PRIVATE_BUCKET_NAME` environment variables.
+Both are required and must be different. Public files are stored with a content type and `Content-Disposition: inline`.
+Set the `APPLICATION_STORAGE_CDN_BASE_URL` environment variable to the CDN host serving the public bucket; cached M3U8
+manifests will then link their segments directly to the CDN instead of the proxy. Objects are keyed as
+`tenant/namespace/id`. Set the region with `APPLICATION_STORAGE_S3_REGION` (defaults to `us-east-1`). Set
+`APPLICATION_STORAGE_S3_ENDPOINT` only for S3-compatible services; leave it blank for AWS S3. Credentials are resolved
+with the default AWS credentials provider chain, such as environment variables or EKS IAM roles for service accounts.
+Zip archives are staged in a temporary file while they are read or written, so each pod needs enough local disk for
+the largest backup. Set the staging folder with the `APPLICATION_STORAGE_S3_TMP_DIR` environment variable (defaults to
+`java.io.tmpdir`).
+
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,
 `$JASPER_STORAGE/$JASPER_LOCAL_ORIGIN/preload` is used.
