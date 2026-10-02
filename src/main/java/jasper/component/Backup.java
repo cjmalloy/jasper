@@ -119,6 +119,7 @@ public class Backup {
 			if (options.isCache()) {
 				backupCache(origin, options.getNewerThan(), zipped);
 			}
+			zipped.commit();
 		}
 		logger.info("{} Finished Backup in {}", origin, Duration.between(start, Instant.now()));
 	}
