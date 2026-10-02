@@ -788,7 +788,7 @@ public class ValidateRefIT {
 	}
 
 	@Test
-	void testPublicRefWithNewerThirdSourceBumped() {
+	void testNonInternalRefWithNewerThirdSourceBumped() {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTags(List.of("public"));
@@ -830,7 +830,7 @@ public class ValidateRefIT {
 	}
 
 	@Test
-	void testPublicRefUnfixableDagFails() {
+	void testNonInternalRefUnfixableDagFails() {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTags(List.of("public"));
@@ -853,7 +853,7 @@ public class ValidateRefIT {
 	}
 
 	@Test
-	void testPublicRefWithNewerInternalSourceNotBumped() {
+	void testNonInternalRefWithNewerInternalSourceNotBumped() {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTags(List.of("internal"));
@@ -872,7 +872,7 @@ public class ValidateRefIT {
 	}
 
 	@Test
-	void testInternalToPublicRefBumped() {
+	void testInternalToNonInternalRefBumped() {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTags(List.of("public"));
@@ -888,7 +888,7 @@ public class ValidateRefIT {
 		validate.ref("", ref);
 
 		assertThat(ref.getPublished()).isEqualTo(published);
-		ref.setTags(new ArrayList<>(List.of("public")));
+		ref.removeTags(List.of("internal"));
 
 		validate.ref("", ref);
 
@@ -896,7 +896,7 @@ public class ValidateRefIT {
 	}
 
 	@Test
-	void testPublicRefWithNewerPublicSourceBumped() {
+	void testNonInternalRefWithNewerSourceBumped() {
 		var source = new Ref();
 		source.setUrl(URL + "source");
 		source.setTags(List.of("public"));
@@ -917,5 +917,107 @@ public class ValidateRefIT {
 		validate.ref("", ref);
 
 		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
+	}
+
+	@Test
+	void testInternalRefWithNewerInternalSourceBumped() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("internal"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("internal")));
+		ref.setSources(List.of(source.getUrl()));
+		ref.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
+	}
+
+	@Test
+	void testInternalRefWithOlderInternalResponseClamped() {
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(List.of("internal"));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("internal")));
+		ref.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(response.getPublished().minusMillis(1));
+	}
+
+	@Test
+	void testPublicInternalRefUnfixableDagPasses() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("public"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(List.of("public"));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2024-06-01T00:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>(List.of("public", "internal")));
+		ref.setSources(List.of(source.getUrl()));
+		ref.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(source.getPublished().plusMillis(1));
+	}
+
+	@Test
+	void testUntaggedRefUnfixableDagFails() {
+		var source = new Ref();
+		source.setUrl(URL + "source");
+		source.setTags(List.of("public"));
+		source.setPublished(Instant.parse("2025-01-01T00:00:00Z"));
+		refRepository.saveAndFlush(source);
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(List.of("public"));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2024-06-01T00:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>());
+		ref.setSources(List.of(source.getUrl()));
+		ref.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+
+		assertThatThrownBy(() -> validate.ref("", ref))
+			.isInstanceOf(PublishDateException.class);
+	}
+
+	@Test
+	void testNonInternalRefWithOlderInternalResponseNotClamped() {
+		var response = new Ref();
+		response.setUrl(URL + "response");
+		response.setTags(List.of("internal"));
+		response.setSources(List.of(URL));
+		response.setPublished(Instant.parse("2024-01-01T12:00:00Z"));
+		refRepository.saveAndFlush(response);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTags(new ArrayList<>());
+		var published = Instant.parse("2025-01-01T00:00:00Z");
+		ref.setPublished(published);
+
+		validate.ref("", ref);
+
+		assertThat(ref.getPublished()).isEqualTo(published);
 	}
 }
