@@ -227,17 +227,17 @@ public class Validate {
 		if (a == null && b == null) return objectMapper.createObjectNode();
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
-		if (!a.isObject() || !b.isObject()) return b.deepCopy();
+		var result = a.deepCopy();
 		b.fieldNames().forEachRemaining(field -> {
-			var aNode = a.get(field);
+			var aNode = result.get(field);
 			var bNode = b.get(field);
-			if (aNode != null && aNode.isObject() && bNode.isObject()) {
-				merge((ObjectNode) aNode, (ObjectNode) bNode);
+			if (aNode instanceof ObjectNode aObj && bNode instanceof ObjectNode bObj) {
+				result.set(field, merge(aObj, bObj));
 			} else {
-				a.set(field, bNode.deepCopy());
+				result.set(field, bNode.deepCopy());
 			}
 		});
-		return a;
+		return result;
 	}
 
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
@@ -248,8 +248,8 @@ public class Validate {
 			if (ref.hasPlugin(tag)) {
 				logger.debug("{} Plugin data not allowed: {}", rootOrigin, tag);
 				if (!stripOnError) throw new InvalidPluginException(tag);
-				ref.getPlugins().remove(tag);
 			}
+			if (ref.getPlugins() != null) ref.getPlugins().remove(tag);
 			return;
 		}
 		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
@@ -296,7 +296,7 @@ public class Validate {
 		for (var tag : expandTags(ref.getTags())) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
-				if (p.getDefaults() != null && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults());
+				if (p.getDefaults() != null && !p.getDefaults().isNull() && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults().deepCopy());
 			});
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
