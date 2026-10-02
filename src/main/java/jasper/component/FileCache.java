@@ -322,6 +322,7 @@ public class FileCache {
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
 		if (cache == null || isBlank(cache.getId())) return moreScrape;
+		if (!url.startsWith("http:") && !url.startsWith("https:")) return moreScrape;
 		// M3U8 Manifest
 		try {
 			var urlObj = URI.create(url).toURL();

@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.time.Duration;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.subOrigin;
@@ -184,6 +185,7 @@ public class Props {
 
 	private final Overrides override = new Overrides();
 	private final Http http = new Http();
+	private final Torrent torrent = new Torrent();
 	private final Mail mail = new Mail();
 	private final Security security = new Security();
 	private final ApiDocs apiDocs = new ApiDocs();
@@ -347,6 +349,16 @@ public class Props {
 			 */
 			private int timeToLiveInDays = 1461; // 4 years (including leap day)
 		}
+	}
+	@Getter
+	@Setter
+	public static class Torrent {
+		private boolean enabled = true;
+		private Duration metadataTimeout = Duration.ofMinutes(1);
+		private Duration downloadTimeout = Duration.ofMinutes(10);
+		private long maxSizeBytes = 10L * 1024 * 1024 * 1024;
+		private int peerPort = 6881;
+		private int dhtPort = 49001;
 	}
 	@Getter
 	@Setter

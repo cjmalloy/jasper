@@ -1,6 +1,7 @@
 package jasper.component;
 
 import bt.metainfo.Torrent;
+import jasper.config.Props;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -24,6 +25,9 @@ public class TorrentFetch {
 
 	@Autowired
 	TorrentDownloader downloader;
+
+	@Autowired
+	Props props;
 
 	public Fetch.FileRequest fetch(String magnet) throws IOException {
 		return fetch(target -> downloader.download(magnet, target));
@@ -64,7 +68,10 @@ public class TorrentFetch {
 
 	private Path zip(Path target, List<Path> files) throws IOException {
 		var archive = Files.createTempFile(target, "torrent-", ".zip");
-		try (var out = new ZipOutputStream(Files.newOutputStream(archive))) {
+		var downloadedSize = 0L;
+		for (var file : files) downloadedSize += Files.size(file);
+		try (var out = new ZipOutputStream(new LimitedOutputStream(Files.newOutputStream(archive),
+			props.getTorrent().getMaxSizeBytes() - downloadedSize))) {
 			for (var file : files) {
 				out.putNextEntry(new ZipEntry(target.relativize(file).toString().replace(File.separatorChar, '/')));
 				Files.copy(file, out);
@@ -75,6 +82,34 @@ public class TorrentFetch {
 			throw e;
 		}
 		return archive;
+	}
+
+	private static class LimitedOutputStream extends java.io.FilterOutputStream {
+		private final long limit;
+		private long written;
+
+		private LimitedOutputStream(java.io.OutputStream out, long limit) {
+			super(out);
+			this.limit = limit;
+		}
+
+		@Override
+		public void write(int value) throws IOException {
+			checkLimit(1);
+			super.write(value);
+			written++;
+		}
+
+		@Override
+		public void write(byte[] bytes, int offset, int length) throws IOException {
+			checkLimit(length);
+			out.write(bytes, offset, length);
+			written += length;
+		}
+
+		private void checkLimit(int length) throws IOException {
+			if (length > limit - written) throw new IOException("Torrent and archive exceed maximum size");
+		}
 	}
 
 	@FunctionalInterface

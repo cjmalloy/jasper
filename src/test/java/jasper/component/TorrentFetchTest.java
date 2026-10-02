@@ -2,6 +2,7 @@ package jasper.component;
 
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
+import jasper.config.Props;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -32,11 +35,14 @@ class TorrentFetchTest {
 	@Mock
 	Torrent torrent;
 
+	Props props = new Props();
+
 	private AutoCloseable mocks;
 
 	@BeforeEach
 	void setUp() {
 		mocks = MockitoAnnotations.openMocks(this);
+		fetch.props = props;
 	}
 
 	@AfterEach
@@ -84,6 +90,39 @@ class TorrentFetchTest {
 			assertThat(entries).containsExactly("bundle/a.txt=a", "bundle/b.txt=b");
 		}
 
+		assertThat(target.get()).doesNotExist();
+	}
+
+	@Test
+	void deletesTemporaryDownloadWhenDownloaderTimesOut() throws Exception {
+		var target = new AtomicReference<Path>();
+		when(downloader.download(eq("magnet:test"), any())).thenAnswer(invocation -> {
+			target.set(invocation.getArgument(1));
+			Files.writeString(target.get().resolve("partial"), "partial");
+			throw new IOException("Torrent download timed out");
+		});
+
+		assertThatThrownBy(() -> fetch.fetch("magnet:test"))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Torrent download timed out");
+		assertThat(target.get()).doesNotExist();
+	}
+
+	@Test
+	void rejectsArchiveThatExceedsCombinedSizeLimit() throws Exception {
+		var target = new AtomicReference<Path>();
+		props.getTorrent().setMaxSizeBytes(2);
+		when(torrent.getFiles()).thenReturn(List.of(mock(TorrentFile.class), mock(TorrentFile.class)));
+		when(downloader.download(eq("magnet:test"), any())).thenAnswer(invocation -> {
+			target.set(invocation.getArgument(1));
+			Files.writeString(target.get().resolve("a"), "a");
+			Files.writeString(target.get().resolve("b"), "b");
+			return torrent;
+		});
+
+		assertThatThrownBy(() -> fetch.fetch("magnet:test"))
+			.isInstanceOf(IOException.class)
+			.hasMessage("Torrent and archive exceed maximum size");
 		assertThat(target.get()).doesNotExist();
 	}
 }
