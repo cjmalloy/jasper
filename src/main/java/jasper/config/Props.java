@@ -294,6 +294,14 @@ public class Props {
 		 * Override the server storage routes.
 		 */
 		private List<Config.StorageRoute> storageRoutes;
+		/**
+		 * Deprecated: use storageBucket. Overrides the server default bucket with a GCS bucket.
+		 */
+		private String gcsBucket;
+		/**
+		 * Deprecated: use storageRoutes. Overrides the server storage routes with GCS routes.
+		 */
+		private List<Config.StorageRoute> gcsRoutes;
 	}
 
 	@Getter
