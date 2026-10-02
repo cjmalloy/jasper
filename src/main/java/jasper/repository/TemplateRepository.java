@@ -16,7 +16,7 @@ import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
-public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, TagStreamMixin<Template>, ModifiedCursor, OriginMixin {
 
 	@Modifying
 	@Query("""

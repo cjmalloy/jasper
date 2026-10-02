@@ -20,8 +20,10 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 @IntegrationTest
 @ActiveProfiles({"storage", "test"})
@@ -47,6 +49,9 @@ public class BackupRestoreIT {
 
 	@Autowired
 	Storage storage;
+
+	@Autowired
+	IngestPlugin ingestPlugin;
 
 	private static final String ORIGIN = "";
 	private static final String BACKUP_ID = "test-backup";
@@ -465,6 +470,228 @@ public class BackupRestoreIT {
 		// Note: The behavior might include both if timestamps are very close
 		// so we just verify at least the newer one is there
 		assertThat(refRepository.existsByUrlAndOrigin("https://example.com/inc2", ORIGIN)).isTrue();
+	}
+
+	private void createTombstoneData() {
+		var ext = new Ext();
+		ext.setTag("test.live");
+		ext.setOrigin(ORIGIN);
+		extRepository.save(ext);
+		var extTombstone = new Ext();
+		extTombstone.setTag("test.gone/deleted");
+		extTombstone.setOrigin(ORIGIN);
+		extRepository.save(extTombstone);
+
+		var user = new User();
+		user.setTag("+user/live");
+		user.setOrigin(ORIGIN);
+		userRepository.save(user);
+		var userTombstone = new User();
+		userTombstone.setTag("+user/gone/deleted");
+		userTombstone.setOrigin(ORIGIN);
+		userRepository.save(userTombstone);
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/live");
+		plugin.setOrigin(ORIGIN);
+		pluginRepository.save(plugin);
+		var pluginTombstone = new Plugin();
+		pluginTombstone.setTag("plugin/gone/deleted");
+		pluginTombstone.setOrigin(ORIGIN);
+		pluginRepository.save(pluginTombstone);
+
+		var template = new Template();
+		template.setTag("_live");
+		template.setOrigin(ORIGIN);
+		templateRepository.save(template);
+		var templateTombstone = new Template();
+		templateTombstone.setTag("deleted");
+		templateTombstone.setOrigin(ORIGIN);
+		templateRepository.save(templateTombstone);
+	}
+
+	private BackupOptionsDto tagOptions(boolean tombstones) {
+		var options = new BackupOptionsDto();
+		options.setExt(true);
+		options.setUser(true);
+		options.setPlugin(true);
+		options.setTemplate(true);
+		options.setTombstones(tombstones);
+		return options;
+	}
+
+	private void deleteTagData() {
+		extRepository.deleteAll();
+		userRepository.deleteAll();
+		pluginRepository.deleteAll();
+		templateRepository.deleteAll();
+	}
+
+	@Test
+	void testBackupSkipsTombstonesByDefault() throws IOException {
+		createTombstoneData();
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(false));
+		waitForBackup();
+
+		deleteTagData();
+
+		backup.restore(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForRestore();
+
+		assertThat(extRepository.existsByQualifiedTag("test.live")).isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test.gone/deleted")).isFalse();
+		assertThat(userRepository.existsByQualifiedTag("+user/live")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/gone/deleted")).isFalse();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/live")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/gone/deleted")).isFalse();
+		assertThat(templateRepository.existsByQualifiedTag("_live")).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("deleted")).isFalse();
+	}
+
+	@Test
+	void testBackupAndRestoreWithTombstones() throws IOException {
+		createTombstoneData();
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForBackup();
+
+		deleteTagData();
+
+		backup.restore(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForRestore();
+
+		assertThat(extRepository.existsByQualifiedTag("test.live")).isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test.gone/deleted")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/live")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/gone/deleted")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/live")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/gone/deleted")).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("_live")).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("deleted")).isTrue();
+	}
+
+	@Test
+	void testRestoreSkipsTombstonesInOldBackup() throws IOException {
+		createTombstoneData();
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForBackup();
+
+		deleteTagData();
+
+		backup.restore(ORIGIN, BACKUP_ID, tagOptions(false));
+		waitForRestore();
+
+		assertThat(extRepository.existsByQualifiedTag("test.live")).isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test.gone/deleted")).isFalse();
+		assertThat(userRepository.existsByQualifiedTag("+user/live")).isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/gone/deleted")).isFalse();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/live")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/gone/deleted")).isFalse();
+		assertThat(templateRepository.existsByQualifiedTag("_live")).isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("deleted")).isFalse();
+	}
+
+	@Test
+	void testRestoreNullOptionsSkipsTombstones() throws IOException {
+		createTombstoneData();
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForBackup();
+
+		deleteTagData();
+
+		backup.restore(ORIGIN, BACKUP_ID, null);
+		waitForRestore();
+
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/live")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/gone/deleted")).isFalse();
+	}
+
+	@Test
+	void testRestoreLivePluginRemovesTombstone() throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/x");
+		plugin.setOrigin(ORIGIN);
+		pluginRepository.save(plugin);
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(false));
+		waitForBackup();
+
+		pluginRepository.deleteAll();
+		var tombstone = new Plugin();
+		tombstone.setTag("plugin/x/deleted");
+		tombstone.setOrigin(ORIGIN);
+		pluginRepository.save(tombstone);
+
+		backup.restore(ORIGIN, BACKUP_ID, tagOptions(false));
+		waitForRestore();
+
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x/deleted")).isFalse();
+
+		ingestPlugin.delete("plugin/x");
+		var newTombstone = new Plugin();
+		newTombstone.setTag("plugin/x/deleted");
+		newTombstone.setOrigin(ORIGIN);
+		assertThatCode(() -> ingestPlugin.create(newTombstone)).doesNotThrowAnyException();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x")).isFalse();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x/deleted")).isTrue();
+	}
+
+	@Test
+	void testRestoreTombstoneRemovesLivePlugin() throws IOException {
+		var tombstone = new Plugin();
+		tombstone.setTag("plugin/x/deleted");
+		tombstone.setOrigin(ORIGIN);
+		pluginRepository.save(tombstone);
+
+		backup.createBackup(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForBackup();
+
+		pluginRepository.deleteAll();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/x");
+		plugin.setOrigin(ORIGIN);
+		pluginRepository.save(plugin);
+
+		backup.restore(ORIGIN, BACKUP_ID, tagOptions(true));
+		waitForRestore();
+
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x/deleted")).isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/x")).isFalse();
+	}
+
+	@Test
+	void testDeletedRefsBackedUpWithoutTombstones() throws IOException {
+		assertDeletedRefBackedUp(false);
+	}
+
+	@Test
+	void testDeletedRefsBackedUpWithTombstones() throws IOException {
+		assertDeletedRefBackedUp(true);
+	}
+
+	private void assertDeletedRefBackedUp(boolean tombstones) throws IOException {
+		var ref = new Ref();
+		ref.setUrl("https://example.com/deleted");
+		ref.setOrigin(ORIGIN);
+		ref.setTags(List.of("plugin/delete"));
+		refRepository.save(ref);
+
+		var options = new BackupOptionsDto();
+		options.setRef(true);
+		options.setTombstones(tombstones);
+		backup.createBackup(ORIGIN, BACKUP_ID, options);
+		waitForBackup();
+
+		refRepository.deleteAll();
+
+		backup.restore(ORIGIN, BACKUP_ID, options);
+		waitForRestore();
+
+		assertThat(refRepository.existsByUrlAndOrigin("https://example.com/deleted", ORIGIN)).isTrue();
 	}
 
 	private void waitForBackup() {
