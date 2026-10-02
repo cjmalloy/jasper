@@ -10,12 +10,12 @@ import com.google.cloud.storage.Storage.BlobTargetOption;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.StorageException;
 import io.micrometer.core.annotation.Timed;
+import jasper.config.GcsProps;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,11 +45,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
+
 /**
- * {@link Storage} backed by two Google Cloud Storage buckets.
- * Public namespaces (such as the file cache) are stored in the public bucket,
- * every other namespace (backups, preload, secrets, config) is stored in the
- * private bucket. Objects are keyed as {@code tenant/namespace/id}.
+ * {@link Storage} backed by Google Cloud Storage buckets.
+ * Each tenant and namespace is routed to a bucket by the first matching
+ * {@link GcsProps.Route}, or to the default bucket if no route matches.
+ * Only routes with a CDN base URL are served by a CDN, and their buckets may
+ * not store any other files. Objects are keyed as {@code tenant/namespace/id}.
  */
 @Profile("gcs")
 @Component
@@ -58,43 +64,45 @@ public class StorageImplGcs implements Storage {
 	private static final int NOT_FOUND = 404;
 	private static final int PRECONDITION_FAILED = 412;
 
-	/**
-	 * Namespaces routed to the public bucket. Any other namespace is private.
-	 */
-	private static final Set<String> PUBLIC_NAMESPACES = Set.of("cache");
-
 	private final com.google.cloud.storage.Storage gcsClient;
-	private final String publicBucketName;
-	private final String privateBucketName;
-	private final String cdnBaseUrl;
+	private final String defaultBucket;
+	private final List<Route> routes;
 	private final Path tmpDir;
 
-	public StorageImplGcs(
-		com.google.cloud.storage.Storage gcsClient,
-		@Value("${application.storage.gcs.public-bucket-name}") String publicBucketName,
-		@Value("${application.storage.gcs.private-bucket-name}") String privateBucketName,
-		@Value("${application.storage.cdn.base-url:}") String cdnBaseUrl,
-		@Value("${application.storage.gcs.tmp-dir:${java.io.tmpdir}}") Path tmpDir
-	) {
-		if (publicBucketName.isBlank() || privateBucketName.isBlank()) throw new IllegalArgumentException("GCS public and private bucket names are required");
-		if (publicBucketName.equals(privateBucketName)) throw new IllegalArgumentException("GCS public and private buckets must be different");
+	public StorageImplGcs(com.google.cloud.storage.Storage gcsClient, GcsProps props) {
+		if (isBlank(props.getBucket())) throw new IllegalArgumentException("GCS bucket is required");
+		var cdnBuckets = new HashSet<String>();
+		var privateBuckets = new HashSet<>(Set.of(props.getBucket()));
+		for (var r : props.getRoutes()) {
+			if (isBlank(r.getBucket())) throw new IllegalArgumentException("GCS route bucket is required");
+			if (isBlank(r.getCdnBaseUrl())) {
+				privateBuckets.add(r.getBucket());
+			} else {
+				if (r.getNamespaces().isEmpty()) throw new IllegalArgumentException("GCS route for CDN bucket " + r.getBucket() + " must list its namespaces");
+				cdnBuckets.add(r.getBucket());
+			}
+		}
+		cdnBuckets.retainAll(privateBuckets);
+		if (!cdnBuckets.isEmpty()) throw new IllegalArgumentException("GCS buckets served by a CDN may only be used by CDN routes: " + cdnBuckets);
 		this.gcsClient = gcsClient;
-		this.publicBucketName = publicBucketName;
-		this.privateBucketName = privateBucketName;
-		this.cdnBaseUrl = cdnBaseUrl.endsWith("/") ? cdnBaseUrl.substring(0, cdnBaseUrl.length() - 1) : cdnBaseUrl;
-		this.tmpDir = tmpDir;
+		this.defaultBucket = props.getBucket();
+		this.routes = props.getRoutes().stream().map(r -> new Route(
+			r.getBucket(),
+			Set.copyOf(r.getNamespaces()),
+			r.getTenants().stream().map(t -> formatOrigin(t)).collect(Collectors.toSet()),
+			isBlank(r.getCdnBaseUrl()) ? null : stripEnd(r.getCdnBaseUrl(), "/")
+		)).toList();
+		this.tmpDir = Path.of(props.getTmpDir());
 	}
 
 	/**
-	 * Public CDN URL for an object in a public namespace, or null if the CDN base URL is not configured.
-	 * @throws IllegalArgumentException if the namespace is not routed to the public bucket
+	 * Public CDN URL for an object, or null if its tenant and namespace are not routed to a CDN.
 	 */
 	@Override
 	public String getCdnUrl(String origin, String namespace, String id) {
-		var blobId = blobId(origin, namespace, id);
-		if (!blobId.getBucket().equals(publicBucketName)) throw new IllegalArgumentException("Namespace " + namespace + " is not public");
-		if (cdnBaseUrl.isBlank()) return null;
-		return cdnBaseUrl + "/" + UriUtils.encodePath(blobId.getName(), StandardCharsets.UTF_8);
+		var route = route(origin, namespace);
+		if (route == null || route.cdnBaseUrl() == null) return null;
+		return route.cdnBaseUrl() + "/" + UriUtils.encodePath(blobId(origin, namespace, id).getName(), StandardCharsets.UTF_8);
 	}
 
 	@Timed(value = "jasper.storage", histogram = true)
@@ -149,7 +157,9 @@ public class StorageImplGcs implements Storage {
 	@Override
 	public List<String> listTenants() {
 		var result = new LinkedHashSet<String>();
-		for (var bucket : List.of(publicBucketName, privateBucketName)) {
+		var buckets = new LinkedHashSet<>(List.of(defaultBucket));
+		for (var r : routes) buckets.add(r.bucket());
+		for (var bucket : buckets) {
 			for (var blob : gcsClient.list(bucket, BlobListOption.prefix(""), BlobListOption.currentDirectory()).iterateAll()) {
 				if (!blob.isDirectory()) continue;
 				result.add(childName(blob, ""));
@@ -161,14 +171,14 @@ public class StorageImplGcs implements Storage {
 	@Timed(value = "jasper.storage", histogram = true)
 	public void visitStorage(String origin, String namespace, PathVisitor v) {
 		var prefix = prefix(origin, namespace);
-		for (var blob : files(namespace, prefix)) v.visit(childName(blob, prefix));
+		for (var blob : files(origin, namespace, prefix)) v.visit(childName(blob, prefix));
 	}
 
 	@Override
 	public List<StorageRef> listStorage(String origin, String namespace) {
 		var prefix = prefix(origin, namespace);
 		var result = new ArrayList<StorageRef>();
-		for (var blob : files(namespace, prefix)) {
+		for (var blob : files(origin, namespace, prefix)) {
 			result.add(new StorageRef(childName(blob, prefix), blob.getSize() == null ? 0 : blob.getSize()));
 		}
 		return result;
@@ -240,7 +250,7 @@ public class StorageImplGcs implements Storage {
 	public void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException {
 		var prefix = prefix(origin, namespace);
 		var dir = backup.get(namespace);
-		for (var blob : files(namespace, prefix)) {
+		for (var blob : files(origin, namespace, prefix)) {
 			if (modifiedAfter != null && (blob.getUpdateTimeOffsetDateTime() == null || !blob.getUpdateTimeOffsetDateTime().toInstant().isAfter(modifiedAfter))) continue;
 			Files.createDirectories(dir);
 			try (var is = Channels.newInputStream(blob.reader())) {
@@ -272,7 +282,7 @@ public class StorageImplGcs implements Storage {
 
 	BlobId blobId(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return BlobId.of(getBucketNameForNamespace(namespace), originTenant(origin) + "/" + namespace + "/" + id);
+		return BlobId.of(bucket(origin, namespace), originTenant(origin) + "/" + namespace + "/" + id);
 	}
 
 	private Blob blob(String origin, String namespace, String id) {
@@ -281,12 +291,22 @@ public class StorageImplGcs implements Storage {
 		return blob;
 	}
 
-	private String getBucketNameForNamespace(String namespace) {
-		return PUBLIC_NAMESPACES.contains(namespace) ? publicBucketName : privateBucketName;
+	private Route route(String origin, String namespace) {
+		sanitize(origin, namespace);
+		var tenant = originTenant(origin);
+		for (var r : routes) {
+			if (r.matches(tenant, namespace)) return r;
+		}
+		return null;
 	}
 
-	private Iterable<Blob> files(String namespace, String prefix) {
-		return () -> StreamSupport.stream(gcsClient.list(getBucketNameForNamespace(namespace), BlobListOption.prefix(prefix), BlobListOption.currentDirectory()).iterateAll().spliterator(), false)
+	private String bucket(String origin, String namespace) {
+		var route = route(origin, namespace);
+		return route == null ? defaultBucket : route.bucket();
+	}
+
+	private Iterable<Blob> files(String origin, String namespace, String prefix) {
+		return () -> StreamSupport.stream(gcsClient.list(bucket(origin, namespace), BlobListOption.prefix(prefix), BlobListOption.currentDirectory()).iterateAll().spliterator(), false)
 			.filter(blob -> !blob.isDirectory() && blob.getName().length() > prefix.length())
 			.iterator();
 	}
@@ -305,7 +325,7 @@ public class StorageImplGcs implements Storage {
 	 */
 	private void upload(BlobId blobId, InputStream is) throws IOException {
 		try {
-try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()))) {
+			try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()))) {
 				is.transferTo(os);
 			}
 		} catch (StorageException e) {
@@ -314,6 +334,13 @@ try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blob
 		} catch (IOException e) {
 			if (e.getCause() instanceof StorageException se && se.getCode() == PRECONDITION_FAILED) throw new AlreadyExistsException();
 			throw e;
+		}
+	}
+
+	private record Route(String bucket, Set<String> namespaces, Set<String> tenants, String cdnBaseUrl) {
+		boolean matches(String tenant, String namespace) {
+			return (namespaces.isEmpty() || namespaces.contains(namespace))
+				&& (tenants.isEmpty() || tenants.contains(tenant));
 		}
 	}
 

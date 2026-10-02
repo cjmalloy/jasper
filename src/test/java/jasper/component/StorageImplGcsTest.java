@@ -7,6 +7,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
+import jasper.config.GcsProps;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
@@ -23,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +45,24 @@ public class StorageImplGcsTest {
 
 	@BeforeEach
 	void init() {
-		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "public", "private", "https://cdn.example.com/", tmpDir.resolve("gcs"));
+		storage = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), props(tmpDir.resolve("gcs"), route("public", List.of("cache"), List.of(), "https://cdn.example.com/")));
+	}
+
+	static GcsProps props(Path tmpDir, GcsProps.Route... routes) {
+		var props = new GcsProps();
+		props.setBucket("private");
+		props.setTmpDir(tmpDir.toString());
+		props.setRoutes(List.of(routes));
+		return props;
+	}
+
+	static GcsProps.Route route(String bucket, List<String> namespaces, List<String> tenants, String cdnBaseUrl) {
+		var route = new GcsProps.Route();
+		route.setBucket(bucket);
+		route.setNamespaces(namespaces);
+		route.setTenants(tenants);
+		route.setCdnBaseUrl(cdnBaseUrl);
+		return route;
 	}
 
 	@Test
@@ -72,17 +91,45 @@ public class StorageImplGcsTest {
 	}
 
 	@Test
-	void testSameBucketRejected() {
-		assertThatThrownBy(() -> new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), "bucket", "bucket", "", tmpDir))
+	void testTenantRouting() {
+		var gcs = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), props(tmpDir,
+			route("tenant-public", List.of("cache"), List.of("@tenant"), "https://tenant.example.com"),
+			route("tenant-private", List.of(), List.of("@tenant"), ""),
+			route("public", List.of("cache"), List.of("default"), "https://cdn.example.com"),
+			route("archive", List.of("backups"), List.of(), "")));
+
+		assertThat(gcs.blobId("@tenant", "cache", "a").getBucket()).isEqualTo("tenant-public");
+		assertThat(gcs.blobId("@tenant", "backups", "b").getBucket()).isEqualTo("tenant-private");
+		assertThat(gcs.blobId("", "cache", "a").getBucket()).isEqualTo("public");
+		assertThat(gcs.blobId("", "backups", "b").getBucket()).isEqualTo("archive");
+		assertThat(gcs.blobId("@other", "cache", "a").getBucket()).isEqualTo("private");
+		assertThat(gcs.blobId("@other", "backups", "b").getBucket()).isEqualTo("archive");
+		assertThat(gcs.getCdnUrl("@tenant", "cache", "a")).isEqualTo("https://tenant.example.com/@tenant/cache/a");
+		assertThat(gcs.getCdnUrl("@other", "cache", "a")).isNull();
+	}
+
+	@Test
+	void testCdnBucketIsolation() {
+		var client = mock(com.google.cloud.storage.Storage.class);
+		assertThatThrownBy(() -> new StorageImplGcs(client, props(tmpDir, route("private", List.of("cache"), List.of(), "https://cdn.example.com"))))
 			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new StorageImplGcs(client, props(tmpDir,
+			route("public", List.of("cache"), List.of(), "https://cdn.example.com"),
+			route("public", List.of("backups"), List.of(), ""))))
+			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new StorageImplGcs(client, props(tmpDir, route("public", List.of(), List.of(), "https://cdn.example.com"))))
+			.isInstanceOf(IllegalArgumentException.class);
+		var noBucket = props(tmpDir);
+		noBucket.setBucket("");
+		assertThatThrownBy(() -> new StorageImplGcs(client, noBucket)).isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
 	void testCdnUrl() {
 		assertThat(storage.getCdnUrl("@other", "cache", "a")).isEqualTo("https://cdn.example.com/@other/cache/a");
-		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
-		var noCdn = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "public", "private", "", tmpDir);
+		assertThat(storage.getCdnUrl("", "backups", "b.zip")).isNull();
+		assertThat(storage.getCdnUrl("", "secrets", "host_key")).isNull();
+		var noCdn = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), props(tmpDir, route("public", List.of("cache"), List.of(), "")));
 		assertThat(noCdn.getCdnUrl("", "cache", "a")).isNull();
 	}
 
@@ -126,7 +173,7 @@ public class StorageImplGcsTest {
 		var client = mock(com.google.cloud.storage.Storage.class);
 		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
 			.thenThrow(new StorageException(412, "Precondition Failed"));
-		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
+		var gcs = new StorageImplGcs(client, props(tmpDir, route("public", List.of("cache"), List.of(), "")));
 
 		assertThatThrownBy(() -> gcs.storeAt("", "cache", "a", "x".getBytes())).isInstanceOf(AlreadyExistsException.class);
 	}
@@ -143,7 +190,7 @@ public class StorageImplGcsTest {
 			buf.position(buf.limit());
 			return n;
 		});
-		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
+		var gcs = new StorageImplGcs(client, props(tmpDir, route("public", List.of("cache"), List.of(), "")));
 		var failing = new InputStream() {
 			int count = 0;
 			@Override
@@ -165,7 +212,7 @@ public class StorageImplGcsTest {
 		when(client.get(any(BlobId.class))).thenReturn(blob);
 		when(blob.reader()).thenReturn(reader);
 		when(reader.read(any(ByteBuffer.class))).thenThrow(new StorageException(403, "Forbidden"));
-		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
+		var gcs = new StorageImplGcs(client, props(tmpDir, route("public", List.of("cache"), List.of(), "")));
 
 		assertThatThrownBy(() -> gcs.stream("", "cache", "a", new ByteArrayOutputStream()))
 			.isInstanceOf(StorageException.class)
@@ -182,7 +229,7 @@ public class StorageImplGcsTest {
 		when(blob.getGeneration()).thenReturn(1L);
 		when(client.create(any(BlobInfo.class), any(byte[].class), any(com.google.cloud.storage.Storage.BlobTargetOption[].class)))
 			.thenThrow(new StorageException(412, "Precondition Failed"));
-		var gcs = new StorageImplGcs(client, "public", "private", "", tmpDir);
+		var gcs = new StorageImplGcs(client, props(tmpDir, route("public", List.of("cache"), List.of(), "")));
 
 		assertThatThrownBy(() -> gcs.overwrite("", "cache", "a", "x".getBytes())).isInstanceOf(ModifiedException.class);
 	}

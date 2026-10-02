@@ -682,12 +682,25 @@ variable to change the location of the storage folder.
 
 The `gcs` profile stores files in Google Cloud Storage buckets instead of the local storage folder, allowing
 multiple pods to share storage. It replaces the local storage implementation and may be enabled with or without the
-`storage` profile. Public files (the `cache` namespace) and private files (backups, preload, secrets, and config) are
-kept in two different buckets, set with the `APPLICATION_STORAGE_GCS_PUBLIC_BUCKET_NAME` and
-`APPLICATION_STORAGE_GCS_PRIVATE_BUCKET_NAME` environment variables. Both are required and must be different. Set the
-`APPLICATION_STORAGE_CDN_BASE_URL` environment variable to the CDN host serving the public bucket. When it is set,
-cached M3U8 manifests link their segments to the CDN instead of the proxy, and the segments are cached in the
-background. Objects are keyed as `tenant/namespace/id`. Credentials are resolved with Application Default Credentials, such as GKE Workload
+`storage` profile. Objects are keyed as `tenant/namespace/id`. Each tenant and namespace is stored in the bucket of the
+first matching route in `application.storage.gcs.routes`, or in the default bucket set with the
+`APPLICATION_STORAGE_GCS_BUCKET` environment variable (required). A route with no `namespaces` matches every namespace,
+and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdn-base-url` on a
+route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
+instead of the proxy, and the segments are cached in the background. To keep private files out of public buckets, CDN
+routes must list their namespaces, and a bucket used by a CDN route can't be the default bucket or be used by a route
+without a CDN:
+```yaml
+application.storage.gcs:
+  bucket: jasper-private
+  routes:
+    - bucket: jasper-public
+      namespaces: [cache]
+      cdn-base-url: https://cdn.example.com
+    - bucket: jasper-tenant-private
+      tenants: ["@tenant"]
+```
+Credentials are resolved with Application Default Credentials, such as GKE Workload
 Identity Federation. Zip archives are staged in a temporary file while they are read or written, so each pod needs
 enough local disk for the largest backup. Set the staging folder with the `APPLICATION_STORAGE_GCS_TMP_DIR` environment
 variable (defaults to `java.io.tmpdir`), for example to a dedicated volume when the default temp folder is small.
