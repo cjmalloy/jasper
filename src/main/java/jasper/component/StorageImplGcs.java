@@ -154,7 +154,9 @@ public class StorageImplGcs implements Storage {
 	 */
 	@Override
 	public String getCdnUrl(String origin, String namespace, String id) {
-		var route = route(routing(), origin, namespace);
+		var routing = this.routing;
+		if (routing == null) return null;
+		var route = route(routing, origin, namespace);
 		if (route == null || route.cdnBaseUrl() == null) return null;
 		return route.cdnBaseUrl() + "/" + UriUtils.encodePath(key(origin, namespace, id), StandardCharsets.UTF_8);
 	}

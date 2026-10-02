@@ -106,4 +106,28 @@ public class TaggerTest {
 		assertThat(ref.getSources()).containsExactly(SOURCE);
 		verify(ingest).update(eq(""), any(Ref.class));
 	}
+
+	@Test
+	void testInitPluginGivesUpAfterUpdateConflicts() {
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenAnswer(i -> Optional.of(from(URL, "")));
+		doThrow(new ModifiedException("Ref")).when(ingest).update(eq(""), any(Ref.class));
+
+		var ref = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("id").build(), "_plugin/delta/cache");
+
+		assertThat(ref).isNotNull();
+		assertThat(ref.hasPlugin("_plugin/cache")).isFalse();
+		verify(ingest, times(Tagger.INIT_PLUGIN_RETRIES)).update(eq(""), any(Ref.class));
+		verify(refRepository, times(Tagger.INIT_PLUGIN_RETRIES + 1)).findOneByUrlAndOrigin(URL, "");
+	}
+
+	@Test
+	void testInitPluginGivesUpAfterCreateConflicts() {
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.empty());
+		doThrow(new AlreadyExistsException()).when(ingest).create(eq(""), any(Ref.class));
+
+		var ref = tagger.initPlugin(SOURCE, URL, "", "_plugin/cache", Cache.builder().id("id").build(), "_plugin/delta/cache");
+
+		assertThat(ref).isNull();
+		verify(ingest, times(Tagger.INIT_PLUGIN_RETRIES)).create(eq(""), any(Ref.class));
+	}
 }

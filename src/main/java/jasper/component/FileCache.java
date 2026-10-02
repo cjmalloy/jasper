@@ -325,6 +325,7 @@ public class FileCache {
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
 				var buffer = new StringBuilder();
+				var cdn = configs.getRemote(origin) == null && storage.getCdnUrl(origin, CACHE, "probe") != null;
 				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
@@ -333,7 +334,7 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						var cdnUrl = cdnUrl(url, line, origin);
+						var cdnUrl = cdn ? cdnUrl(url, line, origin) : null;
 						if (cdnUrl != null) {
 							buffer.append(cdnUrl).append("\n");
 						} else {
@@ -354,7 +355,6 @@ public class FileCache {
 	 * @return the CDN URL, or null if the entry should be proxied
 	 */
 	private String cdnUrl(String source, String url, String origin) {
-		if (configs.getRemote(origin) != null) return null;
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		var existing = getCache(ref);

@@ -218,6 +218,15 @@ public class StorageImplGcsTest {
 	}
 
 	@Test
+	void testServerOverrideEmptyRoutes() {
+		var props = new Props();
+		props.getOverride().getServer().setGcsRoutes(List.of());
+		var wrapped = root(route("public", List.of("cache"), List.of(), "https://cdn.example.com")).wrap(props);
+		assertThat(wrapped.getGcsRoutes()).isEmpty();
+		assertThat(root(route("public", List.of("cache"), List.of(), "")).wrap(new Props()).getGcsRoutes()).hasSize(1);
+	}
+
+	@Test
 	void testServerOverrideLocalStorage() throws IOException {
 		var local = new StorageImplLocal();
 		local.props = new Props();
@@ -247,6 +256,13 @@ public class StorageImplGcsTest {
 		assertThat(storage.getCdnUrl("", "secrets", "host_key")).isNull();
 		var noCdn = gcs(LocalStorageHelper.customOptions(false).getService(), tmpDir, route("public", List.of("cache"), List.of(), ""));
 		assertThat(noCdn.getCdnUrl("", "cache", "a")).isNull();
+	}
+
+	@Test
+	void testCdnUrlUnconfigured() {
+		var gcs = new StorageImplGcs(mock(com.google.cloud.storage.Storage.class), mock(ConfigCache.class), mock(StorageImplLocal.class));
+		assertThat(gcs.getCdnUrl("", "cache", "a")).isNull();
+		assertThatThrownBy(() -> gcs.blobId("", "cache", "a")).isInstanceOf(IllegalStateException.class);
 	}
 
 	@Test

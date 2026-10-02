@@ -216,7 +216,7 @@ public interface Config {
 			if (isNotBlank(server.getStorage())) wrapped = wrapped.withStorage(server.getStorage());
 			if ("local".equals(server.getStorage())) wrapped = wrapped.withGcsBucket("");
 			if (server.getGcsBucket() != null) wrapped = wrapped.withGcsBucket(server.getGcsBucket());
-			if (isNotEmpty(server.getGcsRoutes())) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
+			if (server.getGcsRoutes() != null) wrapped = wrapped.withGcsRoutes(server.getGcsRoutes());
 			return wrapped;
 		}
 

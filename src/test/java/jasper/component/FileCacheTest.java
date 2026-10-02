@@ -86,6 +86,9 @@ public class FileCacheTest {
 		assertThat(rewrittenManifest())
 			.contains("/api/v1/proxy?url=https%3A%2F%2Fexample.com%2Fvideo%2Fseg0.ts");
 		verify(tagger).internalTag(SEGMENT_URL, "", "_plugin/delta/cache");
+		// Without a CDN route, segments are not reserved or checked in storage
+		verify(tagger, never()).initPlugin(any(), any(), any(), any(), any(), any());
+		verify(storage, never()).exists(any(), any(), any());
 	}
 
 	@Test
@@ -122,7 +125,8 @@ public class FileCacheTest {
 	void testManifestCdnExistingCache() throws IOException {
 		segment.set(segment("seg"));
 		when(storage.exists("", "cache", "seg")).thenReturn(true);
-		when(storage.getCdnUrl("", "cache", "seg")).thenReturn("https://cdn.example.com/default/cache/seg");
+		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
+			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
 
 		assertThat(rewrittenManifest()).contains("https://cdn.example.com/default/cache/seg\n");
 	}
@@ -131,11 +135,13 @@ public class FileCacheTest {
 	void testManifestCdnExistingCacheStoredElsewhere() throws IOException {
 		// Cached before the CDN route was configured, so it is not in the CDN bucket
 		segment.set(segment("seg"));
-		when(storage.getCdnUrl("", "cache", "seg")).thenReturn("https://cdn.example.com/default/cache/seg");
+		when(storage.getCdnUrl(eq(""), eq("cache"), anyString()))
+			.thenAnswer(i -> "https://cdn.example.com/default/cache/" + i.getArgument(2));
 
 		assertThat(rewrittenManifest())
 			.contains("/api/v1/proxy?url=https%3A%2F%2Fexample.com%2Fvideo%2Fseg0.ts")
 			.doesNotContain("https://cdn.example.com");
+		verify(storage).exists("", "cache", "seg");
 	}
 
 	Ref segment(String id, String ...tags) {
