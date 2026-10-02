@@ -251,9 +251,11 @@ public class StorageImplGcs implements Storage {
 	 * Streams to GCS with a resumable upload. The object only becomes visible
 	 * once the upload completes, and the write fails if it was created concurrently.
 	 */
-	private void upload(BlobId blobId, InputStream is) throws IOException {
-		try (var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()))) {
+private void upload(BlobId blobId, InputStream is) throws IOException {
+		try {
+			var os = Channels.newOutputStream(gcsClient.writer(BlobInfo.newBuilder(blobId).build(), BlobWriteOption.doesNotExist()));
 			is.transferTo(os);
+			os.close();
 		} catch (StorageException e) {
 			if (e.getCode() == PRECONDITION_FAILED) throw new AlreadyExistsException();
 			throw new IOException(e);
