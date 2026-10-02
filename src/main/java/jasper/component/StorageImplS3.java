@@ -7,6 +7,7 @@ import jasper.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
@@ -52,6 +53,7 @@ import java.util.stream.Collectors;
  * every other namespace (backups, preload, secrets, config) is stored in the
  * private bucket. Objects are keyed as {@code tenant/namespace/id}.
  */
+@Primary
 @Profile("storage & s3")
 @Component
 public class StorageImplS3 implements Storage {
