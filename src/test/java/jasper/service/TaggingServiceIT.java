@@ -1,8 +1,12 @@
 package jasper.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.Patch;
+import com.github.fge.jsonpatch.mergepatch.JsonMergePatch;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Plugin;
@@ -12,6 +16,9 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -19,6 +26,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -356,6 +364,236 @@ public class TaggingServiceIT {
 			.isEqualTo("a");
 		assertThat(fetched.getPlugins().get("plugin/test2").get("value2").asText())
 			.isEqualTo("b");
+	}
+
+	static final String RESPONSE_URL = "tag:/user/tester?url=" + URL;
+
+	void savePlugin(String tag, String schema, String defaults) throws IOException {
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		plugin.setOrigin("");
+		if (schema != null) plugin.setSchema((ObjectNode) objectMapper.readTree(schema));
+		if (defaults != null) plugin.setDefaults(objectMapper.readTree(defaults));
+		pluginRepository.save(plugin);
+	}
+
+	void saveSchemaPlugin(String tag) throws IOException {
+		savePlugin(tag, "{\"optionalProperties\": {\"color\": {\"type\": \"string\"}}}", null);
+	}
+
+	void saveSchemaPluginWithDefaults(String tag) throws IOException {
+		savePlugin(tag, "{\"optionalProperties\": {\"color\": {\"type\": \"string\"}}}", "{\"color\": \"blue\"}");
+	}
+
+	JsonPatch jsonPatch(String json) throws IOException {
+		return objectMapper.readValue(json, JsonPatch.class);
+	}
+
+	JsonNode storedPlugin(String tag) {
+		return refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get().getPlugin(tag);
+	}
+
+	void assertRespondFailsUnchanged(List<String> tags, Patch patch) {
+		// Create the response Ref up front so we can check it is not modified
+		taggingService.respond(List.of(), URL, null);
+		var before = refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get();
+
+		assertThatThrownBy(() -> taggingService.respond(tags, URL, patch))
+			.isInstanceOf(InvalidPatchException.class);
+
+		var after = refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get();
+		assertThat(after.getTags()).isEqualTo(before.getTags());
+		assertThat(after.getPlugins()).isEqualTo(before.getPlugins());
+		assertThat(after.getModified()).isEqualTo(before.getModified());
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoDefaultsParent() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"style": {"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}}}""", """
+			{"style": {"color": "blue"}}""");
+
+		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/style/size", "value": 2}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"style\": {\"color\": \"blue\", \"size\": 2}}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoInheritedParentDefaults() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"style": {"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}}}""", """
+			{"style": {"color": "blue"}}""");
+
+		taggingService.respond(List.of("plugin/test/sub"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/style/size", "value": 2}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"style\": {\"color\": \"blue\", \"size\": 2}}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoSchemaPluginWithoutDefaultsFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPlugin("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondMergePatchIntoSchemaPluginWithoutDefaults() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPlugin("plugin/test");
+
+		taggingService.respond(List.of("plugin/test"), URL, objectMapper.readValue("""
+			{"plugin/test": {"color": "red"}}""", JsonMergePatch.class));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\"}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchReplacesDefault() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}""", """
+			{"color": "blue", "size": 1}""");
+
+		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+			[{"op": "replace", "path": "/plugin~1test/color", "value": "red"}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"red\", \"size\": 1}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchKeepsExistingData() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", """
+			{"optionalProperties": {"color": {"type": "string"}, "size": {"type": "int32"}}}""", null);
+		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test", "value": {"color": "blue"}}]"""));
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"blue\"}"));
+
+		taggingService.respond(List.of("plugin/test"), URL, jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/size", "value": 2}]"""));
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"blue\", \"size\": 2}"));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchAddNullThenNestedAddFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPluginWithDefaults("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[
+				{"op": "add", "path": "/plugin~1test", "value": null},
+				{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+			]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchRemoveThenNestedAddFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPluginWithDefaults("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[
+				{"op": "remove", "path": "/plugin~1test"},
+				{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+			]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchReplaceRootThenNestedAddFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPluginWithDefaults("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[
+				{"op": "replace", "path": "", "value": {}},
+				{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+			]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchMoveNullThenNestedAddFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPluginWithDefaults("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[
+				{"op": "add", "path": "/tmp", "value": null},
+				{"op": "move", "from": "/tmp", "path": "/plugin~1test"},
+				{"op": "add", "path": "/plugin~1test/color", "value": "red"}
+			]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNonObjectResultFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		saveSchemaPlugin("plugin/test");
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[{"op": "replace", "path": "", "value": []}]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondPatchNestedAddIntoSchemalessPluginFails() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", null, null);
+
+		assertRespondFailsUnchanged(List.of("plugin/test"), jsonPatch("""
+			[{"op": "add", "path": "/plugin~1test/color", "value": "red"}]"""));
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondWithoutPatchStoresDefaults() throws IOException {
+		refWithTags(URL, "+user/tester");
+		savePlugin("plugin/test", "{\"optionalProperties\": {\"color\": {\"type\": \"string\"}}}", "{\"color\": \"blue\"}");
+
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		assertThat(storedPlugin("plugin/test")).isEqualTo(objectMapper.readTree("{\"color\": \"blue\"}"));
+	}
+
+	static Stream<Arguments> schemalessDefaults() {
+		return Stream.of(
+			Arguments.of("missing", false, null),
+			Arguments.of("null", true, null),
+			Arguments.of("NullNode", true, NullNode.getInstance()));
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("schemalessDefaults")
+	@WithMockUser(value = "+user/tester", roles = {"USER"})
+	void testRespondSchemalessPluginStoresNoData(String name, boolean set, JsonNode defaults) {
+		refWithTags(URL, "+user/tester");
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setOrigin("");
+		if (set) plugin.setDefaults(defaults);
+		pluginRepository.save(plugin);
+
+		taggingService.respond(List.of("plugin/test"), URL, null);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(RESPONSE_URL, "").get();
+		assertThat(fetched.getTags()).contains("plugin/test");
+		assertThat(fetched.getPlugins() == null || !fetched.getPlugins().has("plugin/test")).isTrue();
 	}
 
 }

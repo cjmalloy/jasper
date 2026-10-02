@@ -215,7 +215,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
-		if (jsonNode == null) {
+		if (jsonNode == null || jsonNode instanceof JsonNode n && n.isNull()) {
 			if (plugins != null) plugins.remove(tag);
 			return this;
 		}
@@ -227,9 +227,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasPlugin(String tag) {
-		if (plugins == null) return false;
-		if (!plugins.has(tag)) return false;
-		return plugins.get(tag) != null;
+		return plugins != null && plugins.hasNonNull(tag);
 	}
 
 	@JsonIgnore

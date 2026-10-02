@@ -239,12 +239,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE ref ref
-		SET metadata = jsonb_set(metadata, '{regen}', CAST('true' as jsonb), true)
-		WHERE ref.metadata IS NOT NULL
-			AND COALESCE(ref.metadata->>'regen', 'false') != 'true'
-			AND (:origin = '' OR ref.origin = :origin OR ref.origin LIKE concat(:origin, '.%'))""")
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{regen}', cast_to_jsonb('true'), true)
+		WHERE r.metadata IS NOT NULL
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'regen'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
