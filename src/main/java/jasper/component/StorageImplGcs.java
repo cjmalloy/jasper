@@ -86,13 +86,14 @@ public class StorageImplGcs implements Storage {
 	}
 
 	/**
-	 * Public CDN URL for an object in a public namespace.
+	 * Public CDN URL for an object in a public namespace, or null if the CDN base URL is not configured.
 	 * @throws IllegalArgumentException if the namespace is not routed to the public bucket
 	 */
+	@Override
 	public String getCdnUrl(String origin, String namespace, String id) {
 		var blobId = blobId(origin, namespace, id);
 		if (!blobId.getBucket().equals(publicBucketName)) throw new IllegalArgumentException("Namespace " + namespace + " is not public");
-		if (cdnBaseUrl.isBlank()) throw new IllegalStateException("CDN base URL is not configured");
+		if (cdnBaseUrl.isBlank()) return null;
 		return cdnBaseUrl + "/" + UriUtils.encodePath(blobId.getName(), StandardCharsets.UTF_8);
 	}
 

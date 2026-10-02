@@ -82,6 +82,8 @@ public class StorageImplGcsTest {
 		assertThat(storage.getCdnUrl("@other", "cache", "a")).isEqualTo("https://cdn.example.com/@other/cache/a");
 		assertThatThrownBy(() -> storage.getCdnUrl("", "backups", "b.zip")).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> storage.getCdnUrl("", "secrets", "host_key")).isInstanceOf(IllegalArgumentException.class);
+		var noCdn = new StorageImplGcs(LocalStorageHelper.customOptions(false).getService(), "public", "private", "", tmpDir);
+		assertThat(noCdn.getCdnUrl("", "cache", "a")).isNull();
 	}
 
 	@Test

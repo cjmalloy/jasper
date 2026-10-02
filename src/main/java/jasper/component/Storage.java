@@ -38,6 +38,13 @@ public interface Storage {
 	void backup(String origin, String namespace, Zipped backup, Instant modifiedAfter) throws IOException;
 	void restore(String origin, String namespace, Zipped backup) throws IOException;
 
+	/**
+	 * Public CDN URL for an object, or null if no CDN serves this storage.
+	 */
+	default String getCdnUrl(String origin, String namespace, String id) {
+		return null;
+	}
+
 	default String originTenant(String origin) {
 		return formatOrigin(origin);
 	}
