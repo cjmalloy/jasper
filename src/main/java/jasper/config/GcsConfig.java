@@ -15,7 +15,7 @@ public class GcsConfig {
 	 * Uses Application Default Credentials, which on GKE resolve
 	 * through Workload Identity Federation.
 	 */
-	@Bean(destroyMethod = "close")
+@Bean
 	public Storage gcsClient() {
 		return StorageOptions.getDefaultInstance().getService();
 	}
