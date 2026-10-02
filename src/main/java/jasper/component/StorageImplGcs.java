@@ -64,8 +64,9 @@ public class StorageImplGcs implements Storage {
 	public byte[] get(String origin, String namespace, String id) {
 		try {
 			return gcsClient.readAllBytes(blobId(origin, namespace, id));
-		} catch (StorageException e) {
-			throw new NotFoundException("Cache " + id);
+} catch (StorageException e) {
+			if (e.getCode() == 404) throw new NotFoundException("Cache " + id);
+			throw e;
 		}
 	}
 
