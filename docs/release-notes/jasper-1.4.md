@@ -17,7 +17,7 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 
 ## Upgrading
 
-* Before starting v1.4.0 with PostgreSQL, clear the stored Liquibase checksum for the changed schema changeset: `UPDATE DATABASECHANGELOG SET MD5SUM = NULL WHERE ID = '00000000000001' AND AUTHOR = 'chris';`. Liquibase will recalculate the checksum on startup. A database migration also adds a small `instr()` SQL function.
+* Before starting v1.4.0 with PostgreSQL, clear the stored Liquibase checksum for the changed schema changeset: `UPDATE DATABASECHANGELOG SET MD5SUM = NULL;`. Liquibase will recalculate the checksum on startup. A database migration also adds a small `instr()` SQL function.
 * If you rely on deleted items being included in backups, set `tombstones: true` in your backup options.
 * The SCIM integration no longer depends on a third-party SDK. No configuration changes are needed.
 * Cloud storage needs credentials: GCS uses Application Default Credentials (e.g. GKE Workload Identity), and S3 uses the default AWS credential chain (e.g. EKS IRSA). Set `APPLICATION_STORAGE_S3_REGION` / `APPLICATION_STORAGE_S3_ENDPOINT` as needed, and `APPLICATION_STORAGE_TMP_DIR` for zip staging space.
