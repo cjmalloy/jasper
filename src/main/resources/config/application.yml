@@ -231,5 +231,6 @@ jasper:
     license:
       name: MIT
       url: https://github.com/cjmalloy/jasper/blob/master/LICENSE
+    servers: []
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
