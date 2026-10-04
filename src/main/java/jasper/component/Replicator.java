@@ -33,24 +33,30 @@ import org.springframework.stereotype.Component;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static jasper.client.JasperClient.params;
+import static jasper.component.FileCache.CACHE;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static jasper.plugin.Tunnel.getTunnel;
 import static jasper.util.Logging.getMessage;
 import static java.io.InputStream.nullInputStream;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -119,7 +125,39 @@ public class Replicator {
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
 		InputStream[] inputStream = { null };
-		tunnel.proxy(remote, baseUri -> {
+		if (url.startsWith("cache:") && fileCache.isPresent() && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).isSftp()) {
+			var id = url.substring("cache:".length());
+			if (!id.matches("[\\w-]+")) {
+				logger.warn("{} Skipping SFTP for invalid cache id ({}) {}",
+					remote.getOrigin(), remoteOrigin, url);
+			} else {
+				Path tmp = null;
+				try {
+					var file = tmp = Files.createTempFile("jasper-sftp-", ".tmp");
+					tunnel.sftp(remote, sftp -> {
+						try (var is = sftp.read(CACHE + "/" + id)) {
+							Files.copy(is, file, REPLACE_EXISTING);
+						}
+					});
+					try (var is = Files.newInputStream(file)) {
+						fileCache.get().push(url, localOrigin, is);
+					}
+					inputStream[0] = fileCache.get().fetch(url, localOrigin);
+				} catch (Exception e) {
+					logger.warn("{} Failed to fetch from remote cache over SFTP, falling back to HTTP ({}) {}: {}",
+						remote.getOrigin(), remoteOrigin, url, getMessage(e));
+				} finally {
+					if (tmp != null) {
+						try {
+							Files.deleteIfExists(tmp);
+						} catch (IOException e) {
+							logger.warn("{} Failed to delete SFTP temp file {}", remote.getOrigin(), tmp);
+						}
+					}
+				}
+			}
+		}
+		if (inputStream[0] == null) tunnel.proxy(remote, baseUri -> {
 			try {
 				var cache = client.fetch(baseUri, url, remoteOrigin);
 				if (cache.getHeaders().getContentType() != null) {

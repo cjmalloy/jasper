@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.errors.RetryableTunnelException;
 import jasper.plugin.Tunnel;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
@@ -103,6 +104,25 @@ class TunnelClientTest {
 			assertThatThrownBy(() -> tunnelClient.proxy(remote, uri -> fail("Proxy request should not run")))
 				.isInstanceOf(RuntimeException.class)
 				.hasCause(failure);
+		}
+
+		verifyNoInteractions(tagger);
+	}
+
+	@Test
+	void sftpThrowsRetryableWithoutTagging() throws Exception {
+		var tunnel = new Tunnel();
+		tunnel.setSftp(true);
+		remote.setPlugin("+plugin/origin/tunnel", tunnel);
+		var failure = new SshException("[ssh-connection]: Failed (IOException) to execute: Broken pipe",
+			new IOException("Broken pipe"));
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);
+
+		try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+			clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+
+			assertThatThrownBy(() -> tunnelClient.sftp(remote, sftp -> fail("SFTP request should not run")))
+				.isInstanceOf(RetryableTunnelException.class);
 		}
 
 		verifyNoInteractions(tagger);

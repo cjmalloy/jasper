@@ -529,6 +529,7 @@ It supports the following configuration options:
 | `JASPER_CLEAR_CACHE_COOLDOWN_SEC`                   | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
 | `JASPER_PUSH_COOLDOWN_SEC`                          | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
+| `JASPER_SECONDARY_BACKUP_STORAGE`                   | Path to a second, read-only folder of backups (same layout as storage). Its backups are added to the backup list.              |                                                                                                                                                                                                               |
 | `JASPER_NODE`                                       | Path to node binary for running javascript deltas.                                                                             | `/usr/local/bin/node`                                                                                                                                                                                         |
 | `JASPER_PYTHON`                                     | Path to python binary for running python scripts.                                                                              | `/usr/bin/python`                                                                                                                                                                                             |
 | `JASPER_SHELL`                                      | Path to shell binary for running shell scripts.                                                                                | `/usr/bin/bash`                                                                                                                                                                                               |
@@ -824,6 +825,12 @@ and `JASPER_AUTHORITIES_CLAIM` properties.
 Jasper has a built-in backup system for mods and/or admins. Regular users should instead replicate to a separate jasper instance.
 In order to use the backup system, the `storage` profile must be active.
 
+Set `JASPER_SECONDARY_BACKUP_STORAGE` to mount a second, read-only backup location, such as a volume synced from another
+server's storage folder over SFTP with [jasper-ssh](https://github.com/cjmalloy/jasper-ssh). It uses the same layout as
+the storage folder (`<tenant>/backups/<id>.zip`). Its backups are added to the backup list and can be downloaded and
+restored. Backups in the storage folder take precedence when the same ID exists in both locations. Backups in the
+secondary location are never deleted.
+
 ## Validation
 When ingesting entities, Jasper performs the following validation:
  * Fields must not exceed their maximum length
@@ -1037,6 +1044,29 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Strip Invalid Template:** If template validation is enabled, strip invalid templates instead of skipping invalid Exts.
 **Add Tags:** Tags to apply to any Refs replicated from this origin.  
 **Remove Tags:** Tags to remove from any Refs replicated from this origin.  
+
+## Tunneling to a Remote Origin
+The `+plugin/origin/tunnel` tag replicates through an SSH tunnel, such as [jasper-ssh](https://github.com/cjmalloy/jasper-ssh).
+The private key of the user who signed the Ref is used to authenticate.
+```json
+{
+  "optionalProperties": {
+    "hostFingerprint": { "type": "string" },
+    "remoteUser": { "type": "string" },
+    "sshHost": { "type": "string" },
+    "sshPort": { "type": "int32" },
+    "sftp": { "type": "boolean" }
+  }
+}
+```
+
+**Host Fingerprint:** SSH host key fingerprint. Set automatically on first connection.  
+**Remote User:** User tag to log in as, instead of the user who signed the Ref.  
+**SSH Host:** SSH host, if different from the remote URL host.  
+**SSH Port:** SSH port. Defaults to `8022`.  
+**SFTP:** Download `cache:` files over SFTP (from `cache/<id>` in the SFTP start folder) instead of HTTP. Falls back to
+HTTP if the SFTP download fails. Requires the `storage` profile and read-only storage access on the remote
+jasper-ssh server (`STORAGE_ACCESS`).  
 
 ## Pushing to a Remote Origin
 The `+plugin/origin/push` tag can be used to replicate remote origins. Since this plugin

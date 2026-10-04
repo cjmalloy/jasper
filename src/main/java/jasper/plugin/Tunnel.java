@@ -18,6 +18,11 @@ public class Tunnel implements Serializable {
 	private String remoteUser;
 	private String sshHost;
 	private int sshPort = 8022;
+	/**
+	 * Download cache files over SFTP instead of HTTP.
+	 * Requires read-only storage access on the remote jasper-ssh server.
+	 */
+	private boolean sftp;
 
 	private static final Tunnel DEFAULTS = new Tunnel();
 	public static Tunnel getTunnel(HasTags ref) {
