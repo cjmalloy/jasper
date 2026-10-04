@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.errors.InvalidTunnelException;
 import jasper.plugin.Tunnel;
 import jasper.repository.UserRepository;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.config.keys.writer.openssh.OpenSSHKeyPairResourceWriter;
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
 import org.apache.sshd.server.SshServer;
+import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -29,12 +31,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class TunnelClientSftpTest {
@@ -83,7 +86,7 @@ class TunnelClientSftpTest {
 		Files.writeString(storage.resolve("root/cache/abc"), "cached");
 
 		var tunnel = new Tunnel();
-		tunnel.setSftp(true);
+		tunnel.setSftp(Tunnel.SftpMode.CACHE);
 		tunnel.setSshHost("localhost");
 		tunnel.setSshPort(server.getPort());
 		remote = Ref.from("https://example.com", "", "+user/test");
@@ -93,7 +96,7 @@ class TunnelClientSftpTest {
 		var user = new User();
 		user.setTag("+user/test");
 		user.setKey(key.toByteArray());
-		when(userRepository.findOneByQualifiedTag("+user/test")).thenReturn(Optional.of(user));
+		lenient().when(userRepository.findOneByQualifiedTag("+user/test")).thenReturn(Optional.of(user));
 	}
 
 	@AfterEach
@@ -113,6 +116,44 @@ class TunnelClientSftpTest {
 		});
 
 		assertThat(result[0]).isEqualTo("cached");
+	}
+
+	@Test
+	void sftpStreamReadsCacheFileAndReleasesTunnel() throws Exception {
+		try (var is = tunnelClient.sftpStream(remote, "cache/abc")) {
+			assertThat(new String(is.readAllBytes())).isEqualTo("cached");
+			assertThat(tunnelClient.tunnels.values()).singleElement()
+				.satisfies(t -> assertThat(t.connections()).isEqualTo(1));
+		}
+		assertThat(tunnelClient.tunnels.values()).singleElement()
+			.satisfies(t -> assertThat(t.connections()).isEqualTo(0));
+	}
+
+	@Test
+	void sftpStreamMissingFileReleasesTunnel() {
+		assertThatThrownBy(() -> tunnelClient.sftpStream(remote, "cache/missing"))
+			.isInstanceOf(IOException.class);
+		assertThat(tunnelClient.tunnels.values()).singleElement()
+			.satisfies(t -> assertThat(t.connections()).isEqualTo(0));
+	}
+
+	@Test
+	void sftpDisabledThrows() {
+		remote.setPlugin("+plugin/origin/tunnel", new Tunnel());
+		assertThatThrownBy(() -> tunnelClient.sftp(remote, sftp -> {}))
+			.isInstanceOf(InvalidTunnelException.class);
+	}
+
+	@Test
+	void sftpListsCacheFiles() throws Exception {
+		Files.createDirectories(storage.resolve("root/cache/dir"));
+		var entries = new HashMap<String, SftpClient.Attributes>();
+
+		tunnelClient.sftp(remote, sftp -> sftp.readDir("cache").forEach(e -> entries.put(e.getFilename(), e.getAttributes())));
+
+		assertThat(entries.get("abc").isRegularFile()).isTrue();
+		assertThat(entries.get("abc").getModifyTime()).isNotNull();
+		assertThat(entries.get("dir").isRegularFile()).isFalse();
 	}
 
 	@Test

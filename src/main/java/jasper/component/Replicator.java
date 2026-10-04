@@ -16,6 +16,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.PullLocalException;
+import jasper.plugin.Tunnel.SftpMode;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -24,6 +25,9 @@ import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.common.SftpConstants;
+import org.apache.sshd.sftp.common.SftpException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +38,6 @@ import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -114,6 +117,8 @@ public class Replicator {
 
 	boolean fileCacheMissingError = false;
 
+	static final int SFTP_SYNC_SETTLE_SEC = 10;
+
 	private record Log(String title, String message) {}
 
 	@Timed(value = "jasper.repl", histogram = true)
@@ -125,35 +130,18 @@ public class Replicator {
 		var remoteOrigin = origin(config.getRemote());
 		String[] contentType = { "" };
 		InputStream[] inputStream = { null };
-		if (url.startsWith("cache:") && fileCache.isPresent() && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).isSftp()) {
-			var id = url.substring("cache:".length());
-			if (!id.matches("[\\w-]+")) {
+		var sftpMode = hasMatchingTag(remote, "+plugin/origin/tunnel") ? getTunnel(remote).getSftp() : null;
+		if (url.startsWith("cache:") && fileCache.isPresent() && (sftpMode == SftpMode.CACHE || sftpMode == SftpMode.SYNC)) {
+			if (!isCacheId(url.substring("cache:".length()))) {
 				logger.warn("{} Skipping SFTP for invalid cache id ({}) {}",
 					remote.getOrigin(), remoteOrigin, url);
 			} else {
-				Path tmp = null;
 				try {
-					var file = tmp = Files.createTempFile("jasper-sftp-", ".tmp");
-					tunnel.sftp(remote, sftp -> {
-						try (var is = sftp.read(CACHE + "/" + id)) {
-							Files.copy(is, file, REPLACE_EXISTING);
-						}
-					});
-					try (var is = Files.newInputStream(file)) {
-						fileCache.get().push(url, localOrigin, is);
-					}
+					tunnel.sftp(remote, sftp -> sftpDownload(sftp, url, localOrigin));
 					inputStream[0] = fileCache.get().fetch(url, localOrigin);
 				} catch (Exception e) {
 					logger.warn("{} Failed to fetch from remote cache over SFTP, falling back to HTTP ({}) {}: {}",
 						remote.getOrigin(), remoteOrigin, url, getMessage(e));
-				} finally {
-					if (tmp != null) {
-						try {
-							Files.deleteIfExists(tmp);
-						} catch (IOException e) {
-							logger.warn("{} Failed to delete SFTP temp file {}", remote.getOrigin(), tmp);
-						}
-					}
 				}
 			}
 		}
@@ -208,6 +196,103 @@ public class Replicator {
 				inputStream[0].close();
 			}
 		};
+	}
+
+	/**
+	 * Stream a cache file from the remote over SFTP without storing it in the local cache.
+	 * Returns null if the remote tunnel is not in SFTP stream mode, or the stream could not be opened.
+	 */
+	@Timed(value = "jasper.repl", histogram = true)
+	public InputStream sftpStream(String url, HasTags remote) {
+		if (!url.startsWith("cache:")) return null;
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || getTunnel(remote).getSftp() != SftpMode.STREAM) return null;
+		if (!configs.root().script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		var id = url.substring("cache:".length());
+		if (!isCacheId(id)) {
+			logger.warn("{} Skipping SFTP for invalid cache id {}", remote.getOrigin(), url);
+			return null;
+		}
+		try {
+			return tunnel.sftpStream(remote, CACHE + "/" + id);
+		} catch (Exception e) {
+			logger.warn("{} Failed to stream from remote cache over SFTP {}: {}",
+				remote.getOrigin(), url, getMessage(e));
+			return null;
+		}
+	}
+
+	/**
+	 * Copy new cache files from the remote over SFTP into the local cache.
+	 * Does nothing unless the remote tunnel is in SFTP sync mode.
+	 * Files modified in the last {@link #SFTP_SYNC_SETTLE_SEC} seconds are skipped
+	 * as they may still be being written.
+	 */
+	@Timed(value = "jasper.repl", histogram = true)
+	public void sftpSync(HasTags remote) {
+		if (fileCache.isEmpty()) return;
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || getTunnel(remote).getSftp() != SftpMode.SYNC) return;
+		if (!configs.root().script("+plugin/origin/pull", remote.getOrigin())) return;
+		var config = getOrigin(remote);
+		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
+		var settled = Instant.now().minusSeconds(SFTP_SYNC_SETTLE_SEC);
+		var count = new int[]{ 0 };
+		try {
+			tunnel.sftp(remote, sftp -> {
+				Iterable<SftpClient.DirEntry> entries;
+				try {
+					entries = sftp.readDir(CACHE);
+				} catch (SftpException e) {
+					if (e.getStatus() == SftpConstants.SSH_FX_NO_SUCH_FILE) return;
+					throw e;
+				}
+				for (var entry : entries) {
+					var id = entry.getFilename();
+					if (!entry.getAttributes().isRegularFile() || !isCacheId(id)) continue;
+					var modified = entry.getAttributes().getModifyTime();
+					if (modified != null && modified.toInstant().isAfter(settled)) continue;
+					var url = "cache:" + id;
+					if (fileCache.get().cacheExists(url, localOrigin)) continue;
+					try {
+						sftpDownload(sftp, url, localOrigin);
+						count[0]++;
+					} catch (IOException e) {
+						logger.warn("{} Failed to sync remote cache over SFTP ({}) {}: {}",
+							remote.getOrigin(), localOrigin, url, getMessage(e));
+					}
+				}
+			});
+		} catch (Exception e) {
+			logger.warn("{} Failed to sync remote cache over SFTP ({}) {}: {}",
+				remote.getOrigin(), localOrigin, remote.getTitle(), getMessage(e));
+		}
+		if (count[0] > 0) {
+			logger.info("{} Synced {} cache files over SFTP ({}) {}",
+				remote.getOrigin(), count[0], localOrigin, remote.getTitle());
+		}
+	}
+
+	private static boolean isCacheId(String id) {
+		return id.matches("[\\w-]+");
+	}
+
+	/**
+	 * Download a cache file over SFTP into the local cache.
+	 * Downloads to a temp file first so a failed transfer does not leave a partial cache file.
+	 */
+	private void sftpDownload(SftpClient sftp, String url, String localOrigin) throws IOException {
+		var tmp = Files.createTempFile("jasper-sftp-", ".tmp");
+		try {
+			try (var is = sftp.read(CACHE + "/" + url.substring("cache:".length()))) {
+				Files.copy(is, tmp, REPLACE_EXISTING);
+			}
+			try (var is = Files.newInputStream(tmp)) {
+				fileCache.get().push(url, localOrigin, is);
+			} catch (AlreadyExistsException e) {
+				// Already stored by a concurrent fetch or sync
+			}
+		} finally {
+			Files.deleteIfExists(tmp);
+		}
 	}
 
 	@Timed(value = "jasper.repl", histogram = true)

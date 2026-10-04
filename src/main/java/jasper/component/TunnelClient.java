@@ -3,6 +3,7 @@ package jasper.component;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.RetryableTunnelException;
+import jasper.plugin.Tunnel.SftpMode;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -23,7 +24,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
@@ -196,7 +200,35 @@ public class TunnelClient {
 	 * remote SSH server must grant the user SFTP access.
 	 */
 	public void sftp(HasTags remote, SftpRequest request) throws IOException, RetryableTunnelException {
-		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || !getTunnel(remote).isSftp()) {
+		try (var connection = openSftp(remote)) {
+			request.go(connection.sftp());
+		}
+	}
+
+	/**
+	 * Stream a file over SFTP. The pooled SSH tunnel session is held until the stream is closed.
+	 * The remote must have SFTP enabled in its tunnel config, and the
+	 * remote SSH server must grant the user SFTP access.
+	 */
+	public InputStream sftpStream(HasTags remote, String path) throws IOException, RetryableTunnelException {
+		var connection = openSftp(remote);
+		try {
+			return new FilterInputStream(connection.sftp().read(path)) {
+				@Override
+				public void close() throws IOException {
+					try (connection) {
+						super.close();
+					}
+				}
+			};
+		} catch (IOException | RuntimeException e) {
+			connection.close();
+			throw e;
+		}
+	}
+
+	private SftpConnection openSftp(HasTags remote) throws IOException, RetryableTunnelException {
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || getTunnel(remote).getSftp() == null || getTunnel(remote).getSftp() == SftpMode.OFF) {
 			throw new InvalidTunnelException("SFTP requested, but tunnel does not have SFTP enabled.");
 		}
 		var config = getOrigin(remote);
@@ -219,10 +251,22 @@ public class TunnelClient {
 		var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 		var port = tunnel.getSshPort();
 		var info = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
-		try (var sftp = SftpClientFactory.instance().createSftpClient(info.session())) {
-			request.go(sftp);
-		} finally {
+		try {
+			return new SftpConnection(SftpClientFactory.instance().createSftpClient(info.session()), () -> releaseTunnel(info.tunnelPort(), host, username, port));
+		} catch (IOException | RuntimeException e) {
 			releaseTunnel(info.tunnelPort(), host, username, port);
+			throw e;
+		}
+	}
+
+	private record SftpConnection(SftpClient sftp, Runnable release) implements Closeable {
+		@Override
+		public void close() throws IOException {
+			try {
+				sftp.close();
+			} finally {
+				release.run();
+			}
 		}
 	}
 

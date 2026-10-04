@@ -1055,7 +1055,7 @@ The private key of the user who signed the Ref is used to authenticate.
     "remoteUser": { "type": "string" },
     "sshHost": { "type": "string" },
     "sshPort": { "type": "int32" },
-    "sftp": { "type": "boolean" }
+    "sftp": { "enum": ["off", "stream", "cache", "sync"] }
   }
 }
 ```
@@ -1064,9 +1064,15 @@ The private key of the user who signed the Ref is used to authenticate.
 **Remote User:** User tag to log in as, instead of the user who signed the Ref.  
 **SSH Host:** SSH host, if different from the remote URL host.  
 **SSH Port:** SSH port. Defaults to `8022`.  
-**SFTP:** Download `cache:` files over SFTP (from `cache/<id>` in the SFTP start folder) instead of HTTP. Falls back to
-HTTP if the SFTP download fails. Requires the `storage` profile and read-only storage access on the remote
-jasper-ssh server (`STORAGE_ACCESS`).  
+**SFTP:** Transfer `cache:` files over SFTP (from `cache/<id>` in the SFTP start folder) instead of HTTP. Requires
+the `file-cache` profile and read-only storage access on the remote jasper-ssh server (`STORAGE_ACCESS`).
+If an SFTP transfer fails, the cache file is fetched as if SFTP was off. One of:
+ * `off` (default): Transfer cache files over HTTP.
+ * `stream`: Stream cache files from SFTP every time, without storing them in the local cache.
+ * `cache`: Stream cache files from SFTP if missing from the local cache, and store them in the local cache.
+ * `sync`: Constantly copy new cache files from SFTP into the local cache every minute, like `rclone copy`.
+   Requires the `+plugin/origin/pull` tag. Files modified in the last 10 seconds are skipped until the next sync, as
+   they may still be being written. Cache files that have not been synced yet are fetched as in `cache` mode.
 
 ## Pushing to a Remote Origin
 The `+plugin/origin/push` tag can be used to replicate remote origins. Since this plugin

@@ -112,7 +112,7 @@ class TunnelClientTest {
 	@Test
 	void sftpThrowsRetryableWithoutTagging() throws Exception {
 		var tunnel = new Tunnel();
-		tunnel.setSftp(true);
+		tunnel.setSftp(Tunnel.SftpMode.CACHE);
 		remote.setPlugin("+plugin/origin/tunnel", tunnel);
 		var failure = new SshException("[ssh-connection]: Failed (IOException) to execute: Broken pipe",
 			new IOException("Broken pipe"));
