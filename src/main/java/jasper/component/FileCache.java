@@ -126,6 +126,8 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public InputStream fetch(String url, String origin, boolean refresh) {
+		var existingCache = cache(url, origin);
+		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (url.startsWith("cache:")) {
 			var remote = configs.getRemote(origin);
 			if (remote != null && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).getSftp() == SftpMode.STREAM) {
@@ -133,8 +135,6 @@ public class FileCache {
 				if (stream != null) return stream;
 			}
 		}
-		var existingCache = cache(url, origin);
-		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
 			return storage.stream(origin, CACHE, existingCache.getId());
 		}
