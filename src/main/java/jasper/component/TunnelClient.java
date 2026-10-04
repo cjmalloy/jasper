@@ -214,8 +214,12 @@ public class TunnelClient {
 		var connection = openSftp(remote);
 		try {
 			return new FilterInputStream(connection.sftp().read(path)) {
+				private boolean closed;
+
 				@Override
-				public void close() throws IOException {
+				public synchronized void close() throws IOException {
+					if (closed) return;
+					closed = true;
 					try (connection) {
 						super.close();
 					}
