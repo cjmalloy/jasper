@@ -30,7 +30,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static jasper.component.Meta.expandTags;
-import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -67,7 +66,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref) {
-		debug(rootOrigin, "create", ref, null);
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
@@ -81,7 +79,6 @@ public class Ingest {
 	public void update(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		debug(rootOrigin, "update", ref, maybeExisting.get());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.update(rootOrigin, ref, maybeExisting.get());
@@ -94,7 +91,6 @@ public class Ingest {
 	public void updateResponse(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
-		debug(rootOrigin, "updateResponse", ref, maybeExisting.get());
 		validate.response(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.response(rootOrigin, ref);
@@ -106,7 +102,6 @@ public class Ingest {
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
-		debug(rootOrigin, "silent", ref, maybeExisting.orElse(null));
 		if (maybeExisting.isEmpty()) {
 			meta.ref(rootOrigin, ref);
 		} else {
@@ -119,7 +114,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins) {
-		debug(rootOrigin, "push", ref, null);
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
 		if (validation) validate.ref(rootOrigin, ref, stripInvalidPlugins);
 		Ref maybeExisting = null;
@@ -149,20 +143,9 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		debug(rootOrigin, "delete", maybeExisting.get(), null);
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
-	}
-
-	/**
-	 * Log every write to a Ref tagged +plugin/debug, including the caller stack trace.
-	 */
-	private void debug(String rootOrigin, String action, Ref ref, Ref existing) {
-		if (!hasMatchingTag(ref, "+plugin/debug") && !hasMatchingTag(existing, "+plugin/debug")) return;
-		logger.info("{} +plugin/debug Ingest {} {} {}: tags {} plugins {}",
-			rootOrigin, action, ref.getOrigin(), ref.getUrl(), ref.getTags(), ref.getPlugins(),
-			new Throwable("+plugin/debug stack trace"));
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
