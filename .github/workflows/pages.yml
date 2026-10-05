@@ -103,7 +103,7 @@ jobs:
               echo "Pruning old report: $old_report"
               rm -rf "_site/reports/$old_report"
             done
-          du -sh _site _site/reports
+          du -sh _site
           dependabot_message="current"
           dependabot_color="brightgreen"
           # Limit failed run checks to recent history so one old failure does not keep the badge red forever.
