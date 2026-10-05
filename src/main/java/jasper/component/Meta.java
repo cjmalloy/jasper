@@ -157,6 +157,17 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing) {
+		sources(rootOrigin, ref, existing, false);
+	}
+
+	/**
+	 * Update the Metadata of the sources of a Ref.
+	 * @param sync update all sources synchronously instead of deferring
+	 *             sources past {@link #SYNC_SOURCES} to the cascade
+	 */
+	@Timed(value = "jasper.meta", histogram = true)
+	public void sources(String rootOrigin, Ref ref, Ref existing, boolean sync) {
+		var limit = sync ? Integer.MAX_VALUE : SYNC_SOURCES;
 		if (ref == null) {
 			// Deleting
 			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
@@ -181,14 +192,14 @@ public class Meta {
 		// Creating or updating (not deleting)
 		var cascade = false;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
-		if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+		if (ref.getSources() != null && ref.getSources().size() > limit) {
 			cascade = true;
 		}
 
 		// Update sources
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
-			.limit(SYNC_SOURCES)
+			.limit(limit)
 			.filter(s -> !s.equals(ref.getUrl()))
 			.distinct()
 			.toList();
@@ -232,7 +243,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			// Updating
 			var syncRemoved = existing.getSources()
 					.stream()
-					.limit(SYNC_SOURCES)
+					.limit(limit)
 					.filter(s -> !s.equals(existing.getUrl()) && (ref.getSources() == null || !ref.getSources().contains(s)))
 					.toList();
 			var removed = refRepository.findAll(isUrls(syncRemoved).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)));
