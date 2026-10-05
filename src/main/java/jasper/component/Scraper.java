@@ -91,9 +91,7 @@ public class Scraper {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
 		var existing = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (existing.isPresent() && existing.get().hasTag("+plugin/debug")) {
-			logger.info("{} +plugin/debug Scraping existing Ref through file cache {}", origin, url, new Throwable("+plugin/debug stack trace"));
-		}
+		existing.ifPresent(ref -> tagger.debug(ref, "Scraping existing Ref through file cache"));
 		var data = proxy.fetchString(url, origin, existing.isPresent());
 		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
@@ -476,9 +474,7 @@ public class Scraper {
 		url = fixUrl(url);
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
-		if (ref != null && ref.hasTag("+plugin/debug")) {
-			logger.info("{} +plugin/debug Scraper queuing existing Ref for cache {}", origin, url, new Throwable("+plugin/debug stack trace"));
-		}
+		tagger.debug(ref, "Scraper queuing existing Ref for cache");
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 

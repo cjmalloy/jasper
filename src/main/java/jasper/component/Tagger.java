@@ -22,6 +22,7 @@ import static jasper.domain.proj.Tag.capturesDownwards;
 import static jasper.domain.proj.Tag.urlForTag;
 import static java.time.Instant.now;
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -234,6 +235,25 @@ public class Tagger {
 		}
 		ref.setTags(tags);
 		ingest.create(origin, ref);
+	}
+
+	/**
+	 * If the Ref is tagged +plugin/debug, log the caller stack trace and
+	 * reply to the Ref with a +plugin/log so the user can see it.
+	 */
+	public void debug(Ref ref, String msg) {
+		if (ref == null || !ref.hasTag("+plugin/debug")) return;
+		var logs = msg + " " + ref.getUrl() + "\n\n" +
+			"tags: `" + ref.getTags() + "`\n\n" +
+			"plugins: `" + ref.getPlugins() + "`\n\n" +
+			"```\n" + getStackTrace(new Throwable("+plugin/debug stack trace")) + "```";
+		logger.debug("{} +plugin/debug {}", ref.getOrigin(), logs);
+		try {
+			var remote = configs.getRemote(ref.getOrigin());
+			attachLogs(remote == null ? ref.getOrigin() : remote.getOrigin(), ref, "+plugin/debug " + msg, logs);
+		} catch (Exception e) {
+			logger.warn("{} +plugin/debug Could not attach logs to {}", ref.getOrigin(), ref.getUrl(), e);
+		}
 	}
 
 	@Async

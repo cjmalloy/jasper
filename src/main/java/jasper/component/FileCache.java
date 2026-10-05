@@ -122,10 +122,7 @@ public class FileCache {
 	@Timed(value = "jasper.cache")
 	public InputStream fetch(String url, String origin, boolean refresh) {
 		var existing = stat(url, origin);
-		if (existing != null && existing.hasTag("+plugin/debug")) {
-			logger.info("{} +plugin/debug File cache fetch (refresh: {}) {}: tags {} plugins {}",
-				origin, refresh, url, existing.getTags(), existing.getPlugins(), new Throwable("+plugin/debug stack trace"));
-		}
+		tagger.debug(existing, "File cache fetch (refresh: " + refresh + ")");
 		var existingCache = getCache(existing);
 		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
@@ -380,9 +377,7 @@ public class FileCache {
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
-		if (ref != null && ref.hasTag("+plugin/debug")) {
-			logger.info("{} +plugin/debug Archive {} queuing existing Ref for cache {}", origin, source, url);
-		}
+		tagger.debug(ref, "Archive " + source + " queuing existing Ref for cache");
 		ref.addSource(source);
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
