@@ -49,6 +49,9 @@ public class Meta {
 	@Autowired
 	EntityManager em;
 
+	@Autowired
+	ConfigCache configs;
+
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -162,12 +165,12 @@ public class Meta {
 
 	/**
 	 * Update the Metadata of the sources of a Ref.
-	 * @param sync update all sources synchronously instead of deferring
-	 *             sources past {@link #SYNC_SOURCES} to the cascade
+	 * @param sync update up to the max-sources limit synchronously instead of
+	 *             deferring sources past {@link #SYNC_SOURCES} to the cascade
 	 */
 	@Timed(value = "jasper.meta", histogram = true)
 	public void sources(String rootOrigin, Ref ref, Ref existing, boolean sync) {
-		var limit = sync ? Integer.MAX_VALUE : SYNC_SOURCES;
+		var limit = sync ? configs.root().getMaxSources() : SYNC_SOURCES;
 		if (ref == null) {
 			// Deleting
 			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
