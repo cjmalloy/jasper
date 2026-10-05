@@ -19,6 +19,8 @@ permissions:
 
 env:
   DEPENDABOT_RUN_LOOKBACK_DAYS: 7
+  # Keep the site under the 1 GB Pages artifact limit by publishing only recent runs of each report type.
+  REPORTS_PER_GROUP: 5
 
 concurrency:
   group: "pages"
@@ -90,6 +92,18 @@ jobs:
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
           fi
+          # Prune all but the most recent runs of each report group (name without the trailing run number).
+          for d in _site/reports/*/; do
+            name=$(basename "$d")
+            if [[ ! "$name" =~ ^latest- && ! "$name" =~ -pr-[0-9]+$ && "$name" =~ ^(.+)-([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} $name"
+            fi
+          done | sort -k1,1 -k2,2nr | awk -v keep="$REPORTS_PER_GROUP" '{ if ($1 == group) n++; else { group = $1; n = 1 } if (n > keep) print $3 }' \
+            | while read -r old_report; do
+              echo "Pruning old report: $old_report"
+              rm -rf "_site/reports/$old_report"
+            done
+          du -sh _site
           dependabot_message="current"
           dependabot_color="brightgreen"
           # Limit failed run checks to recent history so one old failure does not keep the badge red forever.
