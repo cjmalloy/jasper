@@ -71,19 +71,27 @@ public class Ingest {
 		rng.update(rootOrigin, ref, null);
 		meta.ref(rootOrigin, ref);
 		ensureCreateUniqueModified(ref);
-		meta.sources(rootOrigin, ref, null);
+		meta.sources(rootOrigin, ref, null, true);
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref) {
+		update(rootOrigin, ref, false);
+	}
+
+	/**
+	 * @param syncSources update all sources synchronously instead of deferring to the cascade
+	 */
+	@Timed(value = "jasper.ref", histogram = true)
+	public void update(String rootOrigin, Ref ref, boolean syncSources) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.update(rootOrigin, ref, maybeExisting.get());
 		ensureUpdateUniqueModified(ref);
-		meta.sources(rootOrigin, ref, maybeExisting.get());
+		meta.sources(rootOrigin, ref, maybeExisting.get(), syncSources);
 		messages.updateRef(ref);
 	}
 

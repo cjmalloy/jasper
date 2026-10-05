@@ -582,16 +582,73 @@ public class IngestIT {
 		}
 	}
 
+	void createSources(String... urls) {
+		for (var url : urls) {
+			var source = new Ref();
+			source.setUrl(url);
+			ingest.create("", source);
+		}
+	}
+
+	List<String> responses(String url) {
+		return refRepository.findOneByUrlAndOrigin(url, "").get().getMetadata().getResponses();
+	}
+
 	@Test
-	void testCreateRefWithManySourcesSendsCascadeFlag() {
+	void testCreateRefWithManySourcesSyncsAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c");
 		var ref = new Ref();
 		ref.setUrl(URL);
 		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
 
 		var sent = captureUpdateRef(() -> ingest.create("", ref));
 
-		assertThat(sent.getMetadata().isCascade()).isTrue();
-		assertThat(mapper.domainToDto(sent).getMetadata().isCascade()).isTrue();
+		assertThat(sent.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateRefWithManySourcesDefersToCascade() {
+		createSources(URL + "a", URL + "b", URL + "c");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isTrue();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+	}
+
+	@Test
+	void testUpdateRefSyncSourcesUpdatesAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c", URL + "d", URL + "e");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c", URL + "d"));
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "e"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update, true);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+		assertThat(responses(URL + "d")).isNullOrEmpty();
+		assertThat(responses(URL + "e")).containsExactly(URL);
 	}
 
 	@Test
