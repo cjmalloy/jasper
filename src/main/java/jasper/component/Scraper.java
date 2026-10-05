@@ -91,7 +91,7 @@ public class Scraper {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
 		var existing = refRepository.findOneByUrlAndOrigin(url, origin);
-		existing.ifPresent(ref -> tagger.debug(ref, "Scraping existing Ref through file cache"));
+		existing.ifPresent(ref -> tagger.debug(ref, "Scraping existing Ref"));
 		var data = proxy.fetchString(url, origin, existing.isPresent());
 		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
