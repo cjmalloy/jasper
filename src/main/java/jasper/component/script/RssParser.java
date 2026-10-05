@@ -422,6 +422,7 @@ public class RssParser {
 		if (isBlank(url)) return;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		tagger.debug(ref, "RSS feed queuing existing Ref for cache");
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 }
