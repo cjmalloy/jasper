@@ -21,6 +21,12 @@ springdoc:
   api-docs:
     enabled: false
 ---
+logging:
+  level:
+    com.rometools: ERROR
+    org.hibernate.orm.jdbc.batch: OFF
+    org.hibernate.orm.jdbc.error: OFF
+    org.hibernate.engine.jdbc.spi: OFF
 feign:
   circuitbreaker:
     enabled: true
@@ -93,6 +99,12 @@ management:
 spring:
   application:
     name: jasper
+  cloud:
+    kubernetes:
+      discovery:
+        enabled: false
+        catalog-services-watch:
+          enabled: false
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file
@@ -104,6 +116,9 @@ spring:
         - api-docs
         # Uncomment to activate TLS for the dev profile
         #- tls
+  http:
+    converters:
+      preferred-json-mapper: jackson2
   jmx:
     enabled: false
   data:
@@ -131,8 +146,9 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+        implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
   liquibase:
+    analytics-enabled: false
     change-log: classpath:config/liquibase/master.xml
   messages:
     basename: i18n/messages
@@ -153,12 +169,6 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   task:
-    execution:
-      thread-name-prefix: jasper-task-
-      pool:
-        core-size: 2
-        max-size: 50
-        queue-capacity: 10000
     scheduling:
       thread-name-prefix: jasper-scheduling-
       pool:
@@ -205,7 +215,7 @@ jasper:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"
   #   allowed-methods: "*"
   #   allowed-headers: "*"
-  #   exposed-headers: "Authorization,Link,X-Total-Count"
+  #   exposed-headers: "Authorization,Link,X-Total-Count,Content-Disposition"
   #   allow-credentials: true
   #   max-age: 1800
   api-docs:
@@ -226,8 +236,3 @@ jasper:
         url: https://virtserver.swaggerhub.com/cjmalloy/Jasper/1.2.0
   security:
     content-security-policy: "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
-
-logging:
-  level:
-    org.hibernate.orm.jdbc.batch: OFF
-    org.hibernate.engine.jdbc.spi: OFF

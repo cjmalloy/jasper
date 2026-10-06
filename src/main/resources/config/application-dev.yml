@@ -90,7 +90,7 @@ jasper:
     allowed-origins: "http://localhost:4200,https://localhost:4200"
     allowed-methods: "*"
     allowed-headers: "*"
-    exposed-headers: "Authorization,Link,X-Total-Count"
+    exposed-headers: "Authorization,Link,X-Total-Count,Content-Disposition"
     allow-credentials: true
     max-age: 1800
 

@@ -1,6 +1,5 @@
-package jasper.component.delta;
+package jasper.component.script;
 
-import jakarta.annotation.PostConstruct;
 import jasper.component.FileCache;
 import jasper.component.Tagger;
 import jasper.domain.Ref;
@@ -14,11 +13,8 @@ import static jasper.util.Logging.getMessage;
 
 @Profile("proxy & file-cache")
 @Component
-public class AsyncCacheScraper implements Async.AsyncRunner {
-	private static final Logger logger = LoggerFactory.getLogger(AsyncCacheScraper.class);
-
-	@Autowired
-	Async async;
+public class DeltaCache {
+	private static final Logger logger = LoggerFactory.getLogger(DeltaCache.class);
 
 	@Autowired
 	FileCache fileCache;
@@ -26,13 +22,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 	@Autowired
 	Tagger tagger;
 
-	@PostConstruct
-	void init() {
-		async.addAsyncTag("_plugin/delta/cache", this);
-	}
-
-	@Override
-	public void run(Ref ref) throws Exception {
+	public void runScript(Ref ref) {
 		logger.info("{} Caching {}", ref.getOrigin(), ref.getUrl());
 		tagger.tag(ref.getUrl(), ref.getOrigin(), "-_plugin/delta/cache", "_plugin/cache");
 		try {
@@ -40,7 +30,7 @@ public class AsyncCacheScraper implements Async.AsyncRunner {
 		} catch (Exception e) {
 			tagger.attachError(ref.getOrigin(),
 				tagger.plugin(ref.getUrl(), ref.getOrigin(), "_plugin/cache", null, "-_plugin/delta/cache"),
-				"Error Fetching for async scrape", getMessage(e));
+				"Error Fetching for _plugin/delta/cache", getMessage(e));
 		}
 	}
 }

@@ -52,12 +52,33 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testDebugRefWriteAttachesLogs() {
+		tagger.tag(URL, "", "+plugin/debug");
+
+		var logs = refRepository.findAll().stream()
+			.filter(r -> r.hasTag("+plugin/log"))
+			.toList();
+		assertThat(logs).hasSize(1);
+		assertThat(logs.getFirst().getSources()).containsExactly(URL);
+		assertThat(logs.getFirst().getTitle()).isEqualTo("+plugin/debug Ingest create");
+		assertThat(logs.getFirst().getComment()).contains("jasper.component.Tagger.tag");
+	}
+
+	@Test
+	void testNonDebugRefWriteDoesNotAttachLogs() {
+		tagger.tag(URL, "", "test");
+
+		assertThat(refRepository.findAll().stream().filter(r -> r.hasTag("+plugin/log")))
+			.isEmpty();
+	}
+
+	@Test
 	void testTagRef() {
 		tagger.tag(URL, "", "test");
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}
@@ -70,7 +91,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}
@@ -81,7 +102,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}
@@ -94,7 +115,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("test");
 	}
@@ -105,7 +126,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
 	}
@@ -118,7 +139,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
 	}
@@ -129,7 +150,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
 	}
@@ -149,10 +170,10 @@ public class TaggerIT {
 			.isTrue();
 		assertThat(refRepository.existsByUrlAndOrigin(URL + 4, "@other"))
 			.isTrue();
-		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + 1, "@other").get();
-		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + 2, "@other").get();
-		var fetched3 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + 3, "@other").get();
-		var fetched4 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL + 4, "@other").get();
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL + 1, "@other").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		var fetched3 = refRepository.findOneByUrlAndOrigin(URL + 3, "@other").get();
+		var fetched4 = refRepository.findOneByUrlAndOrigin(URL + 4, "@other").get();
 		assertThat(fetched1.getTags())
 			.contains("plugin/test");
 		assertThat(fetched2.getTags())
@@ -171,7 +192,7 @@ public class TaggerIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@other").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
 	}

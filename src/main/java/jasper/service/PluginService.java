@@ -28,6 +28,8 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.PluginSpec.sort;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class PluginService {
@@ -65,7 +67,7 @@ public class PluginService {
 	@Cacheable(value = "plugin-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public PluginDto get(String qualifiedTag) {
-		return pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
+		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
@@ -84,9 +86,11 @@ public class PluginService {
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
-				auth.<Plugin>tagReadSpec()
-					.and(filter.spec()),
-				pageable)
+				sort(
+					auth.<Plugin>tagReadSpec()
+						.and(filter.spec()),
+					pageable),
+				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 
@@ -101,7 +105,7 @@ public class PluginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var plugin = pluginRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
+		var plugin = pluginRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (plugin == null) {
 			created = true;
 			plugin = new Plugin();

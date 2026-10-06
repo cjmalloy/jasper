@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.security.interfaces.RSAPublicKey;
@@ -33,7 +35,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
+import static jasper.domain.User.merge;
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.parentOrigin;
 import static jasper.domain.proj.HasOrigin.parts;
@@ -43,7 +47,10 @@ import static jasper.repository.spec.QualifiedTag.concat;
 import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Component
@@ -77,7 +84,11 @@ public class ConfigCache {
 	@Autowired
 	ComponentDtoMapper dtoMapper;
 
+	@Autowired
+	ConfigCache self;
+
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
+	Set<Consumer<ServerConfig>> rootListeners = ConcurrentHashMap.newKeySet();
 
 	@PostConstruct
 	public void init() {
@@ -95,7 +106,7 @@ public class ConfigCache {
 				// Race to init
 			}
 		}
-		if (userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user" + props.getLocalOrigin()).isEmpty()) {
+		if (userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin()).isEmpty()) {
 			try {
 				var user = new User();
 				user.setTag("+user");
@@ -151,13 +162,14 @@ public class ConfigCache {
 
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
-		return userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
+		if (isEmpty(qualifiedTag)) return null;
+		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
 			.orElse(null);
 	}
 
-	@Cacheable(value = "external-user-cache", unless = "#result == null")
-	public Optional<String> getUserByExternalId(String origin, String externalId) {
-		return userRepository.findOneByOriginAndExternalId(origin, externalId);
+	@Cacheable("external-user-cache")
+	public Optional<User> getUserByExternalId(String origin, String externalId) {
+		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
 	}
 
 	public User createUser(String tag, String origin, String externalId) {
@@ -177,14 +189,14 @@ public class ConfigCache {
 
 	@Cacheable(value = "user-cache", key = "'+user'")
 	public User user() {
-		return userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user" + props.getLocalOrigin())
+		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
 	@Cacheable(value = "config-cache", key = "#tag + #origin + '@' + #url")
 	public <T> T getConfig(String url, String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
-		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin)
+		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.map(r -> r.getPlugin(tag, toValueType))
 			.orElse(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType));
 	}
@@ -230,9 +242,11 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
+		if (!pluginRepository.existsByQualifiedTag(tag + origin)) return empty();
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
-			.map(n -> objectMapper.convertValue(n, toValueType));
+			.map(n -> objectMapper.convertValue(n, toValueType))
+			.or(() -> ofNullable(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType)));
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
@@ -258,6 +272,22 @@ public class ConfigCache {
 			.or(() -> getTemplateConfig("_config/server", props.getLocalOrigin(), ServerConfig.class))
 			.orElse(ServerConfig.builderFor(props.getOrigin()).build())
 			.wrap(props);
+	}
+
+	public void rootUpdate(Consumer<ServerConfig> listener) {
+		listener.accept(self.root());
+		rootListeners.add(listener);
+	}
+
+	@ServiceActivator(inputChannel = "templateRxChannel")
+	public void handleTemplateUpdate(Message<TemplateDto> message) {
+		var template = message.getPayload();
+		if (isBlank(template.getTag())) return;
+		if (isNotBlank(template.getOrigin())) return;
+		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
+			logger.debug("Server config template updated, updating listeners");
+			rootListeners.forEach(listener -> listener.accept(self.root()));
+		}
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/index'")

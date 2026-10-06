@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -28,7 +29,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
@@ -95,6 +95,7 @@ public class SecurityConfiguration {
 		logger.info("MAX ROLE:                 {}", props.getMaxRole());
 		logger.info("MIN ROLE:                 {}", props.getMinRole());
 		logger.info("MIN WRITE ROLE:           {}", props.getMinWriteRole());
+		logger.info("MIN FETCH ROLE:           {}", props.getMinFetchRole());
 		logger.info("MIN CONFIG ROLE:          {}", props.getMinConfigRole());
 		logger.info("MIN READ BACKUPS ROLE:    {}", props.getMinReadBackupsRole());
 		logger.info("AUTH HEADERS:             {}", props.isAllowAuthHeaders() ? "ENABLED" : "-");
@@ -180,8 +181,8 @@ public class SecurityConfiguration {
 	}
 
 	@Bean
-	public DefaultWebSecurityExpressionHandler webSecurityExpressionHandler() {
-		DefaultWebSecurityExpressionHandler expressionHandler = new DefaultWebSecurityExpressionHandler();
+	public DefaultMethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+		var expressionHandler = new DefaultMethodSecurityExpressionHandler();
 		expressionHandler.setRoleHierarchy(roleHierarchy());
 		return expressionHandler;
 	}

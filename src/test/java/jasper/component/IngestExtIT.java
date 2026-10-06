@@ -7,7 +7,6 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.repository.ExtRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -50,7 +49,6 @@ public class IngestExtIT {
 			.isTrue();
 	}
 
-	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateExtFails() {
 		var existing = new Ext();
@@ -66,7 +64,6 @@ public class IngestExtIT {
 			.isTrue();
 	}
 
-	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new Ext();
@@ -99,7 +96,7 @@ public class IngestExtIT {
 
 		assertThat(extRepository.existsByQualifiedTag("test"))
 			.isTrue();
-		var fetched = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
+		var fetched = extRepository.findOneByQualifiedTag("test").get();
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
 	}
@@ -122,7 +119,7 @@ public class IngestExtIT {
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
+			var fetched1 = extRepository.findOneByQualifiedTag("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -157,10 +154,10 @@ public class IngestExtIT {
 
 			assertThat(extRepository.existsByQualifiedTag("test"))
 				.isTrue();
-			var fetched1 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("test").get();
+			var fetched1 = extRepository.findOneByQualifiedTag("test").get();
 			assertThat(fetched1.getName())
 				.isEqualTo("First");
-			var fetched2 = extRepository.findFirstByQualifiedTagOrderByModifiedDesc("other").get();
+			var fetched2 = extRepository.findOneByQualifiedTag("other").get();
 			assertThat(fetched2.getName())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())

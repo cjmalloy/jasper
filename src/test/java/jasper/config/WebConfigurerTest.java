@@ -7,7 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
+import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockServletContext;
@@ -73,13 +73,13 @@ class WebConfigurerTest {
     @Test
     void shouldCustomizeServletContainer() {
         env.setActiveProfiles("prod");
-        UndertowServletWebServerFactory container = new UndertowServletWebServerFactory();
+        var container = new TomcatServletWebServerFactory();
         webConfigurer.customize(container);
-        assertThat(container.getMimeMappings().get("abs")).isEqualTo("audio/x-mpeg");
-        assertThat(container.getMimeMappings().get("html")).isEqualTo("text/html");
-        assertThat(container.getMimeMappings().get("json")).isEqualTo("application/json");
-        if (container.getDocumentRoot() != null) {
-            assertThat(container.getDocumentRoot()).isEqualTo(new File("target/classes/static/"));
+        assertThat(container.getSettings().getMimeMappings().get("abs")).isEqualTo("audio/x-mpeg");
+        assertThat(container.getSettings().getMimeMappings().get("html")).isEqualTo("text/html");
+        assertThat(container.getSettings().getMimeMappings().get("json")).isEqualTo("application/json");
+        if (container.getSettings().getDocumentRoot() != null) {
+            assertThat(container.getSettings().getDocumentRoot()).isEqualTo(new File("target/classes/static/"));
         }
     }
 

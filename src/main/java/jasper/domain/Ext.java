@@ -52,18 +52,9 @@ public class Ext implements Tag {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode config;
 
-	@Id
-	@Column(updatable = false)
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
-
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int nesting;
-
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int levels;
 
 	@JsonIgnore
 	public String getQualifiedTag() {

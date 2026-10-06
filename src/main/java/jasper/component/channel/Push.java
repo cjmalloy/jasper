@@ -1,6 +1,5 @@
 package jasper.component.channel;
 
-import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.Replicator;
 import jasper.component.Tagger;
@@ -10,6 +9,8 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.TaskScheduler;
@@ -59,7 +60,7 @@ public class Push {
 	private Map<String, Instant> queued = new ConcurrentHashMap<>();
 	private Map<String, Set<Remote>> pushes = new ConcurrentHashMap<>();
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		for (var origin : configs.root().scriptOrigins("+plugin/origin/push")) {
 			// TODO: redo on template change
@@ -68,7 +69,8 @@ public class Push {
 	}
 
 	private void watch(HasTags update) {
-		var remote = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(update.getUrl(), update.getOrigin())
+		if (!configs.root().script("+plugin/origin/push", update.getOrigin())) return;
+		var remote = refRepository.findOneByUrlAndOrigin(update.getUrl(), update.getOrigin())
 			.orElseThrow();
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
@@ -100,7 +102,7 @@ public class Push {
 			if (pushes.containsKey(origin)) {
 				var deleted = new HashSet<Remote>();
 				pushes.get(origin).forEach(target -> {
-					var remote = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(target.url, target.origin).orElse(null);
+					var remote = refRepository.findOneByUrlAndOrigin(target.url, target.origin).orElse(null);
 					if (remote != null && !remote.hasTag("+plugin/error")) {
 						logger.info("{} Pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						try  {

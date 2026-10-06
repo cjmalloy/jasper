@@ -1,6 +1,5 @@
 package jasper.config;
 
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
@@ -8,6 +7,7 @@ import org.springframework.boot.autoconfigure.task.TaskSchedulingProperties;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,14 +33,6 @@ class AsyncConfigurationTest {
         taskSchedulingProperties.setThreadNamePrefix("scheduler-");
         taskSchedulingProperties.getPool().setSize(2);
         asyncConfiguration.taskSchedulingProperties = taskSchedulingProperties;
-        asyncConfiguration.meterRegistry = new SimpleMeterRegistry();
-    }
-
-    @Test
-    void shouldCreateWebSocketExecutor() {
-        ExecutorService executor = asyncConfiguration.getWebsocketExecutor();
-
-        assertThat(executor).isNotNull();
     }
 
     @Test
@@ -48,6 +40,7 @@ class AsyncConfigurationTest {
         ExecutorService executor = asyncConfiguration.getAsyncExecutor();
 
         assertThat(executor).isNotNull();
+        verifyVirtualThreadExecutor(executor);
     }
 
     @Test
@@ -56,5 +49,20 @@ class AsyncConfigurationTest {
 
         assertThat(scheduler).isNotNull();
         assertThat(scheduler.getThreadNamePrefix()).isEqualTo("scheduler-");
+    }
+
+    /**
+     * Verify that the executor uses virtual threads by submitting a task and checking thread properties.
+     */
+    private void verifyVirtualThreadExecutor(ExecutorService executor) {
+        AtomicBoolean isVirtual = new AtomicBoolean(false);
+        try {
+            executor.submit(() -> {
+                isVirtual.set(Thread.currentThread().isVirtual());
+            }).get();
+            assertThat(isVirtual.get()).isTrue();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to verify virtual thread executor", e);
+        }
     }
 }

@@ -21,6 +21,10 @@ public class Index implements Serializable {
 	@Builder.Default
 	private boolean alts = true;
 	@Builder.Default
+	private boolean responses = true;
+	@Builder.Default
+	private boolean internalResponses = true;
+	@Builder.Default
 	private boolean fulltext = true;
 	@Builder.Default
 	private boolean published = true;

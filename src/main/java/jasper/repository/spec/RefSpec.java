@@ -2,17 +2,24 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.none;
+import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
@@ -116,40 +123,6 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
-	public static Specification<Ref> hasNoTags() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.tags)),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class, root.get(Ref_.tags)),
-					cb.literal(0)));
-	}
-
-	public static Specification<Ref> hasNoSources() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.sources)),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class, root.get(Ref_.sources)),
-					cb.literal(0)));
-	}
-
-	public static Specification<Ref> hasNoResponses() {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("responses"))),
-				cb.equal(
-					cb.function("jsonb_array_length", Long.class,
-						cb.function("jsonb_object_field", Object.class,
-							root.get(Ref_.metadata),
-							cb.literal("responses"))),
-					cb.literal(0)));
-	}
-
 	public static Specification<Ref> hasNoPluginResponses(String plugin) {
 		return (root, query, cb) ->
 			cb.or(
@@ -198,7 +171,7 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
 	}
 
 	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
@@ -212,66 +185,47 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + user + "?url=", root.get(Ref_.url)))));
+						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
 	}
 
-	private static Expression<Object> getTagsExpression(Root<Ref> root, CriteriaBuilder cb) {
-		return cb.function("COALESCE", Object.class,
-			cb.function("jsonb_object_field", Object.class,
-				root.get(Ref_.metadata),
-				cb.literal("expandedTags")),
-			root.get(Ref_.tags),
-			cb.literal("[]")
-		);
+	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
+		var expanded = cb.function("jsonb_expanded_tags", Object.class, root.get(Ref_.metadata));
+		return cb.or(
+			cb.and(
+				cb.isNotNull(expanded),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, expanded, cb.literal(tag)))),
+			cb.and(
+				cb.isNull(expanded),
+				cb.isNotNull(root.get(Ref_.tags)),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
-		return (root, query, cb) -> cb.isTrue(
-			cb.function("jsonb_exists", Boolean.class,
-				getTagsExpression(root, cb),
-				cb.literal(tag)));
+		return (root, query, cb) -> tagExists(root, cb, tag);
 	}
 
 	public static Specification<Ref> hasNoChildTag(String tag) {
 		return (root, query, cb) -> cb.isFalse(
 			cb.like(
-				cb.function("jsonb_extract_path_text", String.class,
-					root.get(Ref_.tags),
-					cb.literal("{}")),
-				"%\"" + tag + "/%"));
+				cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+				"%\"" + tag.replace("_", "\\_") + "/%",
+				'\\'));
 	}
 
 	public static Specification<Ref> hasDownwardTag(String tag) {
 		if (isPublicTag(tag)) {
-			return (root, query, cb) -> cb.isTrue(
-				cb.function("jsonb_exists", Boolean.class,
-					getTagsExpression(root, cb),
-					cb.literal(tag)));
+			return (root, query, cb) ->
+				tagExists(root, cb, tag);
 		} else if (tag.startsWith("_")) {
-			return (root, query, cb) -> cb.isTrue(
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(tag)),
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal("+" + publicTag(tag))),
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(publicTag(tag))))
-				));
+			return (root, query, cb) -> cb.or(
+				tagExists(root, cb, tag),
+				tagExists(root, cb, "+" + publicTag(tag)),
+				tagExists(root, cb, publicTag(tag)));
 		} else {
 			// Protected tag
-			return (root, query, cb) -> cb.isTrue(
-				cb.or(
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(tag)),
-					cb.function("jsonb_exists", Boolean.class,
-						getTagsExpression(root, cb),
-						cb.literal(publicTag(tag)))
-				));
+			return (root, query, cb) -> cb.or(
+				tagExists(root, cb, tag),
+				tagExists(root, cb, publicTag(tag)));
 		}
 	}
 
@@ -347,5 +301,61 @@ public class RefSpec {
 					root.get(Ref_.metadata),
 					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
+	}
+
+	/**
+	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
+	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
+	 * Sort columns that target JSONB fields use the pattern "metadata->plugins->{pluginTag}"
+	 * or generic JSONB paths like "metadata->field->subfield".
+	 *
+	 * @param spec the base specification to add sorting to
+	 * @param pageable the page request containing sort orders
+	 * @return a new Specification with sorting applied for all fields
+	 */
+	public static Specification<Ref> sort(Specification<Ref> spec, Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) {
+			return spec;
+		}
+		// Collect all sort orders to apply in a single specification
+		var orders = pageable.getSort().toList();
+		return spec.and((root, query, cb) -> {
+			if (query.getResultType() == Long.class || query.getResultType() == long.class) {
+				return null; // Don't apply ordering to count queries
+			}
+			var jpaOrders = new ArrayList<Order>();
+			for (Sort.Order order : orders) {
+				var property = order.getProperty();
+				var ascending = order.isAscending();
+				Expression<?> expr;
+				if (property.startsWith("plugins->plugin/user/vote:")) {
+					// Handle vote sorting patterns using registered functions
+					var voteType = property.substring("plugins->plugin/user/vote:".length());
+					if ("top".equals(voteType)) {
+						expr = cb.coalesce(cb.function("vote_top", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
+					} else if ("score".equals(voteType)) {
+						expr = cb.coalesce(cb.function("vote_score", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
+					} else if ("decay".equals(voteType)) {
+						expr = cb.coalesce(cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published)), cb.literal(0.0));
+					} else {
+						expr = null;
+					}
+				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
+					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
+				} else if (property.endsWith(":len")) {
+					var fieldName = property.substring(0, property.length() - ":len".length());
+					if ("origin".equals(fieldName)) {
+						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
+					} else {
+						expr = SortSpec.createArrayLengthExpression(root, cb, fieldName);
+					}
+				} else {
+					expr = root.get(property);
+				}
+				if (expr != null) jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
+			}
+			if (!jpaOrders.isEmpty()) query.orderBy(jpaOrders);
+			return null;
+		});
 	}
 }

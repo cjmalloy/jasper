@@ -10,11 +10,23 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  allow:
+    - dependency-name: "*"
+  ignore:
+    # Docker ignores use Bundler/RubyGems requirements. Tags like
+    # 3-amazoncorretto-25-debian parse as prereleases between 3.a and 3.0,
+    # while 3.x.x tags remain allowed.
+    - dependency-name: "maven"
+      versions: [">= 3.a, < 3.0"]
 - package-ecosystem: maven
   directory: /
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
   groups:
     spring-boot:
       patterns:
@@ -25,11 +37,45 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
   groups:
     gatling:
       patterns:
         - "*gatling*"
 - package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+- package-ecosystem: docker
+  target-branch: v1.3
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  allow:
+    - dependency-name: "*"
+  ignore:
+    # Docker ignores use Bundler/RubyGems requirements. Tags like
+    # 3-amazoncorretto-25-debian parse as prereleases between 3.a and 3.0,
+    # while 3.x.x tags remain allowed.
+    - dependency-name: "maven"
+      versions: [">= 3.a, < 3.0"]
+- package-ecosystem: maven
+  target-branch: v1.3
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
+- package-ecosystem: github-actions
+  target-branch: v1.3
   directory: /
   schedule:
     interval: daily

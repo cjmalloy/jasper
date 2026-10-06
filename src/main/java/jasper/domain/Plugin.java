@@ -1,6 +1,7 @@
 package jasper.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -58,24 +59,15 @@ public class Plugin implements Tag {
 	private ObjectNode config;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private ObjectNode defaults;
+	private JsonNode defaults;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@SchemaValid
 	private ObjectNode schema;
 
-	@Id
-	@Column(updatable = false)
 	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
-
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int nesting;
-
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(tag, '/'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int levels;
 
 	@JsonIgnore
 	public String getQualifiedTag() {

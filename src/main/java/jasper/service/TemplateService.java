@@ -28,6 +28,8 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.TemplateSpec.sort;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class TemplateService {
@@ -65,7 +67,7 @@ public class TemplateService {
 	@Cacheable(value = "template-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public TemplateDto get(String qualifiedTag) {
-		return templateRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
+		return templateRepository.findOneByQualifiedTag(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
 	}
@@ -83,9 +85,11 @@ public class TemplateService {
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Page<TemplateDto> page(TagFilter filter, Pageable pageable) {
 		return templateRepository.findAll(
-			auth.<Template>tagReadSpec()
-				.and(filter.spec()),
-			pageable)
+			sort(
+				auth.<Template>tagReadSpec()
+					.and(filter.spec()),
+				pageable),
+			of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 
@@ -100,7 +104,7 @@ public class TemplateService {
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var template = templateRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
+		var template = templateRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (template == null) {
 			created = true;
 			template = new Template();

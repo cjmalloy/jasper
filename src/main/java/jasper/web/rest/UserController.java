@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
@@ -17,7 +18,7 @@ import jasper.service.UserService;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
 import org.hibernate.validator.constraints.Length;
-import org.springdoc.api.annotations.ParameterObject;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,7 @@ import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/user")
 @Validated

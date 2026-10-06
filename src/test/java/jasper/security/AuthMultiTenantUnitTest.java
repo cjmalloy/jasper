@@ -75,10 +75,10 @@ public class AuthMultiTenantUnitTest {
 
 	RefRepository getRefRepo(Ref ...refs) {
 		var mock = mock(RefRepository.class);
-		when(mock.findFirstByUrlAndOriginOrderByModifiedDesc(anyString(), anyString()))
+		when(mock.findOneByUrlAndOrigin(anyString(), anyString()))
 			.thenReturn(Optional.empty());
 		for (var ref : refs) {
-			when(mock.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin()))
+			when(mock.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
 				.thenReturn(Optional.of(ref));
 		}
 		return mock;
@@ -260,6 +260,18 @@ public class AuthMultiTenantUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_PublicTagWriteAccessFailed() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().add("+custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteRef_UserTag() {
 		var user = getUser("+user/test@other");
 		var auth = getAuth(user, USER);
@@ -267,6 +279,14 @@ public class AuthMultiTenantUnitTest {
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserUrl() {
+		var auth = getAuth(getUser("+user/test@other"), USER);
+
+		assertThat(auth.canWriteRef("tag:/user/test?url=https://jasperkm.info/", "@other"))
 			.isTrue();
 	}
 
@@ -287,6 +307,30 @@ public class AuthMultiTenantUnitTest {
 		var user = getUser("_user/test@other");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWriteAccessFailed() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().add("_user/test");
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWithOtherWriteAccess() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().addAll(List.of("_user/test", "+custom"));
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test", "+custom");
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
@@ -323,6 +367,18 @@ public class AuthMultiTenantUnitTest {
 		user.getTagWriteAccess().add("+custom");
 		var auth = getAuth(user, USER);
 		var ref = getRef("+custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_LockedFailed() {
+		var user = getUser("+user/test@other");
+		user.getWriteAccess().add("+custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("+custom", "locked");
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
@@ -391,6 +447,14 @@ public class AuthMultiTenantUnitTest {
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("custom"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanAddTag_PublicUserTag() {
+		var auth = getAuth(getUser("+user/test@other"), USER);
+
+		assertThat(auth.canAddTag("user/other"))
 			.isTrue();
 	}
 

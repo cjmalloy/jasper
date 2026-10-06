@@ -1,7 +1,9 @@
 package jasper.service;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.component.ConfigCache;
 import jasper.component.Storage;
+import jasper.config.Props;
 import jasper.domain.proj.HasOrigin;
 import jasper.repository.ExtRepository;
 import jasper.repository.PluginRepository;
@@ -27,6 +29,12 @@ import static jasper.security.AuthoritiesConstants.ADMIN;
 @Service
 public class OriginService {
 	private static final Logger logger = LoggerFactory.getLogger(OriginService.class);
+
+	@Autowired
+	Props props;
+
+	@Autowired
+	ConfigCache configs;
 
 	@Autowired
 	RefRepository refRepository;
@@ -81,5 +89,11 @@ public class OriginService {
 			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		}
 		logger.info("{} Finished deleting origin {} older than {} in {}", auth.getOrigin(), origin, olderThan, Duration.between(start, Instant.now()));
+		if (props.getOrigin().equals(origin)) {
+			configs.clearUserCache();
+			configs.clearPluginCache();
+			configs.clearTemplateCache();
+			configs.clearConfigCache();
+		}
 	}
 }

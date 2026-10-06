@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
-import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
-
-import static jasper.repository.spec.QualifiedTag.concat;
 
 @Profile("kubernetes")
 @Component
@@ -36,8 +33,11 @@ public class TunnelServerImplK8s implements TunnelServer {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		if (configs.root().getSshOrigins().isEmpty()) return;
-		generateHostKey();
+		configs.rootUpdate(root -> {
+			if (root.getSshOrigins().isEmpty()) return;
+			generateHostKey();
+			generateConfig();
+		});
 	}
 
 	@ServiceActivator(inputChannel = "userRxChannel")
@@ -47,16 +47,7 @@ public class TunnelServerImplK8s implements TunnelServer {
 		if ("+user".equals(user.getTag()) && props.getLocalOrigin().equals(user.getOrigin())) {
 			generateHostKey();
 		}
-		if (configs.root().getSshOrigins().contains(user.getOrigin())) {
-			generateConfig();
-		}
-	}
-
-	@ServiceActivator(inputChannel = "templateRxChannel")
-	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		if (configs.root().getSshOrigins().isEmpty()) return;
-		var template = message.getPayload();
-		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
+		if (configs.root().ssh(user.getOrigin())) {
 			generateConfig();
 		}
 	}

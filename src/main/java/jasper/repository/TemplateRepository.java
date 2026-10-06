@@ -67,7 +67,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
-		ORDER BY t.levels ASC""")
+		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
 
 	@Query("""
@@ -81,7 +81,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
-		ORDER BY t.levels ASC""")
+		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
 	@Query("""

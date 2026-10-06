@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 @Transactional(readOnly = true)
@@ -63,32 +62,36 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 
 	@Modifying(clearAutomatically = true)
 	@Query("""
-		DELETE FROM User user
-		WHERE user.origin = :origin
-			AND user.modified <= :olderThan""")
+		DELETE FROM User u
+		WHERE u.origin = :origin
+			AND u.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	List<User> findAllByOriginAndAuthorizedKeysIsNotNull(String origin);
+	@Query("""
+		SELECT u FROM User u
+		WHERE u.origin = :origin
+			AND jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
-	@Query(nativeQuery = true, value = """
-		SELECT tag FROM users
-		WHERE users.origin = :origin
-			AND jsonb_exists(users.external->'ids', :externalId)
-		LIMIT 1""")
-	Optional<String> findOneByOriginAndExternalId(String origin, String externalId);
+	@Query("""
+		SELECT u FROM User u
+		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
+		ORDER BY collate_c(u.tag)""")
+	List<User> findAllByQualifiedSuffix(String tag);
 
-	// TODO: Sync cache
 	@Modifying
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE users users
-		SET external = jsonb_set(
-				COALESCE(users.external, '{}'::jsonb),
-				'{ids}',
-				COALESCE(users.external->'ids', '[]'::jsonb) || to_jsonb(CAST(:externalId as text)),
-				true)
-		WHERE users.tag = :tag
-			AND users.origin = :origin
-			AND NOT COALESCE(jsonb_exists(users.external->'ids', :externalId), false)""")
+	@Query("""
+		UPDATE User u
+		SET u.external = jsonb_set(
+			COALESCE(u.external, cast_to_jsonb('{}')),
+			'{ids}',
+			jsonb_array_append(COALESCE(jsonb_object_field(u.external, 'ids'), cast_to_jsonb('[]')), :externalId),
+			true
+		)
+		WHERE u.tag = :tag
+			AND u.origin = :origin
+			AND NOT COALESCE(jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId), false)""")
 	int setExternalId(String tag, String origin, String externalId);
 }

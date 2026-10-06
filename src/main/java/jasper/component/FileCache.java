@@ -1,5 +1,6 @@
 package jasper.component;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
@@ -59,6 +61,7 @@ public class FileCache {
 	Tagger tagger;
 
 	@Timed(value = "jasper.cache")
+	@Bulkhead(name = "recycler")
 	public void clearDeleted(String origin) {
 		logger.info("{} Purging file cache", origin);
 		var start = Instant.now();
@@ -118,7 +121,9 @@ public class FileCache {
 
 	@Timed(value = "jasper.cache")
 	public InputStream fetch(String url, String origin, boolean refresh) {
-		var existingCache = cache(url, origin);
+		var existing = stat(url, origin);
+		tagger.debug(existing, "File cache fetch (refresh: " + refresh + ")");
+		var existingCache = getCache(existing);
 		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
 			return storage.stream(origin, CACHE, existingCache.getId());
@@ -140,7 +145,11 @@ public class FileCache {
 			var remote = configs.getRemote(origin);
 			var pull = getPull(remote);
 			if (remote != null && (url.startsWith("cache:") || pull.isCacheProxy())) {
-				id = url.substring("cache:".length());
+				if (url.startsWith("cache:")) {
+					id = url.substring("cache:".length());
+				} else {
+					id = cache(url, origin).getId();
+				}
 				if (storage.exists(origin, CACHE, id)) return storage.stream(origin, CACHE, id);
 				return null;
 			}
@@ -158,12 +167,14 @@ public class FileCache {
 				.mimeType(mimeType)
 				.contentLength(storage.size(origin, CACHE, id))
 				.build();
+			for (var other : createArchive(url, origin, cache)) cacheLater(url, other, origin);
+			cache.setContentLength(storage.size(origin, CACHE, id));
 			tagger.plugin(url, origin, "_plugin/cache", cache, "-_plugin/delta/cache");
 			return storage.stream(origin, CACHE, id);
 		} catch (ScrapeProtocolException e) {
 			throw e;
 		} catch (Exception e) {
-			logger.error("{} Error Fetching {}", origin, url, e);
+			logger.error("{} Error Fetching {}", origin, url);
 			var err = tagger.plugin(url, origin, "_plugin/cache", null, "-_plugin/delta/cache");
 			tagger.attachError(origin, err,
 				"Error Fetching: " + getMessage(e));
@@ -173,13 +184,11 @@ public class FileCache {
 				tagger.plugin(url, origin, "_plugin/cache", cache);
 			}
 			return null;
-		} finally {
-			for (var other : createArchive(url, origin, cache(url, origin))) cacheLater(other, origin);
 		}
 	}
 
 	private Ref stat(String url, String origin) {
-		return refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
+		return refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 	}
 
 	private Cache cache(String url, String origin) {
@@ -268,15 +277,30 @@ public class FileCache {
 	}
 
 	@Timed(value = "jasper.cache")
+	public String overwrite(String url, String origin, InputStream in, String mimeType) throws IOException {
+		var id = storage.store(origin, CACHE, in);
+		var cache = Cache.builder()
+			.id(id)
+			.mimeType(mimeType)
+			.contentLength(storage.size(origin, CACHE, id))
+			.build();
+		tagger.silentPlugin(url, "", origin, "_plugin/cache", cache);
+		return id;
+	}
+
+	@Timed(value = "jasper.cache")
 	public void push(String url, String origin, InputStream in) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
-		storage.storeAt(origin, CACHE, url.substring("cache:".length()), in);
+		var id = url.substring("cache:".length());
+		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		storage.storeAt(origin, CACHE, id, in);
 	}
 
 	@Timed(value = "jasper.cache")
 	public void push(String url, String origin, byte[] data) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
+		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
 		if (storage.exists(origin, CACHE, id)) {
 			storage.overwrite(origin, CACHE, id, data);
 		} else {
@@ -290,20 +314,12 @@ public class FileCache {
 		return storage.exists(origin, CACHE, url.substring("cache:".length()));
 	}
 
-	private String fetchExistingString(String url, String origin) {
-		var ref = stat(url, origin);
-		var cache = getCache(ref);
-		if (cache == null) return null;
-		if (bannedOrBroken(cache)) return null;
-		return new String(storage.get(origin, CACHE, cache.getId()));
-	}
-
 	private List<String> createArchive(String url, String origin, Cache cache) {
 		var moreScrape = new ArrayList<String>();
-		if (cache == null || isBlank(cache.getId())) return moreScrape;
+		if (cache == null || bannedOrBroken(cache)) return moreScrape;
+		Thread.onSpinWait();
 		// M3U8 Manifest
-		var data = fetchExistingString(url, origin);
-		if (data == null) return moreScrape;
+		var data = new String(storage.get(origin, CACHE, cache.getId()), StandardCharsets.UTF_8);
 		try {
 			var urlObj = URI.create(url).toURL();
 			if (data.trim().startsWith("#") && (urlObj.getPath().endsWith(".m3u8") || cache.getMimeType().equalsIgnoreCase("application/x-mpegURL") || cache.getMimeType().equalsIgnoreCase("application/vnd.apple.mpegurl"))) {
@@ -311,6 +327,7 @@ public class FileCache {
 				// TODO: Set archive base URL
 				var basePath = isNotBlank(origin) ? "/api/v1/proxy?origin=" + origin + "&url=" : "/api/v1/proxy?url=";
 				var buffer = new StringBuilder();
+				var cdn = configs.getRemote(origin) == null && storage.getCdnUrl(origin, CACHE, "probe") != null;
 				for (var line : data.split("\n")) {
 					if (line.startsWith("#")) {
 						buffer.append(line).append("\n");
@@ -319,20 +336,49 @@ public class FileCache {
 							line = hostPath + "/" + line;
 						}
 						moreScrape.add(line);
-						buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						var cdnUrl = cdn ? cdnUrl(url, line, origin) : null;
+						if (cdnUrl != null) {
+							buffer.append(cdnUrl).append("\n");
+						} else {
+							buffer.append(basePath).append(URLEncoder.encode(line, StandardCharsets.UTF_8)).append("\n");
+						}
 					}
 				}
-				overwrite(url, origin, buffer.toString().getBytes());
+				storage.overwrite(origin, CACHE, cache.getId(), buffer.toString().getBytes(StandardCharsets.UTF_8));
 			}
 		} catch (Exception e) {}
 		return moreScrape;
 	}
 
-	private void cacheLater(String url, String origin) {
+	/**
+	 * Reserve a cache id for a manifest entry so it can be linked to the CDN
+	 * before it has been cached. Concurrent reservations agree on a single id.
+	 * The manifest is added as a source, since cacheLater skips reserved entries.
+	 * @return the CDN URL, or null if the entry should be proxied
+	 */
+	private String cdnUrl(String source, String url, String origin) {
+		url = fixUrl(url);
+		var ref = stat(url, origin);
+		var existing = getCache(ref);
+		if (existing == null) {
+			var id = UUID.randomUUID().toString();
+			if (storage.getCdnUrl(origin, CACHE, id) == null) return null;
+			ref = tagger.initPlugin(source, url, origin, "_plugin/cache", Cache.builder().id(id).build(), "_plugin/delta/cache");
+			existing = getCache(ref);
+		}
+		if (existing == null || bannedOrBroken(existing)) return null;
+		// Only link files already stored under the current routes, or pending files that will be
+		if (!ref.hasTag("_plugin/delta/cache") && !storage.exists(origin, CACHE, existing.getId())) return null;
+		return storage.getCdnUrl(origin, CACHE, existing.getId());
+	}
+
+	private void cacheLater(String source, String url, String origin) {
 		if (isBlank(url)) return;
 		url = fixUrl(url);
 		var ref = stat(url, origin);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		tagger.debug(ref, "Archive " + source + " queuing existing Ref for cache");
+		ref.addSource(source);
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 

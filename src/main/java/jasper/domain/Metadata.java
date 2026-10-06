@@ -20,7 +20,7 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(NON_EMPTY)
@@ -37,6 +37,8 @@ public class Metadata implements Serializable {
 	private boolean obsolete = false;
 	@JsonInclude(NON_DEFAULT)
 	private boolean regen = false;
+	@JsonInclude(NON_DEFAULT)
+	private boolean cascade = false;
 
 	public void addResponse(String url) {
 		if (responses == null) {

@@ -14,6 +14,8 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.MessageHeaders;
@@ -28,6 +30,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.domain.proj.HasOrigin.formatOrigin;
 import static jasper.domain.proj.HasTags.formatTag;
 import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.matchesTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static org.springframework.messaging.support.MessageBuilder.createMessage;
 
@@ -68,15 +71,25 @@ public class Messages {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	boolean ready = false;
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void init() {
+		ready = true;
+	}
+
 	@Async
 	public void updateRef(Ref ref) {
 		// TODO: Debounce
 		var update = mapper.domainToDto(ref);
 		sendAndRetry(() -> refTxChannel.send(createMessage(update, refHeaders(ref.getOrigin(), update))));
 		if (update.getTags() != null) {
-			for (var tag : update.getTags()) {
-				for (var path : ref.getExpandedTags()) {
-					sendAndRetry(() -> tagTxChannel.send(createMessage(tag, tagHeaders(ref.getOrigin(), path))));
+			for (var path : ref.getExpandedTags()) {
+				var headers = tagHeaders(ref.getOrigin(), path);
+				for (var tag : update.getTags()) {
+					if (matchesTag(path, tag)) {
+						sendAndRetry(() -> tagTxChannel.send(createMessage(tag, headers)));
+					}
 				}
 			}
 		}
@@ -177,6 +190,7 @@ public class Messages {
 	}
 
 	private void sendAndRetry(Runnable fn, int tries) {
+		if (!ready) return;
 		try {
 			fn.run();
 		} catch (MessageDeliveryException e) {

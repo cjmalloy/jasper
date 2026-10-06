@@ -1,6 +1,6 @@
 package jasper.config;
 
-import org.springdoc.core.GroupedOpenApi;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -22,7 +22,7 @@ public class OpenApiConfiguration {
             .group("jasper")
             .packagesToScan("jasper.web.rest")
             .pathsToMatch(properties.getDefaultIncludePattern())
-			.addOpenApiCustomiser(openApi -> {
+			.addOpenApiCustomizer(openApi -> {
 				openApi.getInfo().setTitle(properties.getTitle());
 				openApi.getInfo().setDescription(properties.getDescription());
 				openApi.getInfo().setVersion(properties.getVersion());

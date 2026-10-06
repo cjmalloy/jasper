@@ -1,6 +1,5 @@
 package jasper.security;
 
-import io.jsonwebtoken.Claims;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -15,11 +14,15 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -46,7 +49,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -237,7 +239,7 @@ public class Auth {
 	 */
 	public boolean freshLogin() {
 		var iat = getClaims().getIssuedAt();
-		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		if (iat != null && iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
@@ -295,10 +297,10 @@ public class Auth {
 		// Mods can read anything
 		if (hasRole(MOD)) return true;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url) && isLoggedIn() && userUrl(url, getUserTag().tag)) return true;
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
-		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		return maybeExisting.filter(this::canReadRef).isPresent();
 	}
 
@@ -314,7 +316,7 @@ public class Auth {
 		// If we can write to the existing we are granted permission
 		// We do not need to check if we have write access to the updated Ref,
 		// as self revocation is allowed
-		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		// We do need to check if we are allowed to add any of the new tags
 		// by calling canAddTag on each one
 		return newTags(ref.getTags(), maybeExisting.map(Ref::getTags)).allMatch(this::canAddTag);
@@ -331,10 +333,10 @@ public class Auth {
 		// Minimum role for writing
 		if (!minWriteRole()) return false;
 		// User URL
-		if (userUrl(url)) return isLoggedIn() && userUrl(url, getUserTag().tag);
+		if (userUrl(url)) return hasRole(MOD) || isLoggedIn() && userUrl(url, getUserTag().tag);
 		// Tag URLs
-		if (tagUrl(url)) return canWriteTag(urlToTag(url) + origin);
-		var maybeExisting = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
+		if (tagUrl(url)) return hasRole(MOD) || canWriteTag(urlToTag(url) + origin);
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) {
 			// If we're creating, simply having the role USER is enough
 			return hasRole(USER);
@@ -349,7 +351,10 @@ public class Auth {
 		// Check if owner
 		if (owns(qualifiedTags)) return true;
 		// Check access tags
-		return captures(getWriteAccess(), qualifiedTags);
+		return captures(getWriteAccess(), qualifiedTags.stream()
+			// Remove public tags to avoid downward matching
+			.filter(tag -> !isPublicTag(tag.tag))
+			.toList());
 	}
 
 	/**
@@ -588,7 +593,7 @@ public class Auth {
 	 * Does the user's tag match this tag?
 	 */
 	public boolean isUser(QualifiedTag qt) {
-		return isLoggedIn() && getUserTag().matchesDownwards(qt);
+		return !isPublicTag(qt.tag) && isLoggedIn() && getUserTag().matchesDownwards(qt);
 	}
 
 	public boolean isUser(String qualifiedTag) {
@@ -618,6 +623,39 @@ public class Auth {
 			.toList();
 		if (tagList.isEmpty()) return true;
 		return captures(getTagReadAccess(), tagList);
+	}
+
+	/**
+	 * Silently remove sorts that reference private plugins the user cannot read.
+	 */
+	public Pageable pageable(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
+			.filter(order -> {
+				var property = order.getProperty();
+				String afterPrefix;
+				if (property.startsWith("plugins->")) {
+					afterPrefix = property.substring("plugins->".length());
+				} else if (property.startsWith("metadata->plugins->")) {
+					afterPrefix = property.substring("metadata->plugins->".length());
+				} else {
+					return true;
+				}
+				int end = afterPrefix.indexOf("->");
+				if (end == -1) end = afterPrefix.indexOf(":");
+				var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
+				if (!isPrivateTag(tag)) return true;
+				if (isUser(tag)) return true;
+				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
+			})
+			.toList();
+		if (filtered.size() == orders.size()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
 	}
 
 	/**
@@ -659,6 +697,15 @@ public class Auth {
 		// Lowest valid role for configuring admin settings is EDITOR
 		if (!hasAnyRole(EDITOR)) return false;
 		return hasAnyRole(props.getMinConfigRole()) && hasAnyRole(security().getMinConfigRole());
+	}
+
+	/**
+	 * Has the minimum role to fetch external resources.
+	 */
+	public boolean minFetchRole() {
+		if (hasAnyRole(BANNED)) return false;
+		if (hasAnyRole(ADMIN)) return true;
+		return hasAnyRole(props.getMinFetchRole()) && hasAnyRole(security().getMinFetchRole());
 	}
 
 	/**
@@ -865,7 +912,7 @@ public class Auth {
 	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> a.getDetails() instanceof UserDto
+			user = auth.map(a -> a.getDetails() instanceof User
 				? (User) a.getDetails()
 				: null);
 			if (isLoggedIn() && user.isEmpty()) {
@@ -916,6 +963,7 @@ public class Auth {
 			}
 			readAccess.addAll(getClaimQualifiedTags(security().getReadAccessClaim()));
 			if (isLoggedIn()) {
+				readAccess.add(getUserTag());
 				readAccess.addAll(selectors(getSubOrigins(), getUser()
 						.map(User::getReadAccess)
 						.orElse(List.of())));
@@ -1031,7 +1079,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = claims().build();
+				claims = Claims.EMPTY;
 			}
 		}
 		return claims;

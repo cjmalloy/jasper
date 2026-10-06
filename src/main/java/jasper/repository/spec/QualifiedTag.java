@@ -69,6 +69,10 @@ public class QualifiedTag {
 		return Tag.matchesDownwards(tag, qt.tag) && origin.equals(qt.origin) && not == qt.not;
 	}
 
+	public boolean captures(String c) {
+		return captures(selector(c));
+	}
+
 	public boolean captures(QualifiedTag c) {
 		if (!tag.isEmpty() && !(tag.equals(c.tag) || c.tag.startsWith(tag + "/"))) return not;
 		if (!origin.endsWith("*") && !origin.equals(c.origin)) return not;
@@ -112,26 +116,24 @@ public class QualifiedTag {
 	}
 
 	/**
-	 * Selector that represents a fixed origin, but may be a wildcard or fixed tag.
+	 * Selector that represents an origin, but may be a wildcard or fixed tag.
 	 * Missing origins will be set to the default origin.
 	 */
 	public static QualifiedTag tagOriginSelector(String qt) {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
 		if (qt.startsWith("*")) throw new UnsupportedOperationException();
-		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
 		if (!qt.contains("@")) qt += "@"; // Missing origin implies default origin, not wildcard
 		return new QualifiedTag(qt);
 	}
 
 	/**
-	 * Selector that represents a fixed tag, but may be a wildcard or fixed origin.
+	 * Selector that represents a fixed tag and origin.
 	 * Missing origins will be set to the default origin.
 	 */
 	public static QualifiedTag qt(String qt) {
 		if (qt.startsWith("!")) throw new UnsupportedOperationException();
-		if (qt.startsWith("*")) throw new UnsupportedOperationException();
 		if (qt.startsWith("@")) throw new UnsupportedOperationException();
-		if (qt.endsWith("@*")) throw new UnsupportedOperationException();
+		if (qt.contains("*")) throw new UnsupportedOperationException();
 		if (!qt.contains("@")) qt += "@"; // Missing origin implies default origin, not wildcard
 		return new QualifiedTag(qt);
 	}

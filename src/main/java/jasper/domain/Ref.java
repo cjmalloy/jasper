@@ -3,7 +3,7 @@ package jasper.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vladmihalcea.hibernate.type.search.PostgreSQLTSVectorType;
+import io.hypersistence.utils.hibernate.type.search.PostgreSQLTSVectorType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -23,7 +23,6 @@ import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -66,13 +65,13 @@ public class Ref implements HasTags {
 	private String comment;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode plugins;
@@ -80,58 +79,19 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("ARRAY_LENGTH(regexp_split_to_array(origin, '.'), 1)")
-	@Setter(AccessLevel.NONE)
-	private int nesting;
-
-	@Formula("COALESCE(metadata->>'modified', to_char(modified, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'))")
-	@Setter(AccessLevel.NONE)
-	private String metadataModified;
-
-	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
+	@Formula("SUBSTR(url, 1, INSTR(url, ':'))")
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
-	@Formula("metadata->'obsolete'")
-	@Setter(AccessLevel.NONE)
-	private Boolean obsolete;
-
-	@Formula("COALESCE(jsonb_array_length(tags), 0)")
-	@Setter(AccessLevel.NONE)
-	private String tagCount;
-
-	@Formula("COALESCE(jsonb_array_length(sources), 0)")
-	@Setter(AccessLevel.NONE)
-	private String sourceCount;
-
-	@Formula("COALESCE(jsonb_array_length(metadata->'responses'), 0)")
-	@Setter(AccessLevel.NONE)
-	private String responseCount;
-
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/comment')::int, 0)")
-	@Setter(AccessLevel.NONE)
-	private String commentCount;
-
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
-	private String voteCount;
-
-	@Formula("COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)")
-	private String voteScore;
-
-	@Formula("floor((3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0)) * pow(CASE WHEN 3 + COALESCE((metadata->'plugins'->>'plugin/user/vote/up')::int, 0) > COALESCE((metadata->'plugins'->>'plugin/user/vote/down')::int, 0) THEN 0.5 ELSE 2 END, extract(epoch FROM age(published)) / (4 * 60 * 60)))")
-	private String voteScoreDecay;
-
-	@Column
+	@Column(nullable = false)
 	@NotNull
 	private Instant published = Instant.now();
 
 	@CreatedDate
-	@Column(updatable = false)
+	@Column(updatable = false, nullable = false)
 	private Instant created = Instant.now();
 
-	@Id
-	@Column(updatable = false)
-	@LastModifiedDate
+	@Column(nullable = false)
 	private Instant modified = Instant.now();
 
 	@Type(PostgreSQLTSVectorType.class)
@@ -202,7 +162,6 @@ public class Ref implements HasTags {
 	@JsonIgnore
 	public Ref addTag(String tag) {
 		if (isBlank(tag)) return this;
-		if (isBlank(tag)) return this;
 		if (tags == null) {
 			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
@@ -221,6 +180,14 @@ public class Ref implements HasTags {
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;
 		for (var t : toAdd) addTag(t);
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref addSource(String source) {
+		if (isBlank(source)) return this;
+		if (sources == null) sources = new ArrayList<>();
+		sources.add(source);
 		return this;
 	}
 
@@ -248,7 +215,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
-		if (jsonNode == null) {
+		if (jsonNode == null || jsonNode instanceof JsonNode n && n.isNull()) {
 			if (plugins != null) plugins.remove(tag);
 			return this;
 		}
@@ -260,9 +227,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasPlugin(String tag) {
-		if (plugins == null) return false;
-		if (!plugins.has(tag)) return false;
-		return plugins.get(tag) != null;
+		return plugins != null && plugins.hasNonNull(tag);
 	}
 
 	@JsonIgnore

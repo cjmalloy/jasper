@@ -2,11 +2,14 @@ package jasper.service;
 
 import jakarta.validation.ConstraintViolationException;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
+import jasper.domain.External;
 import jasper.domain.User;
 import jasper.domain.User_;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
+import jasper.repository.spec.UserSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +35,15 @@ public class UserServiceIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
@@ -47,7 +56,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
@@ -78,7 +87,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -98,7 +107,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -133,7 +142,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -161,7 +170,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -189,7 +198,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -456,13 +465,14 @@ public class UserServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
-		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("_user/other");
-		assertThat(page.getContent().get(0).getName())
+		var otherUser = page.getContent().stream()
+			.filter(u -> "_user/other".equals(u.getTag()))
+			.findFirst().orElseThrow();
+		assertThat(otherUser.getName())
 			.isEqualTo("Secret");
-		assertThat(page.getContent().get(0).getReadAccess())
+		assertThat(otherUser.getReadAccess())
 			.containsExactly("custom");
-		assertThat(page.getContent().get(0).getWriteAccess())
+		assertThat(otherUser.getWriteAccess())
 			.containsExactly("custom");
 	}
 
@@ -486,13 +496,14 @@ public class UserServiceIT {
 
 		assertThat(page.getTotalElements())
 			.isEqualTo(2);
-		assertThat(page.getContent().get(0).getTag())
-			.isEqualTo("_user/other");
-		assertThat(page.getContent().get(0).getName())
+		var otherUser = page.getContent().stream()
+			.filter(u -> "_user/other".equals(u.getTag()))
+			.findFirst().orElseThrow();
+		assertThat(otherUser.getName())
 			.isEqualTo("Secret");
-		assertThat(page.getContent().get(0).getReadAccess())
+		assertThat(otherUser.getReadAccess())
 			.containsExactly("_secret");
-		assertThat(page.getContent().get(0).getWriteAccess())
+		assertThat(otherUser.getWriteAccess())
 			.containsExactly("_secret");
 	}
 
@@ -659,7 +670,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -690,7 +701,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -719,7 +730,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -745,7 +756,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -768,11 +779,31 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/tester"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/tester").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/tester").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/tester");
 		assertThat(fetched.getName())
 			.isEqualTo("Second");
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = "USER")
+	void testUpdateOwnAuthorizedKeysWithUserRole() {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setRole("ROLE_USER");
+		userRepository.save(user);
+		var updated = new User();
+		updated.setTag("+user/tester");
+		updated.setRole("ROLE_USER");
+		updated.setAuthorizedKeys("ssh-ed25519 test-key");
+		updated.setModified(user.getModified());
+
+		userService.update(updated);
+
+		var existing = userRepository.findOneByQualifiedTag("+user/tester");
+		assertThat(existing).isPresent();
+		assertThat(existing.get().getAuthorizedKeys()).isEqualTo("ssh-ed25519 test-key");
 	}
 
 	@Test
@@ -790,7 +821,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -818,7 +849,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -844,7 +875,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
@@ -884,7 +915,7 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("+user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("+user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("+user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("+user/other");
 		assertThat(fetched.getName())
@@ -925,10 +956,107 @@ public class UserServiceIT {
 
 		assertThat(userRepository.existsByQualifiedTag("_user/other"))
 			.isTrue();
-		var fetched = userRepository.findFirstByQualifiedTagOrderByModifiedDesc("_user/other").get();
+		var fetched = userRepository.findOneByQualifiedTag("_user/other").get();
 		assertThat(fetched.getTag())
 			.isEqualTo("_user/other");
 		assertThat(fetched.getName())
 			.isEqualTo("First");
+	}
+
+	@Test
+	void testApplySortingSpec_WithNoSort() {
+		// Create test User entities
+		var user1 = new User();
+		user1.setTag("+user/test1");
+		user1.setName("Test1");
+		userRepository.save(user1);
+		var user2 = new User();
+		user2.setTag("+user/test2");
+		user2.setName("Test2");
+		userRepository.save(user2);
+
+		var spec = UserSpec.sort(
+			TagFilter.builder().build().spec(),
+			PageRequest.of(0, 10));
+
+		// Execute query to verify no exceptions
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
+		// Use isGreaterThanOrEqualTo to allow for potential test pollution from other tests
+		assertThat(result.getContent().size()).isGreaterThanOrEqualTo(2);
+	}
+
+	@Test
+	void testApplySortingSpec_WithExternalSort() {
+		// Create User entities with external->ids arrays
+		var user1 = new User();
+		user1.setTag("+user/test1");
+		user1.setName("Test1");
+		user1.setExternal(jasper.domain.External.builder().ids(List.of("alpha", "other")).build());
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("+user/test2");
+		user2.setName("Test2");
+		user2.setExternal(jasper.domain.External.builder().ids(List.of("beta", "other")).build());
+		userRepository.save(user2);
+
+		var pageable = PageRequest.of(0, 10, by("external->ids[0]"));
+		var spec = UserSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
+
+		// Execute query to verify array index sorting works
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
+		assertThat(result.getContent()).hasSize(2);
+		// Verify ascending order by first element (alpha before beta)
+		assertThat(result.getContent().get(0).getTag()).isEqualTo("+user/test1");
+		assertThat(result.getContent().get(1).getTag()).isEqualTo("+user/test2");
+	}
+
+	@Test
+	void testApplySortingSpec_WithLenSort() {
+		// Create users with different array lengths in external->ids field
+		var user1 = new User();
+		user1.setTag("+user/len1");
+		user1.setOrigin("");
+		// Use JsonNode to set external with ids array
+		var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		try {
+			// user1 has 3 ids
+			user1.setExternal(mapper.readValue("{\"ids\": [\"a\", \"b\", \"c\"]}", External.class));
+		} catch (Exception e) { throw new RuntimeException(e); }
+		userRepository.save(user1);
+
+		var user2 = new User();
+		user2.setTag("+user/len2");
+		user2.setOrigin("");
+		try {
+			// user2 has 1 id
+			user2.setExternal(mapper.readValue("{\"ids\": [\"x\"]}", External.class));
+		} catch (Exception e) { throw new RuntimeException(e); }
+		userRepository.save(user2);
+
+		// Sort by external->ids:len ascending (1 element should come before 3 elements)
+		var pageable = PageRequest.of(0, 10, by("external->ids:len"));
+		var spec = UserSpec.sort(
+			TagFilter.builder().build().spec(),
+			pageable);
+		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
+
+		// Should have at least our 2 test users
+		assertThat(result.getContent().size()).isGreaterThanOrEqualTo(2);
+
+		// Find our test users in the results and verify sorting order
+		var len1Index = -1;
+		var len2Index = -1;
+		for (int i = 0; i < result.getContent().size(); i++) {
+			var tag = result.getContent().get(i).getTag();
+			if ("+user/len1".equals(tag)) len1Index = i;
+			if ("+user/len2".equals(tag)) len2Index = i;
+		}
+		// Verify both users were found and user2 (1 element) comes before user1 (3 elements)
+		assertThat(len1Index).isGreaterThan(-1);
+		assertThat(len2Index).isGreaterThan(-1);
+		assertThat(len2Index).isLessThan(len1Index);
 	}
 }

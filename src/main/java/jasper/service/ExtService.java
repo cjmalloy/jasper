@@ -29,6 +29,8 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.ExtSpec.sort;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class ExtService {
@@ -66,7 +68,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canReadTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public ExtDto get(String qualifiedTag) {
-		return extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
+		return extRepository.findOneByQualifiedTag(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ext " + qualifiedTag));
 	}
@@ -84,9 +86,11 @@ public class ExtService {
 	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
-				auth.<Ext>tagReadSpec()
-					.and(filter.spec()),
-				pageable)
+				sort(
+					auth.<Ext>tagReadSpec()
+						.and(filter.spec()),
+					pageable),
+				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}
 
@@ -111,7 +115,7 @@ public class ExtService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var ext = extRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
+		var ext = extRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (ext == null) {
 			created = true;
 			ext = new Ext();

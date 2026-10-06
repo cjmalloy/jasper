@@ -1,15 +1,17 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.component.dto.ComponentDtoMapper;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,6 +29,10 @@ import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.util.AopTestUtils.getTargetObject;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -38,6 +45,9 @@ public class IngestIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	ComponentDtoMapper mapper;
 
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
@@ -58,7 +68,6 @@ public class IngestIT {
 			.isTrue();
 	}
 
-	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testCreateDuplicateRefFails() {
 		var existing = new Ref();
@@ -74,7 +83,6 @@ public class IngestIT {
 			.isTrue();
 	}
 
-	@Disabled("Not applicable in archive mode - multiple versions with same natural key are allowed")
 	@Test
 	void testDoubleIngestRefFails() {
 		var ref1 = new Ref();
@@ -107,7 +115,7 @@ public class IngestIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 			.isTrue();
-		var fetched = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getTitle())
 			.isEqualTo("Second");
 	}
@@ -130,7 +138,7 @@ public class IngestIT {
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 				.isTrue();
-			var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+			var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "").get();
 			assertThat(fetched1.getTitle())
 				.isEqualTo("First");
 			assertThat(fetched1.getModified())
@@ -165,10 +173,10 @@ public class IngestIT {
 
 			assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
 				.isTrue();
-			var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "").get();
+			var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "").get();
 			assertThat(fetched1.getTitle())
 				.isEqualTo("First");
-			var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(OTHER_URL, "").get();
+			var fetched2 = refRepository.findOneByUrlAndOrigin(OTHER_URL, "").get();
 			assertThat(fetched2.getTitle())
 				.isEqualTo("Second");
 			assertThat(fetched2.getModified())
@@ -246,7 +254,7 @@ public class IngestIT {
 		ref1.setOrigin("@origin1");
 		ref1.setTitle("First");
 		ingest.create("", ref1);
-		assertThat(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1")).get().extracting(r -> r.getMetadata().isObsolete()).isNotEqualTo(true);
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@origin1")).get().extracting(r -> r.getMetadata().isObsolete()).isNotEqualTo(true);
 
 		TimeUnit.MILLISECONDS.sleep(1);
 
@@ -256,8 +264,8 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
-		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
@@ -269,9 +277,9 @@ public class IngestIT {
 		ref3.setTitle("Third");
 		ingest.create("", ref3);
 
-		fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
-		fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
-		var fetched3 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin3").get();
+		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
+		var fetched3 = refRepository.findOneByUrlAndOrigin(URL, "@origin3").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched3.getMetadata().isObsolete()).isFalse();
@@ -293,8 +301,8 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
-		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
@@ -307,8 +315,8 @@ public class IngestIT {
 		update.setModified(fetched1.getModified());
 		ingest.update("", update);
 
-		var fetched1Updated = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
-		fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
+		var fetched1Updated = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
 		assertThat(fetched1Updated.getMetadata().isObsolete()).isFalse();
 		assertThat(fetched2.getMetadata().isObsolete()).isTrue();
 	}
@@ -329,15 +337,15 @@ public class IngestIT {
 		ref2.setTitle("Second");
 		ingest.create("", ref2);
 
-		var fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
-		var fetched2 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin2").get();
+		var fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
+		var fetched2 = refRepository.findOneByUrlAndOrigin(URL, "@origin2").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isTrue();
 		assertThat(fetched2.getMetadata().isObsolete()).isFalse();
 
 		ingest.delete("", URL, "@origin2");
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@origin2")).isFalse();
-		fetched1 = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(URL, "@origin1").get();
+		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isFalse();
 	}
 
@@ -357,7 +365,7 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		var latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
 		try {
@@ -366,7 +374,7 @@ public class IngestIT {
 			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
 		}
 
-		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
 		try {
@@ -396,7 +404,7 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		var latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		var latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeA, ZoneOffset.UTC));
 		try {
@@ -405,7 +413,7 @@ public class IngestIT {
 			setField(ingest, "ensureUniqueModifiedClock", Clock.systemUTC());
 		}
 
-		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		latestB.setModified(timeB);
 		ingest.push("", latestB, false, false);
@@ -431,12 +439,12 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		Ref latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		latestA.setModified(timeA);
 		ingest.push("", latestA, false, false);
 
-		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		setField(ingest, "ensureUniqueModifiedClock", Clock.fixed(timeB, ZoneOffset.UTC));
 		try {
@@ -466,12 +474,12 @@ public class IngestIT {
 		Instant timeA = Instant.now();
 		Instant timeB = timeA.minus(100, ChronoUnit.MILLIS);
 
-		Ref latestA = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginA.getUrl(), refOriginA.getOrigin()).get();
+		Ref latestA = refRepository.findOneByUrlAndOrigin(refOriginA.getUrl(), refOriginA.getOrigin()).get();
 		latestA.setComment("...move A...");
 		latestA.setModified(timeA);
 		ingest.push("", latestA, false, false);
 
-		Ref latestB = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(refOriginB.getUrl(), refOriginB.getOrigin()).get();
+		Ref latestB = refRepository.findOneByUrlAndOrigin(refOriginB.getUrl(), refOriginB.getOrigin()).get();
 		latestB.setComment("...move B...");
 		latestB.setModified(timeB);
 		ingest.push("", latestB, false, false);
@@ -481,5 +489,184 @@ public class IngestIT {
 		assertEquals(1, activeRefs, "There should be exactly one non-obsolete Ref after concurrent updates.");
 	}
 
+	@Test
+	void testUpdateResponse() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setModified(existing.getModified());
 
+		ingest.updateResponse("", ref);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testUpdateResponseWithTags() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setTags(List.of("test/tag"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setTags(List.of("test/tag", "another/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle())
+			.isEqualTo("Second");
+		assertThat(fetched.getTags())
+			.contains("test/tag", "another/tag");
+		assertThat(fetched.getMetadata())
+			.isNotNull();
+		assertThat(fetched.getMetadata().getExpandedTags())
+			.isNotNull();
+	}
+
+	@Test
+	void testUpdateResponseThrowsNotFoundExceptionWhenRefDoesNotExist() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Test");
+
+		assertThatThrownBy(() -> ingest.updateResponse("", ref))
+			.hasMessageContaining("Ref");
+	}
+
+	@Test
+	void testUpdateResponseWithRngPlugin() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setTags(new ArrayList<>(List.of("plugin/rng", "+plugin/rng/uuid1")));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setTags(new ArrayList<>(List.of("plugin/rng")));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTags())
+			.contains("+plugin/rng/uuid1");
+	}
+
+	Ref captureUpdateRef(Runnable action) {
+		Ingest target = getTargetObject(ingest);
+		var messages = (Messages) getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			action.run();
+			var captor = ArgumentCaptor.forClass(Ref.class);
+			verify(mockMessages).updateRef(captor.capture());
+			return captor.getValue();
+		} finally {
+			setField(target, "messages", messages);
+		}
+	}
+
+	void createSources(String... urls) {
+		for (var url : urls) {
+			var source = new Ref();
+			source.setUrl(url);
+			ingest.create("", source);
+		}
+	}
+
+	List<String> responses(String url) {
+		return refRepository.findOneByUrlAndOrigin(url, "").get().getMetadata().getResponses();
+	}
+
+	@Test
+	void testCreateRefWithManySourcesSyncsAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+
+		var sent = captureUpdateRef(() -> ingest.create("", ref));
+
+		assertThat(sent.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateRefWithManySourcesDefersToCascade() {
+		createSources(URL + "a", URL + "b", URL + "c");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isTrue();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+	}
+
+	@Test
+	void testUpdateRefSyncSourcesUpdatesAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c", URL + "d", URL + "e");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c", URL + "d"));
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "e"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update, true);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+		assertThat(responses(URL + "d")).isNullOrEmpty();
+		assertThat(responses(URL + "e")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateFlaggedRefSendsCascadeFlag() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setSources(List.of(URL + "a"));
+		existing.setMetadata(Metadata.builder().cascade(true).build());
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(URL + "a"));
+		ref.setModified(existing.getModified());
+
+		var sent = captureUpdateRef(() -> ingest.update("", ref));
+
+		assertThat(sent.getMetadata().isCascade()).isTrue();
+		assertThat(mapper.domainToDto(sent).getMetadata().isCascade()).isTrue();
+	}
 }

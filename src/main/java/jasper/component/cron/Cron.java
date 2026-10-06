@@ -1,6 +1,5 @@
 package jasper.component.cron;
 
-import io.github.resilience4j.bulkhead.Bulkhead;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.component.ScriptExecutorFactory;
@@ -22,11 +21,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.util.Logging.getMessage;
-import static java.util.concurrent.CompletableFuture.runAsync;
+import static java.lang.Math.floor;
 
 @Component
 public class Cron {
@@ -50,9 +50,6 @@ public class Cron {
 	@Autowired
 	Watch watch;
 
-	@Autowired
-	Bulkhead scriptBulkhead;
-
 	Map<String, ScheduledFuture<?>> tasks = new ConcurrentHashMap<>();
 	Map<String, CompletableFuture<?>> refs = new ConcurrentHashMap<>();
 
@@ -62,18 +59,19 @@ public class Cron {
 	 * Register a runner for a tag.
 	 */
 	public void addCronTag(String plugin, CronRunner r) {
-		if (!configs.root().script(plugin)) return;
 		tags.put(plugin, r);
 	}
 
 	@PostConstruct
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/cron")) {
-			watch.addWatch(origin, "+plugin/cron", this::schedule);
-		}
-		for (var origin : configs.root().scriptOrigins("+plugin/user/run")) {
-			watch.addWatch(origin, "+plugin/user/run", this::run);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/cron")) {
+				watch.addWatch(origin, "+plugin/cron", this::schedule);
+			}
+			for (var origin : root.scriptOrigins("+plugin/user/run")) {
+				watch.addWatch(origin, "+plugin/user/run", this::run);
+			}
+		});
 	}
 
 	private void schedule(HasTags ref) {
@@ -93,11 +91,11 @@ public class Cron {
 			if (cancelled) logger.info("{} Unscheduled due to error {}: {}", ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			return;
 		}
-		if (!hasScheduler(ref)) return;
 		var origin = ref.getOrigin();
 		if (!configs.root().script("+plugin/cron", origin)) return;
+		if (!hasScheduler(ref)) return;
 		var url = ref.getUrl();
-		var config = getCron(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null));
+		var config = getCron(refRepository.findOneByUrlAndOrigin(url, origin).orElse(null));
 		if (config == null || config.getInterval() == null) return;
 		if (config.getInterval().toMinutes() < 1) {
 			tagger.attachError(url, origin, "Cron Error: Interval too small " + config.getInterval());
@@ -105,8 +103,9 @@ public class Cron {
 			tasks.compute(key, (k, e) -> {
 				if (e != null && !e.isDone()) return e;
 				if (existing == null) logger.info("{} Scheduled every {} {}: {}", ref.getOrigin(), config.getInterval(), ref.getTitle(), ref.getUrl());
+				var jitter = config.getInterval().plusMillis((long) floor(config.getInterval().toMillis() * ThreadLocalRandom.current().nextDouble()));
 				return taskScheduler.scheduleWithFixedDelay(() -> runSchedule(url, origin),
-					Instant.now().plus(config.getInterval()),
+					Instant.now().plus(jitter),
 					config.getInterval());
 			});
 		}
@@ -114,7 +113,8 @@ public class Cron {
 
 	private void run(HasTags target) {
 		var origin = target.getOrigin();
-		var url = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(target.getUrl(), origin)
+		if (!configs.root().script("+plugin/user/run", origin)) return;
+		var url = refRepository.findOneByUrlAndOrigin(target.getUrl(), origin)
 			.map(Ref::getSources)
 			.map(List::getFirst)
 			.orElse(null);
@@ -123,9 +123,8 @@ public class Cron {
 			tagger.remove(target.getUrl(), origin, "+plugin/user/run");
 			return;
 		}
-		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		try {
-			if (!configs.root().script("+plugin/user/run", origin)) throw new RuntimeException();
 			if (ref == null) {
 				logger.warn("{} Can't find Ref (Cannot run on remote origin): {}", origin, url);
 				throw new RuntimeException();
@@ -139,32 +138,25 @@ public class Cron {
 				throw new RuntimeException();
 			}
 			var ran = new HashSet<CronRunner>();
-			tags.forEach((k, v) -> {
+			tags.forEach((tag, v) -> {
 				if (ran.contains(v)) return;
-				if (!hasMatchingTag(ref, k)) return;
-				if (!configs.root().script(k, origin)) return;
+				if (!hasMatchingTag(ref, tag)) return;
+				if (!configs.root().script(tag, ref)) return;
 				refs.compute(getKey(ref), (s, existing) -> {
 					if (existing != null && !existing.isDone()) return existing;
-					return runAsync(() -> {
-						logger.warn("{} Run Tag: {} {}", origin, k, url);
-						scriptBulkhead.executeSupplier(() -> {
-							try {
-								v.run(refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElseThrow());
-								ran.add(v);
-								tagger.removeAllResponses(url, origin, "+plugin/user/run");
-								return null;
-							} catch (Exception e) {
-								logger.error("{} Error in run tag {} ", origin, k);
-								tagger.attachError(url, origin, "Error in run tag " + k, getMessage(e));
-								throw new RuntimeException(e);
-							} finally {
-								refs.remove(s);
-							}
-						});
-					}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-						logger.warn("{} Rate limited {} ", origin, k);
-						tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-						return null;
+					logger.warn("{} Run Tag: {} {}", origin, tag, url);
+					return scriptExecutorFactory.run(tag, origin, url, () -> {
+						try {
+							v.run(refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow());
+							ran.add(v);
+							tagger.removeAllResponses(url, origin, "+plugin/user/run");
+						} catch (Exception e) {
+							logger.error("{} Error in run tag {} ", origin, tag);
+							tagger.attachError(url, origin, "Error in run tag " + tag, getMessage(e));
+							throw new RuntimeException(e);
+						} finally {
+							refs.remove(s);
+						}
 					});
 				});
 			});
@@ -195,7 +187,7 @@ public class Cron {
 	}
 
 	private void runSchedule(String url, String origin) {
-		var ref = refRepository.findFirstByUrlAndOriginOrderByModifiedDesc(url, origin).orElse(null);
+		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref == null) {
 			var key = origin + ":" + url;
 			var existing = tasks.get(key);
@@ -206,32 +198,29 @@ public class Cron {
 			return;
 		}
 		if (ref.hasPluginResponse("+plugin/user/run")) {
+			// Remove tag in case script had failed
+			logger.warn("{} Cancelled possibly stuck run {}:", origin, url);
+			tagger.removeAllResponses(url, origin, "+plugin/user/run");
+			tagger.attachLogs(url, origin, "Cancelled possibly stuck run");
 			// Skip scheduled run since we are running manually
 			return;
 		}
 		var ran = new HashSet<CronRunner>();
-		tags.forEach((k, v) -> {
+		tags.forEach((tag, v) -> {
 			if (ran.contains(v)) return;
-			if (!hasMatchingTag(ref, k)) return;
-			if (!configs.root().script(k, origin)) return;
-			logger.debug("{} Cron Tag: {} {}", origin, k, url);
+			if (!hasMatchingTag(ref, tag)) return;
+			if (!configs.root().script(tag, ref)) return;
+			logger.debug("{} Cron Tag: {} {}", origin, tag, url);
 			refs.compute(getKey(ref), (s, existing) -> {
 				if (existing != null && !existing.isDone()) return existing;
-				return runAsync(() -> {
-					scriptBulkhead.executeSupplier(() -> {
-						try {
-							v.run(ref);
-							ran.add(v);
-						} catch (Exception e) {
-							logger.error("{} Error in cron tag {} ", origin, k);
-							tagger.attachError(url, origin, "Error in cron tag " + k, getMessage(e));
-						}
-						return null;
-					});
-				}, scriptExecutorFactory.get(k, origin)).exceptionally(e -> {
-					logger.warn("{} Rate limited {} ", origin, k);
-					tagger.attachLogs(url, origin, "Rate Limit Hit " + k);
-					return null;
+				return scriptExecutorFactory.run(tag, origin, url, () -> {
+					try {
+						v.run(ref);
+						ran.add(v);
+					} catch (Exception e) {
+						logger.error("{} Error in cron tag {} ", origin, tag);
+						tagger.attachError(url, origin, "Error in cron tag " + tag, getMessage(e));
+					}
 				});
 			});
 		});

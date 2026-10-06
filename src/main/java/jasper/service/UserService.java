@@ -35,6 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.UserSpec.sort;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -45,6 +46,7 @@ import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class UserService {
@@ -81,7 +83,7 @@ public class UserService {
 		if (isBlank(user.getAuthorizedKeys()) && user.getPubKey() != null) {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}
-		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
+		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isPresent()) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
@@ -96,7 +98,7 @@ public class UserService {
 	@Cacheable(value = "user-dto-cache", key = "#qualifiedTag", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
-		return userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag)
+		return userRepository.findOneByQualifiedTag(qualifiedTag)
 							 .map(mapper::domainToDto)
 							 .map(auth::filterUser)
 							 .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -116,9 +118,11 @@ public class UserService {
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
-				auth.<User>tagReadSpec()
-					.and(filter.spec()),
-				pageable)
+				sort(
+					auth.<User>tagReadSpec()
+						.and(filter.spec()),
+					pageable),
+				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto)
 			.map(auth::filterUser);
 	}
@@ -126,7 +130,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant update(User user) {
-		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(user.getQualifiedTag());
+		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		var existing = maybeExisting.get();
 		user.addReadAccess(auth.hiddenTags(existing.getReadAccess()));
@@ -142,7 +146,7 @@ public class UserService {
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var user = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag).orElse(null);
+		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
 		if (user == null) {
 			created = true;
 			user = new User();
@@ -168,7 +172,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
-		var maybeExisting = userRepository.findFirstByQualifiedTagOrderByModifiedDesc(qualifiedTag);
+		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
 		var kp = keyPair();
