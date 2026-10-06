@@ -737,6 +737,8 @@ The `preload` profile lets you preload static files. Zip files in the preload fo
 
 The `scripts` profile enables server side scripting through the `plugin/delta` Plugin.
 
+The `no-metadata` profile skips response metadata (sources/responses) for relay-only servers. See [Metadata](#metadata).
+
 The `archive` profile keeps previous versions of Refs, Exts, Users, Plugins and Templates by adding the
 modified date to the primary key. It is intended for backup/replication and investigations, not for direct
 use. Only PostgreSQL is supported, and enabling the `archive` profile is a one-way migration: going back to
@@ -875,6 +877,10 @@ remaining sources in the background and sends the metadata updates over websocke
 all of its sources are updated immediately; otherwise the revealed version uses the same two-source/cascade process. Like backfill, the cascade
 runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
+
+Relay-only servers that just store and forward Refs can skip response metadata with the `no-metadata` profile.
+Lists of responses, plugin responses and user plugin responses are not generated, the metadata of sources is not
+updated, and the cascade is disabled. Expanded tags and the obsolete flag are still tracked.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the

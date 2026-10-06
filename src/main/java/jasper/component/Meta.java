@@ -56,11 +56,18 @@ public class Meta {
 	@Value("#{environment.matchesProfiles('archive')}")
 	boolean archive;
 
+	@Value("#{environment.matchesProfiles('no-metadata')}")
+	boolean noMetadata;
+
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
+		if (noMetadata) {
+			expandedTagsOnly(ref);
+			return;
+		}
 		ref.setMetadata(Metadata
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
@@ -110,6 +117,16 @@ public class Meta {
 		sources(rootOrigin, ref, existing);
 	}
 
+	/**
+	 * Responses are not tracked when the "no-metadata" profile is active.
+	 */
+	private void expandedTagsOnly(Ref ref) {
+		ref.setMetadata(Metadata
+			.builder()
+			.expandedTags(expandTags(ref.getTags()))
+			.build());
+	}
+
 	public static List<String> expandTags(List<String> tags) {
 		if (tags == null) return new ArrayList<>();
 		var result = new ArrayList<>(tags);
@@ -133,6 +150,7 @@ public class Meta {
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(SYNC_SOURCES)
@@ -188,7 +206,7 @@ public class Meta {
 				regen(rootOrigin, latest);
 				updateMetadata(latest, latest.getMetadata());
 				messages.updateMetadata(latest);
-			} else {
+			} else if (!noMetadata) {
 				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
 					stream.forEach(source -> removeSource(rootOrigin, existing.getUrl(), source, existing));
 				}
@@ -199,6 +217,7 @@ public class Meta {
 		// Creating or updating (not deleting)
 		var cascade = false;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		if (noMetadata) return;
 		if (ref.getSources() != null && ref.getSources().size() > limit) {
 			cascade = true;
 		}
