@@ -151,7 +151,7 @@ public class Meta {
 		source.getMetadata().setRegen(regen);
 		source.getMetadata().setCascade(cascade);
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
+			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
@@ -182,7 +182,7 @@ public class Meta {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
 				}
 				regen(rootOrigin, latest);
-				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getMetadata());
+				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getModified(), latest.getMetadata());
 				messages.updateMetadata(latest);
 			} else {
 				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
@@ -235,7 +235,7 @@ public class Meta {
 				ref.getUrl());
 			source.setMetadata(metadata);
 			try {
-				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
+				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), metadata);
 				messages.updateMetadata(source);
 			} catch (DataAccessException e) {
 logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
@@ -265,7 +265,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 		if (cascade) {
 			ref.getMetadata().setCascade(true);
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+			refRepository.markCascade(ref.getUrl(), ref.getOrigin(), ref.getModified());
 		}
 	}
 
@@ -282,7 +282,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 		source.setMetadata(metadata);
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
+			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), metadata);
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("{} Error updating source metadata for {} {}",

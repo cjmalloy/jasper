@@ -17,6 +17,7 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -60,6 +61,9 @@ public class Ingest {
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
+
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
 
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
@@ -152,7 +156,8 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		messages.deleteRef(maybeExisting.get());
-		refRepository.deleteByUrlAndOrigin(url, origin);
+		// Only removes the exact row, which is the latest version in archive mode
+		refRepository.delete(maybeExisting.get());
 		meta.sources(rootOrigin, null, maybeExisting.get());
 	}
 
@@ -243,18 +248,35 @@ public class Ingest {
 
 	void pushUniqueModified(Ref ref) {
 		try {
-			var updated = refRepository.pushAsyncMetadata(
-				ref.getUrl(),
-				ref.getOrigin(),
-				ref.getTitle(),
-				ref.getComment(),
-				ref.getTags(),
-				ref.getSources(),
-				ref.getAlternateUrls(),
-				ref.getPlugins(),
-				ref.getMetadata(),
-				ref.getPublished(),
-				ref.getModified());
+			int updated;
+			if (archive) {
+				// Only update a repeated push of the same version, otherwise insert a new version
+				updated = refRepository.pushAsyncMetadataVersion(
+					ref.getUrl(),
+					ref.getOrigin(),
+					ref.getTitle(),
+					ref.getComment(),
+					ref.getTags(),
+					ref.getSources(),
+					ref.getAlternateUrls(),
+					ref.getPlugins(),
+					ref.getMetadata(),
+					ref.getPublished(),
+					ref.getModified());
+			} else {
+				updated = refRepository.pushAsyncMetadata(
+					ref.getUrl(),
+					ref.getOrigin(),
+					ref.getTitle(),
+					ref.getComment(),
+					ref.getTags(),
+					ref.getSources(),
+					ref.getAlternateUrls(),
+					ref.getPlugins(),
+					ref.getMetadata(),
+					ref.getPublished(),
+					ref.getModified());
+			}
 			if (updated == 0) {
 				refRepository.save(ref);
 			}

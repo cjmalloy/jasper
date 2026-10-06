@@ -489,7 +489,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		assertThat(refRepository.getRefCascade("")).isEmpty();
 
-		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "", ref.getModified())).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -508,7 +508,7 @@ public class RefRepositoryIT {
 		ref.setOrigin("");
 		refRepository.save(ref);
 
-		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "", ref.getModified())).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -516,15 +516,17 @@ public class RefRepositoryIT {
 
 	@Test
 	void testMarkCascade_FiltersByUrlAndOrigin() {
+		var modified = Instant.now();
 		for (var origin : List.of("@test", "@test.sub")) {
 			var ref = new Ref();
 			ref.setUrl("http://example.com/response");
 			ref.setOrigin(origin);
 			ref.setMetadata(Metadata.builder().build());
+			ref.setModified(modified);
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepository.markCascade("http://example.com/response", "@test")).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "@test", modified)).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();
@@ -550,7 +552,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		var before = refRepository.findOneByUrlAndOrigin("http://example.com/ref", "").orElseThrow();
 
-		assertThat(refRepository.updateMetadata("http://example.com/ref", "", Metadata.builder()
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "", ref.getModified(), Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
 			.responses(new ArrayList<>(List.of("http://example.com/response")))
 			.cascade(true)
@@ -571,15 +573,17 @@ public class RefRepositoryIT {
 
 	@Test
 	void testUpdateMetadata_FiltersByUrlAndOrigin() {
+		var modified = Instant.now();
 		for (var origin : List.of("@test", "@test.sub")) {
 			var ref = new Ref();
 			ref.setUrl("http://example.com/ref");
 			ref.setOrigin(origin);
 			ref.setMetadata(Metadata.builder().build());
+			ref.setModified(modified);
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepository.updateMetadata("http://example.com/ref", "@test", Metadata.builder().cascade(true).build())).isEqualTo(1);
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "@test", modified, Metadata.builder().cascade(true).build())).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/ref", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();

@@ -9,7 +9,6 @@ import java.util.List;
 import static jasper.domain.proj.HasOrigin.nesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.UserSpec.hasAuthorizedKeys;
-import static jasper.repository.spec.UserSpec.isLatest;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public interface TunnelServer {
@@ -25,7 +24,7 @@ public interface TunnelServer {
 				.append("\n# ")
 				.append(isBlank(origin) ? "default" : origin)
 				.append("\n");
-			for (var u : userRepository.findAll(hasAuthorizedKeys().and(isOrigin(origin)).and(isLatest()))) {
+			for (var u : userRepository.findAll(hasAuthorizedKeys().and(isOrigin(origin)))) {
 				if (isBlank(u.getAuthorizedKeys())) continue;
 				if (nesting(u.getOrigin()) > nesting(origin)) continue;
 				logger.debug("Enabling SSH access for {}", u.getQualifiedTag());

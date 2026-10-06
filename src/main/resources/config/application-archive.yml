@@ -2,13 +2,21 @@
 # Spring Boot configuration for the "archive" profile.
 #
 # Keeps every version of Refs, Exts, Users, Plugins and Templates by
-# adding the modified date to the primary key. Lookups return the
-# latest version.
+# adding the modified date to the primary key. Intended for
+# backup/replication and investigations, not for direct use.
 #
-# WARNING: Enabling this profile is a one-way migration. The primary
-# keys are changed on startup, and switching back to non-archive mode
-# requires manually removing old versions and restoring the original
-# primary keys. Only supported on PostgreSQL.
+# - Older versions of Refs are marked obsolete, the same as obsolete
+#   copies from other origins.
+# - Tag delete notices do not hide older versions of Exts, Users,
+#   Plugins or Templates. As a workaround, save a blanked newer version.
+# - Do not serve SSH (tunnels) or user logins from an archive server,
+#   since older user versions, including old authorized keys and roles,
+#   may be returned.
+#
+# WARNING: Only supported on PostgreSQL. Enabling this profile is a
+# one-way migration. The primary keys are changed on startup, and
+# switching back to non-archive mode requires manually removing old
+# versions and restoring the original primary keys.
 # ===================================================================
 
 spring:

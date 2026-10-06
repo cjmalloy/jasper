@@ -22,7 +22,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 	public int backfillMetadata(String origin, int batchSize) {
 		String sql = """
 			WITH rows as (
-				SELECT url, origin from ref
+				SELECT url, origin, modified from ref
 				WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
 				AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
 				LIMIT :batchSize
@@ -39,7 +39,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
 			))
-			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
+			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
 			""";
 		em.flush();
 		int updated = em.createNativeQuery(sql)

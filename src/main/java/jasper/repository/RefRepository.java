@@ -31,7 +31,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		return findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 	}
 
-	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
 	@Modifying
@@ -81,6 +80,39 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			url = :url AND
 			origin = :origin""")
 	int pushAsyncMetadata(
+		String url,
+		String origin,
+		String title,
+		String comment,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
+		ObjectNode plugins,
+		Metadata partialMetadata,
+		Instant published,
+		Instant modified);
+
+	/**
+	 * Archive mode version of {@link #pushAsyncMetadata}: only updates the
+	 * version with the same modified date so a new version is inserted instead.
+	 */
+	@Transactional
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			title = :title,
+			comment = :comment,
+			tags = :tags,
+			sources = :sources,
+			alternateUrls = :alternateUrls,
+			plugins = :plugins,
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			published = :published
+		WHERE
+			url = :url AND
+			origin = :origin AND
+			modified = :modified""")
+	int pushAsyncMetadataVersion(
 		String url,
 		String origin,
 		String title,
@@ -221,14 +253,16 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	// Latest wins: metadata is server-generated and recomputed by cascade/regen.
 	// Concurrent delta writes (addResponse/removePlugins on a stale copy) can lose
 	// an update; the next cascade/regen recompute fixes it.
+	// Matches the modified date so only one version is updated in archive mode.
 	@Modifying
 	@Transactional
 	@Query("""
 		UPDATE Ref r
 		SET r.metadata = :metadata
 		WHERE r.url = :url
-			AND r.origin = :origin""")
-	int updateMetadata(String url, String origin, Metadata metadata);
+			AND r.origin = :origin
+			AND r.modified = :modified""")
+	int updateMetadata(String url, String origin, Instant modified, Metadata metadata);
 
 	@Modifying
 	@Transactional
@@ -236,8 +270,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE Ref r
 		SET r.metadata = jsonb_set(COALESCE(r.metadata, cast_to_jsonb('{}')), '{cascade}', cast_to_jsonb('true'), true)
 		WHERE r.url = :url
-			AND r.origin = :origin""")
-	int markCascade(String url, String origin);
+			AND r.origin = :origin
+			AND r.modified = :modified""")
+	int markCascade(String url, String origin, Instant modified);
 
 	@Modifying
 	@Transactional

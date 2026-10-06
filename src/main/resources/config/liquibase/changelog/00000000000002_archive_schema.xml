@@ -9,7 +9,7 @@
 		This is a one-way migration: going back to non-archive mode requires manually
 		removing old versions and restoring the original primary keys.
 	-->
-	<changeSet author="chris" id="00000000000004" dbms="postgresql">
+	<changeSet author="chris" id="00000000000002" dbms="postgresql">
 		<preConditions onFail="CONTINUE">
 			<changeLogPropertyDefined property="archive" value="true"/>
 		</preConditions>
