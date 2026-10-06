@@ -2,11 +2,13 @@ package jasper.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.IngestExt;
 import jasper.component.IngestPlugin;
 import jasper.component.IngestTemplate;
 import jasper.component.IngestUser;
+import jasper.component.Messages;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -14,37 +16,49 @@ import jasper.domain.Ref_;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.RefView;
-import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.filter.TagFilter;
+import jasper.service.ExtService;
+import jasper.service.PluginService;
+import jasper.service.TemplateService;
+import jasper.service.UserService;
 import jasper.util.Archive;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.verification.VerificationMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
-import static jasper.component.Replicator.deletorTag;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.springframework.data.domain.Sort.by;
 
 @IntegrationTest
@@ -52,6 +66,8 @@ import static org.springframework.data.domain.Sort.by;
 // Use a separate database since the archive migration is one-way
 @TestPropertySource(properties = "spring.datasource.url=jdbc:tc:postgresql:14.2:///jasper-archive?TC_TMPFS=/testtmpfs:rw")
 @DisabledIfSystemProperty(named = "spring.profiles.active", matches = ".*sqlite.*")
+@WithMockUser(value = "+user/tester", roles = "ADMIN")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ArchiveIT {
 	static final String URL = "https://www.example.com/";
 
@@ -91,6 +107,24 @@ public class ArchiveIT {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Autowired
+	ExtService extService;
+
+	@Autowired
+	UserService userService;
+
+	@Autowired
+	PluginService pluginService;
+
+	@Autowired
+	TemplateService templateService;
+
+	@Autowired
+	ConfigCache configCache;
+
+	@MockitoSpyBean
+	Messages messages;
+
 	Instant now;
 
 	@BeforeEach
@@ -101,6 +135,34 @@ public class ArchiveIT {
 		pluginRepository.deleteAll();
 		templateRepository.deleteAll();
 		now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+		clearInvocations(messages);
+	}
+
+	@AfterEach
+	void resetClock() {
+		kinds().forEach(k -> k.setClock(Clock.systemUTC()));
+	}
+
+	List<VersionKind> kinds() {
+		return VersionKind.all(
+			ingest, refRepository,
+			ingestExt, extRepository, extService,
+			ingestUser, userRepository, userService,
+			ingestPlugin, pluginRepository, pluginService,
+			ingestTemplate, templateRepository, templateService,
+			configCache);
+	}
+
+	List<VersionKind> tagKinds() {
+		return kinds().stream().filter(VersionKind::hasDeletor).toList();
+	}
+
+	static VerificationMode sent() {
+		return timeout(2000).times(1);
+	}
+
+	static VerificationMode notSent() {
+		return after(300).never();
 	}
 
 	Ref ref(String origin, String title, Instant modified, String ...tags) {
@@ -173,20 +235,6 @@ public class ArchiveIT {
 			.isFalse();
 		assertThat(version("", now.minusSeconds(10)).getMetadata().isObsolete())
 			.isTrue();
-	}
-
-	@Test
-	void testRepeatedPushUpdatesSameVersion() {
-		push("", "First", now.minusSeconds(10));
-		push("", "Second", now);
-		push("", "Second Edited", now);
-
-		assertThat(refRepository.count())
-			.isEqualTo(2);
-		assertThat(version("", now).getTitle())
-			.isEqualTo("Second Edited");
-		assertThat(version("", now.minusSeconds(10)).getTitle())
-			.isEqualTo("First");
 	}
 
 	@Test
@@ -309,81 +357,11 @@ public class ArchiveIT {
 	}
 
 	@Test
-	void testDeleteAppendsBlankVersion() {
-		push("", "First", now.minusSeconds(20));
-		push("", "Second", now.minusSeconds(10));
-
-		ingest.delete("", URL, "");
-
-		assertThat(refRepository.count())
-			.isEqualTo(3);
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
-			.get()
-			.satisfies(r -> assertThat(Archive.isBlank(r)).isTrue())
-			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isFalse());
-		assertThat(ingest.current(URL, ""))
-			.isEmpty();
-		assertThat(version("", now.minusSeconds(10)).getMetadata().isObsolete())
-			.isTrue();
-		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
-			.isTrue();
-	}
-
-	@Test
-	void testDeleteTombstonePrunes() {
-		push("", "First", now.minusSeconds(20));
-		push("", "Second", now.minusSeconds(10));
-		ingest.delete("", URL, "");
-		push("@other", "Other", now.minusSeconds(5));
-
-		ingest.delete("", URL, "");
-
-		assertThat(refRepository.findAll(isUrl(URL).and(isOrigin(""))))
-			.isEmpty();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other"))
-			.isPresent();
-	}
-
-	@Test
-	void testDeleteNoticePrunes() {
-		push("", "First", now.minusSeconds(20));
-		push("", "", now, "internal", "plugin/delete");
-
-		ingest.delete("", URL, "");
-
-		assertThat(refRepository.count())
-			.isZero();
-	}
-
-	@Test
-	void testDeleteMissingIsNoop() {
-		ingest.delete("", URL, "");
-
-		assertThat(refRepository.count())
-			.isZero();
-	}
-
-	@Test
 	void testCreateExistingRefFails() {
 		push("", "First", now.minusSeconds(10));
 
 		assertThatThrownBy(() -> ingest.create("", ref("", "Again", null)))
 			.isInstanceOf(AlreadyExistsException.class);
-	}
-
-	@Test
-	void testCreateAfterDeleteAddsVersion() {
-		push("", "First", now.minusSeconds(10));
-		ingest.delete("", URL, "");
-
-		ingest.create("", ref("", "Restored", null));
-
-		assertThat(refRepository.count())
-			.isEqualTo(3);
-		assertThat(ingest.current(URL, ""))
-			.get()
-			.extracting(Ref::getTitle)
-			.isEqualTo("Restored");
 	}
 
 	@Test
@@ -512,157 +490,12 @@ public class ArchiveIT {
 			.isEqualTo("Second");
 	}
 
-	<T extends Tag> long count(QualifiedTagMixin<T> repo, String tag) {
-		Specification<T> spec = (root, query, cb) -> cb.equal(root.get("tag"), tag);
-		return repo.count(spec);
-	}
-
-	/**
-	 * Pushes never remove rows. Deleting appends a blank version, deleting again prunes.
-	 */
-	<T extends Tag> void assertTombstoneHistory(
-		QualifiedTagMixin<T> repo,
-		String tag,
-		BiFunction<String, Instant, T> entity,
-		Consumer<T> push,
-		Consumer<String> delete,
-		Function<String, Optional<T>> current
-	) {
-		var deletor = deletorTag(tag);
-		push.accept(entity.apply(tag, now.minusSeconds(40)));
-		push.accept(entity.apply(deletor, now.minusSeconds(30)));
-		push.accept(entity.apply(tag, now.minusSeconds(20)));
-
-		assertThat(count(repo, tag))
-			.isEqualTo(2);
-		assertThat(count(repo, deletor))
-			.isEqualTo(1);
-		assertThat(current.apply(tag))
-			.isPresent();
-
-		delete.accept(tag);
-
-		assertThat(count(repo, tag))
-			.isEqualTo(3);
-		assertThat(count(repo, deletor))
-			.isEqualTo(1);
-		assertThat(repo.findOneByQualifiedTag(tag))
-			.get()
-			.extracting(Tag::getModified)
-			.isNotIn(now.minusSeconds(40), now.minusSeconds(20));
-		assertThat(current.apply(tag))
-			.isEmpty();
-
-		delete.accept(tag);
-
-		assertThat(count(repo, tag))
-			.isZero();
-		assertThat(count(repo, deletor))
-			.isZero();
-
-		delete.accept(tag);
-
-		assertThat(count(repo, tag))
-			.isZero();
-	}
-
-	<T extends Tag> void assertDeleteDeletorPrunes(
-		QualifiedTagMixin<T> repo,
-		String tag,
-		BiFunction<String, Instant, T> entity,
-		Consumer<T> push,
-		Consumer<String> delete
-	) {
-		var deletor = deletorTag(tag);
-		push.accept(entity.apply(tag, now.minusSeconds(20)));
-		push.accept(entity.apply(deletor, now.minusSeconds(10)));
-
-		assertThat(count(repo, tag))
-			.isEqualTo(1);
-
-		delete.accept(deletor);
-
-		assertThat(count(repo, tag))
-			.isZero();
-		assertThat(count(repo, deletor))
-			.isZero();
-	}
-
 	Ext ext(String tag, Instant modified, String name) {
 		var ext = new Ext();
 		ext.setTag(tag);
 		ext.setName(name);
 		ext.setModified(modified);
 		return ext;
-	}
-
-	User user(String tag, Instant modified) {
-		var user = new User();
-		user.setTag(tag);
-		user.setName("Name");
-		user.setModified(modified);
-		return user;
-	}
-
-	Plugin plugin(String tag, Instant modified) {
-		var plugin = new Plugin();
-		plugin.setTag(tag);
-		plugin.setName("Name");
-		plugin.setModified(modified);
-		return plugin;
-	}
-
-	Template template(String tag, Instant modified) {
-		var template = new Template();
-		template.setTag(tag);
-		template.setName("Name");
-		template.setModified(modified);
-		return template;
-	}
-
-	@Test
-	void testExtTombstoneKeepsHistory() {
-		assertTombstoneHistory(extRepository, "test", (tag, modified) -> ext(tag, modified, "Name"),
-			ext -> ingestExt.push("", ext, false, false), ingestExt::delete, ingestExt::current);
-	}
-
-	@Test
-	void testUserTombstoneKeepsHistory() {
-		assertTombstoneHistory(userRepository, "+user/test", this::user,
-			ingestUser::push, ingestUser::delete, ingestUser::current);
-	}
-
-	@Test
-	void testPluginTombstoneKeepsHistory() {
-		assertTombstoneHistory(pluginRepository, "plugin/test", this::plugin,
-			ingestPlugin::push, ingestPlugin::delete, ingestPlugin::current);
-	}
-
-	@Test
-	void testTemplateTombstoneKeepsHistory() {
-		assertTombstoneHistory(templateRepository, "test", this::template,
-			ingestTemplate::push, ingestTemplate::delete, ingestTemplate::current);
-	}
-
-	@Test
-	void testExtDeleteDeletorPrunes() {
-		assertDeleteDeletorPrunes(extRepository, "test", (tag, modified) -> ext(tag, modified, "Name"),
-			ext -> ingestExt.push("", ext, false, false), ingestExt::delete);
-	}
-
-	@Test
-	void testUserDeleteDeletorPrunes() {
-		assertDeleteDeletorPrunes(userRepository, "+user/test", this::user, ingestUser::push, ingestUser::delete);
-	}
-
-	@Test
-	void testPluginDeleteDeletorPrunes() {
-		assertDeleteDeletorPrunes(pluginRepository, "plugin/test", this::plugin, ingestPlugin::push, ingestPlugin::delete);
-	}
-
-	@Test
-	void testTemplateDeleteDeletorPrunes() {
-		assertDeleteDeletorPrunes(templateRepository, "test", this::template, ingestTemplate::push, ingestTemplate::delete);
 	}
 
 	@Test
@@ -674,27 +507,12 @@ public class ArchiveIT {
 	}
 
 	@Test
-	void testExtCreateAfterDeleteAddsVersion() {
-		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
-		ingestExt.delete("test");
-
-		ingestExt.create(ext("test", null, "Restored"));
-
-		assertThat(count(extRepository, "test"))
-			.isEqualTo(3);
-		assertThat(ingestExt.current("test"))
-			.get()
-			.extracting(Ext::getName)
-			.isEqualTo("Restored");
-	}
-
-	@Test
 	void testExtUpdateAppendsVersion() {
 		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
 
 		ingestExt.update(ext("test", now.minusSeconds(10), "Second"));
 
-		assertThat(count(extRepository, "test"))
+		assertThat(VersionKind.countTag(extRepository, "test", ""))
 			.isEqualTo(2);
 		assertThat(ingestExt.current("test"))
 			.get()
@@ -717,5 +535,272 @@ public class ArchiveIT {
 
 		assertThatThrownBy(() -> ingestExt.create(ext("test/deleted", null, null)))
 			.isInstanceOf(AlreadyExistsException.class);
+	}
+
+	// Generic scenarios run against every versioned type
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testDeleteAppendsOneBlankVersion(VersionKind kind) {
+		kind.push("", now.minusSeconds(20), "First");
+		kind.push("", now.minusSeconds(10), "Second");
+
+		kind.delete("");
+
+		var versions = kind.versions("");
+		assertThat(versions)
+			.hasSize(3)
+			.startsWith(now.minusSeconds(20), now.minusSeconds(10));
+		assertThat(kind.latestTitle(""))
+			.isEmpty();
+		assertThat(kind.current(""))
+			.isEmpty();
+		assertThatThrownBy(() -> kind.get(""))
+			.isInstanceOf(NotFoundException.class);
+		kind.verifyDeleteNotice(messages, sent());
+	}
+
+	@Test
+	void testDeleteMarksOlderRefVersionsObsolete() {
+		push("", "First", now.minusSeconds(20));
+		push("", "Second", now.minusSeconds(10));
+
+		ingest.delete("", URL, "");
+
+		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("", now.minusSeconds(10)))
+			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Second"))
+			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isTrue());
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
+			.get()
+			.satisfies(r -> assertThat(Archive.isBlank(r)).isTrue())
+			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isFalse());
+	}
+
+	@Test
+	void testPushedDeleteNoticeRefIsTombstone() {
+		push("", "First", now.minusSeconds(20));
+		push("", "", now.minusSeconds(10), "internal", "plugin/delete");
+
+		assertThat(ingest.current(URL, ""))
+			.isEmpty();
+
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.count())
+			.isZero();
+		verify(messages, notSent()).deleteRef(any());
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testRecreateAfterDeleteKeepsTombstone(VersionKind kind) {
+		kind.push("", now.minusSeconds(10), "First");
+		kind.delete("");
+
+		kind.create("", "Restored");
+
+		assertThat(kind.count(""))
+			.isEqualTo(3);
+		assertThat(kind.current(""))
+			.isPresent();
+		assertThat(kind.latestTitle(""))
+			.contains("Restored");
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testDeleteTwicePrunes(VersionKind kind) {
+		kind.push("", now.minusSeconds(30), "First");
+		kind.pushDeleteNotice("", now.minusSeconds(20));
+		kind.push("", now.minusSeconds(10), "Second");
+		kind.delete("");
+		kind.verifyDeleteNotice(messages, sent());
+		clearInvocations(messages);
+
+		kind.delete("");
+
+		assertThat(kind.count(""))
+			.isZero();
+		assertThat(kind.countDeletor(""))
+			.isZero();
+		kind.verifyDeleteNotice(messages, notSent());
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("tagKinds")
+	void testDeleteDeletorPrunes(VersionKind kind) {
+		kind.push("", now.minusSeconds(20), "First");
+		kind.pushDeleteNotice("", now.minusSeconds(10));
+
+		kind.deleteDeletor("");
+
+		assertThat(kind.count(""))
+			.isZero();
+		assertThat(kind.countDeletor(""))
+			.isZero();
+		kind.verifyDeleteNotice(messages, notSent());
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testPruneLeavesOtherOrigin(VersionKind kind) {
+		kind.push("", now.minusSeconds(20), "Local");
+		kind.push("@other", now.minusSeconds(10), "Other");
+		kind.delete("");
+
+		kind.delete("");
+
+		assertThat(kind.count(""))
+			.isZero();
+		assertThat(kind.count("@other"))
+			.isEqualTo(1);
+		assertThat(kind.current("@other"))
+			.isPresent();
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testPruneKeepsNewerThanStart(VersionKind kind) {
+		kind.push("", now.minusSeconds(30), "First");
+		kind.push("", now.minusSeconds(20), "Second");
+		kind.pushBlank("", now.minusSeconds(5));
+		kind.setClock(Clock.fixed(now.minusSeconds(15), ZoneOffset.UTC));
+
+		kind.delete("");
+
+		assertThat(kind.versions(""))
+			.containsExactly(now.minusSeconds(5));
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testDeleteMissingIsNoop(VersionKind kind) {
+		kind.delete("");
+
+		assertThat(kind.count(""))
+			.isZero();
+		assertThat(kind.countDeletor(""))
+			.isZero();
+		kind.verifyDeleteNotice(messages, notSent());
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testPushNeverRemovesRows(VersionKind kind) {
+		kind.push("", now.minusSeconds(40), "First");
+		kind.push("", now.minusSeconds(30), "Second");
+		kind.pushBlank("", now.minusSeconds(20));
+		kind.pushDeleteNotice("", now.minusSeconds(10));
+
+		var expected = kind.hasDeletor() ? 3 : 4;
+		assertThat(kind.count(""))
+			.isEqualTo(expected);
+		assertThat(kind.countDeletor(""))
+			.isEqualTo(kind.hasDeletor() ? 1 : 0);
+
+		kind.push("", now, "Third");
+
+		assertThat(kind.count(""))
+			.isEqualTo(expected + 1);
+		assertThat(kind.current(""))
+			.isPresent();
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testOlderTombstoneKeepsNewerCurrent(VersionKind kind) {
+		kind.push("", now.minusSeconds(10), "Current");
+
+		kind.pushBlank("", now.minusSeconds(20));
+		kind.pushDeleteNotice("", now.minusSeconds(30));
+
+		assertThat(kind.current(""))
+			.isPresent();
+		assertThat(kind.latestTitle(""))
+			.contains("Current");
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testCreatedBlankIsDeleted(VersionKind kind) {
+		// Documented limitation: an item created blank reads as deleted
+		kind.createBlank("");
+
+		assertThat(kind.count(""))
+			.isEqualTo(1);
+		assertThat(kind.current(""))
+			.isEmpty();
+		assertThatThrownBy(() -> kind.get(""))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testRepeatedPushUpdatesSameVersion(VersionKind kind) {
+		kind.push("", now.minusSeconds(10), "First");
+		kind.push("", now, "Second");
+		kind.push("", now, "Second Edited");
+
+		assertThat(kind.versions(""))
+			.containsExactly(now.minusSeconds(10), now);
+		assertThat(kind.latestTitle(""))
+			.contains("Second Edited");
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("tagKinds")
+	void testPageIncludesOlderVersions(VersionKind kind) {
+		// Documented limitation: page and count include older and deleted versions
+		kind.push("", now.minusSeconds(20), "First");
+		kind.push("", now.minusSeconds(10), "Second");
+		kind.delete("");
+
+		assertThat(kind.pageCount())
+			.isGreaterThanOrEqualTo(3);
+	}
+
+	@Test
+	void testExtCountIncludesOlderVersions() {
+		ingestExt.push("", ext("test", now.minusSeconds(20), "First"), false, false);
+		ingestExt.push("", ext("test", now.minusSeconds(10), "Second"), false, false);
+		ingestExt.delete("test");
+
+		assertThat(extService.count(TagFilter.builder().build()))
+			.isEqualTo(3);
+	}
+
+	@Test
+	void testAuthUserLookupSkipsTombstone() {
+		var user = new User();
+		user.setTag("+user/auth");
+		user.setRole("ROLE_ADMIN");
+		user.setModified(now.minusSeconds(10));
+		ingestUser.push(user);
+		ingestUser.delete("+user/auth");
+		configCache.clearUserCache();
+
+		assertThat(configCache.getUser("+user/auth"))
+			.isNull();
+	}
+
+	@Test
+	void testAuthUserLookupUsesLatestVersion() {
+		var older = new User();
+		older.setTag("+user/auth");
+		older.setRole("ROLE_ADMIN");
+		older.setModified(now.minusSeconds(20));
+		ingestUser.push(older);
+		var newer = new User();
+		newer.setTag("+user/auth");
+		newer.setRole("ROLE_USER");
+		newer.setModified(now.minusSeconds(10));
+		ingestUser.push(newer);
+		configCache.clearUserCache();
+
+		assertThat(configCache.getUser("+user/auth"))
+			.extracting(User::getRole)
+			.isEqualTo("ROLE_USER");
 	}
 }

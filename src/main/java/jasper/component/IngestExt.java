@@ -131,7 +131,7 @@ public class IngestExt {
 		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) return;
 		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
-			var startedAt = Instant.now();
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
 			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
 			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
 			extRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);

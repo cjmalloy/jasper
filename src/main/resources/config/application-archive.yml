@@ -8,12 +8,17 @@
 # - Older versions of Refs are marked obsolete, the same as obsolete
 #   copies from other origins.
 # - Every write adds a new version. Pushes and pulls never remove rows.
-# - A blank version (or a plugin/delete Ref) is a tombstone. Deleting
-#   adds a blank version and sends the regular delete notice.
+# - A blank version (or a plugin/delete Ref) is a tombstone. Single
+#   lookups treat an item whose current version is a tombstone as
+#   deleted, including items that were created blank.
+# - Deleting adds a blank version and sends the regular delete notice.
 # - Deleting a tombstone or a deletor tag prunes every version of the
-#   item and its deletor tag in that origin. This is not replicated.
+#   item and its deletor tag in that origin, modified at or before the
+#   start of the prune. No notice is sent and it is not replicated.
 # - Page and count results for Exts, Users, Plugins and Templates
 #   include older and deleted versions.
+# - Regular servers pulling from an archive store blank versions as
+#   normal, empty items.
 # - Do not serve SSH (tunnels) or user logins from an archive server,
 #   since older user versions, including old authorized keys and roles,
 #   may be returned.

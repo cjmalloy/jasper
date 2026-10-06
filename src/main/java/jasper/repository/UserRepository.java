@@ -80,6 +80,9 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
 
+	/**
+	 * Only the latest version is updated. In archive mode multiple versions may exist.
+	 */
 	@Modifying
 	@Transactional
 	@Query("""
@@ -92,6 +95,7 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		)
 		WHERE u.tag = :tag
 			AND u.origin = :origin
+			AND u.modified = (SELECT MAX(u2.modified) FROM User u2 WHERE u2.tag = :tag AND u2.origin = :origin)
 			AND NOT COALESCE(jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId), false)""")
 	int setExternalId(String tag, String origin, String externalId);
 }

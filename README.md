@@ -751,11 +751,15 @@ non-archive mode requires manually deleting old versions and restoring the origi
  * Every write adds a new version. Pushes and pulls are stored exactly as received, including deletor tags
    and `plugin/delete` Refs, and never remove rows.
  * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
-   tombstone. Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item
-   adds another version.
+   tombstone. If the current version is a tombstone, single lookups treat the item as deleted. This includes
+   items that were created blank.
+ * Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item adds another
+   version, and the tombstone stays in the history.
  * Deleting a tombstone, or a deletor tag, prunes every version of the item and its deletor tag in that
-   origin. This is a local admin action and is not replicated.
+   origin. Only versions modified at or before the start of the prune are removed. This is a local admin
+   action: no delete notice is sent and it is not replicated.
  * Page and count results for Exts, Users, Plugins and Templates include older and deleted versions.
+ * A regular server pulling from an archive stores blank versions as normal, empty items.
  * Do not serve SSH (tunnels) or user logins from an archive server, since older user versions, including
    old authorized keys and roles, may be returned.
 

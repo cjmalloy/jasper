@@ -135,7 +135,7 @@ public class IngestUser {
 		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
 		if (maybeExisting.isEmpty()) return;
 		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
-			var startedAt = Instant.now();
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
 			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
 			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
 			userRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);

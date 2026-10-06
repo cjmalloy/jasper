@@ -185,7 +185,7 @@ public class Ingest {
 		// Only metadata of older versions is updated, never flush a stale copy
 		em.detach(existing);
 		if (isBlank(existing)) {
-			var startedAt = Instant.now();
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
 			refRepository.deleteByUrlAndOriginAndModifiedLessThanEqual(existing.getUrl(), existing.getOrigin(), startedAt);
 			meta.sources(rootOrigin, null, existing);
 			return;

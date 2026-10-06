@@ -24,6 +24,7 @@ import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -87,6 +88,9 @@ public class ConfigCache {
 	@Autowired
 	ConfigCache self;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
 	Set<Consumer<ServerConfig>> rootListeners = ConcurrentHashMap.newKeySet();
 
@@ -106,7 +110,7 @@ public class ConfigCache {
 				// Race to init
 			}
 		}
-		if (userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin()).isEmpty()) {
+		if (ingestUser.current("+user" + props.getLocalOrigin()).isEmpty()) {
 			try {
 				var user = new User();
 				user.setTag("+user");
@@ -163,13 +167,28 @@ public class ConfigCache {
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
-		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
+		return merge(current(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)), null))
 			.orElse(null);
 	}
 
 	@Cacheable("external-user-cache")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
-		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
+		return merge(current(userRepository.findAllByOriginAndExternalId(origin, externalId), externalId));
+	}
+
+	/**
+	 * In archive mode the users may include older versions. Replace them with the current version
+	 * of each user, skipping tombstones and users whose current version no longer has the external ID.
+	 */
+	private List<User> current(List<User> users, String externalId) {
+		if (!archive) return users;
+		return users.stream()
+			.map(User::getQualifiedTag)
+			.distinct()
+			.map(ingestUser::current)
+			.flatMap(Optional::stream)
+			.filter(u -> externalId == null || u.getExternal() != null && u.getExternal().getIds() != null && u.getExternal().getIds().contains(externalId))
+			.toList();
 	}
 
 	public User createUser(String tag, String origin, String externalId) {
@@ -189,7 +208,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "user-cache", key = "'+user'")
 	public User user() {
-		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
+		return ingestUser.current("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
