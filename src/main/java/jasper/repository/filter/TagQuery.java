@@ -18,6 +18,7 @@ import static jasper.repository.spec.QualifiedTag.atom;
 public class TagQuery {
 	private static final Logger logger = LoggerFactory.getLogger(TagQuery.class);
 	private static final ObjectMapper objectMapper = new ObjectMapper();
+	static final int MAX_DEPTH = 64;
 
 	private ArrayNode ast;
 
@@ -101,7 +102,7 @@ public class TagQuery {
 
 	/**
 	 * Parse a query into a nested JSON array AST. Groups become nested arrays
-	 * and may be nested to any depth. A negated group is represented by a
+	 * and may be nested up to {@link #MAX_DEPTH} levels. A negated group is represented by a
 	 * <code>"!"</code> token directly before the group array. Negations on single
 	 * terms are kept as part of the term (<code>!tag</code>).
 	 */
@@ -111,7 +112,7 @@ public class TagQuery {
 		var pos = new int[]{ 0 };
 		ast = objectMapper.createArrayNode();
 		if (tokens.isEmpty()) return;
-		parseExpr(query, tokens, pos, ast);
+		parseExpr(query, tokens, pos, ast, 0);
 		if (pos[0] < tokens.size()) throw new InvalidQueryException(query, "unexpected \"" + tokens.get(pos[0]) + "\"");
 		logger.trace("{}", ast);
 	}
@@ -125,7 +126,9 @@ public class TagQuery {
 				if (!term.isEmpty()) tokens.add(term.toString());
 				term.setLength(0);
 				tokens.add(String.valueOf(c));
-			} else if (c == '!' && term.isEmpty() && i + 1 < query.length() && (query.charAt(i + 1) == '(' || query.charAt(i + 1) == '!')) {
+			} else if (c == '!' && !term.isEmpty()) {
+				throw new InvalidQueryException(query, "unexpected \"!\" in \"" + term + "\"");
+			} else if (c == '!' && i + 1 < query.length() && (query.charAt(i + 1) == '(' || query.charAt(i + 1) == '!')) {
 				tokens.add("!");
 			} else {
 				term.append(c);
@@ -135,24 +138,25 @@ public class TagQuery {
 		return tokens;
 	}
 
-	private static void parseExpr(String query, List<String> tokens, int[] pos, ArrayNode out) {
-		parseTerm(query, tokens, pos, out);
+	private static void parseExpr(String query, List<String> tokens, int[] pos, ArrayNode out, int depth) {
+		parseTerm(query, tokens, pos, out, depth);
 		while (pos[0] < tokens.size() && isOperator(tokens.get(pos[0]))) {
 			out.add(tokens.get(pos[0]++));
-			parseTerm(query, tokens, pos, out);
+			parseTerm(query, tokens, pos, out, depth);
 		}
 	}
 
-	private static void parseTerm(String query, List<String> tokens, int[] pos, ArrayNode out) {
+	private static void parseTerm(String query, List<String> tokens, int[] pos, ArrayNode out, int depth) {
 		while (pos[0] < tokens.size() && "!".equals(tokens.get(pos[0]))) {
 			out.add(tokens.get(pos[0]++));
 		}
 		if (pos[0] >= tokens.size()) throw new InvalidQueryException(query, "unexpected end of query");
 		var token = tokens.get(pos[0]++);
 		if ("(".equals(token)) {
+			if (depth >= MAX_DEPTH) throw new InvalidQueryException(query, "groups nested deeper than " + MAX_DEPTH);
 			if (pos[0] < tokens.size() && ")".equals(tokens.get(pos[0]))) throw new InvalidQueryException(query, "empty group");
 			var group = out.addArray();
-			parseExpr(query, tokens, pos, group);
+			parseExpr(query, tokens, pos, group, depth + 1);
 			if (pos[0] >= tokens.size() || !")".equals(tokens.get(pos[0]++))) throw new InvalidQueryException(query, "missing \")\"");
 		} else if (isOperator(token) || ")".equals(token) || "!".equals(token)) {
 			throw new InvalidQueryException(query, "unexpected \"" + token + "\"");

@@ -105,7 +105,7 @@ Valid operators in a query are:
 3. `!` not
 4. `()` groups
 
-Groups may be nested to any depth, and may be negated with `!`. A negated group
+Groups may be nested up to 64 levels deep, and may be negated with `!`. A negated group
 matches anything the group does not match, so `!(a|b)` is the same as `!a:!b`, and
 `!(a:b)` is the same as `!a|!b`. Double negations cancel out, so `!!(a)` and `!(!a)`
 are the same as `a`.
