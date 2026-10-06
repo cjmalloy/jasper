@@ -3,6 +3,7 @@ package jasper.repository;
 import jasper.IntegrationTest;
 import jasper.domain.Ext;
 import jasper.domain.Ref;
+import jasper.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
@@ -14,6 +15,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 
+import static jasper.repository.spec.UserSpec.hasAuthorizedKeys;
+import static jasper.repository.spec.UserSpec.isLatest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
@@ -31,12 +34,16 @@ public class ArchiveIT {
 	ExtRepository extRepository;
 
 	@Autowired
+	UserRepository userRepository;
+
+	@Autowired
 	PlatformTransactionManager transactionManager;
 
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
 		extRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	Ref ref(String title, Instant modified) {
@@ -96,5 +103,29 @@ public class ArchiveIT {
 			.get()
 			.extracting(Ext::getName)
 			.isEqualTo("Second");
+	}
+
+	@Test
+	void testArchivedUserAuthorizedKeysIgnored() {
+		var now = Instant.now();
+		var old = new User();
+		old.setTag("+user/test");
+		old.setAuthorizedKeys("ssh-ed25519 AAAA");
+		old.setModified(now.minusSeconds(10));
+		userRepository.save(old);
+		var latest = new User();
+		latest.setTag("+user/test");
+		latest.setModified(now);
+		userRepository.save(latest);
+
+		assertThat(userRepository.count())
+			.isEqualTo(2);
+		assertThat(userRepository.findAll(hasAuthorizedKeys().and(isLatest())))
+			.isEmpty();
+		assertThat(userRepository.findAllByQualifiedSuffix("user/test"))
+			.hasSize(1)
+			.first()
+			.extracting(User::getAuthorizedKeys)
+			.isNull();
 	}
 }

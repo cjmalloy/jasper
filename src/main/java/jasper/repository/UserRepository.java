@@ -71,12 +71,14 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		SELECT u FROM User u
 		WHERE u.origin = :origin
 			AND jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId)
+			AND u.modified = (SELECT max(l.modified) FROM User l WHERE l.tag = u.tag AND l.origin = u.origin)
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
 	@Query("""
 		SELECT u FROM User u
-		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
+		WHERE ((u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag))
+			AND u.modified = (SELECT max(l.modified) FROM User l WHERE l.tag = u.tag AND l.origin = u.origin)
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
 
