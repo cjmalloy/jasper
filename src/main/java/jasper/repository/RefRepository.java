@@ -22,7 +22,15 @@ import java.util.stream.Stream;
 @Transactional(readOnly = true)
 public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
-	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
+	Optional<Ref> findFirstByUrlAndOriginOrderByModifiedDesc(String url, String origin);
+
+	/**
+	 * Find the latest version. In archive mode multiple versions may exist.
+	 */
+	default Optional<Ref> findOneByUrlAndOrigin(String url, String origin) {
+		return findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
+	}
+
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
