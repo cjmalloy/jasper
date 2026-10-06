@@ -737,10 +737,11 @@ The `preload` profile lets you preload static files. Zip files in the preload fo
 
 The `scripts` profile enables server side scripting through the `plugin/delta` Plugin.
 
-The `archive` profile keeps previous versions of Refs, Exts, Users, Plugins and Templates by adding the
-modified date to the primary key. Lookups return the latest version. Only PostgreSQL is supported.
-Enabling the `archive` profile is a one-way migration: going back to non-archive mode requires manually
-deleting old versions and restoring the original primary keys.
+The `archive` profile keeps every previous version of Refs, Exts, Users, Plugins and Templates in append-only
+archive tables (`ref_archive`, `ext_archive`, `users_archive`, `plugin_archive` and `template_archive`).
+Database triggers copy the old row whenever a row is updated or deleted, so the live tables and the API behave
+exactly as they do without the profile. Disabling the profile stops archiving but keeps the archive tables.
+Only PostgreSQL is supported.
 
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five

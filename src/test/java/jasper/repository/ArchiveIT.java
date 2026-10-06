@@ -1,6 +1,9 @@
 package jasper.repository;
 
 import jasper.IntegrationTest;
+import jasper.component.Ingest;
+import jasper.component.IngestExt;
+import jasper.component.IngestUser;
 import jasper.domain.Ext;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -8,24 +11,27 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.time.Instant;
 
 import static jasper.repository.spec.UserSpec.hasAuthorizedKeys;
-import static jasper.repository.spec.UserSpec.isLatest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
 @ActiveProfiles({"archive", "test"})
-// Use a separate database since the archive migration is one-way
+// Use a separate database so the archive triggers do not affect other tests
 @TestPropertySource(properties = "spring.datasource.url=jdbc:tc:postgresql:14.2:///jasper-archive?TC_TMPFS=/testtmpfs:rw")
 @DisabledIfSystemProperty(named = "spring.profiles.active", matches = ".*sqlite.*")
 public class ArchiveIT {
-	static final String URL = "https://www.example.com/";
+	@Autowired
+	Ingest ingest;
+
+	@Autowired
+	IngestExt ingestExt;
+
+	@Autowired
+	IngestUser ingestUser;
 
 	@Autowired
 	RefRepository refRepository;
@@ -37,95 +43,86 @@ public class ArchiveIT {
 	UserRepository userRepository;
 
 	@Autowired
-	PlatformTransactionManager transactionManager;
+	JdbcTemplate jdbc;
 
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
 		extRepository.deleteAll();
 		userRepository.deleteAll();
-	}
-
-	Ref ref(String title, Instant modified) {
-		var ref = new Ref();
-		ref.setUrl(URL);
-		ref.setTitle(title);
-		ref.setModified(modified);
-		return ref;
-	}
-
-	Ext ext(String name, Instant modified) {
-		var ext = new Ext();
-		ext.setTag("test");
-		ext.setName(name);
-		ext.setModified(modified);
-		return ext;
+		jdbc.execute("TRUNCATE ref_archive, ext_archive, users_archive, plugin_archive, template_archive");
 	}
 
 	@Test
-	void testRefKeepsPreviousVersions() {
-		var now = Instant.now();
-		refRepository.save(ref("First", now.minusSeconds(10)));
-		refRepository.save(ref("Second", now));
+	void testRefUpdateArchivesPreviousVersion() {
+		var URL = "https://www.example.com/update";
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ingest.create("", ref);
+		var update = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		update.setTitle("Second");
+		ingest.update("", update);
 
 		assertThat(refRepository.count())
-			.isEqualTo(2);
-		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
-			.isTrue();
+			.isEqualTo(1);
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
 			.get()
 			.extracting(Ref::getTitle)
 			.isEqualTo("Second");
+		assertThat(jdbc.queryForList("SELECT title FROM ref_archive WHERE url = ?", String.class, URL))
+			.containsExactly("First");
 	}
 
 	@Test
-	void testRefDeleteRemovesAllVersions() {
-		var now = Instant.now();
-		refRepository.save(ref("First", now.minusSeconds(10)));
-		refRepository.save(ref("Second", now));
+	void testRefDeleteArchivesLastVersion() {
+		var URL = "https://www.example.com/delete";
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ingest.create("", ref);
 
-		new TransactionTemplate(transactionManager).executeWithoutResult(status ->
-			refRepository.deleteByUrlAndOrigin(URL, ""));
+		ingest.delete("", URL, "");
 
 		assertThat(refRepository.count())
 			.isZero();
+		assertThat(jdbc.queryForList("SELECT title FROM ref_archive WHERE url = ?", String.class, URL))
+			.containsExactly("First");
 	}
 
 	@Test
-	void testExtKeepsPreviousVersions() {
-		var now = Instant.now();
-		extRepository.save(ext("First", now.minusSeconds(10)));
-		extRepository.save(ext("Second", now));
+	void testExtUpdateArchivesPreviousVersion() {
+		var ext = new Ext();
+		ext.setTag("test");
+		ext.setName("First");
+		ingestExt.create(ext);
+		var update = extRepository.findOneByQualifiedTag("test").orElseThrow();
+		update.setName("Second");
+		ingestExt.update(update);
 
 		assertThat(extRepository.count())
-			.isEqualTo(2);
+			.isEqualTo(1);
 		assertThat(extRepository.findOneByQualifiedTag("test"))
 			.get()
 			.extracting(Ext::getName)
 			.isEqualTo("Second");
+		assertThat(jdbc.queryForList("SELECT name FROM ext_archive WHERE tag = ?", String.class, "test"))
+			.containsExactly("First");
 	}
 
 	@Test
 	void testArchivedUserAuthorizedKeysIgnored() {
-		var now = Instant.now();
-		var old = new User();
-		old.setTag("+user/test");
-		old.setAuthorizedKeys("ssh-ed25519 AAAA");
-		old.setModified(now.minusSeconds(10));
-		userRepository.save(old);
-		var latest = new User();
-		latest.setTag("+user/test");
-		latest.setModified(now);
-		userRepository.save(latest);
+		var user = new User();
+		user.setTag("+user/test");
+		user.setAuthorizedKeys("ssh-ed25519 AAAA");
+		ingestUser.create(user);
+		var update = userRepository.findOneByQualifiedTag("+user/test").orElseThrow();
+		update.setAuthorizedKeys(null);
+		ingestUser.update(update);
 
-		assertThat(userRepository.count())
-			.isEqualTo(2);
-		assertThat(userRepository.findAll(hasAuthorizedKeys().and(isLatest())))
+		assertThat(userRepository.findAll(hasAuthorizedKeys()))
 			.isEmpty();
-		assertThat(userRepository.findAllByQualifiedSuffix("user/test"))
-			.hasSize(1)
-			.first()
-			.extracting(User::getAuthorizedKeys)
-			.isNull();
+		assertThat(jdbc.queryForList("SELECT authorized_keys FROM users_archive WHERE tag = ?", String.class, "+user/test"))
+			.containsExactly("ssh-ed25519 AAAA");
 	}
 }

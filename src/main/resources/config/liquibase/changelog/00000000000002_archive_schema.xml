@@ -5,18 +5,67 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
 
 	<!--
-		Only runs when the "archive" profile is active (sets the "archive" changelog parameter).
-		This is a one-way migration: going back to non-archive mode requires manually
-		removing old versions and restoring the original primary keys.
+		The "archive" profile (sets the "archive" changelog parameter) appends the previous
+		version of every changed or deleted row to a matching *_archive table using triggers.
+		The live tables are not changed, so the application behaves exactly as in non-archive mode.
+		Disabling the profile drops the triggers but keeps the archive tables.
 	-->
-	<changeSet author="chris" id="00000000000004" dbms="postgresql">
+	<changeSet author="chris" id="00000000000004" dbms="postgresql" runAlways="true">
 		<preConditions onFail="CONTINUE">
 			<changeLogPropertyDefined property="archive" value="true"/>
 		</preConditions>
-		<sql>ALTER TABLE ref DROP CONSTRAINT ref_pkey, ADD PRIMARY KEY (url, origin, modified);</sql>
-		<sql>ALTER TABLE ext DROP CONSTRAINT ext_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
-		<sql>ALTER TABLE users DROP CONSTRAINT users_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
-		<sql>ALTER TABLE plugin DROP CONSTRAINT plugin_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
-		<sql>ALTER TABLE template DROP CONSTRAINT template_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION archive_old_version() RETURNS TRIGGER AS $$
+			BEGIN
+				-- Skip server-side metadata and timestamp only changes
+				IF TG_OP = 'UPDATE' AND to_jsonb(OLD) - '{metadata,modified,textsearch_en}'::TEXT[] = to_jsonb(NEW) - '{metadata,modified,textsearch_en}'::TEXT[] THEN
+					RETURN NULL;
+				END IF;
+				EXECUTE format('INSERT INTO %1$I SELECT * FROM jsonb_populate_record(NULL::%1$I, to_jsonb($1))', TG_TABLE_NAME || '_archive') USING OLD;
+				RETURN NULL;
+			END;
+			$$ LANGUAGE plpgsql
+		</sql>
+		<sql splitStatements="false">
+			DO $$
+			DECLARE
+				t TEXT;
+				c RECORD;
+			BEGIN
+				FOREACH t IN ARRAY ARRAY['ref', 'ext', 'users', 'plugin', 'template'] LOOP
+					EXECUTE format('CREATE TABLE IF NOT EXISTS %I (LIKE %I)', t || '_archive', t);
+					FOR c IN
+						SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS type
+						FROM pg_attribute a
+						WHERE a.attrelid = t::regclass AND a.attnum > 0 AND NOT a.attisdropped
+					LOOP
+						EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s', t || '_archive', c.attname, c.type);
+					END LOOP;
+					EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (%s, origin, modified)',
+						t || '_archive_index', t || '_archive', CASE WHEN t = 'ref' THEN 'url' ELSE 'tag' END);
+					EXECUTE format('DROP TRIGGER IF EXISTS archive_old_version ON %I', t);
+					EXECUTE format('CREATE TRIGGER archive_old_version AFTER UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION archive_old_version()', t);
+				END LOOP;
+			END;
+			$$
+		</sql>
+	</changeSet>
+
+	<changeSet author="chris" id="00000000000005" dbms="postgresql" runAlways="true">
+		<preConditions onFail="CONTINUE">
+			<not>
+				<changeLogPropertyDefined property="archive" value="true"/>
+			</not>
+		</preConditions>
+		<sql splitStatements="false">
+			DO $$
+			DECLARE t TEXT;
+			BEGIN
+				FOREACH t IN ARRAY ARRAY['ref', 'ext', 'users', 'plugin', 'template'] LOOP
+					EXECUTE format('DROP TRIGGER IF EXISTS archive_old_version ON %I', t);
+				END LOOP;
+			END;
+			$$
+		</sql>
 	</changeSet>
 </databaseChangeLog>
