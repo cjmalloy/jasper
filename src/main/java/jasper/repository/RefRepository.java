@@ -31,6 +31,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		return findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 	}
 
+	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
 	@Modifying
@@ -142,15 +143,16 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	/**
-	 * Hard delete a Ref. In archive mode this removes every version.
+	 * Remove every version modified at or before olderThan. Only used to prune in archive mode.
 	 */
 	@Transactional
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""
 		DELETE FROM Ref ref
 		WHERE ref.url = :url
-			AND ref.origin = :origin""")
-	void deleteByUrlAndOrigin(String url, String origin);
+			AND ref.origin = :origin
+			AND ref.modified <= :olderThan""")
+	void deleteByUrlAndOriginAndModifiedLessThanEqual(String url, String origin, Instant olderThan);
 
 	@Query("""
 		FROM Ref ref

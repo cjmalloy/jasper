@@ -136,7 +136,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = ingest.current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		// Hidden tags cannot be removed
@@ -155,7 +155,7 @@ public class RefService {
 	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
 		// TODO: disable patching for large refs
 		var created = false;
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = ingest.current(url, origin).orElse(null);
 		if (ref == null) {
 			created = true;
 			var current = refRepository.findAll(isUrl(url).and(isNotObsolete()), ofSize(1));

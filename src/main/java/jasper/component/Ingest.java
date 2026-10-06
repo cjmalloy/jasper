@@ -29,8 +29,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
+import static jasper.util.Archive.isBlank;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -70,6 +72,8 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref) {
+		// In archive mode the primary key includes modified, so check the current version
+		if (archive && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
@@ -89,7 +93,7 @@ public class Ingest {
 	 */
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref, boolean syncSources) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -101,7 +105,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void updateResponse(String rootOrigin, Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.response(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -155,11 +159,44 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		// Hard delete. In archive mode this removes every version and is not replicated,
-		// delete notices are stored as versions instead
-		if (!archive) messages.deleteRef(maybeExisting.get());
+		if (archive) {
+			archiveDelete(rootOrigin, maybeExisting.get());
+			return;
+		}
+		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
+	}
+
+	/**
+	 * The current version, or empty if it is missing. In archive mode a blank current version
+	 * is a tombstone and is treated as missing.
+	 */
+	public Optional<Ref> current(String url, String origin) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (!archive) return maybeExisting;
+		return maybeExisting.filter(r -> !isBlank(r));
+	}
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone prunes every version.
+	 */
+	private void archiveDelete(String rootOrigin, Ref existing) {
+		// Only metadata of older versions is updated, never flush a stale copy
+		em.detach(existing);
+		if (isBlank(existing)) {
+			var startedAt = Instant.now();
+			refRepository.deleteByUrlAndOriginAndModifiedLessThanEqual(existing.getUrl(), existing.getOrigin(), startedAt);
+			meta.sources(rootOrigin, null, existing);
+			return;
+		}
+		var tombstone = new Ref();
+		tombstone.setUrl(existing.getUrl());
+		tombstone.setOrigin(existing.getOrigin());
+		meta.ref(rootOrigin, tombstone);
+		ensureCreateUniqueModified(tombstone);
+		meta.sources(rootOrigin, tombstone, existing);
+		messages.deleteRef(existing);
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
@@ -218,6 +255,16 @@ public class Ingest {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						var current = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
+							.filter(r -> r.getModified().equals(cursor))
+							.orElseThrow(() -> new ModifiedException("Ref"));
+						ref.setCreated(current.getCreated());
+						em.persist(ref);
+						em.flush();
+						return null;
+					}
 					var updated = refRepository.optimisticUpdate(
 						cursor,
 						ref.getUrl(),

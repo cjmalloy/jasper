@@ -98,7 +98,7 @@ public class UserService {
 	@Cacheable(value = "user-dto-cache", key = "#qualifiedTag", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
-		return userRepository.findOneByQualifiedTag(qualifiedTag)
+		return ingest.current(qualifiedTag)
 							 .map(mapper::domainToDto)
 							 .map(auth::filterUser)
 							 .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -130,7 +130,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant update(User user) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = ingest.current(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		var existing = maybeExisting.get();
 		user.addReadAccess(auth.hiddenTags(existing.getReadAccess()));
@@ -146,7 +146,7 @@ public class UserService {
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var user = ingest.current(qualifiedTag).orElse(null);
 		if (user == null) {
 			created = true;
 			user = new User();
@@ -172,7 +172,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
-		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
+		var maybeExisting = ingest.current(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
 		var kp = keyPair();

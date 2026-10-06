@@ -26,10 +26,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.Archive.isBlank;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -63,13 +67,13 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
-		if (isDeletorTag(template.getTag())) {
-			var deleted = deletedTag(template.getQualifiedTag());
-			if (archive
-				? templateRepository.existsLiveByQualifiedTag(deleted, template.getQualifiedTag())
-				: templateRepository.existsByQualifiedTag(deleted)) throw new AlreadyExistsException();
-		} else if (!archive) {
-			// In archive mode the delete notice is kept as an older version
+		if (archive) {
+			// The primary key includes modified, so check the current version
+			if (current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+			if (isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+		} else if (isDeletorTag(template.getTag())) {
+			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+		} else {
 			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
@@ -79,7 +83,7 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (!templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
+		if (archive ? current(template.getQualifiedTag()).isEmpty() : !templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
 		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
@@ -101,24 +105,52 @@ public class IngestTemplate {
 			}
 			throw e;
 		}
-		// In archive mode delete notices are stored as versions and never remove rows
+		// In archive mode pushes never remove rows
 		if (!archive && isDeletorTag(template.getTag())) {
 			delete(deletedTag(template.getQualifiedTag()));
 		}
 		messages.updateTemplate(template);
 	}
 
-	/**
-	 * Hard delete. In archive mode this removes every version, including delete notices,
-	 * and is not replicated.
-	 */
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
-		templateRepository.deleteByQualifiedTag(qualifiedTag);
 		if (archive) {
-			if (!isDeletorTag(qualifiedTag)) templateRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
+			archiveDelete(qualifiedTag);
 			return;
 		}
+		templateRepository.deleteByQualifiedTag(qualifiedTag);
+		messages.deleteTemplate(qualifiedTag);
+	}
+
+	/**
+	 * The current version, or empty if it is missing. In archive mode a blank current version
+	 * is a tombstone and is treated as missing.
+	 */
+	public Optional<Template> current(String qualifiedTag) {
+		var maybeExisting = templateRepository.findOneByQualifiedTag(qualifiedTag);
+		if (!archive) return maybeExisting;
+		return maybeExisting.filter(e -> !isBlank(e));
+	}
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
+	 * prunes every version of the tag and its deletor tag.
+	 */
+	private void archiveDelete(String qualifiedTag) {
+		var maybeExisting = templateRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) return;
+		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
+			var startedAt = Instant.now();
+			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
+			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
+			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
+			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			return;
+		}
+		var tombstone = new Template();
+		tombstone.setTag(localTag(qualifiedTag));
+		tombstone.setOrigin(tagOrigin(qualifiedTag));
+		ensureCreateUniqueModified(tombstone);
 		messages.deleteTemplate(qualifiedTag);
 	}
 
@@ -156,6 +188,15 @@ public class IngestTemplate {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					template.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						if (templateRepository.findOneByQualifiedTag(template.getQualifiedTag())
+							.filter(e -> e.getModified().equals(cursor))
+							.isEmpty()) throw new ModifiedException("Template");
+						em.persist(template);
+						em.flush();
+						return null;
+					}
 					var updated = templateRepository.optimisticUpdate(
 						cursor,
 						template.getTag(),

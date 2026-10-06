@@ -16,7 +16,10 @@ import jasper.domain.User;
 import jasper.domain.proj.RefView;
 import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotFoundException;
 import jasper.repository.filter.RefFilter;
+import jasper.util.Archive;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
@@ -32,8 +35,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static jasper.component.Replicator.deletorTag;
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -304,17 +309,108 @@ public class ArchiveIT {
 	}
 
 	@Test
-	void testHardDeleteRemovesAllVersions() {
+	void testDeleteAppendsBlankVersion() {
 		push("", "First", now.minusSeconds(20));
 		push("", "Second", now.minusSeconds(10));
+
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.count())
+			.isEqualTo(3);
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
+			.get()
+			.satisfies(r -> assertThat(Archive.isBlank(r)).isTrue())
+			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isFalse());
+		assertThat(ingest.current(URL, ""))
+			.isEmpty();
+		assertThat(version("", now.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
+			.isTrue();
+	}
+
+	@Test
+	void testDeleteTombstonePrunes() {
+		push("", "First", now.minusSeconds(20));
+		push("", "Second", now.minusSeconds(10));
+		ingest.delete("", URL, "");
+		push("@other", "Other", now.minusSeconds(5));
+
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.findAll(isUrl(URL).and(isOrigin(""))))
+			.isEmpty();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other"))
+			.isPresent();
+	}
+
+	@Test
+	void testDeleteNoticePrunes() {
+		push("", "First", now.minusSeconds(20));
 		push("", "", now, "internal", "plugin/delete");
 
 		ingest.delete("", URL, "");
 
 		assertThat(refRepository.count())
 			.isZero();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
-			.isEmpty();
+	}
+
+	@Test
+	void testDeleteMissingIsNoop() {
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.count())
+			.isZero();
+	}
+
+	@Test
+	void testCreateExistingRefFails() {
+		push("", "First", now.minusSeconds(10));
+
+		assertThatThrownBy(() -> ingest.create("", ref("", "Again", null)))
+			.isInstanceOf(AlreadyExistsException.class);
+	}
+
+	@Test
+	void testCreateAfterDeleteAddsVersion() {
+		push("", "First", now.minusSeconds(10));
+		ingest.delete("", URL, "");
+
+		ingest.create("", ref("", "Restored", null));
+
+		assertThat(refRepository.count())
+			.isEqualTo(3);
+		assertThat(ingest.current(URL, ""))
+			.get()
+			.extracting(Ref::getTitle)
+			.isEqualTo("Restored");
+	}
+
+	@Test
+	void testUpdateAppendsVersion() {
+		push("", "First", now.minusSeconds(10));
+
+		ingest.update("", ref("", "Second", now.minusSeconds(10)));
+
+		assertThat(refRepository.count())
+			.isEqualTo(2);
+		assertThat(ingest.current(URL, ""))
+			.get()
+			.extracting(Ref::getTitle)
+			.isEqualTo("Second");
+		assertThat(version("", now.minusSeconds(10)))
+			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("First"))
+			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isTrue());
+	}
+
+	@Test
+	void testUpdateStaleCursorFails() {
+		push("", "First", now.minusSeconds(10));
+
+		assertThatThrownBy(() -> ingest.update("", ref("", "Second", now.minusSeconds(20))))
+			.isInstanceOf(ModifiedException.class);
+		assertThat(refRepository.count())
+			.isEqualTo(1);
 	}
 
 	@Test
@@ -422,32 +518,29 @@ public class ArchiveIT {
 	}
 
 	/**
-	 * Delete notices are stored as versions and never remove rows. Hard delete purges every version.
+	 * Pushes never remove rows. Deleting appends a blank version, deleting again prunes.
 	 */
 	<T extends Tag> void assertTombstoneHistory(
 		QualifiedTagMixin<T> repo,
 		String tag,
 		BiFunction<String, Instant, T> entity,
 		Consumer<T> push,
-		Consumer<String> hardDelete
+		Consumer<String> delete,
+		Function<String, Optional<T>> current
 	) {
 		var deletor = deletorTag(tag);
-		push.accept(entity.apply(tag, now.minusSeconds(30)));
+		push.accept(entity.apply(tag, now.minusSeconds(40)));
+		push.accept(entity.apply(deletor, now.minusSeconds(30)));
 		push.accept(entity.apply(tag, now.minusSeconds(20)));
-		push.accept(entity.apply(deletor, now.minusSeconds(10)));
 
 		assertThat(count(repo, tag))
 			.isEqualTo(2);
 		assertThat(count(repo, deletor))
 			.isEqualTo(1);
-		assertThat(repo.findOneByQualifiedTag(deletor))
-			.get()
-			.extracting(Tag::getModified)
-			.isEqualTo(now.minusSeconds(10));
-		assertThat(repo.existsLiveByQualifiedTag(tag, deletor))
-			.isFalse();
+		assertThat(current.apply(tag))
+			.isPresent();
 
-		push.accept(entity.apply(tag, now));
+		delete.accept(tag);
 
 		assertThat(count(repo, tag))
 			.isEqualTo(3);
@@ -456,95 +549,173 @@ public class ArchiveIT {
 		assertThat(repo.findOneByQualifiedTag(tag))
 			.get()
 			.extracting(Tag::getModified)
-			.isEqualTo(now);
-		assertThat(repo.existsLiveByQualifiedTag(tag, deletor))
-			.isTrue();
+			.isNotIn(now.minusSeconds(40), now.minusSeconds(20));
+		assertThat(current.apply(tag))
+			.isEmpty();
 
-		hardDelete.accept(tag);
+		delete.accept(tag);
 
 		assertThat(count(repo, tag))
 			.isZero();
 		assertThat(count(repo, deletor))
 			.isZero();
-		assertThat(repo.findOneByQualifiedTag(tag))
-			.isEmpty();
+
+		delete.accept(tag);
+
+		assertThat(count(repo, tag))
+			.isZero();
+	}
+
+	<T extends Tag> void assertDeleteDeletorPrunes(
+		QualifiedTagMixin<T> repo,
+		String tag,
+		BiFunction<String, Instant, T> entity,
+		Consumer<T> push,
+		Consumer<String> delete
+	) {
+		var deletor = deletorTag(tag);
+		push.accept(entity.apply(tag, now.minusSeconds(20)));
+		push.accept(entity.apply(deletor, now.minusSeconds(10)));
+
+		assertThat(count(repo, tag))
+			.isEqualTo(1);
+
+		delete.accept(deletor);
+
+		assertThat(count(repo, tag))
+			.isZero();
+		assertThat(count(repo, deletor))
+			.isZero();
+	}
+
+	Ext ext(String tag, Instant modified, String name) {
+		var ext = new Ext();
+		ext.setTag(tag);
+		ext.setName(name);
+		ext.setModified(modified);
+		return ext;
+	}
+
+	User user(String tag, Instant modified) {
+		var user = new User();
+		user.setTag(tag);
+		user.setName("Name");
+		user.setModified(modified);
+		return user;
+	}
+
+	Plugin plugin(String tag, Instant modified) {
+		var plugin = new Plugin();
+		plugin.setTag(tag);
+		plugin.setName("Name");
+		plugin.setModified(modified);
+		return plugin;
+	}
+
+	Template template(String tag, Instant modified) {
+		var template = new Template();
+		template.setTag(tag);
+		template.setName("Name");
+		template.setModified(modified);
+		return template;
 	}
 
 	@Test
 	void testExtTombstoneKeepsHistory() {
-		assertTombstoneHistory(extRepository, "test", (tag, modified) -> {
-			var ext = new Ext();
-			ext.setTag(tag);
-			ext.setModified(modified);
-			return ext;
-		}, ext -> ingestExt.push("", ext, false, false), ingestExt::delete);
+		assertTombstoneHistory(extRepository, "test", (tag, modified) -> ext(tag, modified, "Name"),
+			ext -> ingestExt.push("", ext, false, false), ingestExt::delete, ingestExt::current);
 	}
 
 	@Test
 	void testUserTombstoneKeepsHistory() {
-		assertTombstoneHistory(userRepository, "+user/test", (tag, modified) -> {
-			var user = new User();
-			user.setTag(tag);
-			user.setModified(modified);
-			return user;
-		}, ingestUser::push, ingestUser::delete);
+		assertTombstoneHistory(userRepository, "+user/test", this::user,
+			ingestUser::push, ingestUser::delete, ingestUser::current);
 	}
 
 	@Test
 	void testPluginTombstoneKeepsHistory() {
-		assertTombstoneHistory(pluginRepository, "plugin/test", (tag, modified) -> {
-			var plugin = new Plugin();
-			plugin.setTag(tag);
-			plugin.setModified(modified);
-			return plugin;
-		}, ingestPlugin::push, ingestPlugin::delete);
+		assertTombstoneHistory(pluginRepository, "plugin/test", this::plugin,
+			ingestPlugin::push, ingestPlugin::delete, ingestPlugin::current);
 	}
 
 	@Test
 	void testTemplateTombstoneKeepsHistory() {
-		assertTombstoneHistory(templateRepository, "test", (tag, modified) -> {
-			var template = new Template();
-			template.setTag(tag);
-			template.setModified(modified);
-			return template;
-		}, ingestTemplate::push, ingestTemplate::delete);
+		assertTombstoneHistory(templateRepository, "test", this::template,
+			ingestTemplate::push, ingestTemplate::delete, ingestTemplate::current);
 	}
 
 	@Test
-	void testCreateTombstoneAfterTombstone() {
-		var ext = new Ext();
-		ext.setTag("test");
-		ext.setModified(now.minusSeconds(20));
-		ingestExt.push("", ext, false, false);
-		var deletor = new Ext();
-		deletor.setTag("test/deleted");
-		deletor.setModified(now.minusSeconds(10));
-		ingestExt.push("", deletor, false, false);
+	void testExtDeleteDeletorPrunes() {
+		assertDeleteDeletorPrunes(extRepository, "test", (tag, modified) -> ext(tag, modified, "Name"),
+			ext -> ingestExt.push("", ext, false, false), ingestExt::delete);
+	}
 
-		var again = new Ext();
-		again.setTag("test/deleted");
-		ingestExt.create(again);
+	@Test
+	void testUserDeleteDeletorPrunes() {
+		assertDeleteDeletorPrunes(userRepository, "+user/test", this::user, ingestUser::push, ingestUser::delete);
+	}
+
+	@Test
+	void testPluginDeleteDeletorPrunes() {
+		assertDeleteDeletorPrunes(pluginRepository, "plugin/test", this::plugin, ingestPlugin::push, ingestPlugin::delete);
+	}
+
+	@Test
+	void testTemplateDeleteDeletorPrunes() {
+		assertDeleteDeletorPrunes(templateRepository, "test", this::template, ingestTemplate::push, ingestTemplate::delete);
+	}
+
+	@Test
+	void testExtCreateExistingFails() {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
+
+		assertThatThrownBy(() -> ingestExt.create(ext("test", null, "Again")))
+			.isInstanceOf(AlreadyExistsException.class);
+	}
+
+	@Test
+	void testExtCreateAfterDeleteAddsVersion() {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
+		ingestExt.delete("test");
+
+		ingestExt.create(ext("test", null, "Restored"));
 
 		assertThat(count(extRepository, "test"))
-			.isEqualTo(1);
-		assertThat(count(extRepository, "test/deleted"))
-			.isEqualTo(2);
+			.isEqualTo(3);
+		assertThat(ingestExt.current("test"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Restored");
 	}
 
 	@Test
-	void testCreateTombstoneForLiveTagFails() {
-		var deletor = new Ext();
-		deletor.setTag("test/deleted");
-		deletor.setModified(now.minusSeconds(20));
-		ingestExt.push("", deletor, false, false);
-		var ext = new Ext();
-		ext.setTag("test");
-		ext.setModified(now.minusSeconds(10));
-		ingestExt.push("", ext, false, false);
+	void testExtUpdateAppendsVersion() {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
 
-		var again = new Ext();
-		again.setTag("test/deleted");
-		assertThatThrownBy(() -> ingestExt.create(again))
+		ingestExt.update(ext("test", now.minusSeconds(10), "Second"));
+
+		assertThat(count(extRepository, "test"))
+			.isEqualTo(2);
+		assertThat(ingestExt.current("test"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testExtUpdateDeletedFails() {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
+		ingestExt.delete("test");
+
+		assertThatThrownBy(() -> ingestExt.update(ext("test", now.minusSeconds(10), "Second")))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testCreateDeletorForLiveTagFails() {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
+
+		assertThatThrownBy(() -> ingestExt.create(ext("test/deleted", null, null)))
 			.isInstanceOf(AlreadyExistsException.class);
 	}
 }

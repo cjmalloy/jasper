@@ -7,14 +7,13 @@
 #
 # - Older versions of Refs are marked obsolete, the same as obsolete
 #   copies from other origins.
-# - Delete notices (plugin/delete Refs and deletor tags) are stored as
-#   new versions and never remove rows. A Ref delete notice becomes the
-#   current version and older versions are marked obsolete.
-# - Exts, Users, Plugins and Templates have no obsolete flag: a deletor
-#   tag is stored under its own key and does not hide older versions.
-#   As a workaround, save a blanked newer version.
-# - An explicit (hard) delete removes every version, including delete
-#   notices, and is not replicated.
+# - Every write adds a new version. Pushes and pulls never remove rows.
+# - A blank version (or a plugin/delete Ref) is a tombstone. Deleting
+#   adds a blank version and sends the regular delete notice.
+# - Deleting a tombstone or a deletor tag prunes every version of the
+#   item and its deletor tag in that origin. This is not replicated.
+# - Page and count results for Exts, Users, Plugins and Templates
+#   include older and deleted versions.
 # - Do not serve SSH (tunnels) or user logins from an archive server,
 #   since older user versions, including old authorized keys and roles,
 #   may be returned.

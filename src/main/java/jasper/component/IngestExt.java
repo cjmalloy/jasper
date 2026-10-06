@@ -26,10 +26,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.Archive.isBlank;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -63,13 +67,13 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext) {
-		if (isDeletorTag(ext.getTag())) {
-			var deleted = deletedTag(ext.getQualifiedTag());
-			if (archive
-				? extRepository.existsLiveByQualifiedTag(deleted, ext.getQualifiedTag())
-				: extRepository.existsByQualifiedTag(deleted)) throw new AlreadyExistsException();
-		} else if (!archive) {
-			// In archive mode the delete notice is kept as an older version
+		if (archive) {
+			// The primary key includes modified, so check the current version
+			if (current(ext.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+			if (isDeletorTag(ext.getTag()) && current(deletedTag(ext.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+		} else if (isDeletorTag(ext.getTag())) {
+			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
+		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext);
@@ -79,7 +83,7 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void update(Ext ext) {
-		if (!extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
+		if (archive ? current(ext.getQualifiedTag()).isEmpty() : !extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
 		validate.ext(ext.getOrigin(), ext);
 		ensureUpdateUniqueModified(ext);
 		messages.updateExt(ext);
@@ -89,7 +93,7 @@ public class IngestExt {
 	public void push(String rootOrigin, Ext ext, boolean validation, boolean stripInvalidTemplates) {
 		if (validation) validate.ext(rootOrigin, ext, stripInvalidTemplates);
 		pushUniqueModified(ext);
-		// In archive mode delete notices are stored as versions and never remove rows
+		// In archive mode pushes never remove rows
 		if (!archive) {
 			if (isDeletorTag(ext.getTag())) {
 				delete(deletedTag(ext.getQualifiedTag()));
@@ -100,14 +104,44 @@ public class IngestExt {
 		messages.updateExt(ext);
 	}
 
-	/**
-	 * Hard delete. In archive mode this removes every version, including delete notices,
-	 * and is not replicated.
-	 */
 	@Timed(value = "jasper.ext", histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive) {
+			archiveDelete(qualifiedTag);
+			return;
+		}
 		extRepository.deleteByQualifiedTag(qualifiedTag);
-		if (archive && !isDeletorTag(qualifiedTag)) extRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
+	}
+
+	/**
+	 * The current version, or empty if it is missing. In archive mode a blank current version
+	 * is a tombstone and is treated as missing.
+	 */
+	public Optional<Ext> current(String qualifiedTag) {
+		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
+		if (!archive) return maybeExisting;
+		return maybeExisting.filter(e -> !isBlank(e));
+	}
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
+	 * prunes every version of the tag and its deletor tag.
+	 */
+	private void archiveDelete(String qualifiedTag) {
+		var maybeExisting = extRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) return;
+		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
+			var startedAt = Instant.now();
+			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
+			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
+			extRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
+			extRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			return;
+		}
+		var tombstone = new Ext();
+		tombstone.setTag(localTag(qualifiedTag));
+		tombstone.setOrigin(tagOrigin(qualifiedTag));
+		ensureCreateUniqueModified(tombstone);
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {
@@ -144,6 +178,15 @@ public class IngestExt {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					ext.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						if (extRepository.findOneByQualifiedTag(ext.getQualifiedTag())
+							.filter(e -> e.getModified().equals(cursor))
+							.isEmpty()) throw new ModifiedException("Ext");
+						em.persist(ext);
+						em.flush();
+						return null;
+					}
 					var updated = extRepository.optimisticUpdate(
 						cursor,
 						ext.getTag(),

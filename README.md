@@ -748,12 +748,14 @@ non-archive mode requires manually deleting old versions and restoring the origi
    order, keeping the latest.
  * Older versions of Refs are marked obsolete, the same as obsolete copies of a Ref from other origins.
    Lookups by URL and origin return the latest version.
- * Delete notices (`plugin/delete` Refs and deletor tags) are stored as new versions and never remove rows,
-   so replicating a delete keeps the history. Re-creating a deleted item adds another version.
- * An explicit (hard) delete removes every version, including delete notices. It is a local admin action
-   and is not replicated.
- * Tag delete notices do not hide older versions of Exts, Users, Plugins or Templates, and read API results
-   may include older versions. As a workaround, save a blanked newer version.
+ * Every write adds a new version. Pushes and pulls are stored exactly as received, including deletor tags
+   and `plugin/delete` Refs, and never remove rows.
+ * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
+   tombstone. Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item
+   adds another version.
+ * Deleting a tombstone, or a deletor tag, prunes every version of the item and its deletor tag in that
+   origin. This is a local admin action and is not replicated.
+ * Page and count results for Exts, Users, Plugins and Templates include older and deleted versions.
  * Do not serve SSH (tunnels) or user logins from an archive server, since older user versions, including
    old authorized keys and roles, may be returned.
 
