@@ -753,6 +753,8 @@ non-archive mode requires manually deleting old versions and restoring the origi
  * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
    tombstone. If the current version is a tombstone, single lookups treat the item as deleted. This includes
    items that were created blank.
+ * A deletor tag (`<tag>/deleted`) received for an Ext, User, Plugin or Template is stored as its own item and
+   does not hide the tag it deletes. Only a blank current version does.
  * Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item adds another
    version, and the tombstone stays in the history.
  * Deleting a tombstone, or a deletor tag, prunes every version of the item and its deletor tag in that

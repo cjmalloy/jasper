@@ -14,6 +14,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
+import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -179,6 +180,13 @@ public class Ingest {
 	}
 
 	/**
+	 * In archive mode a blank version is a tombstone and is treated as missing.
+	 */
+	public boolean isTombstone(Ref ref) {
+		return archive && isBlank(ref);
+	}
+
+	/**
 	 * Deleting appends a blank version (tombstone). Deleting a tombstone prunes every version.
 	 */
 	private void archiveDelete(String rootOrigin, Ref existing) {
@@ -257,6 +265,8 @@ public class Ingest {
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
+						// Appending does not conflict with the current version, so lock before checking the cursor
+						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
 						var current = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
 							.filter(r -> r.getModified().equals(cursor))
 							.orElseThrow(() -> new ModifiedException("Ref"));

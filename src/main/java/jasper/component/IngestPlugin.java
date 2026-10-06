@@ -13,6 +13,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
+import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -190,6 +191,8 @@ public class IngestPlugin {
 					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
+						// Appending does not conflict with the current version, so lock before checking the cursor
+						Archive.lock(em, "plugin", plugin.getTag(), plugin.getOrigin());
 						if (pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Plugin");

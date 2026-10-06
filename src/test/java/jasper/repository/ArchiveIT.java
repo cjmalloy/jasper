@@ -23,6 +23,7 @@ import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
+import jasper.service.RefService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
 import jasper.util.Archive;
@@ -49,6 +50,9 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -106,6 +110,9 @@ public class ArchiveIT {
 
 	@Autowired
 	PlatformTransactionManager transactionManager;
+
+	@Autowired
+	RefService refService;
 
 	@Autowired
 	ExtService extService;
@@ -800,6 +807,116 @@ public class ArchiveIT {
 		configCache.clearUserCache();
 
 		assertThat(configCache.getUser("+user/auth"))
+			.extracting(User::getRole)
+			.isEqualTo("ROLE_USER");
+	}
+
+	@Test
+	void testRefGetTombstoneNotFound() {
+		push("", "First", now.minusSeconds(10));
+		ingest.delete("", URL, "");
+
+		assertThatThrownBy(() -> refService.get(URL, ""))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	int concurrentUpdates(Runnable update) throws Exception {
+		var threads = 8;
+		var start = new CountDownLatch(1);
+		var succeeded = new AtomicInteger();
+		var failed = new AtomicInteger();
+		try (var executor = Executors.newFixedThreadPool(threads)) {
+			for (var i = 0; i < threads; i++) {
+				executor.submit(() -> {
+					start.await();
+					try {
+						update.run();
+						succeeded.incrementAndGet();
+					} catch (ModifiedException e) {
+						failed.incrementAndGet();
+					}
+					return null;
+				});
+			}
+			start.countDown();
+		}
+		assertThat(failed.get())
+			.isEqualTo(threads - 1);
+		return succeeded.get();
+	}
+
+	@Test
+	void testConcurrentRefUpdatesWithSameCursor() throws Exception {
+		push("", "First", now.minusSeconds(10));
+
+		assertThat(concurrentUpdates(() -> ingest.update("", ref("", "Second", now.minusSeconds(10)))))
+			.isEqualTo(1);
+		assertThat(refRepository.count())
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testConcurrentExtUpdatesWithSameCursor() throws Exception {
+		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
+
+		assertThat(concurrentUpdates(() -> ingestExt.update(ext("test", now.minusSeconds(10), "Second"))))
+			.isEqualTo(1);
+		assertThat(VersionKind.countTag(extRepository, "test", ""))
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testConfigCachePluginSkipsTombstone() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setName("Test");
+		plugin.setConfig(new ObjectMapper().createObjectNode().put("value", 1));
+		plugin.setModified(now.minusSeconds(10));
+		ingestPlugin.push(plugin);
+		ingestPlugin.delete("plugin/test");
+		configCache.clearPluginCache();
+
+		assertThat(configCache.getPlugin("plugin/test", ""))
+			.isEmpty();
+		assertThat(configCache.getPluginConfig("plugin/test", "", Object.class))
+			.isEmpty();
+	}
+
+	@Test
+	void testConfigCacheTemplateSkipsTombstone() {
+		var template = new Template();
+		template.setTag("test");
+		template.setName("Test");
+		template.setConfig(new ObjectMapper().createObjectNode().put("value", 1));
+		template.setModified(now.minusSeconds(10));
+		ingestTemplate.push(template);
+		ingestTemplate.delete("test");
+		configCache.clearTemplateCache();
+
+		assertThat(configCache.getTemplate("test", ""))
+			.isEmpty();
+		assertThat(configCache.getTemplateConfig("test", "", Object.class))
+			.isEmpty();
+	}
+
+	@Test
+	void testSetExternalIdAppendsVersion() {
+		var user = new User();
+		user.setTag("+user/ext");
+		user.setRole("ROLE_USER");
+		user.setModified(now.minusSeconds(10));
+		ingestUser.push(user);
+
+		configCache.setExternalId("+user/ext", "", "ext@example.com");
+
+		assertThat(VersionKind.countTag(userRepository, "+user/ext", ""))
+			.isEqualTo(2);
+		assertThat(userRepository.findAll().stream().filter(u -> u.getModified().equals(now.minusSeconds(10))).findFirst())
+			.get()
+			.satisfies(u -> assertThat(u.hasExternalId()).isFalse());
+		assertThat(ingestUser.current("+user/ext"))
+			.get()
+			.satisfies(u -> assertThat(u.hasExternalId("ext@example.com")).isTrue())
 			.extracting(User::getRole)
 			.isEqualTo("ROLE_USER");
 	}

@@ -1,6 +1,7 @@
 package jasper.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.persistence.EntityManager;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -60,6 +61,17 @@ public final class Archive {
 			&& (user.getPubKey() == null || user.getPubKey().length == 0)
 			&& isEmpty(user.getAuthorizedKeys())
 			&& user.getExternal() == null;
+	}
+
+	/**
+	 * Lock one logical item (url or tag, and origin) until the current transaction ends.
+	 * Appending a version never conflicts with the version it replaces, so updates must hold
+	 * this lock while checking the cursor and inserting. Postgres only, like the archive profile.
+	 */
+	public static void lock(EntityManager em, String table, String key, String origin) {
+		em.createNativeQuery("SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(:key, 0))")
+			.setParameter("key", table + "\n" + origin + "\n" + key)
+			.getSingleResult();
 	}
 
 	private static boolean empty(Collection<?> c) {

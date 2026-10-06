@@ -13,6 +13,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
+import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -180,6 +181,8 @@ public class IngestExt {
 					ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
+						// Appending does not conflict with the current version, so lock before checking the cursor
+						Archive.lock(em, "ext", ext.getTag(), ext.getOrigin());
 						if (extRepository.findOneByQualifiedTag(ext.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Ext");

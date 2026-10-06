@@ -11,6 +11,9 @@
 # - A blank version (or a plugin/delete Ref) is a tombstone. Single
 #   lookups treat an item whose current version is a tombstone as
 #   deleted, including items that were created blank.
+# - A deletor tag (<tag>/deleted) received for an Ext, User, Plugin or
+#   Template is stored as its own item and does not hide the tag it
+#   deletes. Only a blank current version does.
 # - Deleting adds a blank version and sends the regular delete notice.
 # - Deleting a tombstone or a deletor tag prunes every version of the
 #   item and its deletor tag in that origin, modified at or before the

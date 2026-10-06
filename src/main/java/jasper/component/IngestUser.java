@@ -13,6 +13,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
+import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -185,6 +186,8 @@ public class IngestUser {
 					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
+						// Appending does not conflict with the current version, so lock before checking the cursor
+						Archive.lock(em, "users", user.getTag(), user.getOrigin());
 						if (userRepository.findOneByQualifiedTag(user.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("User");

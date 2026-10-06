@@ -94,6 +94,7 @@ public class RefService {
 	public RefDto get(String url, String origin) {
 		return refRepository.findOneByUrlAndOrigin(url, origin)
 			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
+			.filter(r -> !ingest.isTombstone(r))
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
 	}
