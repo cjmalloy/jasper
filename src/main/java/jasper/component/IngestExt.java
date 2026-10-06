@@ -101,11 +101,13 @@ public class IngestExt {
 	}
 
 	/**
-	 * Hard delete. In archive mode this removes every version.
+	 * Hard delete. In archive mode this removes every version, including delete notices,
+	 * and is not replicated.
 	 */
 	@Timed(value = "jasper.ext", histogram = true)
 	public void delete(String qualifiedTag) {
 		extRepository.deleteByQualifiedTag(qualifiedTag);
+		if (archive && !isDeletorTag(qualifiedTag)) extRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {

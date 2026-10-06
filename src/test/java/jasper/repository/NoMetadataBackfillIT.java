@@ -1,6 +1,7 @@
 package jasper.repository;
 
 import jasper.IntegrationTest;
+import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.component.Meta.expandTags;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @IntegrationTest
@@ -41,6 +43,7 @@ public class NoMetadataBackfillIT {
 		ref.setOrigin(origin);
 		ref.setSources(List.of(sources));
 		ref.setTags(List.of("public", "plugin/comment"));
+		ref.setMetadata(Metadata.builder().expandedTags(expandTags(ref.getTags())).build());
 		ref.setModified(modified);
 		return ref;
 	}
@@ -68,6 +71,7 @@ public class NoMetadataBackfillIT {
 		var response = refRepository.findOneByUrlAndOrigin(URL + "response", "").orElseThrow();
 		assertThat(response.getMetadata().isCascade()).isFalse();
 		assertThat(response.getMetadata().isObsolete()).isFalse();
+		assertThat(response.getMetadata().getExpandedTags()).containsExactlyInAnyOrder("public", "plugin", "plugin/comment");
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "response", "@other").orElseThrow().getMetadata().isObsolete())
 			.isTrue();
 	}

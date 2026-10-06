@@ -155,8 +155,9 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		messages.deleteRef(maybeExisting.get());
-		// Hard delete. In archive mode this removes every version, delete notices are stored as versions instead
+		// Hard delete. In archive mode this removes every version and is not replicated,
+		// delete notices are stored as versions instead
+		if (!archive) messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
 	}

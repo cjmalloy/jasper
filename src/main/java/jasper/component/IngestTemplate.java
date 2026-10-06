@@ -109,11 +109,16 @@ public class IngestTemplate {
 	}
 
 	/**
-	 * Hard delete. In archive mode this removes every version.
+	 * Hard delete. In archive mode this removes every version, including delete notices,
+	 * and is not replicated.
 	 */
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
+		if (archive) {
+			if (!isDeletorTag(qualifiedTag)) templateRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
+			return;
+		}
 		messages.deleteTemplate(qualifiedTag);
 	}
 

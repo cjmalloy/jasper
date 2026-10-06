@@ -1,5 +1,6 @@
 package jasper.repository;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
 import jasper.component.Ingest;
 import jasper.component.IngestExt;
@@ -184,16 +185,16 @@ public class ArchiveIT {
 	}
 
 	@Test
-	void testDeletedPluginBecomesCurrentVersion() {
+	void testDeleteNoticeBecomesCurrentVersion() {
 		push("", "First", now.minusSeconds(20));
 		push("", "Second", now.minusSeconds(10));
-		push("", "", now, "plugin/deleted");
+		push("", "", now, "internal", "plugin/delete");
 
 		assertThat(refRepository.count())
 			.isEqualTo(3);
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, ""))
 			.get()
-			.satisfies(r -> assertThat(r.getTags()).containsExactly("plugin/deleted"))
+			.satisfies(r -> assertThat(r.getTags()).containsExactly("internal", "plugin/delete"))
 			.satisfies(r -> assertThat(r.getMetadata().isObsolete()).isFalse());
 		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
 			.isTrue();
@@ -306,7 +307,7 @@ public class ArchiveIT {
 	void testHardDeleteRemovesAllVersions() {
 		push("", "First", now.minusSeconds(20));
 		push("", "Second", now.minusSeconds(10));
-		push("", "", now, "plugin/deleted");
+		push("", "", now, "internal", "plugin/delete");
 
 		ingest.delete("", URL, "");
 
@@ -319,7 +320,7 @@ public class ArchiveIT {
 	@Test
 	void testRefTombstoneThenNewVersion() {
 		push("", "First", now.minusSeconds(20));
-		push("", "", now.minusSeconds(10), "plugin/deleted");
+		push("", "", now.minusSeconds(10), "internal", "plugin/delete");
 		push("", "Restored", now);
 
 		assertThat(refRepository.count())
@@ -365,6 +366,53 @@ public class ArchiveIT {
 		assertThat(extRepository.findOneByQualifiedTag("test"))
 			.get()
 			.extracting(Ext::getName)
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testPluginLookupReturnsLatestVersion() {
+		var first = new Plugin();
+		first.setTag("plugin/test");
+		first.setName("First");
+		first.setModified(now.minusSeconds(10));
+		pluginRepository.save(first);
+		var second = new Plugin();
+		second.setTag("plugin/test");
+		second.setName("Second");
+		second.setModified(now);
+		pluginRepository.save(second);
+
+		assertThat(pluginRepository.findByTagAndOrigin("plugin/test", ""))
+			.get()
+			.extracting(Plugin::getName)
+			.isEqualTo("Second");
+
+		var disabled = new Plugin();
+		disabled.setTag("plugin/test");
+		disabled.setConfig(new ObjectMapper().createObjectNode().put("disabled", true));
+		disabled.setModified(now.plusSeconds(10));
+		pluginRepository.save(disabled);
+
+		assertThat(pluginRepository.findByTagAndOrigin("plugin/test", ""))
+			.isEmpty();
+	}
+
+	@Test
+	void testTemplateLookupReturnsLatestVersion() {
+		var first = new Template();
+		first.setTag("test");
+		first.setName("First");
+		first.setModified(now.minusSeconds(10));
+		templateRepository.save(first);
+		var second = new Template();
+		second.setTag("test");
+		second.setName("Second");
+		second.setModified(now);
+		templateRepository.save(second);
+
+		assertThat(templateRepository.findByTemplateAndOrigin("test", ""))
+			.get()
+			.extracting(Template::getName)
 			.isEqualTo("Second");
 	}
 
@@ -415,6 +463,8 @@ public class ArchiveIT {
 		hardDelete.accept(tag);
 
 		assertThat(count(repo, tag))
+			.isZero();
+		assertThat(count(repo, deletor))
 			.isZero();
 		assertThat(repo.findOneByQualifiedTag(tag))
 			.isEmpty();

@@ -12,48 +12,63 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
+	/**
+	 * Responses are filtered by their obsolete flag. Responses with missing
+	 * metadata are assumed to be obsolete.
+	 * Rows are matched by modified so only a single version is updated in archive mode.
+	 */
+	private static final String BACKFILL_METADATA = """
+		WITH rows as (
+			SELECT url, origin, modified from ref
+			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
+			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+			LIMIT :batchSize
+		)
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+			'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE (re.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
+			'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE (ire.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR ire.origin = :origin OR ire.origin LIKE concat(:origin, '.%')) AND ire.metadata IS NOT NULL AND COALESCE(ire.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal') = true),
+			'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
+				p.tag,
+				(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
+			) FROM plugin p WHERE p.origin = :origin)),
+			'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
+			'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
+		))
+		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
+		""";
+
+	/**
+	 * Responses, plugin counts and cascade are not tracked when the
+	 * "no-metadata" profile is active. Expanded tags are kept.
+	 */
+	private static final String BACKFILL_NO_METADATA = """
+		WITH rows as (
+			SELECT url, origin, modified from ref
+			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
+			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
+			LIMIT :batchSize
+		)
+		UPDATE ref r
+		SET metadata = jsonb_strip_nulls(jsonb_build_object(
+			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+			'expandedTags', r.metadata->'expandedTags',
+			'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
+		))
+		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
+		""";
+
 	@PersistenceContext
 	private EntityManager em;
-
-	@Value("#{environment.matchesProfiles('archive')}")
-	boolean archive;
 
 	@Value("#{environment.matchesProfiles('no-metadata')}")
 	boolean noMetadata;
 
-	/**
-	 * Responses are filtered by their obsolete flag. Responses with missing
-	 * metadata are assumed to be obsolete.
-	 * Responses, plugin counts and cascade are not tracked when the
-	 * "no-metadata" profile is active.
-	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
-		String sql = """
-			WITH rows as (
-				SELECT url, origin, modified from ref
-				WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
-				AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
-				LIMIT :batchSize
-			)
-			UPDATE ref r
-			SET metadata = jsonb_strip_nulls(jsonb_build_object(
-				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
-			""" + (noMetadata ? "" : "," + """
-				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE (re.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
-				'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE (ire.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR ire.origin = :origin OR ire.origin LIKE concat(:origin, '.%')) AND ire.metadata IS NOT NULL AND COALESCE(ire.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal') = true),
-				'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
-					p.tag,
-					(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
-				) FROM plugin p WHERE p.origin = :origin)),
-				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
-			""") + """
-			))
-			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin
-			""" + (archive ? " AND r.modified = rows.modified)" : ")");
 		em.flush();
-		int updated = em.createNativeQuery(sql)
+		int updated = em.createNativeQuery(noMetadata ? BACKFILL_NO_METADATA : BACKFILL_METADATA)
 			.setParameter("origin", origin)
 			.setParameter("batchSize", batchSize)
 			.executeUpdate();

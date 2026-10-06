@@ -104,11 +104,16 @@ public class IngestUser {
 	}
 
 	/**
-	 * Hard delete. In archive mode this removes every version.
+	 * Hard delete. In archive mode this removes every version, including delete notices,
+	 * and is not replicated.
 	 */
 	@Timed(value = "jasper.user", histogram = true)
 	public void delete(String qualifiedTag) {
 		userRepository.deleteByQualifiedTag(qualifiedTag);
+		if (archive) {
+			if (!isDeletorTag(qualifiedTag)) userRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
+			return;
+		}
 		messages.deleteUser(qualifiedTag);
 	}
 

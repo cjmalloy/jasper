@@ -109,11 +109,16 @@ public class IngestPlugin {
 	}
 
 	/**
-	 * Hard delete. In archive mode this removes every version.
+	 * Hard delete. In archive mode this removes every version, including delete notices,
+	 * and is not replicated.
 	 */
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void delete(String qualifiedTag) {
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
+		if (archive) {
+			if (!isDeletorTag(qualifiedTag)) pluginRepository.deleteByQualifiedTag(deletorTag(qualifiedTag));
+			return;
+		}
 		messages.deletePlugin(qualifiedTag);
 	}
 
